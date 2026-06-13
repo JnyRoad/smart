@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FALLBACK_RANGES, REPAIR_TYPES, buildingsForRange } from './repair-options'
+import { FALLBACK_RANGES, REPAIR_TYPES, buildingsForRange, normalizeRepairOptions } from './repair-options'
 
 describe('repair options', () => {
   it('区域→楼栋联动表', () => {
@@ -16,5 +16,22 @@ describe('repair options', () => {
     expect(REPAIR_TYPES).toHaveLength(14)
     expect(REPAIR_TYPES[0]).toEqual({ code: 1, desc: '灯' })
     expect(REPAIR_TYPES[13]).toEqual({ code: 14, desc: '地漏' })
+  })
+
+  it('兼容接口 code/desc 与旧表单 label/value 形态，并过滤坏值', () => {
+    expect(
+      normalizeRepairOptions([
+        { code: '1', desc: '宿舍' },
+        { value: 2, label: '办公室' },
+        { code: null, desc: 'NULL' },
+        { value: 'x', label: '坏数据' },
+        { code: '', desc: '空 code' },
+        { value: '   ', label: '空白 value' },
+        { code: 0, desc: '零值' },
+      ]),
+    ).toEqual([
+      { code: 1, desc: '宿舍' },
+      { code: 2, desc: '办公室' },
+    ])
   })
 })

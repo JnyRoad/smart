@@ -8,6 +8,7 @@ import { ApprovalTimeline } from '@/components/approval-timeline'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getRepairDetail } from '@/features/dorm-services/api'
+import { repairDetailPhotos } from '@/features/dorm-services/repair-detail'
 import { RepairReplyList } from '@/features/dorm-services/repair-reply-list'
 import { toImageSrc } from '@/features/good-release/detail-blocks'
 
@@ -34,6 +35,7 @@ function RepairDetailInner() {
   if (!authorized) return null
 
   const info = detail.data?.code === 0 ? detail.data.data : undefined
+  const photos = repairDetailPhotos(info)
 
   return (
     <PageShell title="报修详情">
@@ -72,15 +74,13 @@ function RepairDetailInner() {
             />
             <InfoRow label="所在园区" value={info?.parkName} />
             <InfoRow label="故障描述" value={info?.faultDesc} />
-            {(info?.faultImgs?.length ?? 0) > 0 && (
+            {photos.length > 0 && (
               <div className="flex gap-2.5 py-2.5">
-                {info?.faultImgs?.slice(0, 3).map((img, index) => (
+                {photos.map((img, index) => (
                   <button
                     key={index}
                     type="button"
-                    onClick={() =>
-                      ImageViewer.Multi.show({ images: (info.faultImgs ?? []).map(toImageSrc), defaultIndex: index })
-                    }
+                    onClick={() => ImageViewer.Multi.show({ images: photos.map(toImageSrc), defaultIndex: index })}
                     className="relative h-[72px] w-[72px] overflow-hidden rounded-xl"
                   >
                     <Image src={toImageSrc(img)} alt="" fill unoptimized className="object-cover" />

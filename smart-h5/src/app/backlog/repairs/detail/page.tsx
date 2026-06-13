@@ -10,6 +10,7 @@ import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { replyRepair, updateRepairStatus } from '@/features/backlog/api'
 import { getRepairDetail } from '@/features/dorm-services/api'
+import { repairDetailPhotos } from '@/features/dorm-services/repair-detail'
 import { RepairReplyList } from '@/features/dorm-services/repair-reply-list'
 import { toImageSrc } from '@/features/good-release/detail-blocks'
 
@@ -56,7 +57,7 @@ function RepairApprovalDetailInner() {
     }
   }, [failed, detail.data?.message])
 
-  const photos = (info?.faultImgs ?? []).filter((img): img is string => !!img).slice(0, 3)
+  const photos = repairDetailPhotos(info)
 
   async function acceptOrDecline(nextStatus: 1 | 2) {
     if (submitting) return
