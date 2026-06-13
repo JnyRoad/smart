@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<!--
+  原型：门锁动态码
+  旧路由：/xuchang/dorm/lock
+  旧组件：smart-h5/src/views-mobile/pages/lock/index.vue + lock/edit-code.vue（修改弹窗）
+  接口：
+    GET  /dormitory/staff/get/pwd（badge，返回密文动态码，前端解密展示；空=未入住）
+    POST /dormitory/staff/update/lock/pwd（badge, newPwd）
+  校验：6 位纯数字（否则 toast「请输入6位数字动态码」）；不得与当前码相同（toast「请输入跟当前动态码不一样的新的动态码」）
+  状态：已入住（显示动态码）/ 未入住（alert「您暂未入住智能宿舍，请联系宿管入住！」→ /xuchang/dorm）/ 修改失败（错误弹窗）
+  跳转：返回 → /xuchang/dorm；刷新动态码（人脸）→ /xuchang/dorm/getCode（旧代码 Refresh() 保留入口）
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>门锁动态码</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-main); background: var(--surface); color: var(--yuto-black); }
+.app {
+  width: min(100%, 430px); margin: 0 auto; min-height: 100dvh;
+  background: var(--white); box-shadow: var(--shadow-large);
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+.app::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 220px;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, rgba(255,241,227,0) 100%);
+  pointer-events: none;
+}
+.topbar { position: relative; z-index: 2; padding: max(14px, env(safe-area-inset-top)) 6px 6px; display: flex; align-items: center; }
+.back-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; }
+.back-btn svg { width: 22px; height: 22px; stroke: var(--yuto-black); }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-spacer { width: 44px; }
+.demo-bar {
+  position: relative; z-index: 2; margin: 4px 16px 0; padding: 8px 12px;
+  background: var(--accent-soft); border: 1px dashed var(--brand-orange); border-radius: 12px;
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--accent-ink); flex-wrap: wrap;
+}
+.demo-bar button { border: 1px solid var(--brand-orange); background: var(--white); color: var(--brand-orange); border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; min-height: 28px; }
+.demo-bar button.on { background: var(--brand-orange); color: var(--white); }
+.code-card {
+  position: relative; z-index: 1; margin: 28px 16px 0; padding: 34px 18px 28px;
+  background: var(--white); border: 1px solid var(--border-soft); border-radius: 16px;
+  box-shadow: var(--shadow-panel); text-align: center;
+}
+.lock-badge { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 50%; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
+.lock-badge svg { width: 30px; height: 30px; stroke: var(--brand-orange); fill: none; stroke-width: 1.8; }
+.code-title { font-size: 16px; color: var(--mid-gray); }
+.code-num { margin: 18px 0 6px; font-size: 40px; font-weight: 750; letter-spacing: 10px; color: var(--yuto-black); padding-left: 10px; }
+.code-tip { font-size: 12px; color: var(--weak-gray); }
+.actions { position: relative; z-index: 1; padding: 22px 16px 0; display: flex; flex-direction: column; gap: 12px; }
+.btn-primary {
+  height: 48px; border-radius: 14px; border: none; background: var(--brand-orange);
+  color: var(--white); font-size: 16px; font-weight: 650; cursor: pointer;
+}
+.btn-primary:active { background: var(--accent-strong); }
+.btn-secondary {
+  height: 48px; border-radius: 14px; background: var(--white); border: 1px solid var(--border-soft);
+  color: var(--yuto-black); font-size: 16px; font-weight: 650; cursor: pointer; box-shadow: var(--shadow-panel);
+}
+.foot { margin-top: auto; padding: 18px 0 max(24px, env(safe-area-inset-bottom)); text-align: center; font-size: 12px; color: var(--weak-gray); }
+/* 弹窗 */
+.mask { position: fixed; inset: 0; background: rgba(89,87,87,0.45); display: none; align-items: center; justify-content: center; z-index: 10; padding: 24px; }
+.mask.show { display: flex; }
+.dialog { width: min(100%, 340px); background: var(--white); border-radius: 16px; overflow: hidden; }
+.dialog-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--border-soft); }
+.dialog-head .title { font-size: 15px; font-weight: 700; padding-left: 10px; }
+.dialog-head button { background: none; border: none; font-size: 14px; min-height: 44px; min-width: 44px; cursor: pointer; }
+.dialog-head .ok { color: var(--brand-orange); font-weight: 650; }
+.dialog-body { padding: 18px; }
+.form-label { font-size: 13px; color: var(--mid-gray); display: block; margin-bottom: 8px; }
+.form-label .req { color: var(--danger); }
+.form-input {
+  width: 100%; height: 48px; border-radius: 12px; border: 1px solid var(--border-soft);
+  padding: 0 14px; font-size: 16px; letter-spacing: 4px; color: var(--yuto-black); outline: none;
+}
+.form-input:focus { border-color: var(--brand-orange); box-shadow: 0 0 0 3px rgba(236,108,0,.22); }
+.form-err { font-size: 12px; color: var(--danger); margin-top: 8px; min-height: 16px; }
+/* alert 弹窗 */
+.alert-box { width: min(100%, 320px); background: var(--white); border-radius: 16px; padding: 26px 20px 16px; text-align: center; }
+.alert-box .icon { width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; background: rgba(216,59,54,0.12); display: flex; align-items: center; justify-content: center; }
+.alert-box .icon svg { width: 24px; height: 24px; stroke: var(--danger); }
+.alert-box .a-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.alert-box .a-text { font-size: 14px; color: var(--mid-gray); line-height: 1.6; }
+.alert-box .a-btn { margin-top: 18px; width: 100%; height: 44px; border: none; border-radius: 12px; background: var(--brand-orange); color: var(--white); font-size: 15px; font-weight: 650; cursor: pointer; }
+/* toast */
+.toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: rgba(89,87,87,0.92); color: var(--white); font-size: 13px; padding: 10px 18px; border-radius: 999px; display: none; z-index: 20; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <button class="back-btn" aria-label="返回" onclick="alert('原型演示：返回 /xuchang/dorm')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">门锁动态码</div>
+    <div class="topbar-spacer"></div>
+  </div>
+
+  <div class="demo-bar">
+    <span>原型演示</span>
+    <button id="s1" class="on" onclick="setState('in')">已入住</button>
+    <button id="s2" onclick="setState('out')">未入住</button>
+  </div>
+
+  <div class="code-card">
+    <div class="lock-badge">
+      <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.6"/></svg>
+    </div>
+    <div class="code-title">你的门锁动态码</div>
+    <div class="code-num" id="codeNum">638274</div>
+    <div class="code-tip">输入动态码即可开启宿舍智能门锁</div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" onclick="openEdit()">修改动态码</button>
+    <button class="btn-secondary" onclick="alert('原型演示：跳转 /xuchang/dorm/getCode（人脸识别刷新动态码）')">刷新动态码（人脸识别）</button>
+  </div>
+
+  <div class="foot">裕同智慧园区 · 高保真原型</div>
+</div>
+
+<!-- 修改动态码弹窗 -->
+<div class="mask" id="editMask" onclick="if(event.target===this)closeEdit()">
+  <div class="dialog">
+    <div class="dialog-head">
+      <span class="title">修改动态码</span>
+      <button class="ok" onclick="submitEdit()">确定</button>
+    </div>
+    <div class="dialog-body">
+      <label class="form-label">动态码 <span class="req">*</span></label>
+      <input class="form-input" id="newPwd" inputmode="numeric" maxlength="6" placeholder="请输入6位数字动态码">
+      <div class="form-err" id="editErr"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 未入住 alert -->
+<div class="mask" id="outMask">
+  <div class="alert-box">
+    <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 8v5"/><circle cx="12" cy="16.5" r="0.5"/><circle cx="12" cy="12" r="9.2"/></svg></div>
+    <div class="a-text">您暂未入住智能宿舍，请联系宿管入住！</div>
+    <button class="a-btn" onclick="confirmOut()">确定</button>
+  </div>
+</div>
+
+<!-- 修改失败错误 alert（演示后端 msg） -->
+<div class="mask" id="errMask">
+  <div class="alert-box">
+    <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 8v5"/><circle cx="12" cy="16.5" r="0.5"/><circle cx="12" cy="12" r="9.2"/></svg></div>
+    <div class="a-title">错误</div>
+    <div class="a-text">门锁离线，动态码下发失败，请稍后重试</div>
+    <button class="a-btn" onclick="document.getElementById('errMask').classList.remove('show')">确定</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var curCode = '638274';
+function setState(s) {
+  document.getElementById('s1').className = s === 'in' ? 'on' : '';
+  document.getElementById('s2').className = s === 'out' ? 'on' : '';
+  if (s === 'out') {
+    document.getElementById('codeNum').textContent = '******';
+    document.getElementById('outMask').classList.add('show');
+  } else {
+    document.getElementById('codeNum').textContent = curCode;
+  }
+}
+function confirmOut() {
+  document.getElementById('outMask').classList.remove('show');
+  showToast('原型演示：跳回 /xuchang/dorm');
+}
+function openEdit() {
+  document.getElementById('newPwd').value = '';
+  document.getElementById('editErr').textContent = '';
+  document.getElementById('editMask').classList.add('show');
+}
+function closeEdit() { document.getElementById('editMask').classList.remove('show'); }
+function submitEdit() {
+  var v = document.getElementById('newPwd').value;
+  if (!/^[0-9]{6}$/.test(v)) { showToast('请输入6位数字动态码'); return; }
+  if (v === curCode) { showToast('请输入跟当前动态码不一样的新的动态码'); return; }
+  // 演示：输入 000000 模拟后端失败，其余视为成功
+  if (v === '000000') {
+    closeEdit();
+    document.getElementById('errMask').classList.add('show');
+    return;
+  }
+  curCode = v;
+  document.getElementById('codeNum').textContent = curCode;
+  closeEdit();
+  showToast('修改成功，已重新获取动态码');
+}
+var toastTimer = null;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.style.display = 'none'; }, 2200);
+}
+</script>
+</body>
+</html>

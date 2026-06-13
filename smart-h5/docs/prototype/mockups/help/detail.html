@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<!--
+  原型：帮助文档详情（问题答案富文本）
+  旧路由：/xuchang/help/detail?id={questionId}
+  旧组件：views-mobile/pages/help/detail.vue
+  接口：
+    GET /guide/help/question/answer/{id}（返回 answerContent 富文本；失败 toast message||「网络错误」）
+  交互：
+    富文本内图片点击 → 全屏图片预览器（收集页面内所有 img，支持多图索引切换）
+  跳转：返回箭头 → /xuchang/help
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>裕同智慧园区 · 问题详情</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button { font: inherit; border: 0; cursor: pointer; background: none; color: inherit; padding: 0; }
+.app { width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); position: relative; overflow: hidden; }
+.page { min-height: 100dvh; padding-bottom: max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,.35) 150px, var(--surface) 240px); }
+.demo-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #3A3838; color: #fff; font-size: 12px; overflow-x: auto; }
+.demo-bar .tag { flex: none; font-weight: 750; color: #FFC58A; }
+.demo-bar button { flex: none; min-height: 28px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-size: 12px; }
+.demo-bar button.on { background: var(--brand-orange); font-weight: 650; }
+.topbar { display: flex; align-items: center; padding: max(14px, env(safe-area-inset-top)) 8px 6px; }
+.back { width: 44px; height: 44px; display: grid; place-items: center; color: var(--yuto-black); }
+.title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .ph { width: 44px; }
+
+.article { margin: 6px 16px 0; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 18px; }
+.q-line { display: flex; gap: 10px; align-items: flex-start; padding-bottom: 14px; border-bottom: 1px solid var(--border-soft); }
+.q-badge { flex: none; width: 26px; height: 26px; border-radius: 9px; background: var(--accent-soft); color: var(--accent-strong); display: grid; place-items: center; font-size: 13px; font-weight: 750; }
+.q-line h1 { margin: 2px 0 0; font-size: 16px; font-weight: 750; line-height: 1.5; }
+.rich { padding-top: 14px; font-size: 14.5px; line-height: 1.85; color: var(--yuto-black); }
+.rich p { margin: 0 0 12px; }
+.rich strong { color: var(--accent-strong); }
+.rich ol { margin: 0 0 12px; padding-left: 20px; }
+.rich li { margin-bottom: 6px; }
+.rich .img { width: 100%; border-radius: 12px; border: 1px solid var(--border-soft); display: block; margin: 4px 0 12px; cursor: zoom-in; }
+.rich .img svg { display: block; width: 100%; height: auto; border-radius: 12px; }
+.img-cap { font-size: 12px; color: var(--weak-gray); text-align: center; margin: -6px 0 12px; }
+
+/* 全屏图片预览器 */
+.viewer { position: absolute; inset: 0; background: rgba(20,19,19,.96); z-index: 50; display: none; flex-direction: column; }
+.viewer.show { display: flex; }
+.viewer .v-stage { flex: 1; display: grid; place-items: center; padding: 24px 16px; }
+.viewer .v-stage > div { width: 100%; }
+.viewer .v-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 8px max(20px, env(safe-area-inset-bottom)); color: #fff; }
+.viewer .v-bar button { width: 44px; height: 44px; display: grid; place-items: center; color: #fff; }
+.viewer .v-idx { font-size: 13px; color: rgba(255,255,255,.8); }
+.viewer .v-close { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 8px; width: 44px; height: 44px; display: grid; place-items: center; color: #fff; }
+
+.note { padding: 16px 18px 0; font-size: 11px; color: var(--weak-gray); line-height: 1.6; }
+.toast { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); background: rgba(58,56,56,.92); color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 999px; display: none; z-index: 60; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="demo-bar">
+    <span class="tag">原型演示</span>
+    <button class="on" data-state="normal">正常</button>
+    <button data-state="preview">图片预览</button>
+    <button data-state="fail">加载失败</button>
+  </div>
+
+  <div class="page">
+    <div class="topbar">
+      <button class="back" onclick="demoToast('返回 /xuchang/help')" aria-label="返回">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="title">问题详情</span>
+      <span class="ph"></span>
+    </div>
+
+    <!-- 答案富文本（answerContent，v-html 渲染） -->
+    <div class="article" id="article">
+      <div class="q-line">
+        <span class="q-badge">问</span>
+        <h1>门锁动态码忘记了怎么办？</h1>
+      </div>
+      <div class="rich">
+        <p>若忘记宿舍智能门锁的 6 位动态码，可按以下步骤自助找回或重置：</p>
+        <ol>
+          <li>打开「裕同智慧园区」，进入 <strong>我的宿舍 → 门锁动态码</strong>，页面会直接展示当前动态码；</li>
+          <li>如需更换，点击 <strong>修改动态码</strong>，输入新的 6 位纯数字密码（不能与当前动态码相同）；</li>
+          <li>若提示「您暂未入住智能宿舍」，请先联系宿管完成入住登记。</li>
+        </ol>
+        <div class="img" data-idx="0" onclick="openViewer(0)">
+          <svg viewBox="0 0 360 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="门锁动态码页面示意图">
+            <rect width="360" height="200" rx="12" fill="#FFF1E3"/>
+            <rect x="110" y="26" width="140" height="148" rx="14" fill="#fff" stroke="#E5E3E3"/>
+            <text x="180" y="62" text-anchor="middle" font-size="13" fill="#8C8A8A">你的门锁动态码</text>
+            <text x="180" y="105" text-anchor="middle" font-size="28" font-weight="800" fill="#EC6C00" letter-spacing="4">582934</text>
+            <rect x="128" y="130" width="104" height="28" rx="14" fill="#EC6C00"/>
+            <text x="180" y="149" text-anchor="middle" font-size="12" fill="#fff">修改动态码</text>
+          </svg>
+        </div>
+        <p class="img-cap">图 1：门锁动态码页面（点击图片可全屏预览）</p>
+        <p>仍无法解决时，请携带工牌到宿管中心人工处理，或在「园区报修」中提交门锁故障工单。</p>
+        <div class="img" data-idx="1" onclick="openViewer(1)">
+          <svg viewBox="0 0 360 140" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="宿管中心服务时间示意图">
+            <rect width="360" height="140" rx="12" fill="#F7F7F7"/>
+            <rect x="20" y="20" width="320" height="100" rx="12" fill="#fff" stroke="#E5E3E3"/>
+            <text x="180" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#595757">宿管中心服务时间</text>
+            <text x="180" y="82" text-anchor="middle" font-size="12" fill="#8C8A8A">工作日 08:30 - 20:00</text>
+            <text x="180" y="102" text-anchor="middle" font-size="12" fill="#8C8A8A">值班电话 0374-2685 117</text>
+          </svg>
+        </div>
+        <p class="img-cap">图 2：宿管中心服务时间</p>
+      </div>
+    </div>
+
+    <p class="note">注：本页内容来自 GET /guide/help/question/answer/{id} 的 answerContent 富文本；富文本内所有图片自动收集，点击任一图片进入全屏预览并支持多图索引切换。</p>
+  </div>
+
+  <!-- 全屏图片预览器 -->
+  <div class="viewer" id="viewer">
+    <button class="v-close" onclick="closeViewer()" aria-label="关闭">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="v-stage" id="vStage"></div>
+    <div class="v-bar">
+      <button onclick="stepViewer(-1)" aria-label="上一张">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="v-idx" id="vIdx">1 / 2</span>
+      <button onclick="stepViewer(1)" aria-label="下一张">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function demoToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.style.display = 'none'; }, 1800);
+}
+// 收集富文本内全部图片（旧版逻辑：getElementsByTagName('img') 收集 → 点击打开预览器并定位索引）
+var imgs = Array.prototype.slice.call(document.querySelectorAll('.rich .img'));
+var vi = 0;
+function renderViewer(){
+  document.getElementById('vStage').innerHTML = '<div>' + imgs[vi].innerHTML + '</div>';
+  document.getElementById('vIdx').textContent = (vi + 1) + ' / ' + imgs.length;
+}
+function openViewer(i){ vi = i; renderViewer(); document.getElementById('viewer').classList.add('show'); }
+function closeViewer(){ document.getElementById('viewer').classList.remove('show'); }
+function stepViewer(d){ vi = (vi + d + imgs.length) % imgs.length; renderViewer(); }
+document.querySelectorAll('.demo-bar button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.demo-bar button').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    closeViewer();
+    switch(btn.dataset.state){
+      case 'preview': openViewer(0); break;
+      case 'fail': demoToast('网络错误'); break;
+    }
+  });
+});
+</script>
+</body>
+</html>

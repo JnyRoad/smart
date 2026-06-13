@@ -1,0 +1,172 @@
+<!doctype html>
+<!--
+  原型：访客-添加随行人员
+  旧路由：/xuchang/visitor/addPerson
+  旧组件：smart-h5/src/views-mobile/pages/visitor/add-person.vue
+  接口：
+    GET  /admittance/apply/enum/person/cert  人员证件类型枚举（旧页加载，表单未实际使用选择）
+    POST /file/upload/face                   人脸照片上传（照片组件内，带人脸检测）
+  跳转：提交（身份证校验 → 写 localStorage fellowInfo）→ /xuchang/visitor/addPersonList
+  状态：新增模式 / 编辑模式（query: itemInfo + itemIndex + isEdit=true 回填）
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>添加随行人员 - 裕同智慧园区</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; min-height: 100dvh; }
+    button, input { font: inherit; color: inherit; }
+    button { border: 0; cursor: pointer; background: none; }
+    button:focus-visible, input:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 220px) var(--white);
+      box-shadow: var(--shadow-large); display: flex; flex-direction: column;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+    .demo-bar {
+      margin: 0 16px 10px; padding: 8px 12px; border-radius: 12px;
+      background: rgba(89, 87, 87, 0.06); border: 1px dashed var(--light-gray);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--mid-gray); letter-spacing: 1px; }
+    .demo-bar button {
+      min-height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 650;
+      background: var(--white); border: 1px solid var(--light-gray); color: var(--mid-gray);
+    }
+    .demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: var(--white); }
+    .topbar { display: flex; align-items: center; min-height: 48px; padding: 0 6px; }
+    .back-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+    .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; margin: 0; }
+    .topbar-spacer { width: 44px; }
+    .content { flex: 1; padding: 8px 16px 120px; }
+    .card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 18px 16px; margin-bottom: 12px; }
+    .card-title { font-size: 15px; font-weight: 750; margin: 0 0 14px; }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 7px; }
+    .req::after { content: " *"; color: var(--danger); }
+    .input {
+      width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+      border-radius: 12px; background: var(--white); font-size: 15px;
+    }
+    .input::placeholder { color: var(--weak-gray); }
+    .input:focus { outline: 3px solid rgba(236, 108, 0, 0.22); border-color: var(--brand-orange); }
+    .field-hint { margin-top: 6px; font-size: 12px; color: var(--weak-gray); }
+    /* 人脸照片上传 */
+    .upload-box {
+      width: 112px; height: 112px; border: 1.5px dashed var(--light-gray); border-radius: 12px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+      color: var(--weak-gray); font-size: 12px; background: #FBFBFB;
+    }
+    .upload-box.filled {
+      border-style: solid; border-color: var(--border-soft); background: var(--accent-soft);
+      color: var(--accent-ink); position: relative;
+    }
+    .upload-box.filled .remove {
+      position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 999px;
+      background: var(--danger); color: var(--white); font-size: 13px; line-height: 22px; text-align: center;
+    }
+    .footer {
+      position: sticky; bottom: 0; padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 30%);
+    }
+    .btn-primary {
+      width: 100%; height: 48px; border-radius: 14px; background: var(--brand-orange);
+      color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .btn-primary:active { background: var(--accent-strong); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="demo-bar" role="group" aria-label="原型演示状态切换">
+      <span class="demo-tag">原型演示</span>
+      <button id="demoAdd" class="on" onclick="setMode(false)">新增模式</button>
+      <button id="demoEdit" onclick="setMode(true)">编辑模式</button>
+    </div>
+
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回随行人员列表" title="返回 /xuchang/visitor/addPersonList">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 3.75 6.25 10l6.25 6.25" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1 class="page-title" id="pageTitle">添加随行人员</h1>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="content">
+      <section class="card">
+        <h2 class="card-title">随行人员信息</h2>
+
+        <div class="field">
+          <label class="field-label req" for="fellowName">访客姓名</label>
+          <input class="input" id="fellowName" placeholder="请输入" value="">
+          <p class="field-hint">为空时提示「请输入」</p>
+        </div>
+
+        <div class="field">
+          <span class="field-label req">访客照片</span>
+          <div id="uploadEmpty" class="upload-box" role="button" tabindex="0" aria-label="上传人脸照片">
+            <svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="9.5" r="4.5" stroke="#AAA7A7" stroke-width="1.8" fill="none"/><path d="M4.5 22c1.4-4 4.6-6 8.5-6s7.1 2 8.5 6" stroke="#AAA7A7" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+            <span>上传人脸照片</span>
+          </div>
+          <div id="uploadFilled" class="upload-box filled" hidden>
+            <svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="11" r="5" stroke="#5A2600" stroke-width="1.8" fill="none"/><path d="M5.5 25c1.6-4.4 5.2-6.6 9.5-6.6s7.9 2.2 9.5 6.6" stroke="#5A2600" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+            <span>人脸照片.jpg</span>
+            <span class="remove" role="button" aria-label="删除照片">×</span>
+          </div>
+          <p class="field-hint">单张人脸照片，上传时做人脸检测（POST /file/upload/face）</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label req" for="certNo">证件号码</label>
+          <input class="input" id="certNo" placeholder="请输入" value="">
+          <p class="field-hint">按身份证规则校验，格式/校验位错误时 toast 提示</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <button class="btn-primary" id="submitBtn" title="校验通过后写入 fellowInfo 并跳转 /xuchang/visitor/addPersonList">确认添加随行人员</button>
+    </footer>
+  </div>
+
+  <script>
+    // 原型演示：新增 / 编辑两种模式（编辑模式由 query itemInfo/itemIndex/isEdit 进入并回填表单）
+    function setMode(isEdit) {
+      document.getElementById('demoAdd').classList.toggle('on', !isEdit);
+      document.getElementById('demoEdit').classList.toggle('on', isEdit);
+      document.getElementById('pageTitle').textContent = isEdit ? '修改随行人员' : '添加随行人员';
+      document.getElementById('submitBtn').textContent = isEdit ? '确认修改随行人员' : '确认添加随行人员';
+      document.getElementById('fellowName').value = isEdit ? '陈晓梅' : '';
+      document.getElementById('certNo').value = isEdit ? '411023199203154027' : '';
+      document.getElementById('uploadEmpty').hidden = isEdit;
+      document.getElementById('uploadFilled').hidden = !isEdit;
+    }
+  </script>
+</body>
+</html>

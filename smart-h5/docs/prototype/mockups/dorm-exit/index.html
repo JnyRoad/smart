@@ -1,0 +1,219 @@
+<!doctype html>
+<!--
+  原型：退宿申请（发起页）
+  旧路由：/xuchang/dormExit（meta: 退宿申请）
+  旧组件：smart-h5/src/views-mobile/pages/dorm-exit/index.vue
+          + views-mobile/components/page3-tab.vue / page3-bottom.vue
+  接口：
+    GET  app:/appdormitory/roomList/{staffBadge}   查询本人宿舍房间（services/goodRreleaseLive.js getRoomDetail）
+    POST platform:/dor/quit/apply                  提交退宿申请（services/dormExit.js saveDormExit）
+  跳转：切换条「查看数据」→ /xuchang/dormExit/list；提交成功 → /xuchang/dormExit/list
+  备注：旧代码切换条「发起提交」误跳 /xuchang/dormRepairs（疑似 bug），原型按停留本页处理。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>退宿申请 - 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: var(--surface); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { border: 0; cursor: pointer; background: none; padding: 0; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app {
+  position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--white);
+  box-shadow: var(--shadow-large); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.topbar {
+  display: flex; align-items: center; min-height: 46px;
+  padding: max(14px, env(safe-area-inset-top)) 6px 4px;
+}
+.topbar .back {
+  width: 44px; height: 44px; display: grid; place-items: center; color: var(--yuto-black);
+}
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .spacer { width: 44px; }
+.seg-tab {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  margin: 8px 18px 0; padding: 4px; border-radius: 14px;
+  background: rgba(236,108,0,.10);
+}
+.seg-tab button {
+  min-height: 40px; border-radius: 11px; font-size: 14px; font-weight: 650;
+  color: var(--accent-ink); text-align: center;
+}
+.seg-tab button.cur { background: var(--brand-orange); color: var(--white); box-shadow: 0 6px 16px rgba(236,108,0,.28); }
+.content { flex: 1; padding: 14px 18px 110px; }
+.card {
+  background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel);
+  padding: 16px; margin-bottom: 12px;
+}
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field-label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 6px; }
+.field-label .req { color: var(--danger); margin-left: 2px; }
+.picker, .input {
+  width: 100%; min-height: 48px; border: 1px solid var(--border-soft); border-radius: 12px;
+  background: var(--white); padding: 0 14px; display: flex; align-items: center; justify-content: space-between;
+  font-size: 15px; text-align: left;
+}
+.picker .ph, .input::placeholder { color: var(--weak-gray); }
+.picker .val { color: var(--yuto-black); }
+.picker svg { flex: none; margin-left: 8px; }
+textarea.input { min-height: 88px; padding: 12px 14px; resize: vertical; display: block; width: 100%; }
+.room-chips { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.room-chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 44px; padding: 0 6px 0 14px; border-radius: 12px;
+  background: var(--accent-soft); color: var(--accent-ink); font-size: 14px; font-weight: 650;
+}
+.room-chip .del { width: 44px; height: 44px; display: grid; place-items: center; color: var(--danger); }
+.upload-row { display: flex; gap: 10px; }
+.upload-thumb {
+  width: 72px; height: 72px; border-radius: 12px; overflow: hidden; position: relative;
+  border: 1px solid var(--border-soft); background: var(--surface);
+}
+.upload-thumb svg { width: 100%; height: 100%; display: block; }
+.upload-add {
+  width: 72px; height: 72px; border-radius: 12px; border: 1.5px dashed var(--light-gray);
+  display: grid; place-items: center; color: var(--weak-gray); background: #FBFBFB;
+}
+.hint { margin-top: 8px; font-size: 12px; color: var(--weak-gray); }
+.bottom-bar {
+  position: sticky; bottom: 0; padding: 12px 18px max(24px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 30%);
+}
+.btn-primary {
+  width: 100%; min-height: 48px; border-radius: 14px; background: var(--brand-orange);
+  color: var(--white); font-size: 16px; font-weight: 650;
+}
+.btn-primary:active { background: var(--accent-strong); }
+.toast {
+  position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%);
+  background: rgba(89,87,87,.92); color: var(--white); font-size: 13px;
+  padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity .25s;
+  max-width: 80vw; text-align: center; z-index: 9;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回 /xuchang/home" onclick="location.href='../home/index.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>退宿申请</h1>
+    <span class="spacer"></span>
+  </header>
+
+  <nav class="seg-tab" aria-label="模块切换">
+    <button class="cur">发起提交</button>
+    <button onclick="toast('原型演示：跳转 /xuchang/dormExit/list')">查看数据</button>
+  </nav>
+
+  <main class="content">
+    <section class="card">
+      <div class="field">
+        <span class="field-label">房间信息<span class="req">*</span></span>
+        <button class="picker" onclick="addRoom()">
+          <span class="ph">请选择（来自本人在住房间）</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 5.5 7 8.5l3-3" stroke="#AAA7A7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <!-- 已选房间列表：可多选、可删除，重复选择自动去重 -->
+        <div class="room-chips" id="roomChips">
+          <div class="room-chip">老工厂2号宿舍/302号房
+            <button class="del" aria-label="删除该房间" onclick="this.parentElement.remove()">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4.5h8M6.5 4.5v-1h3v1M5 4.5l.6 8h4.8l.6-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <span class="field-label">退宿原因<span class="req">*</span></span>
+        <button class="picker" onclick="toast('原型演示：选项 离职 / 自离 / 外宿')">
+          <span class="val">离职</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 5.5 7 8.5l3-3" stroke="#AAA7A7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="field">
+        <span class="field-label">预计离开日期<span class="req">*</span></span>
+        <button class="picker" onclick="toast('原型演示：日期时间选择器')">
+          <span class="val">2026-06-15 09:00</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 5.5 7 8.5l3-3" stroke="#AAA7A7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="field">
+        <span class="field-label">备注</span>
+        <textarea class="input" placeholder="请输入" rows="3">月底离职，行李已基本搬空，钥匙交宿管。</textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="field">
+        <span class="field-label">上传物品照片</span>
+        <div class="upload-row">
+          <div class="upload-thumb" aria-label="物品照片 1">
+            <svg viewBox="0 0 72 72"><rect width="72" height="72" fill="#FFF1E3"/><circle cx="24" cy="26" r="7" fill="#EC6C00" opacity=".55"/><path d="M8 58 30 36l14 14 10-10 12 12v6H8Z" fill="#EC6C00" opacity=".35"/></svg>
+          </div>
+          <button class="upload-add" aria-label="添加照片" onclick="toast('原型演示：调起相机/相册')">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <p class="hint">详情页最多展示 3 张照片</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="bottom-bar">
+    <button class="btn-primary" onclick="apply()">申请</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function addRoom(){
+  // 模拟从接口返回的本人房间选项中再选一间（去重）
+  const name = '新工厂宿舍楼/518号房';
+  const wrap = document.getElementById('roomChips');
+  if ([...wrap.children].some(c => c.textContent.trim().startsWith(name))) { toast('该房间已选择'); return; }
+  const chip = document.createElement('div');
+  chip.className = 'room-chip';
+  chip.innerHTML = name + '<button class="del" aria-label="删除该房间" onclick="this.parentElement.remove()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4.5h8M6.5 4.5v-1h3v1M5 4.5l.6 8h4.8l.6-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+  wrap.appendChild(chip);
+}
+function apply(){
+  if (document.getElementById('roomChips').children.length === 0) { toast('请选择退宿房间！'); return; }
+  toast('申请成功（原型演示：跳转列表页）');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!doctype html>
+<!--
+  原型：访客-添加车辆
+  旧路由：/xuchang/visitor/addCar
+  旧组件：smart-h5/src/views-mobile/pages/visitor/add-car.vue
+  接口：
+    GET /admittance/apply/enum/vehicle/cert   车辆证件类型枚举
+    GET /admittance/apply/enum/vehicle/type   车辆类型枚举（旧 UI 已停用，仅加载）
+    GET /admittance/apply/enum/vehicle/color  车辆颜色枚举（旧 UI 已停用，仅加载）
+  跳转：提交（写 localStorage carList）→ /xuchang/visitor/addCarList
+  状态：新增模式 / 编辑模式（query: itemInfo + itemIndex + isEdit）
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>添加车辆 - 裕同智慧园区</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; min-height: 100dvh; }
+    button, input, select { font: inherit; color: inherit; }
+    button { border: 0; cursor: pointer; background: none; }
+    button:focus-visible, input:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 220px) var(--white);
+      box-shadow: var(--shadow-large);
+      display: flex; flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 0 0;
+    }
+    .demo-bar {
+      margin: 0 16px 10px; padding: 8px 12px; border-radius: 12px;
+      background: rgba(89, 87, 87, 0.06); border: 1px dashed var(--light-gray);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--mid-gray); letter-spacing: 1px; }
+    .demo-bar button {
+      min-height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 650;
+      background: var(--white); border: 1px solid var(--light-gray); color: var(--mid-gray);
+    }
+    .demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: var(--white); }
+    .topbar { display: flex; align-items: center; min-height: 48px; padding: 0 6px; }
+    .back-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+    .back-btn svg { display: block; }
+    .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+    .topbar-spacer { width: 44px; }
+    .content { flex: 1; padding: 8px 16px 120px; }
+    .card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 18px 16px; margin-bottom: 12px; }
+    .card-title { font-size: 15px; font-weight: 750; margin: 0 0 14px; }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 7px; }
+    .req::after { content: " *"; color: var(--danger); }
+    .input, .picker {
+      width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+      border-radius: 12px; background: var(--white); font-size: 15px;
+    }
+    .input::placeholder { color: var(--weak-gray); }
+    .input:focus { outline: 3px solid rgba(236, 108, 0, 0.22); border-color: var(--brand-orange); }
+    .picker { display: flex; align-items: center; justify-content: space-between; text-align: left; }
+    .picker .ph { color: var(--weak-gray); }
+    .picker svg { flex: none; }
+    /* 车牌输入：省份键 + 号码 */
+    .plate-row { display: flex; gap: 8px; }
+    .plate-prov {
+      flex: none; width: 64px; height: 48px; border: 1px solid var(--border-soft); border-radius: 12px;
+      background: var(--accent-soft); color: var(--accent-ink); font-weight: 750; font-size: 16px;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .plate-num { flex: 1; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+    .field-hint { margin-top: 6px; font-size: 12px; color: var(--weak-gray); }
+    /* 上传 */
+    .upload-box {
+      width: 112px; height: 112px; border: 1.5px dashed var(--light-gray); border-radius: 12px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+      color: var(--weak-gray); font-size: 12px; background: #FBFBFB;
+    }
+    .upload-box.filled { border-style: solid; border-color: var(--border-soft); background: var(--accent-soft); color: var(--accent-ink); position: relative; }
+    .upload-box.filled .remove {
+      position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 999px;
+      background: var(--danger); color: var(--white); font-size: 13px; line-height: 22px; text-align: center;
+    }
+    .footer {
+      position: sticky; bottom: 0; padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 30%);
+    }
+    .btn-primary {
+      width: 100%; height: 48px; border-radius: 14px; background: var(--brand-orange);
+      color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .btn-primary:active { background: var(--accent-strong); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="demo-bar" role="group" aria-label="原型演示状态切换">
+      <span class="demo-tag">原型演示</span>
+      <button id="demoAdd" class="on" onclick="setMode(false)">新增模式</button>
+      <button id="demoEdit" onclick="setMode(true)">编辑模式</button>
+    </div>
+
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回车辆列表" title="返回 /xuchang/visitor/addCarList">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 3.75 6.25 10l6.25 6.25" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1 class="page-title" id="pageTitle">添加车辆</h1>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="content">
+      <section class="card">
+        <h2 class="card-title">车辆信息</h2>
+
+        <div class="field">
+          <label class="field-label req" for="plateNum">车牌号</label>
+          <div class="plate-row">
+            <button type="button" class="plate-prov" aria-label="选择省份简称">
+              <span id="plateProv">豫</span>
+              <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" stroke="#5A2600" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <input class="input plate-num" id="plateNum" placeholder="请输入" value="">
+          </div>
+          <p class="field-hint">使用车牌专用键盘输入，如 豫A·D8326</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label req" for="driverName">司机姓名</label>
+          <input class="input" id="driverName" placeholder="请输入" value="王建国">
+          <p class="field-hint">默认带入访客姓名，可修改；为空时提示「请输入司机姓名」</p>
+        </div>
+
+        <div class="field">
+          <span class="field-label req">证件类型</span>
+          <button type="button" class="picker" aria-label="请选择证件类型，当前：身份证复印件">
+            <span id="certType">身份证复印件</span>
+            <svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" stroke="#AAA7A7" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <p class="field-hint">选项来自接口枚举，默认「身份证复印件」</p>
+        </div>
+
+        <div class="field">
+          <span class="field-label req">证件照片</span>
+          <div id="uploadEmpty" class="upload-box" role="button" tabindex="0" aria-label="请上传证件照片">
+            <svg width="26" height="26" viewBox="0 0 26 26"><rect x="3" y="6" width="20" height="15" rx="3" stroke="#AAA7A7" stroke-width="1.8" fill="none"/><circle cx="13" cy="13.5" r="4" stroke="#AAA7A7" stroke-width="1.8" fill="none"/><path d="M9 6l1.5-2.5h5L17 6" stroke="#AAA7A7" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>请上传证件照片</span>
+          </div>
+          <div id="uploadFilled" class="upload-box filled" hidden>
+            <svg width="30" height="30" viewBox="0 0 30 30"><rect x="3" y="6" width="24" height="18" rx="3" stroke="#5A2600" stroke-width="1.8" fill="none"/><circle cx="10" cy="13" r="2.6" stroke="#5A2600" stroke-width="1.8" fill="none"/><path d="M14 17h10M14 21h7" stroke="#5A2600" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <span>身份证复印件.jpg</span>
+            <span class="remove" role="button" aria-label="删除照片">×</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <button class="btn-primary" id="submitBtn" title="校验通过后写入 carList 并跳转 /xuchang/visitor/addCarList">确认添加车辆</button>
+    </footer>
+  </div>
+
+  <script>
+    // 原型演示：新增 / 编辑两种模式（编辑模式由 query itemInfo/itemIndex/isEdit 进入并回填表单）
+    function setMode(isEdit) {
+      document.getElementById('demoAdd').classList.toggle('on', !isEdit);
+      document.getElementById('demoEdit').classList.toggle('on', isEdit);
+      document.getElementById('pageTitle').textContent = isEdit ? '修改车辆' : '添加车辆';
+      document.getElementById('submitBtn').textContent = isEdit ? '确认修改车辆' : '确认添加车辆';
+      document.getElementById('plateProv').textContent = '豫';
+      document.getElementById('plateNum').value = isEdit ? 'A·D8326' : '';
+      document.getElementById('driverName').value = isEdit ? '李志强' : '王建国';
+      document.getElementById('uploadEmpty').hidden = isEdit;
+      document.getElementById('uploadFilled').hidden = !isEdit;
+    }
+  </script>
+</body>
+</html>

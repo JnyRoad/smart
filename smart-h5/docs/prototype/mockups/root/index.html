@@ -1,0 +1,80 @@
+<!doctype html>
+<!--
+  原型：根工作台占位页
+  旧路由：/
+  旧组件：src/views-mobile/index.vue（容器：views-mobile/layout.vue，仅 router-view）
+  接口：无
+  跳转：无（旧页仅一行占位文字；真实工作台为 /xuchang/home，不属本页）
+  说明：净室重写原型，未复用旧仓库任何代码。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>裕同智慧园区 · 主页</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body {
+      min-height: 100dvh; margin: 0;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--surface);
+    }
+    .app {
+      width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: var(--white); box-shadow: var(--shadow-large);
+      display: flex; flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+    }
+    .topbar { display: flex; align-items: center; min-height: 46px; }
+    .brand-wordmark { font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+    .brand-wordmark em { font-style: normal; color: var(--brand-orange); }
+    .placeholder {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      text-align: center; padding: 24px 0 60px;
+    }
+    .placeholder-icon {
+      width: 88px; height: 88px; border-radius: 999px; background: var(--accent-soft);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .placeholder-title { font-size: 16px; font-weight: 700; color: var(--yuto-black); margin: 0; }
+    .placeholder-sub { font-size: 13px; color: var(--weak-gray); margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <span class="brand-wordmark">裕同<em>智慧园区</em></span>
+    </header>
+    <main class="placeholder">
+      <div class="placeholder-icon" aria-hidden="true">
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 38V18L22 7l14 11v20H26v-12h-8v12H8z" stroke="#EC6C00" stroke-width="2.4" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </div>
+      <!-- 旧页唯一内容：一行占位文字，功能不增不减 -->
+      <p class="placeholder-title">智慧园区许昌园区项目H5-主页</p>
+      <p class="placeholder-sub">根路径占位页 · 业务工作台位于 /xuchang/home</p>
+    </main>
+  </div>
+</body>
+</html>

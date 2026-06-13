@@ -1,0 +1,260 @@
+<!doctype html>
+<!--
+  原型：物品放行（生活区）- 记录详情
+  旧路由：/xuchang/goodReleaseLive/detail?id=
+  旧组件：smart-h5/src/views-mobile/pages/good-release-live/detail.vue
+          （引用 components/process 审批流程时间线、tce-image 图片预览）
+  接口：
+    - GET platform /articlesrelease/detail/{id}
+  放行码区状态事实（互斥）：
+    - expire=true 且 status<4 → 占位图 +「放行码已过期」
+    - status=4               → 占位图 +「已出厂」
+    - qrCodePic 且 status=2 且未过期 → 二维码 +「【温馨提示】在门卫处出示放行码」（门卫微信扫码核验）
+    - 其余状态（1 待审批 / 3 已拒绝）不显示放行码区
+  放行信息块：仅 status=4 或 5 显示（状态/放行人员/离场时间/备注）
+  跳转：无（返回上级）
+  净室声明：仅复刻功能事实与界面文案，未复制旧代码。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行（生活区）· 详情</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button { border: 0; cursor: pointer; background: none; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--surface); }
+.topbar { display: flex; align-items: center; min-height: 46px; margin-bottom: 8px; }
+.back { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; border-radius: 12px; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .ph { width: 44px; }
+.demo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 12px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,255,255,.7); }
+.demo b { font-size: 12px; color: var(--accent-ink); font-weight: 650; }
+.demo button { min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--light-gray); background: var(--white); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo button.on { border-color: var(--brand-orange); background: var(--accent-soft); color: var(--accent-strong); }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.card h2 { margin: 0 0 10px; font-size: 14px; font-weight: 750; }
+/* 放行码区 */
+.qr-card { text-align: center; padding: 26px 16px 20px; }
+.qr-box { width: 196px; height: 196px; margin: 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 16px; }
+.qr-tip { margin: 14px 0 0; font-size: 13px; color: var(--mid-gray); }
+.qr-state { display: none; }
+body[data-state="approved"] #qrLive { display: block; }
+body[data-state="expired"]  #qrExpired { display: block; }
+body[data-state="left"]     #qrLeft { display: block; }
+body[data-state="pending"] .qr-card, body[data-state="rejected"] .qr-card { display: none; }
+body[data-state="abnormal"] .qr-card { display: none; }
+/* 信息行 */
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); margin-bottom: 4px; }
+.head-row .name { font-size: 18px; font-weight: 750; }
+.face { width: 56px; height: 56px; border-radius: 14px; overflow: hidden; flex: none; }
+.face svg { display: block; }
+.rows { margin: 0; }
+.row { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-soft); font-size: 14px; }
+.row:last-child { border-bottom: 0; }
+.row dt { flex: none; width: 72px; margin: 0; color: var(--mid-gray); }
+.row dd { flex: 1; margin: 0; line-height: 1.5; }
+.thumbs { display: flex; gap: 8px; }
+.thumbs svg { width: 64px; height: 64px; border-radius: 10px; display: block; cursor: zoom-in; }
+.thumb-hint { margin: 6px 0 0; font-size: 12px; color: var(--weak-gray); }
+/* 审批流程时间线 */
+.tl { list-style: none; margin: 0; padding: 0; }
+.tl li { position: relative; padding: 0 0 18px 24px; }
+.tl li:last-child { padding-bottom: 0; }
+.tl li::before { content: ""; position: absolute; left: 5px; top: 6px; width: 8px; height: 8px; border-radius: 999px; background: var(--brand-orange); }
+.tl li::after { content: ""; position: absolute; left: 8.5px; top: 18px; bottom: 2px; width: 1.5px; background: var(--light-gray); }
+.tl li:last-child::after { display: none; }
+.tl .node-title { font-size: 14px; font-weight: 700; }
+.tl .who { margin-top: 4px; font-size: 13px; }
+.tl .meta { margin-top: 3px; font-size: 12px; color: var(--weak-gray); }
+.tl .opinion { margin-top: 3px; font-size: 12px; color: var(--mid-gray); }
+.r-pending { color: var(--info); font-weight: 650; }
+.r-pass { color: var(--success); font-weight: 650; }
+.r-reject { color: var(--danger); font-weight: 650; }
+.r-wait { color: var(--weak-gray); font-weight: 650; }
+/* 放行信息块 */
+#releaseInfo { display: none; }
+body[data-state="left"] #releaseInfo, body[data-state="abnormal"] #releaseInfo { display: block; }
+.state-note { display: none; margin-bottom: 12px; padding: 12px 14px; border-radius: 12px; font-size: 13px; font-weight: 650; line-height: 1.5; }
+body[data-state="pending"] #notePending { display: block; background: rgba(35,118,217,.10); color: var(--info); }
+body[data-state="rejected"] #noteRejected { display: block; background: rgba(216,59,54,.10); color: var(--danger); }
+body[data-state="abnormal"] #noteAbnormal { display: block; background: rgba(201,132,22,.12); color: var(--warning); }
+</style>
+</head>
+<body data-state="approved">
+<div class="app"><div class="page">
+
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回列表页" onclick="location.href='list.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 7 10l5.5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>放行详情</h1>
+    <span class="ph"></span>
+  </header>
+
+  <div class="demo"><b>原型演示</b>
+    <button onclick="setState('pending', this)">待审批</button>
+    <button class="on" onclick="setState('approved', this)">已通过·出码</button>
+    <button onclick="setState('expired', this)">码已过期</button>
+    <button onclick="setState('rejected', this)">已拒绝</button>
+    <button onclick="setState('left', this)">已出厂</button>
+    <button onclick="setState('abnormal', this)">终态(status=5)</button>
+  </div>
+
+  <div class="state-note" id="notePending">审批中：待审批/已拒绝状态不展示放行码区。</div>
+  <div class="state-note" id="noteRejected">审批拒绝：本申请未通过，不生成放行码。</div>
+  <div class="state-note" id="noteAbnormal">终态 status=5：不展示放行码区，仅展示下方「放行信息」。</div>
+
+  <!-- 放行码区（三种互斥展示） -->
+  <section class="card qr-card">
+    <div class="qr-state" id="qrLive">
+      <div class="qr-box" style="background:var(--white);border:1px solid var(--border-soft)">
+        <svg width="172" height="172" viewBox="0 0 172 172" aria-label="放行二维码">
+          <rect width="172" height="172" fill="#fff"/>
+          <g fill="#595757">
+            <rect x="8" y="8" width="44" height="44"/><rect x="120" y="8" width="44" height="44"/><rect x="8" y="120" width="44" height="44"/>
+            <rect x="18" y="18" width="24" height="24" fill="#fff"/><rect x="130" y="18" width="24" height="24" fill="#fff"/><rect x="18" y="130" width="24" height="24" fill="#fff"/>
+            <rect x="24" y="24" width="12" height="12"/><rect x="136" y="24" width="12" height="12"/><rect x="24" y="136" width="12" height="12"/>
+            <rect x="64" y="12" width="10" height="10"/><rect x="84" y="22" width="10" height="10"/><rect x="100" y="8" width="10" height="10"/>
+            <rect x="64" y="40" width="10" height="10"/><rect x="96" y="44" width="10" height="10"/><rect x="76" y="60" width="10" height="10"/>
+            <rect x="12" y="64" width="10" height="10"/><rect x="32" y="76" width="10" height="10"/><rect x="52" y="68" width="10" height="10"/>
+            <rect x="64" y="84" width="10" height="10"/><rect x="88" y="76" width="10" height="10"/><rect x="108" y="64" width="10" height="10"/>
+            <rect x="128" y="76" width="10" height="10"/><rect x="148" y="64" width="10" height="10"/><rect x="156" y="88" width="10" height="10"/>
+            <rect x="72" y="104" width="10" height="10"/><rect x="92" y="116" width="10" height="10"/><rect x="112" y="100" width="10" height="10"/>
+            <rect x="132" y="112" width="10" height="10"/><rect x="64" y="132" width="10" height="10"/><rect x="84" y="148" width="10" height="10"/>
+            <rect x="104" y="136" width="10" height="10"/><rect x="124" y="152" width="10" height="10"/><rect x="148" y="132" width="10" height="10"/>
+            <rect x="148" y="152" width="10" height="10"/>
+          </g>
+        </svg>
+      </div>
+      <p class="qr-tip">【温馨提示】在门卫处出示放行码</p>
+      <p class="qr-tip" style="font-size:12px;color:var(--weak-gray)">门卫使用微信扫一扫核验后放行</p>
+    </div>
+    <div class="qr-state" id="qrExpired">
+      <div class="qr-box" style="background:var(--surface)">
+        <svg width="92" height="92" viewBox="0 0 92 92"><circle cx="46" cy="46" r="42" fill="#E5E3E3"/><path d="M46 24v24l16 10" stroke="#8C8A8A" stroke-width="5" stroke-linecap="round" fill="none"/></svg>
+      </div>
+      <p class="qr-tip">放行码已过期</p>
+    </div>
+    <div class="qr-state" id="qrLeft">
+      <div class="qr-box" style="background:rgba(22,166,115,.08)">
+        <svg width="92" height="92" viewBox="0 0 92 92"><circle cx="46" cy="46" r="42" fill="rgba(22,166,115,.18)"/><path d="M28 47l12 12 24-26" stroke="#16A673" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </div>
+      <p class="qr-tip">已出厂</p>
+    </div>
+  </section>
+
+  <!-- 申请信息 -->
+  <section class="card">
+    <div class="head-row">
+      <span class="name">何晓婷</span>
+      <span class="face">
+        <svg width="56" height="56" viewBox="0 0 56 56"><rect width="56" height="56" rx="14" fill="#FFF1E3"/><circle cx="28" cy="22" r="9" fill="#EC6C00" opacity=".65"/><path d="M12 48c2-10 8-15 16-15s14 5 16 15" fill="#EC6C00" opacity=".45"/></svg>
+      </span>
+    </div>
+    <dl class="rows">
+      <div class="row"><dt>物品类型:</dt><dd>宿舍生活物品</dd></div>
+      <div class="row"><dt>物品名称:</dt><dd>行李箱一个、棉被两床</dd></div>
+      <div class="row"><dt>房间信息:</dt><dd>紫荆苑3栋512号房</dd></div>
+      <div class="row"><dt>离厂时间:</dt><dd>2026-06-13 18:00</dd></div>
+      <div class="row"><dt>车牌号:</dt><dd>豫K·8D562</dd></div>
+      <div class="row"><dt>备注信息:</dt><dd>离职退宿，物品随私家车带走</dd></div>
+      <div class="row">
+        <dt>物品照片:</dt>
+        <dd>
+          <div class="thumbs">
+            <svg viewBox="0 0 64 64" onclick="alert('原型：点击预览大图')"><rect width="64" height="64" rx="10" fill="#FFF1E3"/><rect x="18" y="24" width="28" height="22" rx="3" fill="#EC6C00" opacity=".75"/><rect x="26" y="18" width="12" height="7" rx="2" fill="#D95F00"/></svg>
+            <svg viewBox="0 0 64 64" onclick="alert('原型：点击预览大图')"><rect width="64" height="64" rx="10" fill="#FFF1E3"/><path d="M16 42c0-8 7-14 16-14s16 6 16 14v5H16z" fill="#EC6C00" opacity=".6"/></svg>
+            <svg viewBox="0 0 64 64" onclick="alert('原型：点击预览大图')"><rect width="64" height="64" rx="10" fill="#FFF1E3"/><rect x="16" y="20" width="32" height="26" rx="3" fill="#EC6C00" opacity=".4"/><path d="M20 40l8-9 7 7 6-5 9 7" stroke="#D95F00" stroke-width="3" fill="none" stroke-linejoin="round"/></svg>
+          </div>
+          <p class="thumb-hint">最多 3 张，点击可预览大图</p>
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- 审批流程 -->
+  <section class="card">
+    <h2>审批流程</h2>
+    <ol class="tl">
+      <li>
+        <div class="node-title">何晓婷 - <span class="r-pending">提交申请</span></div>
+        <div class="meta">2026-06-11 09:24:18</div>
+      </li>
+      <li>
+        <div class="node-title">部门主管审批</div>
+        <div class="who">王志强 - <span id="n2Result" class="r-pass">通过</span></div>
+        <div class="opinion" id="n2Opinion">意见: 同意放行</div>
+        <div class="meta" id="n2Time">2026-06-11 10:02:41</div>
+      </li>
+      <li>
+        <div class="node-title">宿管确认</div>
+        <div class="who">李秀兰 - <span id="n3Result" class="r-pass">通过</span></div>
+        <div class="opinion" id="n3Opinion" style="display:none"></div>
+        <div class="meta" id="n3Time">2026-06-11 11:18:07</div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- 放行信息（仅 status=4 / 5 展示） -->
+  <section class="card" id="releaseInfo">
+    <h2>放行信息</h2>
+    <dl class="rows">
+      <div class="row"><dt>状态:</dt><dd id="riStatus">已出厂</dd></div>
+      <div class="row"><dt>放行人员:</dt><dd>赵卫国（南门岗）</dd></div>
+      <div class="row"><dt>离场时间:</dt><dd>2026-06-13 17:42:55</dd></div>
+      <div class="row"><dt>备注:</dt><dd>核对物品与照片一致，予以放行</dd></div>
+    </dl>
+  </section>
+
+</div></div>
+<script>
+var STATES = {
+  pending:  { n2: ['r-pending', '待审批', '', '2026-06-11 09:24:18'], n3: ['r-wait', '等待', '', '—'] },
+  approved: { n2: ['r-pass', '通过', '意见: 同意放行', '2026-06-11 10:02:41'], n3: ['r-pass', '通过', '', '2026-06-11 11:18:07'] },
+  expired:  { n2: ['r-pass', '通过', '意见: 同意放行', '2026-06-11 10:02:41'], n3: ['r-pass', '通过', '', '2026-06-11 11:18:07'] },
+  rejected: { n2: ['r-reject', '拒绝', '意见: 大件电器需提供购买凭证后重新申请', '2026-06-11 10:02:41'], n3: ['r-wait', '关闭', '', '—'] },
+  left:     { n2: ['r-pass', '通过', '意见: 同意放行', '2026-06-11 10:02:41'], n3: ['r-pass', '通过', '', '2026-06-11 11:18:07'], status: '已出厂' },
+  abnormal: { n2: ['r-pass', '通过', '意见: 同意放行', '2026-06-11 10:02:41'], n3: ['r-pass', '通过', '', '2026-06-11 11:18:07'], status: '已放行（终态 status=5）' }
+};
+function setNode(prefix, cfg){
+  var r = document.getElementById(prefix + 'Result');
+  r.className = cfg[0]; r.textContent = cfg[1];
+  var o = document.getElementById(prefix + 'Opinion');
+  o.style.display = cfg[2] ? '' : 'none'; o.textContent = cfg[2];
+  document.getElementById(prefix + 'Time').textContent = cfg[3];
+}
+function setState(s, btn){
+  document.body.dataset.state = s;
+  document.querySelectorAll('.demo button').forEach(function(b){ b.classList.remove('on'); });
+  btn.classList.add('on');
+  setNode('n2', STATES[s].n2); setNode('n3', STATES[s].n3);
+  if (STATES[s].status) document.getElementById('riStatus').textContent = STATES[s].status;
+}
+</script>
+</body>
+</html>

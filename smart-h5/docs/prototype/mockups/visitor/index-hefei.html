@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<!--
+  页面：入厂申请（合肥）— 被访者信息（三步流程第 1 步）
+  旧路由：/xuchang/visitor/indexHefei
+  旧组件：smart-h5/src/views-mobile/pages/visitor/indexHefei.vue
+  接口：
+    GET  /common/config/admittance/notice?parkId=20381   园区温馨提示（isNeedNotice=1 时弹窗）
+    POST /admittance/apply/app/searchReceptionist        按姓名+手机号查询被访人
+  跳转：下一步（查询成功）→ /xuchang/visitor/visitorInfoHefei
+  与标准版差异：园区固定 parkId=20381「裕同科技合肥园区」；查询字段为 employeeName/employeeMobile
+  （标准版 receptionistName/receptionistPhone）；无微信 OAuth 授权与 getOpenId 流程，免登录直入。
+-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>入厂申请（合肥）· 被访者信息</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { min-height: 100dvh; margin: 0; background: var(--surface); }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; background: none; }
+    input:focus-visible, button:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: var(--white); box-shadow: var(--shadow-large); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .page {
+      flex: 1; display: flex; flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 18px 0;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--white);
+    }
+    .topbar { display: flex; align-items: center; min-height: 46px; }
+    .back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; border-radius: 14px; color: var(--yuto-black); }
+    .back-btn svg { display: block; }
+    .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+    .topbar-spacer { width: 44px; height: 44px; display: flex; align-items: center; justify-content: flex-end; }
+    .hefei-badge {
+      display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 0 10px;
+      border: 1px solid rgba(236, 108, 0, 0.22); border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 650; white-space: nowrap;
+    }
+    .hefei-badge::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--brand-orange); }
+    /* 步骤条：被访信息 → 访客信息 → 提交信息 */
+    .steps { display: flex; align-items: flex-start; margin: 18px 6px 6px; }
+    .step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; }
+    .step::before, .step::after { content: ""; position: absolute; top: 13px; height: 2px; width: calc(50% - 20px); background: var(--light-gray); border-radius: 2px; }
+    .step::before { left: 0; }
+    .step::after { right: 0; }
+    .step:first-child::before, .step:last-child::after { display: none; }
+    .step.done::before, .step.done::after, .step.current::before { background: var(--brand-orange); }
+    .step-dot {
+      width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; background: var(--white); border: 2px solid var(--light-gray); color: var(--weak-gray); z-index: 1;
+    }
+    .step.current .step-dot { border-color: var(--brand-orange); background: var(--brand-orange); color: var(--white); }
+    .step-name { font-size: 12px; color: var(--weak-gray); }
+    .step.current .step-name { color: var(--accent-ink); font-weight: 650; }
+    /* 表单卡片 */
+    .card {
+      margin-top: 16px; padding: 16px; border: 1px solid var(--border-soft);
+      border-radius: 16px; background: var(--white); box-shadow: var(--shadow-panel);
+    }
+    .card-title { margin: 2px 2px 14px; font-size: 16px; font-weight: 750; }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 4px; }
+    .field-label { display: block; margin: 0 2px 7px; font-size: 13px; color: var(--mid-gray); }
+    .field-label .req { color: var(--danger); margin-left: 2px; }
+    .field-input {
+      display: block; width: 100%; height: 48px; padding: 0 14px;
+      border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white);
+      color: var(--yuto-black); font-size: 15px;
+    }
+    .field-input::placeholder { color: var(--weak-gray); }
+    .field-input[readonly] { background: #FBFBFB; color: var(--mid-gray); }
+    .field-hint { margin: 6px 2px 0; font-size: 12px; color: var(--weak-gray); }
+    /* 底部操作区 */
+    .bottom-bar {
+      position: sticky; bottom: 0; margin-top: auto; padding: 14px 18px max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 24%);
+    }
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; width: 100%; height: 48px;
+      border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .btn-primary:active { background: var(--accent-strong); }
+    /* 温馨提示弹窗（接口返回 isNeedNotice=1 时展示） */
+    .modal-mask {
+      position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+      padding: 28px; background: rgba(89, 87, 87, 0.45);
+    }
+    .modal-mask[hidden] { display: none; }
+    .modal { width: 100%; max-width: 330px; border-radius: 18px; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+    .modal-head { padding: 18px 20px 0; font-size: 16px; font-weight: 750; text-align: center; }
+    .modal-body { max-height: 46dvh; overflow-y: auto; padding: 12px 20px 4px; font-size: 14px; line-height: 1.7; color: var(--yuto-black); }
+    .modal-body p { margin: 0 0 10px; }
+    .modal-foot { padding: 12px 16px 16px; }
+    /* toast（查询失败演示） */
+    .toast {
+      position: absolute; left: 50%; bottom: 130px; z-index: 40; transform: translateX(-50%);
+      max-width: 80%; padding: 10px 16px; border-radius: 12px; background: rgba(89, 87, 87, 0.92);
+      color: var(--white); font-size: 13px; text-align: center; opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .toast.show { opacity: 1; }
+    /* 原型演示切换条 */
+    .demo-strip {
+      display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 8px 10px;
+      border: 1px dashed var(--light-gray); border-radius: 12px; background: #FBFBFB;
+    }
+    .demo-strip span { font-size: 12px; color: var(--weak-gray); white-space: nowrap; }
+    .demo-strip button { min-height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border-soft); background: var(--white); font-size: 12px; color: var(--mid-gray); }
+    .records-entry { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 44px; margin-top: 12px; border-radius: 12px; color: var(--mid-gray); font-size: 13px; }
+    .records-entry em { font-style: normal; color: var(--brand-orange); font-weight: 650; }
+    .records-entry:active { background: var(--accent-soft); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="page">
+      <header class="topbar">
+        <button class="back-btn" type="button" aria-label="返回" onclick="history.back()">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M13.5 4.5 7 11l6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <h1 class="page-title">入厂申请</h1>
+        <div class="topbar-spacer"><span class="hefei-badge">合肥流程</span></div>
+      </header>
+
+      <nav class="steps" aria-label="申请进度">
+        <div class="step current"><div class="step-dot">1</div><div class="step-name">被访信息</div></div>
+        <div class="step"><div class="step-dot">2</div><div class="step-name">访客信息</div></div>
+        <div class="step"><div class="step-dot">3</div><div class="step-name">提交信息</div></div>
+      </nav>
+
+      <section class="card" aria-label="被访者信息">
+        <h2 class="card-title">被访者信息</h2>
+        <div class="field">
+          <label class="field-label" for="park">所选园区</label>
+          <input class="field-input" id="park" value="裕同科技合肥园区" readonly>
+        </div>
+        <div class="field">
+          <label class="field-label" for="employeeName">姓名<span class="req">*</span></label>
+          <input class="field-input" id="employeeName" placeholder="请输入" value="王建国">
+        </div>
+        <div class="field">
+          <label class="field-label" for="employeeMobile">手机号<span class="req">*</span></label>
+          <input class="field-input" id="employeeMobile" type="tel" inputmode="numeric" maxlength="11" placeholder="请输入" value="13855219076">
+          <p class="field-hint">将按姓名 + 手机号查询园区被访人，查询不到无法进入下一步</p>
+        </div>
+      </section>
+
+      <button class="records-entry" type="button" onclick="location.href='records.html'" title="跳转 /xuchang/visitor/records">
+        已提交过申请？<em>查看申请记录与审批进度</em> ›
+      </button>
+
+      <div class="demo-strip" aria-label="原型演示">
+        <span>原型演示：</span>
+        <button type="button" onclick="document.getElementById('noticeMask').hidden=false">温馨提示弹窗</button>
+        <button type="button" onclick="showToast('未查询到被访人，请确认姓名与手机号')">查询失败</button>
+      </div>
+
+      <div class="bottom-bar">
+        <button class="btn-primary" type="button" onclick="nextStep()">下一步</button>
+      </div>
+    </div>
+
+    <!-- 温馨提示弹窗：GET /common/config/admittance/notice，isNeedNotice=1 时显示 -->
+    <div class="modal-mask" id="noticeMask">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="温馨提示">
+        <div class="modal-head">温馨提示</div>
+        <div class="modal-body">
+          <p>欢迎来访裕同科技合肥园区。请提前完成入厂申请，到访当日凭审批通过信息在门岗核验入园。</p>
+          <p>1. 园区内请佩戴访客凭证，听从接待人安排；</p>
+          <p>2. 生产区域禁止拍照、摄像，禁止携带易燃易爆物品；</p>
+          <p>3. 车辆入园请按指定路线行驶并停放至访客车位。</p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn-primary" type="button" onclick="document.getElementById('noticeMask').hidden=true">知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+
+  <script>
+    let toastTimer = null;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+    function nextStep() {
+      const name = document.getElementById('employeeName').value.trim();
+      const mobile = document.getElementById('employeeMobile').value.trim();
+      if (!name) { showToast('请输入被访人姓名'); return; }
+      if (!/^1\d{10}$/.test(mobile)) { showToast('请输入被访人手机号'); return; }
+      // 真实流程：POST /admittance/apply/app/searchReceptionist 成功后跳访客信息页
+      showToast('被访人核验通过，进入下一步（→ visitor-info-hefei.html）');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>yuto-park-h5 原型总览（69 页）</title>
+<!--
+  原型导航总览：对标旧版 smart-h5（~/source/YUTO/yuto-smart/smart-h5）全部 69 个页面路由。
+  逐页规格见 ../specs/，页面清单见 docs/superpowers/specs/2026-06-11-page-inventory.md。
+-->
+<style>
+:root{--brand-orange:#EC6C00;--accent-soft:#FFF1E3;--accent-ink:#5A2600;--surface:#F7F7F7;--yuto-black:#595757;--mid-gray:#8C8A8A;--border-soft:#EFEEEE;--shadow-panel:0 16px 40px rgba(89,87,87,.10);--font-main:"Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-main);color:var(--yuto-black);background:linear-gradient(180deg,rgba(255,241,227,.72) 0,rgba(255,255,255,0) 220px),var(--surface);min-height:100vh}
+.wrap{max-width:960px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:26px;font-weight:750;margin:0 0 6px}
+.sub{color:var(--mid-gray);font-size:14px;margin-bottom:28px}
+h2{font-size:16px;font-weight:750;margin:28px 0 10px;display:flex;align-items:center;gap:8px}
+h2::before{content:"";width:7px;height:7px;border-radius:999px;background:var(--brand-orange)}
+h2 .count{color:var(--mid-gray);font-size:13px;font-weight:400}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+a.card{display:block;background:#fff;border:1px solid var(--border-soft);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--yuto-black);box-shadow:var(--shadow-panel)}
+a.card:hover{border-color:var(--brand-orange)}
+a.card strong{display:block;font-size:14px;font-weight:700;margin-bottom:4px}
+a.card span{display:block;font-size:12px;color:var(--mid-gray);word-break:break-all}
+.badge{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);font-size:11px;font-weight:650}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>裕同智慧园区 H5 — 全量页面原型</h1>
+<p class="sub">69 页 · 对标旧版 smart-h5 全部路由 · 功能 1:1 对齐 · UI 重构（裕同企业设计系统）</p>
+
+<h2>根工作台 <span class="count">1 页</span></h2>
+<div class="grid">
+<a class="card" href="root/index.html"><strong>工作台</strong><span>/</span></a>
+</div>
+
+<h2>登录 login <span class="count">4 页</span></h2>
+<div class="grid">
+<a class="card" href="login/index.html"><strong>登录</strong><span>/xuchang/login</span></a>
+<a class="card" href="login/wechat.html"><strong>微信登录</strong><span>/xuchang/login/wechat</span></a>
+<a class="card" href="login/wechat-code.html"><strong>微信验证码</strong><span>/xuchang/login/wechat/code</span></a>
+<a class="card" href="login/logon-badge.html"><strong>工牌登录</strong><span>/xuchang/login/logon_badge</span></a>
+</div>
+
+<h2>首页 home <span class="count">3 页</span></h2>
+<div class="grid">
+<a class="card" href="home/index.html"><strong>首页</strong><span>/xuchang/home</span></a>
+<a class="card" href="home/bbs-list.html"><strong>公告列表</strong><span>/xuchang/home/bbs/list</span></a>
+<a class="card" href="home/bbs-detail.html"><strong>公告详情</strong><span>/xuchang/home/bbs/detail</span></a>
+</div>
+
+<h2>个人中心 mine <span class="count">2 页</span></h2>
+<div class="grid">
+<a class="card" href="mine/index.html"><strong>个人中心</strong><span>/xuchang/mine</span></a>
+<a class="card" href="mine/detail.html"><strong>个人信息</strong><span>/xuchang/mine/detail</span></a>
+</div>
+
+<h2>我的宿舍 dorm + 门锁 lock <span class="count">4 页</span></h2>
+<div class="grid">
+<a class="card" href="dorm/index.html"><strong>我的宿舍</strong><span>/xuchang/dorm</span></a>
+<a class="card" href="dorm/water-elec.html"><strong>水电扣费明细</strong><span>/xuchang/dorm/waterElec</span></a>
+<a class="card" href="lock/index.html"><strong>门锁动态码</strong><span>/xuchang/dorm/lock</span></a>
+<a class="card" href="lock/get-code.html"><strong>获取门锁动态码</strong><span>/xuchang/dorm/getCode</span></a>
+</div>
+
+<h2>宿舍申请 check-in <span class="count">3 页</span></h2>
+<div class="grid">
+<a class="card" href="check-in/index.html"><strong>宿舍申请</strong><span>/xuchang/checkIn</span></a>
+<a class="card" href="check-in/select-room.html"><strong>手动选择房间</strong><span>/xuchang/checkIn/selectRoom</span></a>
+<a class="card" href="check-in/detail.html"><strong>宿舍申请详情</strong><span>/xuchang/checkIn/detail</span></a>
+</div>
+
+<h2>退宿申请 dorm-exit <span class="count">3 页</span></h2>
+<div class="grid">
+<a class="card" href="dorm-exit/index.html"><strong>退宿申请</strong><span>/xuchang/dormExit</span></a>
+<a class="card" href="dorm-exit/list.html"><strong>退宿申请列表</strong><span>/xuchang/dormExit/list</span></a>
+<a class="card" href="dorm-exit/detail.html"><strong>退宿申请详情</strong><span>/xuchang/dormExit/detail</span></a>
+</div>
+
+<h2>宿舍报修 dorm-repairs <span class="count">3 页</span></h2>
+<div class="grid">
+<a class="card" href="dorm-repairs/index.html"><strong>宿舍报修</strong><span>/xuchang/dormRepairs</span></a>
+<a class="card" href="dorm-repairs/list.html"><strong>宿舍报修列表</strong><span>/xuchang/dormRepairs/list</span></a>
+<a class="card" href="dorm-repairs/detail.html"><strong>宿舍报修详情</strong><span>/xuchang/dormRepairs/detail</span></a>
+</div>
+
+<h2>物品放行·生活区 good-release-live <span class="count">3 页</span></h2>
+<div class="grid">
+<a class="card" href="good-release-live/index.html"><strong>物品放行（生活区）</strong><span>/xuchang/goodReleaseLive</span></a>
+<a class="card" href="good-release-live/list.html"><strong>放行记录</strong><span>/xuchang/goodReleaseLive/list</span></a>
+<a class="card" href="good-release-live/detail.html"><strong>放行详情</strong><span>/xuchang/goodReleaseLive/detail</span></a>
+</div>
+
+<h2>物品放行·办公区 good-release-work <span class="count">11 页</span></h2>
+<div class="grid">
+<a class="card" href="good-release-work/index.html"><strong>物品放行（办公区）</strong><span>/xuchang/goodReleaseWork</span></a>
+<a class="card" href="good-release-work/list.html"><strong>放行记录</strong><span>…/list</span></a>
+<a class="card" href="good-release-work/detail.html"><strong>放行详情</strong><span>…/detail</span></a>
+<a class="card" href="good-release-work/add-person.html"><strong>添加人员</strong><span>…/addPerson</span></a>
+<a class="card" href="good-release-work/add-person-list.html"><strong>添加人员-列表</strong><span>…/addPersonList</span></a>
+<a class="card" href="good-release-work/add-goods.html"><strong>添加物品</strong><span>…/addGoods</span></a>
+<a class="card" href="good-release-work/add-goods-list.html"><strong>添加物品-列表</strong><span>…/addGoodsList</span></a>
+<a class="card" href="good-release-work/detail-person.html"><strong>人员详情</strong><span>…/detailPerson</span></a>
+<a class="card" href="good-release-work/detail-person-list.html"><strong>人员详情-列表</strong><span>…/detailPersonList</span></a>
+<a class="card" href="good-release-work/detail-goods.html"><strong>物品详情</strong><span>…/detailGoods</span></a>
+<a class="card" href="good-release-work/detail-goods-list.html"><strong>物品详情-列表</strong><span>…/detailGoodsList</span></a>
+</div>
+
+<h2>返厂确认 return-factory <span class="count">2 页</span></h2>
+<div class="grid">
+<a class="card" href="return-factory/index.html"><strong>返厂确认</strong><span>/xuchang/returnFactory</span></a>
+<a class="card" href="return-factory/detail.html"><strong>返厂确认详情</strong><span>/xuchang/returnFactory/detail</span></a>
+</div>
+
+<h2>待办事项 backLog（审批侧）<span class="count">12 页</span></h2>
+<div class="grid">
+<a class="card" href="backlog/index.html"><strong>待办事项</strong><span>/xuchang/backLog</span></a>
+<a class="card" href="backlog/good-release-live-list.html"><strong>放行(生活区)审批列表</strong><span>…/goodReleaseLive</span></a>
+<a class="card" href="backlog/good-release-live-detail.html"><strong>放行(生活区)详情</strong><span>…/goodReleaseLive/detail</span></a>
+<a class="card" href="backlog/good-release-live-result.html"><strong>放行(生活区)结果</strong><span>…/goodReleaseLive/result</span></a>
+<a class="card" href="backlog/code.html"><strong>二维码信息</strong><span>…/code（免登录）</span></a>
+<a class="card" href="backlog/good-release-work-list.html"><strong>放行(办公区)审批列表</strong><span>…/goodReleaseWork</span></a>
+<a class="card" href="backlog/good-release-work-detail.html"><strong>放行(办公区)详情</strong><span>…/goodReleaseWork/detail</span></a>
+<a class="card" href="backlog/good-release-work-result.html"><strong>放行(办公区)结果</strong><span>…/goodReleaseWork/result</span></a>
+<a class="card" href="backlog/dorm-repairs-list.html"><strong>园区报修审批列表</strong><span>…/dormRepairs</span></a>
+<a class="card" href="backlog/dorm-repairs-detail.html"><strong>园区报修详情</strong><span>…/dormRepairs/detail</span></a>
+<a class="card" href="backlog/dorm-exit-list.html"><strong>退宿审批列表</strong><span>…/dormExit</span></a>
+<a class="card" href="backlog/dorm-exit-detail.html"><strong>退宿审批详情</strong><span>…/dormExit/detail</span></a>
+</div>
+
+<h2>帮助中心 help <span class="count">2 页</span></h2>
+<div class="grid">
+<a class="card" href="help/index.html"><strong>帮助中心</strong><span>/xuchang/help</span></a>
+<a class="card" href="help/detail.html"><strong>帮助文档详情</strong><span>/xuchang/help/detail</span></a>
+</div>
+
+<h2>访客管理 visitor <span class="count">18 页（含合肥变体 4 页）</span></h2>
+<div class="grid">
+<a class="card" href="visitor/index.html"><strong>入厂申请</strong><span>/xuchang/visitor</span></a>
+<a class="card" href="visitor/tel.html"><strong>手机验证</strong><span>…/tel</span></a>
+<a class="card" href="visitor/visitor-info.html"><strong>访客信息</strong><span>…/visitorInfo</span></a>
+<a class="card" href="visitor/add-person.html"><strong>添加随行人员</strong><span>…/addPerson</span></a>
+<a class="card" href="visitor/add-person-list.html"><strong>随行人员列表</strong><span>…/addPersonList</span></a>
+<a class="card" href="visitor/add-car.html"><strong>添加车辆</strong><span>…/addCar</span></a>
+<a class="card" href="visitor/add-car-list.html"><strong>车辆列表</strong><span>…/addCarList</span></a>
+<a class="card" href="visitor/add-area-type.html"><strong>添加授权进入区域</strong><span>…/addAreaType</span></a>
+<a class="card" href="visitor/truck.html"><strong>货车预约</strong><span>…/truck</span></a>
+<a class="card" href="visitor/result.html"><strong>提交成功</strong><span>…/result</span></a>
+<a class="card" href="visitor/result-truck.html"><strong>提交成功（货车）</strong><span>…/resultTruck</span></a>
+<a class="card" href="visitor/code.html"><strong>二维码信息</strong><span>…/code</span></a>
+<a class="card" href="visitor/records.html"><strong>我的申请记录<i class="badge">新增</i></strong><span>…/records</span></a>
+<a class="card" href="visitor/record-detail.html"><strong>申请详情·审批进度<i class="badge">新增</i></strong><span>…/recordDetail</span></a>
+<a class="card" href="visitor/index-hefei.html"><strong>入厂申请<i class="badge">合肥</i></strong><span>…/indexHefei</span></a>
+<a class="card" href="visitor/tel-hefei.html"><strong>手机验证<i class="badge">合肥</i></strong><span>…/telHefei</span></a>
+<a class="card" href="visitor/visitor-info-hefei.html"><strong>访客信息<i class="badge">合肥</i></strong><span>…/visitorInfoHefei</span></a>
+<a class="card" href="visitor/add-person-hefei.html"><strong>添加随行人员<i class="badge">合肥</i></strong><span>…/addPersonHefei</span></a>
+</div>
+</div>
+</body>
+</html>

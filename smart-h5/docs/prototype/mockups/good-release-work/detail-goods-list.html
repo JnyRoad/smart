@@ -1,0 +1,120 @@
+<!doctype html>
+<!--
+  原型：物品放行（办公区）- 物品详情-列表（只读）
+  旧路由：/xuchang/goodReleaseWork/detailGoodsList
+  旧组件：views-mobile/pages/good-release-work/detail-goods-list.vue
+  接口：无（数据由申请详情页通过路由 query list 传入）
+  跳转：点物品卡片 → /xuchang/goodReleaseWork/detailGoods?itemObj=...
+  说明：详情链路只读清单，无新增/编辑/删除入口、无底部按钮（与添加物品-列表的差异点）；
+        旧版无空态分支（空数组时留白）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>放行物品列表 · 物品放行（办公区）</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button { border: 0; cursor: pointer; background: none; padding: 0; font: inherit; color: inherit; text-align: left; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 180px); }
+.topbar { display: flex; align-items: center; min-height: 46px; margin-bottom: 8px; }
+.back { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+.topbar .spacer { width: 44px; }
+.top-tip { margin: 2px 2px 12px; font-size: 13px; color: var(--mid-gray); }
+.item { display: flex; align-items: center; gap: 12px; width: 100%; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.item:active { background: #FFFDFB; }
+.item .body { flex: 1; min-width: 0; }
+.item .title { font-size: 15px; font-weight: 700; color: var(--yuto-black); line-height: 1.4; }
+.item .title .code { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--weak-gray); }
+.kv { display: flex; margin-top: 9px; font-size: 13px; }
+.kv .k { width: 78px; flex: none; color: var(--mid-gray); }
+.kv .v { flex: 1; color: var(--yuto-black); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chev { flex: none; }
+.note { margin: 14px 4px 0; font-size: 12px; color: var(--weak-gray); line-height: 1.6; }
+.toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); padding: 10px 18px; border-radius: 999px; background: rgba(89,87,87,.92); color: var(--white); font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 40; white-space: nowrap; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back" aria-label="返回" onclick="toast('返回上一页（申请详情）')">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1>放行物品</h1>
+      <div class="spacer"></div>
+    </header>
+
+    <p class="top-tip">放行物品（3项）</p>
+
+    <button class="item" onclick="toast('跳转：物品详情（戴尔 OptiPlex 7090 台式电脑）')">
+      <div class="body">
+        <div class="title">戴尔 OptiPlex 7090 台式电脑<span class="code">资产编码 YT-GD-2026-0318</span></div>
+        <div class="kv"><span class="k">单位</span><span class="v">台</span></div>
+        <div class="kv"><span class="k">放行日期</span><span class="v">2026-06-15</span></div>
+      </div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3.5 10.5 8 6 12.5" stroke="#AAA7A7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+    <button class="item" onclick="toast('跳转：物品详情（爱普生 L3258 喷墨打印机）')">
+      <div class="body">
+        <div class="title">爱普生 L3258 喷墨打印机<span class="code">资产编码 YT-GD-2025-1142</span></div>
+        <div class="kv"><span class="k">单位</span><span class="v">台</span></div>
+        <div class="kv"><span class="k">放行日期</span><span class="v">2026-06-15</span></div>
+      </div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3.5 10.5 8 6 12.5" stroke="#AAA7A7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+    <button class="item" onclick="toast('跳转：物品详情（办公会议桌（含配套座椅））')">
+      <div class="body">
+        <div class="title">办公会议桌（含配套座椅）<span class="code">资产编码 YT-GD-2024-0867</span></div>
+        <div class="kv"><span class="k">单位</span><span class="v">套</span></div>
+        <div class="kv"><span class="k">放行日期</span><span class="v">2026-06-16</span></div>
+      </div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3.5 10.5 8 6 12.5" stroke="#AAA7A7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+    <p class="note">本页为申请详情中的只读清单，点击物品卡片查看详情；无新增、编辑、删除入口。</p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1800);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!doctype html>
+<!--
+  原型：园区报修 审批列表
+  旧路由：/xuchang/backLog/dormRepairs?curTabIndex={tab}
+  旧组件：views-mobile/pages/backLog/dorm-repairs/list.vue
+          + views-mobile/components/page3-tab（双 Tab）
+  接口：GET platform:/approve/list/repairs/list（recordType=5, recordState 0待我审批/1我审批的, current, size=10）
+  跳转：点卡片 → /xuchang/backLog/dormRepairs/detail?id={approveId}&curTabIndex={tab}
+  说明：维修负责人视角；无底部搜索/扫码；下拉刷新、上拉分页、空态、接口失败 toast「网络错误」。
+  状态枚举：0待接单 / 1已接单(待维修) / 2不接单 / 3维修成功 / 4无法维修。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>园区报修 审批列表</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; margin: 0; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button { border: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 0 0; background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 200px); }
+.topbar { display: flex; align-items: center; min-height: 46px; padding: 0 6px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.back-btn svg { width: 22px; height: 22px; }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-space { width: 44px; }
+.demo-bar { margin: 6px 18px 10px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,241,227,.6); }
+.demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--accent-ink); margin-bottom: 6px; }
+.demo-bar .demo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-bar button { min-height: 30px; padding: 0 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--light-gray); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+.tabs { display: flex; margin: 0 18px 12px; background: var(--white); border: 1px solid var(--border-soft); border-radius: 14px; padding: 4px; box-shadow: var(--shadow-panel); }
+.tabs button { flex: 1; min-height: 40px; border-radius: 10px; font-size: 14px; font-weight: 650; color: var(--mid-gray); }
+.tabs button.on { background: var(--accent-soft); color: var(--accent-strong); }
+.list { flex: 1; padding: 2px 18px max(24px, env(safe-area-inset-bottom)); }
+.pull-hint { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 4px 0 10px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border-soft); }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.card-title { font-size: 15px; font-weight: 700; line-height: 1.35; }
+.badge { flex: none; border-radius: 999px; font-size: 12px; font-weight: 650; padding: 4px 10px; }
+.badge--wait { color: var(--warning); background: rgba(201,132,22,.12); }
+.badge--pass { color: var(--success); background: rgba(22,166,115,.12); }
+.badge--reject { color: var(--danger); background: rgba(216,59,54,.12); }
+.badge--doing { color: var(--info); background: rgba(35,118,217,.12); }
+.row { display: flex; gap: 10px; font-size: 13px; padding: 4px 0; }
+.row .lab { flex: none; width: 70px; color: var(--mid-gray); }
+.row .val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-arrow { display: flex; justify-content: flex-end; margin-top: 4px; }
+.card-arrow span { font-size: 12px; color: var(--brand-orange); font-weight: 650; }
+.load-more { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 8px 0 14px; }
+.empty { display: none; flex-direction: column; align-items: center; padding: 60px 0; }
+.empty svg { width: 96px; height: 96px; margin-bottom: 14px; }
+.empty p { margin: 0; font-size: 14px; color: var(--weak-gray); }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(89,87,87,.92); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 10px; display: none; z-index: 50; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="toast('返回上一页')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">园区报修</div>
+      <div class="topbar-space"></div>
+    </header>
+
+    <div class="demo-bar">
+      <div class="demo-tag">原型演示 · 状态切换</div>
+      <div class="demo-btns">
+        <button class="on" data-demo="wait" onclick="setDemo('wait',this)">待我审批的</button>
+        <button data-demo="done" onclick="setDemo('done',this)">我审批的</button>
+        <button data-demo="empty" onclick="setDemo('empty',this)">空态</button>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="审批状态">
+      <button id="tabWait" class="on" onclick="setDemo('wait',document.querySelector('[data-demo=wait]'))">待我审批的</button>
+      <button id="tabDone" onclick="setDemo('done',document.querySelector('[data-demo=done]'))">我审批的</button>
+    </nav>
+
+    <main class="list">
+      <div class="pull-hint">下拉刷新 · 更新成功</div>
+
+      <!-- 待我审批的（recordState=0） -->
+      <section id="listWait">
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormRepairs/detail?id=2026061105&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">周晓兰</div><span class="badge badge--wait">待接单</span></div>
+          <div class="row"><span class="lab">维修区域:</span><span class="val">宿舍区</span></div>
+          <div class="row"><span class="lab">维修类别:</span><span class="val">水电维修</span></div>
+          <div class="row"><span class="lab">所在楼栋:</span><span class="val">许昌园区3栋</span></div>
+          <div class="row"><span class="lab">故障描述:</span><span class="val">浴室热水器不出热水，开关指示灯不亮</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-11 08:42:17</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormRepairs/detail?id=2026061103&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">马志远</div><span class="badge badge--wait">待接单</span></div>
+          <div class="row"><span class="lab">维修区域:</span><span class="val">公共区域</span></div>
+          <div class="row"><span class="lab">维修类别:</span><span class="val">门窗维修</span></div>
+          <div class="row"><span class="lab">所在楼栋:</span><span class="val">许昌园区1栋</span></div>
+          <div class="row"><span class="lab">故障描述:</span><span class="val">一楼大厅玻璃门合页松动，关门有异响</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-10 21:05:48</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormRepairs/detail?id=2026061002&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">谢春梅</div><span class="badge badge--wait">待接单</span></div>
+          <div class="row"><span class="lab">维修区域:</span><span class="val">宿舍区</span></div>
+          <div class="row"><span class="lab">维修类别:</span><span class="val">家具维修</span></div>
+          <div class="row"><span class="lab">所在楼栋:</span><span class="val">许昌园区5栋</span></div>
+          <div class="row"><span class="lab">故障描述:</span><span class="val">上铺床板断裂一块，存在安全隐患</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-10 12:30:09</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <div class="load-more">上拉加载更多 · 第 1/2 页</div>
+      </section>
+
+      <!-- 我审批的（recordState=1） -->
+      <section id="listDone" style="display:none">
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormRepairs/detail?id=2026060907&curTabIndex=1')">
+          <div class="card-head"><div class="card-title">韩立波</div><span class="badge badge--doing">已接单(待维修)</span></div>
+          <div class="row"><span class="lab">维修区域:</span><span class="val">宿舍区</span></div>
+          <div class="row"><span class="lab">维修类别:</span><span class="val">水电维修</span></div>
+          <div class="row"><span class="lab">所在楼栋:</span><span class="val">许昌园区2栋</span></div>
+          <div class="row"><span class="lab">故障描述:</span><span class="val">阳台排水口堵塞，雨天积水倒灌</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-09 16:48:33</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormRepairs/detail?id=2026060812&curTabIndex=1')">
+          <div class="card-head"><div class="card-title">唐玉婷</div><span class="badge badge--pass">维修成功</span></div>
+          <div class="row"><span class="lab">维修区域:</span><span class="val">宿舍区</span></div>
+          <div class="row"><span class="lab">维修类别:</span><span class="val">空调维修</span></div>
+          <div class="row"><span class="lab">所在楼栋:</span><span class="val">许昌园区4栋</span></div>
+          <div class="row"><span class="lab">故障描述:</span><span class="val">空调制冷效果差，出风口滴水</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-08 09:15:26</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormRepairs/detail?id=2026060704&curTabIndex=1')">
+          <div class="card-head"><div class="card-title">蒋一鸣</div><span class="badge badge--reject">无法维修</span></div>
+          <div class="row"><span class="lab">维修区域:</span><span class="val">公共区域</span></div>
+          <div class="row"><span class="lab">维修类别:</span><span class="val">电梯报修</span></div>
+          <div class="row"><span class="lab">所在楼栋:</span><span class="val">许昌园区6栋</span></div>
+          <div class="row"><span class="lab">故障描述:</span><span class="val">电梯按键面板失灵，需厂家更换配件</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-07 14:22:51</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormRepairs/detail?id=2026060601&curTabIndex=1')">
+          <div class="card-head"><div class="card-title">罗永康</div><span class="badge badge--reject">不接单</span></div>
+          <div class="row"><span class="lab">维修区域:</span><span class="val">宿舍区</span></div>
+          <div class="row"><span class="lab">维修类别:</span><span class="val">网络维修</span></div>
+          <div class="row"><span class="lab">所在楼栋:</span><span class="val">许昌园区3栋</span></div>
+          <div class="row"><span class="lab">故障描述:</span><span class="val">房间网口无信号（网络问题请联系 IT 服务台处理）</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-06 19:40:12</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <div class="load-more">没有更多了</div>
+      </section>
+
+      <!-- 空态 -->
+      <section id="listEmpty" class="empty">
+        <svg viewBox="0 0 96 96" aria-hidden="true">
+          <circle cx="48" cy="48" r="44" fill="#FFF1E3"/>
+          <rect x="30" y="34" width="36" height="30" rx="5" fill="#FFFFFF" stroke="#E5E3E3" stroke-width="2"/>
+          <path d="M30 44h36" stroke="#E5E3E3" stroke-width="2"/>
+          <path d="M42 52l4 4 8-8" stroke="#EC6C00" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p>暂无报修工单</p>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+function setDemo(mode, btn){
+  document.querySelectorAll('.demo-bar .demo-btns button[data-demo]').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  document.getElementById('listWait').style.display = mode==='wait' ? '' : 'none';
+  document.getElementById('listDone').style.display = mode==='done' ? '' : 'none';
+  document.getElementById('listEmpty').style.display = mode==='empty' ? 'flex' : 'none';
+  document.getElementById('tabWait').classList.toggle('on', mode!=='done');
+  document.getElementById('tabDone').classList.toggle('on', mode==='done');
+}
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.style.display='none', 1800);
+}
+</script>
+</body>
+</html>

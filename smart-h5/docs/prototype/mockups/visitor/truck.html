@@ -1,0 +1,232 @@
+<!doctype html>
+<!--
+  原型：访客-货车预约
+  旧路由：/xuchang/visitor/truck
+  旧组件：smart-h5/src/views-mobile/pages/visitor/truck.vue
+  接口：
+    GET  /admittance/apply/enum/car/cause      货车入厂事由枚举
+    GET  /sms/send/getCode/{mobile}            发送短信验证码（120s 倒计时）
+    POST /sms/verify                           校验短信验证码（mobile, smsCode）
+    POST /admittance/apply/save/car/apply      货车入厂预约保存
+  跳转：提交成功 toast「申请成功」→ /xuchang/visitor/resultTruck；失败 toast 接口 message
+  状态：默认表单 / 验证码倒计时中 / 提交中（正在提交...，防重复提交）
+  说明：货车司机独立预约，不走标准访客三步流程；保存入参
+        {visitorName, visitorPhone, remark, cause, startTime+':00', company, vehicleList:[{name, plate}]}
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>货车预约 - 裕同智慧园区</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; min-height: 100dvh; }
+    button, input { font: inherit; color: inherit; }
+    button { border: 0; cursor: pointer; background: none; }
+    button:focus-visible, input:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 220px) var(--white);
+      box-shadow: var(--shadow-large); display: flex; flex-direction: column;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+    .demo-bar {
+      margin: 0 16px 10px; padding: 8px 12px; border-radius: 12px;
+      background: rgba(89, 87, 87, 0.06); border: 1px dashed var(--light-gray);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--mid-gray); letter-spacing: 1px; }
+    .demo-bar button {
+      min-height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 650;
+      background: var(--white); border: 1px solid var(--light-gray); color: var(--mid-gray);
+    }
+    .demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: var(--white); }
+    .topbar { display: flex; align-items: center; min-height: 48px; padding: 0 6px; }
+    .back-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+    .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; margin: 0; }
+    .topbar-spacer { width: 44px; }
+    .content { flex: 1; padding: 8px 16px 120px; }
+    .card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 18px 16px; margin-bottom: 12px; }
+    .card-title { font-size: 15px; font-weight: 750; margin: 0 0 14px; }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 7px; }
+    .req::after { content: " *"; color: var(--danger); }
+    .input, .picker {
+      width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+      border-radius: 12px; background: var(--white); font-size: 15px;
+    }
+    .input::placeholder { color: var(--weak-gray); }
+    .input:focus { outline: 3px solid rgba(236, 108, 0, 0.22); border-color: var(--brand-orange); }
+    .picker { display: flex; align-items: center; justify-content: space-between; text-align: left; }
+    .picker .ph { color: var(--weak-gray); }
+    .picker svg { flex: none; }
+    .field-hint { margin-top: 6px; font-size: 12px; color: var(--weak-gray); }
+    /* 车牌输入：省份键 + 号码 */
+    .plate-row { display: flex; gap: 8px; }
+    .plate-prov {
+      flex: none; width: 64px; height: 48px; border: 1px solid var(--border-soft); border-radius: 12px;
+      background: var(--accent-soft); color: var(--accent-ink); font-weight: 750; font-size: 16px;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .plate-num { flex: 1; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+    /* 验证码行 */
+    .sms-row { display: flex; gap: 8px; }
+    .sms-row .input { flex: 1; }
+    .sms-btn {
+      flex: none; min-width: 108px; height: 48px; padding: 0 12px; border-radius: 12px;
+      border: 1px solid var(--brand-orange); color: var(--brand-orange);
+      font-size: 14px; font-weight: 650; background: var(--white);
+    }
+    .sms-btn[disabled] { border-color: var(--light-gray); color: var(--weak-gray); cursor: default; }
+    .footer {
+      position: sticky; bottom: 0; padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 30%);
+    }
+    .btn-primary {
+      width: 100%; height: 48px; border-radius: 14px; background: var(--brand-orange);
+      color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .btn-primary:active { background: var(--accent-strong); }
+    .btn-primary[disabled] { background: var(--light-gray); color: var(--white); cursor: default; }
+    .spinner {
+      display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: -3px;
+      border: 2px solid rgba(255, 255, 255, 0.45); border-top-color: var(--white);
+      border-radius: 999px; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="demo-bar" role="group" aria-label="原型演示状态切换">
+      <span class="demo-tag">原型演示</span>
+      <button id="demoIdle" class="on" onclick="setState('idle')">默认表单</button>
+      <button id="demoCount" onclick="setState('count')">验证码倒计时</button>
+      <button id="demoSubmit" onclick="setState('submit')">提交中</button>
+    </div>
+
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" title="返回入厂申请" onclick="location.href='index.html'">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 3.75 6.25 10l6.25 6.25" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1 class="page-title">货车预约</h1>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="content">
+      <section class="card">
+        <h2 class="card-title">货车预约信息</h2>
+
+        <div class="field">
+          <label class="field-label req" for="plateNum">车牌号</label>
+          <div class="plate-row">
+            <button type="button" class="plate-prov" aria-label="选择省份简称">
+              <span>豫</span>
+              <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" stroke="#5A2600" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <input class="input plate-num" id="plateNum" placeholder="请输入" value="K·73B86">
+          </div>
+          <p class="field-hint">使用车牌专用键盘输入</p>
+        </div>
+
+        <div class="field">
+          <span class="field-label req">来访事由</span>
+          <button type="button" class="picker" aria-label="请选择来访事由，当前：送货">
+            <span>送货</span>
+            <svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" stroke="#AAA7A7" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <p class="field-hint">选项来自货车事由枚举接口 GET /admittance/apply/enum/car/cause</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label req" for="visitorName">访客姓名</label>
+          <input class="input" id="visitorName" placeholder="请输入" value="马卫东">
+          <p class="field-hint">为空时提示「请输入访客姓名」</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label req" for="company">出发地</label>
+          <input class="input" id="company" placeholder="请输入" value="许昌市建安区纸业物流园">
+          <p class="field-hint">为空时提示「请输入出发地」</p>
+        </div>
+
+        <div class="field">
+          <span class="field-label req">预约时间</span>
+          <button type="button" class="picker" aria-label="请选择预约时间，当前：2026-06-12 09:30">
+            <span>2026-06-12 09:30</span>
+            <svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" stroke="#AAA7A7" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <p class="field-hint">提交时拼接秒「:00」</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="remark">备注</label>
+          <input class="input" id="remark" placeholder="请填写内托/原材/成品/其他" value="">
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">手机验证</h2>
+
+        <div class="field">
+          <label class="field-label req" for="phone">手机号</label>
+          <input class="input" id="phone" type="tel" inputmode="numeric" maxlength="11" placeholder="请输入手机号" value="13837405216">
+          <p class="field-hint">空 toast「请输入手机号」；非法 toast「手机号格式不正确」</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label req" for="smsCode">验证码</label>
+          <div class="sms-row">
+            <input class="input" id="smsCode" inputmode="numeric" maxlength="6" placeholder="请输入验证码" value="">
+            <button type="button" class="sms-btn" id="smsBtn" title="GET /sms/send/getCode/{mobile}，成功后 120s 倒计时">获取验证码</button>
+          </div>
+          <p class="field-hint">最长 6 位（超出截断）；空 toast「请输入验证码」</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <button class="btn-primary" id="submitBtn" title="短信校验通过后 POST /admittance/apply/save/car/apply，成功跳转 /xuchang/visitor/resultTruck">提交申请</button>
+    </footer>
+  </div>
+
+  <script>
+    // 原型演示：默认 / 验证码倒计时（120s 递减，期间禁用）/ 提交中（正在提交...，防重复提交）
+    function setState(s) {
+      ['Idle', 'Count', 'Submit'].forEach(function (k) {
+        document.getElementById('demo' + k).classList.toggle('on', s === k.toLowerCase());
+      });
+      var smsBtn = document.getElementById('smsBtn');
+      var submitBtn = document.getElementById('submitBtn');
+      smsBtn.disabled = s === 'count';
+      smsBtn.textContent = s === 'count' ? '118s' : '获取验证码';
+      document.getElementById('smsCode').value = s === 'idle' ? '' : '463920';
+      submitBtn.disabled = s === 'submit';
+      submitBtn.innerHTML = s === 'submit' ? '<span class="spinner" aria-hidden="true"></span>正在提交...' : '提交申请';
+    }
+  </script>
+</body>
+</html>

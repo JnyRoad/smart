@@ -1,0 +1,218 @@
+<!doctype html>
+<!--
+  原型：绑定员工号（微信 openId 与工号绑定）
+  旧路由：/xuchang/login/logon_badge?code=xxx（带微信回调 code 进入）
+  旧组件：src/views-mobile/pages/login/logon_badge.vue
+  接口：
+    - POST app:/wechat/xc/banging/badge  body { parkId: 5000021, code, badge, lastCertNum }
+  交互（旧页 submit）：
+    - 员工号与身份证后六位均已填写才提交（任一为空不提交，旧页无显式提示）
+    - 提交显示全局 loading
+    - code===0 成功 → 重新微信 OAuth（redirect /xuchang/login/wechat/code）完成登录
+    - 失败 → toast res.message，2 秒后重新 OAuth 回本页重试
+  跳转：成功 → OAuth → /xuchang/login/wechat/code → /xuchang/home；失败 → OAuth → 本页
+  说明：净室重写原型，未复用旧代码。多状态用「原型演示」切换条展示。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>裕慧家园 · 绑定员工号</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body {
+      min-height: 100dvh; margin: 0;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--surface);
+    }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; background: none; padding: 0; }
+    input:focus-visible, button:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; position: relative;
+      background: var(--white); box-shadow: var(--shadow-large);
+      padding: max(14px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+    }
+    .topbar { display: flex; align-items: center; min-height: 46px; }
+    .brand-wordmark { font-size: 16px; font-weight: 750; }
+    .brand-wordmark em { font-style: normal; color: var(--brand-orange); }
+
+    .hero { padding: 26px 2px 22px; }
+    .hero .welcome { display: block; color: var(--mid-gray); font-size: 15px; margin-bottom: 6px; }
+    .hero h1 { margin: 0; font-size: 30px; line-height: 1.16; font-weight: 750; }
+    .hero h1 em { font-style: normal; color: var(--brand-orange); }
+
+    .bind-card {
+      background: var(--white); border: 1px solid var(--border-soft); border-radius: 16px;
+      box-shadow: var(--shadow-panel); padding: 18px 16px;
+    }
+    .section-title { margin: 0 0 4px; font-size: 18px; font-weight: 750; color: var(--yuto-black); }
+    .section-sub { margin: 0; font-size: 13px; color: var(--mid-gray); line-height: 1.6; }
+    .field { margin-top: 14px; }
+    .field label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 7px; font-weight: 650; }
+    .field label .req { color: var(--danger); }
+    .field input {
+      width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+      border-radius: 12px; background: var(--white); color: var(--yuto-black);
+    }
+    .field input::placeholder { color: var(--weak-gray); }
+    .field input:focus { outline: 3px solid rgba(236, 108, 0, 0.22); border-color: rgba(236, 108, 0, 0.4); }
+    .primary-button {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; height: 48px; margin-top: 20px; border-radius: 14px;
+      background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .primary-button:active { background: var(--accent-strong); }
+    .primary-button:disabled { background: var(--light-gray); cursor: default; }
+    .btn-spinner {
+      width: 18px; height: 18px; border-radius: 999px;
+      border: 2.5px solid rgba(255, 255, 255, 0.45); border-top-color: var(--white);
+      animation: spin 0.9s linear infinite; display: none;
+    }
+    .is-loading .btn-spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .demo-bar {
+      margin-top: 18px; padding: 10px 12px; border-radius: 12px;
+      border: 1px dashed var(--light-gray); background: var(--surface);
+      font-size: 12px; color: var(--mid-gray);
+    }
+    .demo-bar strong { color: var(--accent-ink); margin-right: 8px; }
+    .demo-bar .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .demo-chip {
+      min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 650;
+      border: 1px solid var(--light-gray); background: var(--white); color: var(--mid-gray);
+    }
+    .demo-chip.is-on { border-color: rgba(236, 108, 0, 0.4); background: var(--accent-soft); color: var(--accent-ink); }
+
+    .result-note {
+      display: none; margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+      font-size: 13px; line-height: 1.7;
+    }
+    .result-note.show { display: block; }
+    .result-note.ok { background: rgba(22, 166, 115, 0.10); color: var(--success); }
+    .result-note.fail { background: rgba(216, 59, 54, 0.10); color: var(--danger); }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+      max-width: 320px; padding: 10px 16px; border-radius: 999px;
+      background: rgba(89, 87, 87, 0.92); color: var(--white); font-size: 13px;
+      opacity: 0; pointer-events: none; transition: opacity 200ms ease; z-index: 9;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <span class="brand-wordmark">裕同<em>智慧园区</em></span>
+    </header>
+
+    <section class="hero">
+      <span class="welcome">欢迎来到</span>
+      <h1><em>裕慧家园</em></h1>
+    </section>
+
+    <section class="bind-card">
+      <h2 class="section-title">绑定员工号</h2>
+      <p class="section-sub">首次微信登录需将微信与员工工号绑定，绑定成功后自动完成登录</p>
+
+      <div class="field">
+        <label for="badge">员工号 <span class="req">*</span></label>
+        <input id="badge" type="text" inputmode="numeric" placeholder="输入员工号" autocomplete="off" value="">
+      </div>
+      <div class="field">
+        <label for="lastCertNum">身份证后六位 <span class="req">*</span></label>
+        <input id="lastCertNum" type="text" maxlength="6" placeholder="输入身份证后六位" autocomplete="off" value="">
+      </div>
+
+      <button type="button" class="primary-button" id="bindBtn">
+        <span class="btn-spinner" aria-hidden="true"></span>
+        <span id="bindBtnText">绑定</span>
+      </button>
+
+      <div class="result-note ok" id="noteOk">绑定成功：重新发起微信授权，自动跳转 /xuchang/login/wechat/code 完成登录</div>
+      <div class="result-note fail" id="noteFail">绑定失败：toast 后端 message，2 秒后重新微信授权返回本页重试</div>
+    </section>
+
+    <div class="demo-bar">
+      <strong>原型演示</strong>提交结果切换（默认成功）
+      <div class="chips">
+        <button class="demo-chip is-on" data-result="ok">绑定成功</button>
+        <button class="demo-chip" data-result="fail">绑定失败</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    var toastTimer = null;
+    function toast(msg) {
+      var el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+    }
+
+    var demoResult = 'ok';
+    document.querySelectorAll('.demo-chip[data-result]').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        document.querySelectorAll('.demo-chip[data-result]').forEach(function (c) { c.classList.remove('is-on'); });
+        chip.classList.add('is-on');
+        demoResult = chip.getAttribute('data-result');
+      });
+    });
+
+    var bindBtn = document.getElementById('bindBtn');
+    bindBtn.addEventListener('click', function () {
+      var badge = document.getElementById('badge').value.trim();
+      var cert = document.getElementById('lastCertNum').value.trim();
+      // 旧页校验：两项均已填写才提交（任一为空不提交）
+      if (!badge || !cert) { toast('请填写员工号与身份证后六位'); return; }
+
+      // 提交 loading（模拟 POST /wechat/xc/banging/badge，parkId=5000021 + 微信 code）
+      bindBtn.disabled = true;
+      bindBtn.classList.add('is-loading');
+      document.getElementById('bindBtnText').textContent = '绑定中…';
+      document.getElementById('noteOk').classList.remove('show');
+      document.getElementById('noteFail').classList.remove('show');
+
+      setTimeout(function () {
+        bindBtn.disabled = false;
+        bindBtn.classList.remove('is-loading');
+        document.getElementById('bindBtnText').textContent = '绑定';
+        if (demoResult === 'ok') {
+          document.getElementById('noteOk').classList.add('show');
+          toast('绑定成功，正在重新发起微信授权登录');
+        } else {
+          document.getElementById('noteFail').classList.add('show');
+          toast('工号或身份证后六位不匹配');
+          // 旧页失败 2 秒后重新 OAuth 回本页
+        }
+      }, 900);
+    });
+  </script>
+</body>
+</html>

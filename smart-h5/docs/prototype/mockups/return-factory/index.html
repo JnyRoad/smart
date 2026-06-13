@@ -1,0 +1,304 @@
+<!doctype html>
+<!--
+  原型：返厂确认（列表）
+  旧路由：/xuchang/returnFactory（meta: 返厂确认）；支持 query curTabIndex=1 直达「我确认的」Tab
+  旧组件：smart-h5/src/views-mobile/pages/return-factory/list.vue
+          + views-mobile/components/page3-tab.vue / page3-bottom.vue
+          + pages/backLog/good-release-live/components/search-by-staff.vue（员工信息搜索弹层）
+          + components/plateNumber/plateNumber.vue（车牌键盘，入口已被旧代码注释停用）
+  接口：
+    GET platform:/articlesrelease/back/page   放行条分页列表（services/returnFactory.js getBackList）
+        参数：approvalStatus(0 待确认/1 我确认的)、current、size=10，可附搜索条件 badge/name/startTime/endTime/licensePlate
+  跳转：点击卡片 → /xuchang/returnFactory/detail?id=
+  交互：双 Tab「待确认的/我确认的」；下拉刷新（「更新成功」）、上拉分页（每页 10 条）、空态；
+        底部「搜索」按钮仅列表非空时显示（「扫一扫」在旧代码中已注释停用）；
+        搜索弹层按 工号/携带人姓名/申请开始时间/申请结束时间 重查当前 Tab（车牌搜索逻辑保留但入口停用）
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>返厂确认 - 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: var(--surface); }
+button, input { font: inherit; color: inherit; }
+button { border: 0; cursor: pointer; background: none; padding: 0; }
+button:focus-visible, input:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app {
+  position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--white);
+  box-shadow: var(--shadow-large); display: flex; flex-direction: column;
+}
+.topbar { display: flex; align-items: center; min-height: 46px; padding: max(14px, env(safe-area-inset-top)) 6px 4px; }
+.topbar .back { width: 44px; height: 44px; display: grid; place-items: center; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .spacer { width: 44px; }
+.seg-tab {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  margin: 8px 18px 0; padding: 4px; border-radius: 14px; background: rgba(236,108,0,.10);
+}
+.seg-tab button { min-height: 40px; border-radius: 11px; font-size: 14px; font-weight: 650; color: var(--accent-ink); }
+.seg-tab button.cur { background: var(--brand-orange); color: var(--white); box-shadow: 0 6px 16px rgba(236,108,0,.28); }
+.pull-hint { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 12px 0 0; }
+.content { flex: 1; padding: 8px 18px 110px; }
+.item {
+  display: block; width: 100%; text-align: left;
+  background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel);
+  padding: 16px; margin-bottom: 12px;
+}
+.item-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.item-title { font-size: 15px; font-weight: 700; line-height: 1.4; }
+.badge {
+  flex: none; display: inline-flex; align-items: center; border-radius: 999px;
+  padding: 4px 10px; font-size: 12px; font-weight: 650; white-space: nowrap;
+}
+.badge.gray { color: var(--mid-gray); background: rgba(140,138,138,.12); }
+.badge.green { color: var(--success); background: rgba(22,166,115,.12); }
+.row { display: flex; gap: 12px; font-size: 13px; padding: 4px 0; }
+.row .label { flex: none; width: 84px; color: var(--mid-gray); }
+.row .value { flex: 1; text-align: right; color: var(--yuto-black); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.loadmore { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 8px 0 16px; }
+.empty { display: none; text-align: center; padding: 64px 0 80px; }
+.empty svg { display: block; margin: 0 auto 14px; }
+.empty p { margin: 0; font-size: 14px; color: var(--weak-gray); }
+.app.is-empty .item, .app.is-empty .loadmore, .app.is-empty .pull-hint, .app.is-empty .bottom-bar { display: none; }
+.app.is-empty .empty { display: block; }
+/* Tab 数据分组 */
+.app[data-tab="0"] .tab1-item { display: none; }
+.app[data-tab="1"] .tab0-item { display: none; }
+.demo-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 18px 0; padding: 8px 12px;
+  border: 1px dashed var(--light-gray); border-radius: 12px; background: #FBFBFB;
+  font-size: 12px; color: var(--mid-gray);
+}
+.demo-bar button { padding: 5px 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--border-soft); font-size: 12px; font-weight: 650; }
+.demo-bar button.on { background: var(--accent-soft); border-color: rgba(236,108,0,.3); color: var(--accent-ink); }
+/* 底部搜索栏（列表非空时显示） */
+.bottom-bar {
+  position: sticky; bottom: 0; padding: 12px 18px max(24px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 30%);
+}
+.btn-search {
+  width: 100%; min-height: 48px; border-radius: 14px; background: var(--white);
+  border: 1px solid var(--border-soft); box-shadow: var(--shadow-panel);
+  font-size: 15px; font-weight: 650; color: var(--yuto-black);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+/* 搜索弹层（按员工信息查找） */
+.sheet-mask { position: fixed; inset: 0; background: rgba(89,87,87,.4); display: none; z-index: 8; }
+.sheet-mask.show { display: block; }
+.sheet {
+  position: fixed; left: 50%; bottom: 0; transform: translate(-50%, 100%); width: min(100%, 430px);
+  background: var(--white); border-radius: 18px 18px 0 0; padding: 14px 18px max(24px, env(safe-area-inset-bottom));
+  transition: transform .25s; z-index: 9;
+}
+.sheet.show { transform: translate(-50%, 0); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.sheet-head .title { font-size: 15px; font-weight: 750; }
+.sheet-head .ok { color: var(--brand-orange); font-weight: 700; min-height: 44px; padding: 0 6px; }
+.field { margin-bottom: 12px; }
+.field-label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 6px; }
+.input, .picker {
+  width: 100%; min-height: 48px; border: 1px solid var(--border-soft); border-radius: 12px;
+  background: var(--white); padding: 0 14px; display: flex; align-items: center; justify-content: space-between;
+  font-size: 15px; text-align: left;
+}
+input.input { display: block; }
+.input::placeholder, .picker .ph { color: var(--weak-gray); }
+.toast {
+  position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%);
+  background: rgba(89,87,87,.92); color: var(--white); font-size: 13px;
+  padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity .25s;
+  max-width: 80vw; text-align: center; z-index: 10;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app" id="app" data-tab="0">
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回 /xuchang/home" onclick="location.href='../home/index.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>返厂确认</h1>
+    <span class="spacer"></span>
+  </header>
+
+  <!-- 双 Tab：待确认的(approvalStatus=0) / 我确认的(approvalStatus=1)，query curTabIndex=1 直达第二 Tab -->
+  <nav class="seg-tab" aria-label="确认状态切换">
+    <button class="cur" id="tab0" onclick="setTab(0)">待确认的</button>
+    <button id="tab1" onclick="setTab(1)">我确认的</button>
+  </nav>
+
+  <div class="demo-bar">原型演示：
+    <button class="on" onclick="setEmpty(false,this)">有数据</button>
+    <button onclick="setEmpty(true,this)">空列表</button>
+  </div>
+
+  <p class="pull-hint">下拉刷新（成功提示「更新成功」）</p>
+
+  <main class="content">
+    <!-- 待确认的（approvalStatus=0）：卡片标题「{姓名}提交的放行条」+ backStatus；字段：申请部门/放行事项/申请时间/OA节点（空显示「-」） -->
+    <button class="item tab0-item" onclick="toast('原型演示：跳转 /xuchang/returnFactory/detail?id=3301')">
+      <div class="item-head">
+        <span class="item-title">周建华提交的放行条</span>
+        <span class="badge gray">未返厂</span>
+      </div>
+      <div class="row"><span class="label">申请部门:</span><span class="value">设备工程部</span></div>
+      <div class="row"><span class="label">放行事项:</span><span class="value">物品放行（送修设备）</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value">2026-06-10 08:46:22</span></div>
+      <div class="row"><span class="label">OA节点:</span><span class="value">门卫核验</span></div>
+    </button>
+
+    <button class="item tab0-item" onclick="toast('原型演示：跳转 /xuchang/returnFactory/detail?id=3297')">
+      <div class="item-head">
+        <span class="item-title">吴丽萍提交的放行条</span>
+        <span class="badge gray">未返厂</span>
+      </div>
+      <div class="row"><span class="label">申请部门:</span><span class="value">品质管理部</span></div>
+      <div class="row"><span class="label">放行事项:</span><span class="value">人员放行（外出送样）</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value">2026-06-09 13:12:50</span></div>
+      <div class="row"><span class="label">OA节点:</span><span class="value">-</span></div>
+    </button>
+
+    <button class="item tab0-item" onclick="toast('原型演示：跳转 /xuchang/returnFactory/detail?id=3290')">
+      <div class="item-head">
+        <span class="item-title">郑国梁提交的放行条</span>
+        <span class="badge gray">未返厂</span>
+      </div>
+      <div class="row"><span class="label">申请部门:</span><span class="value">物流仓储部</span></div>
+      <div class="row"><span class="label">放行事项:</span><span class="value">物品放行（外借工装）</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value">2026-06-08 16:55:07</span></div>
+      <div class="row"><span class="label">OA节点:</span><span class="value">审批完成</span></div>
+    </button>
+
+    <!-- 我确认的（approvalStatus=1） -->
+    <button class="item tab1-item" onclick="toast('原型演示：跳转 /xuchang/returnFactory/detail?id=3268')">
+      <div class="item-head">
+        <span class="item-title">马云飞提交的放行条</span>
+        <span class="badge green">已返厂</span>
+      </div>
+      <div class="row"><span class="label">申请部门:</span><span class="value">设备工程部</span></div>
+      <div class="row"><span class="label">放行事项:</span><span class="value">物品放行（送检模具）</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value">2026-06-05 09:20:33</span></div>
+      <div class="row"><span class="label">OA节点:</span><span class="value">流程结束</span></div>
+    </button>
+
+    <button class="item tab1-item" onclick="toast('原型演示：跳转 /xuchang/returnFactory/detail?id=3242')">
+      <div class="item-head">
+        <span class="item-title">林志远提交的放行条</span>
+        <span class="badge green">已返厂</span>
+      </div>
+      <div class="row"><span class="label">申请部门:</span><span class="value">研发中心</span></div>
+      <div class="row"><span class="label">放行事项:</span><span class="value">人员放行（客户拜访）</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value">2026-06-02 11:08:46</span></div>
+      <div class="row"><span class="label">OA节点:</span><span class="value">-</span></div>
+    </button>
+
+    <p class="loadmore">上拉加载更多（每页 10 条，到底提示无更多数据）</p>
+
+    <div class="empty">
+      <svg width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="44" fill="#FFF1E3"/>
+        <rect x="30" y="34" width="36" height="30" rx="4" fill="#FFFFFF" stroke="#EC6C00" stroke-opacity=".45" stroke-width="2"/>
+        <path d="M30 44h36" stroke="#EC6C00" stroke-opacity=".45" stroke-width="2"/>
+        <circle cx="48" cy="54" r="4" fill="#EC6C00" fill-opacity=".4"/>
+      </svg>
+      <p>暂无放行条记录</p>
+    </div>
+  </main>
+
+  <!-- 底部固定栏：仅列表非空时显示；旧代码「扫一扫」按钮已注释停用，仅保留「搜索」 -->
+  <div class="bottom-bar">
+    <button class="btn-search" onclick="openSearch()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.8"/><path d="m12.5 12.5 3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      搜 索
+    </button>
+  </div>
+</div>
+
+<!-- 搜索弹层：按员工信息查找（search-by-staff；「按车牌号搜索」切换入口在旧代码中已注释停用） -->
+<div class="sheet-mask" id="sheetMask" onclick="closeSearch()"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="按员工信息查找">
+  <div class="sheet-head">
+    <span class="title">按员工信息查找</span>
+    <button class="ok" onclick="doSearch()">确定</button>
+  </div>
+  <div class="field">
+    <span class="field-label">工号</span>
+    <input class="input" id="sBadge" placeholder="请输入">
+  </div>
+  <div class="field">
+    <span class="field-label">携带人姓名</span>
+    <input class="input" id="sName" placeholder="请输入">
+  </div>
+  <div class="field">
+    <span class="field-label">申请开始时间</span>
+    <button class="picker" onclick="toast('原型演示：时间选择器')">
+      <span class="ph">请输入</span>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 5.5 7 8.5l3-3" stroke="#AAA7A7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <div class="field">
+    <span class="field-label">申请结束时间</span>
+    <button class="picker" onclick="toast('原型演示：时间选择器')">
+      <span class="ph">请输入</span>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 5.5 7 8.5l3-3" stroke="#AAA7A7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function setTab(i){
+  document.getElementById('app').dataset.tab = i;
+  document.getElementById('tab0').classList.toggle('cur', i===0);
+  document.getElementById('tab1').classList.toggle('cur', i===1);
+}
+function setEmpty(empty, btn){
+  document.getElementById('app').classList.toggle('is-empty', empty);
+  document.querySelectorAll('.demo-bar button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+function openSearch(){
+  document.getElementById('sheetMask').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+}
+function closeSearch(){
+  document.getElementById('sheetMask').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+}
+function doSearch(){
+  closeSearch();
+  toast('原型演示：按条件重查当前 Tab（badge/name/startTime/endTime）');
+}
+</script>
+</body>
+</html>

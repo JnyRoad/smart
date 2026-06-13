@@ -1,0 +1,404 @@
+<!doctype html>
+<!--
+  原型：物品放行（生活区）审批列表
+  旧路由：/xuchang/backLog/goodReleaseLive
+  旧组件：smart-h5/src/views-mobile/pages/backLog/good-release-live/list.vue
+          （page3-tab、page3-bottom、components/search-by-staff.vue、plateNumber）
+  接口：
+    - GET platform /approve/list/new/page（recordType=3, recordState=0/1, current, size, badge, name, startTime, endTime, licensePlate）
+    - GET platform /articlesrelease/detail/{id}（扫码直达详情，articlesType=3 生活区 / 4 办公区）
+    - GET app /wechat/sign（微信扫一扫 JS-SDK 签名，旧入口已注释）
+  跳转：
+    - 卡片 → /xuchang/backLog/goodReleaseLive/detail?id&curTabIndex&sort（good-release-live-detail.html）
+  备注：底部「搜索」按钮仅保安（isSecurityGuard=0）可见；车牌号搜索与扫一扫入口在旧代码中被注释，逻辑保留。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>物品放行（生活区）审批 · 裕同智慧园区</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; min-height: 100dvh; }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; background: none; }
+    input:focus-visible, button:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative;
+      width: min(100%, 430px);
+      min-height: 100dvh;
+      margin: 0 auto;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--white);
+      box-shadow: var(--shadow-large);
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 96px;
+    }
+    /* 原型演示切换条 */
+    .demo-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 10px 18px 0;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(236, 108, 0, 0.45);
+      background: rgba(255, 241, 227, 0.6);
+      font-size: 12px;
+      color: var(--accent-ink);
+    }
+    .demo-bar strong { font-weight: 750; }
+    .demo-chip {
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(236, 108, 0, 0.35);
+      background: var(--white);
+      color: var(--accent-ink);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .demo-chip[aria-pressed="true"] { background: var(--brand-orange); border-color: var(--brand-orange); color: var(--white); }
+    .topbar {
+      display: flex;
+      align-items: center;
+      min-height: 46px;
+      padding: max(14px, env(safe-area-inset-top)) 18px 0;
+      gap: 6px;
+    }
+    .back-button {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px; margin-left: -10px; border-radius: 12px; color: var(--yuto-black);
+    }
+    .back-button:active { background: var(--accent-soft); }
+    .topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+    .topbar-spacer { width: 44px; }
+    /* Tab：待我审批的 / 我审批的 */
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+      margin: 12px 18px 0;
+      padding: 4px;
+      min-height: 48px;
+      border: 1px solid var(--border-soft);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+    .tab {
+      min-height: 44px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--mid-gray);
+    }
+    .tab[aria-selected="true"] {
+      background: var(--white);
+      color: var(--accent-ink);
+      box-shadow: 0 6px 18px rgba(89, 87, 87, 0.08), inset 0 0 0 1px rgba(236, 108, 0, 0.24);
+    }
+    /* 下拉刷新提示（演示用静态条） */
+    .pull-hint {
+      margin: 10px 18px 0;
+      text-align: center;
+      font-size: 12px;
+      color: var(--weak-gray);
+    }
+    .card-list { display: flex; flex-direction: column; gap: 12px; padding: 12px 18px 0; }
+    .approve-card {
+      width: 100%;
+      text-align: left;
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--white);
+      border: 1px solid var(--border-soft);
+      box-shadow: var(--shadow-panel);
+      transition: transform 140ms ease;
+    }
+    .approve-card:active { transform: scale(0.985); }
+    .approve-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .approve-name { font-size: 15px; font-weight: 700; color: var(--yuto-black); }
+    .badge {
+      display: inline-flex; align-items: center;
+      min-height: 24px; padding: 0 10px;
+      border-radius: 999px;
+      font-size: 12px; font-weight: 650; white-space: nowrap;
+    }
+    .badge.node { background: rgba(35, 118, 217, 0.12); color: var(--info); }       /* 当前节点（待我审批） */
+    .badge.pass { background: rgba(22, 166, 115, 0.12); color: var(--success); }    /* approveState=1 通过 */
+    .badge.reject { background: rgba(216, 59, 54, 0.12); color: var(--danger); }    /* approveState=2 拒绝 */
+    .approve-rows { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .row { display: flex; gap: 10px; font-size: 13px; line-height: 1.5; }
+    .row dt { flex: none; width: 74px; margin: 0; color: var(--mid-gray); }
+    .row dd { flex: 1; min-width: 0; margin: 0; color: var(--yuto-black); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .load-more { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 14px 0 4px; }
+    /* 空态 */
+    .empty {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 64px 18px;
+      text-align: center;
+    }
+    .empty p { margin: 0; font-size: 14px; color: var(--weak-gray); }
+    /* 底部搜索（仅保安可见） */
+    .bottom-bar {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 0;
+      width: min(100%, 430px);
+      padding: 10px 18px max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(247,247,247,0), var(--surface) 38%);
+    }
+    .search-button {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; min-height: 48px;
+      border-radius: 14px;
+      background: var(--brand-orange);
+      color: var(--white);
+      font-size: 16px; font-weight: 650;
+    }
+    .search-button:active { background: var(--accent-strong); }
+    /* 搜索弹层（按员工信息查找） */
+    .sheet-mask {
+      position: fixed; inset: 0;
+      display: none;
+      background: rgba(89, 87, 87, 0.45);
+      z-index: 30;
+    }
+    .sheet-mask.open { display: block; }
+    .sheet {
+      position: absolute;
+      left: 50%; transform: translateX(-50%);
+      bottom: 0;
+      width: min(100%, 430px);
+      border-radius: 22px 22px 0 0;
+      background: var(--white);
+      padding: 14px 18px max(24px, env(safe-area-inset-bottom));
+    }
+    .sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+    .sheet-title { font-size: 16px; font-weight: 750; }
+    .sheet-ok { min-height: 44px; padding: 0 12px; color: var(--brand-orange); font-weight: 700; font-size: 15px; }
+    .sheet-cancel { min-height: 44px; padding: 0 12px; color: var(--mid-gray); font-size: 15px; }
+    .field { margin-top: 12px; }
+    .field label { display: block; margin-bottom: 7px; font-size: 13px; color: var(--mid-gray); }
+    .field input {
+      width: 100%; height: 48px;
+      padding: 0 14px;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      color: var(--yuto-black);
+      background: var(--white);
+    }
+    .sheet-note { margin-top: 14px; font-size: 12px; color: var(--weak-gray); line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="demo-bar" aria-label="原型演示切换">
+      <strong>原型演示：</strong>
+      <button class="demo-chip" id="chipGuard" aria-pressed="true" onclick="setGuard(true)">保安视角（有搜索）</button>
+      <button class="demo-chip" id="chipStaff" aria-pressed="false" onclick="setGuard(false)">普通审批人视角</button>
+      <button class="demo-chip" id="chipEmpty" aria-pressed="false" onclick="toggleEmpty()">空态</button>
+    </div>
+
+    <header class="topbar">
+      <button class="back-button" aria-label="返回" onclick="location.href='index.html'">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">物品放行（生活区）</div>
+      <div class="topbar-spacer" aria-hidden="true"></div>
+    </header>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" id="tab0" role="tab" aria-selected="true" onclick="switchTab(0)">待我审批的</button>
+      <button class="tab" id="tab1" role="tab" aria-selected="false" onclick="switchTab(1)">我审批的</button>
+    </div>
+
+    <div class="pull-hint">↓ 下拉刷新 · 更新成功</div>
+
+    <!-- Tab0：待我审批的（右上为当前节点 approveNodeDesc） -->
+    <div class="card-list" id="listPending" role="tabpanel">
+      <button class="approve-card" onclick="toDetail('GR2026061101', 1)">
+        <div class="approve-head">
+          <span class="approve-name">陈晓梅的放行申请</span>
+          <span class="badge node">室友审批中</span>
+        </div>
+        <dl class="approve-rows">
+          <div class="row"><dt>物品类型</dt><dd>个人生活物品</dd></div>
+          <div class="row"><dt>物品名称</dt><dd>行李箱、被褥一套</dd></div>
+          <div class="row"><dt>携带人名称</dt><dd>陈晓梅</dd></div>
+          <div class="row"><dt>房间信息</dt><dd>许昌园区2号宿舍楼 305室</dd></div>
+          <div class="row"><dt>申请时间</dt><dd>2026-06-11 09:24</dd></div>
+        </dl>
+      </button>
+      <button class="approve-card" onclick="toDetail('GR2026061102', 2)">
+        <div class="approve-head">
+          <span class="approve-name">王志强的放行申请</span>
+          <span class="badge node">宿管审批中</span>
+        </div>
+        <dl class="approve-rows">
+          <div class="row"><dt>物品类型</dt><dd>电器</dd></div>
+          <div class="row"><dt>物品名称</dt><dd>电风扇、电饭煲</dd></div>
+          <div class="row"><dt>携带人名称</dt><dd>王志强</dd></div>
+          <div class="row"><dt>房间信息</dt><dd>许昌园区1号宿舍楼 218室</dd></div>
+          <div class="row"><dt>申请时间</dt><dd>2026-06-10 18:47</dd></div>
+        </dl>
+      </button>
+      <button class="approve-card" onclick="toDetail('GR2026061103', 3)">
+        <div class="approve-head">
+          <span class="approve-name">李大鹏的放行申请</span>
+          <span class="badge node">保安确认中</span>
+        </div>
+        <dl class="approve-rows">
+          <div class="row"><dt>物品类型</dt><dd>个人生活物品</dd></div>
+          <div class="row"><dt>物品名称</dt><dd>自行车一辆</dd></div>
+          <div class="row"><dt>携带人名称</dt><dd>李大鹏</dd></div>
+          <div class="row"><dt>房间信息</dt><dd>许昌园区3号宿舍楼 412室</dd></div>
+          <div class="row"><dt>申请时间</dt><dd>2026-06-10 08:15</dd></div>
+        </dl>
+      </button>
+      <div class="load-more">↑ 上拉加载更多（第 1/3 页，每页 10 条）</div>
+    </div>
+
+    <!-- Tab1：我审批的（右上为审批结果 approveDesc，按 approveState 着色） -->
+    <div class="card-list" id="listDone" role="tabpanel" hidden>
+      <button class="approve-card" onclick="toDetail('GR2026060905', 1, 1)">
+        <div class="approve-head">
+          <span class="approve-name">赵丽华的放行申请</span>
+          <span class="badge pass">已通过</span>
+        </div>
+        <dl class="approve-rows">
+          <div class="row"><dt>物品类型</dt><dd>个人生活物品</dd></div>
+          <div class="row"><dt>物品名称</dt><dd>纸箱两个（书籍、衣物）</dd></div>
+          <div class="row"><dt>携带人名称</dt><dd>赵丽华</dd></div>
+          <div class="row"><dt>房间信息</dt><dd>许昌园区2号宿舍楼 306室</dd></div>
+          <div class="row"><dt>申请时间</dt><dd>2026-06-09 16:02</dd></div>
+        </dl>
+      </button>
+      <button class="approve-card" onclick="toDetail('GR2026060812', 2, 1)">
+        <div class="approve-head">
+          <span class="approve-name">孙建国的放行申请</span>
+          <span class="badge reject">已拒绝</span>
+        </div>
+        <dl class="approve-rows">
+          <div class="row"><dt>物品类型</dt><dd>电器</dd></div>
+          <div class="row"><dt>物品名称</dt><dd>微波炉</dd></div>
+          <div class="row"><dt>携带人名称</dt><dd>孙建国</dd></div>
+          <div class="row"><dt>房间信息</dt><dd>许昌园区1号宿舍楼 102室</dd></div>
+          <div class="row"><dt>申请时间</dt><dd>2026-06-08 11:36</dd></div>
+        </dl>
+      </button>
+      <div class="load-more">已加载全部</div>
+    </div>
+
+    <!-- 空态 -->
+    <div class="empty" id="emptyState">
+      <svg width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="44" fill="rgba(236,108,0,0.08)"/>
+        <rect x="30" y="28" width="36" height="42" rx="5" fill="#FFFFFF" stroke="#AAA7A7" stroke-width="2.4"/>
+        <path d="M37 40h22M37 49h22M37 58h12" stroke="#E5E3E3" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <p>暂无审批数据</p>
+    </div>
+
+    <!-- 仅保安（isSecurityGuard=0）显示 -->
+    <div class="bottom-bar" id="bottomBar">
+      <button class="search-button" onclick="openSheet()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        搜 索
+      </button>
+    </div>
+
+    <!-- 搜索弹层：按员工信息查找（旧 search-by-staff.vue；车牌号搜索入口在旧代码中已注释） -->
+    <div class="sheet-mask" id="sheetMask" role="dialog" aria-modal="true" aria-label="按员工信息查找">
+      <div class="sheet">
+        <div class="sheet-head">
+          <button class="sheet-cancel" onclick="closeSheet()">取消</button>
+          <div class="sheet-title">按员工信息查找</div>
+          <button class="sheet-ok" onclick="doSearch()">确定</button>
+        </div>
+        <div class="field">
+          <label for="fBadge">工号</label>
+          <input id="fBadge" type="text" placeholder="请输入" value="YT08231">
+        </div>
+        <div class="field">
+          <label for="fName">携带人姓名</label>
+          <input id="fName" type="text" placeholder="请输入" value="陈晓梅">
+        </div>
+        <div class="field">
+          <label for="fStart">申请开始时间</label>
+          <input id="fStart" type="datetime-local" value="2026-06-08T00:00">
+        </div>
+        <div class="field">
+          <label for="fEnd">申请结束时间</label>
+          <input id="fEnd" type="datetime-local" value="2026-06-11T23:59">
+        </div>
+        <p class="sheet-note">说明：旧版另有「按车牌号搜索」弹层与「微信扫一扫」直达详情能力，入口在旧代码中已注释停用，本原型予以保留记录。</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var curTab = 0;
+    var isEmpty = false;
+    function switchTab(i) {
+      curTab = i;
+      document.getElementById('tab0').setAttribute('aria-selected', i === 0);
+      document.getElementById('tab1').setAttribute('aria-selected', i === 1);
+      render();
+    }
+    function render() {
+      document.getElementById('listPending').hidden = isEmpty || curTab !== 0;
+      document.getElementById('listDone').hidden = isEmpty || curTab !== 1;
+      document.getElementById('emptyState').style.display = isEmpty ? 'flex' : 'none';
+    }
+    function toggleEmpty() {
+      isEmpty = !isEmpty;
+      document.getElementById('chipEmpty').setAttribute('aria-pressed', isEmpty);
+      render();
+    }
+    function setGuard(isGuard) {
+      document.getElementById('chipGuard').setAttribute('aria-pressed', isGuard);
+      document.getElementById('chipStaff').setAttribute('aria-pressed', !isGuard);
+      document.getElementById('bottomBar').style.display = isGuard ? 'block' : 'none';
+    }
+    function toDetail(id, sort, tab) {
+      location.href = 'good-release-live-detail.html?id=' + id + '&sort=' + sort + '&curTabIndex=' + (tab || curTab);
+    }
+    function openSheet() { document.getElementById('sheetMask').classList.add('open'); }
+    function closeSheet() { document.getElementById('sheetMask').classList.remove('open'); }
+    function doSearch() {
+      closeSheet();
+      alert('GET /approve/list/new/page\nrecordType=3, recordState=' + curTab + '\nbadge=YT08231, name=陈晓梅, startTime, endTime');
+    }
+    document.getElementById('sheetMask').addEventListener('click', function (e) {
+      if (e.target === this) closeSheet();
+    });
+  </script>
+</body>
+</html>

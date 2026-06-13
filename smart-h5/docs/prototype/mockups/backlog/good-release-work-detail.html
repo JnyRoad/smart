@@ -1,0 +1,261 @@
+<!doctype html>
+<!--
+  原型：物品放行(办公区) 审批详情
+  旧路由：/xuchang/backLog/goodReleaseWork/detail?id={id}&curTabIndex={tab}（支持 isScan 扫码进入）
+  旧组件：views-mobile/pages/backLog/good-release-work/detail.vue
+          + pages/good-release-live/components/process/index.vue（审批流程时间轴）
+          + pages/good-release-work/components/person-tag-detail.vue（放行人员标签）
+          + pages/good-release-work/components/goods-tag.vue（放行物品标签）
+          + views-mobile/components/page3-bottom
+  接口：GET  platform:/articlesrelease/detail/{id}（详情，复用生活区接口）
+        POST platform:/articlesrelease/status/security/update（保安放行：status 4通过/5拒绝，
+             参数 guardOneImg/guardTwoImg/guardThreeImg/id/parkId/status/badge/remark）
+  跳转：放行人员点击 → /xuchang/goodReleaseWork/detailPersonList；放行物品点击 → /xuchang/goodReleaseWork/detailGoodsList；
+        审批成功 → 扫码进入回 /xuchang/home，否则 /xuchang/backLog/goodReleaseLive?curTabIndex=1（旧代码事实）；
+        详情加载失败 → /xuchang/home。
+  校验：isUploadImg===0 时必须至少上传一张物品照片，否则 toast「请至少上传一张照片」。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行(办公区) 审批详情</title>
+<style>
+:root {
+  --brand-orange: #EC6C00; --accent-strong: #D95F00; --accent-soft: #FFF1E3; --accent-ink: #5A2600;
+  --white: #FFFFFF; --surface: #F7F7F7; --yuto-black: #595757; --mid-gray: #8C8A8A; --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3; --border-soft: #EFEEEE; --success: #16A673; --warning: #C98416; --danger: #D83B36; --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89,87,87,.14); --shadow-panel: 0 16px 40px rgba(89,87,87,.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; margin: 0; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button, input, textarea { font: inherit; color: inherit; }
+button { border: 0; background: none; cursor: pointer; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 0 0; background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 220px); }
+.topbar { display: flex; align-items: center; min-height: 46px; padding: 0 6px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.back-btn svg { width: 22px; height: 22px; }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-space { width: 44px; }
+.demo-bar { margin: 6px 18px 10px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,241,227,.6); }
+.demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--accent-ink); margin-bottom: 6px; }
+.demo-bar .demo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-bar button { min-height: 30px; padding: 0 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--light-gray); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+.content { flex: 1; padding: 0 18px 130px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); padding: 16px; margin-bottom: 12px; }
+.who { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.who .nm { font-size: 16px; font-weight: 750; }
+.who .nm em { font-style: normal; color: var(--weak-gray); padding: 0 8px; font-weight: 400; }
+.badge { border-radius: 999px; font-size: 12px; font-weight: 650; padding: 4px 10px; }
+.badge--info { color: var(--info); background: rgba(35,118,217,.12); }
+.badge--soft { color: var(--accent-ink); background: var(--accent-soft); }
+.row { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.row:last-child { border-bottom: 0; }
+.row .lab { flex: none; width: 78px; color: var(--mid-gray); }
+.row .val { flex: 1; min-width: 0; }
+.attach { width: 72px; height: 72px; border-radius: 10px; background: linear-gradient(135deg, #FFE2C4, #FFF1E3); border: 1px solid var(--light-gray); display: flex; align-items: center; justify-content: center; color: var(--accent-strong); font-size: 11px; }
+.sec-title { font-size: 14px; font-weight: 750; margin-bottom: 8px; }
+.tag-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag-wrap .tag { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 8px; font-size: 12px; padding: 6px 10px; color: var(--yuto-black); }
+.more-link { display: flex; justify-content: flex-end; margin-top: 8px; font-size: 12px; color: var(--brand-orange); font-weight: 650; }
+/* 上传 */
+.upload-grid { display: flex; gap: 10px; }
+.upload-cell { width: 84px; height: 84px; border-radius: 12px; border: 1px dashed var(--light-gray); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--weak-gray); font-size: 11px; background: var(--surface); }
+.upload-cell.filled { border-style: solid; background: linear-gradient(135deg, #FFE2C4, #FFF1E3); color: var(--accent-strong); }
+.upload-cell svg { width: 22px; height: 22px; }
+.upload-hint { font-size: 12px; color: var(--weak-gray); margin-top: 8px; }
+/* 流程时间轴 */
+.flow { padding: 4px 0 0; }
+.node { display: flex; gap: 12px; }
+.node .rail { display: flex; flex-direction: column; align-items: center; width: 18px; flex: none; }
+.node .dot { width: 14px; height: 14px; border-radius: 999px; background: var(--accent-soft); border: 3px solid var(--brand-orange); margin-top: 2px; }
+.node .line { flex: 1; width: 2px; background: var(--border-soft); margin: 4px 0; }
+.node:last-child .line { display: none; }
+.node .body { flex: 1; padding-bottom: 16px; }
+.node .n-title { font-size: 14px; font-weight: 700; }
+.node .n-person { font-size: 13px; margin-top: 4px; }
+.st0 { color: var(--info); font-weight: 650; }
+.st1 { color: var(--success); font-weight: 650; }
+.st2 { color: var(--danger); font-weight: 650; }
+.st4 { color: var(--weak-gray); font-weight: 650; }
+.node .n-remark { font-size: 12px; color: var(--mid-gray); margin-top: 3px; }
+.node .n-time { font-size: 12px; color: var(--weak-gray); margin-top: 3px; }
+/* 底部按钮 */
+.bottom-bar { position: sticky; bottom: 0; display: flex; gap: 12px; padding: 10px 18px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(247,247,247,0), var(--surface) 40%); }
+.btn { flex: 1; min-height: 48px; border-radius: 14px; font-size: 15px; font-weight: 650; }
+.btn--primary { background: var(--brand-orange); color: #fff; }
+.btn--primary:active { background: var(--accent-strong); }
+.btn--ghost { background: var(--white); border: 1px solid var(--border-soft); color: var(--danger); box-shadow: var(--shadow-panel); }
+.done-tip { text-align: center; font-size: 13px; color: var(--weak-gray); padding: 14px 0 max(24px, env(safe-area-inset-bottom)); }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(89,87,87,.92); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 10px; display: none; z-index: 50; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="toast('返回列表')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">放行条详情</div>
+      <div class="topbar-space"></div>
+    </header>
+
+    <div class="demo-bar">
+      <div class="demo-tag">原型演示 · 状态切换</div>
+      <div class="demo-btns">
+        <button class="on" onclick="setDemo('person',this)">待审批 · 人员放行</button>
+        <button onclick="setDemo('goods',this)">待审批 · 物品放行</button>
+        <button onclick="setDemo('done',this)">已审批 · 仅查看</button>
+      </div>
+    </div>
+
+    <main class="content">
+      <!-- 申请人 -->
+      <section class="card">
+        <div class="who">
+          <div class="nm" id="whoName">李雨桐<em>|</em>印刷一课</div>
+          <span class="badge badge--info" id="returnBadge">不返厂</span>
+        </div>
+      </section>
+
+      <!-- 基本字段 -->
+      <section class="card">
+        <div class="row"><span class="lab">放行去处:</span><span class="val" id="fGo">厂外</span></div>
+        <div class="row"><span class="lab">出发地点:</span><span class="val" id="fFrom">C栋</span></div>
+        <div class="row"><span class="lab">到达地点:</span><span class="val" id="fTo">市场开发部/生活区</span></div>
+        <div class="row"><span class="lab">放行事项:</span><span class="val" id="fItem">人员放行(仅限出差使用)</span></div>
+        <div class="row"><span class="lab">放行类别:</span><span class="val" id="fType">其它</span></div>
+        <div class="row"><span class="lab">放行人级别:</span><span class="val" id="fLevel">课长级</span></div>
+        <div class="row"><span class="lab">附件:</span>
+          <span class="val" id="fAttach"><span class="attach">附件图片<br>(可预览)</span></span>
+        </div>
+      </section>
+
+      <!-- 放行人员（fxsx=0/7） -->
+      <section class="card" id="personBlock">
+        <div class="sec-title">放行人员</div>
+        <div class="tag-wrap">
+          <span class="tag">李雨桐</span><span class="tag">周文博</span><span class="tag">郑小琳</span>
+        </div>
+        <button class="more-link" style="width:100%" onclick="toast('跳转：/xuchang/goodReleaseWork/detailPersonList')">查看人员明细 ›</button>
+      </section>
+
+      <!-- 放行物品（其他 fxsx） -->
+      <section class="card" id="goodsBlock" style="display:none">
+        <div class="sec-title">放行物品</div>
+        <div class="tag-wrap">
+          <span class="tag">WP10086-联想ThinkPad笔记本 1台</span>
+          <span class="tag">WP10312-显示器支架 2个</span>
+          <span class="tag">WP10477-网线 5箱</span>
+        </div>
+        <button class="more-link" style="width:100%" onclick="toast('跳转：/xuchang/goodReleaseWork/detailGoodsList')">查看物品明细 ›</button>
+      </section>
+
+      <!-- 上传物品照片（isUploadImg===0 时） -->
+      <section class="card" id="uploadBlock">
+        <div class="sec-title">上传物品照片 <span style="color:var(--danger)">*</span></div>
+        <div class="upload-grid">
+          <div class="upload-cell filled">照片1<br>已上传</div>
+          <button class="upload-cell" onclick="toast('调起相机/相册（base64 上传）')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            添加照片
+          </button>
+          <button class="upload-cell" onclick="toast('调起相机/相册（base64 上传）')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            添加照片
+          </button>
+        </div>
+        <div class="upload-hint">最多 3 张；未上传任何照片时提交将提示「请至少上传一张照片」。</div>
+      </section>
+
+      <!-- 审批流程 -->
+      <section class="card">
+        <div class="sec-title">审批流程</div>
+        <div class="flow">
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-person"><strong>李雨桐</strong>-<span class="st0">提交申请</span></div>
+              <div class="n-time">2026-06-11 08:51:02</div>
+            </div>
+          </div>
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">部门经理审批</div>
+              <div class="n-person">王立军-<span class="st1">通过</span></div>
+              <div class="n-remark">意见: 出差行程已核实，同意放行</div>
+              <div class="n-time">2026-06-11 09:10:47</div>
+            </div>
+          </div>
+          <div class="node" id="flowLast">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">保安核验</div>
+              <div class="n-person">张保安-<span class="st0" id="lastResult">待审批</span></div>
+              <div class="n-time" id="lastTime">—</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 底部操作（仅 detailInfo.status===2 待保安处理时显示） -->
+    <div class="bottom-bar" id="actionBar">
+      <button class="btn btn--ghost" onclick="toast('拒绝(status=5)：POST /articlesrelease/status/security/update')">拒 绝</button>
+      <button class="btn btn--primary" onclick="toast('通过(status=4)：成功后跳 /xuchang/backLog/goodReleaseLive?curTabIndex=1')">通 过</button>
+    </div>
+    <div class="done-tip" id="doneTip" style="display:none">该放行条已完成审批，仅供查看</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+function setDemo(mode, btn){
+  document.querySelectorAll('.demo-btns button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const person = mode==='person';
+  const done = mode==='done';
+  document.getElementById('personBlock').style.display = person ? '' : 'none';
+  document.getElementById('goodsBlock').style.display = person ? 'none' : '';
+  document.getElementById('uploadBlock').style.display = done ? 'none' : '';
+  document.getElementById('actionBar').style.display = done ? 'none' : 'flex';
+  document.getElementById('doneTip').style.display = done ? '' : 'none';
+  if(person){
+    document.getElementById('whoName').innerHTML = '李雨桐<em>|</em>印刷一课';
+    document.getElementById('returnBadge').textContent = '不返厂';
+    document.getElementById('fItem').textContent = '人员放行(仅限出差使用)';
+    document.getElementById('fFrom').textContent = 'C栋';
+    document.getElementById('fLevel').textContent = '课长级';
+  } else {
+    document.getElementById('whoName').innerHTML = '陈志强<em>|</em>包装结构研发部';
+    document.getElementById('returnBadge').textContent = done ? '返厂' : '不返厂';
+    document.getElementById('fItem').textContent = '电脑放行';
+    document.getElementById('fFrom').textContent = 'A栋';
+    document.getElementById('fLevel').textContent = '经理级';
+  }
+  const lastResult = document.getElementById('lastResult');
+  const lastTime = document.getElementById('lastTime');
+  if(done){
+    lastResult.textContent = '通过'; lastResult.className = 'st1';
+    lastTime.textContent = '2026-06-11 10:02:15';
+  } else {
+    lastResult.textContent = '待审批'; lastResult.className = 'st0';
+    lastTime.textContent = '—';
+  }
+}
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.style.display='none', 2200);
+}
+</script>
+</body>
+</html>

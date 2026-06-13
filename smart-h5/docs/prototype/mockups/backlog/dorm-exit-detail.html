@@ -1,0 +1,232 @@
+<!doctype html>
+<!--
+  原型：退宿申请 审批详情
+  旧路由：/xuchang/backLog/dormExit/detail?id={id}&curTabIndex={tab}（支持 isScan 扫码进入）
+  旧组件：views-mobile/pages/backLog/dorm-exit/detail.vue
+          + backLog/dorm-exit/components/process/index.vue（审批流程时间轴）
+          + views-mobile/components/page3-bottom
+  接口：GET platform:/dor/quit/detail/{id}（详情；facePic=GET_IMAGE_URL/faceId，缺省占位头像）
+        GET platform:/dor/quit/list/check/{id}（扫码详情，扫码进入时改走此接口并强制审批模式）
+        GET platform:/dor/quit/status/update（审批，参数 id/remark/status/approveBadge）
+  跳转：审批成功 → 扫码进入回 /xuchang/home，否则 /xuchang/backLog/dormExit?curTabIndex=1；
+        详情加载失败 → toast 后跳 /xuchang/home。
+  说明：审批模式由 isScan 或详情返回 isApprove 决定（默认查看模式）。
+        审批模式显示「描述(非必填)」输入（maxlength=50）。
+        底部按钮（仅审批模式）：status=1 待主管审批 → 拒绝(3)/通过(2)；status=2 待保安确认 → 拒绝(5)/保安通过(4)。
+  状态流转：1待主管审批 → 2待保安确认(主管通过) / 3已拒绝；2 → 4已放行(保安通过) / 5保安拒绝。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>退宿申请 审批详情</title>
+<style>
+:root {
+  --brand-orange: #EC6C00; --accent-strong: #D95F00; --accent-soft: #FFF1E3; --accent-ink: #5A2600;
+  --white: #FFFFFF; --surface: #F7F7F7; --yuto-black: #595757; --mid-gray: #8C8A8A; --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3; --border-soft: #EFEEEE; --success: #16A673; --warning: #C98416; --danger: #D83B36; --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89,87,87,.14); --shadow-panel: 0 16px 40px rgba(89,87,87,.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; margin: 0; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button, textarea { font: inherit; color: inherit; }
+button { border: 0; background: none; cursor: pointer; }
+button:focus-visible, textarea:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 0 0; background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 220px); }
+.topbar { display: flex; align-items: center; min-height: 46px; padding: 0 6px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.back-btn svg { width: 22px; height: 22px; }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-space { width: 44px; }
+.demo-bar { margin: 6px 18px 10px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,241,227,.6); }
+.demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--accent-ink); margin-bottom: 6px; }
+.demo-bar .demo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-bar button { min-height: 30px; padding: 0 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--light-gray); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+.content { flex: 1; padding: 0 18px 130px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); padding: 16px; margin-bottom: 12px; }
+.who { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.who .nm { font-size: 17px; font-weight: 750; }
+.face { width: 72px; height: 72px; border-radius: 14px; flex: none; background: linear-gradient(135deg, #FFE2C4, #FFF1E3); border: 1px solid var(--light-gray); display: flex; align-items: center; justify-content: center; }
+.face svg { width: 36px; height: 36px; color: var(--accent-strong); }
+.face-note { font-size: 11px; color: var(--weak-gray); margin-top: 6px; text-align: right; }
+.row { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.row:last-child { border-bottom: 0; }
+.row .lab { flex: none; width: 88px; color: var(--mid-gray); }
+.row .val { flex: 1; min-width: 0; }
+.room-lines { margin: 0; padding: 0; list-style: none; }
+.room-lines li { padding: 1px 0; }
+.img-list { display: flex; gap: 10px; }
+.thumb { width: 72px; height: 72px; border-radius: 10px; background: linear-gradient(135deg, #FFE2C4, #FFF1E3); border: 1px solid var(--light-gray); display: flex; align-items: center; justify-content: center; color: var(--accent-strong); font-size: 11px; text-align: center; }
+.sec-title { font-size: 14px; font-weight: 750; margin-bottom: 8px; }
+/* 流程时间轴 */
+.flow { padding: 4px 0 0; }
+.node { display: flex; gap: 12px; }
+.node .rail { display: flex; flex-direction: column; align-items: center; width: 18px; flex: none; }
+.node .dot { width: 14px; height: 14px; border-radius: 999px; background: var(--accent-soft); border: 3px solid var(--brand-orange); margin-top: 2px; }
+.node .line { flex: 1; width: 2px; background: var(--border-soft); margin: 4px 0; }
+.node:last-child .line { display: none; }
+.node .body { flex: 1; padding-bottom: 16px; }
+.node .n-title { font-size: 14px; font-weight: 700; }
+.node .n-person { font-size: 13px; margin-top: 4px; }
+.st0 { color: var(--info); font-weight: 650; }
+.st1 { color: var(--success); font-weight: 650; }
+.st2 { color: var(--danger); font-weight: 650; }
+.st4 { color: var(--weak-gray); font-weight: 650; }
+.node .n-remark { font-size: 12px; color: var(--mid-gray); margin-top: 3px; }
+.node .n-time { font-size: 12px; color: var(--weak-gray); margin-top: 3px; }
+/* 描述输入 */
+.remark-box textarea { width: 100%; min-height: 88px; border: 1px solid var(--border-soft); border-radius: 12px; padding: 12px 14px; resize: vertical; background: var(--white); }
+.remark-box textarea:focus { outline: 3px solid rgba(236,108,0,.22); border-color: var(--brand-orange); }
+.remark-count { text-align: right; font-size: 12px; color: var(--weak-gray); margin-top: 4px; }
+/* 底部按钮 */
+.bottom-bar { position: sticky; bottom: 0; display: flex; gap: 12px; padding: 10px 18px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(247,247,247,0), var(--surface) 40%); }
+.btn { flex: 1; min-height: 48px; border-radius: 14px; font-size: 15px; font-weight: 650; }
+.btn--primary { background: var(--brand-orange); color: #fff; }
+.btn--primary:active { background: var(--accent-strong); }
+.btn--ghost { background: var(--white); border: 1px solid var(--border-soft); color: var(--danger); box-shadow: var(--shadow-panel); }
+.done-tip { text-align: center; font-size: 13px; color: var(--weak-gray); padding: 14px 0 max(24px, env(safe-area-inset-bottom)); }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(89,87,87,.92); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 10px; display: none; z-index: 50; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="toast('返回列表')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">退宿申请详情</div>
+      <div class="topbar-space"></div>
+    </header>
+
+    <div class="demo-bar">
+      <div class="demo-tag">原型演示 · 状态切换</div>
+      <div class="demo-btns">
+        <button class="on" onclick="setDemo('supervisor',this)">待主管审批</button>
+        <button onclick="setDemo('guard',this)">待保安确认</button>
+        <button onclick="setDemo('view',this)">查看模式 · 已放行</button>
+      </div>
+    </div>
+
+    <main class="content">
+      <!-- 申请人卡：姓名 + 人脸照片 -->
+      <section class="card">
+        <div class="who">
+          <div class="nm">林雅芳</div>
+          <div>
+            <div class="face" role="img" aria-label="人脸照片">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="9" r="3.6"/><path d="M5 19.5c1.6-3 4-4.5 7-4.5s5.4 1.5 7 4.5"/></svg>
+            </div>
+            <div class="face-note">人脸照片（缺省占位头像）</div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px"><span class="lab">房间信息:</span>
+          <span class="val"><ul class="room-lines"><li>许昌园区3栋-312室-2号床</li><li>许昌园区3栋-312室-储物柜A</li></ul></span>
+        </div>
+        <div class="row"><span class="lab">退宿原因:</span><span class="val">离职</span></div>
+        <div class="row"><span class="lab">预计离开时间:</span><span class="val">2026-06-15 12:00</span></div>
+        <div class="row"><span class="lab">备注:</span><span class="val">个人物品已打包完毕，钥匙将交还宿管</span></div>
+        <div class="row"><span class="lab">照片:</span>
+          <span class="val img-list">
+            <button class="thumb" onclick="toast('预览照片 1/3')">床位<br>现状</button>
+            <button class="thumb" onclick="toast('预览照片 2/3')">储物柜<br>清空</button>
+            <button class="thumb" onclick="toast('预览照片 3/3')">行李<br>打包</button>
+          </span>
+        </div>
+      </section>
+
+      <!-- 审批流程（processRecord） -->
+      <section class="card">
+        <div class="sec-title">审批流程</div>
+        <div class="flow">
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-person"><strong>林雅芳</strong>-<span class="st0">提交申请</span></div>
+              <div class="n-time">2026-06-11 09:05:42</div>
+            </div>
+          </div>
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">主管审批</div>
+              <div class="n-person">王立军-<span id="supResult" class="st0">待审批</span></div>
+              <div class="n-remark" id="supRemark" style="display:none">意见: 离职手续已办结，同意退宿</div>
+              <div class="n-time" id="supTime">—</div>
+            </div>
+          </div>
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">保安确认</div>
+              <div class="n-person">张保安-<span id="guardResult" class="st4">等待</span></div>
+              <div class="n-time" id="guardTime">—</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 描述输入（审批模式 curTabIndex=0 时显示，maxlength=50） -->
+      <section class="card remark-box" id="remarkBlock">
+        <div class="sec-title">描述(非必填)</div>
+        <textarea id="remarkInput" maxlength="50" placeholder="请输入内容" oninput="countRemark()"></textarea>
+        <div class="remark-count"><span id="remarkLen">0</span>/50</div>
+      </section>
+    </main>
+
+    <!-- status===1 且审批模式：拒绝(3) / 通过(2) -->
+    <div class="bottom-bar" id="barSupervisor">
+      <button class="btn btn--ghost" onclick="toast('拒绝(status=3)：GET /dor/quit/status/update，成功跳列表 curTabIndex=1')">拒绝</button>
+      <button class="btn btn--primary" onclick="toast('通过(status=2)：GET /dor/quit/status/update，成功跳列表 curTabIndex=1（扫码进入则回 /xuchang/home）')">通过</button>
+    </div>
+    <!-- status===2 且审批模式：拒绝(5) / 保安通过(4) -->
+    <div class="bottom-bar" id="barGuard" style="display:none">
+      <button class="btn btn--ghost" onclick="toast('拒绝(status=5)：GET /dor/quit/status/update，成功跳列表 curTabIndex=1')">拒绝</button>
+      <button class="btn btn--primary" onclick="toast('保安通过(status=4)：GET /dor/quit/status/update，成功跳列表 curTabIndex=1（扫码进入则回 /xuchang/home）')">保安通过</button>
+    </div>
+    <div class="done-tip" id="doneTip" style="display:none">查看模式（isApprove=false）：该申请已放行，不显示审批操作</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+function setDemo(mode, btn){
+  document.querySelectorAll('.demo-btns button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const sup = mode==='supervisor';
+  const guard = mode==='guard';
+  const view = mode==='view';
+  // 主管节点
+  const sr = document.getElementById('supResult');
+  sr.textContent = sup ? '待审批' : '通过';
+  sr.className = sup ? 'st0' : 'st1';
+  document.getElementById('supRemark').style.display = sup ? 'none' : '';
+  document.getElementById('supTime').textContent = sup ? '—' : '2026-06-11 10:22:36';
+  // 保安节点
+  const gr = document.getElementById('guardResult');
+  if(view){ gr.textContent='通过'; gr.className='st1'; document.getElementById('guardTime').textContent='2026-06-11 14:08:51'; }
+  else if(guard){ gr.textContent='待审批'; gr.className='st0'; document.getElementById('guardTime').textContent='—'; }
+  else { gr.textContent='等待'; gr.className='st4'; document.getElementById('guardTime').textContent='—'; }
+  // 描述输入：审批模式（curTabIndex=0）显示，查看模式隐藏
+  document.getElementById('remarkBlock').style.display = view ? 'none' : '';
+  // 底部操作
+  document.getElementById('barSupervisor').style.display = sup ? 'flex' : 'none';
+  document.getElementById('barGuard').style.display = guard ? 'flex' : 'none';
+  document.getElementById('doneTip').style.display = view ? '' : 'none';
+}
+function countRemark(){
+  document.getElementById('remarkLen').textContent = document.getElementById('remarkInput').value.length;
+}
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.style.display='none', 2200);
+}
+</script>
+</body>
+</html>

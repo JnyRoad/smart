@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<!--
+  原型：宿舍申请-发起提交
+  旧路由：/xuchang/checkIn
+  旧组件：smart-h5/src/views-mobile/pages/check-in/index.vue（page3-tab + tce-form + page3-bottom）
+  接口：
+    POST /dormitory/queryDormitory（parkId, isAccount=true，楼栋列表）
+    GET  /dormitory/type/by/park-and-dormitory（parkId, dormitoryId，房间类型）
+    GET  /staff/define/badge（badge，用户实名信息；失败 toast「获取用户信息失败！」并隐藏申请按钮）
+    POST /dormitory/room/autoallot（提交申请，自动/手动共用；手动加 floorId/roomId/bedId）
+  规则：分配方式必填（自选房间/系统分配，默认自选）；楼栋、房间类型必填；切换楼栋后房间类型清空；
+        自选模式显示「房间号」「床位」两行，点击跳 /xuchang/checkIn/selectRoom（带 parkId/dormitoryId/roomType，先校验必填）；
+        自选模式提交时未选房间号 toast「请选择房间号」；成功跳 /xuchang/checkIn/detail；从选择房间页返回用 localStorage roomInfo 回填
+  跳转：Tab「查看数据」→ /xuchang/checkIn/detail；房间号/床位 → /xuchang/checkIn/selectRoom
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>宿舍申请</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-main); background: var(--surface); color: var(--yuto-black); }
+.app {
+  width: min(100%, 430px); margin: 0 auto; min-height: 100dvh;
+  background: var(--white); box-shadow: var(--shadow-large);
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+.app::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 220px;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, rgba(255,241,227,0) 100%);
+  pointer-events: none;
+}
+.topbar { position: relative; z-index: 2; padding: max(14px, env(safe-area-inset-top)) 6px 6px; display: flex; align-items: center; }
+.back-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; }
+.back-btn svg { width: 22px; height: 22px; stroke: var(--yuto-black); }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-spacer { width: 44px; }
+.demo-bar {
+  position: relative; z-index: 2; margin: 4px 16px 0; padding: 8px 12px;
+  background: var(--accent-soft); border: 1px dashed var(--brand-orange); border-radius: 12px;
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--accent-ink); flex-wrap: wrap;
+}
+.demo-bar button { border: 1px solid var(--brand-orange); background: var(--white); color: var(--brand-orange); border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; min-height: 28px; }
+.demo-bar button.on { background: var(--brand-orange); color: var(--white); }
+/* Tab */
+.tabs { position: relative; z-index: 1; margin: 12px 16px 0; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); display: flex; padding: 5px; }
+.tab { flex: 1; min-height: 44px; border: none; border-radius: 12px; background: none; font-size: 15px; color: var(--mid-gray); cursor: pointer; }
+.tab.active { background: var(--brand-orange); color: var(--white); font-weight: 700; }
+/* 表单 */
+.form-card { position: relative; z-index: 1; margin: 12px 16px 0; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); padding: 16px 18px; }
+.field { padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+.field:last-child { border-bottom: none; }
+.field-label { font-size: 13px; color: var(--mid-gray); margin-bottom: 8px; }
+.field-label .req { color: var(--danger); }
+.seg { display: flex; gap: 10px; }
+.seg button { flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid var(--border-soft); background: var(--white); font-size: 14px; color: var(--yuto-black); cursor: pointer; }
+.seg button.sel { background: var(--accent-soft); border-color: var(--brand-orange); color: var(--brand-orange); font-weight: 700; }
+.picker-row { display: flex; align-items: center; justify-content: space-between; min-height: 44px; cursor: pointer; }
+.picker-row .ph { font-size: 15px; color: var(--weak-gray); }
+.picker-row .val { font-size: 15px; color: var(--yuto-black); font-weight: 650; }
+.picker-row svg { width: 16px; height: 16px; stroke: var(--weak-gray); flex: none; }
+/* 底部按钮 */
+.bottom { position: relative; z-index: 1; margin-top: auto; padding: 16px 16px max(24px, env(safe-area-inset-bottom)); }
+.btn-apply { width: 100%; height: 48px; border-radius: 14px; border: none; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650; cursor: pointer; }
+.btn-apply:active { background: var(--accent-strong); }
+.no-apply-tip { text-align: center; font-size: 13px; color: var(--danger); padding: 12px 0; }
+/* picker 弹层 */
+.sheet-mask { position: fixed; inset: 0; background: rgba(89,87,87,0.45); display: none; align-items: flex-end; justify-content: center; z-index: 10; }
+.sheet-mask.show { display: flex; }
+.sheet { width: min(100%, 430px); background: var(--white); border-radius: 20px 20px 0 0; padding: 14px 16px max(24px, env(safe-area-inset-bottom)); }
+.sheet-title { text-align: center; font-size: 15px; font-weight: 700; padding-bottom: 10px; border-bottom: 1px solid var(--border-soft); }
+.opt-list { padding: 12px 0 4px; display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow: auto; }
+.opt-list button { min-height: 48px; border-radius: 12px; border: 1px solid var(--border-soft); background: var(--white); font-size: 15px; color: var(--yuto-black); cursor: pointer; }
+.opt-list button:active { background: var(--accent-soft); border-color: var(--brand-orange); color: var(--brand-orange); }
+.toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: rgba(89,87,87,0.92); color: var(--white); font-size: 13px; padding: 10px 18px; border-radius: 999px; display: none; z-index: 20; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <button class="back-btn" aria-label="返回" onclick="alert('原型演示：返回上一页')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">宿舍申请</div>
+    <div class="topbar-spacer"></div>
+  </div>
+
+  <div class="demo-bar">
+    <span>原型演示</span>
+    <button id="u1" class="on" onclick="setUser(true)">正常</button>
+    <button id="u2" onclick="setUser(false)">用户信息获取失败</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active">发起提交</button>
+    <button class="tab" onclick="alert('原型演示：跳转 /xuchang/checkIn/detail（查看数据）')">查看数据</button>
+  </div>
+
+  <div class="form-card">
+    <div class="field">
+      <div class="field-label">分配方式 <span class="req">*</span></div>
+      <div class="seg">
+        <button id="segManual" class="sel" onclick="setMode(false)">自选房间</button>
+        <button id="segAuto" onclick="setMode(true)">系统分配</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">楼栋信息 <span class="req">*</span></div>
+      <div class="picker-row" onclick="openPicker('build')">
+        <span class="ph" id="buildVal">请选择</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">房间类型 <span class="req">*</span></div>
+      <div class="picker-row" onclick="openPicker('type')">
+        <span class="ph" id="typeVal">请选择</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+    <div class="field manual-only" id="fieldRoom">
+      <div class="field-label">房间号</div>
+      <div class="picker-row" onclick="goSelectRoom()">
+        <span class="ph" id="roomVal">请选择</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+    <div class="field manual-only" id="fieldBed">
+      <div class="field-label">床位</div>
+      <div class="picker-row" onclick="goSelectRoom()">
+        <span class="ph" id="bedVal">请选择</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <button class="btn-apply" id="btnApply" onclick="apply()">申请</button>
+    <div class="no-apply-tip" id="noApplyTip" style="display:none">获取用户信息失败！暂无法发起申请</div>
+  </div>
+</div>
+
+<!-- picker 弹层 -->
+<div class="sheet-mask" id="sheetMask" onclick="if(event.target===this)closePicker()">
+  <div class="sheet">
+    <div class="sheet-title" id="sheetTitle">请选择</div>
+    <div class="opt-list" id="optList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var builds = ['许昌园区1栋宿舍楼', '许昌园区2栋宿舍楼', '许昌园区3栋宿舍楼'];
+var typesByBuild = { 0: ['四人间', '六人间'], 1: ['双人间', '四人间'], 2: ['六人间', '八人间'] };
+var state = { isAuto: false, build: null, buildIdx: null, type: null, room: null, bed: null, canApply: true };
+var pickerKind = null;
+
+function setMode(auto) {
+  state.isAuto = auto;
+  document.getElementById('segManual').className = auto ? '' : 'sel';
+  document.getElementById('segAuto').className = auto ? 'sel' : '';
+  document.getElementById('fieldRoom').style.display = auto ? 'none' : '';
+  document.getElementById('fieldBed').style.display = auto ? 'none' : '';
+}
+function setUser(ok) {
+  state.canApply = ok;
+  document.getElementById('u1').className = ok ? 'on' : '';
+  document.getElementById('u2').className = ok ? '' : 'on';
+  document.getElementById('btnApply').style.display = ok ? '' : 'none';
+  document.getElementById('noApplyTip').style.display = ok ? 'none' : '';
+  if (!ok) showToast('获取用户信息失败！');
+}
+function openPicker(kind) {
+  pickerKind = kind;
+  var opts, title;
+  if (kind === 'build') { opts = builds; title = '选择楼栋'; }
+  else {
+    if (state.buildIdx === null) { showToast('请先选择楼栋信息'); return; }
+    opts = typesByBuild[state.buildIdx]; title = '选择房间类型';
+  }
+  document.getElementById('sheetTitle').textContent = title;
+  var list = document.getElementById('optList');
+  list.innerHTML = '';
+  opts.forEach(function (o, i) {
+    var b = document.createElement('button');
+    b.textContent = o;
+    b.onclick = function () { pick(o, i); };
+    list.appendChild(b);
+  });
+  document.getElementById('sheetMask').classList.add('show');
+}
+function closePicker() { document.getElementById('sheetMask').classList.remove('show'); }
+function pick(label, idx) {
+  if (pickerKind === 'build') {
+    state.build = label; state.buildIdx = idx;
+    // 切换楼栋后清空房间类型与已选房间/床位（旧逻辑 buildChange + clearStorage）
+    state.type = null; state.room = null; state.bed = null;
+    setText('typeVal', null); setText('roomVal', null); setText('bedVal', null);
+    setText('buildVal', label);
+  } else {
+    state.type = label;
+    setText('typeVal', label);
+  }
+  closePicker();
+}
+function setText(id, v) {
+  var el = document.getElementById(id);
+  el.textContent = v || '请选择';
+  el.className = v ? 'val' : 'ph';
+}
+function goSelectRoom() {
+  if (!state.build) { showToast('楼栋信息为必填项'); return; }
+  if (!state.type) { showToast('房间类型为必填项'); return; }
+  // 演示：模拟从选择房间页返回并回填（localStorage roomInfo）
+  state.room = 'B-302'; state.bed = '3床';
+  setText('roomVal', state.room); setText('bedVal', state.bed);
+  showToast('原型演示：跳转 /xuchang/checkIn/selectRoom，返回后已回填房间/床位');
+}
+function apply() {
+  if (!state.build) { showToast('楼栋信息为必填项'); return; }
+  if (!state.type) { showToast('房间类型为必填项'); return; }
+  if (!state.isAuto && !state.room) { showToast('请选择房间号'); return; }
+  showToast('申请成功，原型演示：跳转 /xuchang/checkIn/detail');
+}
+var toastTimer = null;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.style.display = 'none'; }, 2400);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!doctype html>
+<!--
+  原型：退宿申请详情
+  旧路由：/xuchang/dormExit/detail?id=（meta: 退宿申请详情）
+  旧组件：smart-h5/src/views-mobile/pages/dorm-exit/detail.vue
+          + pages/dorm-exit/components/process/index.vue（审批流程时间线）
+  接口：
+    GET platform:/dor/quit/detail/{id}        详情（services/dormExit.js getDetail）
+    （关联）GET platform:/dor/quit/list/check/{id}  门卫微信扫码核验放行码（backLog 端使用，非本页调用）
+  页面状态（status）：
+    待审批/已拒绝：仅信息卡 + 审批流程
+    2 已通过：顶部展示放行二维码（base64），提示「在门卫处出示放行码」，门卫微信扫码核验
+    4 已出厂：顶部占位图 +「已出厂」+ 提示「已同意出厂」
+    5：提示「已拒绝出厂」
+  跳转：由列表页进入；本页无对外跳转
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>退宿申请详情 - 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: var(--surface); }
+button { border: 0; cursor: pointer; background: none; padding: 0; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app {
+  width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--white);
+  box-shadow: var(--shadow-large);
+}
+.topbar { display: flex; align-items: center; min-height: 46px; padding: max(14px, env(safe-area-inset-top)) 6px 4px; }
+.topbar .back { width: 44px; height: 44px; display: grid; place-items: center; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .spacer { width: 44px; }
+.demo-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 18px 0; padding: 8px 12px;
+  border: 1px dashed var(--light-gray); border-radius: 12px; background: #FBFBFB;
+  font-size: 12px; color: var(--mid-gray);
+}
+.demo-bar button { padding: 5px 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--border-soft); font-size: 12px; font-weight: 650; }
+.demo-bar button.on { background: var(--accent-soft); border-color: rgba(236,108,0,.3); color: var(--accent-ink); }
+.content { padding: 12px 18px max(24px, env(safe-area-inset-bottom)); }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.card h2 { margin: 0 0 8px; font-size: 15px; font-weight: 750; }
+/* 放行码区 */
+.code-card { text-align: center; padding: 24px 16px 20px; }
+.qr { width: 200px; height: 200px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-soft); }
+.qr svg { display: block; width: 100%; height: 100%; }
+.out-illus { width: 160px; height: 160px; margin: 0 auto; }
+.out-illus svg { display: block; width: 100%; height: 100%; }
+.code-tip { margin: 12px 0 0; font-size: 13px; color: var(--mid-gray); }
+.code-tip.strong { color: var(--accent-ink); font-weight: 650; }
+.code-tip.danger { color: var(--danger); font-weight: 650; }
+/* 信息卡 */
+.name-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }
+.name-row .name { font-size: 17px; font-weight: 750; }
+.avatar { width: 56px; height: 56px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border-soft); background: var(--surface); }
+.avatar svg { display: block; width: 100%; height: 100%; }
+.row { display: flex; gap: 12px; font-size: 14px; padding: 11px 0; border-bottom: 1px solid var(--border-soft); }
+.row:last-child { border-bottom: 0; padding-bottom: 0; }
+.row .label { flex: none; width: 92px; color: var(--mid-gray); }
+.row .value { flex: 1; min-width: 0; text-align: right; }
+.row .value ul { margin: 0; padding: 0; list-style: none; }
+.img-list { display: flex; gap: 10px; justify-content: flex-end; }
+.thumb { width: 64px; height: 64px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-soft); }
+.thumb svg { display: block; width: 100%; height: 100%; }
+/* 审批流程时间线 */
+.timeline { padding: 4px 0 0; }
+.node { display: flex; gap: 12px; }
+.node .rail { display: flex; flex-direction: column; align-items: center; }
+.node .dot { flex: none; width: 16px; height: 16px; border-radius: 999px; background: var(--accent-soft); border: 2px solid var(--brand-orange); margin-top: 2px; }
+.node .line { flex: 1; width: 2px; background: var(--border-soft); margin: 4px 0; }
+.node:last-child .line { display: none; }
+.node .body { flex: 1; padding-bottom: 18px; min-width: 0; }
+.node .title { font-size: 14px; font-weight: 700; }
+.person { margin-top: 6px; font-size: 14px; }
+.person .res-0 { color: var(--info); font-weight: 650; }      /* 待审批 */
+.person .res-1 { color: var(--success); font-weight: 650; }   /* 通过 */
+.person .res-2 { color: var(--danger); font-weight: 650; }    /* 拒绝/关闭 */
+.person .res-4 { color: var(--weak-gray); font-weight: 650; } /* 等待 */
+.meta { margin-top: 4px; font-size: 12px; color: var(--mid-gray); }
+/* 状态分支显隐 */
+.only { display: none; }
+.app[data-st="pass"] .only-pass,
+.app[data-st="out"] .only-out,
+.app[data-st="refuseout"] .only-refuseout,
+.app[data-st="pending"] .only-pending,
+.app[data-st="reject"] .only-reject { display: block; }
+</style>
+</head>
+<body>
+<div class="app" data-st="pass" id="app">
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回列表页" onclick="location.href='list.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>退宿申请详情</h1>
+    <span class="spacer"></span>
+  </header>
+
+  <div class="demo-bar">原型演示·状态：
+    <button onclick="setSt('pending',this)">待审批</button>
+    <button class="on" onclick="setSt('pass',this)">已通过(放行码)</button>
+    <button onclick="setSt('reject',this)">已拒绝</button>
+    <button onclick="setSt('out',this)">已出厂</button>
+    <button onclick="setSt('refuseout',this)">拒绝出厂</button>
+  </div>
+
+  <main class="content">
+    <!-- status=2 已通过：放行二维码，门卫微信扫码核验（/dor/quit/list/check/{id}） -->
+    <section class="card code-card only only-pass">
+      <div class="qr" aria-label="放行二维码">
+        <svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#fff"/>
+          <g fill="#595757">
+            <rect x="8" y="8" width="24" height="24"/><rect x="68" y="8" width="24" height="24"/><rect x="8" y="68" width="24" height="24"/>
+            <rect x="14" y="14" width="12" height="12" fill="#fff"/><rect x="74" y="14" width="12" height="12" fill="#fff"/><rect x="14" y="74" width="12" height="12" fill="#fff"/>
+            <rect x="40" y="12" width="6" height="6"/><rect x="52" y="8" width="6" height="6"/><rect x="44" y="24" width="6" height="6"/><rect x="56" y="20" width="6" height="6"/>
+            <rect x="12" y="40" width="6" height="6"/><rect x="24" y="46" width="6" height="6"/><rect x="36" y="40" width="10" height="10"/><rect x="52" y="44" width="6" height="6"/>
+            <rect x="64" y="40" width="6" height="6"/><rect x="76" y="46" width="6" height="6"/><rect x="88" y="40" width="4" height="6"/>
+            <rect x="40" y="58" width="6" height="6"/><rect x="50" y="64" width="10" height="6"/><rect x="66" y="58" width="6" height="6"/><rect x="78" y="62" width="6" height="6"/>
+            <rect x="40" y="76" width="6" height="6"/><rect x="52" y="80" width="6" height="6"/><rect x="64" y="74" width="10" height="10"/><rect x="82" y="80" width="8" height="8"/>
+          </g>
+        </svg>
+      </div>
+      <p class="code-tip">在门卫处出示放行码</p>
+    </section>
+
+    <!-- status=4 已出厂：占位图 + 已出厂 + 已同意出厂 -->
+    <section class="card code-card only only-out">
+      <div class="out-illus" aria-label="已出厂示意图">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="#FFF1E3"/>
+          <path d="M28 78h64M36 78V52l24-14 24 14v26" stroke="#EC6C00" stroke-opacity=".55" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M54 78V62h12v16" stroke="#EC6C00" stroke-opacity=".55" stroke-width="3" stroke-linejoin="round" fill="none"/>
+          <path d="M78 34l8 8 14-16" stroke="#16A673" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </div>
+      <p class="code-tip strong">已同意出厂</p>
+      <p class="code-tip">已出厂</p>
+    </section>
+
+    <!-- status=5 拒绝出厂提示 -->
+    <section class="card code-card only only-refuseout">
+      <div class="out-illus" aria-label="拒绝出厂示意图">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="#FFF1E3"/>
+          <circle cx="60" cy="60" r="26" stroke="#D83B36" stroke-width="4" fill="none"/>
+          <path d="M44 44l32 32" stroke="#D83B36" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <p class="code-tip danger">已拒绝出厂</p>
+    </section>
+
+    <!-- 基本信息卡（所有状态均显示） -->
+    <section class="card">
+      <div class="name-row">
+        <span class="name">陈志强</span>
+        <div class="avatar" aria-label="人脸照片">
+          <svg viewBox="0 0 56 56"><rect width="56" height="56" fill="#FFF1E3"/><circle cx="28" cy="22" r="9" fill="#EC6C00" opacity=".5"/><path d="M10 50c2-10 9-15 18-15s16 5 18 15" fill="#EC6C00" opacity=".35"/></svg>
+        </div>
+      </div>
+      <div class="row"><span class="label">房间信息:</span>
+        <span class="value"><ul><li>老工厂2号宿舍/302号房</li><li>新工厂宿舍楼/518号房</li></ul></span>
+      </div>
+      <div class="row"><span class="label">退宿原因:</span><span class="value">离职</span></div>
+      <div class="row"><span class="label">预计离开时间:</span><span class="value">2026-06-15 09:00:00</span></div>
+      <div class="row"><span class="label">备注:</span><span class="value">月底离职，行李已基本搬空，钥匙交宿管。</span></div>
+      <div class="row"><span class="label">照片:</span>
+        <span class="value">
+          <span class="img-list">
+            <span class="thumb"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#FFF1E3"/><circle cx="22" cy="24" r="6" fill="#EC6C00" opacity=".55"/><path d="M8 52 26 34l12 12 8-8 10 10v4H8Z" fill="#EC6C00" opacity=".35"/></svg></span>
+            <span class="thumb"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#F2F7FF"/><rect x="14" y="18" width="36" height="28" rx="3" fill="#2376D9" opacity=".3"/><rect x="20" y="24" width="24" height="6" fill="#2376D9" opacity=".4"/></svg></span>
+            <span class="thumb"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#F0FAF5"/><rect x="18" y="14" width="28" height="36" rx="3" fill="#16A673" opacity=".3"/><path d="M24 44h16" stroke="#16A673" stroke-width="3" opacity=".5"/></svg></span>
+          </span>
+        </span>
+      </div>
+    </section>
+
+    <!-- 审批流程时间线（processRecord） -->
+    <section class="card">
+      <h2>审批流程</h2>
+      <div class="timeline">
+        <div class="node">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">陈志强 - <span style="color:var(--info)">提交申请</span></div>
+            <div class="meta">2026-06-11 10:23:41</div>
+          </div>
+        </div>
+        <div class="node">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">宿管审批</div>
+            <div class="person">刘惠芳 - <span class="res-1">通过</span></div>
+            <div class="meta">意见: 房间物品已核对，无损坏</div>
+            <div class="meta">2026-06-11 14:02:18</div>
+          </div>
+        </div>
+        <div class="node only only-pending only-pass only-out only-refuseout">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">部门主管审批</div>
+            <div class="person only only-pending" style="display:none">周国平 - <span class="res-0">待审批</span></div>
+            <div class="person person-pass">周国平 - <span class="res-1">通过</span></div>
+            <div class="meta">2026-06-11 16:40:02</div>
+          </div>
+        </div>
+        <div class="node only only-reject">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">部门主管审批</div>
+            <div class="person">周国平 - <span class="res-2">拒绝</span></div>
+            <div class="meta">意见: 离职手续未办结，请先完成交接</div>
+            <div class="meta">2026-06-12 09:15:47</div>
+          </div>
+        </div>
+        <div class="node only only-pending">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">人事审批</div>
+            <div class="person">黄丽娟 - <span class="res-4">等待</span></div>
+            <div class="meta">2026-06-11 10:23:41</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+// 原型演示：切换 status 对应的页面状态分支
+const PENDING_HTML = '周国平 - <span class="res-0">待审批</span>';
+const PASS_HTML = '周国平 - <span class="res-1">通过</span>';
+function setSt(st, btn){
+  document.getElementById('app').dataset.st = st;
+  document.querySelectorAll('.demo-bar button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  // 待审批状态下主管节点显示「待审批」，其余显示「通过」
+  document.querySelectorAll('.person-pass').forEach(p=>{
+    p.innerHTML = (st === 'pending') ? PENDING_HTML : PASS_HTML;
+  });
+  const passMeta = document.querySelector('.person-pass + .meta');
+  if (passMeta) passMeta.style.display = (st === 'pending') ? 'none' : '';
+}
+</script>
+</body>
+</html>

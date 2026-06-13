@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+<!--
+  原型：帮助中心（常见问题列表）
+  旧路由：/xuchang/help
+  旧组件：views-mobile/pages/help/index.vue
+  接口：
+    GET /guide/help/question/answer 前置列表：GET /guide/help/question/list（current, size=10，分页；失败 toast message||「网络错误」）
+  交互：
+    下拉刷新（重置第 1 页，提示「更新成功」）；上拉加载下一页（current < pages 时翻页，否则提示无更多）
+  跳转：
+    列表项 → /xuchang/help/detail?id={questionId}
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>裕同智慧园区 · 帮助中心</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button { font: inherit; border: 0; cursor: pointer; background: none; color: inherit; padding: 0; }
+.app { width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); position: relative; overflow: hidden; }
+.page { min-height: 100dvh; padding-bottom: max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,.35) 150px, var(--surface) 240px); }
+.demo-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #3A3838; color: #fff; font-size: 12px; overflow-x: auto; }
+.demo-bar .tag { flex: none; font-weight: 750; color: #FFC58A; }
+.demo-bar button { flex: none; min-height: 28px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-size: 12px; }
+.demo-bar button.on { background: var(--brand-orange); font-weight: 650; }
+.topbar { display: flex; align-items: center; padding: max(14px, env(safe-area-inset-top)) 8px 6px; }
+.back { width: 44px; height: 44px; display: grid; place-items: center; color: var(--yuto-black); }
+.title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .ph { width: 44px; }
+
+/* 头部横幅：标题 + 插画 */
+.banner { margin: 6px 16px 14px; border-radius: 16px; padding: 20px 18px; color: #fff; background: linear-gradient(120deg, var(--brand-orange), #F08A2C 60%, #F6A95C); box-shadow: 0 12px 28px rgba(236,108,0,.25); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.banner .b-title { font-size: 20px; font-weight: 750; }
+.banner .b-sub { margin-top: 6px; font-size: 12px; opacity: .9; }
+.banner svg { flex: none; }
+
+.pull-hint { text-align: center; font-size: 12px; color: var(--weak-gray); padding-bottom: 8px; }
+
+.list { margin: 0 16px; display: grid; gap: 12px; }
+.q-item { display: flex; align-items: center; gap: 12px; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; min-height: 56px; width: 100%; text-align: left; }
+.q-icon { flex: none; width: 34px; height: 34px; border-radius: 11px; background: var(--accent-soft); color: var(--accent-strong); display: grid; place-items: center; font-size: 15px; font-weight: 750; }
+.q-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arrow { flex: none; color: var(--weak-gray); }
+
+.more { margin: 14px 16px 0; text-align: center; }
+.more button { min-height: 40px; padding: 0 22px; border-radius: 999px; background: var(--white); border: 1px solid var(--border-soft); color: var(--mid-gray); font-size: 13px; box-shadow: var(--shadow-panel); }
+.no-more { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 16px 0 0; }
+
+.empty { display: none; padding: 56px 0 24px; text-align: center; }
+.empty .pic { width: 96px; height: 96px; margin: 0 auto 14px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; color: var(--brand-orange); }
+.empty p { margin: 0; font-size: 14px; color: var(--weak-gray); }
+
+.note { padding: 16px 18px 0; font-size: 11px; color: var(--weak-gray); line-height: 1.6; }
+.toast { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); background: rgba(58,56,56,.92); color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 999px; display: none; z-index: 40; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="demo-bar">
+    <span class="tag">原型演示</span>
+    <button class="on" data-state="normal">正常列表</button>
+    <button data-state="nomore">无更多</button>
+    <button data-state="empty">空态</button>
+    <button data-state="fail">加载失败</button>
+    <button data-state="refresh">下拉刷新</button>
+  </div>
+
+  <div class="page">
+    <div class="topbar">
+      <button class="back" onclick="demoToast('返回上一页（/xuchang/mine 或 /xuchang/home）')" aria-label="返回">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="title">帮助中心</span>
+      <span class="ph"></span>
+    </div>
+
+    <!-- 头部横幅 -->
+    <div class="banner">
+      <div>
+        <div class="b-title">帮助中心</div>
+        <div class="b-sub">园区使用常见问题解答</div>
+      </div>
+      <svg width="72" height="60" viewBox="0 0 72 60" fill="none" aria-hidden="true">
+        <circle cx="44" cy="28" r="22" fill="rgba(255,255,255,.18)"/>
+        <circle cx="44" cy="28" r="15" fill="rgba(255,255,255,.26)"/>
+        <text x="44" y="36" text-anchor="middle" font-size="22" font-weight="800" fill="#fff">?</text>
+        <circle cx="14" cy="46" r="6" fill="rgba(255,255,255,.22)"/>
+        <text x="14" y="50" text-anchor="middle" font-size="9" font-weight="800" fill="#fff">?</text>
+      </svg>
+    </div>
+
+    <div class="pull-hint" id="pullHint">↓ 下拉刷新列表</div>
+
+    <!-- 问题列表 -->
+    <div class="list" id="list"></div>
+
+    <div class="more" id="moreWrap"><button onclick="loadMore()">上拉加载更多（演示）</button></div>
+    <div class="no-more" id="noMore" style="display:none">— 没有更多了 —</div>
+
+    <!-- 空态 -->
+    <div class="empty" id="empty">
+      <div class="pic">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .3c0 1.7-2.5 2.2-2.5 3.7"/><circle cx="12" cy="17" r=".5"/></svg>
+      </div>
+      <p>暂无数据</p>
+    </div>
+
+    <p class="note">注：列表分页 size=10；下拉刷新重置第 1 页并提示「更新成功」，上拉在 current &lt; pages 时加载下一页，否则提示无更多；接口失败 toast message 或「网络错误」。</p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function demoToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.style.display = 'none'; }, 1800);
+}
+var QUESTIONS = [
+  { questionId: 1012, questionTitle: '如何申请宿舍入住？' },
+  { questionId: 1013, questionTitle: '门锁动态码忘记了怎么办？' },
+  { questionId: 1014, questionTitle: '宿舍水电费每月什么时候扣？在哪里查明细？' },
+  { questionId: 1015, questionTitle: '物品放行（生活区/办公区）的审批流程是什么？' },
+  { questionId: 1016, questionTitle: '退宿申请提交后多久审批完成？' },
+  { questionId: 1017, questionTitle: '访客来访如何提前登记？' },
+  { questionId: 1018, questionTitle: '园区报修后维修进度在哪里查看？' },
+  { questionId: 1019, questionTitle: '微信解绑后如何重新绑定工牌？' },
+  { questionId: 1020, questionTitle: '人脸识别一直失败怎么处理？' },
+  { questionId: 1021, questionTitle: '宿舍换房间需要走什么流程？' }
+];
+var MORE = [
+  { questionId: 1022, questionTitle: '食堂消费记录在哪里查询？' },
+  { questionId: 1023, questionTitle: '园区班车时刻表在哪里查看？' }
+];
+function renderList(items){
+  var html = items.map(function(q){
+    return '<button class="q-item" onclick="demoToast(\'跳转 /xuchang/help/detail?id=' + q.questionId + '\')">' +
+      '<span class="q-icon">问</span>' +
+      '<span class="q-title">' + q.questionTitle + '</span>' +
+      '<span class="arrow">›</span></button>';
+  }).join('');
+  document.getElementById('list').innerHTML = html;
+}
+function setState(s){
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('moreWrap').style.display = '';
+  document.getElementById('noMore').style.display = 'none';
+  renderList(QUESTIONS);
+  switch(s){
+    case 'nomore':
+      renderList(QUESTIONS.concat(MORE));
+      document.getElementById('moreWrap').style.display = 'none';
+      document.getElementById('noMore').style.display = 'block';
+      break;
+    case 'empty':
+      renderList([]);
+      document.getElementById('moreWrap').style.display = 'none';
+      document.getElementById('empty').style.display = 'block';
+      break;
+    case 'fail':
+      renderList([]);
+      document.getElementById('moreWrap').style.display = 'none';
+      document.getElementById('empty').style.display = 'block';
+      demoToast('网络错误');
+      break;
+    case 'refresh':
+      demoToast('更新成功');
+      break;
+  }
+}
+function loadMore(){
+  renderList(QUESTIONS.concat(MORE));
+  document.getElementById('moreWrap').style.display = 'none';
+  document.getElementById('noMore').style.display = 'block';
+  demoToast('已加载第 2 页');
+}
+document.querySelectorAll('.demo-bar button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.demo-bar button').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    setState(btn.dataset.state);
+  });
+});
+setState('normal');
+</script>
+</body>
+</html>
