@@ -1,6 +1,6 @@
 # smart-h5
 
-裕同智慧园区 H5 应用，隶属于 `smart` 大仓库。项目基于 Next.js App Router、React、TypeScript、antd-mobile 和 Tailwind CSS 构建，面向微信内嵌 H5 场景。
+智慧园区 H5 应用，基于 Next.js App Router、React、TypeScript、antd-mobile 和 Tailwind CSS 构建，面向微信内嵌 H5 场景。
 
 当前已覆盖认证、首页、公告、我的、访客、帮助中心、宿舍、门锁和宿舍报修等阶段一功能。后续模块继续在本目录内按现有 `src/features/` 结构扩展。
 
