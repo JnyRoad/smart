@@ -1,0 +1,99 @@
+@use 'sass:color';
+@use '../variable' as *;
+
+/**
+ * 按钮基础样式
+ */
+@mixin button {
+  .#{$mainname}-button {
+    // display: flex;
+    // align-items: center;
+    // justify-content: center;
+    display: block;
+    width: 100%;
+    color: $color-base;
+    -webkit-appearance: none;
+    padding: 0 10px;
+    font-size: 14px;
+    border-radius: 3px;
+    border-color: transparent;
+    border: 1px solid transparent;
+    transition: transform 0.12s ease, background-color 0.12s ease;
+    &--transition {
+      transition: all 0.2s;
+    }
+
+    &::after {
+      width: 199%;
+    }
+
+    &.is-hover {
+      color: color.mix(#fff, $color-base, 10%);
+      border-color: color.mix(#fff, $color-base, 10%);
+      outline: none;
+    }
+
+    &.is-round {
+      border-radius: 25px;
+    }
+
+    &.is-circle {
+      border-radius: 50%;
+      padding: 17px;
+    }
+
+    &.disabled,
+    &.dis {
+      $back-color: rgba(212, 213, 217, 0.8);
+      background: $back-color;
+      color: #fff;
+      &::after {
+        border-color: transparent;
+      }
+      &.is-hover {
+        background: $back-color;
+        color: #fff;
+      }
+    }
+  }
+}
+
+/**
+ * 创建按钮
+ */
+@mixin btnCreat($key, $color, $back-color, $border-color) {
+  .#{$mainname}-button {
+    &--#{$key} {
+      color: $color;
+      background-color: $back-color;
+      border-color: $border-color;
+      &::after {
+        border-color: $back-color;
+      }
+      &:active {
+        transform: scale(0.98);
+        background-color: color.mix(#fff, $back-color, 10%);
+        // border-color: color.mix(#fff, $back-color, 10%);
+        border-color: $border-color;
+        color: $color;
+        outline: none;
+      }
+      &.is-plain {
+        background: #fff;
+        color: $back-color;
+        border-color: $back-color;
+        &::after {
+          border-color: $back-color;
+        }
+      }
+      &.is-disabled,
+      &.is-dis {
+        background-color: color.mix(#fff, $back-color, 70%);
+        transform: none;
+        &::after {
+          border-color: color.mix(#fff, $back-color, 70%);
+        }
+      }
+    }
+  }
+}

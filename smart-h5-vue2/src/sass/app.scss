@@ -1,0 +1,7 @@
+@use "./variable" as *;
+
+/*每个页面公共css */
+.page-container {
+  min-height: 100%;
+  box-sizing: border-box;
+}

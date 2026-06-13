@@ -1,0 +1,33 @@
+$TCE-Base-Url: "~@/assets";
+$TCE-Page-Padding-Left-Right:12px; // 内容左右内边距
+$TCE-Block-Spacing: 10px; // 块上下间距10px
+
+// 颜色
+$TCE-Background-White: #ffffff; // 白色背景色
+$TCE-Background-Grey:#f0f2f5;// 灰色背景色
+$TCE-Hover-Color: #fafafa;
+$TCE-Border-Color:#eeeeee; // 边框色
+$TCE-Color-Primary: #ec6c00; // 常规色 橙
+$TCE-Color:$TCE-Color-Primary;
+$TCE-Color-Success: #10cc8e; // 正常色 绿
+$TCE-Color-Info: #909399; // 提示色 灰色
+$TCE-Color-Warning: #ec6c00; // 警告色  橙色
+$TCE-Color-Danger: #e7292e; // 严重色 红色
+
+// 按钮
+$TCE-Btn-Font-Size: 18px; // 按钮font-size
+$TCE-Btn-Height: 45px; // 按钮高度
+$TCE-Btn-Border-Radius: 5px; // 按钮圆角
+$TCE-Btn-Placeholder-Color:#c0c0c0; //
+
+// 文本
+$TCE-Color-Base: #666666; // 文本基础颜色
+$TCE-Color-Deepen: #333333;
+$TCE-Color-Cale:#999999;
+
+// Form
+$TCE-Form-Item-Padding:10px;
+
+// Shadow
+$TCE-Shadow-Size:10px;
+$TCE-Shadow-Color:rgba(51,56,66,.05);

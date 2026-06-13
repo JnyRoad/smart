@@ -1,0 +1,71 @@
+@use "./variable" as *;
+@use "./mixin" as *;
+
+.#{$mainname}-timeline {
+  position: relative;
+  height: 30px;
+  background: #fff;
+  &-inner {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: space-between;
+  }
+  &-item {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    background: #fff;
+    z-index: 1;
+  }
+  &-item.active {
+    .#{$mainname}-timeline {
+      &__round {
+        background: #1890ff;
+      }
+      &__text {
+        color: #1890ff;
+      }
+    }
+  }
+  &__round {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #cccccc;
+    color: #fff;
+    margin-top: 3px;
+    margin-left:3px;
+    text-align: center;
+    line-height: 25px;
+  }
+  &__text {
+    color: #999999;
+    font-size: 14px;
+    position: absolute;
+    bottom: -23px;
+    left: 0;
+    transform: translate(-25%, 0);
+    white-space: nowrap;
+    word-break: keep-all;
+  }
+  &-line {
+    position: absolute;
+    top: 50%;
+    margin-top: -1px;
+    height: 1px;
+    width: 100%;
+    display: flex;
+    &__segment {
+      flex: 1;
+      height: 1px;
+      background: #cccccc;
+      &.active {
+        background: #1890ff;
+      }
+    }
+  }
+}
