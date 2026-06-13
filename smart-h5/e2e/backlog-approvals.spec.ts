@@ -113,6 +113,15 @@ test('办公区审批：列表（保安搜索含放行事项）→ 详情需图�
   await page.goto('/backlog/release-work/detail?id=9&tab=done')
   await expect(page.getByText('A1-电脑1台')).toBeVisible()
   await expect(page.getByRole('button', { name: '通 过' })).not.toBeVisible()
+
+  await page.goto('/backlog/release-work/detail?id=9&scan=1')
+  await page.setInputFiles('[data-testid=image-list-input]', {
+    name: 'scan.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('89504e470d0a1a0a', 'hex'),
+  })
+  await page.getByRole('button', { name: '通 过' }).click()
+  await page.waitForURL('**/home')
 })
 
 // ===== 报修审批 =====
@@ -219,6 +228,11 @@ test('退宿审批：isApprove 缺失只读（高风险回归）→ isApprove=tr
     updateQuery = new URL(route.request().url()).searchParams
     return route.fulfill({ json: { code: 0, data: true } })
   })
+  let scanDetailCalled = false
+  await page.route('**/platform/dor/quit/list/check/SMS123', (route) => {
+    scanDetailCalled = true
+    return route.fulfill({ json: { code: 0, data: { ...EXIT_DETAIL, status: 2 } } })
+  })
   const listBodies: Record<string, unknown>[] = []
   await page.route('**/platform/dor/quit/list/approval*', async (route) => {
     listBodies.push((route.request().postDataJSON() ?? {}) as Record<string, unknown>)
@@ -270,6 +284,12 @@ test('退宿审批：isApprove 缺失只读（高风险回归）→ isApprove=tr
   await page.getByRole('button', { name: '保安通过' }).click()
   await page.waitForURL('**/backlog/dorm-exit?tab=done')
   expect(updateQuery?.get('status')).toBe('4')
+
+  await page.goto('/backlog/dorm-exit/detail?id=SMS123&scan=1')
+  await expect.poll(() => scanDetailCalled).toBe(true)
+  await page.getByRole('button', { name: '保安通过' }).click()
+  await page.waitForURL('**/home')
+  expect(updateQuery?.get('id')).toBe('9')
 })
 
 test('退宿审批：code=0 但 data=false 视为失败（toast 留页，不跳转）', async ({ page }) => {

@@ -11,7 +11,7 @@ import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { updateExitStatus } from '@/features/backlog/api'
 import { exitProcessNodes } from '@/features/backlog/exit-process'
-import { getDormExitDetail } from '@/features/dorm-services/api'
+import { getDormExitDetail, getDormExitScanDetail } from '@/features/dorm-services/api'
 
 function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
   if (!value) return null
@@ -29,6 +29,7 @@ function DormExitApprovalDetailInner() {
   const params = useSearchParams()
   const id = params.get('id') ?? ''
   const readOnly = params.get('tab') === 'done'
+  const fromScan = params.get('scan') === '1'
   const [remark, setRemark] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -40,8 +41,8 @@ function DormExitApprovalDetailInner() {
   const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
 
   const detail = useQuery({
-    queryKey: ['exit-detail', id],
-    queryFn: () => getDormExitDetail(id),
+    queryKey: ['exit-detail', fromScan ? 'scan' : 'normal', id],
+    queryFn: () => (fromScan ? getDormExitScanDetail(id) : getDormExitDetail(id)),
     enabled: authorized && id !== '',
   })
   const info = detail.data?.code === 0 ? detail.data.data : undefined
@@ -57,18 +58,19 @@ function DormExitApprovalDetailInner() {
   }, [failed, detail.data?.message, router])
 
   // 审批模式 = isApprove === true 且非只读 Tab；isApprove 缺失/false 默认只读（旧版查看模式）。
-  const approveMode = !readOnly && info?.isApprove === true
+  const approveMode = !readOnly && (fromScan || info?.isApprove === true)
   const status = info?.status
   const photos = (info?.imgs ?? []).filter((img): img is string => !!img).slice(0, 3)
 
   async function submit(nextStatus: 2 | 3 | 4 | 5) {
     if (submitting) return
     if (!badge) return Toast.show('获取用户信息失败！')
+    if (!info?.id) return Toast.show('获取退宿单据失败')
     setSubmitting(true)
     try {
-      const res = await updateExitStatus({ id, status: nextStatus, approveBadge: badge, remark })
+      const res = await updateExitStatus({ id: info.id, status: nextStatus, approveBadge: badge, remark })
       if (res.code === 0 && res.data) {
-        router.replace('/backlog/dorm-exit?tab=done')
+        router.replace(fromScan ? '/home' : '/backlog/dorm-exit?tab=done')
       } else {
         Toast.show(res.message || res.msg || '网络错误')
       }
