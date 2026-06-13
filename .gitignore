@@ -50,6 +50,12 @@ yarn.lock
 
 # Logs
 /logs/
+**/logs/
+**/logs/**
+!smart-ui/src/const/logs/
+!smart-ui/src/const/logs/**
+!smart-ui/src/page/logs/
+!smart-ui/src/page/logs/**
 *.log
 npm-debug.log*
 yarn-debug.log*

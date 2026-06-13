@@ -4,6 +4,13 @@ node_modules/
 /dist
 dist.zip
 target/
+logs/
+**/logs/
+**/logs/**
+!src/const/logs/
+!src/const/logs/**
+!src/page/logs/
+!src/page/logs/**
 *.log
 *.bak
 
