@@ -63,6 +63,9 @@ export interface RepairDetail extends RepairRecord {
   depName?: string
   roomName?: string
   parkName?: string
+  /** Legacy detail field. */
+  imgs?: string[]
+  /** Compatibility for existing mocks and any newer payloads. */
   faultImgs?: string[]
   approvalProcess?: ProcessNode[]
   repairReplyList?: RepairReply[] | null
