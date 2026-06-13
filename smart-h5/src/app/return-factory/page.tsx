@@ -6,14 +6,10 @@ import { PageShell } from '@/components/page-shell'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getBackPage, type BackListItem, type BackSearch } from '@/features/good-release/api'
+import { formatReturnFactorySearchDateTime } from '@/features/good-release/return-factory-search'
 import { useListPager } from '@/lib/use-list-pager'
 
 const PAGE_SIZE = 10
-
-function formatDateTime(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
 
 function FieldRow({ label, value }: { label: string; value?: string }) {
   return (
@@ -72,7 +68,7 @@ function SearchPopup({
             visible={startVisible}
             onClose={() => setStartVisible(false)}
             precision="minute"
-            onConfirm={(d) => setStartTime(formatDateTime(d))}
+            onConfirm={(d) => setStartTime(formatReturnFactorySearchDateTime(d))}
           />
           <button type="button" onClick={() => setEndVisible(true)} className={`${SMS_INPUT_CLASS} text-left`}>
             {endTime || <span className="text-weak">申请结束时间</span>}
@@ -81,7 +77,7 @@ function SearchPopup({
             visible={endVisible}
             onClose={() => setEndVisible(false)}
             precision="minute"
-            onConfirm={(d) => setEndTime(formatDateTime(d))}
+            onConfirm={(d) => setEndTime(formatReturnFactorySearchDateTime(d))}
           />
         </div>
       </div>
