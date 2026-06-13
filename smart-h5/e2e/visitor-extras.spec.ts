@@ -57,7 +57,7 @@ async function mockAreaApis(page: Page) {
   )
 }
 
-test('区域选择：搜索过滤、全选、确定回写 info 已选数', async ({ page }) => {
+test('区域选择：无搜索框、全选、确定回写 info 已选数', async ({ page }) => {
   await seedDraft(page)
   await mockAreaApis(page)
 
@@ -66,13 +66,11 @@ test('区域选择：搜索过滤、全选、确定回写 info 已选数', async
   await page.goto('/visitor/area?type=1&factoryType=15&parkId=5000021')
   await expect(page.getByText('已选 0/3')).toBeVisible()
 
-  // 搜索过滤
-  await page.getByPlaceholder('搜索授权区域').fill('生产')
+  // 授权区域很少，访客侧不保留低价值搜索入口。
+  await expect(page.getByPlaceholder('搜索授权区域')).toHaveCount(0)
+  await expect(page.getByText('办公区', { exact: true })).toBeVisible()
   await expect(page.getByText('生产一区')).toBeVisible()
-  await expect(page.getByText('办公区', { exact: true })).not.toBeVisible()
-  await page.getByPlaceholder('搜索授权区域').fill('不存在')
-  await expect(page.getByText('暂无匹配区域')).toBeVisible()
-  await page.getByPlaceholder('搜索授权区域').fill('')
+  await expect(page.getByText('仓储区')).toBeVisible()
 
   // 全选 → 取消全选 → 单选
   await page.getByRole('button', { name: '全选' }).click()
