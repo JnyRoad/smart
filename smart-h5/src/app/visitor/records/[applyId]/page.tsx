@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { use, useEffect } from 'react'
 import { PageShell } from '@/components/page-shell'
 import { useVisitorFlow } from '@/features/visitor/flow-store'
-import { formatVisitRange } from '@/features/visitor/record-status'
+import { approvalNodeStatusText, formatVisitRange } from '@/features/visitor/record-status'
 import {
   clearQuerySession,
   fetchApplyDetail,
@@ -26,8 +26,8 @@ function heroFor(detail: ApplyRecordDetail, nodes: ApprovalNode[]) {
       tone: 'warning' as const,
       main: '审批中',
       sub: current
-        ? `当前停留在 ${current.title} ${current.approverName ?? ''} 处，共 ${nodes.length} 个审批节点，已通过 ${done} 个`
-        : `共 ${nodes.length} 个审批节点，已通过 ${done} 个`,
+        ? `当前停留在 ${current.title} ${current.approverName ?? ''} 处，共 ${nodes.length} 个流程节点，已完成 ${done} 个`
+        : `共 ${nodes.length} 个流程节点，已完成 ${done} 个`,
     }
   }
   if (applyStatus === 'PASSED') {
@@ -231,22 +231,24 @@ function RecordDetailInner({ applyId }: { applyId: string }) {
                     <p className="mt-0.5 text-xs text-mid">
                       {node.state === 'current' && (
                         <>
-                          <span className="font-semibold text-accent-ink">{node.approverName}</span> 等待其审批中
+                          <span className="font-semibold text-accent-ink">{node.approverName}</span>{' '}
+                          {approvalNodeStatusText(node)}
                         </>
                       )}
                       {node.state === 'done' && (
                         <>
-                          <span className="font-semibold">{node.approverName}</span> 已同意
+                          <span className="font-semibold">{node.approverName}</span> {approvalNodeStatusText(node)}
                           {node.time && ` · ${node.time}`}
                         </>
                       )}
                       {node.state === 'rejected' && (
                         <>
-                          <span className="font-semibold text-[#d83b36]">{node.approverName}</span> 已拒绝
+                          <span className="font-semibold text-[#d83b36]">{node.approverName}</span>{' '}
+                          {approvalNodeStatusText(node)}
                           {node.time && ` · ${node.time}`}
                         </>
                       )}
-                      {node.state === 'wait' && '未到达'}
+                      {node.state === 'wait' && approvalNodeStatusText(node)}
                     </p>
                     {node.comment && (
                       <p className="mt-1 rounded-lg bg-surface px-2.5 py-1.5 text-xs text-mid">
