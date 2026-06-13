@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<!--
+  原型：我的宿舍（功能入口页）
+  旧路由：/xuchang/dorm
+  旧组件：smart-h5/src/views-mobile/pages/dorm/index.vue（page2-title + page2-list）
+  接口：无（纯静态入口页）
+  跳转：门锁动态码 → /xuchang/dorm/lock；水电扣费明细 → /xuchang/dorm/waterElec
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>我的宿舍</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-main); background: var(--surface); color: var(--yuto-black); }
+.app {
+  width: min(100%, 430px); margin: 0 auto; min-height: 100dvh;
+  background: var(--white); box-shadow: var(--shadow-large);
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+.app::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 220px;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, rgba(255,241,227,0) 100%);
+  pointer-events: none;
+}
+.topbar {
+  position: relative; z-index: 1;
+  padding: max(14px, env(safe-area-inset-top)) 6px 6px;
+  display: flex; align-items: center;
+}
+.back-btn {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer;
+}
+.back-btn svg { width: 22px; height: 22px; stroke: var(--yuto-black); }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+.topbar-spacer { width: 44px; }
+.hero {
+  position: relative; z-index: 1; margin: 8px 16px 4px; padding: 22px 20px;
+  border-radius: 16px; background: linear-gradient(120deg, var(--brand-orange), var(--accent-strong));
+  color: var(--white); box-shadow: var(--shadow-panel); overflow: hidden;
+}
+.hero::after {
+  content: ""; position: absolute; right: -30px; top: -40px; width: 150px; height: 150px;
+  border-radius: 50%; background: rgba(255,255,255,0.14);
+}
+.hero h1 { font-size: 20px; font-weight: 750; letter-spacing: 1px; }
+.hero p { font-size: 13px; margin-top: 6px; opacity: 0.92; }
+.entry-list { position: relative; z-index: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.entry {
+  display: flex; align-items: center; gap: 14px; min-height: 76px;
+  background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel);
+  padding: 16px 18px; text-decoration: none; cursor: pointer; border: 1px solid var(--border-soft);
+}
+.entry:active { background: var(--accent-soft); }
+.entry-icon {
+  width: 46px; height: 46px; border-radius: 14px; flex: none;
+  background: var(--accent-soft); display: flex; align-items: center; justify-content: center;
+}
+.entry-icon svg { width: 24px; height: 24px; stroke: var(--brand-orange); fill: none; stroke-width: 1.8; }
+.entry-main { flex: 1; min-width: 0; }
+.entry-title { font-size: 15px; font-weight: 700; color: var(--yuto-black); }
+.entry-tip { font-size: 13px; color: var(--mid-gray); margin-top: 4px; }
+.entry-arrow svg { width: 16px; height: 16px; stroke: var(--weak-gray); }
+.foot { margin-top: auto; padding: 18px 0 max(24px, env(safe-area-inset-bottom)); text-align: center; font-size: 12px; color: var(--weak-gray); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <button class="back-btn" aria-label="返回" onclick="alert('原型演示：返回上一页')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">我的宿舍</div>
+    <div class="topbar-spacer"></div>
+  </div>
+
+  <div class="hero">
+    <h1>我的宿舍</h1>
+    <p>裕同智慧园区 · 宿舍生活服务</p>
+  </div>
+
+  <div class="entry-list">
+    <a class="entry" onclick="alert('原型演示：跳转 /xuchang/dorm/lock（门锁动态码）')">
+      <div class="entry-icon">
+        <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.6"/></svg>
+      </div>
+      <div class="entry-main">
+        <div class="entry-title">门锁动态码</div>
+        <div class="entry-tip">智能门锁动态码开门</div>
+      </div>
+      <div class="entry-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></div>
+    </a>
+    <a class="entry" onclick="alert('原型演示：跳转 /xuchang/dorm/waterElec（水电扣费明细）')">
+      <div class="entry-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/><path d="M13 11l-2.5 4h3L11 19"/></svg>
+      </div>
+      <div class="entry-main">
+        <div class="entry-title">水电扣费明细</div>
+        <div class="entry-tip">查询每月宿舍水电扣费明细</div>
+      </div>
+      <div class="entry-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></div>
+    </a>
+  </div>
+
+  <div class="foot">裕同智慧园区 · 高保真原型</div>
+</div>
+</body>
+</html>

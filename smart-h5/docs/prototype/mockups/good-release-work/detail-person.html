@@ -1,0 +1,106 @@
+<!doctype html>
+<!--
+  原型：物品放行（办公区）- 人员详情（只读）
+  旧路由：/xuchang/goodReleaseWork/detailPerson
+  旧组件：views-mobile/pages/good-release-work/detail-person.vue
+  接口：无（数据由人员详情-列表页通过路由 query itemObj 传入）
+  跳转：仅返回上一页（人员详情-列表）
+  说明：详情链路只读视图，无任何编辑入口；字段为 工号/姓名/离厂事由/离厂日期（日期+时间）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>人员详情 · 物品放行（办公区）</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button { border: 0; cursor: pointer; background: none; padding: 0; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 180px); }
+.topbar { display: flex; align-items: center; min-height: 46px; margin-bottom: 12px; }
+.back { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+.topbar .spacer { width: 44px; }
+.profile { display: flex; align-items: center; gap: 14px; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.avatar { flex: none; width: 52px; height: 52px; border-radius: 999px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
+.profile .who .nm { font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+.profile .who .sub { margin-top: 3px; font-size: 12px; color: var(--mid-gray); }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 4px 16px; }
+.row { display: flex; padding: 15px 0; border-bottom: 1px solid var(--border-soft); font-size: 14px; }
+.row:last-child { border-bottom: 0; }
+.row .k { width: 86px; flex: none; color: var(--mid-gray); }
+.row .v { flex: 1; color: var(--yuto-black); line-height: 1.55; word-break: break-all; }
+.note { margin: 14px 4px 0; font-size: 12px; color: var(--weak-gray); line-height: 1.6; }
+.toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); padding: 10px 18px; border-radius: 999px; background: rgba(89,87,87,.92); color: var(--white); font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 40; white-space: nowrap; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back" aria-label="返回" onclick="toast('返回上一页（放行人员列表）')">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1>人员详情</h1>
+      <div class="spacer"></div>
+    </header>
+
+    <section class="profile">
+      <span class="avatar" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="9.5" r="4.5" fill="#EC6C00"/><path d="M4.5 22c1.4-4.2 4.7-6.3 8.5-6.3s7.1 2.1 8.5 6.3" stroke="#EC6C00" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </span>
+      <div class="who">
+        <div class="nm">周明辉</div>
+        <div class="sub">放行人员 · 只读详情</div>
+      </div>
+    </section>
+
+    <section class="card" aria-label="人员信息">
+      <div class="row"><span class="k">工号</span><span class="v">YT20190782</span></div>
+      <div class="row"><span class="k">姓名</span><span class="v">周明辉</span></div>
+      <div class="row"><span class="k">离厂事由</span><span class="v">随车押运放行物品至武汉分公司，完成资产交接</span></div>
+      <div class="row"><span class="k">离厂日期</span><span class="v">2026-06-15 14:30</span></div>
+    </section>
+
+    <p class="note">本页为申请详情中的只读信息，数据由放行人员列表传入，不可编辑。</p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1800);
+}
+</script>
+</body>
+</html>

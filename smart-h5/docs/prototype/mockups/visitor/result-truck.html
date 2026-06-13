@@ -1,0 +1,101 @@
+<!doctype html>
+<!--
+  原型：访客-提交成功（货车预约）
+  旧路由：/xuchang/visitor/resultTruck
+  旧组件：smart-h5/src/views-mobile/pages/visitor/resultTruck.vue
+  接口：无
+  跳转：「查看审批进度」→ /xuchang/visitor/records（records.html，新增）；「再预约一次」→ /xuchang/visitor/truck（货车预约页）
+  状态：单一成功态（货车预约为系统自动审批）
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>提交成功（货车） - 裕同智慧园区</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; min-height: 100dvh; }
+    button { border: 0; cursor: pointer; background: none; font: inherit; color: inherit; }
+    button:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 220px) var(--white);
+      box-shadow: var(--shadow-large); display: flex; flex-direction: column;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+    .topbar { display: flex; align-items: center; min-height: 48px; padding: 0 6px; }
+    .back-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+    .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; margin: 0; }
+    .topbar-spacer { width: 44px; }
+    .content {
+      flex: 1; padding: 56px 28px max(24px, env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+    }
+    .illu {
+      width: 140px; height: 140px; border-radius: 999px; background: var(--accent-soft);
+      display: grid; place-items: center; margin-bottom: 26px;
+    }
+    .tip-main { font-size: 17px; font-weight: 750; margin: 0 0 12px; }
+    .tip-sub { font-size: 13px; color: var(--mid-gray); line-height: 1.8; margin: 0 18px 30px; }
+    .btn-progress {
+      display: flex; align-items: center; justify-content: center;
+      width: min(100%, 280px); min-height: 48px; margin-bottom: 8px; border-radius: 14px;
+      background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .btn-progress:active { background: var(--accent-strong); }
+    .btn-text {
+      min-height: 44px; padding: 0 18px; border-radius: 12px;
+      color: var(--brand-orange); font-size: 15px; font-weight: 650;
+    }
+    .btn-text:active { background: var(--accent-soft); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" title="返回货车预约" onclick="location.href='truck.html'">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 3.75 6.25 10l6.25 6.25" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1 class="page-title">提交成功</h1>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="content">
+      <div class="illu" aria-hidden="true">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <path d="M10 28c0-2.2 1.8-4 4-4h28v26H10V28z" stroke="#EC6C00" stroke-width="3" fill="#FFFFFF" stroke-linejoin="round"/>
+          <path d="M42 32h12l10 10v8H42V32z" stroke="#EC6C00" stroke-width="3" fill="#FFFFFF" stroke-linejoin="round"/>
+          <circle cx="24" cy="52" r="5" stroke="#EC6C00" stroke-width="3" fill="#FFFFFF"/>
+          <circle cx="54" cy="52" r="5" stroke="#EC6C00" stroke-width="3" fill="#FFFFFF"/>
+          <path d="M18 36l5 5 9-9" stroke="#16A673" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <p class="tip-main">已发送成功，等待系统审批</p>
+      <p class="tip-sub">审批通过后，我们会以短信或公众号的方式通知您，请注意查看</p>
+      <button class="btn-progress" title="跳转 /xuchang/visitor/records" onclick="location.href='records.html'">查看审批进度</button>
+      <button class="btn-text" title="跳转 /xuchang/visitor/truck" onclick="location.href='truck.html'">再预约一次</button>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!doctype html>
+<!--
+  原型：物品放行（生活区）- 发起提交
+  旧路由：/xuchang/goodReleaseLive
+  旧组件：smart-h5/src/views-mobile/pages/good-release-live/index.vue
+          （引用 page3-tab、page3-bottom、tce-form、camera 拍照组件、const.js 物品类型枚举）
+  接口：
+    - GET  app      /appdormitory/roomList/{staffBadge}   进入页面按工号查宿舍房间
+    - POST platform /articlesrelease/living/save          提交申请（status 固定 1，照片 base64 最多 3 张）
+    - POST app      /wechat/visit/checkFace               拍照组件图片上传校验
+  跳转：Tab「查看数据」/ 提交成功 → /xuchang/goodReleaseLive/list
+  净室声明：仅复刻功能事实与界面文案，未复制旧代码。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行（生活区）· 发起提交</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button, input, select { font: inherit; color: inherit; }
+button { border: 0; cursor: pointer; background: none; }
+button:focus-visible, input:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 16px calc(96px + max(24px, env(safe-area-inset-bottom))); background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--surface); }
+.topbar { display: flex; align-items: center; min-height: 46px; }
+.back { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; border-radius: 12px; }
+.back svg { display: block; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+.topbar .ph { width: 44px; }
+.tabs { display: flex; margin: 10px 0 14px; padding: 4px; background: rgba(255,255,255,.78); border: 1px solid var(--border-soft); border-radius: 14px; }
+.tabs button { flex: 1; min-height: 40px; border-radius: 11px; font-size: 14px; font-weight: 650; color: var(--mid-gray); }
+.tabs button.on { background: var(--brand-orange); color: var(--white); }
+.demo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 12px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,255,255,.7); }
+.demo b { font-size: 12px; color: var(--accent-ink); font-weight: 650; }
+.demo button { min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--light-gray); background: var(--white); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo button.on { border-color: var(--brand-orange); background: var(--accent-soft); color: var(--accent-strong); }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.card h2 { margin: 0 0 6px; font-size: 14px; font-weight: 750; }
+.field { padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
+.field:last-child { border-bottom: 0; padding-bottom: 2px; }
+.field label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--mid-gray); }
+.req::after { content: " *"; color: var(--danger); }
+.ctrl { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white); font-size: 15px; }
+.ctrl input { flex: 1; min-width: 0; border: 0; padding: 0; background: transparent; }
+.ctrl input::placeholder { color: var(--weak-gray); }
+.ctrl.readonly { background: var(--surface); color: var(--yuto-black); }
+.ctrl .arrow { color: var(--weak-gray); flex: none; }
+.ctrl .val { flex: 1; }
+.ctrl .placeholder { flex: 1; color: var(--weak-gray); }
+.plate { letter-spacing: 2px; font-weight: 650; }
+.hint { margin-top: 6px; font-size: 12px; color: var(--weak-gray); }
+.photos { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.photo, .camera { position: relative; width: 84px; height: 84px; border-radius: 12px; overflow: visible; }
+.photo svg { display: block; width: 84px; height: 84px; border-radius: 12px; }
+.photo .del { position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 999px; background: var(--danger); color: var(--white); font-size: 14px; line-height: 22px; text-align: center; box-shadow: 0 2px 6px rgba(216,59,54,.4); }
+.camera { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1.5px dashed var(--light-gray); border-radius: 12px; color: var(--weak-gray); font-size: 12px; background: var(--surface); }
+.counter { font-size: 12px; color: var(--weak-gray); font-weight: 650; }
+.label-row { display: flex; justify-content: space-between; align-items: baseline; }
+.dock { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: min(100%, 430px); padding: 12px 16px max(24px, env(safe-area-inset-bottom)); background: rgba(255,255,255,.94); border-top: 1px solid var(--border-soft); backdrop-filter: blur(8px); }
+.btn-primary { display: block; width: 100%; min-height: 48px; border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650; }
+.btn-primary:active { background: var(--accent-strong); }
+.btn-primary[disabled] { background: var(--light-gray); color: var(--white); cursor: not-allowed; }
+.toast { position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%); max-width: 320px; padding: 12px 18px; border-radius: 12px; background: rgba(60,58,58,.92); color: var(--white); font-size: 13px; line-height: 1.5; text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50; }
+.toast.show { opacity: 1; }
+.banner-warn { display: none; gap: 8px; align-items: flex-start; margin-bottom: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(217,131,22,.12); color: var(--warning); font-size: 13px; font-weight: 650; line-height: 1.5; }
+body[data-state="noroom"] .banner-warn { display: flex; }
+</style>
+</head>
+<body data-state="ok">
+<div class="app"><div class="page">
+
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回 /xuchang/home" onclick="location.href='../home/index.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 7 10l5.5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>物品放行（生活区）</h1>
+    <span class="ph"></span>
+  </header>
+
+  <nav class="tabs" aria-label="页面切换">
+    <button class="on" type="button">发起提交</button>
+    <button type="button" onclick="toast('原型：跳转 /xuchang/goodReleaseLive/list')">查看数据</button>
+  </nav>
+
+  <div class="demo"><b>原型演示</b>
+    <button class="on" onclick="setState('ok', this)">已查到房间</button>
+    <button onclick="setState('noroom', this)">无房间信息</button>
+  </div>
+
+  <div class="banner-warn">⚠ 没有查询到您的房间信息，不能进行物品放行（生活区）申请</div>
+
+  <section class="card">
+    <div class="field">
+      <label class="req">物品类型</label>
+      <div class="ctrl" role="button"><span class="val">宿舍生活物品</span><span class="arrow">›</span></div>
+    </div>
+    <div class="field">
+      <label class="req">物品名称</label>
+      <div class="ctrl"><input value="行李箱一个、棉被两床" placeholder="请输入"></div>
+    </div>
+    <div class="field">
+      <label class="req">携带人名称</label>
+      <div class="ctrl readonly"><span class="val">何晓婷</span></div>
+      <p class="hint">自动带入当前登录员工姓名，不可修改</p>
+    </div>
+    <div class="field">
+      <label class="req">房间信息</label>
+      <div class="ctrl" role="button" id="roomCtrl"><span class="val" id="roomVal">紫荆苑3栋/5层/512号房/2床</span><span class="arrow">›</span></div>
+      <p class="hint">选项来自宿舍系统（按工号查询）</p>
+    </div>
+    <div class="field">
+      <label class="req">预计离厂日期</label>
+      <div class="ctrl" role="button"><span class="val">2026-06-13</span><span class="arrow">›</span></div>
+    </div>
+    <div class="field">
+      <label>车牌号</label>
+      <div class="ctrl" role="button"><span class="val plate">豫K·8D562</span><span class="arrow">⌨</span></div>
+      <p class="hint">非必填，使用车牌专用键盘输入</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="field">
+      <label>备注</label>
+      <div class="ctrl"><input value="离职退宿，物品随私家车带走" placeholder="请输入"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="field">
+      <div class="label-row">
+        <label class="req" style="margin-bottom:8px">上传物品照片</label>
+        <span class="counter">2/3</span>
+      </div>
+      <div class="photos">
+        <div class="photo">
+          <svg viewBox="0 0 84 84"><rect width="84" height="84" rx="12" fill="#FFF1E3"/><rect x="24" y="30" width="36" height="28" rx="4" fill="#EC6C00" opacity=".75"/><rect x="34" y="24" width="16" height="8" rx="2" fill="#D95F00"/><text x="42" y="74" text-anchor="middle" font-size="9" fill="#5A2600">行李箱</text></svg>
+          <button class="del" onclick="toast('确认弹窗：是否移除此图片（确定 / 取消）')" aria-label="删除照片">×</button>
+        </div>
+        <div class="photo">
+          <svg viewBox="0 0 84 84"><rect width="84" height="84" rx="12" fill="#FFF1E3"/><path d="M22 52c0-10 9-18 20-18s20 8 20 18v6H22z" fill="#EC6C00" opacity=".6"/><text x="42" y="74" text-anchor="middle" font-size="9" fill="#5A2600">棉被</text></svg>
+          <button class="del" onclick="toast('确认弹窗：是否移除此图片（确定 / 取消）')" aria-label="删除照片">×</button>
+        </div>
+        <button class="camera" onclick="toast('原型：调起手机相机/相册拍摄物品照片，上传校验后以 base64 预览')">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="2" y="7" width="22" height="15" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l2-3h4l2 3" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="13" cy="14.5" r="4" stroke="currentColor" stroke-width="1.6"/></svg>
+          拍照上传
+        </button>
+      </div>
+      <p class="hint">最多 3 张；删除前弹出「是否移除此图片」确认</p>
+    </div>
+  </section>
+
+</div></div>
+
+<div class="dock">
+  <button class="btn-primary" id="applyBtn" onclick="apply()">申请</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+function setState(s, btn){
+  document.body.dataset.state = s;
+  document.querySelectorAll('.demo button').forEach(function(b){ b.classList.remove('on'); });
+  btn.classList.add('on');
+  var roomVal = document.getElementById('roomVal');
+  if (s === 'noroom') {
+    roomVal.textContent = '请选择'; roomVal.className = 'placeholder';
+    toast('没有查询到您的房间信息，不能进行物品放行（生活区）申请');
+  } else {
+    roomVal.textContent = '紫荆苑3栋/5层/512号房/2床'; roomVal.className = 'val';
+  }
+}
+function apply(){
+  if (document.body.dataset.state === 'noroom') {
+    toast('没有查询到您的房间信息，不能进行物品放行（生活区）申请');
+    return;
+  }
+  toast('原型：校验通过，POST /articlesrelease/living/save，成功后跳转「查看数据」列表');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!doctype html>
+<!--
+  原型：访客 - 申请详情与审批进度（新增功能，暂无旧页面）
+  建议路由：/xuchang/visitor/recordDetail?applyId=xxx
+  入口：① 申请记录列表点击单条记录；② 短信/公众号审批进度通知直达链接（已确认采用，
+        带 applyId；openId 未绑定手机号时先跳 records 页验证身份，通过后回跳本页）。
+  接口（待后端设计，先按以下契约占位）：
+    - GET /admittance/apply/app/applyDetail        申请详情（基础信息 + 随行 + 车辆）
+    - GET /admittance/apply/app/approvalProgress   审批流节点（节点名/审批人/状态/时间/意见）
+  说明：
+    - 核心诉求：让访客看到审批流当前走到哪个节点、停在谁那里。
+    - 审批节点由 approvalProgress 接口动态返回（数组），各园区流程级数不同，
+      页面按数组渲染，不写死级数；本原型的两级节点仅为演示数据。
+    - 节点状态：done（已通过）/ current（审批中）/ wait（未到达）/ rejected（已拒绝）。
+    - 审批人仅展示脱敏姓名；部门、职务、已等待时长、手机号均不对访客展示。
+    - 不向访客提供「撤销申请」「催办」操作，审批中状态只读。
+    - 已通过状态提供「查看通行码」入口 → /xuchang/visitor/code（code.html）。
+    - 权限下发状态（dispatchStatus，applyDetail 返回）：审批通过后权限需下发到门岗
+      闸机/门禁设备，门岗可能有多台机器，对访客只展示聚合状态、不展示设备明细：
+        · 任一设备下发成功 → SUCCESS（下发成功）（业务已确认）
+        · 全部设备下发失败 → FAILED（下发失败，提示联系被访人或门岗人工登记）（业务已确认）
+        · 其余情况（部分失败+部分仍在下发等混合态）→ ISSUING（下发中）（推断值，待业务确认）
+      聚合逻辑由后端完成，前端只读 dispatchStatus 单字段。
+  跳转：返回 → records.html；通行码 → code.html
+  演示：通过 URL hash 或顶部 demo-bar 切换 审批中/已通过/已拒绝/已过期 四种状态
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>申请详情 - 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button { border: 0; cursor: pointer; background: none; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+
+.demo-bar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  width: min(100%, 430px); margin: 0 auto; padding: 8px 12px;
+  background: #2F2D2D; color: #fff; font-size: 12px;
+}
+.demo-bar .tag { font-weight: 750; color: #FFC894; }
+.demo-bar button {
+  min-height: 28px; padding: 0 10px; border-radius: 999px;
+  background: rgba(255,255,255,.14); color: #fff; font-size: 12px;
+}
+.demo-bar button.on { background: var(--brand-orange); font-weight: 650; }
+
+.app {
+  position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--surface);
+  box-shadow: var(--shadow-large);
+  padding: max(14px, env(safe-area-inset-top)) 18px calc(20px + max(24px, env(safe-area-inset-bottom)));
+}
+.topbar { display: flex; align-items: center; min-height: 48px; margin: 0 -6px; }
+.back-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+.page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; margin: 0; }
+.topbar-spacer { width: 44px; }
+
+/* ===== 状态总览横幅 ===== */
+.banner {
+  margin-top: 6px; padding: 16px; border-radius: 16px;
+  display: flex; align-items: center; gap: 14px;
+  color: var(--white); box-shadow: var(--shadow-panel);
+}
+.banner.pending  { background: linear-gradient(120deg, #E89234, #C98416); }
+.banner.passed   { background: linear-gradient(120deg, #2DB888, #16A673); }
+.banner.rejected { background: linear-gradient(120deg, #E45B56, #D83B36); }
+.banner.expired  { background: linear-gradient(120deg, #9C9A9A, #807E7E); }
+.banner .b-icon { flex: none; width: 44px; height: 44px; border-radius: 999px; background: rgba(255,255,255,.2); display: grid; place-items: center; }
+.banner .b-main { font-size: 16px; font-weight: 750; margin: 0; }
+.banner .b-sub { font-size: 12px; margin: 4px 0 0; opacity: .92; line-height: 1.5; }
+.banner .b-sub strong { font-weight: 750; }
+
+.card { margin-top: 14px; padding: 18px 16px; border: 1px solid var(--border-soft); border-radius: 16px; background: var(--white); box-shadow: var(--shadow-panel); }
+.card h2 { margin: 0 0 14px; font-size: 15px; font-weight: 750; display: flex; align-items: center; gap: 8px; }
+.card h2::before { content: ""; width: 4px; height: 14px; border-radius: 2px; background: var(--brand-orange); }
+
+/* ===== 审批进度时间线 ===== */
+.flow { list-style: none; margin: 0; padding: 0; }
+.node { position: relative; padding: 0 0 22px 40px; }
+.node:last-child { padding-bottom: 0; }
+.node::before {
+  content: ""; position: absolute; left: 13px; top: 30px; bottom: 2px; width: 2px;
+  background: var(--light-gray);
+}
+.node:last-child::before { display: none; }
+.node.done::before { background: var(--success); }
+/* 权限下发节点：下发中按当前节点样式，下发失败按拒绝样式 */
+.node.issuing .n-dot { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; box-shadow: 0 0 0 5px rgba(236,108,0,.15); }
+.node.failed .n-dot { background: var(--danger); border-color: var(--danger); color: #fff; }
+.n-dot {
+  position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 999px;
+  display: grid; place-items: center; background: var(--surface); color: var(--weak-gray);
+  border: 2px solid var(--light-gray); font-size: 13px; font-weight: 700;
+}
+.node.done .n-dot { background: var(--success); border-color: var(--success); color: #fff; }
+.node.current .n-dot { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; box-shadow: 0 0 0 5px rgba(236,108,0,.15); }
+.node.rejected .n-dot { background: var(--danger); border-color: var(--danger); color: #fff; }
+.n-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 750; min-height: 28px; }
+.n-tag { font-size: 11px; font-weight: 650; min-height: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; }
+.n-tag.t-done { color: var(--success); background: #E5F6EF; }
+.n-tag.t-current { color: var(--brand-orange); background: var(--accent-soft); }
+.n-tag.t-wait { color: var(--weak-gray); background: var(--surface); }
+.n-tag.t-rejected { color: var(--danger); background: #FCEAE9; }
+.n-meta { margin-top: 4px; font-size: 12px; color: var(--mid-gray); line-height: 1.6; }
+.n-meta .who { color: var(--yuto-black); font-weight: 650; }
+.node.wait .n-title { color: var(--weak-gray); }
+.node.wait .n-meta { color: var(--weak-gray); }
+
+/* 当前节点的审批人卡片（到谁那里了） */
+.approver {
+  margin-top: 10px; padding: 12px; border-radius: 12px;
+  background: var(--accent-soft); border: 1px dashed rgba(236,108,0,.35);
+  display: flex; align-items: center; gap: 12px;
+}
+.approver .avatar {
+  flex: none; width: 40px; height: 40px; border-radius: 999px;
+  background: var(--brand-orange); color: #fff; display: grid; place-items: center;
+  font-size: 15px; font-weight: 750;
+}
+.approver .a-name { font-size: 14px; font-weight: 750; color: var(--accent-ink); }
+.approver .a-sub { margin-top: 2px; font-size: 12px; color: var(--accent-ink); opacity: .75; }
+
+/* 审批意见气泡（拒绝/通过附言） */
+.opinion {
+  margin-top: 8px; padding: 10px 12px; border-radius: 10px;
+  background: var(--surface); font-size: 12px; color: var(--yuto-black); line-height: 1.6;
+}
+.opinion.bad { background: #FCEAE9; color: #8C2B27; }
+
+/* ===== 申请信息 ===== */
+.info-rows { display: grid; gap: 10px; }
+.info-row { display: flex; font-size: 13px; line-height: 1.55; }
+.info-row .k { flex: none; width: 84px; color: var(--weak-gray); }
+.info-row .v { flex: 1; color: var(--yuto-black); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { min-height: 24px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 999px; background: var(--surface); font-size: 12px; color: var(--mid-gray); }
+
+/* ===== 底部操作 ===== */
+.actions { margin-top: 18px; display: grid; gap: 10px; }
+.primary-btn { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650; }
+.primary-btn:active { background: var(--accent-strong); }
+.ghost-btn { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 14px; border: 1px solid rgba(236,108,0,.4); color: var(--brand-orange); font-size: 15px; font-weight: 650; background: var(--white); }
+.ghost-btn:active { background: var(--accent-soft); }
+.plain-btn { display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 12px; color: var(--mid-gray); font-size: 14px; }
+
+.refresh-tip { margin: 12px 4px 0; text-align: center; font-size: 12px; color: var(--weak-gray); }
+
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); max-width: 320px; padding: 11px 18px; border-radius: 12px; background: rgba(47,45,45,.92); color: #fff; font-size: 13px; text-align: center; display: none; z-index: 60; }
+.toast.show { display: block; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span class="tag">原型演示</span>
+  <button onclick="setState('pending', this)">审批中</button>
+  <button onclick="setState('passed', this)">通过·已下发</button>
+  <button onclick="setState('passedIssuing', this)">通过·下发中</button>
+  <button onclick="setState('passedFailed', this)">通过·下发失败</button>
+  <button onclick="setState('rejected', this)">已拒绝</button>
+  <button onclick="setState('expired', this)">已过期</button>
+</div>
+
+<div class="app">
+  <header class="topbar">
+    <button class="back-btn" aria-label="返回" onclick="location.href='records.html'" title="返回申请记录列表">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 3.75 6.25 10l6.25 6.25" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 class="page-title">申请详情</h1>
+    <span class="topbar-spacer"></span>
+  </header>
+
+  <!-- 状态横幅：一眼看出整体状态 + 当前停在谁那里 -->
+  <div class="banner pending" id="banner">
+    <div class="b-icon" id="bannerIcon" aria-hidden="true"></div>
+    <div>
+      <p class="b-main" id="bannerMain"></p>
+      <p class="b-sub" id="bannerSub"></p>
+    </div>
+  </div>
+
+  <!-- 审批进度 -->
+  <section class="card">
+    <h2>审批进度</h2>
+    <ol class="flow" id="flow"></ol>
+  </section>
+
+  <!-- 申请信息 -->
+  <section class="card">
+    <h2>申请信息</h2>
+    <div class="info-rows">
+      <div class="info-row"><span class="k">申请单号</span><span class="v">VA20260610-0027</span></div>
+      <div class="info-row"><span class="k">来访园区</span><span class="v">裕同科技许昌园区</span></div>
+      <div class="info-row"><span class="k">被访人</span><span class="v">王建国</span></div>
+      <div class="info-row"><span class="k">来访时间</span><span class="v">2026-06-12 09:30 ~ 18:00</span></div>
+      <div class="info-row"><span class="k">来访事由</span><span class="v">供应商打样确认，洽谈包装结构方案</span></div>
+      <div class="info-row"><span class="k">访客</span><span class="v">李明 137****1234</span></div>
+      <div class="info-row"><span class="k">随行人员</span><span class="v chips"><span>赵芳 150****8821</span><span>周强 186****3307</span></span></div>
+      <div class="info-row"><span class="k">来访车辆</span><span class="v chips"><span>豫A·D88E6 小型客车</span></span></div>
+      <div class="info-row"><span class="k">授权区域</span><span class="v chips"><span>研发楼 A 座</span><span>样品展示厅</span></span></div>
+      <div class="info-row"><span class="k">提交时间</span><span class="v">2026-06-10 15:08</span></div>
+    </div>
+  </section>
+
+  <!-- 底部操作：随状态变化 -->
+  <div class="actions" id="actions"></div>
+  <p class="refresh-tip" id="refreshTip">进度有更新时将通过短信 / 公众号通知您，也可下拉刷新查看最新进度</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// 审批流节点数据：按状态给出四套演示数据（真实数据来自 GET /approvalProgress）
+const FLOWS = {
+  pending: [
+    { title: '提交申请', state: 'done', meta: '访客 李明 · 2026-06-10 15:08' },
+    { title: '被访人审批', state: 'done', meta: '<span class="who">王建国</span> 已同意 · 2026-06-10 16:55',
+      opinion: '已同意：当天我在厂区，到访前先电话联系我。' },
+    { title: '部门负责人审批', state: 'current', meta: '等待审批',
+      approver: { name: '张伟' } },
+    { title: '审批完成', state: 'wait', meta: '通过后生成入园通行码' },
+  ],
+  passed: [
+    { title: '提交申请', state: 'done', meta: '访客 李明 · 2026-06-10 15:08' },
+    { title: '被访人审批', state: 'done', meta: '<span class="who">王建国</span> 已同意 · 2026-06-10 16:55' },
+    { title: '部门负责人审批', state: 'done', meta: '<span class="who">张伟</span> 已同意 · 2026-06-11 09:20',
+      opinion: '同意来访，请按授权区域活动。' },
+    { title: '审批完成', state: 'done', meta: '2026-06-11 09:20 · 已生成入园通行码' },
+    { title: '通行权限下发', state: 'done', meta: '2026-06-11 09:22 · 门岗已收到通行权限，可正常刷码入园' },
+  ],
+  passedIssuing: [
+    { title: '提交申请', state: 'done', meta: '访客 李明 · 2026-06-10 15:08' },
+    { title: '被访人审批', state: 'done', meta: '<span class="who">王建国</span> 已同意 · 2026-06-10 16:55' },
+    { title: '部门负责人审批', state: 'done', meta: '<span class="who">张伟</span> 已同意 · 2026-06-11 09:20',
+      opinion: '同意来访，请按授权区域活动。' },
+    { title: '审批完成', state: 'done', meta: '2026-06-11 09:20 · 已生成入园通行码' },
+    { title: '通行权限下发', state: 'issuing', meta: '正在下发至门岗，通常几分钟内完成，请稍后刷新查看' },
+  ],
+  passedFailed: [
+    { title: '提交申请', state: 'done', meta: '访客 李明 · 2026-06-10 15:08' },
+    { title: '被访人审批', state: 'done', meta: '<span class="who">王建国</span> 已同意 · 2026-06-10 16:55' },
+    { title: '部门负责人审批', state: 'done', meta: '<span class="who">张伟</span> 已同意 · 2026-06-11 09:20',
+      opinion: '同意来访，请按授权区域活动。' },
+    { title: '审批完成', state: 'done', meta: '2026-06-11 09:20 · 已生成入园通行码' },
+    { title: '通行权限下发', state: 'failed', meta: '门岗未能收到通行权限',
+      opinion: '下发失败：请联系被访人重新下发，或来访当日凭本人身份证至门岗人工登记入园。', bad: true },
+  ],
+  rejected: [
+    { title: '提交申请', state: 'done', meta: '访客 李明 · 2026-06-10 15:08' },
+    { title: '被访人审批', state: 'rejected', meta: '<span class="who">王建国</span> 已拒绝 · 2026-06-10 18:31',
+      opinion: '拒绝原因：当天出差不在园区，来访时间冲突，建议改约下周。', bad: true },
+    { title: '部门负责人审批', state: 'wait', meta: '流程已终止' },
+    { title: '审批完成', state: 'wait', meta: '流程已终止' },
+  ],
+  expired: [
+    { title: '提交申请', state: 'done', meta: '访客 李明 · 2026-04-15 10:22' },
+    { title: '被访人审批', state: 'done', meta: '<span class="who">王建国</span> 已同意 · 2026-04-15 11:40' },
+    { title: '部门负责人审批', state: 'done', meta: '<span class="who">张伟</span> 已同意 · 2026-04-16 08:55' },
+    { title: '审批完成', state: 'done', meta: '2026-04-16 08:55 · 通行码已随来访时间结束失效' },
+  ],
+};
+
+const BANNERS = {
+  pending: { cls: 'pending', main: '审批中', sub: '当前停留在 <strong>部门负责人 张伟</strong> 处，共 2 个审批节点，已通过 1 个',
+    icon: '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="#fff" stroke-width="2"/><path d="M11 6.5V11l3 2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>' },
+  passed: { cls: 'passed', main: '审批已通过 · 权限已下发', sub: '通行权限已下发至门岗，凭通行码于来访当日入园',
+    icon: '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11.5 9 16.5 18 6" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+  passedIssuing: { cls: 'pending', main: '审批已通过 · 权限下发中', sub: '通行权限正在下发至门岗，通常几分钟内完成，请稍后刷新',
+    icon: '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="#fff" stroke-width="2"/><path d="M11 6.5V11l3 2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>' },
+  passedFailed: { cls: 'rejected', main: '审批已通过 · 权限下发失败', sub: '门岗未能收到通行权限，请联系 <strong>被访人 王建国</strong> 处理，或至门岗人工登记',
+    icon: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5 5 15" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>' },
+  rejected: { cls: 'rejected', main: '审批未通过', sub: '<strong>被访人 王建国</strong> 已拒绝本次申请，可修改后重新预约',
+    icon: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5 5 15" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>' },
+  expired: { cls: 'expired', main: '申请已过期', sub: '来访时间已结束，本记录仅供查阅',
+    icon: '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="#fff" stroke-width="2"/><path d="M7 11h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>' },
+};
+
+const TAGS = { done: ['t-done', '已通过'], current: ['t-current', '审批中'], wait: ['t-wait', '未到达'], rejected: ['t-rejected', '已拒绝'],
+  issuing: ['t-current', '下发中'], failed: ['t-rejected', '下发失败'] };
+
+const ACTIONS = {
+  pending: '',
+  passed: '<button class="primary-btn" onclick="toast(\'跳转通行码页 /xuchang/visitor/code（code.html）\')">查看入园通行码</button>',
+  passedIssuing: '<button class="ghost-btn" onclick="toast(\'跳转通行码页 /xuchang/visitor/code（code.html）\')">查看入园通行码</button>',
+  passedFailed: '',
+  rejected: '<button class="primary-btn" onclick="toast(\'跳转入厂申请 /xuchang/visitor，预填本次信息\')">修改信息重新预约</button>',
+  expired: '<button class="ghost-btn" onclick="toast(\'跳转入厂申请 /xuchang/visitor，预填本次信息\')">再次预约</button>',
+};
+
+function setState(s, btn) {
+  if (btn) {
+    document.querySelectorAll('.demo-bar button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+  const b = BANNERS[s];
+  const banner = document.getElementById('banner');
+  banner.className = 'banner ' + b.cls;
+  document.getElementById('bannerIcon').innerHTML = b.icon;
+  document.getElementById('bannerMain').textContent = b.main;
+  document.getElementById('bannerSub').innerHTML = b.sub;
+
+  document.getElementById('flow').innerHTML = FLOWS[s].map((n, i) => {
+    const [tagCls, tagTxt] = TAGS[n.state];
+    return '<li class="node ' + n.state + '">'
+      + '<span class="n-dot">' + (n.state === 'done' ? '✓' : (n.state === 'rejected' || n.state === 'failed') ? '✕' : i + 1) + '</span>'
+      + '<div class="n-title">' + n.title + '<span class="n-tag ' + tagCls + '">' + tagTxt + '</span></div>'
+      + '<div class="n-meta">' + n.meta + '</div>'
+      + (n.approver ? '<div class="approver"><span class="avatar">' + n.approver.name[0] + '</span>'
+          + '<div><div class="a-name">' + n.approver.name + '</div><div class="a-sub">等待其审批中</div></div></div>' : '')
+      + (n.opinion ? '<div class="opinion' + (n.bad ? ' bad' : '') + '">' + n.opinion + '</div>' : '')
+      + '</li>';
+  }).join('');
+
+  document.getElementById('actions').innerHTML = ACTIONS[s];
+  document.getElementById('refreshTip').hidden = s !== 'pending' && s !== 'passedIssuing';
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// 支持从列表页带 hash 进入指定状态；hash 变化（浏览器前进/后退）时同步切换
+const STATES = ['pending', 'passed', 'passedIssuing', 'passedFailed', 'rejected', 'expired'];
+function applyHash() {
+  const s = STATES.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'pending';
+  setState(s, document.querySelectorAll('.demo-bar button')[STATES.indexOf(s)]);
+}
+window.addEventListener('hashchange', applyHash);
+applyHash();
+</script>
+</body>
+</html>

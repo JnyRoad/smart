@@ -1,0 +1,272 @@
+<!doctype html>
+<!--
+  原型：物品放行（生活区）审批详情
+  旧路由：/xuchang/backLog/goodReleaseLive/detail?id={id}&sort={1室友/2宿管/3保安}&curTabIndex={0待审批/1已审批}（支持 isScan 扫码进入）
+  旧组件：views-mobile/pages/backLog/good-release-live/detail.vue
+          + pages/good-release-live/components/process/index.vue（审批流程时间轴）
+          + views-mobile/components/page3-bottom
+  接口：GET  platform:/articlesrelease/detail/{id}（详情）
+        GET  platform:/articlesrelease/status/update（室友/宿管审批：approveBadge, id, status 2通过/3拒绝, remark）
+        POST platform:/articlesrelease/status/security/update（保安放行：guardOneImg/guardTwoImg/guardThreeImg,
+             id, parkId, status 4确认放行/5拒绝放行, badge, remark）
+  跳转：室友/宿管审批成功 → /xuchang/backLog/goodReleaseLive?curTabIndex=1（good-release-live-list.html）；
+        保安审批成功 → 扫码进入(isScan)回 /xuchang/home，否则列表 ?curTabIndex=1；
+        详情加载失败 → toast 后跳 /xuchang/home。
+  校验：sort=3 且园区配置 isUploadImg===0 时必须至少上传一张照片，否则 toast「请至少上传一张照片」。
+  显隐规则（旧代码事实）：
+    - 上传物品照片：sort==3 && isUploadImg===0 && curTabIndex==0 && status<4
+    - 审批意见（选填）输入：curTabIndex==0 && status<4
+    - 拒 绝/通 过 按钮：(sort==1||sort==2) && curTabIndex==0
+    - 拒绝放行/确认放行 按钮：sort==3 && curTabIndex==0 && status<4
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行（生活区）审批详情 · 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00; --accent-strong: #D95F00; --accent-soft: #FFF1E3; --accent-ink: #5A2600;
+  --white: #FFFFFF; --surface: #F7F7F7; --yuto-black: #595757; --mid-gray: #8C8A8A; --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3; --border-soft: #EFEEEE; --success: #16A673; --warning: #C98416; --danger: #D83B36; --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89,87,87,.14); --shadow-panel: 0 16px 40px rgba(89,87,87,.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; margin: 0; }
+button, input { font: inherit; color: inherit; }
+button { border: 0; background: none; cursor: pointer; }
+input:focus-visible, button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; padding-top: max(14px, env(safe-area-inset-top)); background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 220px); }
+.topbar { display: flex; align-items: center; min-height: 46px; padding: 0 6px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.back-btn:active { background: rgba(255,255,255,.6); }
+.back-btn svg { width: 22px; height: 22px; }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-space { width: 44px; }
+.demo-bar { margin: 6px 18px 10px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,241,227,.6); }
+.demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--accent-ink); margin-bottom: 6px; }
+.demo-bar .demo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-bar .demo-btns button { min-height: 30px; padding: 0 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--light-gray); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-bar .demo-btns button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+.content { flex: 1; padding: 0 18px 130px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); padding: 16px; margin-bottom: 12px; }
+.who { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }
+.who .nm { font-size: 16px; font-weight: 750; }
+.who .nm small { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--mid-gray); }
+.face { width: 64px; height: 64px; border-radius: 14px; background: linear-gradient(135deg, #FFE2C4, #FFF1E3); border: 1px solid var(--light-gray); display: flex; align-items: center; justify-content: center; color: var(--accent-strong); flex: none; }
+.face svg { width: 32px; height: 32px; }
+.row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; line-height: 1.55; }
+.row:last-child { border-bottom: 0; padding-bottom: 0; }
+.row .lab { flex: none; width: 70px; color: var(--mid-gray); }
+.row .val { flex: 1; min-width: 0; }
+.photo-list { display: flex; gap: 10px; }
+.photo { width: 72px; height: 72px; border-radius: 10px; background: linear-gradient(135deg, #FFE2C4, #FFF1E3); border: 1px solid var(--light-gray); display: flex; align-items: center; justify-content: center; color: var(--accent-strong); font-size: 11px; text-align: center; }
+.sec-title { font-size: 14px; font-weight: 750; margin-bottom: 10px; }
+/* 上传物品照片 */
+.upload-grid { display: flex; gap: 10px; }
+.upload-cell { width: 84px; height: 84px; border-radius: 12px; border: 1px dashed var(--light-gray); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--weak-gray); font-size: 11px; background: var(--surface); }
+.upload-cell.filled { border-style: solid; background: linear-gradient(135deg, #FFE2C4, #FFF1E3); color: var(--accent-strong); }
+.upload-cell svg { width: 22px; height: 22px; }
+.upload-hint { font-size: 12px; color: var(--weak-gray); margin-top: 8px; }
+/* 审批流程时间轴 */
+.flow { padding-top: 4px; }
+.node { display: flex; gap: 12px; }
+.node .rail { display: flex; flex-direction: column; align-items: center; width: 18px; flex: none; }
+.node .dot { width: 14px; height: 14px; border-radius: 999px; background: var(--accent-soft); border: 3px solid var(--brand-orange); margin-top: 2px; }
+.node .line { flex: 1; width: 2px; background: var(--border-soft); margin: 4px 0; }
+.node:last-child .line { display: none; }
+.node .body { flex: 1; padding-bottom: 16px; }
+.node:last-child .body { padding-bottom: 2px; }
+.node .n-title { font-size: 14px; font-weight: 700; }
+.node .n-person { font-size: 13px; margin-top: 4px; }
+.st0 { color: var(--info); font-weight: 650; }
+.st1 { color: var(--success); font-weight: 650; }
+.st2 { color: var(--danger); font-weight: 650; }
+.st4 { color: var(--weak-gray); font-weight: 650; }
+.node .n-remark { font-size: 12px; color: var(--mid-gray); margin-top: 3px; }
+.node .n-time { font-size: 12px; color: var(--weak-gray); margin-top: 3px; }
+/* 审批意见 */
+.opinion label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 8px; }
+.opinion input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white); }
+/* 底部操作 */
+.bottom-bar { position: sticky; bottom: 0; display: flex; gap: 12px; padding: 10px 18px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(247,247,247,0), var(--surface) 40%); }
+.btn { flex: 1; min-height: 48px; border-radius: 14px; font-size: 15px; font-weight: 650; }
+.btn--primary { background: var(--brand-orange); color: #fff; }
+.btn--primary:active { background: var(--accent-strong); }
+.btn--ghost { background: var(--white); border: 1px solid var(--border-soft); color: var(--danger); box-shadow: var(--shadow-panel); }
+.done-tip { text-align: center; font-size: 13px; color: var(--weak-gray); padding: 14px 0 max(24px, env(safe-area-inset-bottom)); }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(89,87,87,.92); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 10px; display: none; z-index: 50; max-width: 320px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="location.href='good-release-live-list.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">放行申请详情</div>
+      <div class="topbar-space"></div>
+    </header>
+
+    <div class="demo-bar">
+      <div class="demo-tag">原型演示 · 节点与状态切换</div>
+      <div class="demo-btns">
+        <button class="on" onclick="setDemo('mate',this)">待审批 · 室友/宿管</button>
+        <button onclick="setDemo('guard',this)">待审批 · 保安(需拍照)</button>
+        <button onclick="setDemo('pass',this)">已审批 · 已放行</button>
+        <button onclick="setDemo('reject',this)">已审批 · 已拒绝</button>
+      </div>
+    </div>
+
+    <main class="content">
+      <!-- 申请信息（携带人 + 人脸照片 + 字段） -->
+      <section class="card">
+        <div class="who">
+          <div class="nm">陈晓梅<small>携带人（facePic 无照片时显示占位头像）</small></div>
+          <div class="face" aria-label="人脸照片">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c1.4-3.4 4.2-5 7.5-5s6.1 1.6 7.5 5"/></svg>
+          </div>
+        </div>
+        <div class="row"><span class="lab">物品类型:</span><span class="val">个人生活物品</span></div>
+        <div class="row"><span class="lab">物品名称:</span><span class="val">行李箱一个、被褥一套</span></div>
+        <div class="row"><span class="lab">房间信息:</span><span class="val">许昌园区2号宿舍楼 305室</span></div>
+        <div class="row"><span class="lab">离厂时间:</span><span class="val">2026-06-12 10:00</span></div>
+        <div class="row"><span class="lab">车牌号:</span><span class="val">豫K·D8C66</span></div>
+        <div class="row"><span class="lab">备注信息:</span><span class="val">离职搬离宿舍，物品较多需车辆接运</span></div>
+        <div class="row"><span class="lab">物品照片:</span>
+          <span class="val photo-list">
+            <span class="photo">照片1<br>(可预览)</span>
+            <span class="photo">照片2<br>(可预览)</span>
+          </span>
+        </div>
+      </section>
+
+      <!-- 上传物品照片：仅 sort=3 且 isUploadImg===0 且待审批且 status<4 -->
+      <section class="card" id="uploadBlock" style="display:none">
+        <div class="sec-title">上传物品照片 <span style="color:var(--danger)">*</span></div>
+        <div class="upload-grid">
+          <div class="upload-cell filled">照片1<br>已上传</div>
+          <button class="upload-cell" onclick="toast('调起相机/相册（base64 上传）')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            添加照片
+          </button>
+          <button class="upload-cell" onclick="toast('调起相机/相册（base64 上传）')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            添加照片
+          </button>
+        </div>
+        <div class="upload-hint">园区配置 isUploadImg=0 时必传；未上传任何照片提交将提示「请至少上传一张照片」。</div>
+      </section>
+
+      <!-- 审批流程时间轴（process 组件） -->
+      <section class="card">
+        <div class="sec-title">审批流程</div>
+        <div class="flow">
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-person"><strong>陈晓梅</strong>-<span class="st0">提交申请</span></div>
+              <div class="n-time">2026-06-11 09:24:18</div>
+            </div>
+          </div>
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">室友审批</div>
+              <div class="n-person">刘倩-<span id="mateResult" class="st0">待审批</span></div>
+              <div class="n-remark" id="mateRemark" style="display:none">意见: 物品确为本人所有，同意</div>
+              <div class="n-time" id="mateTime">—</div>
+            </div>
+          </div>
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">宿管审批</div>
+              <div class="n-person">周桂芳-<span id="adminResult" class="st4">等待</span></div>
+              <div class="n-remark" id="adminRemark" style="display:none">意见: 已核对房间登记物品</div>
+              <div class="n-time" id="adminTime">—</div>
+            </div>
+          </div>
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">保安核验</div>
+              <div class="n-person">张卫东-<span id="guardResult" class="st4">等待</span></div>
+              <div class="n-remark" id="guardRemark" style="display:none">意见: 电器未登记备案，拒绝放行</div>
+              <div class="n-time" id="guardTime">—</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 审批意见：仅待审批且 status<4 -->
+      <section class="card opinion" id="opinionBlock">
+        <label for="remark">审批意见（选填）</label>
+        <input id="remark" type="text" placeholder="请输入">
+      </section>
+    </main>
+
+    <!-- 室友/宿管操作：sort=1/2 且 curTabIndex=0 -->
+    <div class="bottom-bar" id="mateBar">
+      <button class="btn btn--ghost" onclick="toast('拒绝(status=3)：GET /articlesrelease/status/update，成功后跳列表 ?curTabIndex=1')">拒 绝</button>
+      <button class="btn btn--primary" onclick="toast('通过(status=2)：GET /articlesrelease/status/update，成功后跳列表 ?curTabIndex=1')">通 过</button>
+    </div>
+    <!-- 保安操作：sort=3 且 curTabIndex=0 且 status<4 -->
+    <div class="bottom-bar" id="guardBar" style="display:none">
+      <button class="btn btn--ghost" onclick="toast('拒绝放行(status=5)：POST /articlesrelease/status/security/update')">拒绝放行</button>
+      <button class="btn btn--primary" onclick="toast('确认放行(status=4)：成功后扫码进入跳 /xuchang/home，否则跳列表 ?curTabIndex=1')">确认放行</button>
+    </div>
+    <div class="done-tip" id="doneTip" style="display:none">该申请已完成审批，仅供查看</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+function show(id, on) { document.getElementById(id).style.display = on ? '' : 'none'; }
+function setNode(prefix, result, cls, time, remarkOn) {
+  var r = document.getElementById(prefix + 'Result');
+  r.textContent = result; r.className = cls;
+  document.getElementById(prefix + 'Time').textContent = time;
+  document.getElementById(prefix + 'Remark').style.display = remarkOn ? '' : 'none';
+}
+function setDemo(mode, btn) {
+  document.querySelectorAll('.demo-btns button').forEach(function (b) { b.classList.remove('on'); });
+  btn.classList.add('on');
+  show('uploadBlock', mode === 'guard');
+  show('opinionBlock', mode === 'mate' || mode === 'guard');
+  show('mateBar', mode === 'mate');
+  show('guardBar', mode === 'guard');
+  show('doneTip', mode === 'pass' || mode === 'reject');
+  document.getElementById('mateBar').style.display = mode === 'mate' ? 'flex' : 'none';
+  document.getElementById('guardBar').style.display = mode === 'guard' ? 'flex' : 'none';
+  if (mode === 'mate') {
+    setNode('mate', '待审批', 'st0', '—', false);
+    setNode('admin', '等待', 'st4', '—', false);
+    setNode('guard', '等待', 'st4', '—', false);
+  } else if (mode === 'guard') {
+    setNode('mate', '通过', 'st1', '2026-06-11 10:02:40', true);
+    setNode('admin', '通过', 'st1', '2026-06-11 11:18:03', true);
+    setNode('guard', '待审批', 'st0', '—', false);
+  } else if (mode === 'pass') {
+    setNode('mate', '通过', 'st1', '2026-06-11 10:02:40', true);
+    setNode('admin', '通过', 'st1', '2026-06-11 11:18:03', true);
+    setNode('guard', '通过', 'st1', '2026-06-12 09:47:55', false);
+  } else {
+    setNode('mate', '通过', 'st1', '2026-06-11 10:02:40', true);
+    setNode('admin', '通过', 'st1', '2026-06-11 11:18:03', true);
+    setNode('guard', '拒绝', 'st2', '2026-06-12 09:47:55', true);
+  }
+}
+var toastTimer;
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.style.display = 'none'; }, 2400);
+}
+</script>
+</body>
+</html>

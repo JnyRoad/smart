@@ -1,0 +1,398 @@
+<!doctype html>
+<!--
+  原型：访客 - 我的申请记录（新增功能，暂无旧页面）
+  建议路由：/xuchang/visitor/records
+  接口（待后端设计，先按以下契约占位）：
+    - POST /admittance/apply/app/sendRecordSms      发送验证码（手机号）
+    - POST /admittance/apply/app/listMyApply        查询本人申请记录（手机号+验证码 或 openId 免验）
+  入口（访客二次进入查进度的所有路径，开发时需全部打通）：
+    1. 入厂申请首页（/xuchang/visitor 及合肥变体）表单下方常驻入口
+       「已提交过申请？查看申请记录与审批进度」——访客从扫码/公众号菜单/
+       被访人分享链接再次进入 H5 即可到达，不依赖提交成功页。
+    2. 提交成功页（result / resultTruck）的「查看审批进度」按钮（快捷方式）。
+    3. 短信/公众号审批进度通知中直接携带链接（已确认采用）：通知针对单条申请，
+       链接直达详情页 /xuchang/visitor/recordDetail?applyId=xxx；
+       openId 未绑定手机号时先跳本页验证身份，验证通过后回跳详情。
+  说明：
+    - 访客端免登录，首次进入需手机号+短信验证码校验身份；
+      同一 openId 验证过一次后可直接展示记录（服务端绑定 openId 与手机号）。
+    - 记录按提交时间倒序，状态：审批中 / 已通过 / 已拒绝 / 已过期 / 已撤销。
+    - 已通过的记录需展示通行权限下发状态（listMyApply 返回 dispatchStatus 单字段）：
+      下发成功 / 下发中 / 下发失败。门岗可能有多台设备，状态由后端聚合，
+      不向访客展示设备明细：任一设备成功 → 成功；全部失败 → 失败（业务已确认）；
+      部分失败+部分仍在下发的混合态暂按「下发中」处理（推断值，待业务确认）。
+  跳转：点击记录卡片 → /xuchang/visitor/recordDetail（record-detail.html）
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>我的申请记录 - 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button, input { font: inherit; }
+button { border: 0; cursor: pointer; background: none; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+
+.demo-bar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  width: min(100%, 430px); margin: 0 auto; padding: 8px 12px;
+  background: #2F2D2D; color: #fff; font-size: 12px;
+}
+.demo-bar .tag { font-weight: 750; color: #FFC894; }
+.demo-bar button {
+  min-height: 28px; padding: 0 10px; border-radius: 999px;
+  background: rgba(255,255,255,.14); color: #fff; font-size: 12px;
+}
+.demo-bar button.on { background: var(--brand-orange); font-weight: 650; }
+
+.app {
+  position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--surface);
+  box-shadow: var(--shadow-large);
+  padding: max(14px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+}
+.topbar { display: flex; align-items: center; min-height: 48px; margin: 0 -6px; }
+.back-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+.page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; margin: 0; }
+.topbar-spacer { width: 44px; }
+
+/* ===== 身份校验态 ===== */
+.verify-hero { padding: 18px 2px 6px; }
+.verify-hero h2 { margin: 0; font-size: 22px; font-weight: 750; line-height: 1.25; }
+.verify-hero p { margin: 8px 0 0; color: var(--mid-gray); font-size: 13px; line-height: 1.6; }
+.card { margin-top: 16px; padding: 18px 16px; border: 1px solid var(--border-soft); border-radius: 16px; background: var(--white); box-shadow: var(--shadow-panel); }
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field label { display: block; margin-bottom: 7px; font-size: 13px; color: var(--mid-gray); }
+.field input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white); color: var(--yuto-black); }
+.field input::placeholder { color: var(--weak-gray); }
+.code-row { display: flex; gap: 10px; }
+.code-row input { flex: 1; }
+.sms-btn { flex: none; min-width: 108px; height: 48px; border-radius: 12px; border: 1px solid rgba(236,108,0,.35); color: var(--brand-orange); font-size: 14px; font-weight: 650; background: var(--accent-soft); }
+.sms-btn[disabled] { color: var(--weak-gray); background: var(--surface); border-color: var(--border-soft); cursor: default; }
+.primary-btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; margin-top: 18px; border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650; }
+.primary-btn:active { background: var(--accent-strong); }
+.verify-tip { margin: 14px 4px 0; font-size: 12px; color: var(--weak-gray); line-height: 1.7; }
+
+/* ===== 记录列表态 ===== */
+.identity-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 8px; padding: 10px 14px; border-radius: 12px;
+  background: var(--accent-soft); color: var(--accent-ink); font-size: 12px;
+}
+.identity-bar strong { font-weight: 750; }
+.identity-bar button { color: var(--brand-orange); font-weight: 650; font-size: 12px; min-height: 28px; }
+
+.filter-row { display: flex; gap: 8px; margin: 14px 0 4px; overflow-x: auto; padding-bottom: 2px; }
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex: none; min-height: 32px; padding: 0 14px; border-radius: 999px;
+  background: var(--white); border: 1px solid var(--border-soft);
+  color: var(--mid-gray); font-size: 13px;
+}
+.filter-chip.on { background: var(--brand-orange); border-color: var(--brand-orange); color: var(--white); font-weight: 650; }
+
+.record-card {
+  margin-top: 12px; padding: 14px 16px; border: 1px solid var(--border-soft);
+  border-radius: 16px; background: var(--white); box-shadow: var(--shadow-panel);
+  width: 100%; text-align: left; display: block;
+}
+.record-card:active { background: #FFFBF6; }
+.rc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rc-park { font-size: 15px; font-weight: 750; color: var(--yuto-black); }
+.status {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 650;
+}
+.status::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+.status.pending { color: var(--warning); background: #FBF3E4; }
+.status.passed { color: var(--success); background: #E5F6EF; }
+.status.rejected { color: var(--danger); background: #FCEAE9; }
+.status.expired { color: var(--mid-gray); background: var(--surface); }
+.status.canceled { color: var(--mid-gray); background: var(--surface); }
+.rc-rows { margin-top: 10px; display: grid; gap: 6px; }
+.rc-row { display: flex; font-size: 13px; line-height: 1.5; }
+.rc-row .k { flex: none; width: 70px; color: var(--weak-gray); }
+.rc-row .v { color: var(--yuto-black); }
+.rc-foot {
+  margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-soft);
+  display: flex; align-items: center; justify-content: space-between; font-size: 12px;
+}
+.rc-node { color: var(--accent-ink); }
+.rc-node em { font-style: normal; font-weight: 750; color: var(--brand-orange); }
+/* 通行权限下发状态（仅已通过的记录展示，聚合后的单一状态） */
+.dispatch { font-weight: 750; }
+.dispatch.ok { color: var(--success); }
+.dispatch.ing { color: var(--warning); }
+.dispatch.fail { color: var(--danger); }
+.rc-arrow { color: var(--weak-gray); display: inline-flex; align-items: center; gap: 2px; }
+
+.list-end { margin: 22px 0 6px; text-align: center; font-size: 12px; color: var(--weak-gray); }
+
+/* ===== 空状态 ===== */
+.empty { padding: 72px 28px 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.empty .illu { width: 120px; height: 120px; border-radius: 999px; background: var(--accent-soft); display: grid; place-items: center; margin-bottom: 22px; }
+.empty p { margin: 0 0 6px; font-size: 15px; font-weight: 750; }
+.empty small { font-size: 13px; color: var(--mid-gray); line-height: 1.7; }
+.empty .btn-text { margin-top: 18px; min-height: 44px; padding: 0 18px; border-radius: 12px; color: var(--brand-orange); font-size: 15px; font-weight: 650; }
+.empty .btn-text:active { background: var(--accent-soft); }
+
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); max-width: 320px; padding: 11px 18px; border-radius: 12px; background: rgba(47,45,45,.92); color: #fff; font-size: 13px; text-align: center; display: none; z-index: 60; }
+.toast.show { display: block; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span class="tag">原型演示</span>
+  <button class="on" onclick="setState('list', this)">记录列表</button>
+  <button onclick="setState('verify', this)">身份校验</button>
+  <button onclick="setState('empty', this)">空状态</button>
+</div>
+
+<div class="app">
+  <header class="topbar">
+    <button class="back-btn" aria-label="返回" title="返回 /xuchang/visitor" onclick="location.href='index.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 3.75 6.25 10l6.25 6.25" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 class="page-title">我的申请记录</h1>
+    <span class="topbar-spacer"></span>
+  </header>
+
+  <!-- 状态一：身份校验（首次进入 / openId 未绑定手机号） -->
+  <section id="view-verify" hidden>
+    <div class="verify-hero">
+      <h2>验证身份后查看记录</h2>
+      <p>为保护访客隐私，请使用申请时填写的手机号完成短信验证。</p>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label>手机号</label>
+        <input type="tel" maxlength="11" inputmode="numeric" placeholder="请输入申请时填写的手机号" value="13700001234">
+      </div>
+      <div class="field">
+        <label>短信验证码</label>
+        <div class="code-row">
+          <input type="text" maxlength="6" inputmode="numeric" placeholder="请输入验证码">
+          <button class="sms-btn" id="smsBtn" onclick="sendSms()">获取验证码</button>
+        </div>
+      </div>
+    </div>
+    <button class="primary-btn" onclick="verifyOk()">验证并查看记录</button>
+    <p class="verify-tip">验证通过后，本微信将与该手机号绑定，下次进入无需再次验证。</p>
+  </section>
+
+  <!-- 状态二：记录列表 -->
+  <section id="view-list">
+    <div class="identity-bar">
+      <span>当前查询：<strong>李 明 137****1234</strong></span>
+      <button onclick="setState('verify', demoBtn(1))">换个手机号</button>
+    </div>
+
+    <div class="filter-row" role="tablist" aria-label="按状态筛选">
+      <button class="filter-chip on" onclick="chip(this)">全部</button>
+      <button class="filter-chip" onclick="chip(this)">审批中</button>
+      <button class="filter-chip" onclick="chip(this)">已通过</button>
+      <button class="filter-chip" onclick="chip(this)">已拒绝</button>
+      <button class="filter-chip" onclick="chip(this)">已过期</button>
+    </div>
+
+    <!-- 审批中：突出展示当前节点（到谁那里了） -->
+    <button class="record-card" onclick="goDetail('pending')">
+      <div class="rc-head">
+        <span class="rc-park">裕同科技许昌园区</span>
+        <span class="status pending">审批中</span>
+      </div>
+      <div class="rc-rows">
+        <div class="rc-row"><span class="k">被访人</span><span class="v">王建国</span></div>
+        <div class="rc-row"><span class="k">来访时间</span><span class="v">2026-06-12 09:30 ~ 18:00</span></div>
+        <div class="rc-row"><span class="k">随行/车辆</span><span class="v">随行 2 人 · 豫A·D88E6</span></div>
+      </div>
+      <div class="rc-foot">
+        <span class="rc-node">当前节点：<em>部门负责人 张伟 审批中</em></span>
+        <span class="rc-arrow">查看进度
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+    </button>
+
+    <!-- 已通过 · 权限下发成功 -->
+    <button class="record-card" onclick="goDetail('passed')">
+      <div class="rc-head">
+        <span class="rc-park">裕同科技许昌园区</span>
+        <span class="status passed">已通过</span>
+      </div>
+      <div class="rc-rows">
+        <div class="rc-row"><span class="k">被访人</span><span class="v">刘晓燕</span></div>
+        <div class="rc-row"><span class="k">来访时间</span><span class="v">2026-06-05 14:00 ~ 17:30</span></div>
+        <div class="rc-row"><span class="k">随行/车辆</span><span class="v">无随行 · 无车辆</span></div>
+      </div>
+      <div class="rc-foot">
+        <span class="rc-node">通行权限：<span class="dispatch ok">已下发成功</span>，可凭通行码入园</span>
+        <span class="rc-arrow">查看详情
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+    </button>
+
+    <!-- 已通过 · 权限下发中 -->
+    <button class="record-card" onclick="goDetail('passedIssuing')">
+      <div class="rc-head">
+        <span class="rc-park">裕同科技许昌园区</span>
+        <span class="status passed">已通过</span>
+      </div>
+      <div class="rc-rows">
+        <div class="rc-row"><span class="k">被访人</span><span class="v">赵宏伟</span></div>
+        <div class="rc-row"><span class="k">来访时间</span><span class="v">2026-06-11 13:30 ~ 17:00</span></div>
+        <div class="rc-row"><span class="k">随行/车辆</span><span class="v">无随行 · 豫A·K5203</span></div>
+      </div>
+      <div class="rc-foot">
+        <span class="rc-node">通行权限：<span class="dispatch ing">正在下发</span>，请稍后刷新</span>
+        <span class="rc-arrow">查看详情
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+    </button>
+
+    <!-- 已通过 · 权限下发失败 -->
+    <button class="record-card" onclick="goDetail('passedFailed')">
+      <div class="rc-head">
+        <span class="rc-park">裕同科技合肥园区</span>
+        <span class="status passed">已通过</span>
+      </div>
+      <div class="rc-rows">
+        <div class="rc-row"><span class="k">被访人</span><span class="v">孙丽华</span></div>
+        <div class="rc-row"><span class="k">来访时间</span><span class="v">2026-06-09 09:00 ~ 11:30</span></div>
+        <div class="rc-row"><span class="k">随行/车辆</span><span class="v">随行 1 人 · 无车辆</span></div>
+      </div>
+      <div class="rc-foot">
+        <span class="rc-node">通行权限：<span class="dispatch fail">下发失败</span>，详情查看处理方式</span>
+        <span class="rc-arrow">查看详情
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+    </button>
+
+    <!-- 已拒绝 -->
+    <button class="record-card" onclick="goDetail('rejected')">
+      <div class="rc-head">
+        <span class="rc-park">裕同科技合肥园区</span>
+        <span class="status rejected">已拒绝</span>
+      </div>
+      <div class="rc-rows">
+        <div class="rc-row"><span class="k">被访人</span><span class="v">陈志强</span></div>
+        <div class="rc-row"><span class="k">来访时间</span><span class="v">2026-05-28 10:00 ~ 12:00</span></div>
+        <div class="rc-row"><span class="k">随行/车辆</span><span class="v">随行 1 人 · 无车辆</span></div>
+      </div>
+      <div class="rc-foot">
+        <span class="rc-node">被访人已拒绝：来访时间冲突，建议改约</span>
+        <span class="rc-arrow">查看详情
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+    </button>
+
+    <!-- 已过期 -->
+    <button class="record-card" onclick="goDetail('expired')">
+      <div class="rc-head">
+        <span class="rc-park">裕同科技许昌园区</span>
+        <span class="status expired">已过期</span>
+      </div>
+      <div class="rc-rows">
+        <div class="rc-row"><span class="k">被访人</span><span class="v">王建国</span></div>
+        <div class="rc-row"><span class="k">来访时间</span><span class="v">2026-04-18 09:00 ~ 12:00</span></div>
+        <div class="rc-row"><span class="k">随行/车辆</span><span class="v">无随行 · 无车辆</span></div>
+      </div>
+      <div class="rc-foot">
+        <span class="rc-node">来访时间已过，记录仅供查阅</span>
+        <span class="rc-arrow">查看详情
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+    </button>
+
+    <p class="list-end">— 仅展示最近 6 个月的申请记录 —</p>
+  </section>
+
+  <!-- 状态三：空状态 -->
+  <section id="view-empty" hidden>
+    <div class="identity-bar">
+      <span>当前查询：<strong>李 明 137****1234</strong></span>
+      <button onclick="setState('verify', demoBtn(1))">换个手机号</button>
+    </div>
+    <div class="empty">
+      <div class="illu" aria-hidden="true">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <rect x="12" y="10" width="40" height="46" rx="6" stroke="#EC6C00" stroke-width="3" fill="#fff"/>
+          <path d="M22 24h20M22 33h20M22 42h12" stroke="#E5E3E3" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <p>暂无申请记录</p>
+      <small>该手机号近 6 个月内没有提交过入厂申请，<br>可前往「入厂申请」发起预约。</small>
+      <button class="btn-text" title="跳转 /xuchang/visitor" onclick="location.href='index.html'">去发起入厂申请</button>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function setState(s, btn) {
+  document.querySelectorAll('.demo-bar button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('view-verify').hidden = s !== 'verify';
+  document.getElementById('view-list').hidden = s !== 'list';
+  document.getElementById('view-empty').hidden = s !== 'empty';
+}
+function demoBtn(i) { return document.querySelectorAll('.demo-bar button')[i]; }
+function chip(el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  toast('原型演示：实际按「' + el.textContent + '」筛选记录');
+}
+function sendSms() {
+  const btn = document.getElementById('smsBtn');
+  let left = 60;
+  btn.disabled = true; btn.textContent = left + 's 后重发';
+  const tm = setInterval(() => {
+    left -= 1;
+    if (left <= 0) { clearInterval(tm); btn.disabled = false; btn.textContent = '获取验证码'; return; }
+    btn.textContent = left + 's 后重发';
+  }, 1000);
+  toast('验证码已发送（原型演示）');
+}
+function verifyOk() { setState('list', demoBtn(0)); toast('验证通过，已为您加载申请记录'); }
+function goDetail(s) { location.href = 'record-detail.html#' + s; }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>

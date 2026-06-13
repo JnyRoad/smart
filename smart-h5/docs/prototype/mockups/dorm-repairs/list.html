@@ -1,0 +1,198 @@
+<!doctype html>
+<!--
+  原型：宿舍报修列表
+  旧路由：/xuchang/dormRepairs/list（meta: 宿舍报修列表）
+  旧组件：smart-h5/src/views-mobile/pages/dorm-repairs/list.vue + views-mobile/components/page3-tab.vue
+  接口：
+    GET platform:/dormitory/repair/query/record?current=&size=10   报修分页列表（services/dormRepairs.js getRepairList，不带 badge）
+  跳转：切换条「发起提交」→ /xuchang/dormRepairs；点击卡片 → /xuchang/dormRepairs/detail?id=
+  交互：下拉刷新（「更新成功」）、上拉分页加载（每页 10 条）、空列表空态（tce-empty）
+  状态颜色（旧逻辑）：status=3 绿色、status=4/6 红色，其余灰色，文案为后端 statusDesc
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>宿舍报修列表 - 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: var(--surface); }
+button { border: 0; cursor: pointer; background: none; padding: 0; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app {
+  width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--white);
+  box-shadow: var(--shadow-large); display: flex; flex-direction: column;
+}
+.topbar { display: flex; align-items: center; min-height: 46px; padding: max(14px, env(safe-area-inset-top)) 6px 4px; }
+.topbar .back { width: 44px; height: 44px; display: grid; place-items: center; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .spacer { width: 44px; }
+.seg-tab {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  margin: 8px 18px 0; padding: 4px; border-radius: 14px; background: rgba(236,108,0,.10);
+}
+.seg-tab button { min-height: 40px; border-radius: 11px; font-size: 14px; font-weight: 650; color: var(--accent-ink); }
+.seg-tab button.cur { background: var(--brand-orange); color: var(--white); box-shadow: 0 6px 16px rgba(236,108,0,.28); }
+.pull-hint { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 12px 0 0; }
+.content { flex: 1; padding: 8px 18px max(24px, env(safe-area-inset-bottom)); }
+.item {
+  display: block; width: 100%; text-align: left;
+  background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel);
+  padding: 16px; margin-bottom: 12px;
+}
+.item-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.item-title { font-size: 15px; font-weight: 700; line-height: 1.4; }
+.badge {
+  flex: none; display: inline-flex; align-items: center; border-radius: 999px;
+  padding: 4px 10px; font-size: 12px; font-weight: 650; white-space: nowrap;
+}
+.badge.gray { color: var(--mid-gray); background: rgba(140,138,138,.12); }
+.badge.green { color: var(--success); background: rgba(22,166,115,.12); }
+.badge.red { color: var(--danger); background: rgba(216,59,54,.12); }
+.row { display: flex; gap: 12px; font-size: 13px; padding: 4px 0; }
+.row .label { flex: none; width: 84px; color: var(--mid-gray); }
+.row .value { flex: 1; text-align: right; color: var(--yuto-black); overflow: hidden; }
+.row .value.ellipsis { white-space: nowrap; text-overflow: ellipsis; }
+.loadmore { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 8px 0 16px; }
+.empty { display: none; text-align: center; padding: 64px 0 80px; }
+.empty svg { display: block; margin: 0 auto 14px; }
+.empty p { margin: 0; font-size: 14px; color: var(--weak-gray); }
+.app.is-empty .item, .app.is-empty .loadmore, .app.is-empty .pull-hint { display: none; }
+.app.is-empty .empty { display: block; }
+.demo-bar {
+  display: flex; align-items: center; gap: 8px; margin: 10px 18px 0; padding: 8px 12px;
+  border: 1px dashed var(--light-gray); border-radius: 12px; background: #FBFBFB;
+  font-size: 12px; color: var(--mid-gray);
+}
+.demo-bar button { padding: 5px 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--border-soft); font-size: 12px; font-weight: 650; }
+.demo-bar button.on { background: var(--accent-soft); border-color: rgba(236,108,0,.3); color: var(--accent-ink); }
+.toast {
+  position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%);
+  background: rgba(89,87,87,.92); color: var(--white); font-size: 13px;
+  padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 9;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回发起页" onclick="location.href='index.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>宿舍报修列表</h1>
+    <span class="spacer"></span>
+  </header>
+
+  <nav class="seg-tab" aria-label="模块切换">
+    <button onclick="toast('原型演示：跳转 /xuchang/dormRepairs 发起页')">发起提交</button>
+    <button class="cur">查看数据</button>
+  </nav>
+
+  <div class="demo-bar">原型演示：
+    <button class="on" onclick="setEmpty(false,this)">有数据</button>
+    <button onclick="setEmpty(true,this)">空列表</button>
+  </div>
+
+  <p class="pull-hint">下拉刷新（成功提示「更新成功」）</p>
+
+  <main class="content">
+    <!-- 卡片：标题「{姓名}提交的园区报修」+ 状态(statusDesc)；字段：维修区域/维修类别/所在楼栋/故障描述(单行省略)/申请时间 -->
+    <button class="item" onclick="toast('原型演示：跳转 /xuchang/dormRepairs/detail?id=2088')">
+      <div class="item-head">
+        <span class="item-title">陈志强提交的园区报修</span>
+        <span class="badge gray">待处理</span>
+      </div>
+      <div class="row"><span class="label">维修区域:</span><span class="value ellipsis">宿舍</span></div>
+      <div class="row"><span class="label">维修类别:</span><span class="value ellipsis">水龙头</span></div>
+      <div class="row"><span class="label">所在楼栋:</span><span class="value ellipsis">老工厂1号宿舍</span></div>
+      <div class="row"><span class="label">故障描述:</span><span class="value ellipsis">卫生间水龙头关不紧，一直滴水，地面有积水。</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value ellipsis">2026-06-11 09:32:18</span></div>
+    </button>
+
+    <button class="item" onclick="toast('原型演示：跳转 /xuchang/dormRepairs/detail?id=2074')">
+      <div class="item-head">
+        <span class="item-title">李雪梅提交的园区报修</span>
+        <span class="badge green">维修完成</span>
+      </div>
+      <div class="row"><span class="label">维修区域:</span><span class="value ellipsis">办公室</span></div>
+      <div class="row"><span class="label">维修类别:</span><span class="value ellipsis">空调</span></div>
+      <div class="row"><span class="label">所在楼栋:</span><span class="value ellipsis">餐厅三楼</span></div>
+      <div class="row"><span class="label">故障描述:</span><span class="value ellipsis">空调制冷效果差，出风口有异响。</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value ellipsis">2026-06-08 14:20:05</span></div>
+    </button>
+
+    <button class="item" onclick="toast('原型演示：跳转 /xuchang/dormRepairs/detail?id=2061')">
+      <div class="item-head">
+        <span class="item-title">王建国提交的园区报修</span>
+        <span class="badge red">无法维修</span>
+      </div>
+      <div class="row"><span class="label">维修区域:</span><span class="value ellipsis">车间</span></div>
+      <div class="row"><span class="label">维修类别:</span><span class="value ellipsis">玻璃</span></div>
+      <div class="row"><span class="label">所在楼栋:</span><span class="value ellipsis">二楼</span></div>
+      <div class="row"><span class="label">故障描述:</span><span class="value ellipsis">二楼东侧窗户玻璃破裂，需整块更换。</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value ellipsis">2026-06-05 10:47:53</span></div>
+    </button>
+
+    <button class="item" onclick="toast('原型演示：跳转 /xuchang/dormRepairs/detail?id=2043')">
+      <div class="item-head">
+        <span class="item-title">陈志强提交的园区报修</span>
+        <span class="badge gray">处理中</span>
+      </div>
+      <div class="row"><span class="label">维修区域:</span><span class="value ellipsis">园区周边</span></div>
+      <div class="row"><span class="label">维修类别:</span><span class="value ellipsis">灯</span></div>
+      <div class="row"><span class="label">所在楼栋:</span><span class="value ellipsis">园区周边</span></div>
+      <div class="row"><span class="label">故障描述:</span><span class="value ellipsis">南门通道两盏路灯夜间不亮，影响下班通行。</span></div>
+      <div class="row"><span class="label">申请时间:</span><span class="value ellipsis">2026-06-02 19:05:36</span></div>
+    </button>
+
+    <p class="loadmore">上拉加载更多（每页 10 条，到底提示无更多数据）</p>
+
+    <div class="empty">
+      <svg width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="44" fill="#FFF1E3"/>
+        <rect x="30" y="34" width="36" height="30" rx="4" fill="#FFFFFF" stroke="#EC6C00" stroke-opacity=".45" stroke-width="2"/>
+        <path d="M30 44h36" stroke="#EC6C00" stroke-opacity=".45" stroke-width="2"/>
+        <circle cx="48" cy="54" r="4" fill="#EC6C00" fill-opacity=".4"/>
+      </svg>
+      <p>暂无报修记录</p>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function setEmpty(empty, btn){
+  document.getElementById('app').classList.toggle('is-empty', empty);
+  document.querySelectorAll('.demo-bar button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+</script>
+</body>
+</html>

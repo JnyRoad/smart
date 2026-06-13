@@ -1,0 +1,234 @@
+<!doctype html>
+<!--
+  原型：宿舍报修详情
+  旧路由：/xuchang/dormRepairs/detail?id=（meta: 宿舍报修详情）
+  旧组件：smart-h5/src/views-mobile/pages/dorm-repairs/detail.vue
+          + pages/dorm-repairs/components/process/index.vue（审批流程时间线）
+          + pages/dorm-repairs/components/process/reply-record.vue（维修结果回复，可多条）
+  接口：
+    GET platform:/dormitory/repair/query/detail/{id}   报修详情（services/dormRepairs.js getDetail，失败 toast「网络错误」）
+  页面结构：
+    状态卡（状态 statusDesc + 报修时间 createTime）
+    报修信息卡（姓名/工号 staffBadge/BU compName/部门 depName/维修区域/维修类别/维修位置「楼栋#房间」/所在园区 parkName/故障描述/物品照片最多3张可预览）
+    审批流程时间线（approvalProcess；result: 0待审批蓝/1通过绿/2拒绝、3关闭红/4等待灰）
+    维修结果（repairReplyList 非 null 才显示，可多条：维修结果 replyStatusDesc「维修成功」绿/「无法维修」红、维修时间 replyTime、回复人 replyName、回复内容 replyDesc）
+  跳转：由列表页进入；本页无对外跳转
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>宿舍报修详情 - 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: var(--surface); }
+button { border: 0; cursor: pointer; background: none; padding: 0; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app {
+  width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--white);
+  box-shadow: var(--shadow-large);
+}
+.topbar { display: flex; align-items: center; min-height: 46px; padding: max(14px, env(safe-area-inset-top)) 6px 4px; }
+.topbar .back { width: 44px; height: 44px; display: grid; place-items: center; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .spacer { width: 44px; }
+.demo-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 18px 0; padding: 8px 12px;
+  border: 1px dashed var(--light-gray); border-radius: 12px; background: #FBFBFB;
+  font-size: 12px; color: var(--mid-gray);
+}
+.demo-bar button { padding: 5px 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--border-soft); font-size: 12px; font-weight: 650; }
+.demo-bar button.on { background: var(--accent-soft); border-color: rgba(236,108,0,.3); color: var(--accent-ink); }
+.content { padding: 12px 18px max(24px, env(safe-area-inset-bottom)); }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.card h2 { margin: 0 0 8px; font-size: 15px; font-weight: 750; }
+.row { display: flex; gap: 12px; font-size: 14px; padding: 11px 0; border-bottom: 1px solid var(--border-soft); }
+.row:last-child { border-bottom: 0; padding-bottom: 0; }
+.row:first-child { padding-top: 0; }
+.row .label { flex: none; width: 92px; color: var(--mid-gray); }
+.row .value { flex: 1; min-width: 0; text-align: right; }
+.row .value.green { color: var(--success); font-weight: 650; }
+.row .value.red { color: var(--danger); font-weight: 650; }
+.row .value.gray { color: var(--mid-gray); font-weight: 650; }
+.img-list { display: flex; gap: 10px; justify-content: flex-end; }
+.thumb { width: 64px; height: 64px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-soft); }
+.thumb svg { display: block; width: 100%; height: 100%; }
+/* 审批流程时间线 */
+.timeline { padding: 4px 0 0; }
+.node { display: flex; gap: 12px; }
+.node .rail { display: flex; flex-direction: column; align-items: center; }
+.node .dot { flex: none; width: 16px; height: 16px; border-radius: 999px; background: var(--accent-soft); border: 2px solid var(--brand-orange); margin-top: 2px; }
+.node .line { flex: 1; width: 2px; background: var(--border-soft); margin: 4px 0; }
+.node:last-child .line { display: none; }
+.node .body { flex: 1; padding-bottom: 18px; min-width: 0; }
+.node .title { font-size: 14px; font-weight: 700; }
+.person { margin-top: 6px; font-size: 14px; }
+.person .res-0 { color: var(--info); font-weight: 650; }      /* 待审批 */
+.person .res-1 { color: var(--success); font-weight: 650; }   /* 通过 */
+.person .res-2 { color: var(--danger); font-weight: 650; }    /* 拒绝/关闭 */
+.person .res-4 { color: var(--weak-gray); font-weight: 650; } /* 等待 */
+.meta { margin-top: 4px; font-size: 12px; color: var(--mid-gray); }
+/* 维修结果：多条回复以分隔卡片展示 */
+.reply-item { padding: 4px 0; border-bottom: 1px dashed var(--light-gray); }
+.reply-item:last-child { border-bottom: 0; }
+/* 状态分支显隐 */
+.only { display: none; }
+.app[data-st="pending"] .only-pending,
+.app[data-st="done"] .only-done,
+.app[data-st="fail"] .only-fail { display: block; }
+</style>
+</head>
+<body>
+<div class="app" data-st="done" id="app">
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回列表页" onclick="location.href='list.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>宿舍报修详情</h1>
+    <span class="spacer"></span>
+  </header>
+
+  <div class="demo-bar">原型演示·状态：
+    <button onclick="setSt('pending',this)">待处理</button>
+    <button class="on" onclick="setSt('done',this)">维修完成</button>
+    <button onclick="setSt('fail',this)">无法维修</button>
+  </div>
+
+  <main class="content">
+    <!-- 状态卡：statusDesc + createTime -->
+    <section class="card">
+      <div class="row"><span class="label">状态:</span>
+        <span class="value gray only only-pending" style="display:none">待处理</span>
+        <span class="value green only only-done" style="display:none">维修完成</span>
+        <span class="value red only only-fail" style="display:none">无法维修</span>
+      </div>
+      <div class="row"><span class="label">报修时间:</span><span class="value">2026-06-08 14:20:05</span></div>
+    </section>
+
+    <!-- 报修信息卡 -->
+    <section class="card">
+      <h2>报修信息</h2>
+      <div class="row"><span class="label">姓名:</span><span class="value">李雪梅</span></div>
+      <div class="row"><span class="label">工号:</span><span class="value">YT20180326</span></div>
+      <div class="row"><span class="label">BU:</span><span class="value">许昌裕同印刷包装有限公司</span></div>
+      <div class="row"><span class="label">部门:</span><span class="value">行政人事部</span></div>
+      <div class="row"><span class="label">维修区域:</span><span class="value">办公室</span></div>
+      <div class="row"><span class="label">维修类别:</span><span class="value">空调</span></div>
+      <div class="row"><span class="label">维修位置:</span><span class="value">餐厅三楼#302</span></div>
+      <div class="row"><span class="label">所在园区:</span><span class="value">许昌产业园</span></div>
+      <div class="row"><span class="label">故障描述:</span><span class="value">空调制冷效果差，出风口有异响，午后室温明显偏高。</span></div>
+      <div class="row"><span class="label">物品照片:</span>
+        <span class="value">
+          <span class="img-list">
+            <span class="thumb"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#FFF1E3"/><rect x="12" y="18" width="40" height="18" rx="4" fill="#EC6C00" opacity=".4"/><path d="M18 44h6M30 44h6M42 44h6" stroke="#EC6C00" stroke-width="3" stroke-linecap="round" opacity=".5"/></svg></span>
+            <span class="thumb"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#F2F7FF"/><rect x="14" y="18" width="36" height="28" rx="3" fill="#2376D9" opacity=".3"/><rect x="20" y="24" width="24" height="6" fill="#2376D9" opacity=".4"/></svg></span>
+            <span class="thumb"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#F0FAF5"/><circle cx="26" cy="26" r="8" fill="#16A673" opacity=".35"/><path d="M10 52 28 36l10 10 8-8 8 8v6H10Z" fill="#16A673" opacity=".3"/></svg></span>
+          </span>
+        </span>
+      </div>
+    </section>
+
+    <!-- 审批流程时间线（approvalProcess） -->
+    <section class="card">
+      <h2>审批流程</h2>
+      <div class="timeline">
+        <div class="node">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">李雪梅 - <span style="color:var(--info)">提交申请</span></div>
+            <div class="meta">2026-06-08 14:20:05</div>
+          </div>
+        </div>
+        <div class="node">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">后勤受理</div>
+            <div class="person only only-pending" style="display:none">赵海涛 - <span class="res-0">待审批</span></div>
+            <div class="person only only-done" style="display:none">赵海涛 - <span class="res-1">通过</span></div>
+            <div class="person only only-fail" style="display:none">赵海涛 - <span class="res-1">通过</span></div>
+            <div class="meta only only-done" style="display:none">意见: 已派单给维修班组</div>
+            <div class="meta only only-fail" style="display:none">意见: 已派单给维修班组</div>
+            <div class="meta only only-done" style="display:none">2026-06-08 15:02:40</div>
+            <div class="meta only only-fail" style="display:none">2026-06-08 15:02:40</div>
+          </div>
+        </div>
+        <div class="node">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">维修班组处理</div>
+            <div class="person only only-pending" style="display:none">孙德旺 - <span class="res-4">等待</span></div>
+            <div class="person only only-done" style="display:none">孙德旺 - <span class="res-1">通过</span></div>
+            <div class="person only only-fail" style="display:none">孙德旺 - <span class="res-2">关闭</span></div>
+            <div class="meta only only-fail" style="display:none">意见: 压缩机损坏需厂家更换，工单关闭</div>
+            <div class="meta only only-done" style="display:none">2026-06-09 10:36:12</div>
+            <div class="meta only only-fail" style="display:none">2026-06-09 10:36:12</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 维修结果（repairReplyList 非 null 才显示，可多条） -->
+    <section class="card only only-done">
+      <h2>维修结果</h2>
+      <div class="reply-item">
+        <div class="row"><span class="label">维修结果:</span><span class="value green">维修成功</span></div>
+        <div class="row"><span class="label">维修时间:</span><span class="value">2026-06-09 10:30:00</span></div>
+        <div class="row"><span class="label">回复人:</span><span class="value">孙德旺</span></div>
+        <div class="row"><span class="label">回复内容:</span><span class="value">已加注冷媒并紧固风机叶片，运行正常。</span></div>
+      </div>
+      <div class="reply-item">
+        <div class="row"><span class="label">维修结果:</span><span class="value green">维修成功</span></div>
+        <div class="row"><span class="label">维修时间:</span><span class="value">2026-06-10 09:15:00</span></div>
+        <div class="row"><span class="label">回复人:</span><span class="value">孙德旺</span></div>
+        <div class="row"><span class="label">回复内容:</span><span class="value">回访复查无异响，工单结案。</span></div>
+      </div>
+    </section>
+    <section class="card only only-fail">
+      <h2>维修结果</h2>
+      <div class="reply-item">
+        <div class="row"><span class="label">维修结果:</span><span class="value red">无法维修</span></div>
+        <div class="row"><span class="label">维修时间:</span><span class="value">2026-06-09 10:30:00</span></div>
+        <div class="row"><span class="label">回复人:</span><span class="value">孙德旺</span></div>
+        <div class="row"><span class="label">回复内容:</span><span class="value">压缩机损坏，需联系厂家整机更换，超出班组维修范围。</span></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+// 原型演示：切换 status 对应的页面状态分支（待处理 / 维修完成 / 无法维修）
+function setSt(st, btn){
+  document.getElementById('app').dataset.st = st;
+  document.querySelectorAll('.demo-bar button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  // 行内 only 元素（row/person/meta）按状态显隐
+  document.querySelectorAll('.only').forEach(el=>{
+    if (el.classList.contains('card')) { return; } // 卡片级由 CSS 控制
+    el.style.display = el.classList.contains('only-' + st) ? '' : 'none';
+  });
+}
+setSt('done', document.querySelector('.demo-bar button.on'));
+</script>
+</body>
+</html>

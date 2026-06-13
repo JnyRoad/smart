@@ -1,0 +1,26 @@
+{
+  "kind": "critique-panel",
+  "score": 4.4,
+  "axes": {
+    "clarity": {
+      "score": 4.5,
+      "notes": "员工优先登录和访客可达路径清楚分层，主 CTA、账号登录、访客入口各自承担明确任务。"
+    },
+    "hierarchy": {
+      "score": 4.4,
+      "notes": "主视觉落在员工微信授权与登录卡片，访客入口低一层但保持可见。"
+    },
+    "typography": {
+      "score": 4.3,
+      "notes": "使用 YUTO 企业字体栈，关键文本对比度已按移动 H5 可读性修正。"
+    },
+    "motion": {
+      "score": 4,
+      "notes": "保留 160ms 级别的轻交互反馈，验证码、toast、弹层状态不造成布局跳动。"
+    },
+    "brand": {
+      "score": 4.6,
+      "notes": "白色画布、裕同橙主行动、真实 logo 引用链和中文短文案符合 YUTO 企业设计系统。"
+    }
+  }
+}

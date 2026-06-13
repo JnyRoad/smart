@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<!--
+  页面：入厂申请（合肥）— 手机验证 / 提交信息（三步流程第 3 步，免登录）
+  旧路由：/xuchang/visitor/telHefei
+  旧组件：smart-h5/src/views-mobile/pages/visitor/telHefei.vue（+ visitor-steps、identifying-code、page3-bottom）
+  接口：
+    GET  /sms/send/getCode/{mobile}        发送短信验证码（倒计时 120s）
+    GET  /sms/verify?mobile=&smsCode=      校验短信验证码
+    POST /wechat/visit/checkBlackVisitor   访客黑名单校验（personType≠2 时；data===false 即黑名单）
+    POST /admittance/apply/save/apply      提交入厂申请（防重复提交）
+  跳转：申请成功 → /xuchang/visitor/result；返回 → /xuchang/visitor/visitorInfoHefei
+  与标准版（tel.vue）差异：
+    - 提交字段用 visitorPhoto/certType/certNo/certPic/carryThing/vehiclePlate/fellowVisitorList；
+      标准版用 visitorPhotoId/permitArea/permitOldArea/permitFactoryType/areaType/thing/vehicleList/fellowList。
+    - fellowVisitorList 仅含随行人员（isMain 全为 0），主访客走顶层字段；标准版把主访客 isMain=1 放进 fellowList。
+    - 无区域裁剪复核逻辑（标准版提交前调 area-options 剪除失效区域）；无车辆列表，只传 vehiclePlate 字符串。
+    - 【旧代码疑似 bug】旧 telHefei 把 certNo 赋成了 certType 的值，原型按应然展示证件号码，新版需与后端确认。
+    - 【旧代码隐患】合肥第 2 步已去掉来访类型选择，本页仍读 personType.value（依赖历史缓存），新版应默认普通来访(3)。
+-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>入厂申请（合肥）· 手机验证</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { min-height: 100dvh; margin: 0; background: var(--surface); }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; background: none; }
+    input:focus-visible, button:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: var(--white); box-shadow: var(--shadow-large); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .page {
+      flex: 1; display: flex; flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 18px 0;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--white);
+    }
+    .topbar { display: flex; align-items: center; min-height: 46px; }
+    .back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; border-radius: 14px; color: var(--yuto-black); }
+    .back-btn svg { display: block; }
+    .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+    .topbar-spacer { width: 44px; height: 44px; display: flex; align-items: center; justify-content: flex-end; }
+    .hefei-badge {
+      display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 0 10px;
+      border: 1px solid rgba(236, 108, 0, 0.22); border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 650; white-space: nowrap;
+    }
+    .hefei-badge::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--brand-orange); }
+    /* 步骤条：被访信息 → 访客信息 → 提交信息（当前第 3 步） */
+    .steps { display: flex; align-items: flex-start; margin: 18px 6px 6px; }
+    .step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; }
+    .step::before, .step::after { content: ""; position: absolute; top: 13px; height: 2px; width: calc(50% - 20px); background: var(--light-gray); border-radius: 2px; }
+    .step::before { left: 0; }
+    .step::after { right: 0; }
+    .step:first-child::before, .step:last-child::after { display: none; }
+    .step.done::before, .step.done::after, .step.current::before { background: var(--brand-orange); }
+    .step-dot {
+      width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; background: var(--white); border: 2px solid var(--light-gray); color: var(--weak-gray); z-index: 1;
+    }
+    .step.done .step-dot { border-color: var(--brand-orange); background: var(--accent-soft); color: var(--accent-strong); }
+    .step.current .step-dot { border-color: var(--brand-orange); background: var(--brand-orange); color: var(--white); }
+    .step-name { font-size: 12px; color: var(--weak-gray); }
+    .step.done .step-name, .step.current .step-name { color: var(--accent-ink); font-weight: 650; }
+    .card {
+      margin-top: 16px; padding: 16px; border: 1px solid var(--border-soft);
+      border-radius: 16px; background: var(--white); box-shadow: var(--shadow-panel);
+    }
+    .card-title { margin: 2px 2px 6px; font-size: 16px; font-weight: 750; }
+    .card-sub { margin: 0 2px 14px; font-size: 13px; line-height: 1.6; color: var(--mid-gray); }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 4px; }
+    .field-label { display: block; margin: 0 2px 7px; font-size: 13px; color: var(--mid-gray); }
+    .field-label .req { color: var(--danger); margin-left: 2px; }
+    .field-input {
+      display: block; width: 100%; height: 48px; padding: 0 14px;
+      border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white);
+      color: var(--yuto-black); font-size: 15px;
+    }
+    .field-input::placeholder { color: var(--weak-gray); }
+    .code-row { display: flex; gap: 10px; }
+    .code-row .field-input { flex: 1; min-width: 0; }
+    .code-btn {
+      flex: none; min-width: 112px; height: 48px; padding: 0 12px;
+      border: 1.5px solid var(--brand-orange); border-radius: 12px;
+      color: var(--brand-orange); font-size: 14px; font-weight: 650; background: var(--white);
+    }
+    .code-btn[disabled] { border-color: var(--light-gray); color: var(--weak-gray); cursor: default; }
+    /* 本次申请摘要（来自前两步 localStorage：hostInfor / visitorInfo / fellowInfo） */
+    .summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 2px; font-size: 13px; border-bottom: 1px dashed var(--border-soft); }
+    .summary-row:last-child { border-bottom: 0; }
+    .summary-row .k { color: var(--mid-gray); flex: none; }
+    .summary-row .v { text-align: right; color: var(--yuto-black); }
+    .banner-danger {
+      display: none; margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+      background: rgba(216, 59, 54, 0.10); color: var(--danger); font-size: 13px; line-height: 1.6;
+    }
+    .banner-danger.show { display: block; }
+    .bottom-bar {
+      position: sticky; bottom: 0; margin-top: auto; padding: 14px 18px max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 24%);
+    }
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; width: 100%; height: 48px;
+      border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .btn-primary:active { background: var(--accent-strong); }
+    .btn-primary[disabled] { background: var(--light-gray); cursor: default; }
+    .spinner { width: 16px; height: 16px; margin-right: 8px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 999px; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .toast {
+      position: absolute; left: 50%; bottom: 130px; z-index: 40; transform: translateX(-50%);
+      max-width: 80%; padding: 10px 16px; border-radius: 12px; background: rgba(89, 87, 87, 0.92);
+      color: var(--white); font-size: 13px; text-align: center; opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .toast.show { opacity: 1; }
+    /* 原型演示切换条 */
+    .demo-strip {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding: 8px 10px;
+      border: 1px dashed var(--light-gray); border-radius: 12px; background: #FBFBFB;
+    }
+    .demo-strip span { font-size: 12px; color: var(--weak-gray); white-space: nowrap; }
+    .demo-strip button { min-height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border-soft); background: var(--white); font-size: 12px; color: var(--mid-gray); }
+    .demo-strip button.on { border-color: var(--brand-orange); color: var(--accent-strong); font-weight: 650; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="page">
+      <header class="topbar">
+        <button class="back-btn" type="button" aria-label="返回" onclick="showToast('返回上一步（→ visitor-info-hefei.html）')">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M13.5 4.5 7 11l6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <h1 class="page-title">入厂申请</h1>
+        <div class="topbar-spacer"><span class="hefei-badge">合肥流程</span></div>
+      </header>
+
+      <nav class="steps" aria-label="申请进度">
+        <div class="step done"><div class="step-dot">✓</div><div class="step-name">被访信息</div></div>
+        <div class="step done"><div class="step-dot">✓</div><div class="step-name">访客信息</div></div>
+        <div class="step current"><div class="step-dot">3</div><div class="step-name">提交信息</div></div>
+      </nav>
+
+      <div class="banner-danger" id="blackBanner">抱歉，你已被加入访客黑名单，不能进行入厂申请!</div>
+
+      <section class="card" aria-label="手机验证">
+        <h2 class="card-title">手机验证</h2>
+        <p class="card-sub">请填写访客本人手机号并完成短信验证，验证通过后将提交本次入厂申请。</p>
+
+        <div class="field">
+          <label class="field-label" for="phone">手机号<span class="req">*</span></label>
+          <input class="field-input" id="phone" type="tel" inputmode="numeric" maxlength="11" placeholder="请输入" value="13966074285">
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="smsCode">验证码<span class="req">*</span></label>
+          <div class="code-row">
+            <input class="field-input" id="smsCode" type="tel" inputmode="numeric" maxlength="6" placeholder="请输入">
+            <button class="code-btn" id="codeBtn" type="button" onclick="sendCode()">获取验证码</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 本次申请摘要：展示前两步缓存数据（hostInfor / visitorInfo / fellowInfo），仅原型辅助 -->
+      <section class="card" aria-label="本次申请信息">
+        <h2 class="card-title">本次申请信息</h2>
+        <div class="summary-row"><span class="k">被访人</span><span class="v">王建国 · 13855219076</span></div>
+        <div class="summary-row"><span class="k">访客姓名</span><span class="v">李慧敏</span></div>
+        <div class="summary-row"><span class="k">来访单位</span><span class="v">安徽华创印务有限公司</span></div>
+        <div class="summary-row"><span class="k">来访事由</span><span class="v">业务洽谈</span></div>
+        <div class="summary-row"><span class="k">证件号码</span><span class="v">居民身份证 · 340103199205144028</span></div>
+        <div class="summary-row"><span class="k">携带物品</span><span class="v">笔记本电脑</span></div>
+        <div class="summary-row"><span class="k">来访时间</span><span class="v">2026-06-12 09:30</span></div>
+        <div class="summary-row"><span class="k">离开时间</span><span class="v">2026-06-12 17:00</span></div>
+        <div class="summary-row"><span class="k">车牌号</span><span class="v">皖A·D7K521</span></div>
+        <div class="summary-row"><span class="k">随行人员</span><span class="v">2 人（张志强、陈雨桐）</span></div>
+      </section>
+
+      <div class="demo-strip" aria-label="原型演示">
+        <span>原型演示：</span>
+        <button type="button" class="on" id="demoDefault" onclick="setState('default', this)">默认</button>
+        <button type="button" onclick="setState('countdown', this)">验证码倒计时</button>
+        <button type="button" onclick="setState('submitting', this)">正在提交</button>
+        <button type="button" onclick="setState('blacklist', this)">黑名单拦截</button>
+      </div>
+
+      <div class="bottom-bar">
+        <button class="btn-primary" type="button" id="submitBtn" onclick="apply()">下一步</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+
+  <script>
+    let demoState = 'default';
+    let toastTimer = null;
+    let countTimer = null;
+    let countLeft = 0;
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+    function setState(s, btn) {
+      demoState = s;
+      document.querySelectorAll('.demo-strip button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      document.getElementById('blackBanner').classList.toggle('show', s === 'blacklist');
+      const submit = document.getElementById('submitBtn');
+      if (s === 'submitting') {
+        // 旧逻辑：提交中按钮禁用并显示「正在提交」
+        submit.disabled = true;
+        submit.innerHTML = '<span class="spinner"></span>正在提交';
+      } else {
+        submit.disabled = false;
+        submit.textContent = '下一步';
+      }
+      if (s === 'countdown') startCountdown(); else stopCountdown();
+    }
+    function startCountdown() {
+      // 旧版 identifying-code 组件倒计时 120s
+      countLeft = 120;
+      const b = document.getElementById('codeBtn');
+      b.disabled = true; b.textContent = countLeft + 's';
+      clearInterval(countTimer);
+      countTimer = setInterval(() => {
+        countLeft--;
+        if (countLeft <= 0) { stopCountdown(); return; }
+        b.textContent = countLeft + 's';
+      }, 1000);
+    }
+    function stopCountdown() {
+      clearInterval(countTimer);
+      const b = document.getElementById('codeBtn');
+      b.disabled = false; b.textContent = '获取验证码';
+    }
+    function sendCode() {
+      const p = document.getElementById('phone').value.trim();
+      if (!p) { showToast('请输入手机号'); return; }
+      if (!/^1\d{10}$/.test(p)) { showToast('手机号格式不正确'); return; }
+      // 真实流程：GET /sms/send/getCode/{mobile}
+      showToast('验证码已发送');
+      startCountdown();
+    }
+    function apply() {
+      // 旧校验顺序：手机号空 → 格式 →（存 localStorage visitorPhone）→ 验证码空 → /sms/verify → 黑名单 → 提交
+      const p = document.getElementById('phone').value.trim();
+      const c = document.getElementById('smsCode').value.trim();
+      if (!p) { showToast('请输入手机号'); return; }
+      if (!/^1\d{10}$/.test(p)) { showToast('手机号格式不正确'); return; }
+      if (!c) { showToast('请输入验证码'); return; }
+      if (demoState === 'blacklist') {
+        // POST /wechat/visit/checkBlackVisitor 返回 data===false 时拦截（personType≠2 才校验）
+        showToast('抱歉，你已被加入访客黑名单，不能进行入厂申请!');
+        return;
+      }
+      // 真实流程：GET /sms/verify → checkBlackVisitor → POST /admittance/apply/save/apply
+      showToast('申请成功，前往结果页（/xuchang/visitor/result）');
+    }
+  </script>
+</body>
+</html>

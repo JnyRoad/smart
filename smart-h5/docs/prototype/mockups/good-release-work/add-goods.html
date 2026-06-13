@@ -1,0 +1,229 @@
+<!doctype html>
+<!--
+  原型：物品放行（办公区）- 添加物品
+  旧路由：/xuchang/goodReleaseWork/addGoods
+  旧组件：views-mobile/pages/good-release-work/add-goods.vue
+          + components/search-by-staff.vue（工号查询弹窗）
+  接口：GET /articlesrelease/oa/staff/info/{badge}（按工号查人员，回填姓名）
+  跳转：确认添加/修改 → /xuchang/goodReleaseWork/addGoodsList
+  说明：新增 / 编辑双模式（编辑由 query itemInfo+itemIndex+isEdit 回填），
+        暂存数据写 localStorage releaseGoodsInfo。原型用顶部演示条切换两种模式。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>添加物品 · 物品放行（办公区）</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button, input, select { font: inherit; color: inherit; }
+button { border: 0; cursor: pointer; background: none; padding: 0; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 16px calc(110px + max(24px, env(safe-area-inset-bottom))); background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 180px); }
+.topbar { display: flex; align-items: center; min-height: 46px; }
+.back { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.back svg { display: block; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+.topbar .spacer { width: 44px; }
+.demo-switch { display: flex; align-items: center; gap: 8px; margin: 10px 2px 14px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,255,255,.7); font-size: 12px; color: var(--accent-ink); }
+.demo-switch strong { font-weight: 750; }
+.demo-switch .seg { display: flex; margin-left: auto; border: 1px solid var(--border-soft); border-radius: 999px; background: var(--white); overflow: hidden; }
+.demo-switch .seg button { min-height: 30px; padding: 0 12px; font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-switch .seg button.on { background: var(--brand-orange); color: var(--white); }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 6px 16px; margin-bottom: 12px; }
+.card-title { padding: 14px 0 4px; font-size: 13px; font-weight: 750; color: var(--accent-ink); display: flex; align-items: center; gap: 6px; }
+.card-title::before { content: ""; width: 4px; height: 13px; border-radius: 2px; background: var(--brand-orange); }
+.field { padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+.field:last-child { border-bottom: 0; }
+.field label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--mid-gray); }
+.field label .req { color: var(--danger); margin-left: 2px; }
+.field input, .field select { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: #FBFBFB; font-size: 15px; }
+.field input::placeholder { color: var(--weak-gray); }
+.field select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--weak-gray) 50%), linear-gradient(135deg, var(--weak-gray) 50%, transparent 50%); background-position: calc(100% - 20px) 22px, calc(100% - 14px) 22px; background-size: 6px 6px; background-repeat: no-repeat; }
+.picklike { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: #FBFBFB; font-size: 15px; text-align: left; }
+.picklike .ph { color: var(--weak-gray); }
+.picklike .val { color: var(--yuto-black); }
+.picklike svg { flex: none; }
+.plate-input { letter-spacing: 2px; text-transform: uppercase; }
+.bottom-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: min(100%, 430px); padding: 14px 18px max(24px, env(safe-area-inset-bottom)); background: rgba(255,255,255,.96); border-top: 1px solid var(--border-soft); backdrop-filter: blur(8px); }
+.btn-primary { display: flex; align-items: center; justify-content: center; width: 100%; height: 48px; border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650; }
+.btn-primary:active { background: var(--accent-strong); }
+/* 工号查询弹窗 */
+.modal-mask { position: fixed; inset: 0; display: none; align-items: flex-end; justify-content: center; background: rgba(89,87,87,.45); z-index: 30; }
+.modal-mask.open { display: flex; }
+.modal { width: min(100%, 430px); background: var(--white); border-radius: 20px 20px 0 0; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: 0 18px; border-bottom: 1px solid var(--border-soft); }
+.modal-head .m-title { font-size: 15px; font-weight: 750; color: var(--yuto-black); }
+.modal-head .m-ok { min-width: 44px; min-height: 44px; color: var(--brand-orange); font-size: 15px; font-weight: 650; }
+.modal-body { padding: 18px; }
+.modal-body label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--mid-gray); }
+.modal-body input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: #FBFBFB; font-size: 15px; }
+.modal-tip { margin-top: 12px; font-size: 12px; color: var(--weak-gray); line-height: 1.6; }
+.toast { position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%); padding: 10px 18px; border-radius: 999px; background: rgba(89,87,87,.92); color: var(--white); font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 40; white-space: nowrap; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back" aria-label="返回" onclick="toast('返回上一页（添加物品-列表）')">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1>添加物品</h1>
+      <div class="spacer"></div>
+    </header>
+
+    <div class="demo-switch">
+      <strong>原型演示</strong>·页面模式
+      <div class="seg">
+        <button id="segAdd" class="on" onclick="setMode('add')">新增</button>
+        <button id="segEdit" onclick="setMode('edit')">编辑</button>
+      </div>
+    </div>
+
+    <form onsubmit="return false">
+      <section class="card">
+        <div class="card-title">物品信息</div>
+        <div class="field"><label>资产编码<span class="req">*</span></label><input id="f-wpbm" placeholder="请输入"></div>
+        <div class="field"><label>名称<span class="req">*</span></label><input id="f-wpmc" placeholder="请输入"></div>
+        <div class="field"><label>单位<span class="req">*</span></label><input id="f-wpdw" placeholder="请输入"></div>
+        <div class="field"><label>数量<span class="req">*</span></label><input id="f-wpsl" placeholder="请输入" inputmode="numeric"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">放行信息</div>
+        <div class="field"><label>接收单位<span class="req">*</span></label><input id="f-jsdw" placeholder="请输入"></div>
+        <div class="field"><label>放行日期<span class="req">*</span></label><input id="f-fxrq" type="date"></div>
+        <div class="field"><label>备注(原因)</label><input id="f-bz" placeholder="请输入"></div>
+        <div class="field">
+          <label>运输方式<span class="req">*</span></label>
+          <select id="f-ysfs">
+            <option value="">请选择</option>
+            <option value="0">人工</option>
+            <option value="1">货车</option>
+            <option value="2">叉车</option>
+            <option value="3">三轮</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">经手人信息</div>
+        <div class="field">
+          <label>姓名</label>
+          <button type="button" class="picklike" onclick="openModal()">
+            <span id="f-name" class="ph">请输入</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3.5 10.5 8 6 12.5" stroke="#AAA7A7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="field"><label>车牌号</label><input id="f-cph" class="plate-input" placeholder="请输入" maxlength="8"></div>
+      </section>
+    </form>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn-primary" id="submitBtn" onclick="apply()">确认添加放行物品</button>
+  </div>
+
+  <!-- 工号查询弹窗（search-by-staff） -->
+  <div class="modal-mask" id="staffModal" onclick="if(event.target===this)closeModal()">
+    <div class="modal" role="dialog" aria-label="输入员工工号查询">
+      <div class="modal-head">
+        <span class="m-title">输入员工工号查询</span>
+        <button class="m-ok" onclick="confirmStaff()">确定</button>
+      </div>
+      <div class="modal-body">
+        <label>工号</label>
+        <input id="m-gh" placeholder="请输入" inputmode="numeric">
+        <p class="modal-tip">确定后调用 GET /articlesrelease/oa/staff/info/{工号} 查询人员并回填姓名；查询失败将提示后端信息。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1800);
+}
+function openModal() { document.getElementById('staffModal').classList.add('open'); }
+function closeModal() { document.getElementById('staffModal').classList.remove('open'); }
+function confirmStaff() {
+  var gh = document.getElementById('m-gh').value.trim();
+  if (!gh) { toast('请输入工号'); return; }
+  // 模拟 GET /articlesrelease/oa/staff/info/{badge} 成功回填
+  var nameEl = document.getElementById('f-name');
+  nameEl.textContent = '陈志强（' + gh + '）';
+  nameEl.className = 'val';
+  closeModal();
+}
+function setMode(mode) {
+  var edit = mode === 'edit';
+  document.getElementById('segAdd').classList.toggle('on', !edit);
+  document.getElementById('segEdit').classList.toggle('on', edit);
+  document.getElementById('submitBtn').textContent = edit ? '确认修改放行物品' : '确认添加放行物品';
+  var v = edit
+    ? { wpbm: 'YT-GD-2026-0318', wpmc: '戴尔 OptiPlex 7090 台式电脑', wpdw: '台', wpsl: '2', jsdw: '裕同科技武汉分公司', fxrq: '2026-06-15', bz: '调拨至武汉分公司办公使用', ysfs: '1', name: '陈志强（YT20180566）', cph: '粤B·D87K56' }
+    : { wpbm: '', wpmc: '', wpdw: '', wpsl: '', jsdw: '', fxrq: '', bz: '', ysfs: '', name: '', cph: '' };
+  document.getElementById('f-wpbm').value = v.wpbm;
+  document.getElementById('f-wpmc').value = v.wpmc;
+  document.getElementById('f-wpdw').value = v.wpdw;
+  document.getElementById('f-wpsl').value = v.wpsl;
+  document.getElementById('f-jsdw').value = v.jsdw;
+  document.getElementById('f-fxrq').value = v.fxrq;
+  document.getElementById('f-bz').value = v.bz;
+  document.getElementById('f-ysfs').value = v.ysfs;
+  document.getElementById('f-cph').value = v.cph;
+  var nameEl = document.getElementById('f-name');
+  nameEl.textContent = v.name || '请输入';
+  nameEl.className = v.name ? 'val' : 'ph';
+}
+function apply() {
+  var checks = [
+    ['f-wpbm', '请输入资产编码'],
+    ['f-wpmc', '请输入名称'],
+    ['f-wpdw', '请输入单位'],
+    ['f-wpsl', '请输入数量'],
+    ['f-jsdw', '请输入接收单位'],
+    ['f-fxrq', '请选择放行日期'],
+    ['f-ysfs', '请选择运输方式']
+  ];
+  for (var i = 0; i < checks.length; i++) {
+    if (!document.getElementById(checks[i][0]).value) { toast(checks[i][1]); return; }
+  }
+  var edit = document.getElementById('segEdit').classList.contains('on');
+  toast((edit ? '已修改' : '已添加') + '，跳转添加物品-列表页');
+}
+</script>
+</body>
+</html>

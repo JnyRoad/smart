@@ -1,0 +1,232 @@
+<!doctype html>
+<!--
+  原型：入厂申请 - 被访者信息（访客预约 第 1 步，免登录）
+  旧路由：/xuchang/visitor
+  旧组件：views-mobile/pages/visitor/index.vue（+ components/visitor-steps.vue、page3-bottom）
+  接口：
+    - GET  /common/config/admittance/notice        温馨提示（isNeedNotice=1 时弹窗）
+    - GET  /admittance/apply/get/openId            微信 OAuth code 换 openId
+    - POST /admittance/apply/app/searchReceptionist 查询被访人（parkId+姓名+手机号）
+  跳转：查询成功 → /xuchang/visitor/visitorInfo；无 code 时先跳微信授权回跳本页；
+        「查看申请记录与审批进度」→ /xuchang/visitor/records（records.html，新增入口）
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>入厂申请 · 被访者信息</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button, input { font: inherit; }
+button { border: 0; cursor: pointer; background: none; }
+button:focus-visible, input:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+
+.demo-bar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  width: min(100%, 430px); margin: 0 auto; padding: 8px 12px;
+  background: #2F2D2D; color: #fff; font-size: 12px;
+}
+.demo-bar .tag { font-weight: 750; color: #FFC894; }
+.demo-bar button {
+  min-height: 28px; padding: 0 10px; border-radius: 999px;
+  background: rgba(255,255,255,.14); color: #fff; font-size: 12px;
+}
+.demo-bar button.on { background: var(--brand-orange); font-weight: 650; }
+
+.app { position: relative; width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 18px calc(96px + max(24px, env(safe-area-inset-bottom))); background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--white); }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; min-height: 46px; gap: 12px; }
+.brand-wordmark { font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+.brand-wordmark em { font-style: normal; color: var(--brand-orange); }
+.wechat-badge { display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px; border: 1px solid rgba(236,108,0,.18); border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 650; }
+
+.hero { padding: 16px 2px 6px; }
+.hero h1 { margin: 0; font-size: 24px; font-weight: 750; line-height: 1.2; }
+.hero p { margin: 8px 0 0; color: var(--mid-gray); font-size: 13px; line-height: 1.6; }
+
+.steps { display: flex; align-items: flex-start; margin: 18px 2px 16px; }
+.step { flex: 1; text-align: center; position: relative; }
+.step .dot { width: 26px; height: 26px; margin: 0 auto; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: var(--light-gray); color: var(--white); position: relative; z-index: 1; }
+.step.active .dot { background: var(--brand-orange); box-shadow: 0 0 0 5px rgba(236,108,0,.15); }
+.step.done .dot { background: var(--success); }
+.step .lbl { margin-top: 7px; font-size: 12px; color: var(--weak-gray); }
+.step.active .lbl { color: var(--accent-ink); font-weight: 650; }
+.step + .step::before { content: ""; position: absolute; left: -50%; right: 50%; top: 12px; height: 2px; background: var(--light-gray); }
+.step.active + .step::before, .step.done + .step::before { background: var(--light-gray); }
+.step.done + .step::before, .step.active::before { background: var(--brand-orange); }
+
+.card { margin-top: 6px; padding: 18px 16px; border: 1px solid var(--border-soft); border-radius: 16px; background: var(--white); box-shadow: var(--shadow-panel); }
+.card h2 { margin: 0 0 14px; font-size: 16px; font-weight: 750; }
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field label { display: block; margin-bottom: 7px; font-size: 13px; color: var(--mid-gray); }
+.field label .req { color: var(--danger); margin-left: 2px; }
+.field input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white); color: var(--yuto-black); }
+.field input::placeholder { color: var(--weak-gray); }
+.field input[readonly] { background: var(--surface); color: var(--mid-gray); }
+.field .err { display: none; margin-top: 6px; font-size: 12px; color: var(--danger); }
+.field.invalid input { border-color: var(--danger); }
+.field.invalid .err { display: block; }
+
+.search-fail { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 11px 12px; border-radius: 10px; background: #FCEAE9; color: #8C2B27; font-size: 13px; line-height: 1.5; }
+.search-fail[hidden] { display: none; }
+
+.records-entry { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 44px; margin-top: 14px; border-radius: 12px; color: var(--mid-gray); font-size: 13px; }
+.records-entry em { font-style: normal; color: var(--brand-orange); font-weight: 650; }
+.records-entry svg { color: var(--brand-orange); }
+.records-entry:active { background: var(--accent-soft); }
+
+.footer { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 430px); padding: 12px 18px max(24px, env(safe-area-inset-bottom)); background: rgba(255,255,255,.94); backdrop-filter: blur(8px); border-top: 1px solid var(--border-soft); }
+.primary-btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650; }
+.primary-btn:active { background: var(--accent-strong); }
+
+.toast { position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%); max-width: 320px; padding: 11px 18px; border-radius: 12px; background: rgba(47,45,45,.92); color: #fff; font-size: 13px; text-align: center; display: none; z-index: 60; }
+.toast.show { display: block; }
+
+.mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 70; padding: 24px; }
+.mask.show { display: flex; }
+.dialog { width: min(100%, 330px); border-radius: 18px; background: var(--white); overflow: hidden; }
+.dialog .d-head { padding: 18px 18px 0; font-size: 16px; font-weight: 750; text-align: center; }
+.dialog .d-body { padding: 12px 18px 18px; font-size: 13px; line-height: 1.7; color: var(--yuto-black); max-height: 50dvh; overflow: auto; }
+.dialog .d-body strong { color: var(--danger); }
+.dialog .d-foot { border-top: 1px solid var(--border-soft); }
+.dialog .d-foot button { width: 100%; min-height: 48px; color: var(--brand-orange); font-size: 16px; font-weight: 650; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span class="tag">原型演示</span>
+  <button class="on" onclick="setState('default', this)">默认表单</button>
+  <button onclick="setState('notice', this)">温馨提示弹窗</button>
+  <button onclick="setState('fail', this)">被访人查询失败</button>
+</div>
+
+<div class="app">
+  <div class="page">
+    <div class="topbar">
+      <div class="brand-wordmark">裕同<em>智慧园区</em> · 访客预约</div>
+      <span class="wechat-badge">微信已授权</span>
+    </div>
+
+    <div class="hero">
+      <h1>入厂申请</h1>
+      <p>请先填写被访人信息，系统将自动核对园区接待人员。</p>
+    </div>
+
+    <!-- 步骤栏：当前第 1 步 -->
+    <div class="steps">
+      <div class="step active"><div class="dot">1</div><div class="lbl">被访信息</div></div>
+      <div class="step"><div class="dot">2</div><div class="lbl">访客信息</div></div>
+      <div class="step"><div class="dot">3</div><div class="lbl">提交信息</div></div>
+    </div>
+
+    <div class="card">
+      <h2>被访者信息</h2>
+      <div class="field">
+        <label>所选园区</label>
+        <input type="text" value="裕同科技许昌园区" readonly>
+      </div>
+      <div class="field" id="f-name">
+        <label>姓名<span class="req">*</span></label>
+        <input type="text" placeholder="请输入" value="王建国">
+        <div class="err">请输入被访人姓名</div>
+      </div>
+      <div class="field" id="f-phone">
+        <label>手机号<span class="req">*</span></label>
+        <input type="tel" maxlength="11" inputmode="numeric" placeholder="请输入" value="13837412589">
+        <div class="err">请输入被访人手机号</div>
+      </div>
+      <div class="search-fail" id="searchFail" hidden>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="7" stroke="#D83B36" stroke-width="1.6"/><path d="M8 4.5V9" stroke="#D83B36" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.4" r="1" fill="#D83B36"/></svg>
+        未查询到被访人信息，请核对姓名与手机号后重试
+      </div>
+    </div>
+
+    <button class="records-entry" onclick="location.href='records.html'" title="跳转 /xuchang/visitor/records">
+      已提交过申请？<em>查看申请记录与审批进度</em>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <div class="footer">
+    <button class="primary-btn" onclick="next()">下一步</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 温馨提示弹窗（notice 接口 isNeedNotice=1 时展示） -->
+<div class="mask" id="noticeMask">
+  <div class="dialog">
+    <div class="d-head">温馨提示</div>
+    <div class="d-body">
+      尊敬的访客您好：<br>
+      1. 入园请全程佩戴访客证，听从安保人员引导；<br>
+      2. 严禁携带易燃易爆等危险物品入园；<br>
+      3. 园区内<strong>禁止拍照、摄像</strong>，请勿进入未授权区域；<br>
+      4. 车辆入园请提前办理车辆通行证并按指定车位停放。
+    </div>
+    <div class="d-foot"><button onclick="hideNotice()">知道了</button></div>
+  </div>
+</div>
+
+<script>
+let state = 'default';
+function setState(s, btn) {
+  state = s;
+  document.querySelectorAll('.demo-bar button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('noticeMask').classList.toggle('show', s === 'notice');
+  document.getElementById('searchFail').hidden = true;
+  if (s === 'fail') toast('已切换到失败演示：点击「下一步」查看查询失败效果');
+}
+function hideNotice() { document.getElementById('noticeMask').classList.remove('show'); }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function next() {
+  const name = document.querySelector('#f-name input');
+  const phone = document.querySelector('#f-phone input');
+  document.getElementById('f-name').classList.toggle('invalid', !name.value.trim());
+  document.getElementById('f-phone').classList.toggle('invalid', !phone.value.trim());
+  if (!name.value.trim() || !phone.value.trim()) return;
+  if (!/^1\d{10}$/.test(phone.value.trim())) { toast('手机号格式不正确'); return; }
+  if (state === 'fail') {
+    document.getElementById('searchFail').hidden = false;
+    toast('未查询到被访人信息，请确认姓名与手机号');
+    return;
+  }
+  document.getElementById('searchFail').hidden = true;
+  // 真实流程：POST /admittance/apply/app/searchReceptionist 成功后跳转
+  toast('已找到被访人，前往「访客信息」（/xuchang/visitor/visitorInfo）');
+}
+</script>
+</body>
+</html>

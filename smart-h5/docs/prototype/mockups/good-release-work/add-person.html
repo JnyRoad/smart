@@ -1,0 +1,192 @@
+<!doctype html>
+<!--
+  原型：物品放行（办公区）- 添加/编辑放行人员
+  旧路由：/xuchang/goodReleaseWork/addPerson（编辑模式 query: itemInfo+itemIndex+isEdit=true）
+  旧组件：smart-h5/src/views-mobile/pages/good-release-work/add-person.vue
+          （page3-bottom、components/search-by-staff 工号查询弹窗）
+  接口：GET /articlesrelease/oa/staff/info/{badge}（按工号查员工，回填姓名/人员id）
+  跳转：提交成功 → add-person-list.html；数据写入 localStorage goodsPersonInfo（新增 push / 编辑按 index 替换）
+  状态：新增模式（确认添加放行人员）/ 编辑模式（确认修改放行人员）；工号查询弹窗
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行（办公区）· 添加人员</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button, input { font: inherit; color: inherit; }
+button { border: 0; cursor: pointer; background: none; padding: 0; }
+.app { width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; position: relative; }
+.page-bg { position: absolute; inset: 0 0 auto 0; height: 220px; background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 100%); pointer-events: none; }
+.topbar { position: relative; display: flex; align-items: center; min-height: 52px; padding: max(14px, env(safe-area-inset-top)) 6px 0; }
+.nav-back { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+.page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.nav-spacer { width: 44px; height: 44px; }
+.content { position: relative; flex: 1; padding: 14px 16px calc(96px + max(24px, env(safe-area-inset-bottom))); }
+.card { background: var(--white); border: 1px solid var(--border-soft); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 6px 16px; margin-bottom: 12px; }
+.field { padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+.field:last-child { border-bottom: 0; }
+.field-label { font-size: 13px; color: var(--mid-gray); margin-bottom: 8px; }
+.field-label .req { color: var(--danger); margin-left: 2px; }
+.input, .picker {
+  width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+  border-radius: 12px; background: var(--white); font-size: 15px;
+  display: flex; align-items: center; justify-content: space-between; text-align: left;
+}
+input.input::placeholder { color: var(--weak-gray); }
+input.input:focus { outline: 3px solid rgba(236,108,0,.22); outline-offset: 0; border-color: var(--brand-orange); }
+.picker .placeholder { color: var(--weak-gray); }
+.picker .value { color: var(--yuto-black); }
+.chevron { color: var(--weak-gray); flex: none; margin-left: 10px; }
+.field-hint { margin-top: 6px; font-size: 12px; color: var(--weak-gray); }
+.bottom-bar {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 0;
+  width: min(100%, 430px); padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+  background: rgba(255,255,255,0.94); backdrop-filter: blur(8px); border-top: 1px solid var(--border-soft);
+}
+.btn-primary { width: 100%; min-height: 48px; border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650; }
+.btn-primary:active { background: var(--accent-strong); }
+/* 工号查询弹窗 */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(89,87,87,0.45); z-index: 30;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal-sheet {
+  width: min(100%, 430px); background: var(--white); border-radius: 22px 22px 0 0;
+  padding: 8px 16px max(24px, env(safe-area-inset-bottom));
+}
+.modal-head { display: flex; align-items: center; justify-content: space-between; min-height: 52px; }
+.modal-title { font-size: 15px; font-weight: 750; }
+.modal-ok { color: var(--brand-orange); font-size: 15px; font-weight: 650; min-height: 44px; padding: 0 6px; }
+.modal-cancel { color: var(--mid-gray); font-size: 15px; min-height: 44px; padding: 0 6px; }
+.demo-bar { position: relative; margin: 10px 16px 0; padding: 8px 10px; border: 1px dashed var(--brand-orange); border-radius: 12px; background: rgba(255,241,227,0.6); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.demo-bar .demo-tag { font-size: 11px; font-weight: 750; color: var(--accent-ink); flex: none; }
+.demo-bar button { min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 650; border: 1px solid var(--light-gray); background: var(--white); color: var(--mid-gray); }
+.demo-bar button.on { border-color: var(--brand-orange); background: var(--brand-orange); color: var(--white); }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page-bg"></div>
+  <header class="topbar">
+    <button class="nav-back" aria-label="返回" onclick="location.href='add-person-list.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="page-title" id="page-title">添加放行人员</div>
+    <div class="nav-spacer"></div>
+  </header>
+
+  <div class="demo-bar" role="group" aria-label="原型演示">
+    <span class="demo-tag">原型演示</span>
+    <button id="d-add" class="on" onclick="setMode('add')">新增模式</button>
+    <button id="d-edit" onclick="setMode('edit')">编辑模式</button>
+    <button onclick="openSearch()">工号查询弹窗</button>
+  </div>
+
+  <main class="content">
+    <section class="card">
+      <div class="field">
+        <div class="field-label">工号</div>
+        <button class="picker" onclick="openSearch()">
+          <span id="gh-value" class="placeholder">请输入</span><span class="chevron">›</span>
+        </button>
+        <div class="field-hint">点击通过工号查询自动带出员工信息</div>
+      </div>
+      <div class="field">
+        <div class="field-label">姓名</div>
+        <button class="picker" onclick="openSearch()">
+          <span id="name-value" class="placeholder">请输入</span><span class="chevron">›</span>
+        </button>
+      </div>
+      <div class="field">
+        <div class="field-label">离厂事由<span class="req">*</span></div>
+        <input class="input" id="lcsy" placeholder="请输入">
+      </div>
+      <div class="field">
+        <div class="field-label">离厂日期<span class="req">*</span></div>
+        <button class="picker">
+          <span id="lcdate-value" class="placeholder">请输入</span><span class="chevron">›</span>
+        </button>
+        <div class="field-hint">日期 + 时间选择器（如 2026-06-12 14:30）</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bottom-bar">
+    <button class="btn-primary" id="submit-btn" onclick="location.href='add-person-list.html'">确认添加放行人员</button>
+  </footer>
+
+  <!-- 工号查询弹窗（search-by-staff） -->
+  <div class="modal-mask hidden" id="search-modal" onclick="if(event.target===this)closeSearch()">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <button class="modal-cancel" onclick="closeSearch()">取消</button>
+        <div class="modal-title">输入员工工号查询</div>
+        <button class="modal-ok" onclick="confirmSearch()">确定</button>
+      </div>
+      <div class="field" style="border:0">
+        <div class="field-label">工号</div>
+        <input class="input" id="search-gh" placeholder="请输入" value="YT08231">
+        <div class="field-hint">确定后调用员工信息接口回填姓名（查询失败将提示错误）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 原型演示：新增/编辑两种模式 + 工号查询弹窗回填
+var mode = 'add';
+function setMode(m) {
+  mode = m;
+  var edit = m === 'edit';
+  document.getElementById('d-add').classList.toggle('on', !edit);
+  document.getElementById('d-edit').classList.toggle('on', edit);
+  document.getElementById('page-title').textContent = edit ? '修改放行人员' : '添加放行人员';
+  document.getElementById('submit-btn').textContent = edit ? '确认修改放行人员' : '确认添加放行人员';
+  if (edit) {
+    fill('YT08231', '张伟明');
+    document.getElementById('lcsy').value = '送样品至福侨4号仓库';
+    setText('lcdate-value', '2026-06-12 14:30');
+  } else {
+    setHolder('gh-value'); setHolder('name-value');
+    document.getElementById('lcsy').value = '';
+    setHolder('lcdate-value');
+  }
+}
+function setText(id, t) { var el = document.getElementById(id); el.textContent = t; el.className = 'value'; }
+function setHolder(id) { var el = document.getElementById(id); el.textContent = '请输入'; el.className = 'placeholder'; }
+function fill(gh, name) { setText('gh-value', gh); setText('name-value', name); }
+function openSearch() { document.getElementById('search-modal').classList.remove('hidden'); }
+function closeSearch() { document.getElementById('search-modal').classList.add('hidden'); }
+function confirmSearch() {
+  // 模拟 GET /articlesrelease/oa/staff/info/{badge} 成功回填
+  fill(document.getElementById('search-gh').value || 'YT08231', '张伟明');
+  closeSearch();
+}
+</script>
+</body>
+</html>

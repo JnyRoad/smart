@@ -1,0 +1,107 @@
+<!doctype html>
+<!--
+  原型：物品放行（生活区）审批结果
+  旧路由：/xuchang/backLog/goodReleaseLive/result
+  旧组件：views-mobile/pages/backLog/good-release-live/result.vue
+  接口：无（旧页为未接接口的静态占位实现：数据写死「张三｜研发部」「test」，凭证图框为空，无脚本逻辑）
+  跳转：无（全仓未发现指向该路由的跳转，疑似已废弃；原型按字段结构忠实重现，mock 数据替换占位文案）
+  字段结构（与旧页 1:1）：凭证图位 + 提示文案 / 姓名|部门 + 「不返厂」标签 / 放行事项 / 放行时间 + OA节点
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行（生活区）审批结果 · 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00; --accent-strong: #D95F00; --accent-soft: #FFF1E3; --accent-ink: #5A2600;
+  --white: #FFFFFF; --surface: #F7F7F7; --yuto-black: #595757; --mid-gray: #8C8A8A; --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3; --border-soft: #EFEEEE; --success: #16A673; --warning: #C98416; --danger: #D83B36; --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89,87,87,.14); --shadow-panel: 0 16px 40px rgba(89,87,87,.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; margin: 0; }
+button { border: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 220px); }
+.topbar { display: flex; align-items: center; min-height: 46px; padding: 0 6px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.back-btn:active { background: rgba(255,255,255,.6); }
+.back-btn svg { width: 22px; height: 22px; }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-space { width: 44px; }
+.demo-bar { margin: 6px 18px 10px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,241,227,.6); font-size: 12px; color: var(--accent-ink); line-height: 1.6; }
+.demo-bar strong { font-weight: 750; }
+.content { flex: 1; padding: 0 18px; }
+/* 凭证图位 + 提示 */
+.cert { display: flex; flex-direction: column; align-items: center; padding: 26px 0 22px; }
+.cert-img { width: 180px; height: 180px; border-radius: 20px; background: var(--white); border: 1px solid var(--border-soft); box-shadow: var(--shadow-panel); display: flex; align-items: center; justify-content: center; }
+.cert-img svg { width: 96px; height: 96px; }
+.cert-tip { margin-top: 14px; font-size: 14px; color: var(--mid-gray); }
+/* 卡片 */
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); padding: 16px; margin-bottom: 12px; }
+.who { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.who .nm { font-size: 16px; font-weight: 750; }
+.who .nm em { font-style: normal; color: var(--weak-gray); padding: 0 8px; font-weight: 400; }
+.badge { border-radius: 999px; font-size: 12px; font-weight: 650; padding: 4px 10px; color: var(--mid-gray); background: rgba(140,138,138,.12); }
+.row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; line-height: 1.55; }
+.row:first-child { padding-top: 0; }
+.row:last-child { border-bottom: 0; padding-bottom: 0; }
+.row .lab { flex: none; width: 70px; color: var(--mid-gray); }
+.row .val { flex: 1; min-width: 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="location.href='good-release-live-list.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">审批结果</div>
+      <div class="topbar-space"></div>
+    </header>
+
+    <div class="demo-bar">
+      <strong>原型演示：</strong>旧页为静态占位实现（未接接口、数据写死、无跳转），仅有「已通过」单一状态，故本页无状态切换；字段结构与旧页 1:1，数据为 mock。
+    </div>
+
+    <main class="content">
+      <!-- 凭证图位 + 提示文案 -->
+      <div class="cert">
+        <div class="cert-img" aria-label="放行凭证图位（旧页为空图占位）">
+          <svg viewBox="0 0 96 96" fill="none" aria-hidden="true">
+            <circle cx="48" cy="48" r="44" fill="rgba(22,166,115,0.10)"/>
+            <circle cx="48" cy="48" r="30" stroke="#16A673" stroke-width="4"/>
+            <path d="M36 49l8 8 16-17" stroke="#16A673" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="cert-tip">您已通过物品放行审批</div>
+      </div>
+
+      <!-- 人员卡：姓名｜部门 + 状态标签 -->
+      <section class="card">
+        <div class="who">
+          <div class="nm">陈晓梅<em>|</em>品质管理部</div>
+          <span class="badge">不返厂</span>
+        </div>
+      </section>
+
+      <!-- 信息卡 1：放行事项 -->
+      <section class="card">
+        <div class="row"><span class="lab">放行事项:</span><span class="val">个人生活物品放行（行李箱一个、被褥一套）</span></div>
+      </section>
+
+      <!-- 信息卡 2：放行时间 / OA节点 -->
+      <section class="card">
+        <div class="row"><span class="lab">放行时间:</span><span class="val">2026-06-12 09:47</span></div>
+        <div class="row"><span class="lab">OA节点:</span><span class="val">保安核验（已完成）</span></div>
+      </section>
+    </main>
+  </div>
+</div>
+</body>
+</html>

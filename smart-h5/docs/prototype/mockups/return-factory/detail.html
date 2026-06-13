@@ -1,0 +1,283 @@
+<!doctype html>
+<!--
+  原型：返厂确认详情
+  旧路由：/xuchang/returnFactory/detail?id=（meta: 返厂确认详情）
+  旧组件：smart-h5/src/views-mobile/pages/return-factory/detail.vue
+          + pages/good-release-live/components/process/index.vue（审批流程时间线）
+          + pages/good-release-work/components/person-tag-detail.vue（放行人员标签云）
+          + pages/good-release-work/components/goods-tag.vue（放行物品标签云）
+          + views-mobile/components/page3-bottom.vue
+  接口：
+    GET  platform:/articlesrelease/detail/{id}                 放行条详情（services/goodRreleaseLive.js getDetailApi，复用物品放行详情接口）
+    POST platform:/articlesrelease/back/confirm/{releaseId}    确认返厂（services/returnFactory.js backConfirm，loading「请稍后」）
+  页面结构：
+    头部：申请人姓名 | 部门 deptName；标签 applyMain.sffcDesc=「是」→「返厂」，否则「不返厂」
+    信息字段（applyMain）：放行去处 fxqcDesc / 出发地点 fxddDesc / 到达地点 ddddDesc / 放行事项 fxsxDesc /
+                          放行类别 wpfxlbDesc / 放行人级别 sqrjbDesc / 附件 fjsc（图片，空显示「-」）
+    条件块：fxsx=0 或 7（人员放行）→「放行人员」标签云（personDetailList.xm），点击 → /xuchang/goodReleaseWork/detailPersonList
+            否则（物品放行）→「放行物品」标签云（{wpbm}-{wpmc}{wpsl}{wpdw}），点击 → /xuchang/goodReleaseWork/detailGoodsList
+    审批流程时间线（approvalProcess；result: 0待审批蓝/1通过绿/2拒绝、3关闭红/4等待灰）
+    底部固定栏：仅 status=4 且 backTime 为空时显示「确认返厂」主按钮
+  跳转：确认返厂成功 → /xuchang/returnFactory?curTabIndex=1（我确认的）；失败 toast
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>返厂确认详情 - 裕同智慧园区</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: var(--surface); }
+button { border: 0; cursor: pointer; background: none; padding: 0; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app {
+  position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--white);
+  box-shadow: var(--shadow-large); display: flex; flex-direction: column;
+}
+.topbar { display: flex; align-items: center; min-height: 46px; padding: max(14px, env(safe-area-inset-top)) 6px 4px; }
+.topbar .back { width: 44px; height: 44px; display: grid; place-items: center; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .spacer { width: 44px; }
+.demo-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 18px 0; padding: 8px 12px;
+  border: 1px dashed var(--light-gray); border-radius: 12px; background: #FBFBFB;
+  font-size: 12px; color: var(--mid-gray);
+}
+.demo-bar button { padding: 5px 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--border-soft); font-size: 12px; font-weight: 650; }
+.demo-bar button.on { background: var(--accent-soft); border-color: rgba(236,108,0,.3); color: var(--accent-ink); }
+.content { flex: 1; padding: 12px 18px 110px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.card h2 { margin: 0 0 8px; font-size: 15px; font-weight: 750; }
+/* 头部块 */
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.head-row .name { font-size: 17px; font-weight: 750; }
+.head-row .name .dept { color: var(--mid-gray); font-weight: 500; font-size: 14px; }
+.tag {
+  flex: none; display: inline-flex; align-items: center; border-radius: 999px;
+  padding: 5px 12px; font-size: 12px; font-weight: 650; white-space: nowrap;
+}
+.tag.back { color: var(--success); background: rgba(22,166,115,.12); }
+.tag.noback { color: var(--mid-gray); background: rgba(140,138,138,.12); }
+.row { display: flex; gap: 12px; font-size: 14px; padding: 11px 0; border-bottom: 1px solid var(--border-soft); }
+.row:last-child { border-bottom: 0; padding-bottom: 0; }
+.row:first-child { padding-top: 0; }
+.row .label { flex: none; width: 92px; color: var(--mid-gray); }
+.row .value { flex: 1; min-width: 0; text-align: right; }
+.thumb { display: inline-block; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-soft); }
+.thumb svg { display: block; width: 100%; height: 100%; }
+/* 标签云（放行人员/放行物品），整块可点跳列表页 */
+.chips-wrap { display: block; width: 100%; text-align: left; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 4px 12px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink);
+  font-size: 13px; font-weight: 650;
+}
+.chips-more { margin-top: 8px; font-size: 12px; color: var(--weak-gray); display: flex; align-items: center; gap: 4px; }
+/* 审批流程时间线 */
+.timeline { padding: 4px 0 0; }
+.node { display: flex; gap: 12px; }
+.node .rail { display: flex; flex-direction: column; align-items: center; }
+.node .dot { flex: none; width: 16px; height: 16px; border-radius: 999px; background: var(--accent-soft); border: 2px solid var(--brand-orange); margin-top: 2px; }
+.node .line { flex: 1; width: 2px; background: var(--border-soft); margin: 4px 0; }
+.node:last-child .line { display: none; }
+.node .body { flex: 1; padding-bottom: 18px; min-width: 0; }
+.node .title { font-size: 14px; font-weight: 700; }
+.person { margin-top: 6px; font-size: 14px; }
+.person .res-0 { color: var(--info); font-weight: 650; }
+.person .res-1 { color: var(--success); font-weight: 650; }
+.person .res-2 { color: var(--danger); font-weight: 650; }
+.person .res-4 { color: var(--weak-gray); font-weight: 650; }
+.meta { margin-top: 4px; font-size: 12px; color: var(--mid-gray); }
+/* 底部固定栏：仅 status=4 且 backTime 为空时显示 */
+.bottom-bar {
+  position: sticky; bottom: 0; padding: 12px 18px max(24px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 30%);
+  display: none;
+}
+.btn-primary {
+  width: 100%; min-height: 48px; border-radius: 14px; background: var(--brand-orange);
+  color: var(--white); font-size: 16px; font-weight: 650;
+}
+.btn-primary:active { background: var(--accent-strong); }
+/* 状态分支显隐 */
+.only { display: none !important; }
+.app[data-st="goods"] .only-goods,
+.app[data-st="person"] .only-person,
+.app[data-st="confirmed"] .only-confirmed,
+.app[data-st="noback"] .only-noback { display: block !important; }
+/* goods/person 两个待确认态显示确认按钮 */
+.app[data-st="goods"] .bottom-bar, .app[data-st="person"] .bottom-bar { display: block; }
+/* 物品/人员条件块：noback、confirmed 默认演示物品 */
+.app[data-st="confirmed"] .block-goods, .app[data-st="noback"] .block-goods { display: block !important; }
+.toast {
+  position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%);
+  background: rgba(89,87,87,.92); color: var(--white); font-size: 13px;
+  padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity .25s;
+  max-width: 80vw; text-align: center; z-index: 10;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app" data-st="goods" id="app">
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回入口页" onclick="location.href='index.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>返厂确认详情</h1>
+    <span class="spacer"></span>
+  </header>
+
+  <div class="demo-bar">原型演示·状态：
+    <button class="on" onclick="setSt('goods',this)">物品放行·待确认</button>
+    <button onclick="setSt('person',this)">人员放行·待确认</button>
+    <button onclick="setSt('confirmed',this)">已确认返厂</button>
+    <button onclick="setSt('noback',this)">不返厂</button>
+  </div>
+
+  <main class="content">
+    <!-- 头部块：姓名 | 部门 + 返厂/不返厂标签（applyMain.sffcDesc） -->
+    <section class="card">
+      <div class="head-row">
+        <span class="name">周建华 <span class="dept">| 设备工程部</span></span>
+        <span class="tag back" id="backTag">返厂</span>
+      </div>
+    </section>
+
+    <!-- 信息字段（applyMain） -->
+    <section class="card">
+      <div class="row"><span class="label">放行去处:</span><span class="value">市区维修服务点</span></div>
+      <div class="row"><span class="label">出发地点:</span><span class="value">许昌产业园南门</span></div>
+      <div class="row"><span class="label">到达地点:</span><span class="value">许昌市魏都区机电维修中心</span></div>
+      <div class="row"><span class="label">放行事项:</span><span class="value" id="fxsxVal">物品放行</span></div>
+      <div class="row"><span class="label">放行类别:</span><span class="value">设备送修（需返厂）</span></div>
+      <div class="row"><span class="label">放行人级别:</span><span class="value">部门主管级</span></div>
+      <div class="row"><span class="label">附件:</span>
+        <span class="value">
+          <span class="thumb"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#FFF1E3"/><rect x="16" y="12" width="32" height="40" rx="3" fill="#fff" stroke="#EC6C00" stroke-opacity=".45" stroke-width="2"/><path d="M22 24h20M22 32h20M22 40h12" stroke="#EC6C00" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/></svg></span>
+        </span>
+      </div>
+    </section>
+
+    <!-- 条件块：物品放行（fxsx≠0/7）→ 放行物品标签云「{wpbm}-{wpmc}{wpsl}{wpdw}」，点击 → 物品列表页 -->
+    <section class="card only only-goods block-goods">
+      <button class="chips-wrap" onclick="toast('原型演示：跳转 /xuchang/goodReleaseWork/detailGoodsList')">
+        <span class="row" style="border:0;padding:0"><span class="label">放行物品:</span></span>
+        <span class="chips">
+          <span class="chip">WP10023-气动冲压模具1套</span>
+          <span class="chip">WP10157-伺服电机2台</span>
+          <span class="chip">WP10260-控制柜面板1块</span>
+        </span>
+        <span class="chips-more">点击查看物品清单
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </button>
+    </section>
+
+    <!-- 条件块：人员放行（fxsx=0 或 7）→ 放行人员标签云（personDetailList.xm），点击 → 人员列表页 -->
+    <section class="card only only-person">
+      <button class="chips-wrap" onclick="toast('原型演示：跳转 /xuchang/goodReleaseWork/detailPersonList')">
+        <span class="row" style="border:0;padding:0"><span class="label">放行人员:</span></span>
+        <span class="chips">
+          <span class="chip">吴丽萍</span>
+          <span class="chip">高永强</span>
+          <span class="chip">许文静</span>
+        </span>
+        <span class="chips-more">点击查看人员清单
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </button>
+    </section>
+
+    <!-- 审批流程时间线（approvalProcess） -->
+    <section class="card">
+      <h2>审批流程</h2>
+      <div class="timeline">
+        <div class="node">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">周建华 - <span style="color:var(--info)">提交申请</span></div>
+            <div class="meta">2026-06-10 08:46:22</div>
+          </div>
+        </div>
+        <div class="node">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">部门主管审批</div>
+            <div class="person">罗永康 - <span class="res-1">通过</span></div>
+            <div class="meta">意见: 设备故障属实，同意送修</div>
+            <div class="meta">2026-06-10 09:30:15</div>
+          </div>
+        </div>
+        <div class="node">
+          <div class="rail"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <div class="title">安保门卫核验</div>
+            <div class="person">门岗-王守正 - <span class="res-1">通过</span></div>
+            <div class="meta">2026-06-10 10:05:48</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 已确认返厂演示：返厂确认完成节点（backTime 已写入，按钮隐藏） -->
+    <section class="card only only-confirmed">
+      <h2>返厂确认</h2>
+      <div class="row"><span class="label">确认人:</span><span class="value">门岗-王守正</span></div>
+      <div class="row"><span class="label">返厂时间:</span><span class="value">2026-06-10 17:42:09</span></div>
+    </section>
+  </main>
+
+  <!-- 底部固定栏：仅 status=4 且 backTime 为空时显示 -->
+  <div class="bottom-bar">
+    <button class="btn-primary" onclick="confirmBack()">确认返厂</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(()=>t.classList.remove('show'), 2000);
+}
+function setSt(st, btn){
+  document.getElementById('app').dataset.st = st;
+  document.querySelectorAll('.demo-bar button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  // 头部标签：sffcDesc=「是」→ 返厂，否则 不返厂
+  const tag = document.getElementById('backTag');
+  if (st === 'noback') { tag.textContent = '不返厂'; tag.className = 'tag noback'; }
+  else { tag.textContent = '返厂'; tag.className = 'tag back'; }
+  // 放行事项文案随人员/物品演示切换
+  document.getElementById('fxsxVal').textContent = (st === 'person') ? '人员放行' : '物品放行';
+}
+function confirmBack(){
+  // 旧逻辑：loading「请稍后」→ 成功跳 /xuchang/returnFactory?curTabIndex=1；失败 toast
+  toast('请稍后…（原型演示：确认成功，跳转 /xuchang/returnFactory?curTabIndex=1）');
+}
+</script>
+</body>
+</html>

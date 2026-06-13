@@ -1,0 +1,249 @@
+<!doctype html>
+<!--
+  原型：退宿申请 审批列表
+  旧路由：/xuchang/backLog/dormExit?curTabIndex={tab}
+  旧组件：views-mobile/pages/backLog/dorm-exit/list.vue
+          + backLog/dorm-exit/components/search-by-staff.vue（员工信息搜索弹层：工号/姓名）
+          + views-mobile/components/page3-tab / page3-bottom
+  接口：POST platform:/dor/quit/list/approval（isSecurityGuard, parkId, status 0待我审批/1我审批的, current, size=10, 可选 badge/name）
+        GET  app:/wechat/sign（微信 JS-SDK 签名，扫码用，入口已停用）
+        GET  platform:/articlesrelease/detail/{id}（扫码结果分流查询，入口已停用）
+  跳转：点卡片 → /xuchang/backLog/dormExit/detail?id={id}&curTabIndex={tab}
+  说明：底部「搜 索」仅保安(isSecurityGuard===0)可见；旧页「扫一扫」已注释停用，不展示
+        （其逻辑：扫物品放行码按 articlesType 3/4 分流到生活区/办公区放行详情）。
+  状态枚举（推断文案）：1待审批 / 2主管已通过(待保安确认) / 3已拒绝 / 4已放行 / 5保安拒绝。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>退宿申请 审批列表</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; margin: 0; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button, input { font: inherit; color: inherit; }
+button { border: 0; background: none; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 0 0; background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 200px); }
+.topbar { display: flex; align-items: center; min-height: 46px; padding: 0 6px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.back-btn svg { width: 22px; height: 22px; }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-space { width: 44px; }
+.demo-bar { margin: 6px 18px 10px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,241,227,.6); }
+.demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--accent-ink); margin-bottom: 6px; }
+.demo-bar .demo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-bar button { min-height: 30px; padding: 0 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--light-gray); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+.tabs { display: flex; margin: 0 18px 12px; background: var(--white); border: 1px solid var(--border-soft); border-radius: 14px; padding: 4px; box-shadow: var(--shadow-panel); }
+.tabs button { flex: 1; min-height: 40px; border-radius: 10px; font-size: 14px; font-weight: 650; color: var(--mid-gray); }
+.tabs button.on { background: var(--accent-soft); color: var(--accent-strong); }
+.list { flex: 1; padding: 2px 18px 120px; }
+.pull-hint { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 4px 0 10px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border-soft); }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.card-title { font-size: 15px; font-weight: 700; line-height: 1.35; }
+.badge { flex: none; border-radius: 999px; font-size: 12px; font-weight: 650; padding: 4px 10px; }
+.badge--wait { color: var(--warning); background: rgba(201,132,22,.12); }
+.badge--pass { color: var(--success); background: rgba(22,166,115,.12); }
+.badge--reject { color: var(--danger); background: rgba(216,59,54,.12); }
+.badge--doing { color: var(--info); background: rgba(35,118,217,.12); }
+.row { display: flex; gap: 10px; font-size: 13px; padding: 4px 0; }
+.row .lab { flex: none; width: 88px; color: var(--mid-gray); }
+.row .val { flex: 1; min-width: 0; }
+.row .val.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-lines { margin: 0; padding: 0; list-style: none; }
+.room-lines li { padding: 1px 0; }
+.card-arrow { display: flex; justify-content: flex-end; margin-top: 4px; }
+.card-arrow span { font-size: 12px; color: var(--brand-orange); font-weight: 650; }
+.load-more { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 8px 0 14px; }
+.empty { display: none; flex-direction: column; align-items: center; padding: 60px 0; }
+.empty svg { width: 96px; height: 96px; margin-bottom: 14px; }
+.empty p { margin: 0; font-size: 14px; color: var(--weak-gray); }
+.bottom-bar { position: sticky; bottom: 0; padding: 10px 18px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(247,247,247,0), var(--surface) 40%); }
+.bottom-pill { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-radius: 999px; background: var(--white); box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); width: 100%; font-size: 15px; font-weight: 650; color: var(--yuto-black); }
+.bottom-pill svg { width: 18px; height: 18px; }
+.guard-note { text-align: center; font-size: 11px; color: var(--weak-gray); margin-top: 6px; }
+.sheet-mask { position: fixed; inset: 0; display: none; align-items: flex-end; justify-content: center; background: rgba(89,87,87,.45); z-index: 30; }
+.sheet-mask.open { display: flex; }
+.sheet { width: min(100%, 430px); max-height: 86dvh; overflow: auto; background: var(--white); border-radius: 20px 20px 0 0; padding: 14px 18px max(24px, env(safe-area-inset-bottom)); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sheet-head .title { font-size: 15px; font-weight: 750; }
+.sheet-head .ok { font-size: 14px; font-weight: 700; color: var(--brand-orange); min-height: 44px; display: flex; align-items: center; }
+.sheet-head .cancel { font-size: 13px; font-weight: 650; color: var(--mid-gray); min-height: 44px; display: flex; align-items: center; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 6px; }
+.field input { width: 100%; height: 48px; border: 1px solid var(--border-soft); border-radius: 12px; padding: 0 14px; background: var(--white); }
+.field input:focus { outline: 3px solid rgba(236,108,0,.22); border-color: var(--brand-orange); }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(89,87,87,.92); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 10px; display: none; z-index: 50; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="toast('返回上一页')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">退宿申请</div>
+      <div class="topbar-space"></div>
+    </header>
+
+    <div class="demo-bar">
+      <div class="demo-tag">原型演示 · 状态切换</div>
+      <div class="demo-btns">
+        <button class="on" data-demo="wait" onclick="setDemo('wait',this)">待我审批的</button>
+        <button data-demo="done" onclick="setDemo('done',this)">我审批的</button>
+        <button data-demo="empty" onclick="setDemo('empty',this)">空态</button>
+        <button data-demo="staff" onclick="openSheet('staffSheet')">员工搜索弹层</button>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="审批状态">
+      <button id="tabWait" class="on" onclick="setDemo('wait',document.querySelector('[data-demo=wait]'))">待我审批的</button>
+      <button id="tabDone" onclick="setDemo('done',document.querySelector('[data-demo=done]'))">我审批的</button>
+    </nav>
+
+    <main class="list">
+      <div class="pull-hint">下拉刷新 · 更新成功</div>
+
+      <!-- 待我审批的（status=0） -->
+      <section id="listWait">
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormExit/detail?id=2026061121&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">林雅芳提交的退宿申请</div><span class="badge badge--wait">待审批</span></div>
+          <div class="row"><span class="lab">房间信息:</span>
+            <span class="val"><ul class="room-lines"><li>许昌园区3栋-312室-2号床</li></ul></span>
+          </div>
+          <div class="row"><span class="lab">退宿原因:</span><span class="val ellipsis">离职</span></div>
+          <div class="row"><span class="lab">预计离开时间:</span><span class="val ellipsis">2026-06-15 12:00</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val ellipsis">2026-06-11 09:05:42</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormExit/detail?id=2026061118&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">郭海涛提交的退宿申请</div><span class="badge badge--wait">待审批</span></div>
+          <div class="row"><span class="lab">房间信息:</span>
+            <span class="val"><ul class="room-lines"><li>许昌园区1栋-208室-4号床</li><li>许昌园区1栋-208室-储物柜B</li></ul></span>
+          </div>
+          <div class="row"><span class="lab">退宿原因:</span><span class="val ellipsis">调往合肥园区</span></div>
+          <div class="row"><span class="lab">预计离开时间:</span><span class="val ellipsis">2026-06-13 18:00</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val ellipsis">2026-06-10 20:31:08</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormExit/detail?id=2026061015&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">宋佳琪提交的退宿申请</div><span class="badge badge--doing">主管已通过(待保安确认)</span></div>
+          <div class="row"><span class="lab">房间信息:</span>
+            <span class="val"><ul class="room-lines"><li>许昌园区5栋-506室-1号床</li></ul></span>
+          </div>
+          <div class="row"><span class="lab">退宿原因:</span><span class="val ellipsis">搬至厂外自租住房</span></div>
+          <div class="row"><span class="lab">预计离开时间:</span><span class="val ellipsis">2026-06-12 09:00</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val ellipsis">2026-06-10 11:47:55</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <div class="load-more">上拉加载更多 · 第 1/2 页</div>
+      </section>
+
+      <!-- 我审批的（status=1） -->
+      <section id="listDone" style="display:none">
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormExit/detail?id=2026060924&curTabIndex=1')">
+          <div class="card-head"><div class="card-title">何文静提交的退宿申请</div><span class="badge badge--pass">已放行</span></div>
+          <div class="row"><span class="lab">房间信息:</span>
+            <span class="val"><ul class="room-lines"><li>许昌园区2栋-416室-3号床</li></ul></span>
+          </div>
+          <div class="row"><span class="lab">退宿原因:</span><span class="val ellipsis">离职</span></div>
+          <div class="row"><span class="lab">预计离开时间:</span><span class="val ellipsis">2026-06-10 10:00</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val ellipsis">2026-06-09 08:56:30</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/dormExit/detail?id=2026060816&curTabIndex=1')">
+          <div class="card-head"><div class="card-title">邓家辉提交的退宿申请</div><span class="badge badge--reject">已拒绝</span></div>
+          <div class="row"><span class="lab">房间信息:</span>
+            <span class="val"><ul class="room-lines"><li>许昌园区6栋-118室-6号床</li></ul></span>
+          </div>
+          <div class="row"><span class="lab">退宿原因:</span><span class="val ellipsis">个人原因</span></div>
+          <div class="row"><span class="lab">预计离开时间:</span><span class="val ellipsis">2026-06-09 17:30</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val ellipsis">2026-06-08 14:12:19</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <div class="load-more">没有更多了</div>
+      </section>
+
+      <!-- 空态 -->
+      <section id="listEmpty" class="empty">
+        <svg viewBox="0 0 96 96" aria-hidden="true">
+          <circle cx="48" cy="48" r="44" fill="#FFF1E3"/>
+          <rect x="32" y="38" width="32" height="26" rx="4" fill="#FFFFFF" stroke="#E5E3E3" stroke-width="2"/>
+          <path d="M32 46h32M40 38v26" stroke="#E5E3E3" stroke-width="2"/>
+          <circle cx="52" cy="55" r="4" fill="#EC6C00"/>
+        </svg>
+        <p>暂无退宿申请记录</p>
+      </section>
+    </main>
+
+    <!-- 底部搜索（仅保安 isSecurityGuard===0 可见；「扫一扫」旧代码已停用不展示） -->
+    <div class="bottom-bar">
+      <button class="bottom-pill" onclick="openSheet('staffSheet')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        搜 索
+      </button>
+      <div class="guard-note">当前身份：保安（isSecurityGuard=0），可使用搜索</div>
+    </div>
+  </div>
+</div>
+
+<!-- 员工信息搜索弹层（工号/姓名） -->
+<div class="sheet-mask" id="staffSheet" onclick="if(event.target===this)closeSheet('staffSheet')">
+  <div class="sheet">
+    <div class="sheet-head">
+      <button class="cancel" onclick="closeSheet('staffSheet')">取消</button>
+      <div class="title">按员工信息查找</div>
+      <button class="ok" onclick="closeSheet('staffSheet');toast('已按员工条件查询列表')">确定</button>
+    </div>
+    <div class="field"><label>工号</label><input placeholder="请输入" value="YT20416"></div>
+    <div class="field"><label>姓名</label><input placeholder="请输入" value="林雅芳"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+function setDemo(mode, btn){
+  document.querySelectorAll('.demo-bar .demo-btns button[data-demo]').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  document.getElementById('listWait').style.display = mode==='wait' ? '' : 'none';
+  document.getElementById('listDone').style.display = mode==='done' ? '' : 'none';
+  document.getElementById('listEmpty').style.display = mode==='empty' ? 'flex' : 'none';
+  document.getElementById('tabWait').classList.toggle('on', mode!=='done');
+  document.getElementById('tabDone').classList.toggle('on', mode==='done');
+}
+function openSheet(id){ document.getElementById(id).classList.add('open'); }
+function closeSheet(id){ document.getElementById(id).classList.remove('open'); }
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.style.display='none', 1800);
+}
+</script>
+</body>
+</html>

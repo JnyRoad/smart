@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<!--
+  原型：宿舍申请-查看数据（分配结果与身份特征）
+  旧路由：/xuchang/checkIn/detail
+  旧组件：smart-h5/src/views-mobile/pages/check-in/list.vue（page3-tab）
+  接口：
+    GET /dormitory/staff/roomList/{staffBadge}（分配记录列表；失败 toast message||「网络错误」）
+    GET /dormitory/staff/get/pwd（badge，门锁动态码密文，前端解密展示）
+  规则：每条记录展示 宿舍楼栋(dormitoryName) / 房间号(roomName+「房间」) / 床位(bedNumber+「号床」)；
+        「身份特征检查」框：指纹 fingerprintCode（1/3=成功图标，0/2/4=失败图标）+ fingerprintDesc；
+        动态码 dynamicCode（同色规则）+ 文案（dynamicCode===3 显示「已录入」，否则 dynamicDesc）；
+        卡底：fingerprintCode≠0 且取到动态码时居中展示解密后的动态码数字；
+        下拉刷新（重置第 1 页，提示「更新成功」）
+  跳转：Tab「发起提交」→ /xuchang/checkIn；Tab「查看数据」= 当前页
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>宿舍申请 · 查看数据</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-main); background: var(--surface); color: var(--yuto-black); }
+button { font: inherit; }
+.app {
+  width: min(100%, 430px); margin: 0 auto; min-height: 100dvh;
+  background: var(--white); box-shadow: var(--shadow-large);
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+.app::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 220px;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, rgba(255,241,227,0) 100%);
+  pointer-events: none;
+}
+.topbar { position: relative; z-index: 2; padding: max(14px, env(safe-area-inset-top)) 6px 6px; display: flex; align-items: center; }
+.back-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; }
+.back-btn svg { width: 22px; height: 22px; stroke: var(--yuto-black); }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-spacer { width: 44px; }
+.demo-bar {
+  position: relative; z-index: 2; margin: 4px 16px 0; padding: 8px 12px;
+  background: var(--accent-soft); border: 1px dashed var(--brand-orange); border-radius: 12px;
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--accent-ink); flex-wrap: wrap;
+}
+.demo-bar button { border: 1px solid var(--brand-orange); background: var(--white); color: var(--brand-orange); border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; min-height: 28px; }
+.demo-bar button.on { background: var(--brand-orange); color: var(--white); }
+/* Tab（与发起提交页一致） */
+.tabs { position: relative; z-index: 1; margin: 12px 16px 0; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); display: flex; padding: 5px; }
+.tab { flex: 1; min-height: 44px; border: none; border-radius: 12px; background: none; font-size: 15px; color: var(--mid-gray); cursor: pointer; }
+.tab.active { background: var(--brand-orange); color: var(--white); font-weight: 700; }
+
+.pull-hint { position: relative; z-index: 1; text-align: center; font-size: 12px; color: var(--weak-gray); padding: 10px 0 0; }
+
+.list { position: relative; z-index: 1; margin: 10px 16px 0; display: grid; gap: 12px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); padding: 16px 18px; }
+.kv { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 38px; }
+.kv .k { flex: none; font-size: 13px; color: var(--mid-gray); }
+.kv .v { flex: 1; min-width: 0; text-align: right; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.feature-box { margin-top: 10px; border: 1px solid var(--light-gray); border-radius: 12px; padding: 12px 14px; }
+.feature-box .fb-title { font-size: 13px; font-weight: 750; margin-bottom: 10px; }
+.f-row { display: flex; align-items: center; gap: 10px; min-height: 32px; }
+.f-row .f-label { flex: none; width: 52px; font-size: 13px; color: var(--mid-gray); }
+.f-ico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
+.f-ico.ok { background: var(--success); }
+.f-ico.bad { background: var(--danger); }
+.f-row .f-desc { font-size: 13px; font-weight: 600; }
+.f-row .f-desc.bad { color: var(--danger); }
+
+.pwd { margin-top: 12px; text-align: center; }
+.pwd .p-label { font-size: 12px; color: var(--weak-gray); }
+.pwd .p-num { margin-top: 4px; font-size: 24px; font-weight: 800; letter-spacing: 6px; color: var(--accent-strong); }
+
+.empty { display: none; position: relative; z-index: 1; padding: 56px 0 24px; text-align: center; }
+.empty .pic { width: 96px; height: 96px; margin: 0 auto 14px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; color: var(--brand-orange); }
+.empty p { font-size: 14px; color: var(--weak-gray); }
+
+.note { position: relative; z-index: 1; padding: 16px 18px max(24px, env(safe-area-inset-bottom)); font-size: 11px; color: var(--weak-gray); line-height: 1.6; }
+.toast { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); background: rgba(58,56,56,.92); color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 999px; display: none; z-index: 40; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <button class="back-btn" onclick="demoToast('返回上一页')" aria-label="返回">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">宿舍申请</div>
+    <div class="topbar-spacer"></div>
+  </div>
+
+  <div class="demo-bar">
+    <span>原型演示</span>
+    <button class="on" data-state="ok">特征全部成功</button>
+    <button data-state="partial">部分失败</button>
+    <button data-state="empty">空态</button>
+    <button data-state="fail">加载失败</button>
+  </div>
+
+  <!-- 顶部双 Tab -->
+  <div class="tabs">
+    <button class="tab" onclick="demoToast('跳转 /xuchang/checkIn')">发起提交</button>
+    <button class="tab active">查看数据</button>
+  </div>
+
+  <div class="pull-hint">↓ 下拉刷新（更新成功）</div>
+
+  <div class="list" id="list"></div>
+
+  <!-- 空态 -->
+  <div class="empty" id="empty">
+    <div class="pic">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><rect x="10" y="14" width="4" height="7"/></svg>
+    </div>
+    <p>暂无数据</p>
+  </div>
+
+  <p class="note">注：指纹/动态码状态 code 1、3 显示成功图标，0、2、4 显示失败图标；动态码 code=3 文案固定「已录入」，其余显示 dynamicDesc；卡底动态码数字在 fingerprintCode≠0 且 /dormitory/staff/get/pwd 返回密文时解密展示。</p>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function demoToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.style.display = 'none'; }, 2000);
+}
+var OK_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
+var BAD_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+// /dormitory/staff/roomList/{staffBadge} mock
+var DATA_OK = [{
+  dormitoryName: '3 号宿舍楼', roomName: '201', bedNumber: 3,
+  lockPwd: { fingerprintCode: 1, fingerprintDesc: '录入成功', dynamicCode: 3, dynamicDesc: '' },
+  pwdNum: '582934'
+}];
+var DATA_PARTIAL = [{
+  dormitoryName: '3 号宿舍楼', roomName: '201', bedNumber: 3,
+  lockPwd: { fingerprintCode: 1, fingerprintDesc: '录入成功', dynamicCode: 3, dynamicDesc: '' },
+  pwdNum: '582934'
+}, {
+  dormitoryName: '5 号宿舍楼', roomName: '316', bedNumber: 2,
+  lockPwd: { fingerprintCode: 2, fingerprintDesc: '录入失败', dynamicCode: 0, dynamicDesc: '未下发' },
+  pwdNum: null
+}];
+function isOk(code){ return code === 1 || code === 3; }
+function renderCard(item){
+  var fp = item.lockPwd;
+  var fpOk = isOk(fp.fingerprintCode), dyOk = isOk(fp.dynamicCode);
+  var dyText = fp.dynamicCode === 3 ? '已录入' : fp.dynamicDesc;
+  var html = '<div class="card">' +
+    '<div class="kv"><span class="k">宿舍楼栋</span><span class="v">' + item.dormitoryName + '</span></div>' +
+    '<div class="kv"><span class="k">房间号</span><span class="v">' + item.roomName + '房间</span></div>' +
+    '<div class="kv"><span class="k">床位</span><span class="v">' + item.bedNumber + '号床</span></div>' +
+    '<div class="feature-box"><div class="fb-title">身份特征检查</div>' +
+      '<div class="f-row"><span class="f-label">指纹</span><span class="f-ico ' + (fpOk ? 'ok' : 'bad') + '">' + (fpOk ? OK_ICON : BAD_ICON) + '</span><span class="f-desc' + (fpOk ? '' : ' bad') + '">' + fp.fingerprintDesc + '</span></div>' +
+      '<div class="f-row"><span class="f-label">动态码</span><span class="f-ico ' + (dyOk ? 'ok' : 'bad') + '">' + (dyOk ? OK_ICON : BAD_ICON) + '</span><span class="f-desc' + (dyOk ? '' : ' bad') + '">' + dyText + '</span></div>' +
+    '</div>';
+  if (fp.fingerprintCode !== 0 && item.pwdNum) {
+    html += '<div class="pwd"><div class="p-label">门锁动态码</div><div class="p-num">' + item.pwdNum + '</div></div>';
+  }
+  return html + '</div>';
+}
+function setState(s){
+  var list = document.getElementById('list');
+  document.getElementById('empty').style.display = 'none';
+  switch(s){
+    case 'ok': list.innerHTML = DATA_OK.map(renderCard).join(''); break;
+    case 'partial': list.innerHTML = DATA_PARTIAL.map(renderCard).join(''); break;
+    case 'empty': list.innerHTML = ''; document.getElementById('empty').style.display = 'block'; break;
+    case 'fail': list.innerHTML = ''; document.getElementById('empty').style.display = 'block'; demoToast('网络错误'); break;
+  }
+}
+document.querySelectorAll('.demo-bar button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.demo-bar button').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    setState(btn.dataset.state);
+  });
+});
+setState('ok');
+</script>
+</body>
+</html>

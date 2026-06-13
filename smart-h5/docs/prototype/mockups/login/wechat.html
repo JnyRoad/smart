@@ -1,0 +1,81 @@
+<!doctype html>
+<!--
+  原型：微信授权发起（纯跳板页）
+  旧路由：/xuchang/login/wechat
+  旧组件：src/views-mobile/pages/login/login_wechat.vue
+  接口：无后端接口。created 时立即重定向微信 OAuth：
+    https://open.weixin.qq.com/connect/oauth2/authorize
+      ?appid=wx5c0d26056102d41e
+      &redirect_uri={origin}/#/xuchang/login/wechat/code
+      &response_type=code&scope=snsapi_base&state=123#wechat_redirect
+  跳转：→ 微信授权 → /xuchang/login/wechat/code?code=xxx
+  说明：旧页为空白页面直接跳转；原型将该唯一状态可视化为「跳转中」过渡态。净室重写，未复用旧代码。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>裕慧家园 · 微信授权</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body {
+      min-height: 100dvh; margin: 0;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--surface);
+    }
+    .app {
+      width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: var(--white); box-shadow: var(--shadow-large);
+      display: flex; flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+    }
+    .topbar { display: flex; align-items: center; min-height: 46px; }
+    .brand-wordmark { font-size: 16px; font-weight: 750; }
+    .brand-wordmark em { font-style: normal; color: var(--brand-orange); }
+    .redirecting {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; text-align: center; padding-bottom: 60px;
+    }
+    .spinner {
+      width: 44px; height: 44px; border-radius: 999px;
+      border: 4px solid var(--accent-soft); border-top-color: var(--brand-orange);
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .redirecting h1 { margin: 0; font-size: 17px; font-weight: 750; color: var(--yuto-black); }
+    .redirecting p { margin: 0; font-size: 13px; color: var(--weak-gray); line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <span class="brand-wordmark">裕同<em>智慧园区</em></span>
+    </header>
+    <main class="redirecting" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>正在跳转微信授权…</h1>
+      <p>即将打开微信授权页（snsapi_base 静默授权）<br>授权完成后自动返回并登录</p>
+    </main>
+  </div>
+</body>
+</html>

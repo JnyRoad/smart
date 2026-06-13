@@ -1,0 +1,278 @@
+<!doctype html>
+<!--
+  原型：物品放行（办公区）- 发起提交（主表单）
+  旧路由：/xuchang/goodReleaseWork
+  旧组件：smart-h5/src/views-mobile/pages/good-release-work/index.vue
+          （page3-tab、page3-bottom、components/person-tag、components/goods-tag）
+  接口：POST /articlesrelease/office/save（提交申请，applyMain+badge+parkId+status=1+personList/thingList）
+  跳转：Tab「查看数据」→ list.html；人员放行入口 → add-person-list.html；
+        物品放行入口 → addGoodsList（后半部分 B）；提交成功 → list.html
+  数据流转：表单草稿 applyGoodsWorkInfo / 人员 goodsPersonInfo / 物品 releaseGoodsInfo 经 localStorage 暂存互通
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行（办公区）· 发起提交</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button, input, select { font: inherit; color: inherit; }
+button { border: 0; cursor: pointer; background: none; padding: 0; }
+.app {
+  width: min(100%, 430px); margin: 0 auto; min-height: 100dvh;
+  background: var(--white); box-shadow: var(--shadow-large);
+  display: flex; flex-direction: column; position: relative;
+}
+.page-bg {
+  position: absolute; inset: 0 0 auto 0; height: 220px;
+  background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 100%);
+  pointer-events: none;
+}
+.topbar {
+  position: relative; display: flex; align-items: center; min-height: 52px;
+  padding: max(14px, env(safe-area-inset-top)) 6px 0;
+}
+.nav-back {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+}
+.nav-back svg { display: block; }
+.page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.nav-spacer { width: 44px; height: 44px; }
+.tabs {
+  position: relative; display: flex; gap: 8px; margin: 10px 16px 0;
+  background: rgba(255,255,255,0.7); border: 1px solid var(--border-soft);
+  border-radius: 14px; padding: 4px;
+}
+.tab {
+  flex: 1; min-height: 44px; border-radius: 11px; font-size: 14px; font-weight: 650;
+  color: var(--mid-gray); display: flex; align-items: center; justify-content: center;
+}
+.tab.active { background: var(--brand-orange); color: var(--white); }
+.content { position: relative; flex: 1; padding: 14px 16px calc(96px + max(24px, env(safe-area-inset-bottom))); }
+.card {
+  background: var(--white); border: 1px solid var(--border-soft); border-radius: 16px;
+  box-shadow: var(--shadow-panel); padding: 6px 16px; margin-bottom: 12px;
+}
+.card-title { font-size: 13px; font-weight: 700; color: var(--mid-gray); padding: 12px 0 2px; }
+.field { padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+.field:last-child { border-bottom: 0; }
+.field-label { font-size: 13px; color: var(--mid-gray); margin-bottom: 8px; }
+.field-label .req { color: var(--danger); margin-left: 2px; }
+.input, .picker {
+  width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+  border-radius: 12px; background: var(--white); font-size: 15px;
+  display: flex; align-items: center; justify-content: space-between; text-align: left;
+}
+input.input::placeholder { color: var(--weak-gray); }
+input.input:focus { outline: 3px solid rgba(236,108,0,.22); outline-offset: 0; border-color: var(--brand-orange); }
+.picker .placeholder { color: var(--weak-gray); }
+.picker .value { color: var(--yuto-black); }
+.chevron { color: var(--weak-gray); flex: none; margin-left: 10px; }
+.upload-box {
+  min-height: 84px; border: 1px dashed var(--light-gray); border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  color: var(--weak-gray); font-size: 14px; width: 100%;
+}
+.upload-box svg { flex: none; }
+.entry-row {
+  width: 100%; min-height: 56px; padding: 12px 0; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; text-align: left;
+}
+.entry-row .entry-label { font-size: 13px; color: var(--mid-gray); flex: none; }
+.entry-main { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.entry-empty { color: var(--weak-gray); font-size: 14px; }
+.person-chip {
+  background: var(--accent-soft); color: var(--accent-ink); border-radius: 999px;
+  font-size: 12px; font-weight: 650; padding: 6px 12px;
+}
+.goods-chip {
+  background: rgba(35,118,217,0.10); color: var(--info); border-radius: 999px;
+  font-size: 12px; font-weight: 650; padding: 6px 12px;
+}
+.bottom-bar {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 0;
+  width: min(100%, 430px); padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+  background: rgba(255,255,255,0.94); backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border-soft);
+}
+.btn-primary {
+  width: 100%; min-height: 48px; border-radius: 14px; background: var(--brand-orange);
+  color: var(--white); font-size: 16px; font-weight: 650;
+}
+.btn-primary:active { background: var(--accent-strong); }
+/* 原型演示切换条 */
+.demo-bar {
+  position: relative; margin: 10px 16px 0; padding: 8px 10px;
+  border: 1px dashed var(--brand-orange); border-radius: 12px;
+  background: rgba(255,241,227,0.6); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.demo-bar .demo-tag { font-size: 11px; font-weight: 750; color: var(--accent-ink); flex: none; }
+.demo-bar button {
+  min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 650;
+  border: 1px solid var(--light-gray); background: var(--white); color: var(--mid-gray);
+}
+.demo-bar button.on { border-color: var(--brand-orange); background: var(--brand-orange); color: var(--white); }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page-bg"></div>
+  <header class="topbar">
+    <button class="nav-back" aria-label="返回" onclick="history.back()">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="page-title">物品放行（办公区）</div>
+    <div class="nav-spacer"></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active">发起提交</button>
+    <button class="tab" onclick="location.href='list.html'">查看数据</button>
+  </nav>
+
+  <div class="demo-bar" role="group" aria-label="原型演示">
+    <span class="demo-tag">原型演示</span>
+    <button id="d-person" class="on" onclick="setBranch('person')">人员放行分支</button>
+    <button id="d-goods" onclick="setBranch('goods')">物品放行分支</button>
+    <button id="d-empty" onclick="toggleEmpty()">空列表态</button>
+  </div>
+
+  <main class="content">
+    <!-- 表单组一 -->
+    <section class="card">
+      <div class="field">
+        <div class="field-label">放行去处<span class="req">*</span></div>
+        <button class="picker"><span class="value">厂外</span><span class="chevron">›</span></button>
+        <!-- 字典：厂内 / 厂外 -->
+      </div>
+      <div class="field">
+        <div class="field-label">是否返厂<span class="req">*</span></div>
+        <button class="picker"><span class="value">是</span><span class="chevron">›</span></button>
+        <!-- 字典：是 / 否 -->
+      </div>
+      <div class="field">
+        <div class="field-label">出发地点<span class="req">*</span></div>
+        <button class="picker"><span class="value">C栋</span><span class="chevron">›</span></button>
+        <!-- 字典：A栋/B栋/C栋/D栋/E栋/F栋/福侨4号仓库/厂区加工中心/纸托/万顺/市场开发部生活区/其它 -->
+      </div>
+      <div class="field">
+        <div class="field-label">出发备注<span class="req">*</span></div>
+        <input class="input" value="C栋3楼研发样品间" placeholder="请输入">
+      </div>
+      <div class="field">
+        <div class="field-label">到达地点<span class="req">*</span></div>
+        <button class="picker"><span class="value">福侨4号仓库</span><span class="chevron">›</span></button>
+      </div>
+      <div class="field">
+        <div class="field-label">到达备注<span class="req">*</span></div>
+        <input class="input" value="4号仓库东侧卸货口" placeholder="请输入">
+      </div>
+      <div class="field">
+        <div class="field-label">放行人级别<span class="req">*</span></div>
+        <button class="picker"><span class="value">课长级</span><span class="chevron">›</span></button>
+        <!-- 字典：周边职员级以下/生产楼层长以下/生产楼层长(含)以上/课长级/经理级 -->
+      </div>
+    </section>
+
+    <!-- 表单组二 -->
+    <section class="card">
+      <div class="field">
+        <div class="field-label">放行事项<span class="req">*</span></div>
+        <button class="picker" onclick="setBranch(branch==='person'?'goods':'person')">
+          <span class="value" id="fxsx-value">人员放行</span><span class="chevron">›</span>
+        </button>
+        <!-- 字典：人员放行/人员放行(仅限出差使用)/非保密物品放行/保密物品放行/电脑放行/固定资产放行(不包含电脑)/空车放行/自动化物品放行/废品出售；
+             取「人员放行」「人员放行(仅限出差使用)」时下方显示人员放行入口，其余显示物品放行入口 -->
+      </div>
+      <div class="field">
+        <div class="field-label">物品放行类别<span class="req">*</span></div>
+        <button class="picker"><span class="value">领/退/转料</span><span class="chevron">›</span></button>
+        <!-- 字典：领/退/转料、异动/转卖、其它 -->
+      </div>
+      <div class="field">
+        <div class="field-label">附件上传</div>
+        <button class="upload-box">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="4" width="18" height="14" rx="3" stroke="#AAA7A7" stroke-width="1.6"/><circle cx="8" cy="9.5" r="1.8" stroke="#AAA7A7" stroke-width="1.4"/><path d="m4.5 16 4.5-4 4 3.4L16 13l3.5 3" stroke="#AAA7A7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          点击上传图片（单张）
+        </button>
+      </div>
+    </section>
+
+    <!-- 人员放行入口（放行事项=人员放行/人员放行-出差 时显示） -->
+    <section class="card" id="block-person">
+      <button class="entry-row" onclick="location.href='add-person-list.html'">
+        <span class="entry-label">人员放行</span>
+        <span class="entry-main" id="person-chips">
+          <span class="person-chip">张伟明</span>
+          <span class="person-chip">李雪晴</span>
+        </span>
+        <span class="entry-main entry-empty hidden" id="person-empty">请添加</span>
+        <span class="chevron">›</span>
+      </button>
+    </section>
+
+    <!-- 物品放行入口（其余放行事项时显示） -->
+    <section class="card hidden" id="block-goods">
+      <button class="entry-row" onclick="alert('原型演示：跳转 添加物品-列表（addGoodsList，属后半部分 B）')">
+        <span class="entry-label">物品放行</span>
+        <span class="entry-main" id="goods-chips">
+          <span class="goods-chip">WP20260601-纸箱打样机1台</span>
+          <span class="goods-chip">WP20260602-瓦楞纸板30张</span>
+        </span>
+        <span class="entry-main entry-empty hidden" id="goods-empty">请添加</span>
+        <span class="chevron">›</span>
+      </button>
+    </section>
+  </main>
+
+  <footer class="bottom-bar">
+    <button class="btn-primary" onclick="location.href='list.html'">申请</button>
+  </footer>
+</div>
+
+<script>
+// 原型演示状态切换：人员/物品分支 + 子列表空态
+var branch = 'person';
+var empty = false;
+function render() {
+  document.getElementById('block-person').classList.toggle('hidden', branch !== 'person');
+  document.getElementById('block-goods').classList.toggle('hidden', branch !== 'goods');
+  document.getElementById('fxsx-value').textContent = branch === 'person' ? '人员放行' : '非保密物品放行';
+  document.getElementById('d-person').classList.toggle('on', branch === 'person');
+  document.getElementById('d-goods').classList.toggle('on', branch === 'goods');
+  document.getElementById('d-empty').classList.toggle('on', empty);
+  document.getElementById('person-chips').classList.toggle('hidden', empty);
+  document.getElementById('person-empty').classList.toggle('hidden', !empty);
+  document.getElementById('goods-chips').classList.toggle('hidden', empty);
+  document.getElementById('goods-empty').classList.toggle('hidden', !empty);
+}
+function setBranch(b) { branch = b; render(); }
+function toggleEmpty() { empty = !empty; render(); }
+render();
+</script>
+</body>
+</html>

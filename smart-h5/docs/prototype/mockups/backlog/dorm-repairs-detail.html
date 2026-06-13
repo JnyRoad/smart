@@ -1,0 +1,253 @@
+<!doctype html>
+<!--
+  原型：园区报修 审批详情
+  旧路由：/xuchang/backLog/dormRepairs/detail?id={approveId}&curTabIndex={tab}
+  旧组件：views-mobile/pages/backLog/dorm-repairs/detail.vue
+          + backLog/dorm-repairs/components/process/index.vue（审批流程时间轴）
+          + backLog/dorm-repairs/components/process/reply-record.vue（维修结果回复记录）
+          + views-mobile/components/page3-bottom
+  接口：GET  platform:/dormitory/repair/query/detail/{id}（详情）
+        GET  platform:/dormitory/repair/status/update（接单 status=1 / 不接单 status=2，参数 approveBadge/id/remark/status）
+        POST platform:/dormitory/repair/reply（维修结果：已安排维修 status=3 / 无法维修 status=4，参数 approveBadge/id/result/status）
+  跳转：接单/不接单成功 → /xuchang/backLog/dormRepairs?curTabIndex=0；
+        维修结果提交成功 → /xuchang/backLog/dormRepairs?curTabIndex=1；接口失败 toast「网络错误」。
+  说明：维修负责人视角。curTabIndex=0 显示「描述(非必填)」输入（maxlength=100）；
+        curTabIndex=1 且 repairReplyList 非空显示「维修结果」回复记录。
+        底部按钮按 status：0 → 不接单/接单；1 → 无法维修/已安排维修；其余仅查看。
+  状态流转：0待接单 → 1已接单(待维修) → 3维修成功 / 4无法维修；0 → 2不接单关闭。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>园区报修 审批详情</title>
+<style>
+:root {
+  --brand-orange: #EC6C00; --accent-strong: #D95F00; --accent-soft: #FFF1E3; --accent-ink: #5A2600;
+  --white: #FFFFFF; --surface: #F7F7F7; --yuto-black: #595757; --mid-gray: #8C8A8A; --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3; --border-soft: #EFEEEE; --success: #16A673; --warning: #C98416; --danger: #D83B36; --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89,87,87,.14); --shadow-panel: 0 16px 40px rgba(89,87,87,.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; margin: 0; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button, textarea { font: inherit; color: inherit; }
+button { border: 0; background: none; cursor: pointer; }
+button:focus-visible, textarea:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 0 0; background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 220px); }
+.topbar { display: flex; align-items: center; min-height: 46px; padding: 0 6px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.back-btn svg { width: 22px; height: 22px; }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-space { width: 44px; }
+.demo-bar { margin: 6px 18px 10px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,241,227,.6); }
+.demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--accent-ink); margin-bottom: 6px; }
+.demo-bar .demo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-bar button { min-height: 30px; padding: 0 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--light-gray); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+.content { flex: 1; padding: 0 18px 130px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); padding: 16px; margin-bottom: 12px; }
+.row { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.row:last-child { border-bottom: 0; }
+.row .lab { flex: none; width: 78px; color: var(--mid-gray); }
+.row .val { flex: 1; min-width: 0; }
+.badge { border-radius: 999px; font-size: 12px; font-weight: 650; padding: 4px 10px; }
+.badge--wait { color: var(--warning); background: rgba(201,132,22,.12); }
+.badge--pass { color: var(--success); background: rgba(22,166,115,.12); }
+.badge--reject { color: var(--danger); background: rgba(216,59,54,.12); }
+.badge--doing { color: var(--info); background: rgba(35,118,217,.12); }
+.sec-title { font-size: 14px; font-weight: 750; margin-bottom: 8px; }
+.img-list { display: flex; gap: 10px; }
+.thumb { width: 72px; height: 72px; border-radius: 10px; background: linear-gradient(135deg, #FFE2C4, #FFF1E3); border: 1px solid var(--light-gray); display: flex; align-items: center; justify-content: center; color: var(--accent-strong); font-size: 11px; text-align: center; }
+/* 流程时间轴 */
+.flow { padding: 4px 0 0; }
+.node { display: flex; gap: 12px; }
+.node .rail { display: flex; flex-direction: column; align-items: center; width: 18px; flex: none; }
+.node .dot { width: 14px; height: 14px; border-radius: 999px; background: var(--accent-soft); border: 3px solid var(--brand-orange); margin-top: 2px; }
+.node .line { flex: 1; width: 2px; background: var(--border-soft); margin: 4px 0; }
+.node:last-child .line { display: none; }
+.node .body { flex: 1; padding-bottom: 16px; }
+.node .n-title { font-size: 14px; font-weight: 700; }
+.node .n-person { font-size: 13px; margin-top: 4px; }
+.st0 { color: var(--info); font-weight: 650; }
+.st1 { color: var(--success); font-weight: 650; }
+.st2 { color: var(--danger); font-weight: 650; }
+.st4 { color: var(--weak-gray); font-weight: 650; }
+.node .n-remark { font-size: 12px; color: var(--mid-gray); margin-top: 3px; }
+.node .n-time { font-size: 12px; color: var(--weak-gray); margin-top: 3px; }
+/* 描述输入 */
+.remark-box textarea { width: 100%; min-height: 88px; border: 1px solid var(--border-soft); border-radius: 12px; padding: 12px 14px; resize: vertical; background: var(--white); }
+.remark-box textarea:focus { outline: 3px solid rgba(236,108,0,.22); border-color: var(--brand-orange); }
+.remark-count { text-align: right; font-size: 12px; color: var(--weak-gray); margin-top: 4px; }
+/* 维修结果回复记录 */
+.reply { border: 1px solid var(--border-soft); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface); }
+.reply:last-child { margin-bottom: 0; }
+.reply .row { padding: 5px 0; border-bottom: 0; }
+/* 底部按钮 */
+.bottom-bar { position: sticky; bottom: 0; display: flex; gap: 12px; padding: 10px 18px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(247,247,247,0), var(--surface) 40%); }
+.btn { flex: 1; min-height: 48px; border-radius: 14px; font-size: 15px; font-weight: 650; }
+.btn--primary { background: var(--brand-orange); color: #fff; }
+.btn--primary:active { background: var(--accent-strong); }
+.btn--ghost { background: var(--white); border: 1px solid var(--border-soft); color: var(--danger); box-shadow: var(--shadow-panel); }
+.done-tip { text-align: center; font-size: 13px; color: var(--weak-gray); padding: 14px 0 max(24px, env(safe-area-inset-bottom)); }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(89,87,87,.92); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 10px; display: none; z-index: 50; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="toast('返回列表')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">报修详情</div>
+      <div class="topbar-space"></div>
+    </header>
+
+    <div class="demo-bar">
+      <div class="demo-tag">原型演示 · 状态切换</div>
+      <div class="demo-btns">
+        <button class="on" onclick="setDemo('pending',this)">待接单</button>
+        <button onclick="setDemo('accepted',this)">已接单 · 回填维修结果</button>
+        <button onclick="setDemo('replied',this)">我审批的 · 维修结果</button>
+      </div>
+    </div>
+
+    <main class="content">
+      <!-- 状态卡 -->
+      <section class="card">
+        <div class="row"><span class="lab">状态:</span><span class="val"><span class="badge badge--wait" id="statusBadge">待接单</span></span></div>
+        <div class="row"><span class="lab">报修时间:</span><span class="val">2026-06-11 08:42:17</span></div>
+      </section>
+
+      <!-- 报修信息 -->
+      <section class="card">
+        <div class="sec-title">报修信息</div>
+        <div class="row"><span class="lab">姓名:</span><span class="val">周晓兰</span></div>
+        <div class="row"><span class="lab">工号:</span><span class="val">YT15327</span></div>
+        <div class="row"><span class="lab">BU:</span><span class="val">许昌裕同印刷包装有限公司</span></div>
+        <div class="row"><span class="lab">部门:</span><span class="val">印刷一课</span></div>
+        <div class="row"><span class="lab">维修区域:</span><span class="val">宿舍区</span></div>
+        <div class="row"><span class="lab">维修类别:</span><span class="val">水电维修</span></div>
+        <div class="row"><span class="lab">维修位置:</span><span class="val">许昌园区3栋#312室</span></div>
+        <div class="row"><span class="lab">所在园区:</span><span class="val">许昌园区</span></div>
+        <div class="row"><span class="lab">故障描述:</span><span class="val">浴室热水器不出热水，开关指示灯不亮，疑似加热管损坏</span></div>
+        <div class="row"><span class="lab">物品照片:</span>
+          <span class="val img-list">
+            <button class="thumb" onclick="toast('预览照片 1/2')">热水器<br>正面</button>
+            <button class="thumb" onclick="toast('预览照片 2/2')">控制面板<br>指示灯</button>
+          </span>
+        </div>
+      </section>
+
+      <!-- 审批流程 -->
+      <section class="card">
+        <div class="sec-title">审批流程</div>
+        <div class="flow">
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-person"><strong>周晓兰</strong>-<span class="st0">提交报修</span></div>
+              <div class="n-time">2026-06-11 08:42:17</div>
+            </div>
+          </div>
+          <div class="node">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">维修负责人接单</div>
+              <div class="n-person">吴师傅-<span id="acceptResult" class="st0">待接单</span></div>
+              <div class="n-remark" id="acceptRemark" style="display:none">意见: 已接单，今天下午上门检修</div>
+              <div class="n-time" id="acceptTime">—</div>
+            </div>
+          </div>
+          <div class="node" id="repairNode" style="display:none">
+            <div class="rail"><div class="dot"></div><div class="line"></div></div>
+            <div class="body">
+              <div class="n-title">维修处理</div>
+              <div class="n-person">吴师傅-<span id="repairResult" class="st1">维修成功</span></div>
+              <div class="n-time" id="repairTime">2026-06-11 15:36:02</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 描述输入（curTabIndex=0 时显示，maxlength=100） -->
+      <section class="card remark-box" id="remarkBlock">
+        <div class="sec-title">描述(非必填)</div>
+        <textarea id="remarkInput" maxlength="100" placeholder="请输入内容" oninput="countRemark()"></textarea>
+        <div class="remark-count"><span id="remarkLen">0</span>/100</div>
+      </section>
+
+      <!-- 维修结果（curTabIndex=1 且 repairReplyList 非空时显示） -->
+      <section class="card" id="replyBlock" style="display:none">
+        <div class="sec-title">维修结果</div>
+        <div class="reply">
+          <div class="row"><span class="lab">维修结果:</span><span class="val st1">维修成功</span></div>
+          <div class="row"><span class="lab">维修时间:</span><span class="val">2026-06-11 15:36:02</span></div>
+          <div class="row"><span class="lab">回复人:</span><span class="val">吴师傅</span></div>
+          <div class="row"><span class="lab">回复内容:</span><span class="val">已更换加热管并测试出水温度正常，请试用确认</span></div>
+        </div>
+        <div class="reply">
+          <div class="row"><span class="lab">维修结果:</span><span class="val st0">已安排维修</span></div>
+          <div class="row"><span class="lab">维修时间:</span><span class="val">2026-06-11 10:20:45</span></div>
+          <div class="row"><span class="lab">回复人:</span><span class="val">吴师傅</span></div>
+          <div class="row"><span class="lab">回复内容:</span><span class="val">配件已领用，今天下午 3 点前上门维修</span></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- status===0：不接单(2) / 接单(1) -->
+    <div class="bottom-bar" id="barPending">
+      <button class="btn btn--ghost" onclick="toast('不接单(status=2)：GET /dormitory/repair/status/update，成功跳列表 curTabIndex=0')">不接单</button>
+      <button class="btn btn--primary" onclick="toast('接单(status=1)：GET /dormitory/repair/status/update，成功跳列表 curTabIndex=0')">接单</button>
+    </div>
+    <!-- status===1：无法维修(4) / 已安排维修(3) -->
+    <div class="bottom-bar" id="barAccepted" style="display:none">
+      <button class="btn btn--ghost" onclick="toast('无法维修(status=4)：POST /dormitory/repair/reply，成功跳列表 curTabIndex=1')">无法维修</button>
+      <button class="btn btn--primary" onclick="toast('已安排维修(status=3)：POST /dormitory/repair/reply，成功跳列表 curTabIndex=1')">已安排维修</button>
+    </div>
+    <div class="done-tip" id="doneTip" style="display:none">该工单已处理完成，仅供查看</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+function setDemo(mode, btn){
+  document.querySelectorAll('.demo-btns button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const pending = mode==='pending';
+  const accepted = mode==='accepted';
+  const replied = mode==='replied';
+  const sb = document.getElementById('statusBadge');
+  if(pending){ sb.textContent='待接单'; sb.className='badge badge--wait'; }
+  else if(accepted){ sb.textContent='已接单(待维修)'; sb.className='badge badge--doing'; }
+  else { sb.textContent='维修成功'; sb.className='badge badge--pass'; }
+  // 流程时间轴
+  const ar = document.getElementById('acceptResult');
+  ar.textContent = pending ? '待接单' : '已接单';
+  ar.className = pending ? 'st0' : 'st1';
+  document.getElementById('acceptRemark').style.display = pending ? 'none' : '';
+  document.getElementById('acceptTime').textContent = pending ? '—' : '2026-06-11 09:18:54';
+  document.getElementById('repairNode').style.display = replied ? '' : 'none';
+  // 描述输入（curTabIndex=0） / 维修结果（curTabIndex=1）
+  document.getElementById('remarkBlock').style.display = replied ? 'none' : '';
+  document.getElementById('replyBlock').style.display = replied ? '' : 'none';
+  // 底部操作
+  document.getElementById('barPending').style.display = pending ? 'flex' : 'none';
+  document.getElementById('barAccepted').style.display = accepted ? 'flex' : 'none';
+  document.getElementById('doneTip').style.display = replied ? '' : 'none';
+}
+function countRemark(){
+  document.getElementById('remarkLen').textContent = document.getElementById('remarkInput').value.length;
+}
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.style.display='none', 2200);
+}
+</script>
+</body>
+</html>

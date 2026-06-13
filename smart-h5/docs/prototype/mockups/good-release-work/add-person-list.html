@@ -1,0 +1,188 @@
+<!doctype html>
+<!--
+  原型：物品放行（办公区）- 添加人员-列表
+  旧路由：/xuchang/goodReleaseWork/addPersonList
+  旧组件：views-mobile/pages/good-release-work/add-person-list.vue（组件：page3-bottom）
+  接口：无（数据来自 localStorage goodsPersonInfo 暂存）
+  跳转：新增人员 → /xuchang/goodReleaseWork/addPerson
+        编辑图标 → /xuchang/goodReleaseWork/addPerson?itemInfo&itemIndex&isEdit=true
+        确定 → /xuchang/goodReleaseWork（申请主页）
+  说明：编辑链路可增删改；删除直接从数组移除并写回暂存（旧版无二次确认）。
+        原型用顶部演示条切换「有数据 / 空态」。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>添加人员-列表 · 物品放行（办公区）</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button { border: 0; cursor: pointer; background: none; padding: 0; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 16px calc(110px + max(24px, env(safe-area-inset-bottom))); background: linear-gradient(180deg, var(--accent-soft) 0, var(--surface) 180px); }
+.topbar { display: flex; align-items: center; min-height: 46px; }
+.back { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; color: var(--yuto-black); }
+.topbar .spacer { width: 44px; }
+.demo-switch { display: flex; align-items: center; gap: 8px; margin: 10px 2px 14px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,255,255,.7); font-size: 12px; color: var(--accent-ink); }
+.demo-switch strong { font-weight: 750; }
+.demo-switch .seg { display: flex; margin-left: auto; border: 1px solid var(--border-soft); border-radius: 999px; background: var(--white); overflow: hidden; }
+.demo-switch .seg button { min-height: 30px; padding: 0 12px; font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-switch .seg button.on { background: var(--brand-orange); color: var(--white); }
+.top-tip { margin: 2px 2px 12px; font-size: 13px; color: var(--mid-gray); }
+.item { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.item-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.item-head .name { font-size: 15px; font-weight: 700; color: var(--yuto-black); line-height: 1.4; }
+.item-head .code { margin-left: 8px; font-size: 12px; color: var(--weak-gray); font-weight: 400; }
+.item-actions { display: flex; gap: 4px; flex: none; }
+.icon-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; }
+.icon-btn:active { background: var(--surface); }
+.kv { display: flex; padding: 5px 0; font-size: 13px; }
+.kv .k { width: 78px; flex: none; color: var(--mid-gray); }
+.kv .v { flex: 1; color: var(--yuto-black); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty { display: none; padding: 70px 30px 40px; text-align: center; }
+.empty svg { display: block; margin: 0 auto 18px; }
+.empty p { margin: 4px 0; font-size: 14px; color: var(--weak-gray); line-height: 1.6; }
+.bottom-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: min(100%, 430px); display: flex; gap: 12px; padding: 14px 18px max(24px, env(safe-area-inset-bottom)); background: rgba(255,255,255,.96); border-top: 1px solid var(--border-soft); backdrop-filter: blur(8px); }
+.btn { flex: 1; display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 14px; font-size: 16px; font-weight: 650; }
+.btn-secondary { background: var(--white); border: 1px solid var(--border-soft); color: var(--brand-orange); box-shadow: var(--shadow-panel); }
+.btn-primary { background: var(--brand-orange); color: var(--white); }
+.btn-primary:active { background: var(--accent-strong); }
+.toast { position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%); padding: 10px 18px; border-radius: 999px; background: rgba(89,87,87,.92); color: var(--white); font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 40; white-space: nowrap; }
+.toast.show { opacity: 1; }
+body.is-empty .list-zone { display: none; }
+body.is-empty .empty { display: block; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back" aria-label="返回" onclick="toast('返回上一页')">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 6.5 10l6 6" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1>添加人员</h1>
+      <div class="spacer"></div>
+    </header>
+
+    <div class="demo-switch">
+      <strong>原型演示</strong>·页面状态
+      <div class="seg">
+        <button id="segList" class="on" onclick="setEmpty(false)">有数据</button>
+        <button id="segEmpty" onclick="setEmpty(true)">空态</button>
+      </div>
+    </div>
+
+    <div class="list-zone">
+      <p class="top-tip">已添加放行人员（3人）</p>
+
+      <article class="item">
+        <div class="item-head">
+          <div class="name">张伟明<span class="code">YT08231</span></div>
+          <div class="item-actions">
+            <button class="icon-btn" aria-label="编辑" onclick="toast('编辑：跳转添加人员页（带回当前数据）')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 12.8 12 3.8l2.2 2.2-9 9L2 16l1-3.2Z" stroke="#2376D9" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="icon-btn" aria-label="删除" onclick="toast('删除：直接从列表移除该人员')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3.5h4V5M5 5l.8 9.5h6.4L13 5M7.5 8v4M10.5 8v4" stroke="#D83B36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="kv"><span class="k">离厂事由</span><span class="v">送样品至福侨4号仓库</span></div>
+        <div class="kv"><span class="k">离厂时间</span><span class="v">2026-06-12 14:30</span></div>
+      </article>
+
+      <article class="item">
+        <div class="item-head">
+          <div class="name">李雪梅<span class="code">YT21034</span></div>
+          <div class="item-actions">
+            <button class="icon-btn" aria-label="编辑" onclick="toast('编辑：跳转添加人员页（带回当前数据）')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 12.8 12 3.8l2.2 2.2-9 9L2 16l1-3.2Z" stroke="#2376D9" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="icon-btn" aria-label="删除" onclick="toast('删除：直接从列表移除该人员')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3.5h4V5M5 5l.8 9.5h6.4L13 5M7.5 8v4M10.5 8v4" stroke="#D83B36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="kv"><span class="k">离厂事由</span><span class="v">协助办理资产交接手续</span></div>
+        <div class="kv"><span class="k">离厂时间</span><span class="v">2026-06-12 14:30</span></div>
+      </article>
+
+      <article class="item">
+        <div class="item-head">
+          <div class="name">王建国<span class="code">YT17052</span></div>
+          <div class="item-actions">
+            <button class="icon-btn" aria-label="编辑" onclick="toast('编辑：跳转添加人员页（带回当前数据）')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 12.8 12 3.8l2.2 2.2-9 9L2 16l1-3.2Z" stroke="#2376D9" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="icon-btn" aria-label="删除" onclick="toast('删除：直接从列表移除该人员')">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3.5h4V5M5 5l.8 9.5h6.4L13 5M7.5 8v4M10.5 8v4" stroke="#D83B36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="kv"><span class="k">离厂事由</span><span class="v">驾驶货车运送放行物品出厂</span></div>
+        <div class="kv"><span class="k">离厂时间</span><span class="v">2026-06-12 14:00</span></div>
+      </article>
+    </div>
+
+    <div class="empty">
+      <svg width="120" height="120" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+        <circle cx="60" cy="60" r="56" fill="#FFF1E3"/>
+        <circle cx="60" cy="50" r="13" fill="#FFFFFF" stroke="#E5E3E3" stroke-width="2"/>
+        <path d="M38 88c2.5-13 11.5-20 22-20s19.5 7 22 20" fill="#FFFFFF" stroke="#E5E3E3" stroke-width="2"/>
+        <circle cx="84" cy="44" r="11" fill="#EC6C00" opacity=".85"/>
+        <path d="M84 39.5v9M79.5 44h9" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <p>暂无放行人员信息</p>
+      <p>请点击下方按钮添加放行人员</p>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn btn-secondary" onclick="toast('跳转：添加人员页（新增模式）')">新增人员</button>
+    <button class="btn btn-primary" onclick="toast('跳转：返回物品放行申请主页')">确 定</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1800);
+}
+function setEmpty(empty) {
+  document.body.classList.toggle('is-empty', empty);
+  document.getElementById('segList').classList.toggle('on', !empty);
+  document.getElementById('segEmpty').classList.toggle('on', empty);
+}
+</script>
+</body>
+</html>

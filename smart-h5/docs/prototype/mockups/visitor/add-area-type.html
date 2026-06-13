@@ -1,0 +1,246 @@
+<!doctype html>
+<!--
+  原型：访客-添加授权进入区域
+  旧路由：/xuchang/visitor/addAreaType?type=&factoryType=&parkId=
+  旧组件：smart-h5/src/views-mobile/pages/visitor/addAreaType.vue
+  接口：
+    GET /admittance/apply/app/area-options?parkId=     园区区域配置（优先，带本地缓存）
+    GET /admittance/apply/enum/factory/type?flag=       厂区区域枚举（兜底，flag=type，1新工厂/0老工厂）
+  跳转：确定（写 localStorage new/oldAreaTypeList + visitorAreaTypeByFactory_{parkId}）→ /xuchang/visitor/visitorInfo
+  状态：区域列表 / 搜索无匹配（输入关键词即可演示）/ 配置不可用（toast）
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>授权进入区域 - 裕同智慧园区</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; min-height: 100dvh; }
+    button, input { font: inherit; color: inherit; }
+    button { border: 0; cursor: pointer; background: none; }
+    button:focus-visible, input:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 220px) var(--white);
+      box-shadow: var(--shadow-large); display: flex; flex-direction: column;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+    .demo-bar {
+      margin: 0 16px 10px; padding: 8px 12px; border-radius: 12px;
+      background: rgba(89, 87, 87, 0.06); border: 1px dashed var(--light-gray);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--mid-gray); letter-spacing: 1px; }
+    .demo-bar button {
+      min-height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 650;
+      background: var(--white); border: 1px solid var(--light-gray); color: var(--mid-gray);
+    }
+    .demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: var(--white); }
+    .topbar { display: flex; align-items: center; min-height: 48px; padding: 0 6px; }
+    .back-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; }
+    .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; margin: 0; }
+    .topbar-spacer { width: 44px; }
+    .content { flex: 1; padding: 8px 16px 140px; }
+    .card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+    .search-box { position: relative; }
+    .search-box svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); }
+    .search-input {
+      width: 100%; height: 48px; padding: 0 14px 0 40px; border: 1px solid var(--border-soft);
+      border-radius: 12px; font-size: 15px; background: var(--white);
+    }
+    .search-input::placeholder { color: var(--weak-gray); }
+    .search-input:focus { outline: 3px solid rgba(236, 108, 0, 0.22); border-color: var(--brand-orange); }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+    .select-all {
+      min-height: 36px; padding: 0 16px; border: 1px solid var(--brand-orange); border-radius: 999px;
+      color: var(--brand-orange); font-size: 13px; font-weight: 650; background: var(--white);
+    }
+    .select-all:active { background: var(--accent-soft); }
+    .selected-count { font-size: 13px; color: var(--mid-gray); }
+    .area-list { margin-top: 4px; }
+    .area-item { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 4px 2px; cursor: pointer; }
+    .area-item + .area-item { border-top: 1px solid var(--border-soft); }
+    .area-item input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .checkbox {
+      flex: none; width: 22px; height: 22px; border-radius: 7px; border: 1.5px solid var(--light-gray);
+      display: grid; place-items: center; background: var(--white); transition: all .12s;
+    }
+    .checkbox svg { opacity: 0; }
+    .area-item input:checked + .checkbox { background: var(--brand-orange); border-color: var(--brand-orange); }
+    .area-item input:checked + .checkbox svg { opacity: 1; }
+    .area-item input:focus-visible + .checkbox { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .area-name { font-size: 15px; line-height: 1.4; }
+    .area-empty { padding: 28px 10px; text-align: center; color: var(--weak-gray); font-size: 14px; }
+    .field-label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 7px; }
+    .input {
+      width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+      border-radius: 12px; font-size: 15px;
+    }
+    .input::placeholder { color: var(--weak-gray); }
+    .input:focus { outline: 3px solid rgba(236, 108, 0, 0.22); border-color: var(--brand-orange); }
+    .footer {
+      position: sticky; bottom: 0; display: flex; gap: 12px;
+      padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 30%);
+    }
+    .btn { flex: 1; height: 48px; border-radius: 14px; font-size: 16px; font-weight: 650; }
+    .btn-primary { background: var(--brand-orange); color: var(--white); }
+    .btn-primary:active { background: var(--accent-strong); }
+    .btn-secondary { background: var(--white); border: 1px solid var(--border-soft); color: var(--yuto-black); box-shadow: var(--shadow-panel); }
+    .toast {
+      position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%);
+      max-width: 320px; padding: 12px 18px; border-radius: 12px;
+      background: rgba(89, 87, 87, 0.92); color: var(--white); font-size: 13px; text-align: center;
+      opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 9;
+    }
+    .toast.show { opacity: 1; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="demo-bar" role="group" aria-label="原型演示状态切换">
+      <span class="demo-tag">原型演示</span>
+      <button id="demoOk" class="on" onclick="setState('ok')">区域列表</button>
+      <button id="demoUnavail" onclick="setState('unavail')">配置不可用</button>
+    </div>
+
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回访客信息页">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 3.75 6.25 10l6.25 6.25" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1 class="page-title">授权进入区域（新工厂）</h1>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="content">
+      <section class="card">
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" stroke="#AAA7A7" stroke-width="1.8" fill="none"/><path d="m11 11 3.2 3.2" stroke="#AAA7A7" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input class="search-input" id="searchInput" placeholder="搜索授权区域" oninput="filterAreas()">
+        </div>
+        <div class="toolbar">
+          <button class="select-all" id="selectAllBtn" onclick="toggleAll()">全选</button>
+          <span class="selected-count" id="selectedCount">已选 2/6</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="area-list" id="areaList"></div>
+        <div class="area-empty" id="areaEmptySearch" hidden>暂无匹配区域</div>
+        <div class="area-empty" id="areaEmptyUnavail" hidden>授权区域配置不可用，请联系管理员</div>
+      </section>
+
+      <section class="card">
+        <label class="field-label" for="customPos">详细位置</label>
+        <input class="input" id="customPos" placeholder="可补充具体楼栋/车间位置" value="3号厂房印刷车间">
+      </section>
+    </main>
+
+    <footer class="footer">
+      <button class="btn btn-primary" title="保存到 localStorage 并跳转 /xuchang/visitor/visitorInfo">确定</button>
+      <button class="btn btn-secondary" onclick="resetAll()">重置</button>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    // mock 区域数据（接口 /admittance/apply/app/area-options 返回的本厂区 areas）
+    var areas = [
+      { code: '101', name: '一号厂房（彩印车间）', checked: true },
+      { code: '102', name: '二号厂房（精品盒车间）', checked: false },
+      { code: '103', name: '三号厂房（印刷车间）', checked: true },
+      { code: '104', name: '研发中心', checked: false },
+      { code: '105', name: '行政办公楼', checked: false },
+      { code: '106', name: '成品仓库', checked: false }
+    ];
+    var unavailable = false;
+
+    function render() {
+      var keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+      var listEl = document.getElementById('areaList');
+      listEl.innerHTML = '';
+      var shown = 0;
+      if (!unavailable) {
+        areas.forEach(function (a, i) {
+          if (keyword && a.name.toLowerCase().indexOf(keyword) === -1) return;
+          shown++;
+          var label = document.createElement('label');
+          label.className = 'area-item';
+          label.innerHTML =
+            '<input type="checkbox" data-i="' + i + '"' + (a.checked ? ' checked' : '') + '>' +
+            '<span class="checkbox"><svg width="13" height="13" viewBox="0 0 13 13"><path d="M2.5 7l3 3 5-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
+            '<span class="area-name"></span>';
+          label.querySelector('.area-name').textContent = a.name;
+          label.querySelector('input').addEventListener('change', function (e) {
+            areas[Number(e.target.dataset.i)].checked = e.target.checked;
+            render();
+          });
+          listEl.appendChild(label);
+        });
+      }
+      document.getElementById('areaEmptySearch').hidden = unavailable || shown > 0;
+      document.getElementById('areaEmptyUnavail').hidden = !unavailable;
+      var selected = areas.filter(function (a) { return a.checked; }).length;
+      var total = unavailable ? 0 : areas.length;
+      document.getElementById('selectedCount').textContent = '已选 ' + (unavailable ? 0 : selected) + '/' + total;
+      var allChecked = !unavailable && areas.length > 0 && selected === areas.length;
+      document.getElementById('selectAllBtn').textContent = allChecked ? '取消全选' : '全选';
+    }
+    function filterAreas() { render(); }
+    function toggleAll() {
+      if (unavailable) return;
+      var allChecked = areas.every(function (a) { return a.checked; });
+      areas.forEach(function (a) { a.checked = !allChecked; });
+      render();
+    }
+    function resetAll() {
+      areas.forEach(function (a) { a.checked = false; });
+      document.getElementById('customPos').value = '';
+      render();
+    }
+    function setState(s) {
+      unavailable = s === 'unavail';
+      document.getElementById('demoOk').classList.toggle('on', !unavailable);
+      document.getElementById('demoUnavail').classList.toggle('on', unavailable);
+      if (unavailable) {
+        areas.forEach(function (a) { a.checked = false; });
+        showToast('授权区域配置不可用，请联系管理员');
+      }
+      render();
+    }
+    var toastTimer;
+    function showToast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2400);
+    }
+    render();
+  </script>
+</body>
+</html>

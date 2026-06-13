@@ -1,0 +1,189 @@
+<!doctype html>
+<!--
+  原型：物品放行（生活区）- 查看数据（记录列表）
+  旧路由：/xuchang/goodReleaseLive/list
+  旧组件：smart-h5/src/views-mobile/pages/good-release-live/list.vue
+          （引用 page3-tab、cube-scroll 下拉刷新/上拉加载、tce-empty 空态）
+  接口：
+    - GET platform /articlesrelease/page  参数 badge（工号）、type=3（固定生活区）、current、size=10
+  跳转：卡片 → /xuchang/goodReleaseLive/detail?id=；Tab「发起提交」→ /xuchang/goodReleaseLive
+  状态着色事实：标签文案显示 oaNode；status=2 绿、status=3 红、其余默认色
+  净室声明：仅复刻功能事实与界面文案，未复制旧代码。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行（生活区）· 查看数据</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button { border: 0; cursor: pointer; background: none; font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); overflow: hidden; }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--surface); }
+.topbar { display: flex; align-items: center; min-height: 46px; }
+.back { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; border-radius: 12px; }
+.topbar h1 { flex: 1; margin: 0; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .ph { width: 44px; }
+.tabs { display: flex; margin: 10px 0 14px; padding: 4px; background: rgba(255,255,255,.78); border: 1px solid var(--border-soft); border-radius: 14px; }
+.tabs button { flex: 1; min-height: 40px; border-radius: 11px; font-size: 14px; font-weight: 650; color: var(--mid-gray); }
+.tabs button.on { background: var(--brand-orange); color: var(--white); }
+.demo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 12px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,255,255,.7); }
+.demo b { font-size: 12px; color: var(--accent-ink); font-weight: 650; }
+.demo button { min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--light-gray); background: var(--white); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo button.on { border-color: var(--brand-orange); background: var(--accent-soft); color: var(--accent-strong); }
+.pull-hint { margin: 0 0 10px; text-align: center; font-size: 12px; color: var(--weak-gray); }
+.card { display: block; width: 100%; text-align: left; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.card-head .title { font-size: 15px; font-weight: 700; line-height: 1.4; }
+.badge { flex: none; display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.badge.warn { color: var(--warning); background: rgba(201,132,22,.12); }
+.badge.ok { color: var(--success); background: rgba(22,166,115,.12); }
+.badge.bad { color: var(--danger); background: rgba(216,59,54,.12); }
+.badge.info { color: var(--info); background: rgba(35,118,217,.12); }
+.rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.row { display: flex; gap: 12px; font-size: 13px; }
+.row dt { flex: none; width: 64px; margin: 0; color: var(--mid-gray); }
+.row dd { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-foot { display: flex; justify-content: flex-end; margin-top: 10px; color: var(--weak-gray); font-size: 12px; }
+.load-more { padding: 14px 0 6px; text-align: center; font-size: 12px; color: var(--weak-gray); }
+.empty { display: none; padding: 64px 0 40px; text-align: center; }
+.empty svg { display: block; margin: 0 auto 14px; }
+.empty p { margin: 0; font-size: 14px; color: var(--weak-gray); }
+body[data-view="empty"] .empty { display: block; }
+body[data-view="empty"] .list, body[data-view="empty"] .load-more, body[data-view="empty"] .pull-hint { display: none; }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); max-width: 320px; padding: 12px 18px; border-radius: 12px; background: rgba(60,58,58,.92); color: var(--white); font-size: 13px; text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body data-view="list">
+<div class="app"><div class="page">
+
+  <header class="topbar">
+    <button class="back" aria-label="返回" title="返回入口页" onclick="location.href='index.html'">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 4 7 10l5.5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>物品放行（生活区）</h1>
+    <span class="ph"></span>
+  </header>
+
+  <nav class="tabs" aria-label="页面切换">
+    <button type="button" onclick="toast('原型：跳转 /xuchang/goodReleaseLive 发起提交')">发起提交</button>
+    <button class="on" type="button">查看数据</button>
+  </nav>
+
+  <div class="demo"><b>原型演示</b>
+    <button class="on" onclick="setView('list', this)">有记录</button>
+    <button onclick="setView('empty', this)">空态</button>
+  </div>
+
+  <p class="pull-hint">↓ 下拉刷新（成功提示「更新成功」）</p>
+
+  <div class="list">
+    <!-- status=1 待审批：默认色标签 -->
+    <button class="card" onclick="go(1024)">
+      <div class="card-head">
+        <span class="title">何晓婷提交的物品放行</span>
+        <span class="badge warn">部门主管审批中</span>
+      </div>
+      <dl class="rows">
+        <div class="row"><dt>物品类型:</dt><dd>宿舍生活物品</dd></div>
+        <div class="row"><dt>物品名称:</dt><dd>行李箱一个、棉被两床</dd></div>
+        <div class="row"><dt>携带人:</dt><dd>何晓婷</dd></div>
+        <div class="row"><dt>申请时间:</dt><dd>2026-06-11 09:24:18</dd></div>
+      </dl>
+      <div class="card-foot">查看详情 ›</div>
+    </button>
+
+    <!-- status=2 已通过：绿色 -->
+    <button class="card" onclick="go(1018)">
+      <div class="card-head">
+        <span class="title">何晓婷提交的物品放行</span>
+        <span class="badge ok">审批通过</span>
+      </div>
+      <dl class="rows">
+        <div class="row"><dt>物品类型:</dt><dd>宿舍生活物品</dd></div>
+        <div class="row"><dt>物品名称:</dt><dd>台式风扇、收纳箱两个</dd></div>
+        <div class="row"><dt>携带人:</dt><dd>何晓婷</dd></div>
+        <div class="row"><dt>申请时间:</dt><dd>2026-06-08 16:40:52</dd></div>
+      </dl>
+      <div class="card-foot">查看详情 ›</div>
+    </button>
+
+    <!-- status=3 已拒绝：红色 -->
+    <button class="card" onclick="go(1006)">
+      <div class="card-head">
+        <span class="title">何晓婷提交的物品放行</span>
+        <span class="badge bad">审批拒绝</span>
+      </div>
+      <dl class="rows">
+        <div class="row"><dt>物品类型:</dt><dd>宿舍生活物品</dd></div>
+        <div class="row"><dt>物品名称:</dt><dd>微波炉一台</dd></div>
+        <div class="row"><dt>携带人:</dt><dd>何晓婷</dd></div>
+        <div class="row"><dt>申请时间:</dt><dd>2026-05-27 11:05:33</dd></div>
+      </dl>
+      <div class="card-foot">查看详情 ›</div>
+    </button>
+
+    <!-- status=4 已出厂：默认色（旧页仅 2/3 着色） -->
+    <button class="card" onclick="go(987)">
+      <div class="card-head">
+        <span class="title">何晓婷提交的物品放行</span>
+        <span class="badge info">已出厂</span>
+      </div>
+      <dl class="rows">
+        <div class="row"><dt>物品类型:</dt><dd>宿舍生活物品</dd></div>
+        <div class="row"><dt>物品名称:</dt><dd>衣物一袋、书籍若干</dd></div>
+        <div class="row"><dt>携带人:</dt><dd>何晓婷</dd></div>
+        <div class="row"><dt>申请时间:</dt><dd>2026-05-15 08:12:09</dd></div>
+      </dl>
+      <div class="card-foot">查看详情 ›</div>
+    </button>
+  </div>
+
+  <div class="load-more">↑ 上拉加载更多（每页 10 条，无更多时提示「没有更多了」）</div>
+
+  <div class="empty">
+    <svg width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="44" fill="#FFF1E3"/><rect x="28" y="36" width="40" height="30" rx="4" fill="#fff" stroke="#E5E3E3" stroke-width="2"/><path d="M28 46h40" stroke="#E5E3E3" stroke-width="2"/><circle cx="48" cy="56" r="5" fill="#EC6C00" opacity=".5"/></svg>
+    <p>暂无放行记录</p>
+  </div>
+
+</div></div>
+<div class="toast" id="toast"></div>
+<script>
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+function setView(v, btn){
+  document.body.dataset.view = v;
+  document.querySelectorAll('.demo button').forEach(function(b){ b.classList.remove('on'); });
+  btn.classList.add('on');
+}
+function go(id){ toast('原型：跳转 /xuchang/goodReleaseLive/detail?id=' + id); }
+</script>
+</body>
+</html>

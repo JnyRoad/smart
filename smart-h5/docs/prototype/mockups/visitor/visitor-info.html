@@ -1,0 +1,311 @@
+<!doctype html>
+<!--
+  原型：入厂申请 - 访客信息（访客预约 第 2 步，免登录）
+  旧路由：/xuchang/visitor/visitorInfo
+  旧组件：views-mobile/pages/visitor/visitorInfo.vue（+ visitor-steps、page3-bottom、人脸上传 form-upload-image-single-face）
+  接口：
+    - GET  /admittance/apply/enum/person/cert      人员证件类型枚举
+    - GET  /admittance/apply/enum/cause            来访事由枚举
+    - GET  /admittance/area/type/list?type=2       区域类别
+    - GET  /admittance/apply/app/area-options      授权区域配置（厂区+区域，含缓存）
+    - GET  /admittance/apply/enum/factory/type     授权区域旧回退接口（flag=0/1）
+    - POST /admittance/apply/equal/check           访客身份/重复验证（下一步）
+    - POST /file/upload/face                       人脸照片上传（照片组件内）
+  跳转：
+    - 「更多区域」→ /xuchang/visitor/addAreaType?type=&factoryType=&parkId=
+    - 「随行人员」→ /xuchang/visitor/addPersonList
+    - 验证通过 → /xuchang/visitor/tel
+  说明：旧页中「来访类型/携带物品/车辆信息」已注释停用（personType 固定普通来访 3，thing 固定 4=无）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>入厂申请 · 访客信息</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button, input, select { font: inherit; }
+button { border: 0; cursor: pointer; background: none; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+
+.demo-bar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: min(100%, 430px); margin: 0 auto; padding: 8px 12px; background: #2F2D2D; color: #fff; font-size: 12px; }
+.demo-bar .tag { font-weight: 750; color: #FFC894; }
+.demo-bar button { min-height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-size: 12px; }
+.demo-bar button.on { background: var(--brand-orange); font-weight: 650; }
+
+.app { position: relative; width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); }
+.page { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 18px calc(96px + max(24px, env(safe-area-inset-bottom))); background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,0) 220px), var(--white); }
+
+.topbar { display: flex; align-items: center; min-height: 46px; gap: 10px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; border-radius: 12px; color: var(--yuto-black); }
+.back-btn svg { width: 22px; height: 22px; }
+.page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-spacer { width: 44px; }
+
+.steps { display: flex; align-items: flex-start; margin: 14px 2px 16px; }
+.step { flex: 1; text-align: center; position: relative; }
+.step .dot { width: 26px; height: 26px; margin: 0 auto; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: var(--light-gray); color: var(--white); position: relative; z-index: 1; }
+.step.active .dot { background: var(--brand-orange); box-shadow: 0 0 0 5px rgba(236,108,0,.15); }
+.step.done .dot { background: var(--success); }
+.step .lbl { margin-top: 7px; font-size: 12px; color: var(--weak-gray); }
+.step.active .lbl { color: var(--accent-ink); font-weight: 650; }
+.step + .step::before { content: ""; position: absolute; left: -50%; right: 50%; top: 12px; height: 2px; background: var(--light-gray); }
+.step.done + .step::before { background: var(--brand-orange); }
+
+.card { margin-top: 12px; padding: 18px 16px; border: 1px solid var(--border-soft); border-radius: 16px; background: var(--white); box-shadow: var(--shadow-panel); }
+.card h2 { margin: 0 0 14px; font-size: 16px; font-weight: 750; }
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field > label { display: block; margin-bottom: 7px; font-size: 13px; color: var(--mid-gray); }
+.field > label .req { color: var(--danger); margin-left: 2px; }
+.field input[type=text], .field input[type=datetime-local], .field select { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white); color: var(--yuto-black); appearance: none; }
+.field input::placeholder { color: var(--weak-gray); }
+.select-wrap, .picker-wrap { position: relative; }
+.select-wrap::after { content: ""; position: absolute; right: 16px; top: 50%; width: 8px; height: 8px; border-right: 2px solid var(--weak-gray); border-bottom: 2px solid var(--weak-gray); transform: translateY(-65%) rotate(45deg); pointer-events: none; }
+.hint { margin-top: 6px; font-size: 12px; color: var(--weak-gray); }
+
+/* 人脸照片上传 */
+.photo-row { display: flex; align-items: center; gap: 14px; }
+.photo-box { width: 88px; height: 88px; border: 1.5px dashed var(--light-gray); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--weak-gray); font-size: 12px; background: #FBFBFB; }
+.photo-box svg { width: 26px; height: 26px; }
+.photo-box.uploaded { border-style: solid; border-color: var(--success); background: var(--white); position: relative; overflow: hidden; }
+.photo-face { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #FFE9D4, #FFD9B5); }
+.photo-face svg { width: 48px; height: 48px; }
+.photo-ok { position: absolute; right: 0; bottom: 0; padding: 2px 7px; border-top-left-radius: 10px; background: var(--success); color: #fff; font-size: 11px; font-weight: 650; }
+.photo-tip { flex: 1; font-size: 12px; color: var(--weak-gray); line-height: 1.6; }
+.photo-tip strong { color: var(--accent-ink); }
+
+/* 区域类型（厂区单选卡） */
+.factory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.factory-btn { min-height: 60px; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 14px; background: var(--white); text-align: left; }
+.factory-btn .fn { display: block; font-size: 14px; font-weight: 700; color: var(--yuto-black); }
+.factory-btn .fc { display: block; margin-top: 4px; font-size: 12px; color: var(--weak-gray); }
+.factory-btn.on { border-color: var(--brand-orange); background: var(--accent-soft); }
+.factory-btn.on .fn, .factory-btn.on .fc { color: var(--accent-ink); }
+
+/* 授权区域多选 chip */
+.area-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.area-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px 14px; border: 1.5px solid var(--border-soft); border-radius: 12px; background: var(--white); color: var(--yuto-black); font-size: 13px; }
+.area-chip .ck { width: 18px; height: 18px; border: 1.5px solid var(--light-gray); border-radius: 5px; flex: none; position: relative; }
+.area-chip.on { border-color: var(--brand-orange); background: var(--accent-soft); color: var(--accent-ink); font-weight: 650; }
+.area-chip.on .ck { border-color: var(--brand-orange); background: var(--brand-orange); }
+.area-chip.on .ck::after { content: ""; position: absolute; left: 5px; top: 2px; width: 5px; height: 9px; border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(40deg); }
+.more-area-btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; margin-top: 10px; border: 1.5px solid var(--brand-orange); border-radius: 12px; color: var(--brand-orange); font-size: 14px; font-weight: 650; background: var(--white); }
+
+/* 随行人员入口 */
+.entry-row { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white); color: var(--yuto-black); }
+.entry-row .ph { color: var(--weak-gray); }
+.entry-row .val { color: var(--yuto-black); font-weight: 650; }
+.entry-row .arrow { width: 8px; height: 8px; border-right: 2px solid var(--weak-gray); border-top: 2px solid var(--weak-gray); transform: rotate(45deg); margin-left: 10px; }
+
+.footer { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 430px); padding: 12px 18px max(24px, env(safe-area-inset-bottom)); background: rgba(255,255,255,.94); backdrop-filter: blur(8px); border-top: 1px solid var(--border-soft); z-index: 40; }
+.primary-btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650; }
+.primary-btn:active { background: var(--accent-strong); }
+.primary-btn[disabled] { background: var(--light-gray); cursor: default; }
+.spinner { width: 16px; height: 16px; margin-right: 8px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 999px; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast { position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%); max-width: 320px; padding: 11px 18px; border-radius: 12px; background: rgba(47,45,45,.92); color: #fff; font-size: 13px; text-align: center; display: none; z-index: 60; }
+.toast.show { display: block; }
+.banner-danger { display: none; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(216,59,54,.10); color: var(--danger); font-size: 13px; line-height: 1.6; }
+.banner-danger.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span class="tag">原型演示</span>
+  <button class="on" onclick="setState('default', this)">默认表单</button>
+  <button onclick="setState('loading', this)">正在验证</button>
+  <button onclick="setState('areaError', this)">区域配置不可用</button>
+</div>
+
+<div class="app">
+  <div class="page">
+    <div class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="toast('返回上一步（/xuchang/visitor）')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="page-title">入厂申请 · 访客信息</div>
+      <div class="topbar-spacer"></div>
+    </div>
+
+    <!-- 步骤栏：当前第 2 步 -->
+    <div class="steps">
+      <div class="step done"><div class="dot">✓</div><div class="lbl">被访信息</div></div>
+      <div class="step active"><div class="dot">2</div><div class="lbl">访客信息</div></div>
+      <div class="step"><div class="dot">3</div><div class="lbl">提交信息</div></div>
+    </div>
+
+    <div class="banner-danger" id="areaBanner">授权区域配置不可用，请联系管理员</div>
+
+    <div class="card">
+      <h2>访客信息</h2>
+
+      <div class="field">
+        <label>访客姓名<span class="req">*</span></label>
+        <input type="text" placeholder="请输入" value="李晓梅">
+      </div>
+
+      <div class="field">
+        <label>访客照片<span class="req">*</span><span style="margin-left:6px;font-size:12px;color:var(--weak-gray)">（需人脸检测）</span></label>
+        <div class="photo-row">
+          <div class="photo-box uploaded">
+            <div class="photo-face">
+              <svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="18" r="8" fill="#D95F00"/><path d="M10 42c2-9 8-13 14-13s12 4 14 13" fill="#D95F00"/></svg>
+            </div>
+            <span class="photo-ok">人脸通过</span>
+          </div>
+          <div class="photo-tip">请上传<strong>本人正面免冠照</strong>，系统将进行人脸检测，照片用于园区闸机通行核验。点击可重新拍摄/上传。</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>证件号码<span class="req">*</span></label>
+        <input type="text" placeholder="请输入" value="411023199205163027">
+        <div class="hint">普通来访按身份证规则校验（18 位、含校验位）</div>
+      </div>
+
+      <div class="field">
+        <label>来访单位<span class="req">*</span></label>
+        <input type="text" placeholder="请输入" value="河南中烟工业有限责任公司">
+      </div>
+
+      <div class="field">
+        <label>来访事由<span class="req">*</span></label>
+        <div class="select-wrap">
+          <select>
+            <option>商务洽谈</option>
+            <option>参观交流</option>
+            <option>设备维修</option>
+            <option>项目施工</option>
+            <option>面试应聘</option>
+            <option>送货取货</option>
+            <option>其他</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>区域类型<span class="req">*</span></label>
+        <div class="factory-grid">
+          <button class="factory-btn on" onclick="pickFactory(this, '新工厂')">
+            <span class="fn">新工厂</span><span class="fc" data-count>已选 2</span>
+          </button>
+          <button class="factory-btn" onclick="pickFactory(this, '老工厂')">
+            <span class="fn">老工厂</span><span class="fc" data-count>已选 0</span>
+          </button>
+        </div>
+        <div class="hint">切换厂区将清空其他厂区已选区域</div>
+      </div>
+
+      <div class="field">
+        <label>授权区域<span class="req">*</span></label>
+        <div class="area-chips" id="areaChips">
+          <button class="area-chip on" onclick="toggleChip(this)"><span class="ck"></span>办公楼</button>
+          <button class="area-chip on" onclick="toggleChip(this)"><span class="ck"></span>展厅</button>
+          <button class="area-chip" onclick="toggleChip(this)"><span class="ck"></span>一号厂房</button>
+          <button class="area-chip" onclick="toggleChip(this)"><span class="ck"></span>食堂</button>
+        </div>
+        <button class="more-area-btn" onclick="toast('前往更多区域选择（/xuchang/visitor/addAreaType）')">更多区域（已选 <span id="moreCount">2</span>）</button>
+      </div>
+
+      <div class="field">
+        <label>来访时间<span class="req">*</span></label>
+        <input type="datetime-local" id="startTime" value="2026-06-12T09:30" onchange="clearEnd()">
+      </div>
+
+      <div class="field">
+        <label>离开时间<span class="req">*</span></label>
+        <input type="datetime-local" id="endTime" value="2026-06-12T17:30" onchange="checkEnd()">
+        <div class="hint">须晚于来访时间，跨度不超过 365 天</div>
+      </div>
+
+      <div class="field">
+        <label>随行人员</label>
+        <button class="entry-row" onclick="toast('前往随行人员列表（/xuchang/visitor/addPersonList）')">
+          <span class="val">2位</span>
+          <span class="arrow"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="primary-btn" id="nextBtn" onclick="next()">下一步</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function setState(s, btn) {
+  document.querySelectorAll('.demo-bar button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const next = document.getElementById('nextBtn');
+  document.getElementById('areaBanner').classList.toggle('show', s === 'areaError');
+  if (s === 'loading') {
+    next.disabled = true;
+    next.innerHTML = '<span class="spinner"></span>正在验证';
+  } else {
+    next.disabled = false;
+    next.textContent = '下一步';
+  }
+}
+function pickFactory(btn, name) {
+  document.querySelectorAll('.factory-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  // 旧逻辑：切换厂区清空其他厂区选择
+  document.querySelectorAll('.area-chip').forEach(c => c.classList.remove('on'));
+  syncCount();
+  toast('已切换至「' + name + '」，请重新选择授权区域');
+}
+function toggleChip(c) { c.classList.toggle('on'); syncCount(); }
+function syncCount() {
+  const n = document.querySelectorAll('.area-chip.on').length;
+  document.querySelector('.factory-btn.on [data-count]').textContent = '已选 ' + n;
+  document.getElementById('moreCount').textContent = n;
+}
+function clearEnd() { document.getElementById('endTime').value = ''; }
+function checkEnd() {
+  const s = new Date(document.getElementById('startTime').value);
+  const e = new Date(document.getElementById('endTime').value);
+  if (e <= s) { toast('离开时间应大于来访时间!'); clearEnd(); }
+  else if (e - s > 365*24*3600*1000) { toast('申请时间最多不允许超过365天!'); clearEnd(); }
+}
+function next() {
+  if (document.querySelectorAll('.area-chip.on').length === 0) { toast('授权区域不能为空！'); return; }
+  if (!document.getElementById('endTime').value) { toast('请选择离开时间'); return; }
+  // 真实流程：身份证校验 → POST /admittance/apply/equal/check → 通过后跳转
+  toast('验证通过，前往「手机验证」（/xuchang/visitor/tel）');
+}
+</script>
+</body>
+</html>

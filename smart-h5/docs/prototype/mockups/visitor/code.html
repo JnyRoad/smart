@@ -1,0 +1,214 @@
+<!doctype html>
+<!--
+  原型：访客-二维码信息（访客通行证）
+  旧路由：/xuchang/visitor/code?id={申请单id}
+  旧组件：smart-h5/src/views-mobile/pages/visitor/code.vue
+  接口：
+    GET /admittance/apply/search/Detail/{id}        二维码（base64）+ 申请详情（含 delFlag/smsCode/区域等）
+    GET /admittance/apply/enum/factory/type?flag=0  老工厂区域枚举（code → 名称映射）
+    GET /admittance/apply/enum/factory/type?flag=1  新工厂区域枚举（code → 名称映射）
+  跳转：无（审批通过后通过短信/公众号链接打开）
+  状态（按 delFlag 三态）：
+    delFlag=0 有效：二维码 + 预约码 + 预约信息卡 + 使用指引卡
+    delFlag=1 期限内已删除：失效占位 + 红字「二维码已失效」，预约信息卡仍展示
+    delFlag=2 已过期：失效占位 + 红字「二维码已失效」，预约信息卡不展示
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>访客通行证 - 裕同智慧园区</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; min-height: 100dvh; }
+    button { border: 0; cursor: pointer; background: none; font: inherit; color: inherit; }
+    button:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 220px) var(--white);
+      box-shadow: var(--shadow-large); display: flex; flex-direction: column;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+    .demo-bar {
+      margin: 0 16px 10px; padding: 8px 12px; border-radius: 12px;
+      background: rgba(89, 87, 87, 0.06); border: 1px dashed var(--light-gray);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--mid-gray); letter-spacing: 1px; }
+    .demo-bar button {
+      min-height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 650;
+      background: var(--white); border: 1px solid var(--light-gray); color: var(--mid-gray);
+    }
+    .demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: var(--white); }
+    .content { flex: 1; padding: 6px 16px max(24px, env(safe-area-inset-bottom)); }
+    .slogan {
+      text-align: center; font-size: 18px; font-weight: 750; color: var(--accent-ink);
+      margin: 10px 0 16px; letter-spacing: 2px;
+    }
+    .card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 18px 16px; margin-bottom: 12px; }
+    /* 二维码卡片 */
+    .qr-card { text-align: center; }
+    .qr-img {
+      width: 196px; height: 196px; margin: 6px auto 12px; border-radius: 12px;
+      border: 1px solid var(--border-soft); display: grid; place-items: center; background: var(--white);
+    }
+    .qr-code-num { font-size: 15px; margin: 0 0 10px; }
+    .qr-code-num strong { font-size: 22px; font-weight: 750; letter-spacing: 3px; color: var(--accent-ink); }
+    .qr-tag {
+      display: inline-flex; align-items: center; min-height: 26px; padding: 0 12px; border-radius: 999px;
+      background: var(--accent-soft); color: var(--brand-orange); font-size: 12px; font-weight: 650; margin-bottom: 12px;
+    }
+    .qr-tip { font-size: 12px; color: var(--weak-gray); line-height: 1.7; margin: 0 14px; }
+    .qr-invalid-text { color: var(--danger); font-size: 16px; font-weight: 750; margin: 4px 0 6px; }
+    /* 预约信息卡 */
+    .info-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .info-park { font-size: 15px; font-weight: 750; margin: 0; }
+    .cause-badge {
+      flex: none; display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px;
+      border-radius: 999px; font-size: 12px; font-weight: 650;
+      color: var(--info); background: rgba(35, 118, 217, 0.12);
+    }
+    .info-row { display: flex; font-size: 13px; padding: 8px 0; border-top: 1px solid var(--border-soft); }
+    .info-row .lbl { color: var(--mid-gray); width: 96px; flex: none; }
+    .info-row .val { flex: 1; font-weight: 650; line-height: 1.55; word-break: break-all; }
+    .role-note { color: var(--weak-gray); font-weight: 400; }
+    /* 使用指引卡 */
+    .guide-title { font-size: 15px; font-weight: 750; margin: 0 0 14px; }
+    .guide-steps { display: flex; gap: 10px; }
+    .guide-step { flex: 1; text-align: center; }
+    .guide-icon {
+      width: 58px; height: 58px; margin: 0 auto 8px; border-radius: 999px;
+      background: var(--accent-soft); display: grid; place-items: center;
+    }
+    .guide-num { font-size: 12px; font-weight: 750; color: var(--brand-orange); display: block; margin-bottom: 2px; }
+    .guide-text { font-size: 12px; color: var(--mid-gray); line-height: 1.5; margin: 0; }
+    /* 底部 logo */
+    .brand-foot { text-align: center; padding: 18px 0 6px; color: var(--weak-gray); font-size: 12px; letter-spacing: 1px; }
+    .brand-foot .mark { font-weight: 750; color: var(--brand-orange); font-size: 14px; letter-spacing: 3px; display: block; margin-bottom: 4px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="demo-bar" role="group" aria-label="原型演示状态切换">
+      <span class="demo-tag">原型演示</span>
+      <button id="demo0" class="on" onclick="setState(0)">有效（delFlag=0）</button>
+      <button id="demo1" onclick="setState(1)">已删除（1）</button>
+      <button id="demo2" onclick="setState(2)">已过期（2）</button>
+    </div>
+
+    <main class="content">
+      <h1 class="slogan">裕同科技许昌园区欢迎您</h1>
+
+      <!-- 二维码卡片：有效态 -->
+      <section class="card qr-card" id="qrValid">
+        <div class="qr-img" aria-label="访客通行二维码（接口返回 base64 图片）">
+          <svg width="168" height="168" viewBox="0 0 29 29" shape-rendering="crispEdges" aria-hidden="true">
+            <rect width="29" height="29" fill="#FFFFFF"/>
+            <path fill="#595757" d="M0 0h7v1H0zM10 0h2v1h-2zM14 0h1v1h-1zM17 0h3v1h-3zM22 0h7v1h-7zM0 1h1v1H0zM6 1h1v1H6zM9 1h1v1H9zM12 1h3v1h-3zM16 1h1v1h-1zM19 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1H0zM2 2h3v1H2zM6 2h1v1H6zM8 2h2v1H8zM13 2h1v1h-1zM15 2h2v1h-2zM18 2h2v1h-2zM22 2h1v1h-1zM24 2h3v1h-3zM28 2h1v1h-1zM0 3h1v1H0zM2 3h3v1H2zM6 3h1v1H6zM9 3h3v1H9zM14 3h2v1h-2zM18 3h1v1h-1zM20 3h1v1h-1zM22 3h1v1h-1zM24 3h3v1h-3zM28 3h1v1h-1zM0 4h1v1H0zM2 4h3v1H2zM6 4h1v1H6zM8 4h1v1H8zM11 4h1v1h-1zM13 4h3v1h-3zM17 4h2v1h-2zM22 4h1v1h-1zM24 4h3v1h-3zM28 4h1v1h-1zM0 5h1v1H0zM6 5h1v1H6zM9 5h2v1H9zM12 5h1v1h-1zM15 5h1v1h-1zM18 5h2v1h-2zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h7v1H0zM8 6h1v1H8zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h7v1h-7zM9 7h2v1H9zM13 7h2v1h-2zM17 7h2v1h-2zM0 8h2v1H0zM3 8h4v1H3zM8 8h3v1H8zM12 8h2v1h-2zM16 8h2v1h-2zM19 8h4v1h-4zM24 8h2v1h-2zM27 8h2v1h-2zM1 9h1v1H1zM4 9h1v1H4zM7 9h1v1H7zM10 9h2v1h-2zM14 9h1v1h-1zM17 9h1v1h-1zM21 9h2v1h-2zM25 9h2v1h-2zM0 10h2v1H0zM3 10h1v1H3zM5 10h2v1H5zM9 10h1v1H9zM12 10h2v1h-2zM15 10h2v1h-2zM19 10h1v1h-1zM23 10h2v1h-2zM26 10h1v1h-1zM28 10h1v1h-1zM2 11h2v1H2zM6 11h1v1H6zM8 11h1v1H8zM11 11h1v1h-1zM13 11h1v1h-1zM16 11h2v1h-2zM20 11h2v1h-2zM24 11h1v1h-1zM27 11h1v1h-1zM0 12h1v1H0zM2 12h1v1H2zM4 12h3v1H4zM9 12h3v1H9zM14 12h2v1h-2zM18 12h2v1h-2zM21 12h1v1h-1zM23 12h3v1h-3zM28 12h1v1h-1zM1 13h2v1H1zM5 13h1v1H5zM7 13h2v1H7zM12 13h1v1h-1zM15 13h1v1h-1zM17 13h2v1h-2zM22 13h2v1h-2zM26 13h2v1h-2zM0 14h2v1H0zM3 14h2v1H3zM6 14h2v1H6zM10 14h2v1h-2zM13 14h2v1h-2zM16 14h1v1h-1zM19 14h3v1h-3zM24 14h2v1h-2zM27 14h2v1h-2zM2 15h1v1H2zM4 15h1v1H4zM8 15h1v1H8zM11 15h1v1h-1zM14 15h2v1h-2zM18 15h1v1h-1zM21 15h2v1h-2zM25 15h1v1h-1zM28 15h1v1h-1zM0 16h1v1H0zM3 16h3v1H3zM7 16h2v1H7zM10 16h1v1h-1zM12 16h3v1h-3zM17 16h2v1h-2zM20 16h1v1h-1zM23 16h2v1h-2zM26 16h2v1h-2zM1 17h1v1H1zM5 17h1v1H5zM9 17h2v1H9zM13 17h1v1h-1zM15 17h2v1h-2zM19 17h1v1h-1zM22 17h1v1h-1zM24 17h2v1h-2zM28 17h1v1h-1zM0 18h2v1H0zM4 18h2v1H4zM7 18h1v1H7zM11 18h2v1h-2zM14 18h1v1h-1zM16 18h2v1h-2zM20 18h3v1h-3zM25 18h2v1h-2zM2 19h2v1H2zM6 19h1v1H6zM8 19h2v1H8zM12 19h1v1h-1zM15 19h1v1h-1zM18 19h2v1h-2zM21 19h1v1h-1zM23 19h2v1h-2zM27 19h2v1h-2zM0 20h1v1H0zM2 20h1v1H2zM4 20h3v1H4zM8 20h1v1H8zM10 20h3v1h-3zM14 20h2v1h-2zM17 20h1v1h-1zM19 20h2v1h-2zM22 20h5v1h-5zM28 20h1v1h-1zM8 21h2v1H8zM12 21h2v1h-2zM16 21h1v1h-1zM18 21h2v1h-2zM22 21h1v1h-1zM26 21h1v1h-1zM0 22h7v1H0zM9 22h1v1H9zM11 22h1v1h-1zM13 22h3v1h-3zM17 22h2v1h-2zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM26 22h2v1h-2zM0 23h1v1H0zM6 23h1v1H6zM8 23h2v1H8zM12 23h1v1h-1zM14 23h2v1h-2zM18 23h1v1h-1zM22 23h1v1h-1zM24 23h2v1h-2zM27 23h1v1h-1zM0 24h1v1H0zM2 24h3v1H2zM6 24h1v1H6zM9 24h3v1H9zM13 24h1v1h-1zM15 24h3v1h-3zM19 24h2v1h-2zM22 24h4v1h-4zM27 24h2v1h-2zM0 25h1v1H0zM2 25h3v1H2zM6 25h1v1H6zM8 25h1v1H8zM11 25h2v1h-2zM14 25h1v1h-1zM16 25h2v1h-2zM20 25h1v1h-1zM23 25h2v1h-2zM26 25h1v1h-1zM0 26h1v1H0zM2 26h3v1H2zM6 26h1v1H6zM9 26h1v1H9zM12 26h2v1h-2zM15 26h1v1h-1zM17 26h3v1h-3zM21 26h2v1h-2zM24 26h2v1h-2zM28 26h1v1h-1zM0 27h1v1H0zM6 27h1v1H6zM8 27h3v1H8zM13 27h2v1h-2zM16 27h1v1h-1zM18 27h2v1h-2zM21 27h1v1h-1zM23 27h2v1h-2zM26 27h2v1h-2zM0 28h7v1H0zM9 28h2v1H9zM12 28h1v1h-1zM14 28h3v1h-3zM18 28h1v1h-1zM20 28h2v1h-2zM23 28h1v1h-1zM25 28h2v1h-2z"/>
+          </svg>
+        </div>
+        <p class="qr-code-num">预约码 <strong>728465</strong></p>
+        <span class="qr-tag">首次扫码，打印有效</span>
+        <p class="qr-tip">请截图保存该页面，入园接受检查时可出此凭证，以便核实</p>
+      </section>
+
+      <!-- 二维码卡片：失效态（delFlag=1/2 共用） -->
+      <section class="card qr-card" id="qrInvalid" hidden>
+        <div class="qr-img" aria-label="二维码失效占位图">
+          <svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+            <rect x="14" y="14" width="92" height="92" rx="14" stroke="#E5E3E3" stroke-width="4" fill="none"/>
+            <path d="M40 40l40 40M80 40l-40 40" stroke="#D83B36" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="qr-invalid-text">二维码已失效</p>
+      </section>
+
+      <!-- 预约信息卡（delFlag=0/1 显示） -->
+      <section class="card" id="infoCard">
+        <div class="info-head">
+          <h2 class="info-park">裕同科技许昌园区</h2>
+          <span class="cause-badge">业务洽谈</span>
+        </div>
+        <div class="info-row"><span class="lbl">被访人</span><span class="val">周建华 13569842107 <span class="role-note">（被访人）</span></span></div>
+        <div class="info-row"><span class="lbl">访客</span><span class="val">王雅丽 13837405216 <span class="role-note">（访客）</span></span></div>
+        <div class="info-row"><span class="lbl">区域类型</span><span class="val">新工厂</span></div>
+        <div class="info-row" id="rowNewArea"><span class="lbl">新工厂</span><span class="val">综合办公楼，智能制造车间，样品展示中心</span></div>
+        <div class="info-row" id="rowOldArea" hidden><span class="lbl">老工厂</span><span class="val">—</span></div>
+        <div class="info-row"><span class="lbl">预约到访时间</span><span class="val">2026-06-12 09:30</span></div>
+        <div class="info-row"><span class="lbl">预约离开时间</span><span class="val">2026-06-12 17:30</span></div>
+      </section>
+
+      <!-- 使用指引卡（仅 delFlag=0） -->
+      <section class="card" id="guideCard">
+        <h2 class="guide-title">使用指引</h2>
+        <div class="guide-steps">
+          <div class="guide-step">
+            <div class="guide-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 28 28"><rect x="4" y="6" width="20" height="16" rx="3" stroke="#EC6C00" stroke-width="2" fill="none"/><path d="M9 12h10M9 16h6" stroke="#EC6C00" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <span class="guide-num">01</span>
+            <p class="guide-text">填写预约码</p>
+          </div>
+          <div class="guide-step">
+            <div class="guide-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 28 28"><path d="M8 11V4h12v7" stroke="#EC6C00" stroke-width="2" fill="none" stroke-linejoin="round"/><rect x="4" y="11" width="20" height="9" rx="2" stroke="#EC6C00" stroke-width="2" fill="none"/><path d="M9 20v4h10v-4" stroke="#EC6C00" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="guide-num">02</span>
+            <p class="guide-text">打印凭条</p>
+          </div>
+          <div class="guide-step">
+            <div class="guide-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="7" r="3.4" stroke="#EC6C00" stroke-width="2" fill="none"/><path d="M6 24c1.2-5 4.2-7.6 8-7.6s6.8 2.6 8 7.6" stroke="#EC6C00" stroke-width="2" fill="none" stroke-linecap="round"/><rect x="10.5" y="13.5" width="7" height="5" rx="1" stroke="#EC6C00" stroke-width="1.8" fill="none"/></svg>
+            </div>
+            <span class="guide-num">03</span>
+            <p class="guide-text">粘贴至胸前</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="brand-foot">
+        <span class="mark">YUTO 裕同</span>
+        裕同智慧园区
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // 原型演示：delFlag 三态
+    // 0 有效：二维码 + 预约信息卡 + 使用指引卡
+    // 1 期限内已删除：失效占位，预约信息卡仍展示
+    // 2 已过期：失效占位，预约信息卡不展示
+    function setState(flag) {
+      [0, 1, 2].forEach(function (f) {
+        document.getElementById('demo' + f).classList.toggle('on', f === flag);
+      });
+      document.getElementById('qrValid').hidden = flag !== 0;
+      document.getElementById('qrInvalid').hidden = flag === 0;
+      document.getElementById('infoCard').hidden = flag === 2;
+      document.getElementById('guideCard').hidden = flag !== 0;
+    }
+  </script>
+</body>
+</html>

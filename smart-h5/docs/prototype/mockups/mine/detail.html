@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<!--
+  原型：个人信息（员工档案明细，只读）
+  旧路由：/xuchang/mine/detail
+  旧组件：views-mobile/pages/mine/detail.vue
+  接口：无（数据来自首页缓存的 GET /employee/baseinfo，store.getters.userInfoBase）
+  字段（空值显示 -）：
+    分组一：姓名 employeeName / 工号 employeeBadge / 公司 buName
+    分组二：部门 deptName / 职务 jobName / 职层 jcheName / 福利层次 welfareLevel
+    分组三：人员状态 statusDes / 人员类型 empTypeDes / 员工性质 empAttribute
+  跳转：返回箭头 → /xuchang/mine
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>裕同智慧园区 · 个人信息</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100dvh; }
+button { font: inherit; border: 0; cursor: pointer; background: none; color: inherit; padding: 0; }
+.app { width: min(100%, 430px); margin: 0 auto; min-height: 100dvh; background: var(--white); box-shadow: var(--shadow-large); position: relative; overflow: hidden; }
+.page { min-height: 100dvh; padding-bottom: max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--accent-soft) 0, rgba(255,241,227,.35) 150px, var(--surface) 240px); }
+.demo-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #3A3838; color: #fff; font-size: 12px; overflow-x: auto; }
+.demo-bar .tag { flex: none; font-weight: 750; color: #FFC58A; }
+.demo-bar button { flex: none; min-height: 28px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-size: 12px; }
+.demo-bar button.on { background: var(--brand-orange); font-weight: 650; }
+.topbar { display: flex; align-items: center; padding: max(14px, env(safe-area-inset-top)) 8px 6px; }
+.back { width: 44px; height: 44px; display: grid; place-items: center; color: var(--yuto-black); }
+.title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar .ph { width: 44px; }
+
+.group { margin: 12px 16px 0; background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 4px 16px; }
+.group:first-of-type { margin-top: 6px; }
+.g-head { display: flex; align-items: center; gap: 8px; padding: 14px 0 4px; font-size: 13px; font-weight: 750; color: var(--accent-strong); }
+.g-head::before { content: ""; width: 4px; height: 14px; border-radius: 2px; background: var(--brand-orange); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 50px; border-bottom: 1px solid var(--border-soft); }
+.row:last-child { border-bottom: none; }
+.row .label { flex: none; width: 76px; font-size: 13px; color: var(--mid-gray); }
+.row .value { flex: 1; min-width: 0; text-align: right; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .value.empty { color: var(--weak-gray); font-weight: 400; }
+
+.note { padding: 16px 18px 0; font-size: 11px; color: var(--weak-gray); line-height: 1.6; }
+.toast { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); background: rgba(58,56,56,.92); color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 999px; display: none; z-index: 40; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="demo-bar">
+    <span class="tag">原型演示</span>
+    <button class="on" data-state="normal">正常</button>
+    <button data-state="missing">字段缺省</button>
+  </div>
+
+  <div class="page">
+    <div class="topbar">
+      <button class="back" onclick="demoToast('返回 /xuchang/mine')" aria-label="返回">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="title">个人信息</span>
+      <span class="ph"></span>
+    </div>
+
+    <!-- 分组一：基本信息 -->
+    <div class="group">
+      <div class="g-head">基本信息</div>
+      <div class="row"><span class="label">姓名</span><span class="value" data-f="employeeName">王建国</span></div>
+      <div class="row"><span class="label">工号</span><span class="value" data-f="employeeBadge">XC20180367</span></div>
+      <div class="row"><span class="label">公司</span><span class="value" data-f="buName">许昌裕同印刷包装有限公司</span></div>
+    </div>
+
+    <!-- 分组二：岗位信息 -->
+    <div class="group">
+      <div class="g-head">岗位信息</div>
+      <div class="row"><span class="label">部门</span><span class="value" data-f="deptName">智能制造一部</span></div>
+      <div class="row"><span class="label">职务</span><span class="value" data-f="jobName">设备工程师</span></div>
+      <div class="row"><span class="label">职层</span><span class="value" data-f="jcheName">专业技术层</span></div>
+      <div class="row"><span class="label">福利层次</span><span class="value" data-f="welfareLevel">B2</span></div>
+    </div>
+
+    <!-- 分组三：人员属性 -->
+    <div class="group">
+      <div class="g-head">人员属性</div>
+      <div class="row"><span class="label">人员状态</span><span class="value" data-f="statusDes">在职</span></div>
+      <div class="row"><span class="label">人员类型</span><span class="value" data-f="empTypeDes">正式员工</span></div>
+      <div class="row"><span class="label">员工性质</span><span class="value" data-f="empAttribute">合同工</span></div>
+    </div>
+
+    <p class="note">注：本页为只读档案页，无接口请求；数据来自首页缓存的 /employee/baseinfo。姓名、工号为必有字段，其余字段为空时显示「-」。</p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function demoToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.style.display = 'none'; }, 1800);
+}
+var FULL = {
+  employeeName: '王建国', employeeBadge: 'XC20180367', buName: '许昌裕同印刷包装有限公司',
+  deptName: '智能制造一部', jobName: '设备工程师', jcheName: '专业技术层', welfareLevel: 'B2',
+  statusDes: '在职', empTypeDes: '正式员工', empAttribute: '合同工'
+};
+// 旧版规则：姓名/工号直出，其余字段空值显示 -
+var MISSING = {
+  employeeName: '王建国', employeeBadge: 'XC20180367', buName: '-',
+  deptName: '-', jobName: '-', jcheName: '-', welfareLevel: '-',
+  statusDes: '-', empTypeDes: '-', empAttribute: '-'
+};
+function render(d){
+  document.querySelectorAll('[data-f]').forEach(function(el){
+    var v = d[el.dataset.f];
+    el.textContent = v;
+    el.classList.toggle('empty', v === '-');
+  });
+}
+document.querySelectorAll('.demo-bar button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.demo-bar button').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    render(btn.dataset.state === 'missing' ? MISSING : FULL);
+  });
+});
+</script>
+</body>
+</html>

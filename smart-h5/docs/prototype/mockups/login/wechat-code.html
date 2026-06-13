@@ -1,0 +1,190 @@
+<!doctype html>
+<!--
+  原型：微信授权回调（code 换 token 静默登录）
+  旧路由：/xuchang/login/wechat/code?code=xxx
+  旧组件：src/views-mobile/pages/login/code_wechat.vue
+  接口：
+    - POST auth:/wx/public/token  body { code, type: 'F' }，Basic 授权（c21hcnQ6c21hcnQ=）
+  逻辑（旧页 created）：
+    1. 解析 URL code；无 code 不处理
+    2. store 已有有效 token（非 invalid_token）→ 直接跳 /xuchang/home
+    3. 否则调 /wx/public/token；返回 access_token → 存 token/expires_in/refresh_token → /xuchang/home
+    4. code===1 且 data 为「账号未绑定工号，请先绑定」或「员工状态异常」→ 微信 OAuth 跳 /xuchang/login/logon_badge
+    5. 其他失败 → toast res.message
+  跳转：成功 → /xuchang/home；未绑定/状态异常 → OAuth → /xuchang/login/logon_badge
+  说明：旧页无可见 UI（模板内容全部注释）；原型把 4 个关键状态可视化，用「原型演示」切换条展示。净室重写，未复用旧代码。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>裕慧家园 · 微信登录处理</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body {
+      min-height: 100dvh; margin: 0;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--surface);
+    }
+    button { font: inherit; border: 0; cursor: pointer; background: none; padding: 0; }
+    .app {
+      width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: var(--white); box-shadow: var(--shadow-large);
+      display: flex; flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+    }
+    .topbar { display: flex; align-items: center; min-height: 46px; }
+    .brand-wordmark { font-size: 16px; font-weight: 750; }
+    .brand-wordmark em { font-style: normal; color: var(--brand-orange); }
+
+    .demo-bar {
+      margin-top: 8px; padding: 10px 12px; border-radius: 12px;
+      border: 1px dashed var(--light-gray); background: var(--surface);
+      font-size: 12px; color: var(--mid-gray);
+    }
+    .demo-bar strong { color: var(--accent-ink); margin-right: 8px; }
+    .demo-bar .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .demo-chip {
+      min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 650;
+      border: 1px solid var(--light-gray); background: var(--white); color: var(--mid-gray);
+    }
+    .demo-chip.is-on { border-color: rgba(236, 108, 0, 0.4); background: var(--accent-soft); color: var(--accent-ink); }
+
+    .stage {
+      flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; text-align: center; padding-bottom: 50px;
+    }
+    .stage.is-active { display: flex; }
+    .stage h1 { margin: 0; font-size: 17px; font-weight: 750; color: var(--yuto-black); }
+    .stage p { margin: 0; font-size: 13px; color: var(--weak-gray); line-height: 1.7; }
+    .spinner {
+      width: 44px; height: 44px; border-radius: 999px;
+      border: 4px solid var(--accent-soft); border-top-color: var(--brand-orange);
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .state-icon {
+      width: 72px; height: 72px; border-radius: 999px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .state-icon.ok { background: rgba(22, 166, 115, 0.12); }
+    .state-icon.warn { background: rgba(201, 132, 22, 0.12); }
+    .badge {
+      display: inline-flex; align-items: center; min-height: 27px; padding: 0 10px;
+      border-radius: 999px; font-size: 12px; font-weight: 650;
+    }
+    .badge.ok { background: rgba(22, 166, 115, 0.12); color: var(--success); }
+    .badge.warn { background: rgba(201, 132, 22, 0.12); color: var(--warning); }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+      max-width: 320px; padding: 10px 16px; border-radius: 999px;
+      background: rgba(89, 87, 87, 0.92); color: var(--white); font-size: 13px;
+      opacity: 0; pointer-events: none; transition: opacity 200ms ease; z-index: 9;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <span class="brand-wordmark">裕同<em>智慧园区</em></span>
+    </header>
+
+    <div class="demo-bar">
+      <strong>原型演示</strong>微信回调 4 个关键状态
+      <div class="chips">
+        <button class="demo-chip is-on" data-state="loading">处理中</button>
+        <button class="demo-chip" data-state="success">登录成功</button>
+        <button class="demo-chip" data-state="unbound">未绑定工号</button>
+        <button class="demo-chip" data-state="fail">登录失败</button>
+      </div>
+    </div>
+
+    <!-- 状态 1：处理中（解析 code → POST /wx/public/token） -->
+    <main class="stage is-active" id="stage-loading" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>微信登录处理中…</h1>
+      <p>正在使用微信授权 code 换取登录凭证<br>（POST /wx/public/token）</p>
+    </main>
+
+    <!-- 状态 2：成功（含「已有有效 token 直接放行」同一去向） -->
+    <main class="stage" id="stage-success">
+      <div class="state-icon ok" aria-hidden="true">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 19l7 7L29 11" stroke="#16A673" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="badge ok">登录成功</span>
+      <h1>登录成功，正在进入园区首页</h1>
+      <p>已保存 access_token / refresh_token<br>即将跳转 /xuchang/home（已有有效 token 时也直接进入）</p>
+    </main>
+
+    <!-- 状态 3：未绑定工号 / 员工状态异常 → 转绑定页 -->
+    <main class="stage" id="stage-unbound">
+      <div class="state-icon warn" aria-hidden="true">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="9" width="24" height="18" rx="3" stroke="#C98416" stroke-width="2.4"/>
+          <circle cx="14" cy="17" r="3" stroke="#C98416" stroke-width="2.2"/>
+          <path d="M21 14h6M21 20h6" stroke="#C98416" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="badge warn">需绑定工号</span>
+      <h1>账号未绑定工号，请先绑定</h1>
+      <p>员工状态异常时同样转入绑定流程<br>即将通过微信授权跳转 /xuchang/login/logon_badge</p>
+    </main>
+
+    <!-- 状态 4：其他失败 → toast 后端 message -->
+    <main class="stage" id="stage-fail">
+      <div class="spinner" style="visibility:hidden" aria-hidden="true"></div>
+      <h1>登录未完成</h1>
+      <p>接口返回异常时以 toast 提示后端 message<br>（点击下方按钮模拟）</p>
+      <button class="demo-chip" id="failToastBtn" type="button">模拟失败 toast</button>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    var toastTimer = null;
+    function toast(msg) {
+      var el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+    }
+    document.querySelectorAll('.demo-chip[data-state]').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        document.querySelectorAll('.demo-chip[data-state]').forEach(function (c) { c.classList.remove('is-on'); });
+        chip.classList.add('is-on');
+        document.querySelectorAll('.stage').forEach(function (s) { s.classList.remove('is-active'); });
+        document.getElementById('stage-' + chip.getAttribute('data-state')).classList.add('is-active');
+      });
+    });
+    document.getElementById('failToastBtn').addEventListener('click', function () {
+      toast('微信登录失败：授权码已失效，请重新进入');
+    });
+  </script>
+</body>
+</html>

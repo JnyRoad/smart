@@ -1,0 +1,282 @@
+<!doctype html>
+<!--
+  原型：登录（短信验证码 / 账号密码）
+  旧路由：/xuchang/login
+  旧组件：src/views-mobile/pages/login/index.vue
+          + components/msgCode.vue（短信登录）
+          + components/pwd.vue（密码登录）
+          + src/components/identifying-code/index.vue（获取验证码，120s 倒计时）
+  接口：
+    - GET  app:/sms/send/getCode/{mobile}   发送短信验证码
+    - POST auth:/auth/oauth/token           账号密码登录（旧页已定义未接线）
+    -（注释预留：/auth/mobile/token/sms 短信登录、/auth/token/logout 登出）
+  跳转：登录成功 → /xuchang/home
+  说明：净室重写原型，未复用旧仓库任何代码。旧密码登录 submit 为空实现，原型按既定接口契约演示。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>裕慧家园 · 登录</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body {
+      min-height: 100dvh; margin: 0;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--surface);
+    }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; background: none; padding: 0; }
+    input:focus-visible, button:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: var(--white); box-shadow: var(--shadow-large);
+      padding: max(14px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+    }
+    .topbar { display: flex; align-items: center; min-height: 46px; }
+    .brand-wordmark { font-size: 16px; font-weight: 750; }
+    .brand-wordmark em { font-style: normal; color: var(--brand-orange); }
+
+    .hero { padding: 26px 2px 22px; }
+    .hero .welcome { display: block; color: var(--mid-gray); font-size: 15px; margin-bottom: 6px; }
+    .hero h1 { margin: 0; font-size: 30px; line-height: 1.16; font-weight: 750; color: var(--yuto-black); }
+    .hero h1 em { font-style: normal; color: var(--brand-orange); }
+
+    .login-card {
+      background: var(--white); border: 1px solid var(--border-soft); border-radius: 16px;
+      box-shadow: var(--shadow-panel); padding: 18px 16px;
+    }
+    .login-tabs {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
+      background: var(--surface); border: 1px solid var(--border-soft); border-radius: 14px; margin-bottom: 16px;
+    }
+    .login-tab {
+      min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 700; color: var(--mid-gray);
+    }
+    .login-tab[aria-selected="true"] {
+      background: var(--white); color: var(--accent-ink);
+      box-shadow: 0 6px 18px rgba(89, 87, 87, 0.08), inset 0 0 0 1px rgba(236, 108, 0, 0.24);
+    }
+    .panel { display: none; }
+    .panel.is-active { display: block; }
+    .field { margin-top: 12px; }
+    .field label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 7px; font-weight: 650; }
+    .input-row { display: flex; align-items: center; gap: 10px; }
+    .input-row input {
+      flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+      border-radius: 12px; background: var(--white); color: var(--yuto-black);
+    }
+    .input-row input::placeholder { color: var(--weak-gray); }
+    .input-row input:focus { outline: 3px solid rgba(236, 108, 0, 0.22); border-color: rgba(236, 108, 0, 0.4); }
+    .code-button {
+      flex-shrink: 0; min-width: 108px; height: 48px; padding: 0 12px; border-radius: 12px;
+      border: 1px solid rgba(236, 108, 0, 0.36); color: var(--accent-strong);
+      background: var(--accent-soft); font-size: 14px; font-weight: 650;
+    }
+    .code-button:disabled { border-color: var(--border-soft); background: var(--surface); color: var(--weak-gray); cursor: default; }
+
+    .agree { display: flex; align-items: flex-start; gap: 8px; margin: 16px 2px 0; font-size: 12px; color: var(--mid-gray); line-height: 1.6; }
+    .agree input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--brand-orange); flex-shrink: 0; }
+    .agree .doc { color: var(--accent-strong); font-weight: 650; }
+
+    .primary-button {
+      display: flex; align-items: center; justify-content: center; width: 100%; height: 48px;
+      margin-top: 18px; border-radius: 14px; background: var(--brand-orange);
+      color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .primary-button:active { background: var(--accent-strong); }
+
+    /* 原型演示切换条 */
+    .demo-bar {
+      margin: 18px 0 0; padding: 10px 12px; border-radius: 12px;
+      border: 1px dashed var(--light-gray); background: var(--surface);
+      font-size: 12px; color: var(--mid-gray);
+    }
+    .demo-bar strong { color: var(--accent-ink); margin-right: 8px; }
+    .demo-bar .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .demo-chip {
+      min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 650;
+      border: 1px solid var(--light-gray); background: var(--white); color: var(--mid-gray);
+    }
+    .demo-chip.is-on { border-color: rgba(236, 108, 0, 0.4); background: var(--accent-soft); color: var(--accent-ink); }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+      max-width: 320px; padding: 10px 16px; border-radius: 999px;
+      background: rgba(89, 87, 87, 0.92); color: var(--white); font-size: 13px;
+      opacity: 0; pointer-events: none; transition: opacity 200ms ease; z-index: 9;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <span class="brand-wordmark">裕同<em>智慧园区</em></span>
+    </header>
+
+    <section class="hero">
+      <span class="welcome">欢迎来到</span>
+      <h1><em>裕慧家园</em></h1>
+    </section>
+
+    <section class="login-card">
+      <div class="login-tabs" role="tablist" aria-label="登录方式">
+        <button class="login-tab" id="tab-code" role="tab" aria-selected="true" aria-controls="panel-code">短信登录</button>
+        <button class="login-tab" id="tab-pwd" role="tab" aria-selected="false" aria-controls="panel-pwd">密码登录</button>
+      </div>
+
+      <!-- 短信验证码登录（旧 msgCode.vue） -->
+      <form class="panel is-active" id="panel-code" role="tabpanel" aria-labelledby="tab-code">
+        <div class="field">
+          <label for="phone">手机号</label>
+          <div class="input-row">
+            <input id="phone" type="tel" inputmode="numeric" maxlength="11" placeholder="点击输入手机号" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <label for="smscode">验证码</label>
+          <div class="input-row">
+            <input id="smscode" type="text" inputmode="numeric" maxlength="6" placeholder="点击输入验证码" autocomplete="off">
+            <button type="button" class="code-button" id="sendCodeBtn">获取验证码</button>
+          </div>
+        </div>
+        <label class="agree">
+          <input type="checkbox" id="agreeCode" checked>
+          <span>我已阅读并同意<span class="doc">《裕慧家园用户协议及保密承诺》</span></span>
+        </label>
+        <button type="button" class="primary-button" id="loginByCodeBtn">登录</button>
+      </form>
+
+      <!-- 账号密码登录（旧 pwd.vue） -->
+      <form class="panel" id="panel-pwd" role="tabpanel" aria-labelledby="tab-pwd">
+        <div class="field">
+          <label for="username">用户名</label>
+          <div class="input-row">
+            <input id="username" type="text" placeholder="点击输入用户名" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <div class="input-row">
+            <input id="password" type="password" placeholder="点击输入密码" autocomplete="off">
+          </div>
+        </div>
+        <label class="agree">
+          <input type="checkbox" id="agreePwd" checked>
+          <span>我已阅读并同意<span class="doc">《裕慧家园用户协议及保密承诺》</span></span>
+        </label>
+        <button type="button" class="primary-button" id="loginByPwdBtn">登录</button>
+      </form>
+    </section>
+
+    <div class="demo-bar">
+      <strong>原型演示</strong>验证码按钮三态（实际倒计时 120s，演示用 10s）
+      <div class="chips">
+        <button class="demo-chip is-on" data-demo="idle">可发送</button>
+        <button class="demo-chip" data-demo="loading">发送中</button>
+        <button class="demo-chip" data-demo="countdown">倒计时</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    var toastTimer = null;
+    function toast(msg) {
+      var el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2000);
+    }
+
+    // Tab 切换（旧页默认短信登录）
+    var tabs = [document.getElementById('tab-code'), document.getElementById('tab-pwd')];
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) {
+          var on = t === tab;
+          t.setAttribute('aria-selected', on ? 'true' : 'false');
+          document.getElementById(t.getAttribute('aria-controls')).classList.toggle('is-active', on);
+        });
+      });
+    });
+
+    // 获取验证码：空手机号 / 格式校验 / 发送成功倒计时（旧组件 duration=120s，演示 10s）
+    var sendBtn = document.getElementById('sendCodeBtn');
+    var countTimer = null;
+    function startCountdown(seconds) {
+      var left = seconds;
+      sendBtn.disabled = true;
+      sendBtn.textContent = left + 's';
+      clearInterval(countTimer);
+      countTimer = setInterval(function () {
+        left--;
+        if (left <= 0) {
+          clearInterval(countTimer);
+          sendBtn.disabled = false;
+          sendBtn.textContent = '获取验证码';
+        } else {
+          sendBtn.textContent = left + 's';
+        }
+      }, 1000);
+    }
+    sendBtn.addEventListener('click', function () {
+      var phone = document.getElementById('phone').value.trim();
+      if (!phone) { toast('请输入手机号'); return; }
+      if (!/^1\d{10}$/.test(phone)) { toast('手机号格式不正确'); return; }
+      // 模拟 GET app:/sms/send/getCode/{mobile}
+      sendBtn.disabled = true;
+      sendBtn.textContent = '发送中…';
+      setTimeout(function () {
+        toast('发送成功');
+        startCountdown(10);
+      }, 600);
+    });
+
+    // 短信登录提交：旧页未接真实接口，直接写 token 后跳 /xuchang/home
+    document.getElementById('loginByCodeBtn').addEventListener('click', function () {
+      toast('登录成功，跳转 /xuchang/home（原型演示）');
+    });
+    // 密码登录提交：旧页 submit 为空实现；目标接口 POST /auth/oauth/token
+    document.getElementById('loginByPwdBtn').addEventListener('click', function () {
+      toast('调用 /auth/oauth/token 登录（旧页未接线，原型演示）');
+    });
+
+    // 演示切换条：验证码按钮三态
+    document.querySelectorAll('.demo-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        document.querySelectorAll('.demo-chip').forEach(function (c) { c.classList.remove('is-on'); });
+        chip.classList.add('is-on');
+        clearInterval(countTimer);
+        var mode = chip.getAttribute('data-demo');
+        if (mode === 'idle') { sendBtn.disabled = false; sendBtn.textContent = '获取验证码'; }
+        if (mode === 'loading') { sendBtn.disabled = true; sendBtn.textContent = '发送中…'; }
+        if (mode === 'countdown') { startCountdown(10); }
+      });
+    });
+  </script>
+</body>
+</html>

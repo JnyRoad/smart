@@ -1,0 +1,288 @@
+<!doctype html>
+<!--
+  原型：物品放行(办公区) 审批列表
+  旧路由：/xuchang/backLog/goodReleaseWork
+  旧组件：views-mobile/pages/backLog/good-release-work/list.vue
+          + components/search-by-staff.vue（员工信息搜索弹层）
+          + components/plateNumber/plateNumber.vue（车牌搜索弹层）
+          + views-mobile/components/page3-tab / page3-bottom
+  接口：GET platform:/articlesrelease/office/page（approvalStatus 0待审批/1已审批, current, size,
+        可选 badge/name/releaseItem/startTime/endTime/licensePlate）
+  跳转：点卡片 → /xuchang/backLog/goodReleaseWork/detail?id={id}&curTabIndex={tab}
+  说明：底部「搜 索」仅保安(isSecurityGuard===0)可见；旧页「扫一扫」已注释停用，不展示。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品放行(办公区) 审批列表</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; margin: 0; background: linear-gradient(180deg, rgba(255,241,227,.72) 0, rgba(255,255,255,0) 220px), var(--surface); }
+button, input, select { font: inherit; color: inherit; }
+button { border: 0; background: none; cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2px; }
+.app { position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; overflow: hidden; background: var(--white); box-shadow: var(--shadow-large); display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 0 0; background: linear-gradient(180deg, var(--accent-soft) 0, var(--white) 200px); }
+/* 顶栏 */
+.topbar { display: flex; align-items: center; min-height: 46px; padding: 0 6px; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; color: var(--yuto-black); }
+.back-btn svg { width: 22px; height: 22px; }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-space { width: 44px; }
+/* 原型演示切换条 */
+.demo-bar { margin: 6px 18px 10px; padding: 8px 10px; border: 1px dashed rgba(236,108,0,.45); border-radius: 12px; background: rgba(255,241,227,.6); }
+.demo-bar .demo-tag { font-size: 11px; font-weight: 700; color: var(--accent-ink); margin-bottom: 6px; }
+.demo-bar .demo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.demo-bar button { min-height: 30px; padding: 0 10px; border-radius: 999px; background: var(--white); border: 1px solid var(--light-gray); font-size: 12px; font-weight: 650; color: var(--mid-gray); }
+.demo-bar button.on { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+/* Tab */
+.tabs { display: flex; margin: 0 18px 12px; background: var(--white); border: 1px solid var(--border-soft); border-radius: 14px; padding: 4px; box-shadow: var(--shadow-panel); }
+.tabs button { flex: 1; min-height: 40px; border-radius: 10px; font-size: 14px; font-weight: 650; color: var(--mid-gray); }
+.tabs button.on { background: var(--accent-soft); color: var(--accent-strong); }
+/* 列表 */
+.list { flex: 1; padding: 2px 18px 120px; }
+.pull-hint { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 4px 0 10px; }
+.card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border-soft); }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.card-title { font-size: 15px; font-weight: 700; line-height: 1.35; }
+.badge { flex: none; border-radius: 999px; font-size: 12px; font-weight: 650; padding: 4px 10px; }
+.badge--wait { color: var(--warning); background: rgba(201,132,22,.12); }
+.badge--pass { color: var(--success); background: rgba(22,166,115,.12); }
+.badge--reject { color: var(--danger); background: rgba(216,59,54,.12); }
+.row { display: flex; gap: 10px; font-size: 13px; padding: 4px 0; }
+.row .lab { flex: none; width: 70px; color: var(--mid-gray); }
+.row .val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-arrow { display: flex; justify-content: flex-end; margin-top: 4px; }
+.card-arrow span { font-size: 12px; color: var(--brand-orange); font-weight: 650; }
+.load-more { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 8px 0 14px; }
+/* 空态 */
+.empty { display: none; flex-direction: column; align-items: center; padding: 60px 0; }
+.empty svg { width: 96px; height: 96px; margin-bottom: 14px; }
+.empty p { margin: 0; font-size: 14px; color: var(--weak-gray); }
+/* 底部搜索条（保安专用） */
+.bottom-bar { position: sticky; bottom: 0; padding: 10px 18px max(24px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(247,247,247,0), var(--surface) 40%); }
+.bottom-pill { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-radius: 999px; background: var(--white); box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); width: 100%; font-size: 15px; font-weight: 650; color: var(--yuto-black); }
+.bottom-pill svg { width: 18px; height: 18px; }
+.guard-note { text-align: center; font-size: 11px; color: var(--weak-gray); margin-top: 6px; }
+/* 弹层 */
+.sheet-mask { position: fixed; inset: 0; display: none; align-items: flex-end; justify-content: center; background: rgba(89,87,87,.45); z-index: 30; }
+.sheet-mask.open { display: flex; }
+.sheet { width: min(100%, 430px); max-height: 86dvh; overflow: auto; background: var(--white); border-radius: 20px 20px 0 0; padding: 14px 18px max(24px, env(safe-area-inset-bottom)); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sheet-head .swap { font-size: 13px; font-weight: 650; color: var(--brand-orange); min-height: 44px; display: flex; align-items: center; }
+.sheet-head .title { font-size: 15px; font-weight: 750; }
+.sheet-head .ok { font-size: 14px; font-weight: 700; color: var(--brand-orange); min-height: 44px; display: flex; align-items: center; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 13px; color: var(--mid-gray); margin-bottom: 6px; }
+.field input, .field select { width: 100%; height: 48px; border: 1px solid var(--border-soft); border-radius: 12px; padding: 0 14px; background: var(--white); }
+.field input:focus, .field select:focus { outline: 3px solid rgba(236,108,0,.22); border-color: var(--brand-orange); }
+/* 车牌弹层 */
+.plate-type { display: flex; gap: 8px; margin-bottom: 12px; }
+.plate-type button { flex: 1; min-height: 40px; border-radius: 10px; border: 1px solid var(--light-gray); font-size: 13px; font-weight: 650; color: var(--mid-gray); background: var(--white); }
+.plate-type button.on { border-color: var(--brand-orange); background: var(--accent-soft); color: var(--accent-strong); }
+.plate-cells { display: flex; gap: 6px; margin-bottom: 8px; }
+.plate-cells .cell { flex: 1; height: 46px; border: 1px solid var(--light-gray); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; background: var(--white); }
+.plate-cells .cell.active { border-color: var(--brand-orange); box-shadow: 0 0 0 3px rgba(236,108,0,.22); }
+.plate-cells .cell.energy { border-style: dashed; color: var(--success); }
+.plate-tip { font-size: 12px; color: var(--weak-gray); margin-bottom: 10px; }
+.sheet .primary { width: 100%; min-height: 48px; border-radius: 14px; background: var(--brand-orange); color: #fff; font-size: 15px; font-weight: 650; }
+.sheet .primary:active { background: var(--accent-strong); }
+.toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(89,87,87,.92); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 10px; display: none; z-index: 50; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page">
+    <header class="topbar">
+      <button class="back-btn" aria-label="返回" onclick="toast('返回上一页')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="topbar-title">物品放行(办公区)</div>
+      <div class="topbar-space"></div>
+    </header>
+
+    <div class="demo-bar">
+      <div class="demo-tag">原型演示 · 状态切换</div>
+      <div class="demo-btns">
+        <button class="on" data-demo="wait" onclick="setDemo('wait',this)">待我审批的</button>
+        <button data-demo="done" onclick="setDemo('done',this)">我审批的</button>
+        <button data-demo="empty" onclick="setDemo('empty',this)">空态</button>
+        <button data-demo="staff" onclick="openSheet('staffSheet')">员工搜索弹层</button>
+        <button data-demo="plate" onclick="openSheet('plateSheet')">车牌搜索弹层</button>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="审批状态">
+      <button id="tabWait" class="on" onclick="setDemo('wait',document.querySelector('[data-demo=wait]'))">待我审批的</button>
+      <button id="tabDone" onclick="setDemo('done',document.querySelector('[data-demo=done]'))">我审批的</button>
+    </nav>
+
+    <main class="list">
+      <div class="pull-hint">下拉刷新 · 更新成功</div>
+
+      <!-- 待我审批的 -->
+      <section id="listWait">
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/goodReleaseWork/detail?id=2024061101&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">陈志强提交的放行条</div><span class="badge badge--wait">待审批</span></div>
+          <div class="row"><span class="lab">申请部门:</span><span class="val">包装结构研发部</span></div>
+          <div class="row"><span class="lab">放行事项:</span><span class="val">电脑放行</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-11 09:24:18</span></div>
+          <div class="row"><span class="lab">OA节点:</span><span class="val">部门经理审批</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/goodReleaseWork/detail?id=2024061102&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">李雨桐提交的放行条</div><span class="badge badge--wait">待审批</span></div>
+          <div class="row"><span class="lab">申请部门:</span><span class="val">印刷一课</span></div>
+          <div class="row"><span class="lab">放行事项:</span><span class="val">人员放行(仅限出差使用)</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-11 08:51:02</span></div>
+          <div class="row"><span class="lab">OA节点:</span><span class="val">-</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/goodReleaseWork/detail?id=2024061103&curTabIndex=0')">
+          <div class="card-head"><div class="card-title">王建国提交的放行条</div><span class="badge badge--wait">待审批</span></div>
+          <div class="row"><span class="lab">申请部门:</span><span class="val">设备维护部</span></div>
+          <div class="row"><span class="lab">放行事项:</span><span class="val">固定资产放行(不包含电脑)</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-10 17:36:45</span></div>
+          <div class="row"><span class="lab">OA节点:</span><span class="val">保安核验</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <div class="load-more">上拉加载更多 · 第 1/3 页</div>
+      </section>
+
+      <!-- 我审批的 -->
+      <section id="listDone" style="display:none">
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/goodReleaseWork/detail?id=2024060901&curTabIndex=1')">
+          <div class="card-head"><div class="card-title">赵敏提交的放行条</div><span class="badge badge--pass">已通过</span></div>
+          <div class="row"><span class="lab">申请部门:</span><span class="val">市场开发部</span></div>
+          <div class="row"><span class="lab">放行事项:</span><span class="val">非保密物品放行</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-09 14:02:33</span></div>
+          <div class="row"><span class="lab">OA节点:</span><span class="val">已完成</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <article class="card" onclick="toast('跳转：/xuchang/backLog/goodReleaseWork/detail?id=2024060802&curTabIndex=1')">
+          <div class="card-head"><div class="card-title">孙浩提交的放行条</div><span class="badge badge--reject">已拒绝</span></div>
+          <div class="row"><span class="lab">申请部门:</span><span class="val">仓储物流部</span></div>
+          <div class="row"><span class="lab">放行事项:</span><span class="val">废品出售</span></div>
+          <div class="row"><span class="lab">申请时间:</span><span class="val">2026-06-08 10:18:09</span></div>
+          <div class="row"><span class="lab">OA节点:</span><span class="val">已完成</span></div>
+          <div class="card-arrow"><span>查看详情 ›</span></div>
+        </article>
+        <div class="load-more">没有更多了</div>
+      </section>
+
+      <!-- 空态 -->
+      <section id="listEmpty" class="empty">
+        <svg viewBox="0 0 96 96" aria-hidden="true">
+          <circle cx="48" cy="48" r="44" fill="#FFF1E3"/>
+          <rect x="30" y="34" width="36" height="30" rx="5" fill="#FFFFFF" stroke="#E5E3E3" stroke-width="2"/>
+          <path d="M30 44h36" stroke="#E5E3E3" stroke-width="2"/>
+          <circle cx="48" cy="54" r="4" fill="#EC6C00"/>
+        </svg>
+        <p>暂无放行条记录</p>
+      </section>
+    </main>
+
+    <!-- 底部搜索（仅保安 isSecurityGuard===0 可见） -->
+    <div class="bottom-bar">
+      <button class="bottom-pill" onclick="openSheet('staffSheet')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        搜 索
+      </button>
+      <div class="guard-note">当前身份：保安（isSecurityGuard=0），可使用搜索</div>
+    </div>
+  </div>
+</div>
+
+<!-- 员工信息搜索弹层 -->
+<div class="sheet-mask" id="staffSheet" onclick="if(event.target===this)closeSheet('staffSheet')">
+  <div class="sheet">
+    <div class="sheet-head">
+      <button class="swap" onclick="closeSheet('staffSheet');openSheet('plateSheet')">按车牌号搜索</button>
+      <div class="title">按员工信息搜索</div>
+      <button class="ok" onclick="closeSheet('staffSheet');toast('已按员工条件查询列表')">确定</button>
+    </div>
+    <div class="field"><label>工号</label><input placeholder="请输入" value="YT08231"></div>
+    <div class="field"><label>携带人姓名</label><input placeholder="请输入" value="陈志强"></div>
+    <div class="field"><label>放行事项</label>
+      <select>
+        <option>请选择</option>
+        <option selected>电脑放行</option>
+        <option>人员放行</option>
+        <option>人员放行(仅限出差使用)</option>
+        <option>非保密物品放行</option>
+        <option>保密物品放行</option>
+        <option>固定资产放行(不包含电脑)</option>
+        <option>空车放行</option>
+        <option>自动化物品放行</option>
+        <option>废品出售</option>
+      </select>
+    </div>
+    <div class="field"><label>申请开始时间</label><input type="datetime-local" value="2026-06-10T08:00"></div>
+    <div class="field"><label>申请结束时间</label><input type="datetime-local" value="2026-06-11T18:00"></div>
+  </div>
+</div>
+
+<!-- 车牌号搜索弹层 -->
+<div class="sheet-mask" id="plateSheet" onclick="if(event.target===this)closeSheet('plateSheet')">
+  <div class="sheet">
+    <div class="sheet-head">
+      <button class="swap" onclick="closeSheet('plateSheet');openSheet('staffSheet')">按员工信息搜索</button>
+      <div class="title">按车牌号搜索</div>
+      <button class="ok" onclick="closeSheet('plateSheet');toast('已按车牌 粤B·D67P32 查询列表')">确定</button>
+    </div>
+    <div class="plate-type">
+      <button class="on">普通车牌</button>
+      <button>新能源车牌</button>
+    </div>
+    <div class="plate-cells">
+      <div class="cell">粤</div><div class="cell">B</div><div class="cell">D</div><div class="cell">6</div><div class="cell">7</div><div class="cell">P</div><div class="cell active">3</div><div class="cell energy">2</div>
+    </div>
+    <div class="plate-tip">车牌格式不正确时提示「车牌号不正确」；输入完成自动按车牌查询。</div>
+    <button class="primary" onclick="closeSheet('plateSheet');toast('已按车牌查询列表')">确 定</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+function setDemo(mode, btn){
+  document.querySelectorAll('.demo-bar .demo-btns button[data-demo]').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  document.getElementById('listWait').style.display = mode==='wait' ? '' : 'none';
+  document.getElementById('listDone').style.display = mode==='done' ? '' : 'none';
+  document.getElementById('listEmpty').style.display = mode==='empty' ? 'flex' : 'none';
+  document.getElementById('tabWait').classList.toggle('on', mode!=='done');
+  document.getElementById('tabDone').classList.toggle('on', mode==='done');
+}
+function openSheet(id){ document.getElementById(id).classList.add('open'); }
+function closeSheet(id){ document.getElementById(id).classList.remove('open'); }
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.style.display='none', 1800);
+}
+</script>
+</body>
+</html>

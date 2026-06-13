@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<!--
+  原型：宿舍申请-手动选择房间
+  旧路由：/xuchang/checkIn/selectRoom?parkId=&dormitoryId=&roomType=
+  旧组件：smart-h5/src/views-mobile/pages/check-in/select-room.vue
+  接口：
+    GET  /park/tree/condition（parkId, dormitoryId, roomType，楼层树；无数据 toast「无房间信息！」、失败 toast「获取房间信息失败！」均退回 /xuchang/checkIn）
+    GET  /dormitory/room/search/condition（parkId, dormitoryId, roomType, floorId，楼层房间；失败 toast res.message）
+    POST /dormitory/room/bedDetail/{roomId}（床位明细；staffBadge≠null 或 delFlag=1 的床位剔除）
+  规则：左侧楼层竖列默认选第 1 层；切楼层重拉房间并清空房间选中；
+        房间格显示「X房」+「{男|女} 空床数/总床数」（roomSex 0=男 1=女）；
+        点房间 freeBedNum>0 才拉床位，否则 toast「该房间无可选用的床位！」；过滤后无床位 toast「无可选用的床位！」；
+        选床位（picker 标题「选择床位」，选项「X床」）→ floorId/房间/床位写 localStorage roomInfo → 返回 /xuchang/checkIn 回填
+  跳转：选定床位 → /xuchang/checkIn；无房间/获取失败 → /xuchang/checkIn
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>选择房间</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-main); background: var(--surface); color: var(--yuto-black); }
+button { font: inherit; }
+.app {
+  width: min(100%, 430px); margin: 0 auto; min-height: 100dvh;
+  background: var(--white); box-shadow: var(--shadow-large);
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+.app::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 220px;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, rgba(255,241,227,0) 100%);
+  pointer-events: none;
+}
+.topbar { position: relative; z-index: 2; padding: max(14px, env(safe-area-inset-top)) 6px 6px; display: flex; align-items: center; }
+.back-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; }
+.back-btn svg { width: 22px; height: 22px; stroke: var(--yuto-black); }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-spacer { width: 44px; }
+.demo-bar {
+  position: relative; z-index: 2; margin: 4px 16px 0; padding: 8px 12px;
+  background: var(--accent-soft); border: 1px dashed var(--brand-orange); border-radius: 12px;
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--accent-ink); flex-wrap: wrap;
+}
+.demo-bar button { border: 1px solid var(--brand-orange); background: var(--white); color: var(--brand-orange); border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; min-height: 28px; }
+.demo-bar button.on { background: var(--brand-orange); color: var(--white); }
+
+.query-chip { position: relative; z-index: 1; margin: 12px 16px 0; font-size: 12px; color: var(--mid-gray); background: var(--white); border: 1px solid var(--border-soft); border-radius: 999px; padding: 7px 14px; display: inline-flex; gap: 6px; align-self: flex-start; }
+.query-chip b { color: var(--accent-strong); font-weight: 700; }
+
+.body { position: relative; z-index: 1; flex: 1; display: flex; gap: 12px; padding: 12px 16px max(24px, env(safe-area-inset-bottom)); }
+/* 左侧楼层竖列 */
+.floors { flex: none; width: 84px; display: flex; flex-direction: column; gap: 10px; }
+.floor { min-height: 48px; border: 1px solid var(--border-soft); border-radius: 14px; background: var(--white); box-shadow: var(--shadow-panel); color: var(--yuto-black); font-size: 14px; cursor: pointer; }
+.floor.sel { background: var(--brand-orange); border-color: var(--brand-orange); color: var(--white); font-weight: 750; }
+/* 右侧房间网格 */
+.rooms-wrap { flex: 1; min-width: 0; }
+.rooms-title { font-size: 13px; font-weight: 750; color: var(--mid-gray); margin-bottom: 10px; }
+.rooms { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.room { border: 1px solid var(--border-soft); border-radius: 14px; background: var(--white); box-shadow: var(--shadow-panel); padding: 12px 8px; text-align: center; cursor: pointer; min-height: 64px; }
+.room .rn { font-size: 15px; font-weight: 750; }
+.room .rs { margin-top: 5px; font-size: 12px; color: var(--mid-gray); }
+.room .rs .sex-m { color: var(--info); font-weight: 650; }
+.room .rs .sex-f { color: #E0578F; font-weight: 650; }
+.room.full { opacity: .55; }
+.room.full .rs .free { color: var(--danger); }
+.room.sel { background: var(--accent-soft); border-color: var(--brand-orange); }
+.room.sel .rn { color: var(--brand-orange); }
+.rooms-empty { padding: 40px 0; text-align: center; }
+.rooms-empty .pic { width: 84px; height: 84px; margin: 0 auto 12px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; color: var(--brand-orange); }
+.rooms-empty p { font-size: 14px; color: var(--weak-gray); }
+
+/* 床位选择器（底部 picker） */
+.mask { position: absolute; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: none; }
+.mask.show { display: block; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 31; background: var(--white); border-radius: 20px 20px 0 0; padding: 0 16px max(24px, env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform .25s ease; }
+.sheet.show { transform: translateY(0); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 54px; border-bottom: 1px solid var(--border-soft); }
+.sheet-head .cancel { border: none; background: none; color: var(--mid-gray); font-size: 14px; cursor: pointer; min-height: 44px; padding: 0 4px; }
+.sheet-head .st { font-size: 16px; font-weight: 750; }
+.sheet-head .ok { border: none; background: none; color: var(--brand-orange); font-size: 14px; font-weight: 700; cursor: pointer; min-height: 44px; padding: 0 4px; }
+.beds { padding: 14px 0 6px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.bed { min-height: 48px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white); font-size: 14px; cursor: pointer; color: var(--yuto-black); }
+.bed.sel { background: var(--accent-soft); border-color: var(--brand-orange); color: var(--brand-orange); font-weight: 750; }
+
+.note { position: relative; z-index: 1; padding: 0 18px 14px; font-size: 11px; color: var(--weak-gray); line-height: 1.6; }
+.toast { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); background: rgba(58,56,56,.92); color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 999px; display: none; z-index: 40; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <button class="back-btn" onclick="demoToast('返回 /xuchang/checkIn')" aria-label="返回">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">选择房间</div>
+    <div class="topbar-spacer"></div>
+  </div>
+
+  <div class="demo-bar">
+    <span>原型演示</span>
+    <button class="on" data-state="normal">正常选择</button>
+    <button data-state="full">房间满员</button>
+    <button data-state="nobed">无可选床位</button>
+    <button data-state="noroom">无房间信息</button>
+  </div>
+
+  <div class="query-chip">楼栋 <b>3 号宿舍楼</b> · 房间类型 <b>四人间</b></div>
+
+  <div class="body">
+    <!-- 左侧楼层竖列（默认选第 1 层） -->
+    <div class="floors" id="floors"></div>
+    <!-- 右侧房间网格 -->
+    <div class="rooms-wrap">
+      <div class="rooms-title">房间</div>
+      <div class="rooms" id="rooms"></div>
+      <div class="rooms-empty" id="roomsEmpty" style="display:none">
+        <div class="pic">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><rect x="10" y="14" width="4" height="7"/></svg>
+        </div>
+        <p>无房间信息！</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">注：选定床位后将 floorId / 房间(roomId+roomName) / 床位(bedId+bedNumber) 写入 localStorage roomInfo 并返回 /xuchang/checkIn 回填；已被占用（staffBadge≠null）或已删除（delFlag=1）的床位不出现在选择器中。</p>
+
+  <!-- 床位选择器 -->
+  <div class="mask" id="mask" onclick="hideSheet()"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-head">
+      <button class="cancel" onclick="hideSheet()">取消</button>
+      <span class="st">选择床位</span>
+      <button class="ok" onclick="confirmBed()">确定</button>
+    </div>
+    <div class="beds" id="beds"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var toastTimer;
+function demoToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.style.display = 'none'; }, 2000);
+}
+// mock：楼层树（/park/tree/condition）+ 各楼层房间（/dormitory/room/search/condition）
+var FLOORS = [
+  { id: 'F1', label: '1' }, { id: 'F2', label: '2' }, { id: 'F3', label: '3' }, { id: 'F4', label: '4' }
+];
+var ROOMS = {
+  F1: [
+    { roomId: 'R101', roomName: '101', roomSex: 0, freeBedNum: 2, bedTotal: 4 },
+    { roomId: 'R102', roomName: '102', roomSex: 0, freeBedNum: 1, bedTotal: 4 },
+    { roomId: 'R103', roomName: '103', roomSex: 1, freeBedNum: 3, bedTotal: 4 },
+    { roomId: 'R105', roomName: '105', roomSex: 0, freeBedNum: 0, bedTotal: 4 }
+  ],
+  F2: [
+    { roomId: 'R201', roomName: '201', roomSex: 0, freeBedNum: 4, bedTotal: 4 },
+    { roomId: 'R202', roomName: '202', roomSex: 1, freeBedNum: 2, bedTotal: 4 },
+    { roomId: 'R203', roomName: '203', roomSex: 1, freeBedNum: 0, bedTotal: 4 }
+  ],
+  F3: [
+    { roomId: 'R301', roomName: '301', roomSex: 0, freeBedNum: 1, bedTotal: 4 },
+    { roomId: 'R302', roomName: '302', roomSex: 0, freeBedNum: 2, bedTotal: 4 }
+  ],
+  F4: [
+    { roomId: 'R401', roomName: '401', roomSex: 1, freeBedNum: 3, bedTotal: 4 }
+  ]
+};
+// mock：床位（/dormitory/room/bedDetail/{roomId}，已剔除占用/删除床位）
+var BEDS = { 'default': [ { id: 'B1', bedNumber: 1 }, { id: 'B3', bedNumber: 3 } ] };
+var state = 'normal', fsi = 0, selRoom = null, selBed = null;
+
+function renderFloors(){
+  document.getElementById('floors').innerHTML = FLOORS.map(function(f, i){
+    return '<button class="floor' + (i === fsi ? ' sel' : '') + '" onclick="floorClick(' + i + ')">' + f.label + '层</button>';
+  }).join('');
+}
+function renderRooms(){
+  var list = ROOMS[FLOORS[fsi].id] || [];
+  document.getElementById('roomsEmpty').style.display = 'none';
+  document.getElementById('rooms').innerHTML = list.map(function(r, i){
+    var sexCls = r.roomSex === 0 ? 'sex-m' : 'sex-f';
+    var sexTxt = r.roomSex === 0 ? '男' : '女';
+    return '<div class="room' + (r.freeBedNum === 0 ? ' full' : '') + (selRoom === i ? ' sel' : '') + '" onclick="roomClick(' + i + ')">' +
+      '<div class="rn">' + r.roomName + '房</div>' +
+      '<div class="rs"><span class="' + sexCls + '">' + sexTxt + '</span> <span class="free">' + r.freeBedNum + '</span>/' + r.bedTotal + '</div></div>';
+  }).join('');
+}
+function floorClick(i){
+  // 切楼层：重拉该层房间并清空房间选中
+  fsi = i; selRoom = null;
+  renderFloors(); renderRooms();
+}
+function roomClick(i){
+  var r = (ROOMS[FLOORS[fsi].id] || [])[i];
+  selRoom = i; renderRooms();
+  if (state === 'nobed') { demoToast('无可选用的床位！'); return; }   // freeBedNum>0 但过滤后为空
+  if (r.freeBedNum > 0) { showSheet(); }
+  else { demoToast('该房间无可选用的床位！'); }
+}
+function renderBeds(){
+  document.getElementById('beds').innerHTML = BEDS['default'].map(function(b, i){
+    return '<button class="bed' + (selBed === i ? ' sel' : '') + '" onclick="bedClick(' + i + ')">' + b.bedNumber + '床</button>';
+  }).join('');
+}
+function bedClick(i){ selBed = i; renderBeds(); }
+function showSheet(){ selBed = 0; renderBeds(); document.getElementById('mask').classList.add('show'); document.getElementById('sheet').classList.add('show'); }
+function hideSheet(){ document.getElementById('mask').classList.remove('show'); document.getElementById('sheet').classList.remove('show'); }
+function confirmBed(){
+  var r = (ROOMS[FLOORS[fsi].id] || [])[selRoom];
+  var b = BEDS['default'][selBed];
+  hideSheet();
+  demoToast('已选 ' + r.roomName + '房 ' + b.bedNumber + '床 → 写入 roomInfo 并返回 /xuchang/checkIn');
+}
+function setState(s){
+  state = s; fsi = 0; selRoom = null; hideSheet();
+  renderFloors(); renderRooms();
+  if (s === 'noroom') {
+    document.getElementById('rooms').innerHTML = '';
+    document.getElementById('roomsEmpty').style.display = 'block';
+    demoToast('无房间信息！→ 退回 /xuchang/checkIn');
+  } else if (s === 'full') {
+    demoToast('点击满员房间（0/4）演示「该房间无可选用的床位！」');
+  } else if (s === 'nobed') {
+    demoToast('点击任意房间演示「无可选用的床位！」');
+  }
+}
+document.querySelectorAll('.demo-bar button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.demo-bar button').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    setState(btn.dataset.state);
+  });
+});
+setState('normal');
+</script>
+</body>
+</html>

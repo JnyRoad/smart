@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<!--
+  原型：水电扣费明细
+  旧路由：/xuchang/dorm/waterElec
+  旧组件：smart-h5/src/views-mobile/pages/dorm/water-elec.vue
+  接口：GET /dormitory/staff/statementdetail/record（current, size=10, statementMonth）
+  规则：cateInfos 过滤「热水」，「冷水」改名「水」；月份选择默认当月、最大当月；「查询全部」statementMonth 传空、显示「未选择」；下拉刷新 + 上拉分页
+  跳转：返回 → /xuchang/dorm
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>水电扣费明细</title>
+<style>
+:root {
+  --brand-orange: #EC6C00;
+  --accent-strong: #D95F00;
+  --accent-soft: #FFF1E3;
+  --accent-ink: #5A2600;
+  --white: #FFFFFF;
+  --surface: #F7F7F7;
+  --yuto-black: #595757;
+  --mid-gray: #8C8A8A;
+  --weak-gray: #AAA7A7;
+  --light-gray: #E5E3E3;
+  --border-soft: #EFEEEE;
+  --success: #16A673;
+  --warning: #C98416;
+  --danger: #D83B36;
+  --info: #2376D9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+  --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-main); background: var(--surface); color: var(--yuto-black); }
+.app {
+  width: min(100%, 430px); margin: 0 auto; min-height: 100dvh;
+  background: var(--white); box-shadow: var(--shadow-large);
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+.app::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 220px;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, rgba(255,241,227,0) 100%);
+  pointer-events: none;
+}
+.topbar { position: relative; z-index: 2; padding: max(14px, env(safe-area-inset-top)) 6px 6px; display: flex; align-items: center; }
+.back-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; }
+.back-btn svg { width: 22px; height: 22px; stroke: var(--yuto-black); }
+.topbar-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+.topbar-spacer { width: 44px; }
+.demo-bar {
+  position: relative; z-index: 2; margin: 4px 16px 0; padding: 8px 12px;
+  background: var(--accent-soft); border: 1px dashed var(--brand-orange); border-radius: 12px;
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--accent-ink); flex-wrap: wrap;
+}
+.demo-bar button {
+  border: 1px solid var(--brand-orange); background: var(--white); color: var(--brand-orange);
+  border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; min-height: 28px;
+}
+.demo-bar button.on { background: var(--brand-orange); color: var(--white); }
+.filter-bar {
+  position: relative; z-index: 1; margin: 12px 16px 0; padding: 6px 6px 6px 16px;
+  background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel);
+  display: flex; align-items: center; justify-content: space-between; min-height: 52px;
+}
+.link-all { font-size: 14px; font-weight: 650; color: var(--info); background: none; border: none; cursor: pointer; min-height: 44px; }
+.month-select {
+  display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
+  border-radius: 12px; border: 1px solid var(--border-soft); background: var(--white);
+  font-size: 14px; color: var(--yuto-black); cursor: pointer;
+}
+.month-select svg { width: 14px; height: 14px; stroke: var(--mid-gray); }
+.pull-hint { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 10px 0 0; }
+.bill-list { position: relative; z-index: 1; padding: 12px 16px 8px; display: flex; flex-direction: column; gap: 12px; }
+.bill-card { background: var(--white); border-radius: 16px; box-shadow: var(--shadow-panel); border: 1px solid var(--border-soft); padding: 16px 18px; }
+.bill-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-soft); }
+.bill-staff { font-size: 15px; font-weight: 700; }
+.bill-date { font-size: 13px; color: var(--mid-gray); }
+.bill-row { display: flex; justify-content: space-between; font-size: 14px; margin-top: 10px; }
+.bill-row .lbl { color: var(--mid-gray); }
+.bill-row .val { font-weight: 650; }
+.bill-total { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--light-gray); }
+.bill-total .lbl { font-size: 14px; font-weight: 700; }
+.bill-total .val { font-size: 18px; font-weight: 750; color: var(--brand-orange); }
+.load-more { text-align: center; font-size: 12px; color: var(--weak-gray); padding: 4px 0 12px; }
+.empty { padding: 64px 0 40px; text-align: center; }
+.empty svg { width: 96px; height: 96px; }
+.empty p { margin-top: 14px; font-size: 14px; color: var(--weak-gray); }
+.foot { margin-top: auto; padding: 14px 0 max(24px, env(safe-area-inset-bottom)); text-align: center; font-size: 12px; color: var(--weak-gray); }
+/* 月份选择弹层（picker 演示） */
+.sheet-mask { position: fixed; inset: 0; background: rgba(89,87,87,0.45); display: none; align-items: flex-end; justify-content: center; z-index: 10; }
+.sheet-mask.show { display: flex; }
+.sheet { width: min(100%, 430px); background: var(--white); border-radius: 20px 20px 0 0; padding: 14px 16px max(24px, env(safe-area-inset-bottom)); }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-soft); }
+.sheet-head .title { font-size: 15px; font-weight: 700; }
+.sheet-head button { background: none; border: none; font-size: 14px; min-height: 44px; min-width: 44px; cursor: pointer; }
+.sheet-head .cancel { color: var(--mid-gray); }
+.sheet-head .ok { color: var(--brand-orange); font-weight: 650; }
+.month-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px 0 4px; }
+.month-opt { min-height: 44px; border-radius: 12px; border: 1px solid var(--border-soft); background: var(--white); font-size: 14px; color: var(--yuto-black); cursor: pointer; }
+.month-opt.sel { background: var(--accent-soft); border-color: var(--brand-orange); color: var(--brand-orange); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <button class="back-btn" aria-label="返回" onclick="alert('原型演示：返回 /xuchang/dorm')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="topbar-title">水电扣费明细</div>
+    <div class="topbar-spacer"></div>
+  </div>
+
+  <div class="demo-bar">
+    <span>原型演示</span>
+    <button id="btnState1" class="on" onclick="setState('data')">有数据</button>
+    <button id="btnState2" onclick="setState('empty')">空态</button>
+  </div>
+
+  <div class="filter-bar">
+    <button class="link-all" id="btnAll" onclick="queryAll()">查询全部</button>
+    <button class="month-select" onclick="openSheet()">
+      <span id="monthText">2026-06</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  </div>
+
+  <div class="pull-hint">下拉刷新 · 更新成功</div>
+
+  <div id="viewData">
+    <div class="bill-list">
+      <div class="bill-card">
+        <div class="bill-head">
+          <div class="bill-staff">王建国-YT20180326</div>
+          <div class="bill-date">2026-06-05</div>
+        </div>
+        <div class="bill-row"><span class="lbl">抄表月份</span><span class="val">2026-05</span></div>
+        <div class="bill-row"><span class="lbl">房间水费</span><span class="val">23.40 元</span></div>
+        <div class="bill-row"><span class="lbl">房间电费</span><span class="val">47.86 元</span></div>
+        <div class="bill-total"><span class="lbl">总计</span><span class="val">71.26 元</span></div>
+      </div>
+      <div class="bill-card">
+        <div class="bill-head">
+          <div class="bill-staff">王建国-YT20180326</div>
+          <div class="bill-date">2026-05-05</div>
+        </div>
+        <div class="bill-row"><span class="lbl">抄表月份</span><span class="val">2026-04</span></div>
+        <div class="bill-row"><span class="lbl">房间水费</span><span class="val">18.72 元</span></div>
+        <div class="bill-row"><span class="lbl">房间电费</span><span class="val">39.15 元</span></div>
+        <div class="bill-total"><span class="lbl">总计</span><span class="val">57.87 元</span></div>
+      </div>
+      <div class="bill-card">
+        <div class="bill-head">
+          <div class="bill-staff">王建国-YT20180326</div>
+          <div class="bill-date">2026-04-05</div>
+        </div>
+        <div class="bill-row"><span class="lbl">抄表月份</span><span class="val">2026-03</span></div>
+        <div class="bill-row"><span class="lbl">房间水费</span><span class="val">21.06 元</span></div>
+        <div class="bill-row"><span class="lbl">房间电费</span><span class="val">52.30 元</span></div>
+        <div class="bill-total"><span class="lbl">总计</span><span class="val">73.36 元</span></div>
+      </div>
+    </div>
+    <div class="load-more">上拉加载更多（每页 10 条）· 没有更多了</div>
+  </div>
+
+  <div id="viewEmpty" style="display:none">
+    <div class="empty">
+      <svg viewBox="0 0 96 96" fill="none">
+        <circle cx="48" cy="48" r="44" fill="#FFF1E3"/>
+        <rect x="30" y="30" width="36" height="40" rx="4" fill="#FFFFFF" stroke="#E5E3E3" stroke-width="2"/>
+        <line x1="37" y1="42" x2="59" y2="42" stroke="#E5E3E3" stroke-width="2" stroke-linecap="round"/>
+        <line x1="37" y1="50" x2="59" y2="50" stroke="#E5E3E3" stroke-width="2" stroke-linecap="round"/>
+        <line x1="37" y1="58" x2="50" y2="58" stroke="#E5E3E3" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <p>暂无水电扣费记录</p>
+    </div>
+  </div>
+
+  <div class="foot">裕同智慧园区 · 高保真原型</div>
+</div>
+
+<!-- 月份选择 picker（年月，最大当月） -->
+<div class="sheet-mask" id="sheetMask" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet">
+    <div class="sheet-head">
+      <button class="cancel" onclick="closeSheet()">取消</button>
+      <span class="title">选择账单月份</span>
+      <button class="ok" onclick="confirmMonth()">确定</button>
+    </div>
+    <div class="month-opts" id="monthOpts"></div>
+  </div>
+</div>
+
+<script>
+var months = ['2026-06','2026-05','2026-04','2026-03','2026-02','2026-01'];
+var picked = '2026-06';
+function setState(s) {
+  document.getElementById('viewData').style.display = s === 'data' ? '' : 'none';
+  document.getElementById('viewEmpty').style.display = s === 'empty' ? '' : 'none';
+  document.getElementById('btnState1').className = s === 'data' ? 'on' : '';
+  document.getElementById('btnState2').className = s === 'empty' ? 'on' : '';
+}
+function queryAll() {
+  document.getElementById('monthText').textContent = '未选择';
+  setState('data');
+}
+function openSheet() {
+  var box = document.getElementById('monthOpts');
+  box.innerHTML = '';
+  months.forEach(function (m) {
+    var b = document.createElement('button');
+    b.className = 'month-opt' + (m === picked ? ' sel' : '');
+    b.textContent = m.replace('-', '年') + '月';
+    b.onclick = function () { picked = m; openSheet(); };
+    box.appendChild(b);
+  });
+  document.getElementById('sheetMask').classList.add('show');
+}
+function closeSheet() { document.getElementById('sheetMask').classList.remove('show'); }
+function confirmMonth() {
+  document.getElementById('monthText').textContent = picked;
+  closeSheet();
+  setState('data');
+}
+</script>
+</body>
+</html>

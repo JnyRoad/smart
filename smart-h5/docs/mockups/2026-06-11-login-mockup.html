@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>裕同智慧园区 H5 登录</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html {
+      min-height: 100%;
+      background: var(--surface);
+      color: var(--yuto-black);
+      font-family: var(--font-main);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+    body {
+      min-height: 100dvh;
+      margin: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px),
+        var(--surface);
+    }
+    button, input, select { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid rgba(236, 108, 0, 0.22);
+      outline-offset: 2px;
+    }
+    .app {
+      position: relative;
+      width: min(100%, 430px);
+      min-height: 100dvh;
+      margin: 0 auto;
+      overflow: hidden;
+      background: var(--white);
+      box-shadow: var(--shadow-large);
+    }
+    .page {
+      min-height: 100dvh;
+      padding: max(14px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+      background:
+        linear-gradient(180deg, var(--white) 0, var(--white) 58%, #FAFAFA 100%);
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 46px;
+      gap: 14px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 10px;
+    }
+    .brand-logo {
+      display: block;
+      width: 104px;
+      max-height: 28px;
+      object-fit: contain;
+    }
+    .brand-wordmark {
+      color: var(--yuto-black);
+      font-size: 16px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+    .wechat-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border: 1px solid rgba(236, 108, 0, 0.18);
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .hero { padding: 28px 2px 18px; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--accent-ink);
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .eyebrow::before { width: 7px; height: 7px; border-radius: 999px; background: var(--brand-orange); content: ""; }
+    h1 {
+      margin: 0;
+      color: var(--yuto-black);
+      font-size: 31px;
+      line-height: 1.16;
+      font-weight: 750;
+      text-wrap: pretty;
+    }
+    .hero p {
+      margin: 12px 0 0;
+      color: var(--yuto-black);
+      font-size: 15px;
+      line-height: 1.65;
+      text-wrap: pretty;
+    }
+    .service-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .service-item {
+      min-width: 0;
+      min-height: 58px;
+      padding: 10px 8px;
+      border: 1px solid var(--border-soft);
+      border-radius: 14px;
+      background: #FBFBFB;
+    }
+    .service-item strong {
+      display: block;
+      color: var(--yuto-black);
+      font-size: 13px;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+    .service-item span { display: block; margin-top: 5px; color: var(--yuto-black); font-size: 12px; line-height: 1.25; }
+    .signin-panel {
+      margin-top: 4px;
+      border: 1px solid var(--border-soft);
+      border-radius: 22px;
+      background: var(--white);
+      box-shadow: var(--shadow-panel);
+      overflow: hidden;
+    }
+    .employee-priority {
+      padding: 20px 18px 16px;
+      border-bottom: 1px solid var(--border-soft);
+      background:
+        linear-gradient(180deg, rgba(255, 241, 227, 0.78), rgba(255, 255, 255, 0) 78%);
+    }
+    .section-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .section-label strong {
+      color: var(--yuto-black);
+      font-size: 18px;
+      line-height: 1.35;
+      font-weight: 750;
+    }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .wechat-button,
+    .primary-button,
+    .secondary-button,
+    .ghost-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 48px;
+      border-radius: 12px;
+      font-size: 19px;
+      font-weight: 750;
+      transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
+    }
+    .wechat-button,
+    .primary-button {
+      background: var(--accent-strong);
+      color: var(--white);
+    }
+    .wechat-button:hover,
+    .primary-button:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+    }
+    .secondary-button {
+      border: 1px solid var(--light-gray);
+      background: var(--white);
+      color: var(--yuto-black);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .secondary-button:hover {
+      border-color: rgba(236, 108, 0, 0.36);
+      background: #FFF8F1;
+    }
+    .ghost-button {
+      min-height: 44px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--yuto-black);
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .ghost-button:hover {
+      background: var(--surface);
+      color: var(--yuto-black);
+    }
+    .employee-note {
+      margin: 10px 0 0;
+      color: var(--yuto-black);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .form-zone {
+      padding: 16px 18px 18px;
+    }
+    .divider-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 14px;
+      color: var(--yuto-black);
+      font-size: 13px;
+    }
+    .divider-label::before,
+    .divider-label::after {
+      height: 1px;
+      flex: 1;
+      background: var(--border-soft);
+      content: "";
+    }
+    .login-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+      min-height: 44px;
+      margin-bottom: 14px;
+      padding: 4px;
+      border: 1px solid var(--border-soft);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+    .login-tab {
+      min-height: 44px;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--yuto-black);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .login-tab[aria-selected="true"] {
+      background: var(--white);
+      color: var(--accent-ink);
+      box-shadow: 0 6px 18px rgba(89, 87, 87, 0.08), inset 0 0 0 1px rgba(236, 108, 0, 0.24);
+    }
+    .form-panel { display: none; }
+    .form-panel.is-active { display: block; }
+    .field { margin-top: 12px; }
+    .field label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--yuto-black);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .input-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: 48px;
+      border: 1px solid var(--light-gray);
+      border-radius: 12px;
+      background: var(--white);
+      overflow: hidden;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .input-row:focus-within {
+      border-color: rgba(236, 108, 0, 0.55);
+      box-shadow: 0 0 0 4px rgba(236, 108, 0, 0.08);
+    }
+    .input-row input,
+    .input-row select {
+      width: 100%;
+      min-width: 0;
+      min-height: 46px;
+      padding: 0 14px;
+      border: 0;
+      background: transparent;
+      color: var(--yuto-black);
+      font-size: 15px;
+      outline: 0;
+    }
+    .input-row input::placeholder { color: var(--yuto-black); }
+    .code-button {
+      flex: 0 0 auto;
+      min-width: 92px;
+      min-height: 44px;
+      margin-right: 6px;
+      padding: 0 10px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .code-button:disabled { background: var(--surface); color: var(--yuto-black); cursor: not-allowed; }
+    .field-error { min-height: 18px; margin-top: 6px; color: var(--danger); font-size: 12px; line-height: 1.4; }
+    .form-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 11px 0 16px;
+    }
+    .remember {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 44px;
+      padding: 0 4px;
+      color: var(--yuto-black);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .remember input { width: 16px; height: 16px; accent-color: var(--brand-orange); }
+    .link-button {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0;
+      background: transparent;
+      color: var(--accent-ink);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .quick-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      background: #FBFBFB;
+      color: var(--yuto-black);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .quick-action:hover {
+      border-color: rgba(236, 108, 0, 0.28);
+      background: #FFF8F1;
+    }
+    .visitor-entry {
+      margin-top: 14px;
+      padding: 15px 16px;
+      border: 1px solid rgba(236, 108, 0, 0.16);
+      border-radius: 18px;
+      background: #FFFBF7;
+    }
+    .visitor-entry h2 {
+      margin: 0;
+      color: var(--yuto-black);
+      font-size: 17px;
+      line-height: 1.35;
+      font-weight: 750;
+    }
+    .visitor-entry p {
+      margin: 7px 0 14px;
+      color: var(--yuto-black);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .visitor-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--yuto-black);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .notice-dot {
+      width: 8px;
+      height: 8px;
+      margin-top: 5px;
+      border-radius: 999px;
+      background: var(--success);
+      flex: 0 0 auto;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: max(22px, env(safe-area-inset-bottom));
+      z-index: 8;
+      width: min(360px, calc(100vw - 32px));
+      padding: 13px 15px;
+      border-radius: 14px;
+      background: rgba(89, 87, 87, 0.96);
+      color: var(--white);
+      font-size: 13px;
+      line-height: 1.45;
+      text-align: center;
+      transform: translate(-50%, 24px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+    .toast.is-visible { transform: translate(-50%, 0); opacity: 1; }
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 9;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(33, 32, 31, 0.38);
+      padding: 0 12px;
+    }
+    .sheet-backdrop.is-open { display: flex; }
+    .sheet {
+      width: min(100%, 430px);
+      max-height: calc(100dvh - 56px);
+      overflow: auto;
+      padding: 18px 18px max(20px, env(safe-area-inset-bottom));
+      border-radius: 22px 22px 0 0;
+      background: var(--white);
+      box-shadow: 0 -20px 50px rgba(33, 32, 31, 0.18);
+    }
+    .sheet-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+    .sheet-head h3 {
+      margin: 0;
+      color: var(--yuto-black);
+      font-size: 20px;
+      line-height: 1.3;
+    }
+    .sheet-head p {
+      margin: 5px 0 0;
+      color: var(--yuto-black);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .close-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--yuto-black);
+      font-size: 22px;
+      line-height: 1;
+    }
+    .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+    .success-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid rgba(22, 166, 115, 0.18);
+      border-radius: 14px;
+      background: rgba(22, 166, 115, 0.08);
+      color: #0F7652;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .success-panel.is-visible { display: block; }
+    .booking-only.is-hidden,
+    .form-panel[hidden] { display: none; }
+    @media (max-width: 360px) {
+      .page { padding-left: 14px; padding-right: 14px; }
+      h1 { font-size: 28px; }
+      .service-strip { grid-template-columns: 1fr; }
+    }
+    @media (min-width: 640px) {
+      body {
+        display: grid;
+        place-items: center;
+        padding: 28px 0;
+      }
+      .app {
+        min-height: 844px;
+        border-radius: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="裕同智慧园区登录页">
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand-logo" src="assets/yuto-logo.png" alt="YUTO 裕同" onerror="if(!this.dataset.triedRemote){this.dataset.triedRemote='1';this.src='https://weben.szyuto.com/file/pic/20241127091546897976.png'}else{this.hidden=true;document.querySelector('.brand-wordmark').hidden=false;}">
+          <span class="brand-wordmark" hidden>YUTO 裕同</span>
+        </div>
+        <span class="wechat-badge">微信内安全登录</span>
+      </header>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="eyebrow">裕同智慧园区</div>
+        <h1 id="page-title">员工快速通行，访客也能顺路办理。</h1>
+        <p>优先服务园区员工的门禁、考勤和工作台登录；来访人员可在同一入口完成预约或查看邀约。</p>
+        <div class="service-strip" aria-label="可办理服务">
+          <div class="service-item">
+            <strong>员工登录</strong>
+            <span>微信授权 / 账号</span>
+          </div>
+          <div class="service-item">
+            <strong>门禁考勤</strong>
+            <span>进入工作台后处理</span>
+          </div>
+          <div class="service-item">
+            <strong>访客入园</strong>
+            <span>预约 / 邀约查询</span>
+          </div>
+        </div>
+      </section>
+      <section class="signin-panel" aria-label="员工登录">
+        <div class="employee-priority">
+          <div class="section-label">
+            <strong>员工优先入口</strong>
+            <span class="status-chip">推荐</span>
+          </div>
+          <button class="wechat-button" id="wechatAuthButton" type="button">微信授权登录</button>
+          <p class="employee-note">适用于已绑定手机号或企业身份的员工；未绑定时可继续使用账号或验证码登录。</p>
+          <div class="success-panel" id="wechatSuccess" role="status">已获取微信授权，请继续完成身份确认。</div>
+        </div>
+        <div class="form-zone">
+          <div class="divider-label">或使用账号登录</div>
+          <div class="login-tabs" role="tablist" aria-label="登录方式">
+            <button class="login-tab" id="passwordTab" type="button" role="tab" aria-selected="true" aria-controls="passwordPanel">密码登录</button>
+            <button class="login-tab" id="smsTab" type="button" role="tab" aria-selected="false" aria-controls="smsPanel">验证码登录</button>
+          </div>
+          <form class="form-panel is-active" id="passwordPanel" role="tabpanel" aria-labelledby="passwordTab" aria-hidden="false" novalidate>
+            <div class="field">
+              <label for="accountInput">手机号 / 工号</label>
+              <div class="input-row">
+                <input id="accountInput" name="account" inputmode="text" autocomplete="username" placeholder="请输入手机号或工号" aria-describedby="accountError" aria-invalid="false">
+              </div>
+              <div class="field-error" id="accountError" aria-live="polite"></div>
+            </div>
+            <div class="field">
+              <label for="passwordInput">登录密码</label>
+              <div class="input-row">
+                <input id="passwordInput" name="password" type="password" autocomplete="current-password" placeholder="请输入登录密码" aria-describedby="passwordError" aria-invalid="false">
+              </div>
+              <div class="field-error" id="passwordError" aria-live="polite"></div>
+            </div>
+            <div class="form-actions">
+              <label class="remember">
+                <input type="checkbox" checked>
+                下次自动填充账号
+              </label>
+              <button class="link-button" type="button" id="forgotButton">忘记密码</button>
+            </div>
+            <button class="primary-button" type="submit">登录并进入园区工作台</button>
+          </form>
+          <form class="form-panel" id="smsPanel" role="tabpanel" aria-labelledby="smsTab" aria-hidden="true" hidden novalidate>
+            <div class="field">
+              <label for="phoneInput">手机号码</label>
+              <div class="input-row">
+                <input id="phoneInput" name="phone" inputmode="tel" autocomplete="tel" maxlength="11" placeholder="请输入绑定手机号" aria-describedby="phoneError" aria-invalid="false">
+              </div>
+              <div class="field-error" id="phoneError" aria-live="polite"></div>
+            </div>
+            <div class="field">
+              <label for="codeInput">短信验证码</label>
+              <div class="input-row">
+                <input id="codeInput" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码" aria-describedby="codeError" aria-invalid="false">
+                <button class="code-button" id="sendCodeButton" type="button">获取验证码</button>
+              </div>
+              <div class="field-error" id="codeError" aria-live="polite"></div>
+            </div>
+            <div class="form-actions">
+              <span class="remember">验证码仅用于本次身份确认</span>
+              <button class="link-button" type="button" id="changePhoneButton">换绑手机号</button>
+            </div>
+            <button class="primary-button" type="submit">验证并进入园区工作台</button>
+          </form>
+          <div class="quick-actions" aria-label="其他员工登录方式">
+            <button class="quick-action" type="button" id="badgeLoginButton">工牌号登录</button>
+            <button class="quick-action" type="button" id="helpButton">联系园区服务台</button>
+          </div>
+        </div>
+      </section>
+      <section class="visitor-entry" aria-label="访客入口">
+        <h2>访客入园</h2>
+        <p>没有员工账号也可继续办理。已有邀约的访客可用手机号查询；临时来访请提交预约信息。</p>
+        <div class="visitor-actions">
+          <button class="secondary-button" type="button" id="visitorBookButton">访客预约</button>
+          <button class="ghost-button" type="button" id="visitorQueryButton">查询邀约</button>
+        </div>
+      </section>
+      <div class="notice" aria-label="安全说明">
+        <span class="notice-dot"></span>
+        <span>登录后将根据身份展示门禁、考勤、访客、车辆等园区服务；访客信息仅用于本次入园审核。</span>
+      </div>
+    </div>
+  </main>
+  <div class="sheet-backdrop" id="visitorSheet" aria-hidden="true">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="visitorSheetTitle">
+      <div class="sheet-head">
+        <div>
+          <h3 id="visitorSheetTitle">访客预约</h3>
+          <p id="visitorSheetHint">提交后由被访人确认，确认通过即可按指引入园。</p>
+        </div>
+        <button class="close-button" id="closeSheetButton" type="button" aria-label="关闭">×</button>
+      </div>
+      <form id="visitorForm" novalidate>
+        <div class="field booking-only" id="visitorNameField">
+          <label for="visitorNameInput">访客姓名</label>
+          <div class="input-row">
+            <input id="visitorNameInput" name="visitorName" autocomplete="name" placeholder="请输入姓名" aria-describedby="visitorNameError" aria-invalid="false">
+          </div>
+          <div class="field-error" id="visitorNameError" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="visitorPhoneInput">手机号码</label>
+          <div class="input-row">
+            <input id="visitorPhoneInput" name="visitorPhone" inputmode="tel" maxlength="11" autocomplete="tel" placeholder="用于接收审核结果" aria-describedby="visitorPhoneError" aria-invalid="false">
+          </div>
+          <div class="field-error" id="visitorPhoneError" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="hostInput" id="hostLabel">被访人 / 部门</label>
+          <div class="input-row">
+            <input id="hostInput" name="host" placeholder="例如：张三 / 行政部" aria-describedby="hostError" aria-invalid="false">
+          </div>
+          <div class="field-error" id="hostError" aria-live="polite"></div>
+        </div>
+        <div class="field booking-only" id="purposeField">
+          <label for="purposeSelect">来访事由</label>
+          <div class="input-row">
+            <select id="purposeSelect" name="purpose" aria-describedby="purposeError" aria-invalid="false">
+              <option value="">请选择</option>
+              <option value="business">商务拜访</option>
+              <option value="delivery">送货 / 取件</option>
+              <option value="interview">面试 / 入职</option>
+              <option value="other">其他事项</option>
+            </select>
+          </div>
+          <div class="field-error" id="purposeError" aria-live="polite"></div>
+        </div>
+        <div class="sheet-actions">
+          <button class="secondary-button" type="button" id="cancelVisitorButton">取消</button>
+          <button class="primary-button" type="submit" id="visitorSubmitButton">提交预约</button>
+        </div>
+      </form>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    let storageAvailable = true;
+    const readStoredLoginMethod = () => {
+      try {
+        return window.localStorage.getItem("yuto-login-method") || "password";
+      } catch (error) {
+        storageAvailable = false;
+        return "password";
+      }
+    };
+    const saveLoginMethod = (method) => {
+      try {
+        window.localStorage.setItem("yuto-login-method", method);
+      } catch (error) {
+        storageAvailable = false;
+      }
+    };
+    const signInState = {
+      selectedMethod: readStoredLoginMethod(),
+      codeTimer: 0,
+      countdownId: null,
+      visitorMode: "book",
+      lastFocusedElement: null
+    };
+    const passwordTab = document.getElementById("passwordTab");
+    const smsTab = document.getElementById("smsTab");
+    const passwordPanel = document.getElementById("passwordPanel");
+    const smsPanel = document.getElementById("smsPanel");
+    const toast = document.getElementById("toast");
+    const sendCodeButton = document.getElementById("sendCodeButton");
+    const visitorSheet = document.getElementById("visitorSheet");
+    const visitorForm = document.getElementById("visitorForm");
+    const appRoot = document.querySelector(".app");
+    const errorFieldMap = {
+      accountError: "accountInput",
+      passwordError: "passwordInput",
+      phoneError: "phoneInput",
+      codeError: "codeInput",
+      visitorNameError: "visitorNameInput",
+      visitorPhoneError: "visitorPhoneInput",
+      hostError: "hostInput",
+      purposeError: "purposeSelect"
+    };
+    const showToast = (message) => {
+      toast.textContent = message;
+      toast.classList.add("is-visible");
+      window.clearTimeout(showToast.hideId);
+      showToast.hideId = window.setTimeout(() => toast.classList.remove("is-visible"), 2600);
+    };
+    const writeError = (id, message) => {
+      document.getElementById(id).textContent = message;
+      const fieldId = errorFieldMap[id];
+      if (fieldId) {
+        document.getElementById(fieldId).setAttribute("aria-invalid", message ? "true" : "false");
+      }
+    };
+    const clearErrors = (...ids) => {
+      ids.forEach((id) => writeError(id, ""));
+    };
+    const isPhoneNumber = (value) => /^1[3-9]\d{9}$/.test(value.trim());
+    const selectLoginMethod = (method, shouldFocus = true) => {
+      signInState.selectedMethod = method;
+      saveLoginMethod(method);
+      const isPassword = method === "password";
+      passwordTab.setAttribute("aria-selected", String(isPassword));
+      smsTab.setAttribute("aria-selected", String(!isPassword));
+      passwordPanel.classList.toggle("is-active", isPassword);
+      smsPanel.classList.toggle("is-active", !isPassword);
+      passwordPanel.hidden = !isPassword;
+      smsPanel.hidden = isPassword;
+      passwordPanel.setAttribute("aria-hidden", String(!isPassword));
+      smsPanel.setAttribute("aria-hidden", String(isPassword));
+      if (shouldFocus) {
+        window.setTimeout(() => {
+          const firstField = isPassword ? document.getElementById("accountInput") : document.getElementById("phoneInput");
+          firstField.focus();
+        }, 30);
+      }
+    };
+    const startCodeCountdown = () => {
+      signInState.codeTimer = 60;
+      sendCodeButton.disabled = true;
+      sendCodeButton.textContent = "60s 后重发";
+      window.clearInterval(signInState.countdownId);
+      signInState.countdownId = window.setInterval(() => {
+        signInState.codeTimer -= 1;
+        sendCodeButton.textContent = `${signInState.codeTimer}s 后重发`;
+        if (signInState.codeTimer <= 0) {
+          window.clearInterval(signInState.countdownId);
+          sendCodeButton.disabled = false;
+          sendCodeButton.textContent = "获取验证码";
+        }
+      }, 1000);
+    };
+    const openVisitorSheet = (mode) => {
+      signInState.visitorMode = mode;
+      signInState.lastFocusedElement = document.activeElement;
+      const title = document.getElementById("visitorSheetTitle");
+      const hint = document.getElementById("visitorSheetHint");
+      if (mode === "query") {
+        title.textContent = "查询邀约";
+        hint.textContent = "输入手机号，查看是否已有可用入园邀约。";
+        document.getElementById("hostLabel").textContent = "被访人 / 部门（选填）";
+        document.getElementById("hostInput").placeholder = "不确定可留空";
+        document.getElementById("visitorSubmitButton").textContent = "查询邀约";
+      } else {
+        title.textContent = "访客预约";
+        hint.textContent = "提交后由被访人确认，确认通过即可按指引入园。";
+        document.getElementById("hostLabel").textContent = "被访人 / 部门";
+        document.getElementById("hostInput").placeholder = "例如：张三 / 行政部";
+        document.getElementById("visitorSubmitButton").textContent = "提交预约";
+      }
+      document.querySelectorAll(".booking-only").forEach((field) => {
+        const hideBookingField = mode === "query";
+        field.classList.toggle("is-hidden", hideBookingField);
+        field.hidden = hideBookingField;
+        field.setAttribute("aria-hidden", String(hideBookingField));
+      });
+      clearErrors("visitorNameError", "visitorPhoneError", "hostError", "purposeError");
+      appRoot.inert = true;
+      appRoot.setAttribute("aria-hidden", "true");
+      visitorSheet.classList.add("is-open");
+      visitorSheet.setAttribute("aria-hidden", "false");
+      const focusTarget = mode === "query" ? "visitorPhoneInput" : "visitorNameInput";
+      window.setTimeout(() => document.getElementById(focusTarget).focus(), 40);
+    };
+    const closeVisitorSheet = () => {
+      visitorSheet.classList.remove("is-open");
+      visitorSheet.setAttribute("aria-hidden", "true");
+      appRoot.inert = false;
+      appRoot.removeAttribute("aria-hidden");
+      if (signInState.lastFocusedElement && document.contains(signInState.lastFocusedElement)) {
+        signInState.lastFocusedElement.focus();
+      }
+    };
+    const getVisitorSheetFocusTargets = () => Array.from(visitorSheet.querySelectorAll("button, input, select, [tabindex]:not([tabindex='-1'])"))
+      .filter((element) => !element.disabled && element.offsetParent !== null);
+    passwordTab.addEventListener("click", () => selectLoginMethod("password"));
+    smsTab.addEventListener("click", () => selectLoginMethod("sms"));
+    document.getElementById("wechatAuthButton").addEventListener("click", () => {
+      const button = document.getElementById("wechatAuthButton");
+      button.disabled = true;
+      button.textContent = "正在获取微信授权...";
+      window.setTimeout(() => {
+        document.getElementById("wechatSuccess").classList.add("is-visible");
+        button.disabled = false;
+        button.textContent = "微信授权登录";
+        showToast("已进入身份确认流程");
+      }, 850);
+    });
+    passwordPanel.addEventListener("submit", (event) => {
+      event.preventDefault();
+      clearErrors("accountError", "passwordError");
+      const accountValue = document.getElementById("accountInput").value.trim();
+      const passwordValue = document.getElementById("passwordInput").value.trim();
+      let valid = true;
+      let firstInvalidField = null;
+      if (!accountValue) {
+        writeError("accountError", "请输入手机号、工号或工牌号。");
+        firstInvalidField = firstInvalidField || "accountInput";
+        valid = false;
+      }
+      if (passwordValue.length < 6) {
+        writeError("passwordError", "请输入至少 6 位登录密码。");
+        firstInvalidField = firstInvalidField || "passwordInput";
+        valid = false;
+      }
+      if (valid) {
+        showToast("登录信息已校验，正在进入园区工作台");
+      } else {
+        document.getElementById(firstInvalidField).focus();
+      }
+    });
+    smsPanel.addEventListener("submit", (event) => {
+      event.preventDefault();
+      clearErrors("phoneError", "codeError");
+      const phoneValue = document.getElementById("phoneInput").value;
+      const codeValue = document.getElementById("codeInput").value.trim();
+      let valid = true;
+      let firstInvalidField = null;
+      if (!isPhoneNumber(phoneValue)) {
+        writeError("phoneError", "请输入有效的 11 位手机号。");
+        firstInvalidField = firstInvalidField || "phoneInput";
+        valid = false;
+      }
+      if (!/^\d{6}$/.test(codeValue)) {
+        writeError("codeError", "请输入 6 位短信验证码。");
+        firstInvalidField = firstInvalidField || "codeInput";
+        valid = false;
+      }
+      if (valid) {
+        showToast("验证码已通过，正在进入园区工作台");
+      } else {
+        document.getElementById(firstInvalidField).focus();
+      }
+    });
+    sendCodeButton.addEventListener("click", () => {
+      clearErrors("phoneError");
+      const phoneValue = document.getElementById("phoneInput").value;
+      if (!isPhoneNumber(phoneValue)) {
+        writeError("phoneError", "先输入有效手机号，再获取验证码。");
+        document.getElementById("phoneInput").focus();
+        return;
+      }
+      startCodeCountdown();
+      showToast("验证码已发送，请留意短信");
+    });
+    document.getElementById("badgeLoginButton").addEventListener("click", () => {
+      selectLoginMethod("password");
+      document.getElementById("accountInput").placeholder = "请输入工号或工牌号";
+      showToast("已切换到工牌号登录");
+    });
+    document.getElementById("forgotButton").addEventListener("click", () => {
+      selectLoginMethod("sms");
+      showToast("请使用验证码登录后重置密码");
+    });
+    document.getElementById("changePhoneButton").addEventListener("click", () => {
+      showToast("请联系园区服务台处理手机号换绑");
+    });
+    document.getElementById("helpButton").addEventListener("click", () => {
+      showToast("园区服务台会在工作台中提供联系方式");
+    });
+    document.getElementById("visitorBookButton").addEventListener("click", () => openVisitorSheet("book"));
+    document.getElementById("visitorQueryButton").addEventListener("click", () => openVisitorSheet("query"));
+    document.getElementById("closeSheetButton").addEventListener("click", closeVisitorSheet);
+    document.getElementById("cancelVisitorButton").addEventListener("click", closeVisitorSheet);
+    visitorSheet.addEventListener("click", (event) => {
+      if (event.target === visitorSheet) {
+        closeVisitorSheet();
+      }
+    });
+    visitorSheet.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeVisitorSheet();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusTargets = getVisitorSheetFocusTargets();
+      if (!focusTargets.length) return;
+      const firstFocusTarget = focusTargets[0];
+      const lastFocusTarget = focusTargets[focusTargets.length - 1];
+      if (event.shiftKey && document.activeElement === firstFocusTarget) {
+        event.preventDefault();
+        lastFocusTarget.focus();
+      } else if (!event.shiftKey && document.activeElement === lastFocusTarget) {
+        event.preventDefault();
+        firstFocusTarget.focus();
+      }
+    });
+    visitorForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      clearErrors("visitorNameError", "visitorPhoneError", "hostError", "purposeError");
+      const visitorName = document.getElementById("visitorNameInput").value.trim();
+      const visitorPhone = document.getElementById("visitorPhoneInput").value;
+      const host = document.getElementById("hostInput").value.trim();
+      const purpose = document.getElementById("purposeSelect").value;
+      let valid = true;
+      let firstInvalidField = null;
+      if (signInState.visitorMode === "book" && !visitorName) {
+        writeError("visitorNameError", "请输入访客姓名。");
+        firstInvalidField = firstInvalidField || "visitorNameInput";
+        valid = false;
+      }
+      if (!isPhoneNumber(visitorPhone)) {
+        writeError("visitorPhoneError", "请输入有效的 11 位手机号。");
+        firstInvalidField = firstInvalidField || "visitorPhoneInput";
+        valid = false;
+      }
+      if (signInState.visitorMode === "book" && !host) {
+        writeError("hostError", "请输入被访人或部门。");
+        firstInvalidField = firstInvalidField || "hostInput";
+        valid = false;
+      }
+      if (signInState.visitorMode === "book" && !purpose) {
+        writeError("purposeError", "请选择来访事由。");
+        firstInvalidField = firstInvalidField || "purposeSelect";
+        valid = false;
+      }
+      if (valid) {
+        closeVisitorSheet();
+        const actionText = signInState.visitorMode === "query" ? "邀约查询已提交，请查看微信服务通知" : "访客预约已提交，请等待被访人确认";
+        showToast(actionText);
+      } else {
+        document.getElementById(firstInvalidField).focus();
+      }
+    });
+    selectLoginMethod(signInState.selectedMethod, false);
+  </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+/* Design tokens from docs/prototype/DESIGN-GUIDE.md */
+:root {
+  --brand-orange: #ec6c00;
+  --accent-strong: #d95f00;
+  --accent-soft: #fff1e3;
+  --accent-ink: #5a2600;
+  --surface: #f7f7f7;
+  --yuto-black: #595757;
+  --mid-gray: #8c8a8a;
+  --weak-gray: #aaa7a7;
+  --light-gray: #e5e3e3;
+  --border-soft: #efeeee;
+  --success: #16a673;
+  --warning: #c98416;
+  --danger: #d83b36;
+  --info: #2376d9;
+  --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+  --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.1);
+
+  /* antd-mobile theming */
+  --adm-color-primary: var(--brand-orange);
+  --adm-color-success: var(--success);
+  --adm-color-warning: var(--warning);
+  --adm-color-danger: var(--danger);
+  --adm-color-text: var(--yuto-black);
+}
+
+@theme inline {
+  --color-brand: var(--brand-orange);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-surface: var(--surface);
+  --color-ink: var(--yuto-black);
+  --color-mid: var(--mid-gray);
+  --color-weak: var(--weak-gray);
+  --color-border-soft: var(--border-soft);
+}
+
+body {
+  background: var(--surface);
+  color: var(--yuto-black);
+  font-family:
+    'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial,
+    sans-serif;
+}
+
+.app-frame {
+  width: min(100%, 430px);
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: var(--surface);
+  box-shadow: var(--shadow-large);
+}

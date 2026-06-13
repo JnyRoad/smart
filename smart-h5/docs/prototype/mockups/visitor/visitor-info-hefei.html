@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN">
+<!--
+  页面：入厂申请（合肥）— 访客信息（三步流程第 2 步）
+  旧路由：/xuchang/visitor/visitorInfoHefei
+  旧组件：smart-h5/src/views-mobile/pages/visitor/visitorInfoHefei.vue
+  接口：
+    GET /visitor/enum/cause/type                    来访事由枚举（合肥专用）
+    GET /admittance/apply/enum/person/cert          证件类型枚举
+    GET /admittance/apply/enum/carry                携带物品枚举
+    GET /common/config/visitor/health?parkId=20381  是否显示健康码/行程码（isHealthCode / isTripCode）
+  跳转：
+    下一步 → /xuchang/visitor/telHefei
+    随行人员 →（须先选来访事由）/xuchang/visitor/addPersonlist?idHefei=true&cause=<cause>
+  与标准版差异：多出证件类型、证件照片（cause=5/7 条件显示）、携带物品、行程码/健康码（配置开关）、
+  车牌号（选填）；没有标准版的「区域类型/授权区域」选择块；来访事由用合肥专用枚举接口；
+  随行人员入口强制先选事由并携带 idHefei&cause 参数。
+-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>入厂申请（合肥）· 访客信息</title>
+  <style>
+    :root {
+      --brand-orange: #EC6C00;
+      --accent-strong: #D95F00;
+      --accent-soft: #FFF1E3;
+      --accent-ink: #5A2600;
+      --white: #FFFFFF;
+      --surface: #F7F7F7;
+      --yuto-black: #595757;
+      --mid-gray: #8C8A8A;
+      --weak-gray: #AAA7A7;
+      --light-gray: #E5E3E3;
+      --border-soft: #EFEEEE;
+      --success: #16A673;
+      --warning: #C98416;
+      --danger: #D83B36;
+      --info: #2376D9;
+      --shadow-large: 0 24px 70px rgba(89, 87, 87, 0.14);
+      --shadow-panel: 0 16px 40px rgba(89, 87, 87, 0.10);
+      --font-main: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--surface); color: var(--yuto-black); font-family: var(--font-main); -webkit-font-smoothing: antialiased; }
+    body { min-height: 100dvh; margin: 0; background: var(--surface); }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; background: none; }
+    input:focus-visible, button:focus-visible { outline: 3px solid rgba(236, 108, 0, 0.22); outline-offset: 2px; }
+    .app {
+      position: relative; width: min(100%, 430px); min-height: 100dvh; margin: 0 auto;
+      background: var(--white); box-shadow: var(--shadow-large); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .page {
+      flex: 1; display: flex; flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 18px 0;
+      background: linear-gradient(180deg, rgba(255, 241, 227, 0.72) 0, rgba(255, 255, 255, 0) 220px), var(--white);
+    }
+    .topbar { display: flex; align-items: center; min-height: 46px; }
+    .back-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; border-radius: 14px; color: var(--yuto-black); }
+    .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 750; }
+    .topbar-spacer { width: 44px; height: 44px; display: flex; align-items: center; justify-content: flex-end; }
+    .hefei-badge {
+      display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 0 10px;
+      border: 1px solid rgba(236, 108, 0, 0.22); border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 650; white-space: nowrap;
+    }
+    .hefei-badge::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--brand-orange); }
+    .steps { display: flex; align-items: flex-start; margin: 18px 6px 6px; }
+    .step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; }
+    .step::before, .step::after { content: ""; position: absolute; top: 13px; height: 2px; width: calc(50% - 20px); background: var(--light-gray); border-radius: 2px; }
+    .step::before { left: 0; }
+    .step::after { right: 0; }
+    .step:first-child::before, .step:last-child::after { display: none; }
+    .step.done::before, .step.done::after, .step.current::before { background: var(--brand-orange); }
+    .step-dot {
+      width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; background: var(--white); border: 2px solid var(--light-gray); color: var(--weak-gray); z-index: 1;
+    }
+    .step.done .step-dot { border-color: var(--brand-orange); background: var(--accent-soft); color: var(--accent-strong); }
+    .step.current .step-dot { border-color: var(--brand-orange); background: var(--brand-orange); color: var(--white); }
+    .step-name { font-size: 12px; color: var(--weak-gray); }
+    .step.done .step-name, .step.current .step-name { color: var(--accent-ink); font-weight: 650; }
+    .card {
+      margin-top: 16px; padding: 16px; border: 1px solid var(--border-soft);
+      border-radius: 16px; background: var(--white); box-shadow: var(--shadow-panel);
+    }
+    .card-title { margin: 2px 2px 14px; font-size: 16px; font-weight: 750; }
+    .card-title small { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--weak-gray); }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 4px; }
+    .field-label { display: block; margin: 0 2px 7px; font-size: 13px; color: var(--mid-gray); }
+    .field-label .req { color: var(--danger); margin-left: 2px; }
+    .field-input {
+      display: block; width: 100%; height: 48px; padding: 0 14px;
+      border: 1px solid var(--border-soft); border-radius: 12px; background: var(--white);
+      color: var(--yuto-black); font-size: 15px;
+    }
+    .field-input::placeholder { color: var(--weak-gray); }
+    /* 选择行（picker / 时间 / 入口） */
+    .select-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border-soft);
+      border-radius: 12px; background: var(--white); color: var(--yuto-black); font-size: 15px; text-align: left;
+    }
+    .select-row .value { flex: 1; }
+    .select-row .placeholder { color: var(--weak-gray); }
+    .select-row .arrow { color: var(--weak-gray); flex: none; display: flex; }
+    /* 上传位 */
+    .upload-row { display: flex; gap: 12px; align-items: flex-start; }
+    .upload-box {
+      position: relative; width: 92px; height: 92px; border: 1px dashed var(--light-gray);
+      border-radius: 12px; background: #FBFBFB; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 6px; color: var(--weak-gray); font-size: 12px;
+    }
+    .upload-box.filled { border-style: solid; border-color: var(--border-soft); background: var(--accent-soft); color: var(--accent-ink); }
+    .upload-box svg { display: block; }
+    .upload-note { flex: 1; font-size: 12px; line-height: 1.6; color: var(--weak-gray); padding-top: 4px; }
+    .face-tag {
+      position: absolute; left: 6px; bottom: 6px; padding: 2px 6px; border-radius: 999px;
+      background: rgba(22, 166, 115, 0.12); color: var(--success); font-size: 10px; font-weight: 650;
+    }
+    .divider-note { margin: 18px 4px 2px; font-size: 12px; color: var(--weak-gray); }
+    .bottom-bar {
+      position: sticky; bottom: 0; margin-top: auto; padding: 14px 18px max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0, var(--white) 24%);
+    }
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; width: 100%; height: 48px;
+      border-radius: 14px; background: var(--brand-orange); color: var(--white); font-size: 16px; font-weight: 650;
+    }
+    .btn-primary:active { background: var(--accent-strong); }
+    .btn-primary[disabled] { background: var(--light-gray); color: var(--white); cursor: default; }
+    /* 底部选择面板（picker） */
+    .sheet-mask { position: absolute; inset: 0; z-index: 30; background: rgba(89, 87, 87, 0.45); display: flex; align-items: flex-end; }
+    .sheet-mask[hidden] { display: none; }
+    .sheet { width: 100%; border-radius: 18px 18px 0 0; background: var(--white); padding: 14px 16px max(20px, env(safe-area-inset-bottom)); }
+    .sheet-title { display: flex; align-items: center; justify-content: space-between; margin: 2px 2px 10px; font-size: 15px; font-weight: 750; }
+    .sheet-close { width: 44px; height: 34px; color: var(--mid-gray); font-size: 13px; text-align: right; }
+    .sheet-options { max-height: 42dvh; overflow-y: auto; }
+    .sheet-option {
+      display: flex; align-items: center; justify-content: space-between; width: 100%;
+      min-height: 48px; padding: 0 6px; border-bottom: 1px solid var(--border-soft);
+      font-size: 15px; color: var(--yuto-black); text-align: left;
+    }
+    .sheet-option:last-child { border-bottom: 0; }
+    .sheet-option .check { color: var(--brand-orange); font-weight: 700; visibility: hidden; }
+    .sheet-option.selected { color: var(--accent-strong); font-weight: 650; }
+    .sheet-option.selected .check { visibility: visible; }
+    .toast {
+      position: absolute; left: 50%; bottom: 130px; z-index: 40; transform: translateX(-50%);
+      max-width: 80%; padding: 10px 16px; border-radius: 12px; background: rgba(89, 87, 87, 0.92);
+      color: var(--white); font-size: 13px; text-align: center; opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="page">
+      <header class="topbar">
+        <button class="back-btn" type="button" aria-label="返回" title="返回被访者信息" onclick="location.href='index-hefei.html'">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M13.5 4.5 7 11l6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <h1 class="page-title">入厂申请</h1>
+        <div class="topbar-spacer"><span class="hefei-badge">合肥流程</span></div>
+      </header>
+
+      <nav class="steps" aria-label="申请进度">
+        <div class="step done"><div class="step-dot">✓</div><div class="step-name">被访信息</div></div>
+        <div class="step current"><div class="step-dot">2</div><div class="step-name">访客信息</div></div>
+        <div class="step"><div class="step-dot">3</div><div class="step-name">提交信息</div></div>
+      </nav>
+
+      <section class="card" aria-label="访客信息（必填）">
+        <h2 class="card-title">访客信息<small>（必填）</small></h2>
+
+        <div class="field">
+          <label class="field-label" for="visitorName">访客姓名<span class="req">*</span></label>
+          <input class="field-input" id="visitorName" placeholder="请输入" value="李慧敏">
+        </div>
+
+        <div class="field">
+          <span class="field-label">来访事由<span class="req">*</span></span>
+          <button class="select-row" type="button" onclick="openSheet('cause')">
+            <span class="value" id="causeValue">业务洽谈</span>
+            <span class="arrow"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+        </div>
+
+        <div class="field">
+          <span class="field-label">访客照片<span class="req">*</span>（需通过人脸检测）</span>
+          <div class="upload-row">
+            <div class="upload-box filled">
+              <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="9.5" r="4.2" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 22c1.4-4 4.6-6 8.5-6s7.1 2 8.5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <span>已上传</span>
+              <span class="face-tag">人脸检测通过</span>
+            </div>
+            <p class="upload-note">请上传本人正面免冠照片，将用于门岗人脸核验；检测不到人脸将无法提交。</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">证件类型<span class="req">*</span></span>
+          <button class="select-row" type="button" onclick="openSheet('cert')">
+            <span class="value" id="certValue">居民身份证</span>
+            <span class="arrow"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="certNo">证件号码<span class="req">*</span></label>
+          <input class="field-input" id="certNo" placeholder="请输入" value="340103199205144028">
+        </div>
+
+        <!-- 证件照片：仅当来访事由 code 为 5 或 7 时显示 -->
+        <div class="field" id="certPicField" hidden>
+          <span class="field-label">证件照片<span class="req">*</span>（当前事由要求上传）</span>
+          <div class="upload-row">
+            <div class="upload-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <span>请上传证件照片</span>
+            </div>
+            <p class="upload-note">来访事由为「施工作业」「设备维修」时，须上传证件照片备案。</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="company">来访单位<span class="req">*</span></label>
+          <input class="field-input" id="company" placeholder="请输入" value="安徽华创印务有限公司">
+        </div>
+
+        <div class="field">
+          <span class="field-label">携带物品<span class="req">*</span></span>
+          <button class="select-row" type="button" onclick="openSheet('carry')">
+            <span class="value" id="carryValue">笔记本电脑</span>
+            <span class="arrow"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+        </div>
+
+        <!-- 行程码 / 健康码：由 GET /common/config/visitor/health 配置开关控制显隐 -->
+        <div class="field" id="tripCodeField">
+          <span class="field-label">行程码<span class="req">*</span>（园区配置开启时显示）</span>
+          <div class="upload-row">
+            <div class="upload-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <span>请上传行程码</span>
+            </div>
+          </div>
+        </div>
+        <div class="field" id="healthCodeField">
+          <span class="field-label">健康码<span class="req">*</span>（园区配置开启时显示）</span>
+          <div class="upload-row">
+            <div class="upload-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <span>请上传健康码</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="startTime">来访时间<span class="req">*</span></label>
+          <input class="field-input" id="startTime" type="datetime-local" value="2026-06-12T09:30" onchange="clearEndTime()">
+        </div>
+        <div class="field">
+          <label class="field-label" for="endTime">离开时间<span class="req">*</span>（须晚于来访时间）</label>
+          <input class="field-input" id="endTime" type="datetime-local" value="2026-06-12T17:00" onchange="checkEndTime()">
+        </div>
+      </section>
+
+      <section class="card" aria-label="其他信息（选填）">
+        <h2 class="card-title">其他信息<small>（选填）</small></h2>
+        <div class="field">
+          <label class="field-label" for="plate">车牌号</label>
+          <input class="field-input" id="plate" placeholder="请输入" value="皖A·D7K521">
+        </div>
+        <div class="field">
+          <span class="field-label">随行人员（未选来访事由时不可添加）</span>
+          <button class="select-row" type="button" onclick="goFellow()">
+            <span class="value">2位</span>
+            <span class="arrow"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+        </div>
+      </section>
+
+      <p class="divider-note">提示：选择「施工作业」或「设备维修」事由后将要求补充证件照片，可在上方事由选择中切换体验。</p>
+
+      <div class="bottom-bar">
+        <button class="btn-primary" type="button" id="nextBtn" onclick="nextStep()">下一步</button>
+      </div>
+    </div>
+
+    <!-- 枚举选择面板 -->
+    <div class="sheet-mask" id="sheetMask" hidden onclick="if(event.target===this)closeSheet()">
+      <div class="sheet" role="dialog" aria-modal="true">
+        <div class="sheet-title"><span id="sheetTitle">请选择</span><button class="sheet-close" type="button" onclick="closeSheet()">取消</button></div>
+        <div class="sheet-options" id="sheetOptions"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+
+  <script>
+    // 枚举 mock：真实数据来自接口（cause: /visitor/enum/cause/type；cert: /admittance/apply/enum/person/cert；carry: /admittance/apply/enum/carry）
+    const ENUMS = {
+      cause: {
+        title: '来访事由',
+        options: [
+          { code: 1, desc: '业务洽谈' }, { code: 2, desc: '参观交流' }, { code: 3, desc: '面试' },
+          { code: 4, desc: '送货取货' }, { code: 5, desc: '施工作业' }, { code: 6, desc: '审计验厂' }, { code: 7, desc: '设备维修' }
+        ],
+        selected: 1, valueEl: 'causeValue'
+      },
+      cert: {
+        title: '证件类型',
+        options: [ { code: 1, desc: '居民身份证' }, { code: 2, desc: '护照' }, { code: 3, desc: '港澳通行证' }, { code: 4, desc: '驾驶证' } ],
+        selected: 1, valueEl: 'certValue'
+      },
+      carry: {
+        title: '携带物品',
+        options: [ { code: 0, desc: '无携带物品' }, { code: 1, desc: '笔记本电脑' }, { code: 2, desc: '工具设备' }, { code: 3, desc: '样品物料' } ],
+        selected: 1, valueEl: 'carryValue'
+      }
+    };
+    let currentSheet = null;
+    let toastTimer = null;
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+    function openSheet(key) {
+      currentSheet = key;
+      const conf = ENUMS[key];
+      document.getElementById('sheetTitle').textContent = conf.title;
+      const box = document.getElementById('sheetOptions');
+      box.innerHTML = '';
+      conf.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'sheet-option' + (opt.code === conf.selected ? ' selected' : '');
+        btn.innerHTML = '<span>' + opt.desc + '</span><span class="check">✓</span>';
+        btn.onclick = () => pickOption(opt);
+        box.appendChild(btn);
+      });
+      document.getElementById('sheetMask').hidden = false;
+    }
+    function closeSheet() { document.getElementById('sheetMask').hidden = true; }
+    function pickOption(opt) {
+      const conf = ENUMS[currentSheet];
+      conf.selected = opt.code;
+      document.getElementById(conf.valueEl).textContent = opt.desc;
+      if (currentSheet === 'cause') {
+        // 旧逻辑：cause==5 || cause==7 时要求上传证件照片
+        document.getElementById('certPicField').hidden = !(opt.code === 5 || opt.code === 7);
+      }
+      closeSheet();
+    }
+    function clearEndTime() {
+      // 旧逻辑：修改来访时间后清空离开时间
+      document.getElementById('endTime').value = '';
+    }
+    function checkEndTime() {
+      const start = document.getElementById('startTime').value;
+      const end = document.getElementById('endTime').value;
+      if (start && end && new Date(end) <= new Date(start)) {
+        showToast('离开时间应大于开始时间!');
+        document.getElementById('endTime').value = '';
+      }
+    }
+    function goFellow() {
+      if (!ENUMS.cause.selected && ENUMS.cause.selected !== 0) { showToast('请选择来访事由!'); return; }
+      // 真实流程：/xuchang/visitor/addPersonlist?idHefei=true&cause=<cause>
+      showToast('进入随行人员列表（→ add-person-hefei.html）');
+    }
+    function nextStep() {
+      const btn = document.getElementById('nextBtn');
+      if (!document.getElementById('visitorName').value.trim()) { showToast('请输入访客姓名'); return; }
+      if (!document.getElementById('certNo').value.trim()) { showToast('请输入证件号码'); return; }
+      if (!document.getElementById('company').value.trim()) { showToast('请输入来访单位'); return; }
+      if (!document.getElementById('startTime').value || !document.getElementById('endTime').value) { showToast('请选择来访时间与离开时间'); return; }
+      btn.disabled = true; btn.textContent = '正在验证';
+      setTimeout(() => {
+        btn.disabled = false; btn.textContent = '下一步';
+        showToast('校验通过，进入手机验证（→ tel-hefei.html）');
+      }, 900);
+    }
+  </script>
+</body>
+</html>
