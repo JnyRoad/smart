@@ -2,8 +2,8 @@
 <!--
   原型：访客 - 我的申请记录（新增功能，暂无旧页面）
   建议路由：/xuchang/visitor/records
-  接口（待后端设计，先按以下契约占位）：
-    - POST /admittance/apply/app/sendRecordSms      发送验证码（手机号）
+  接口：
+    - GET  app:/sms/send/getCode/{mobile}           发送验证码（复用访客申请短信接口）
     - POST /admittance/apply/app/listMyApply        查询本人申请记录（手机号+验证码 或 openId 免验）
   入口（访客二次进入查进度的所有路径，开发时需全部打通）：
     1. 入厂申请首页（/xuchang/visitor 及合肥变体）表单下方常驻入口

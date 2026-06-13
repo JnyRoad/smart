@@ -32,7 +32,7 @@
 
 | 接口 | Method | 入参 | 返回 |
 |---|---|---|---|
-| `/admittance/apply/app/sendRecordSms` | POST | `{mobile}` | `{code, message}` |
+| `/sms/send/getCode/{mobile}` | GET app | path mobile | `{code, message}` |
 | `/admittance/apply/app/listMyApply` | POST | `{mobile, smsCode}` 或 `{openId}`，或持有效 token 时空体 + token 头（重进/下拉刷新复用） | `{code, data: {queryToken, maskedName, maskedMobile, records: RecordSummary[]}}` |
 | `/admittance/apply/app/applyDetail` | GET | `?applyId=` + token 头 | `{code, data: ApplyRecordDetail}` |
 | `/admittance/apply/app/approvalProgress` | GET | `?applyId=` + token 头 | `{code, data: {nodes: ApprovalNode[]}}` |
@@ -91,7 +91,7 @@ interface ApprovalNode {
 
 - `public/config.js` 与 `TenantConfig` 提供 `features: { visitorRecordsMock: boolean }`，默认 `false`，避免真实业务误走演示数据。
 - `features/visitor/records-api.ts` 的列表/详情接口判断开关：开 → 返回 `records-mock.ts` fixture（约 300ms 延迟模拟加载）；关 → 真实请求。
-- 短信验证码发送是业务副作用，始终请求真实 `sendRecordSms` 接口，不受 mock 开关短路。
+- 短信验证码发送是业务副作用，复用访客申请现有 `app:/sms/send/getCode/{mobile}` 接口，不受 mock 开关短路。
 - mock fixture 覆盖：列表含全部 5 种 applyStatus + 3 种 dispatchStatus 的记录；详情按 applyId 区分 6 个演示态（审批中 / 通过·下发成功 / 通过·下发中 / 通过·下发失败 / 已拒绝 / 已过期）。
 
 ## 4. 身份校验与 token 管理（前端）

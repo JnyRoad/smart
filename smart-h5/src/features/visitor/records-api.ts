@@ -1,13 +1,14 @@
 import { ApiError, request } from '@/lib/api/http'
 import { getTenantConfig } from '@/lib/config/tenant'
+import { sendVisitorSms } from './api'
 import type { ApplyStatus, DispatchStatus } from './record-status'
 import { MOCK_DETAILS, MOCK_IDENTITY, MOCK_LIST, MOCK_QUERY_TOKEN, mockDelay } from './records-mock'
 
 /**
  * Visitor "my applies" APIs. The contracts below mirror the gateway surface
  * for querying a visitor's own applications. With features.visitorRecordsMock on, list/detail functions
- * return demo fixtures instead of hitting the network. Sending an SMS remains
- * a real side-effect and is never short-circuited by the records mock.
+ * return demo fixtures instead of hitting the network. Sending an SMS reuses
+ * the visitor-application SMS endpoint and is never short-circuited by the records mock.
  *
  * Auth model: listMyApply issues a short-lived queryToken bound to the
  * verified mobile/openId; the detail endpoints require it via the
@@ -109,13 +110,7 @@ function tokenHeaders(): Record<string, string> {
 }
 
 export async function sendRecordSms(mobile: string): Promise<Envelope<unknown>> {
-  return request({
-    module: 'platform',
-    url: '/admittance/apply/app/sendRecordSms',
-    method: 'POST',
-    data: { mobile },
-    auth: 'none',
-  })
+  return sendVisitorSms(mobile)
 }
 
 export interface MyAppliesResult {

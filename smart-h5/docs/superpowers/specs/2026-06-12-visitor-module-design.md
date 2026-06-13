@@ -112,4 +112,4 @@ actions: patchHost / patchVisitor / setFellows(增删改) / setCars(增删改) /
 - 合肥 4 页变体（含健康码/行程码、携带物品、证件类型 picker）——下期。
 - 旧代码已注释停用的字段（司机籍贯/驾驶证号/紧急联系人/车型/颜色、来访类型 personType 选择、携带物品 thing）——personType 固定 3、thing 固定 4，与旧版现行为一致。
 - AES 加密（访客接口无加密，已核实）。
-- **访客申请记录 2 页（records / record-detail）**：原型中的新增功能（旧版无此页面），mockup 已批准但接口为占位契约（`/admittance/apply/app/sendRecordSms`、`/listMyApply` 等**后端尚未设计**），前端先行实现无法接线。待后端接口就绪后作为独立分支补充（届时入口加在 `/visitor` 首页与 result 页）。
+- **访客申请记录 2 页（records / record-detail）**：原型中的新增功能（旧版无此页面）；短信验证码复用访客申请既有 `app:/sms/send/getCode/{mobile}`，列表/详情/queryToken 为独立记录查询契约。

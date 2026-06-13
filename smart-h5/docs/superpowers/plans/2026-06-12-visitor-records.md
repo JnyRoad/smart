@@ -160,7 +160,7 @@ const useMock = () => getTenantConfig().features.visitorRecordsMock
 const tokenHeaders = () => { const t = getQuerySession()?.queryToken; return t ? { 'X-Visitor-Query-Token': t } : undefined }
 // http.ts 的 RequestOptions 需要支持自定义 headers（见 Step 4b）
 
-export function sendRecordSms(mobile: string): Promise<Envelope<unknown>>           // 始终真实 POST，不受 mock 短路
+export function sendRecordSms(mobile: string): Promise<Envelope<unknown>>           // 复用访客申请短信 GET，不受 mock 短路
 export function fetchMyApplies(input: { mobile?: string; smsCode?: string; openId?: string } | null): Promise<Envelope<{ queryToken: string; maskedName: string; maskedMobile: string; records: RecordSummary[] }>>
   // mock: 任意入参成功，token 'mock-query-token'，mobile 脱敏由 fixture 给；input null = 用既有 token 头刷新
 export function fetchApplyDetail(applyId: string): Promise<Envelope<ApplyRecordDetail>>      // GET + token 头
@@ -182,7 +182,7 @@ export function fetchApprovalProgress(applyId: string): Promise<Envelope<{ nodes
   - 列表态：身份条（`当前查询：{maskedName} {maskedMobile}` +「换个手机号」清 session 回验证态）；筛选 chips 全部/审批中/已通过/已拒绝/已过期（前端过滤 applyStatus，REVOKED 仅「全部」可见）；记录卡（园区名 + 状态徽章 / 被访人 / 来访时间 `start ~ end(HH:mm)` / 随行/车辆 `随行 N 人 · 车牌或无车辆` / PENDING 显示 `当前节点：{currentNode}`、PASSED 显示 `通行权限：{dispatchStatusText}` / 右下「查看进度/详情」）→ 点击 `router.push('/visitor/records/'+applyId)`；PullToRefresh 重拉列表。
   - 空态：ErrorBlock「暂无申请记录」+「去预约」按钮 → `/visitor`。
   - 顶部 PageShell「我的申请记录」，返回 → `/visitor`。
-- [ ] **Step 2: E2E（关 mock）**：验证流（断言 sendRecordSms/listMyApply 请求体）→ 列表渲染（状态徽章/下发态文案）→ chips 过滤数量变化 → 「换个手机号」回验证态；403 响应 → 回验证态。mock 开冒烟：显式开 mock → sendRecordSms 仍真实请求 → 列表 fixture 可见。
+- [ ] **Step 2: E2E（关 mock）**：验证流（断言 sendRecordSms 复用访客申请短信 GET、listMyApply 请求体）→ 列表渲染（状态徽章/下发态文案）→ chips 过滤数量变化 → 「换个手机号」回验证态；403 响应 → 回验证态。mock 开冒烟：显式开 mock → sendRecordSms 仍真实请求 → 列表 fixture 可见。
 - [ ] **Step 3: 全绿 Commit** `feat(visitor): add my-applies records page`
 
 ### Task 4: 详情页 `/visitor/records/[applyId]`
