@@ -4,10 +4,10 @@ import type { ApplyStatus, DispatchStatus } from './record-status'
 import { MOCK_DETAILS, MOCK_IDENTITY, MOCK_LIST, MOCK_QUERY_TOKEN, mockDelay } from './records-mock'
 
 /**
- * Visitor "my applies" APIs. The backend endpoints are not implemented yet —
- * the contracts below double as the interface requirement for the gateway
- * (see spec §2). With features.visitorRecordsMock on, every function returns
- * demo fixtures instead of hitting the network.
+ * Visitor "my applies" APIs. The contracts below mirror the gateway surface
+ * for querying a visitor's own applications. With features.visitorRecordsMock on, list/detail functions
+ * return demo fixtures instead of hitting the network. Sending an SMS remains
+ * a real side-effect and is never short-circuited by the records mock.
  *
  * Auth model: listMyApply issues a short-lived queryToken bound to the
  * verified mobile/openId; the detail endpoints require it via the
@@ -109,10 +109,6 @@ function tokenHeaders(): Record<string, string> {
 }
 
 export async function sendRecordSms(mobile: string): Promise<Envelope<unknown>> {
-  if (isMockOn()) {
-    await mockDelay()
-    return { code: 0 }
-  }
   return request({
     module: 'platform',
     url: '/admittance/apply/app/sendRecordSms',

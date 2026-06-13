@@ -154,12 +154,30 @@ test('记录列表：token 失效（403）回验证态', async ({ page }) => {
   expect(session).toBeNull()
 })
 
-test('mock 开关冒烟：默认开，任意验证码进列表', async ({ page }) => {
-  // 不关 mock：完全不拦截 platform 路由，页面应靠 fixture 工作
+test('mock 开关冒烟：显式开启后列表走 fixture，但短信仍真实发送', async ({ page }) => {
+  await page.route('**/config.js', (route) =>
+    route.fulfill({
+      contentType: 'application/javascript',
+      body: `window.__SMART_CONFIG__ = {
+        tenant: 'xuchang', parkId: 5000021, parkName: '裕同科技许昌园区',
+        parkAddress: '许昌数字经济产业园', weatherCity: '许昌',
+        wxAppId: 'wx5c0d26056102d41e', flows: { visitor: 'standard' },
+        features: { visitorRecordsMock: true },
+      }`,
+    }),
+  )
+  let smsRequestCount = 0
+  await page.route('**/platform/admittance/apply/app/sendRecordSms', async (route) => {
+    smsRequestCount += 1
+    expect(route.request().postDataJSON()).toEqual({ mobile: '13700000000' })
+    await route.fulfill({ json: { code: 0 } })
+  })
+
   await page.goto('/visitor/records')
   await expect(page.getByText('验证身份后查看记录')).toBeVisible()
   await page.getByPlaceholder('点击输入手机号').fill('13700000000')
   await page.getByRole('button', { name: '获取验证码' }).click()
+  await expect.poll(() => smsRequestCount).toBe(1)
   await page.getByPlaceholder('点击输入验证码').fill('888888')
   await page.getByRole('button', { name: '查看申请记录' }).click()
   await expect(page.getByText('当前查询：')).toBeVisible()

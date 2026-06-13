@@ -3,7 +3,7 @@
 日期：2026-06-12
 状态：设计已经旅途批准（含详情接口鉴权修订）；本文档为落档 spec，待旅途审阅。
 来源：原型新增功能（无旧版对照），mockup 见 docs/prototype/mockups/visitor/records.html、record-detail.html（已评审）。
-背景决策（旅途拍板）：后端接口大概率未实现 → **前端先行，真实 API + 配置式 mock 开关**；合肥变体放到最后，本功能不含合肥分支。
+背景决策（旅途拍板）：前端按真实 API 契约接入，同时保留显式本地演示用的配置式 mock 开关；合肥变体放到最后，本功能不含合肥分支。
 
 ## 1. 范围与路由
 
@@ -87,11 +87,12 @@ interface ApprovalNode {
 
 记录排序：提交时间倒序（服务端）。列表筛选 chips：全部/审批中/已通过/已拒绝/已过期（前端按 applyStatus 过滤；REVOKED 渲染灰色「已撤销」徽章，仅在「全部」出现）。
 
-## 3. mock 开关（方案 A，旅途已批准）
+## 3. mock 开关（真实业务默认）
 
-- `public/config.js` 与 `TenantConfig` 增加 `features: { visitorRecordsMock: boolean }`，默认 `true`（后端未实现期）。
-- `features/visitor/records-api.ts` 每个接口函数内判断开关：开 → 返回 `records-mock.ts` fixture（约 300ms 延迟模拟加载）；关 → 真实请求。后端就绪后改配置即接真，零返工。
-- mock fixture 覆盖：列表含全部 5 种 applyStatus + 3 种 dispatchStatus 的记录；详情按 applyId 区分 6 个演示态（审批中 / 通过·下发成功 / 通过·下发中 / 通过·下发失败 / 已拒绝 / 已过期）；验证码任意 6 位通过并发放 mock queryToken。
+- `public/config.js` 与 `TenantConfig` 提供 `features: { visitorRecordsMock: boolean }`，默认 `false`，避免真实业务误走演示数据。
+- `features/visitor/records-api.ts` 的列表/详情接口判断开关：开 → 返回 `records-mock.ts` fixture（约 300ms 延迟模拟加载）；关 → 真实请求。
+- 短信验证码发送是业务副作用，始终请求真实 `sendRecordSms` 接口，不受 mock 开关短路。
+- mock fixture 覆盖：列表含全部 5 种 applyStatus + 3 种 dispatchStatus 的记录；详情按 applyId 区分 6 个演示态（审批中 / 通过·下发成功 / 通过·下发中 / 通过·下发失败 / 已拒绝 / 已过期）。
 
 ## 4. 身份校验与 token 管理（前端）
 
@@ -124,7 +125,7 @@ interface ApprovalNode {
   3. 详情四态渲染（PENDING/PASSED+SUCCESS/REJECTED/EXPIRED）+ 通行码跳转 + 重新预约预填断言。
   4. 深链无 token → 重定向验证 → 回跳详情。
   5. 403 → 清 token 回验证态。
-- mock 开关「开」的路径用 1 条冒烟 E2E 验证（开开关 → 任意验证码 → 列表可见）。
+- mock 开关「开」的路径用 1 条冒烟 E2E 验证（显式开开关 → 短信发送仍请求真实接口 → 列表 fixture 可见）。
 
 ## 7. 分支与门禁
 

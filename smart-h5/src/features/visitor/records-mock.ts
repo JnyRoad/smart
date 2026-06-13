@@ -1,13 +1,13 @@
 import type { ApplyRecordDetail, ApprovalNode, RecordSummary } from './records-api'
 
 /**
- * Demo fixtures for the visitor-records pages while the backend endpoints are
- * not implemented (config flag features.visitorRecordsMock). Covers every
- * applyStatus, every dispatchStatus and all detail demo states.
+ * Explicit demo fixtures for the visitor-records list/detail pages (config flag
+ * features.visitorRecordsMock). Covers every applyStatus, every dispatchStatus
+ * and all detail demo states.
  *
  * Demo boundary: the mock covers verify -> list -> detail. The pass-code page
  * (/visitor/code) queries a different gateway endpoint outside this flag, so
- * following "查看入园通行码" in mock mode will error until the backend ships.
+ * following "查看入园通行码" in mock mode still uses the real pass-code API.
  */
 export const MOCK_QUERY_TOKEN = 'mock-query-token'
 export const MOCK_IDENTITY = { maskedName: '李**', maskedMobile: '137****1234' }
