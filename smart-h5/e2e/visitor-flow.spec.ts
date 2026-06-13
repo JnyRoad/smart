@@ -14,7 +14,7 @@ async function mockEntryApis(page: Page, { needNotice = 0 } = {}) {
     route.fulfill({
       json: {
         code: 0,
-        data: { isNeedNotice: needNotice, noticeContent: '<p>入园请佩戴口罩，凭码通行。</p>' },
+        data: { isNeedNotice: needNotice, content: '<p>入园请佩戴口罩，凭码通行。</p>' },
       },
     }),
   )
