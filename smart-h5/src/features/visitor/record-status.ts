@@ -1,10 +1,16 @@
 export type ApplyStatus = 'PENDING' | 'PASSED' | 'REJECTED' | 'EXPIRED' | 'REVOKED'
 export type DispatchStatus = 'SUCCESS' | 'ISSUING' | 'FAILED'
+export type ApprovalNodeState = 'done' | 'current' | 'wait' | 'rejected'
 export type Tone = 'success' | 'warning' | 'danger' | 'muted'
 
 export interface StatusLabel {
   text: string
   tone: Tone
+}
+
+export interface ApprovalNodeLabelInput {
+  state: ApprovalNodeState
+  statusText?: string
 }
 
 const APPLY_BADGES: Record<ApplyStatus, StatusLabel> = {
@@ -28,6 +34,15 @@ const DISPATCH_TEXTS: Record<DispatchStatus, StatusLabel> = {
 
 export function dispatchStatusText(status: DispatchStatus): StatusLabel {
   return DISPATCH_TEXTS[status] ?? { text: String(status), tone: 'muted' }
+}
+
+export function approvalNodeStatusText(node: ApprovalNodeLabelInput): string {
+  const statusText = node.statusText?.trim()
+  if (statusText) return statusText
+  if (node.state === 'current') return '等待其审批中'
+  if (node.state === 'done') return '已同意'
+  if (node.state === 'rejected') return '已拒绝'
+  return '未到达'
 }
 
 /** Same-day ranges shorten the end to HH:mm; cross-day ranges keep the full date. */

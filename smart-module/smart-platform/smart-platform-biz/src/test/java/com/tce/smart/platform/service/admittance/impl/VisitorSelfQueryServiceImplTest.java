@@ -17,26 +17,30 @@ import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceFellow;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceVehicle;
 import com.tce.smart.platform.core.mapper.SmtAdmittanceApplyMapper;
 import com.tce.smart.platform.core.service.SmtApprovalNodeService;
+import com.tce.smart.platform.core.vo.FlowVO;
 import com.tce.smart.platform.service.ApproveListService;
+import com.tce.smart.platform.service.SmtOutDormitoryStaffService;
 import com.tce.smart.platform.service.SmtParkService;
 import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceFellowService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceVehicleService;
+import com.tce.smart.tool.enums.ApplicationEnum;
 import com.tce.smart.tool.enums.DeviceDownStatusEnum;
 import com.tce.smart.tool.enums.ApproveListStateEnum;
 import com.tce.smart.tool.enums.VisitorStatusEnum;
 import com.tce.smart.tool.constant.ApproveListTypeConstants;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -110,6 +114,47 @@ public class VisitorSelfQueryServiceImplTest {
 	}
 
 	@Test
+	public void listMyApplyUsesOaCurrentNodeWhenPendingApplyHasProcessId() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		ApproveListService approveListService = Mockito.mock(ApproveListService.class);
+		SmtOutDormitoryStaffService outDormitoryStaffService = Mockito.mock(SmtOutDormitoryStaffService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		setField(service, "approveListService", approveListService);
+		setField(service, "smtOutDormitoryStaffService", outDormitoryStaffService);
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		SmtPark park = new SmtPark();
+		park.setParkName("裕同科技许昌园区");
+		Mockito.when(parkService.getById(5000021)).thenReturn(park);
+		SmtAdmittanceApply apply = apply(1010L, "李明", "13712341234", VisitorStatusEnum.Status_2.getCode());
+		apply.setProcessId("OA-9004");
+		Mockito.when(mapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(apply));
+		Mockito.when(fellowService.getByApplyId(1010L)).thenReturn(Collections.emptyList());
+		Mockito.when(vehicleService.getByApplyId(1010L)).thenReturn(Collections.emptyList());
+		Mockito.doAnswer(invocation -> {
+			List<FlowVO> flowList = (List<FlowVO>) invocation.getArguments()[1];
+			flowList.add(flow("提交申请", ApplicationEnum.RECORD_STATUS_2.getDesc(), "李明",
+					LocalDateTime.of(2026, 6, 13, 9, 5), ""));
+			flowList.add(flow("部门经理审批", ApplicationEnum.RECORD_STATUS_c.getDesc(), "张三", null, ""));
+			return null;
+		}).when(outDormitoryStaffService).getOAProcessFlow(Mockito.eq("OA-9004"), Mockito.anyList());
+
+		VisitorSelfQueryRespDTO response = service.listMyApply(new VisitorSelfQueryReqDTO(), "tok-existing");
+
+		Assert.assertEquals(1, response.getRecords().size());
+		Assert.assertEquals("PENDING", response.getRecords().get(0).getApplyStatus());
+		Assert.assertEquals("部门经理审批 审批中", response.getRecords().get(0).getCurrentNode());
+		Mockito.verify(outDormitoryStaffService).getOAProcessFlow(Mockito.eq("OA-9004"), Mockito.anyList());
+		Mockito.verify(approveListService, Mockito.never()).list(Mockito.any());
+	}
+
+	@Test
 	public void getApplyDetailRejectsApplyOwnedByDifferentMobile() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
 		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
@@ -162,6 +207,123 @@ public class VisitorSelfQueryServiceImplTest {
 		Assert.assertEquals(1, detail.getFellows().size());
 		Assert.assertEquals("赵*", detail.getFellows().get(0).getName());
 		Assert.assertEquals(Collections.singletonList("研发楼A座"), Collections.singletonList(detail.getAreas().get(0)));
+	}
+
+	@Test
+	public void getApprovalProgressUsesOaProcessFlowWhenApplyHasProcessId() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		ApproveListService approveListService = Mockito.mock(ApproveListService.class);
+		SmtOutDormitoryStaffService outDormitoryStaffService = Mockito.mock(SmtOutDormitoryStaffService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		setField(service, "approveListService", approveListService);
+		setField(service, "smtOutDormitoryStaffService", outDormitoryStaffService);
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1005L, "李明", "13712341234", VisitorStatusEnum.Status_2.getCode());
+		apply.setProcessId("OA-9001");
+		Mockito.when(mapper.selectById(1005L)).thenReturn(apply);
+		Mockito.doAnswer(invocation -> {
+			List<FlowVO> flowList = (List<FlowVO>) invocation.getArguments()[1];
+			flowList.add(flow("提交申请", ApplicationEnum.RECORD_STATUS_2.getDesc(), "李明",
+					LocalDateTime.of(2026, 6, 13, 9, 5), "已提交 OA"));
+			flowList.add(flow("部门经理审批", ApplicationEnum.RECORD_STATUS_c.getDesc(), "张三", null, ""));
+			return null;
+		}).when(outDormitoryStaffService).getOAProcessFlow(Mockito.eq("OA-9001"), Mockito.anyList());
+
+		VisitorApprovalProgressRespDTO progress = service.getApprovalProgress("1005", "tok-existing");
+
+		Assert.assertEquals(2, progress.getNodes().size());
+		Assert.assertEquals("提交申请", progress.getNodes().get(0).getTitle());
+		Assert.assertEquals("done", progress.getNodes().get(0).getState());
+		Assert.assertEquals("提交", progress.getNodes().get(0).getStatusText());
+		Assert.assertEquals("李*", progress.getNodes().get(0).getApproverName());
+		Assert.assertEquals("2026-06-13 09:05", progress.getNodes().get(0).getTime());
+		Assert.assertEquals("已提交 OA", progress.getNodes().get(0).getComment());
+		Assert.assertEquals("部门经理审批", progress.getNodes().get(1).getTitle());
+		Assert.assertEquals("current", progress.getNodes().get(1).getState());
+		Assert.assertEquals("当前审批人", progress.getNodes().get(1).getStatusText());
+		Assert.assertEquals("张*", progress.getNodes().get(1).getApproverName());
+		Mockito.verify(outDormitoryStaffService).getOAProcessFlow(Mockito.eq("OA-9001"), Mockito.anyList());
+		Mockito.verify(approveListService, Mockito.never()).list(Mockito.any());
+	}
+
+	@Test
+	public void getApprovalProgressMapsOaRejectedStatuses() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		ApproveListService approveListService = Mockito.mock(ApproveListService.class);
+		SmtOutDormitoryStaffService outDormitoryStaffService = Mockito.mock(SmtOutDormitoryStaffService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		setField(service, "approveListService", approveListService);
+		setField(service, "smtOutDormitoryStaffService", outDormitoryStaffService);
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1008L, "李明", "13712341234", VisitorStatusEnum.Status_1.getCode());
+		apply.setProcessId("OA-9002");
+		Mockito.when(mapper.selectById(1008L)).thenReturn(apply);
+		Mockito.doAnswer(invocation -> {
+			List<FlowVO> flowList = (List<FlowVO>) invocation.getArguments()[1];
+			flowList.add(flow("部门经理审批", ApplicationEnum.RECORD_STATUS_3.getDesc(), "张三",
+					LocalDateTime.of(2026, 6, 13, 10, 15), "资料不完整"));
+			flowList.add(flow("厂区负责人审批", ApplicationEnum.RECORD_STATUS_12.getDesc(), "赵六",
+					LocalDateTime.of(2026, 6, 13, 10, 20), "回退补充"));
+			flowList.add(flow("系统撤销", ApplicationEnum.RECORD_STATUS_13.getDesc(), "王强",
+					LocalDateTime.of(2026, 6, 13, 10, 25), "申请撤销"));
+			return null;
+		}).when(outDormitoryStaffService).getOAProcessFlow(Mockito.eq("OA-9002"), Mockito.anyList());
+
+		VisitorApprovalProgressRespDTO progress = service.getApprovalProgress("1008", "tok-existing");
+
+		Assert.assertEquals(3, progress.getNodes().size());
+		Assert.assertEquals("rejected", progress.getNodes().get(0).getState());
+		Assert.assertEquals("张*", progress.getNodes().get(0).getApproverName());
+		Assert.assertEquals("2026-06-13 10:15", progress.getNodes().get(0).getTime());
+		Assert.assertEquals("资料不完整", progress.getNodes().get(0).getComment());
+		Assert.assertEquals("rejected", progress.getNodes().get(1).getState());
+		Assert.assertEquals("赵*", progress.getNodes().get(1).getApproverName());
+		Assert.assertEquals("rejected", progress.getNodes().get(2).getState());
+		Assert.assertEquals("王*", progress.getNodes().get(2).getApproverName());
+		Mockito.verify(approveListService, Mockito.never()).list(Mockito.any());
+	}
+
+	@Test
+	public void getApprovalProgressDoesNotFallbackToApproveListWhenOaReturnsNoNodes() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		ApproveListService approveListService = Mockito.mock(ApproveListService.class);
+		SmtOutDormitoryStaffService outDormitoryStaffService = Mockito.mock(SmtOutDormitoryStaffService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		setField(service, "approveListService", approveListService);
+		setField(service, "smtOutDormitoryStaffService", outDormitoryStaffService);
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1009L, "李明", "13712341234", VisitorStatusEnum.Status_2.getCode());
+		apply.setProcessId("OA-9003");
+		Mockito.when(mapper.selectById(1009L)).thenReturn(apply);
+		Mockito.when(approveListService.list(Mockito.any())).thenReturn(Collections.singletonList(
+				approve("本地审批节点", ApproveListStateEnum.PENDING.getCode(), 1)));
+
+		VisitorApprovalProgressRespDTO progress = service.getApprovalProgress("1009", "tok-existing");
+
+		Assert.assertTrue(progress.getNodes().isEmpty());
+		Mockito.verify(outDormitoryStaffService).getOAProcessFlow(Mockito.eq("OA-9003"), Mockito.anyList());
+		Mockito.verify(approveListService, Mockito.never()).list(Mockito.any());
 	}
 
 	@Test
@@ -334,6 +496,20 @@ public class VisitorSelfQueryServiceImplTest {
 		approve.setSort(sort);
 		approve.setUpdateTime(LocalDateTime.of(2026, 6, 13, 9, sort));
 		return approve;
+	}
+
+	private FlowVO flow(String nodeName, String processDesc, String createUser, LocalDateTime processDate, String remark) {
+		FlowVO flow = new FlowVO();
+		flow.setNodeName(nodeName);
+		flow.setProcessDesc(processDesc);
+		flow.setCreateUser(createUser);
+		flow.setProcessDate(toDate(processDate));
+		flow.setRemark(remark);
+		return flow;
+	}
+
+	private Date toDate(LocalDateTime time) {
+		return time == null ? null : Date.from(time.atZone(ZoneId.systemDefault()).toInstant());
 	}
 
 	private SmtStaff staff(String name) {
