@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>smart-push-biz</artifactId>
+    <parent>
+        <artifactId>smart-push</artifactId>
+        <groupId>com.tce</groupId>
+        <version>${revision}</version>
+    </parent>
+    <name>smart-push-biz</name>
+    <description>推送服务模块</description>
+
+
+    <dependencies>
+
+        <!--spring相关-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-undertow</artifactId>
+        </dependency>
+
+        <!--smart相关-->
+        <dependency>
+            <groupId>com.tce</groupId>
+            <artifactId>smart-common-swagger</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.tce</groupId>
+            <artifactId>smart-common-data</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.tce</groupId>
+            <artifactId>smart-push-api</artifactId>
+        </dependency>
+		<!--UPMS API-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-upms-api</artifactId>
+		</dependency>
+        <dependency>
+            <groupId>com.gexin.platform</groupId>
+            <artifactId>gexin-rp-sdk-http</artifactId>
+            <version>4.1.0.5</version>
+        </dependency>
+		<dependency>
+			<groupId>com.gexin.platform</groupId>
+			<artifactId>gexin-rp-sdk-base</artifactId>
+			<version>4.0.0.30</version>
+		</dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.gexin.platform</groupId>
+			<artifactId>gexin-rp-sdk-template</artifactId>
+			<version>4.0.0.30</version>
+		</dependency>
+	</dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<mainClass>com.tce.smart.push.SmartPushApplication</mainClass>
+				</configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+	<distributionManagement>
+		<repository>
+			<id>maven-releases</id>
+			<name>YUTO Nexus releases</name>
+			<url>https://10.13.21.7/repository/maven-releases/</url>
+		</repository>
+		<snapshotRepository>
+			<id>maven-snapshots</id>
+			<name>YUTO Nexus snapshots</name>
+			<url>https://10.13.21.7/repository/maven-snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
+
+</project>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.temporary.core.mapper.EbgEducationRegisterMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.temporary.core.entity.EbgEducationRegister">
+        <id column="ID" property="id" />
+        <result column="SeqID" property="SeqID" />
+        <result column="BeginDate" property="BeginDate" />
+        <result column="endDate" property="endDate" />
+        <result column="SchoolName" property="SchoolName" />
+        <result column="GradType" property="GradType" />
+        <result column="StudyType" property="StudyType" />
+        <result column="EduType" property="EduType" />
+        <result column="DegreeType" property="DegreeType" />
+        <result column="DegreeName" property="DegreeName" />
+        <result column="Major" property="Major" />
+        <result column="EduNo" property="EduNo" />
+        <result column="EduNoDate" property="EduNoDate" />
+        <result column="DegreeNo" property="DegreeNo" />
+        <result column="DegreeNoDate" property="DegreeNoDate" />
+        <result column="SchoolPlace" property="SchoolPlace" />
+        <result column="Reference" property="Reference" />
+        <result column="Tel" property="Tel" />
+        <result column="isout" property="isout" />
+        <result column="remark" property="remark" />
+        <result column="IsHighEdutype" property="IsHighEdutype" />
+        <result column="IsHighDegreeType" property="IsHighDegreeType" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        ID AS id, SeqID, BeginDate, endDate, SchoolName, GradType, StudyType, EduType, DegreeType, DegreeName, Major, EduNo, EduNoDate, DegreeNo, DegreeNoDate, SchoolPlace, Reference, Tel, isout, remark, IsHighEdutype, IsHighDegreeType
+    </sql>
+
+</mapper>

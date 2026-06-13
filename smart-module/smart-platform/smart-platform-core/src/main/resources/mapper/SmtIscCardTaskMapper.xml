@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtIscCardTaskMapper">
+
+	<sql id="base_column_list">
+		ID,
+		ACTION,
+		PRIORITY,
+		STATUS,
+		PARK_ID,
+		SOURCE_TYPE,
+		SOURCE_ID,
+		BADGE,
+		PERSON_ID,
+		CARD_NO,
+		ACTIVE_KEY,
+		LEASE_TOKEN,
+		RUNNING_KEY,
+		CODE,
+		REMARK,
+		CONSUME,
+		TIMES,
+		OVER_TIME,
+		CREATE_TIME,
+		UPDATE_TIME,
+		OPT_USER
+	</sql>
+
+	<select id="getPendingTasks" resultType="com.tce.smart.platform.core.entity.SmtIscCardTask">
+		SELECT * FROM (
+			SELECT <include refid="base_column_list" />
+			FROM SMT_ISC_CARD_TASK
+			WHERE (STATUS IN (0, 3) OR STATUS IS NULL)
+			  AND OVER_TIME <![CDATA[<=]]> #{currentTime}
+			  AND (CODE != 200 OR CODE IS NULL)
+			  AND (TIMES IS NULL OR TIMES <![CDATA[<]]> #{maxRetryTimes})
+			ORDER BY NVL(PRIORITY, 0) DESC, OVER_TIME ASC, CREATE_TIME ASC, TIMES ASC, ID ASC
+		) WHERE ROWNUM <![CDATA[<=]]> 500
+	</select>
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.vo.IscCardTaskPageVO">
+		SELECT
+			T.ID,
+			T.ACTION,
+			T.PRIORITY,
+			T.STATUS,
+			T.PARK_ID,
+			PARK.PARK_NAME,
+			T.SOURCE_TYPE,
+			T.SOURCE_ID,
+			T.BADGE,
+			STAFF.NAME,
+			T.PERSON_ID,
+			T.CARD_NO,
+			T.CODE,
+			T.REMARK,
+			T.CONSUME,
+			T.TIMES,
+			T.OVER_TIME,
+			T.CREATE_TIME,
+			T.UPDATE_TIME,
+			T.OPT_USER
+		FROM SMT_ISC_CARD_TASK T
+		LEFT JOIN SMT_STAFF STAFF ON T.SOURCE_ID = STAFF.ID
+		LEFT JOIN SMT_PARK PARK ON T.PARK_ID = PARK.ID
+		<where>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND T.PARK_ID IN
+				<foreach collection="query.parkIds" item="parkId" open="(" separator="," close=")">
+					#{parkId}
+				</foreach>
+			</if>
+			<if test="query.parkId != null">
+				AND T.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.badge != null and query.badge != ''">
+				AND T.BADGE LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+			</if>
+			<if test="query.name != null and query.name != ''">
+				AND STAFF.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.cardNo != null and query.cardNo != ''">
+				AND T.CARD_NO LIKE CONCAT(CONCAT('%',#{query.cardNo}),'%')
+			</if>
+			<if test="query.action != null">
+				AND T.ACTION = #{query.action}
+			</if>
+			<if test="query.status != null">
+				AND T.STATUS = #{query.status}
+			</if>
+			<if test="query.code != null">
+				AND T.CODE = #{query.code}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND T.CREATE_TIME <![CDATA[>=]]>
+				TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND T.CREATE_TIME <![CDATA[<]]>
+				TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd') + 1
+			</if>
+		</where>
+		ORDER BY T.CREATE_TIME DESC, T.ID DESC
+	</select>
+
+	<select id="getLatestPersonId" resultType="String">
+		SELECT PERSON_ID FROM (
+			SELECT PERSON_ID
+			FROM SMT_ISC_CARD_TASK
+			WHERE BADGE = #{badge}
+			  AND PARK_ID = #{parkId}
+			  AND CARD_NO = #{cardNo}
+			  AND STATUS = 1
+			  AND PERSON_ID IS NOT NULL
+			ORDER BY UPDATE_TIME DESC, ID DESC
+		) WHERE ROWNUM = 1
+	</select>
+
+	<update id="releaseExpiredRunningTask">
+		UPDATE SMT_ISC_CARD_TASK
+		SET STATUS = 0,
+			RUNNING_KEY = NULL,
+			LEASE_TOKEN = NULL,
+			OVER_TIME = #{currentTime},
+			UPDATE_TIME = #{updateTime}
+		WHERE RUNNING_KEY = #{runningKey}
+		  AND STATUS = 3
+		  AND OVER_TIME <![CDATA[<=]]> #{currentTime}
+		  AND (CODE != 200 OR CODE IS NULL)
+	</update>
+
+	<update id="markDoing">
+		UPDATE SMT_ISC_CARD_TASK CURRENT_TASK
+		SET STATUS = 3,
+			RUNNING_KEY = #{runningKey},
+			LEASE_TOKEN = #{leaseToken},
+			OVER_TIME = #{doingDeadlineTime},
+			UPDATE_TIME = #{updateTime}
+		WHERE CURRENT_TASK.ID = #{id}
+		  AND (
+			((CURRENT_TASK.STATUS = 0 OR CURRENT_TASK.STATUS IS NULL) AND CURRENT_TASK.OVER_TIME <![CDATA[<=]]> #{currentTime})
+			OR (CURRENT_TASK.STATUS = 3 AND CURRENT_TASK.OVER_TIME <![CDATA[<=]]> #{currentTime})
+		  )
+		  AND (CURRENT_TASK.CODE != 200 OR CURRENT_TASK.CODE IS NULL)
+		  AND (CURRENT_TASK.TIMES IS NULL OR CURRENT_TASK.TIMES <![CDATA[<]]> #{maxRetryTimes})
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM SMT_ISC_CARD_TASK BLOCK_TASK
+			WHERE BLOCK_TASK.ID != CURRENT_TASK.ID
+				  AND NVL(BLOCK_TASK.SOURCE_TYPE, ' ') = NVL(CURRENT_TASK.SOURCE_TYPE, ' ')
+				  AND NVL(BLOCK_TASK.SOURCE_ID, -1) = NVL(CURRENT_TASK.SOURCE_ID, -1)
+				  AND NVL(BLOCK_TASK.PRIORITY, 0) > NVL(CURRENT_TASK.PRIORITY, 0)
+				  AND (BLOCK_TASK.STATUS IN (0, 3) OR BLOCK_TASK.STATUS IS NULL)
+				  AND (BLOCK_TASK.CODE != 200 OR BLOCK_TASK.CODE IS NULL)
+		  )
+	</update>
+</mapper>

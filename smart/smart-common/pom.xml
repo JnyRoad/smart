@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.tce</groupId>
+		<artifactId>smart</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>smart-common</artifactId>
+	<packaging>pom</packaging>
+
+	<description>公共聚合模块</description>
+
+	<modules>
+		<module>smart-common-bom</module>
+		<module>smart-common-core</module>
+		<module>smart-common-data</module>
+		<module>smart-common-gateway</module>
+		<module>smart-common-log</module>
+		<module>smart-common-security</module>
+		<module>smart-common-swagger</module>
+	</modules>
+</project>

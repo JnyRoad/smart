@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtOaAreaTypeMapper">
+
+  <resultMap id="smtAdmittanceAreaTypeMap" type="com.tce.smart.platform.core.entity.admittance.SmtOaAreaType">
+                  <id property="id" column="ID"/>
+                        <result property="typeName" column="TYPE_NAME"/>
+                        <result property="typeId" column="TYPE_ID"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="isDelete" column="IS_DELETE"/>
+            </resultMap>
+</mapper>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.LvwAcardlostMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.LvwAcardlost">
+        <result column="badge" property="badge" />
+        <result column="Name" property="name" />
+        <result column="compid" property="compid" />
+        <result column="compname" property="compname" />
+        <result column="DepID" property="depId" />
+        <result column="depname" property="depname" />
+        <result column="jobid" property="jobid" />
+        <result column="jobname" property="jobname" />
+        <result column="KqStartDate" property="kqStartDate" />
+        <result column="KQINTIME2" property="kqintime2" />
+        <result column="KQOUTTIME2" property="kqouttime2" />
+        <result column="KQINTIME4" property="kqintime4" />
+        <result column="KQOUTTIME4" property="kqouttime4" />
+        <result column="KQINTIME5" property="kqintime5" />
+        <result column="KQOUTTIME5" property="kqouttime5" />
+        <result column="reason" property="reason" />
+        <result column="REMARKS" property="remarks" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        badge, Name, compid, compname, DepID, depname, jobid, jobname, KqStartDate, KQINTIME2 AS kqintime2, KQOUTTIME2 AS kqouttime2, KQINTIME4 AS kqintime4, KQOUTTIME4 AS kqouttime4, KQINTIME5 AS kqintime5, KQOUTTIME5 AS kqouttime5, reason, REMARKS AS remarks
+    </sql>
+
+</mapper>

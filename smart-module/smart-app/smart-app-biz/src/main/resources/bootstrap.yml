@@ -1,0 +1,41 @@
+server:
+  port: 6020
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: 'health,info'  # 仅暴露必要端点
+  endpoint:
+    health:
+      show-details: when_authorized
+security:
+  enabled: true
+
+
+spring:
+  application:
+    name: smart-app
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+        group: ${NACOS_GROUP:dev}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+      config:
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+        file-extension: yml
+        group: ${NACOS_GROUP:dev}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        shared-configs[0]:
+          data-id: common.yml
+          group: ${NACOS_GROUP:dev}
+          refresh: true
+    inetutils:
+      preferred-networks: 10
+  main:
+    allow-bean-definition-overriding: true
+  security:
+    user:
+      name: admin
+      password: ${SMART_APP_SECURITY_USER_PASSWORD:}

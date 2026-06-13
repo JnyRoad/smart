@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtBlackVisitorMapper">
+
+	<select id="page" parameterType="com.tce.smart.platform.core.entity.SmtBlackVisitor" resultType="com.tce.smart.platform.core.vo.BlackVisitorVO">
+
+	select V.ID,
+	       V.CARD_NO as cardNo,
+	       V.PERSON_NAME as personName,
+	       V.CREATE_USER,
+	       V.CREATE_TIME as createTime,
+	       P.PARK_NAME as parkName,
+	       V.REASON
+	from SMT_BLACK_VISITOR V
+	inner join SMT_PARK P on V.PARK_ID = P.ID
+	<where>
+		<if test="query.cardNo!=null and query.cardNo!='' ">
+			AND CARD_NO LIKE CONCAT(CONCAT('%',#{query.cardNo}),'%')
+		</if>
+		<if test="query.personName!=null and  query.personName!='' ">
+			AND PERSON_NAME LIKE CONCAT(CONCAT('%',#{query.personName}),'%')
+		</if>
+		<if test="query.parkId!=null">
+			AND PARK_ID =#{query.parkId}
+		</if>
+		<if test="park!=null and  park.size>0">
+			and V.PARK_ID in
+			<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+			</foreach>
+		</if>
+
+	</where>
+	order by CREATE_TIME desc
+
+
+	</select>
+
+</mapper>

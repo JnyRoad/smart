@@ -1,0 +1,183 @@
+.device{
+  .el-card__body{
+    padding-right: 0;
+  }
+  .list-group{
+    font-size: inherit;
+  }
+  .device-list{
+    margin-top: 10px;
+    display: -webkit-flex; /* Safari */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    .device-outer{
+      width: 31%;
+      min-width: 460px;
+      overflow: hidden;
+      margin: 0 1.8% 30px 0;
+    }
+    .device-item{
+      position: relative;
+      border: 1px solid #DCDFE6;
+      min-height: 185px;
+      min-width: 460px;
+      display: -webkit-flex; /* Safari */
+      display: flex;
+      dt{
+        width: 40%;
+        background-color: #EDF1F4;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-image: url('/img/device_01.png');
+      }
+      dd{
+        position: relative;
+        width: 60%;
+        padding: 20px 30px 10px 20px;
+      }
+      .ck1{
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        .el-checkbox__label{
+          font-size: 0;
+          padding: 0;
+        }
+        .el-checkbox__inner{
+          width: 20px;
+          height: 20px;
+        }
+        .el-checkbox__inner::after{
+          height: 10px;
+          left: 7px;
+        }
+      }
+      .info-tbl{
+        width: 100%;
+        .tbl_row{
+          display: flex;
+          margin-bottom: 10px;
+          align-items: center;
+        }
+        .tbl_cell{
+          flex: 1;
+          text-align: right;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .tbl_cell_label{
+          flex: none;
+          width: 90px;
+          text-align: left;
+          color: #666;
+          padding-right: 10px;
+        }
+        .tbl_cell2{
+          display: flex;
+          justify-content: space-between;
+          flex-wrap: wrap;
+        }
+      }
+      .circle-btns{
+        margin-top: 10px;
+        .el-button + .el-button{
+          margin-left: 0;
+        }
+        .el-button{
+          margin-right: 4px;
+          margin-bottom: 0;
+        }
+      }
+      .perm-btn{
+        font-size: 12px;
+        height: 26px;
+        line-height: 26px;
+        padding: 0 6px;
+        vertical-align: middle;
+        margin: 8px 0 0 4px;
+      }
+      .perm-btn2{
+        padding: 0;
+        margin: 6px 0 0 0;
+        color: #e7292e;
+      }
+    }
+  }
+  .dialog_form{
+    .el-dialog__body{
+      padding-bottom: 20px;
+      .el-form-item{
+        margin: 0 0 20px 0;
+        width: 50%;
+      }
+      .el-form-item__label{
+        line-height: 20px;
+        padding: 0 0 5px;
+      }
+      .el-form-item:nth-child(2n+1){
+        padding-right: 15px;
+      }
+      .el-form-item:nth-child(2n){
+        padding-left: 15px;
+      }
+    }
+  }
+}
+.gate{
+  .device-list{
+    .device-item{
+      dt{
+        background-image: url('/img/device_02.png');
+      }
+    }
+  }
+}
+.guard{
+  .device-list{
+    .device-item{
+      dt{
+        background-image: url('/img/device_03.png');
+      }
+    }
+  }
+}
+.automatic{
+  .device-list{
+    .device-item{
+      dt{
+        background-image: url('/img/device_04.png');
+      }
+    }
+  }
+}
+// .water{
+//   .device-list{
+//     .device-item{
+//       dt{
+//         background-image: url('/img/device_05.png');
+//       }
+//     }
+//   }
+// }
+.electric{
+  .device-list{
+    .device-item{
+      dt{
+        background-image: url('/img/device_07.png');
+      }
+    }
+  }
+}
+@media screen and (max-width: 1650px) {
+  .device{
+    .device-list{
+      .device-outer{
+        width: 45%;
+        margin-right: 5%;
+      }
+    }
+
+  }
+}

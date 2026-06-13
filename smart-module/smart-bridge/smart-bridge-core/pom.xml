@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+        <artifactId>smart-bridge</artifactId>
+        <groupId>com.tce</groupId>
+		<version>${revision}</version>
+    </parent>
+    <artifactId>smart-bridge-core</artifactId>
+
+	<description>智慧园区转接core模块</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.tce</groupId>
+            <artifactId>smart-common-core</artifactId>
+        </dependency>
+
+		<!-- SQLite3 驱动 -->
+		<dependency>
+			<groupId>org.xerial</groupId>
+			<artifactId>sqlite-jdbc</artifactId>
+			<version>3.23.1</version>
+		</dependency>
+
+		<!--mybatis-->
+		<dependency>
+			<groupId>com.baomidou</groupId>
+			<artifactId>mybatis-plus-boot-starter</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.mybatis</groupId>
+			<artifactId>mybatis</artifactId>
+		</dependency>
+    </dependencies>
+</project>

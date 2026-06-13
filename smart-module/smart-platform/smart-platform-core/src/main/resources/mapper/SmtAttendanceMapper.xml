@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAttendanceMapper">
+
+  <resultMap id="smtAttendanceMap" type="com.tce.smart.platform.core.entity.SmtAttendance">
+                  <id property="id" column="id"/>
+                        <result property="staffId" column="staff_id"/>
+                        <result property="staffBadge" column="staff_badge"/>
+                        <result property="staffName" column="staff_name"/>
+                        <result property="startTime" column="start_time"/>
+                        <result property="endTime" column="end_time"/>
+                        <result property="processid" column="processId"/>
+                        <result property="createtime" column="createTime"/>
+                        <result property="isLeave" column="is_leave"/>
+            </resultMap>
+</mapper>

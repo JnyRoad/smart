@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.LvwAttendYcxxMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.LvwAttendYcxx">
+        <result column="id" property="id" />
+        <result column="badge" property="badge" />
+        <result column="Name" property="Name" />
+        <result column="compid" property="compid" />
+        <result column="DepID" property="DepID" />
+        <result column="jobid" property="jobid" />
+        <result column="attenddate" property="attenddate" />
+        <result column="week" property="week" />
+        <result column="type" property="type" />
+        <result column="type_remark" property="typeRemark" />
+        <result column="shiftid" property="shiftid" />
+        <result column="in1" property="in1" />
+        <result column="out1" property="out1" />
+        <result column="in2" property="in2" />
+        <result column="out2" property="out2" />
+        <result column="in3" property="in3" />
+        <result column="out3" property="out3" />
+        <result column="remark" property="remark" />
+        <result column="shift" property="shift" />
+        <result column="stdIn2" property="stdIn2" />
+        <result column="stdOt2" property="stdOt2" />
+        <result column="stdIn4" property="stdIn4" />
+        <result column="stdOt4" property="stdOt4" />
+        <result column="stdIn5" property="stdIn5" />
+        <result column="stdOt5" property="stdOt5" />
+        <result column="IsRight" property="IsRight" />
+        <result column="KqDateStr" property="KqDateStr" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, badge, Name, compid, DepID, jobid, attenddate, week, type, type_remark AS typeRemark, shiftid, in1, out1, in2, out2, in3, out3, remark, shift, stdIn2, stdOt2, stdIn4, stdOt4, stdIn5, stdOt5, IsRight, KqDateStr
+    </sql>
+
+</mapper>

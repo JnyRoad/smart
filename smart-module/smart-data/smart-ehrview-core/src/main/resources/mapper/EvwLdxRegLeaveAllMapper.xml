@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwLdxRegLeaveAllMapper">
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwLdxRegLeaveAll">
+		<result column="BADGE" property="BADGE" />
+		<result column="NAME" property="NAME" />
+		<result column="TWID" property="TWID" />
+		<result column="DEPID" property="DEPID" />
+		<result column="BEGINTIME" property="BEGINTIME" />
+		<result column="REMARK" property="REMARK" />
+	</resultMap>
+
+	<!-- 通用查询结果列 -->
+	<sql id="Base_Column_List">
+        BADGE, NAME, TWID, DEPID, BEGINTIME, REMARK
+    </sql>
+
+	<select id="list" resultMap="BaseResultMap">
+		SELECT <include refid="Base_Column_List"></include>
+		FROM evw_LdxRegLeave_all
+		WHERE evw_LdxRegLeave_all.BADGE = #{badge, jdbcType = VARCHAR}
+		<if test="queryMonth != null and queryMonth != ''">
+			AND CONVERT(VarChar(7), evw_LdxRegLeave_all.BEGINTIME, 120) = #{ queryMonth, jdbcType = VARCHAR }
+		</if>
+		ORDER BY evw_LdxRegLeave_all.BEGINTIME
+	</select>
+
+	<select id="listByDay" resultMap="BaseResultMap">
+		SELECT <include refid="Base_Column_List"></include>
+		FROM evw_LdxRegLeave_all
+		WHERE evw_LdxRegLeave_all.BADGE = #{badge, jdbcType = VARCHAR}
+		<if test="queryMonth != null and queryMonth != ''">
+			AND CONVERT(VarChar(10), evw_LdxRegLeave_all.BEGINTIME, 120) <![CDATA[>=]]> #{ queryDay, jdbcType = VARCHAR }
+		</if>
+		ORDER BY evw_LdxRegLeave_all.BEGINTIME
+	</select>
+</mapper>

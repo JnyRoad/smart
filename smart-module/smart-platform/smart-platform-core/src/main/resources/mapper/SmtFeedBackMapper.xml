@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtFeedBackMapper">
+
+	<select id="selectPage" parameterType="com.tce.smart.platform.core.dto.FeedBackQueryDTO" resultType="com.tce.smart.platform.core.entity.SmtFeedBack">
+
+
+		select * from smt_feed_back
+		<where>
+			<if test="query.staffBadge!='' and query.staffBadge!=null ">
+				and staff_badge LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.staffName!='' and query.staffName!=null ">
+				and staff_name LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.staffPhone!='' and query.staffPhone!=null ">
+				and staff_phone LIKE CONCAT(CONCAT('%',#{query.staffPhone}),'%')
+			</if>
+			<if test="query.question!='' and  query.question!=null ">
+				and question LIKE CONCAT(CONCAT('%',#{query.question}),'%')
+			</if>
+			<if test="query.status!=null ">
+				and status =#{query.status}
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				and create_time between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		</where>
+			order by create_Time desc
+
+	</select>
+
+
+</mapper>

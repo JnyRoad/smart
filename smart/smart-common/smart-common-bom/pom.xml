@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<artifactId>spring-cloud-dependencies-parent</artifactId>
+		<groupId>org.springframework.cloud</groupId>
+		<version>2.1.3.RELEASE</version>
+		<relativePath/>
+	</parent>
+
+	<artifactId>smart-common-bom</artifactId>
+	<packaging>pom</packaging>
+	<version>${revision}</version>
+	<description>公共版本控制</description>
+
+	<properties>
+		<revision>3.0.1-SNAPSHOT</revision>
+		<smart.version>${revision}</smart.version>
+		<druid.version>1.1.21</druid.version>
+		<poi.version>3.17</poi.version>
+		<ttl.version>2.10.2</ttl.version>
+		<hutool.version>4.4.5</hutool.version>
+		<jackson.modules>2.9.6</jackson.modules>
+		<mybatis-plus.version>3.1.0</mybatis-plus.version>
+		<mybatis-plus-extension.version>3.1.2</mybatis-plus-extension.version>
+		<mybatis.version>3.5.6</mybatis.version>
+		<oracle.connector.version>2.0</oracle.connector.version>
+		<mssql.jdbc.version>12.6.4.jre8</mssql.jdbc.version>
+		<swagger.version>2.9.2</swagger.version>
+		<swagger.bootstrap.ui.version>1.9.2</swagger.bootstrap.ui.version>
+		<swagger.annotations.version>1.5.22</swagger.annotations.version>
+		<swagger.models.version>1.5.22</swagger.models.version>
+		<shedlock-spring.version>4.12.0</shedlock-spring.version>
+		<shedlock-provider-redis-spring.version>4.12.0</shedlock-provider-redis-spring.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!--hutool-->
+			<dependency>
+				<groupId>cn.hutool</groupId>
+				<artifactId>hutool-all</artifactId>
+				<version>${hutool.version}</version>
+			</dependency>
+
+			<!--smart 工具包-->
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-common-core</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-common-data</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-common-gateway</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-common-log</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-common-security</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-common-swagger</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>io.springfox</groupId>
+				<artifactId>springfox-swagger-ui</artifactId>
+				<version>${swagger.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.xiaoymin</groupId>
+				<artifactId>swagger-bootstrap-ui</artifactId>
+				<version>${swagger.bootstrap.ui.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.springfox</groupId>
+				<artifactId>springfox-swagger2</artifactId>
+				<version>${swagger.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.swagger</groupId>
+				<artifactId>swagger-annotations</artifactId>
+				<version>${swagger.annotations.version}</version>
+			</dependency>
+			<!--解决swagger启动报错-->
+			<dependency>
+				<groupId>io.swagger</groupId>
+				<artifactId>swagger-models</artifactId>
+				<version>${swagger.models.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-upms-api</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-platform-api</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>smart-app-api</artifactId>
+				<version>${smart.version}</version>
+			</dependency>
+
+			<!--jackson模块-->
+			<dependency>
+				<groupId>com.fasterxml.jackson.module</groupId>
+				<artifactId>jackson-modules-java8</artifactId>
+				<version>${jackson.modules}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!--mybatis plus extension,包含了mybatis plus core-->
+			<dependency>
+				<groupId>com.baomidou</groupId>
+				<artifactId>mybatis-plus-extension</artifactId>
+				<version>${mybatis-plus-extension.version}</version>
+			</dependency>
+
+			<!--mybatis-->
+			<dependency>
+				<groupId>com.baomidou</groupId>
+				<artifactId>mybatis-plus-boot-starter</artifactId>
+				<version>${mybatis-plus.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.mybatis</groupId>
+				<artifactId>mybatis</artifactId>
+				<version>${mybatis.version}</version>
+			</dependency>
+
+			<!-- alibaba的druid数据库连接池 -->
+			<dependency>
+				<groupId>com.alibaba</groupId>
+				<artifactId>druid-spring-boot-starter</artifactId>
+				<version>${druid.version}</version>
+			</dependency>
+
+			<!--  oracle -->
+			<dependency>
+				<groupId>com.tce</groupId>
+				<artifactId>oracle</artifactId>
+				<version>${oracle.connector.version}</version>
+			</dependency>
+
+			<!--  sqlserver -->
+			<dependency>
+				<groupId>com.microsoft.sqlserver</groupId>
+				<artifactId>mssql-jdbc</artifactId>
+				<version>${mssql.jdbc.version}</version>
+			</dependency>
+
+			<!-- POI -->
+			<dependency>
+				<groupId>org.apache.poi</groupId>
+				<artifactId>poi</artifactId>
+				<version>${poi.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.poi</groupId>
+				<artifactId>poi-ooxml</artifactId>
+				<version>${poi.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.poi</groupId>
+				<artifactId>poi-ooxml-schemas</artifactId>
+				<version>${poi.version}</version>
+			</dependency>
+
+			<!--TTL-->
+			<dependency>
+				<groupId>com.alibaba</groupId>
+				<artifactId>transmittable-thread-local</artifactId>
+				<version>${ttl.version}</version>
+			</dependency>
+
+			<!-- ShedLock-轻量级分布式定时任务 -->
+			<dependency>
+				<groupId>net.javacrumbs.shedlock</groupId >
+				<artifactId>shedlock-spring</artifactId >
+				<version>${shedlock-spring.version}</version>
+			</dependency >
+			<dependency>
+				<groupId>net.javacrumbs.shedlock</groupId>
+				<artifactId>shedlock-provider-redis-spring</artifactId>
+				<version>${shedlock-provider-redis-spring.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<repositories>
+		<repository>
+			<id>maven-public</id>
+			<name>YUTO Nexus public</name>
+			<url>https://10.13.21.7/repository/maven-public/</url>
+		</repository>
+	</repositories>
+
+	<distributionManagement>
+		<repository>
+			<id>maven-releases</id>
+			<name>YUTO Nexus releases</name>
+			<url>https://10.13.21.7/repository/maven-releases/</url>
+		</repository>
+		<snapshotRepository>
+			<id>maven-snapshots</id>
+			<name>YUTO Nexus snapshots</name>
+			<url>https://10.13.21.7/repository/maven-snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>flatten-maven-plugin</artifactId>
+				<version>1.6.0</version>
+				<configuration>
+					<flattenMode>resolveCiFriendliesOnly</flattenMode>
+					<updatePomFile>true</updatePomFile>
+				</configuration>
+				<executions>
+					<execution>
+						<id>flatten</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>flatten</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>flatten.clean</id>
+						<phase>clean</phase>
+						<goals>
+							<goal>clean</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

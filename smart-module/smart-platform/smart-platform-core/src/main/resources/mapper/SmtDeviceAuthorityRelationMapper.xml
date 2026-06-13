@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDeviceAuthorityRelationMapper">
+
+	<resultMap id="smtDeviceAuthorityRelationMap" type="com.tce.smart.platform.core.entity.SmtDeviceAuthorityRelation">
+		<id property="id" column="id"/>
+		<result property="authorityId" column="AUTHORITY_ID"/>
+		<result property="deviceId" column="DEVICE_ID"/>
+	</resultMap>
+
+	<select id="getPark" parameterType="int" resultType="com.tce.smart.platform.core.model.DeviceTree">
+		SELECT
+		SP. ID AS ID,
+		SP.PARK_NAME AS LABEL,
+		nvl(null,'true') AS DISABLED
+		FROM
+		SMT_PARK SP
+		<where>
+			<if test="parkIds != null and parkIds.size > 0">
+				AND SP.ID IN
+				<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+	</select>
+
+	<select id="getArea" resultType="com.tce.smart.platform.core.model.DeviceTree">
+		SELECT
+		"sa". ID AS "id",
+		"sa".AREA_NAME AS "label",
+		nvl(null,'true') AS "disabled"
+		FROM
+		SMT_AREA "sa"
+		<where>
+			<if test="parkId != null">
+				AND "sa".PARK_ID = #{parkId}
+			</if>
+			<if test="pId != null">
+				AND "sa".PID = #{pId}
+			</if>
+		</where>
+	</select>
+
+	<select id="getDevice" resultType="com.tce.smart.platform.core.model.DeviceTree">
+		SELECT
+		SD. ID AS "id",
+		SD.DEVICE_NAME AS "label"
+		FROM
+		SMT_DEVICE_AREA SDA
+		INNER JOIN SMT_DEVICE SD ON SD. ID = SDA.DEVICE_ID
+		<where>
+			<if test="areaId != null and areaId != ''">
+				AND SDA.AREA_ID = #{areaId}
+			</if>
+			<if test="types != null and types.size > 0">
+				AND SD.DEVICE_TYPE IN
+				<foreach collection="types" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+	</select>
+
+	<select id="getDeviceIds" parameterType="int" resultType="java.lang.String">
+		SELECT
+		SDAR.DEVICE_ID
+		FROM
+		SMT_DEVICE_AUTHORITY_RELATION SDAR
+		<where>
+			<if test="authorityId != null">
+				AND SDAR.AUTHORITY_ID = #{authorityId}
+			</if>
+			<if test="parkIds != null and parkIds.size > 0">
+				AND SDAR.PARK_ID IN
+				<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+	</select>
+
+	<select id="getDevices" parameterType="int" resultType="com.tce.smart.platform.core.entity.SmtDeviceAuthorityRelation">
+		SELECT
+		SDAR.*
+		FROM
+		SMT_DEVICE_AUTHORITY_RELATION SDAR
+		<where>
+			<if test="authorityId != null">
+				AND SDAR.AUTHORITY_ID = #{authorityId}
+			</if>
+			<if test="parkIds != null and parkIds.size > 0">
+				AND SDAR.PARK_ID IN
+				<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+	</select>
+</mapper>

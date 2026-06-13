@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwLergotAllMapper">
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwLergotAll">
+		<result column="BADGE" property="BADGE" />
+		<result column="NAME" property="NAME" />
+		<result column="DEPID" property="DEPID" />
+		<result column="OTTERM" property="OTTERM" />
+		<result column="OTTYPE" property="OTTYPE" />
+		<result column="OT2STARTTIME" property="OT2STARTTIME" />
+		<result column="OT2ENDTIME" property="OT2ENDTIME" />
+		<result column="OT4STARTTIME" property="OT4STARTTIME" />
+		<result column="OT4ENDTIME" property="OT4ENDTIME" />
+		<result column="OT5STARTTIME" property="OT5STARTTIME" />
+		<result column="OT5ENDTIME" property="OT5ENDTIME" />
+		<result column="AMOUNT" property="AMOUNT" />
+		<result column="REASON" property="REASON" />
+	</resultMap>
+
+	<!-- 通用查询结果列 -->
+	<sql id="Base_Column_List">
+        BADGE, NAME, OTTERM, DEPID, OTTYPE, OT2STARTTIME, OT2ENDTIME, OT4STARTTIME, OT4ENDTIME, OT5STARTTIME, OT5ENDTIME, AMOUNT, REASON
+    </sql>
+
+	<select id="list" resultMap="BaseResultMap">
+		SELECT <include refid="Base_Column_List"></include>
+		FROM evw_LERGOT_ALL
+		WHERE evw_LERGOT_ALL.BADGE = #{badge, jdbcType = VARCHAR}
+		<if test="queryMonth != null and queryMonth != ''">
+			AND CONVERT(VarChar(7), evw_LERGOT_ALL.OTTERM, 120) = #{ queryMonth, jdbcType = VARCHAR }
+		</if>
+		ORDER BY evw_LERGOT_ALL.OTTERM
+	</select>
+</mapper>

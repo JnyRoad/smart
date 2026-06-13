@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtOvertimeApplicationMapper">
+
+	<resultMap id="smtOvertimeApplicationMap" type="com.tce.smart.platform.core.entity.SmtOvertimeApplication">
+		<id property="id" column="id"/>
+		<result property="staffId" column="staff_id"/>
+		<result property="staffBadge" column="staff_badge"/>
+		<result property="staffName" column="staff_name"/>
+		<result property="startTime" column="start_time"/>
+		<result property="endTime" column="end_time"/>
+		<result property="duration" column="duration"/>
+		<result property="cause" column="cause"/>
+		<result property="processid" column="processId"/>
+		<result property="createtime" column="createTime"/>
+	</resultMap>
+
+	<select id="getOvertimeApplicationPage" parameterType="com.tce.smart.platform.core.entity.SmtOvertimeApplication"
+			resultType="com.tce.smart.platform.core.vo.SearchOverTimeApplicationVO">
+		SELECT
+		O. ID AS RECORDID,
+		O.STAFF_NAME,
+		O.PROCESS_ID,
+		O.CREATE_TIME AS RECORDDATE,
+		O.WORK_TIME AS EXTRAWORKDATE,
+		O.WORK_TYPE,
+		O.DURATION AS EXTRAWORKCOUNT,
+		O.WORK_CLASS_CODE
+		FROM
+		SMT_OVERTIME_APPLICATION O
+		<where>
+			<if test="query.staffBadge!=null and query.staffBadge!=''">
+				O.STAFF_BADGE =#{query.staffBadge}
+			</if>
+		</where>
+		ORDER BY O.CREATE_TIME DESC
+	</select>
+
+	<select id="getOvertimeApplicationPageList" parameterType="com.tce.smart.platform.core.dto.SearchOverTimeDTO"
+			resultType="com.tce.smart.platform.core.vo.SearchOverTimeApplicationVO">
+		SELECT
+		O. ID AS RECORDID,
+		O.STAFF_BADGE,
+		O.STAFF_NAME,
+		STAFF.COMP_NAME,
+		STAFF.DEP_NAME,
+		STAFF.JOB_NAME,
+		O.PROCESS_ID,
+		O.CREATE_TIME AS RECORDDATE,
+		O.WORK_TIME AS EXTRAWORKDATE,
+		O.WORK_TYPE,
+		O.DURATION AS EXTRAWORKCOUNT,
+		O.CAUSE,
+		O.WORK_CLASS_CODE AS workClassCode,
+		O.CREATE_TIME
+		FROM
+		SMT_OVERTIME_APPLICATION O
+		INNER JOIN SMT_STAFF STAFF ON O.STAFF_BADGE=STAFF.BADGE
+		<where>
+			<if test="query.staffBadge!=null and query.staffBadge!=''">
+				O.STAFF_BADGE LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.staffName!=null and query.staffName!=''">
+				AND O.STAFF_NAME LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND O.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND STAFF.COMP_ID IN (
+				SELECT DISTINCT SPB.COMP_ID from SMT_PARK_BU SPB
+				<where>
+					SPB.PARK_ID IN
+					<foreach collection="query.parkIds" item="id" index="index" open="(" close=")" separator=",">
+						#{id}
+					</foreach>
+				</where>
+				)
+			</if>
+		</where>
+		ORDER BY O.CREATE_TIME DESC
+	</select>
+
+</mapper>

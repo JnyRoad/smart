@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.OvwYscompMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.OvwYscomp">
+        <result column="compid" property="compid" />
+        <result column="title" property="title" />
+        <result column="CompAbbr" property="CompAbbr" />
+        <result column="CompGrade" property="CompGrade" />
+        <result column="AdminID" property="AdminID" />
+        <result column="ezid" property="ezid" />
+        <result column="DisabledDate" property="DisabledDate" />
+        <result column="timestamp" property="timestamp" />
+        <result column="ASzstatus" property="ASzstatus" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        compid, title, CompAbbr, CompGrade, AdminID, ezid, DisabledDate, timestamp, ASzstatus
+    </sql>
+
+</mapper>

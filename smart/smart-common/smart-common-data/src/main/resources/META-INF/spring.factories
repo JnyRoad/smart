@@ -1,0 +1,5 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+    com.tce.smart.common.data.cache.RedisShedLockConfig,\
+    com.tce.smart.common.data.cache.RedisTemplateConfig,\
+    com.tce.smart.common.data.cache.RedisCacheManagerConfig,\
+    com.tce.smart.common.data.cache.RedisCacheAutoConfiguration

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwEappraisMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwEapprais">
+        <result column="badge" property="badge" />
+        <result column="name" property="name" />
+        <result column="CompID" property="CompID" />
+        <result column="compname" property="compname" />
+        <result column="DepID" property="DepID" />
+        <result column="depname" property="depname" />
+        <result column="JobID" property="JobID" />
+        <result column="jobname" property="jobname" />
+        <result column="Jchenid" property="Jchenid" />
+        <result column="JchenName" property="JchenName" />
+        <result column="joindate" property="joindate" />
+        <result column="prize" property="prize" />
+        <result column="effectdate" property="effectdate" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+<!--    <sql id="Base_Column_List">-->
+<!--        badge, name, CompID, compname, DepID, depname, JobID, jobname, Jchenid, JchenName, joindate, prize, effectdate-->
+<!--    </sql>-->
+
+</mapper>

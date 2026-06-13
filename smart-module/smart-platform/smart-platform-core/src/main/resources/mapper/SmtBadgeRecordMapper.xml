@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.mapper.SmtBadgeRecordMapper">
+
+  <resultMap id="smtBadgeRecordMap" type="com.tce.smart.platform.core.entity.badge.SmtBadgeRecord">
+                  <id property="id" column="ID"/>
+                        <result property="createrId" column="CREATER_ID"/>
+                        <result property="createrName" column="CREATER_NAME"/>
+                        <result property="createRole" column="CREATE_ROLE"/>
+                        <result property="operateType" column="OPERATE_TYPE"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+	                    <result property="applyId" column="APPLY_ID"/>
+                        <result property="blank" column="BLANK"/>
+            </resultMap>
+</mapper>

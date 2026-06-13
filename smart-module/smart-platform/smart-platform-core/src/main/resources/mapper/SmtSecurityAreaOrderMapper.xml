@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityAreaOrderMapper">
+
+	<resultMap id="securityAreaOrderData" type="com.tce.smart.platform.core.dto.securityarea.SecurityAreaOrderDTO">
+		<id property="id" column="id"/>
+		<result property="applicant" column="STAFF_BADGE"/>
+		<result property="visitArea" column="VISIT_AREA"/>
+		<result property="visitType" column="VISIT_TYPE"/>
+		<result property="comeTime" column="COME_TIME"/>
+		<result property="leaveTime" column="LEAVE_TIME"/>
+		<result property="supplierId" column="SUPPLIER_ID"/>
+		<result property="interViewName" column="INTERVIEW_NAME"/>
+		<result property="interViewPhone" column="INTERVIEW_PHONE"/>
+		<result property="escortName" column="ESCORT_NAME"/>
+		<result property="escortPhone" column="ESCORT_PHONE"/>
+		<result property="processId" column="PROCESS_ID"/>
+		<result property="status" column="STATUS"/>
+		<result property="carryGoods" column="CARRY_GOODS"/>
+		<result property="additionalName" column="ADDITIONAL_NAME"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="applicant" column="NAME"/>
+		<result property="applyDep" column="DEP_NAME"/>
+		<result property="supplierName" column="COMPANY_NAME"/>
+		<result property="remark" column="REMARK"/>
+	</resultMap>
+
+	<select id="getSecurityAreaOrderDetail"  resultMap="securityAreaOrderData">
+		select sord.ID,sord.STAFF_BADGE,sord.VISIT_AREA,sord.VISIT_TYPE,sord.COME_TIME,sord.LEAVE_TIME,
+		sord.SUPPLIER_ID,sord.INTERVIEW_NAME,sord.INTERVIEW_PHONE,sord.ESCORT_NAME,sord.ESCORT_PHONE,sord.REMARK,
+		sord.PROCESS_ID,sord.STATUS,sord.CARRY_GOODS,sord.ADDITIONAL_NAME,sord.CREATE_TIME
+		,staff.NAME,staff.DEP_NAME,supplier.COMPANY_NAME
+		from SMT_SECURITYAREA_ORDER sord
+		left join SMT_STAFF staff on sord.STAFF_BADGE=staff.BADGE
+		left join SMT_SECURITYAREA_SUPPLIER supplier on sord.SUPPLIER_ID=supplier.ID
+		where sord.ID=#{id}
+	</select>
+</mapper>

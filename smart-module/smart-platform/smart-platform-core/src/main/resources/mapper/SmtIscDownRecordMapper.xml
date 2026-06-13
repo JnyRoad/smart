@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtIscDownRecordMapper">
+
+
+	<select id="getVehicle" resultType="com.tce.smart.platform.core.vo.TaskDownRecordVO">
+		SELECT
+		SDT.CARD_NO,
+		SDT.DEVICE_CODE,
+		SDT.SERVICE_TYPE,
+		SDT.PARK_ID,
+		SDT.TASK_TYPE,
+		SDT.GENERAL,
+		PERSON.PERSON_NAME,
+		SDT.CREATE_TIME,
+		PERSON.BADGE,
+		SDT.START_TIME,
+		SD.DEVICE_NAME,
+		SD.DEVICE_TYPE,
+		SDT.REMARK,
+		SA.AREA_NAME
+		FROM
+		SMT_TASK_DOWN_RECORD SDT
+		LEFT JOIN (
+		SELECT
+		SLA. ID AS VEHICLE_ID,
+		SLA.DRIVER_NAME AS PERSON_NAME,
+		NULL AS BADGE
+		FROM
+		SMT_LOGISTICS_APPOINTMENT SLA
+		UNION ALL
+		SELECT
+		SV. ID AS VEHICLE_ID,
+		SV.VISITOR_NAME AS PERSON_NAME,
+		NULL AS BADGE
+		FROM
+		SMT_VISITOR SV
+		UNION ALL
+		SELECT
+		SNS.VEHICLE_ID AS VEHICLE_ID,
+		SNS."NAME" AS PERSON_NAME,
+		NULL AS BADGE
+		FROM
+		SMT_NOT_STAFF SNS
+		UNION ALL
+		SELECT
+		SVS.VEHICLE_ID AS VEHICLE_ID,
+		SS."NAME" AS PERSON_NAME,
+		SS.BADGE AS BADGE
+		FROM
+		SMT_VEHICLE_STAFF SVS
+		LEFT JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS."ID"
+		) PERSON ON PERSON.VEHICLE_ID = SDT.CARD_NO
+		LEFT JOIN SMT_DEVICE SD ON SD.ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_DEVICE_AREA SDA ON SDA.DEVICE_ID = SD.ID
+		LEFT JOIN SMT_AREA SA ON SA.ID = SDA.AREA_ID
+		<where>
+			SDT.DEVICE_TYPE = 2
+			<if test="query.taskType != null and  query.taskType != ''">
+				AND SDT.TASK_TYPE = #{query.taskType}
+			</if>
+			<if test="query.action != null and  query.action != ''">
+				AND SDT.ACTION = #{query.action}
+			</if>
+			<if test="query.deviceCode != null and  query.deviceCode != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceCode}
+			</if>
+			<if test="query.personName != null and  query.personName != ''">
+				AND PERSON.PERSON_NAME LIKE CONCAT(CONCAT('%',#{query.personName}),'%')
+			</if>
+			<if test="query.general != null and  query.general != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.general}),'%')
+			</if>
+			<if test="query.badge != null and  query.badge != ''">
+				AND PERSON.BADGE = #{query.badge}
+			</if>
+			<if test="query.deviceType != null">
+				AND SD.DEVICE_TYPE = #{query.deviceType}
+			</if>
+			<if test="query.areaId != null">
+				AND SA.ID = #{query.areaId}
+			</if>
+			<if test="query.taskType != null">
+				AND SDT.TASK_TYPE = #{query.taskType}
+			</if>
+			<if test="query.serviceType != null">
+				AND SDT.SERVICE_TYPE = #{query.serviceType}
+			</if>
+			<if test="query.deviceCode != null and query.deviceCode != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceCode}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SDT.START_TIME <![CDATA[>=]]>
+				TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND SDT.START_TIME <![CDATA[<]]>
+				TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd') + 1
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SD.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC
+	</select>
+
+	<select id="getPerson" resultType="com.tce.smart.platform.core.vo.TaskDownRecordVO">
+		SELECT
+		SDT.ID,
+		SDT.CARD_NO,
+		SDT.DEVICE_CODE,
+		SDT.SERVICE_TYPE,
+		SDT.PARK_ID,
+		SDT.TASK_TYPE,
+		SDT.GENERAL,
+		SDT.CREATE_TIME,
+		SS.BADGE,
+		SDT.OVER_TIME,
+		SDT.TASK_ID,
+		SDT.START_TIME,
+		SD.DEVICE_NAME,
+		SD.DEVICE_TYPE,
+		SDT.REMARK,
+		SA.AREA_NAME
+		FROM
+		SMT_ISC_DOWN_RECORD SDT
+		LEFT JOIN SMT_STAFF SS ON SDT.CARD_NO = SS."ID"
+		LEFT JOIN SMT_DEVICE SD ON SD.ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_DEVICE_AREA SDA ON SDA.DEVICE_ID = SD.ID
+		LEFT JOIN SMT_AREA SA ON SA.ID = SDA.AREA_ID
+		<where>
+			SDT.DEVICE_TYPE = 1
+			<if test="query.taskType != null and  query.taskType != ''">
+				AND SDT.TASK_TYPE = #{query.taskType}
+			</if>
+			<if test="query.action != null and  query.action != ''">
+				AND SDT.ACTION = #{query.action}
+			</if>
+			<if test="query.deviceCode != null and  query.deviceCode != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceCode}
+			</if>
+			<if test="query.general != null and  query.general != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.general}),'%')
+			</if>
+			<if test="query.badge != null and  query.badge != ''">
+				AND SS.BADGE = #{query.badge}
+			</if>
+			<if test="query.deviceType != null">
+				AND SD.DEVICE_TYPE = #{query.deviceType}
+			</if>
+			<if test="query.areaId != null">
+				AND SA.ID = #{query.areaId}
+			</if>
+			<if test="query.taskType != null">
+				AND SDT.TASK_TYPE = #{query.taskType}
+			</if>
+			<if test="query.serviceType != null">
+				AND SDT.SERVICE_TYPE = #{query.serviceType}
+			</if>
+			<if test="query.deviceCode != null and query.deviceCode != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceCode}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SDT.START_TIME <![CDATA[>=]]>
+				TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND SDT.START_TIME <![CDATA[<]]>
+				TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd') + 1
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SD.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC
+	</select>
+
+	<select id="getPark" parameterType="int" resultType="com.tce.smart.platform.core.model.TaskDownRecordPark">
+		SELECT
+		SP. ID AS VALUE,
+		SP.PARK_NAME AS LABEL
+		FROM
+		SMT_PARK SP
+		<where>
+			<if test="parkIds != null and parkIds.size > 0">
+				AND SP.ID IN
+				<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+	</select>
+
+	<select id="getDevice" resultType="com.tce.smart.platform.core.model.TaskDownRecordPark">
+		SELECT
+		SD. ID AS VALUE,
+		SD.DEVICE_NAME AS LABEL
+		FROM
+		SMT_DEVICE SD
+		<where>
+			<if test="parkId != null">
+				AND SD.PARK_ID = #{parkId}
+			</if>
+			<if test="type != null">
+				AND SD.DEVICE_TYPE = #{type}
+			</if>
+		</where>
+	</select>
+
+</mapper>

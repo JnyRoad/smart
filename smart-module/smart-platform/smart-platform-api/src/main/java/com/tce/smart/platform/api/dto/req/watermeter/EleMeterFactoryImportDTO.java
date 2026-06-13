@@ -1,0 +1,46 @@
+package com.tce.smart.platform.api.dto.req.watermeter;
+
+import com.tce.smart.common.core.dto.BaseDTO;
+import com.tce.smart.platform.api.annotation.ColumnAlias;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+/**
+ * @author Li.JiaJun
+ * @since 2022/3/29 17:36
+ */
+@Data
+public class EleMeterFactoryImportDTO extends BaseDTO {
+
+	@ApiModelProperty("地点")
+	@ColumnAlias(value = "地点")
+	private String factory;
+
+	@ApiModelProperty("设备名称")
+	@ColumnAlias(value = "设备名称")
+	private String name;
+
+	@ApiModelProperty("集中器IP")
+	@ColumnAlias(value = "集中器IP")
+	private String concentratorIp;
+
+	@ApiModelProperty("下行通道")
+	@ColumnAlias(value = "下行通道")
+	private String portDesc;
+
+	@ApiModelProperty("设备序号")
+	@ColumnAlias(value = "设备序号")
+	private Integer seq;
+
+	@ApiModelProperty("倍率")
+	@ColumnAlias(value = "倍率")
+	private Integer radio;
+
+	@ApiModelProperty("电表通信地址")
+	@ColumnAlias(value = "电表通信地址")
+	private String address;
+
+	@ColumnAlias(value = "错误原因")
+	@ApiModelProperty(value = "错误原因")
+	private String mark;
+}

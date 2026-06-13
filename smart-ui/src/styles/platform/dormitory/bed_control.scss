@@ -1,0 +1,86 @@
+.bed_control{
+  .midMenu{
+    margin: 30px 0;
+  }
+  .exportTable{
+    float: right;
+  }
+  .tip-title{
+    margin: 20px 0 25px;
+  }
+  .room-row{
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #EBEEF5;
+  }
+  .roomInfo{
+    display: -webkit-flex; /* Safari */
+    display: flex;
+    padding: 10px;
+    min-width: 230px;
+    border: 1px solid #F4F4F4;
+    box-shadow: 0 0 8px 0 rgba(0, 0, 0, .09);
+    margin: 0 20px 20px 20px;
+    dt{
+      text-align: right;
+      padding-right: 10px;
+    }
+    dd{
+      line-height: 22px;
+      // padding-top: 5px;
+      flex: 1;
+    }
+    .num-bar{
+      height: 9px;
+      border-radius: 5px;
+      // margin-bottom: 13px;
+      // margin-top: 7px;
+      overflow: hidden;
+      background: #EAEEF4;
+      i{
+        display: inline-block;
+        float: left;
+        height: 100%;
+        border-radius: 5px;
+      }
+    }
+    .m-bar{
+      background: #2A7FFE;
+    }
+    .f-bar{
+      background: #FF698C;
+    }
+    .other-bar{
+      background: #c1bdbd;
+    }
+    .bk1{
+      height: 60px;
+      margin-bottom: 8px;
+    }
+    .pnum{
+      font-size: 50px;
+    }
+    .ptip{
+      color: #999;
+    }
+    .mnum{
+      color: #2A7FFE;
+      // margin-bottom: 8px;
+    }
+    .fnum{
+      color: #FF698C;
+      // margin-bottom: 8px;
+    }
+    .otherNum{
+      color: #333;
+    }
+    .m_left, .m_right{
+      height: 73px;
+      // border: 1px solid red;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+    }
+  }
+
+}

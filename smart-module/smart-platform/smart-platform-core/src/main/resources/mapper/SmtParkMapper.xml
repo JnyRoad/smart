@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtParkMapper">
+
+	<resultMap id="smtParkMap"
+			   type="com.tce.smart.platform.core.entity.SmtPark">
+		<id property="id" column="id" />
+		<result property="parkName" column="park_name" />
+		<result property="parkLongitude" column="park_longitude" />
+		<result property="parkLatitude" column="park_latitude" />
+		<result property="parkAddress" column="park_address" />
+		<result property="radius" column="radius" />
+	</resultMap>
+
+	<select id="getDistanceList" resultType="com.tce.smart.platform.core.entity.SmtPark" parameterType="com.tce.smart.platform.core.entity.SmtPark">
+		SELECT * FROM
+		(
+		SELECT
+		sp.*,GetDistance(sp.park_latitude,sp.park_longitude,#{condition.parkLatitude} ,#{condition.parkLongitude}) distance
+		FROM
+		smt_park sp
+		) tsp
+		WHERE
+		tsp.distance <![CDATA[<=]]> tsp.radius
+		ORDER BY
+		tsp.distance
+	</select>
+
+</mapper>

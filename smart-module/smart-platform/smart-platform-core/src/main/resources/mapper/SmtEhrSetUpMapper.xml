@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtEhrSetUpMapper">
+
+  <resultMap id="smtEhrSetUpMap" type="com.tce.smart.platform.core.entity.manage.SmtEhrSetUp">
+                  <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="parkName" column="PARK_NAME"/>
+                        <result property="deadlineType" column="DEADLINE_TYPE"/>
+                        <result property="deadline" column="DEADLINE"/>
+                        <result property="strategy" column="STRATEGY"/>
+                        <result property="isMessage" column="IS_MESSAGE"/>
+                        <result property="blank" column="BLANK"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="updateTime" column="UPDATE_TIME"/>
+                        <result property="setType" column="SET_TYPE"/>
+            </resultMap>
+</mapper>

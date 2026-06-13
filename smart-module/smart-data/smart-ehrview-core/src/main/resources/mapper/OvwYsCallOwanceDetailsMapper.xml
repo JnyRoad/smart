@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.OvwYsCallOwanceDetailsMapper">
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.OvwYsCallOwanceDetails">
+		<result column="id" property="id"/>
+		<result column="eid" property="eid"/>
+		<result column="badge" property="badge"/>
+		<result column="xtype" property="xtype"/>
+		<result column="begindate" property="begindate"/>
+		<result column="enddate" property="enddate"/>
+		<result column="amount" property="amount"/>
+		<result column="computationrule" property="computationrule"/>
+		<result column="convertrule" property="convertrule"/>
+	</resultMap>
+
+	<!-- 通用查询结果列 -->
+	<select id="getByBadge" resultType="com.tce.smart.ehrview.core.entity.OvwYsCallOwanceDetails">
+        select a.* from ovw_YsCallowance_Details a,evw_empHR_ys b
+		WHERE a.pzid=b.PZID and a.Badge=b.Badge
+		and a.Badge= #{badge}
+		and a.xtype=10
+    </select>
+
+</mapper>

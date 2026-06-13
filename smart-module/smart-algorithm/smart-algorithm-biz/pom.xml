@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.tce</groupId>
+		<artifactId>smart-algorithm</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>smart-algorithm-biz</artifactId>
+	<packaging>jar</packaging>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-file-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-platform-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-algorithm-api</artifactId>
+		</dependency>
+		<!--日志处理-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-log</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-data</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-upms-api</artifactId>
+		</dependency>
+		<!--支持动态路由配置 -->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-gateway</artifactId>
+		</dependency>
+<!--		mybatis-plus-->
+		<dependency>
+			<groupId>com.baomidou</groupId>
+			<artifactId>mybatis-plus-boot-starter</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.mybatis</groupId>
+			<artifactId>mybatis</artifactId>
+		</dependency>
+		<!--数据库-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>oracle</artifactId>
+			<version>2.0</version>
+
+		</dependency>
+		<!-- alibaba的druid数据库连接池 -->
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>druid-spring-boot-starter</artifactId>
+			<version>1.1.9</version>
+		</dependency>
+		<!--web 模块-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<!--undertow容器 内置tomcat已经被移除 需要添加依赖-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-undertow</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.aliyun.api.gateway</groupId>
+			<artifactId>sdk-core-java</artifactId>
+			<version>1.0.4</version>
+		</dependency>
+		<!-- ShedLock-轻量级分布式定时任务 -->
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId >
+			<artifactId>shedlock-spring</artifactId >
+			<version>2.5.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId >
+			<artifactId>shedlock-provider-redis-spring</artifactId>
+			<version>2.5.0</version>
+		</dependency >
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<includeSystemScope>true</includeSystemScope>
+					<mainClass>com.tce.smart.algorithm.SmartAlgorithmApplication</mainClass>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

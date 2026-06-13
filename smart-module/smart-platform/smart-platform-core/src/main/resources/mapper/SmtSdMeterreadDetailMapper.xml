@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSdMeterreadDetailMapper">
+
+	<update id="updateMeterDetailQty">
+		update SMT_SD_METERREADDETAIL set CUR_STD_QTY=null,CUR_OVER_FEE=null,IS_REVISE=0,REV_PRE_MONTH_NUM=null where MR_ID=#{mrId}
+	</update>
+
+	<update id="updateMeterDetailRevById">
+		update SMT_SD_METERREADDETAIL set IS_REVISE=0,REV_PRE_MONTH_NUM=null where ID=#{id}
+	</update>
+
+</mapper>

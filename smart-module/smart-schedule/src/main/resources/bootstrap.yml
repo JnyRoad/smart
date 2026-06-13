@@ -1,0 +1,82 @@
+server:
+  port: 7070
+
+spring:
+  application:
+    name: smart-schedule
+  cloud:
+    nacos:
+      config:
+        file-extension: yml
+        group: ${NACOS_GROUP:dev}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        shared-configs[0]:
+          data-id: common.yml
+          group: ${NACOS_GROUP:dev}
+          refresh: true
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+      discovery:
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        group: ${NACOS_GROUP:dev}
+
+  main:
+    allow-bean-definition-overriding: true
+smart:
+  image:
+    staff-photo-lookback-days: 5
+task:
+  job:
+    device-status: false                  # 设备状态查询任务
+    sync-dhr-face-img: false              # DHR员工人脸数据同步任务
+    sync-staff: false                     # 员工数据同步任务
+    sync-dhr-staff: false                 # DHR员工数据同步任务
+    sync-xc-dhr-face-img: false           # 许昌DHR员工人脸数据同步任务
+    staff-no-photo-sync-xc: false         # 许昌员工人脸照片补偿同步任务
+    staff-no-photo-sync: false            # 员工人脸照片补偿同步任务
+    leave-reason: false                   # 离职原因同步任务
+    leave-type: false                     # 离职类型同步任务
+    leave-leaintent: false                # 离职分类同步任务
+    visitor-type: false                   # 访客定时任务
+    admittance-remind: false              # 来访前提示任务
+    admittance-update-oa: false           # 入厂申请OA审批状态更新
+    admittance-come-ontime: false         # 入厂申请来访后删除权限
+    admittance-overtime: false            # 入厂申请访客超时
+    visitor-no-leave: false               # 访客超时未离开
+    new-staff-recharge: false             # 新员工充值名单同步任务
+    news-terminal-check: false            # 终端消息发布检查
+    senior-staff-recharge: false          # 在职员工充值名单同步任务
+    outdormitory-type: false              # 清理外宿任务
+    dormitory-dealy-quit: false           # 退宿申请延迟退宿
+    push-visitor-email: false             # 推送访客给指定email
+    replace-type: false                   # 考勤异常定时任务
+    refresh-recruit: false                # 更新招聘岗位时间
+    refresh-comp: false                   # 更新组织信息
+    wage-sign-info: false                 # 工资签收名单同步生成员工信息任务
+    attendance-sign-info: false           # 考勤确认名单同步生成员工信息任务
+    ehr-set-send-msg: false               # 工资签收提醒与考勤汇总确认提醒任务
+    logistics-appointment-type: false     # 物流车预约定时任务
+    isc-device-type-down-card: false      # ISC设备卡片定时下发任务
+    isc-auth-process-handle: false        # ISC设备权限配置进度处理任务
+    isc-auth-result-handle: false         # ISC设备下载权限结果处理任务（唯一结果回写入口）
+    isc-auto-auth-result-handle: false    # 已废弃：结果处理统一使用isc-auth-result-handle
+    isc-device-type-del-card: false       # ISC设备卡片定时删除任务
+    isc-device-sync: false                # ISC设备同步重发任务
+    isc-person-face-retry: false          # ISC人员照片同步失败重试任务
+    isc-card-task-sync: false             # ISC卡片资源同步任务
+    isc-temperature-get: false            # ISC查询测温登记记录
+    isc-device-offline-handler: false     # ISC离线设备任务处理
+    device-type-down-card: false          # 设备卡片定时下发任务
+    device-type-down-car: false           # 设备车辆定时下发任务
+    device-type-del-card: false           # 设备卡片定时删除任务
+    device-type-del-car: false            # 设备车辆定时删除任务
+    device-task-repeat: false             # 设备定时重发任务
+    supplier-notify: false                # 保密区供应商协议到期通知
+    admittance-oa-area-type: false        # OA区域类型同步任务
+    supplier-auto-auth-delete: false      # 保密区区域权限自动删除任务
+    supplier-auth-msg: false              # 保密区权限下发提示信息推送
+    leave-application-process-type: false # 离职流程定时任务
+    smart-meter-status: false             # 智能水电表集中器状态查询任务
+    water-meter-reading: false            # 智能水表读数查询任务
+    ele-meter-reading: false              # 智能电表读数查询任务
+    gen-settlement-daily: false           # 智能水电表水电日结算

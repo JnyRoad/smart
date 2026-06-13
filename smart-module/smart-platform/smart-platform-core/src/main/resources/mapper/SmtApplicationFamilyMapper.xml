@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtApplicationFamilyMapper">
+
+    <resultMap id="smtSmtApplicationFamilyMap" type="com.tce.smart.platform.core.entity.SmtApplicationFamily">
+        <id property="id" column="id"/>
+        <result property="relation" column="relation"/>
+        <result property="name" column="name"/>
+        <result property="sex" column="sex"/>
+        <result property="application_id" column="applicationId"/>
+        <result property="birth" column="birth"/>
+        <result property="company" column="company"/>
+        <result property="job" column="job"/>
+        <result property="phone" column="phone"/>
+    </resultMap>
+
+    <!--获取最新添加的一位员工 -->
+    <select id="selectByApplicationId"  resultMap="smtSmtApplicationFamilyMap" parameterType="java.lang.String">
+        select * from  smt_Application_family
+        where Application_ID=#{applicationId}
+    </select>
+
+
+</mapper>

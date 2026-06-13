@@ -1,0 +1,38 @@
+// 导入全局变量
+@use "../../variables" as *;
+.applicant{
+  .record_form{
+    .el-dialog__body{
+      text-align: center;
+    }
+    .el-dialog__footer{
+      text-align: center;
+    }
+    .step-outer{
+      padding: 20px 0;
+      min-width: 350px;
+      text-align: center;
+      display: inline-block;
+    }
+  }
+  .refuseDialog{
+    .el-dialog__body{
+      padding:0 20px 0 50px;
+    }
+    .box-orange{
+      margin: 20px 0 10px 0;
+    }
+    .textarea textarea{
+      resize: none;
+      margin-bottom: 20px;
+    }
+  }
+}
+
+
+
+@media screen and (max-width: 1366px){
+  .top-right{
+    margin-bottom: 15px;
+  }
+}

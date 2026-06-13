@@ -1,0 +1,886 @@
+package com.tce.smart.platform.service.impl;
+
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.ArrayUtil;
+import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tce.smart.common.core.constant.enums.SmtVisitorEnum;
+import com.tce.smart.common.core.exception.SmartException;
+import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.security.util.SecurityUtils;
+import com.tce.smart.platform.api.dto.req.AuthDetailQueryDTO;
+import com.tce.smart.platform.api.dto.req.DeviceAuthRelationAddReqDTO;
+import com.tce.smart.platform.api.dto.req.DeviceAuthRelationDelReqDTO;
+import com.tce.smart.platform.api.dto.resp.AuthDetailRespDTO;
+import com.tce.smart.platform.core.dto.SmtDeviceAuthorityDTO;
+import com.tce.smart.platform.core.dto.VehicleAuthDTO;
+import com.tce.smart.platform.core.entity.*;
+import com.tce.smart.platform.core.enums.StaffSyncEnum;
+import com.tce.smart.platform.core.mapper.SmtDeviceAuthorityMapper;
+import com.tce.smart.platform.core.mapper.SmtDeviceMapper;
+import com.tce.smart.platform.core.mapper.SmtVehicleMapper;
+import com.tce.smart.platform.core.model.DeviceTree;
+import com.tce.smart.platform.core.service.SmtDeviceService;
+import com.tce.smart.platform.core.service.SmtDeviceTaskService;
+import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
+import com.tce.smart.platform.core.service.impl.SmtIscDeviceTaskServiceImpl;
+import com.tce.smart.platform.core.service.SmtBatchDeviceTaskService;
+import com.tce.smart.platform.core.util.DeviceAuthorityChangesCalculator;
+import com.tce.smart.platform.core.vo.DeviceAuthorityVO;
+import com.tce.smart.platform.service.*;
+import com.tce.smart.tool.constant.DeviceTaskConstants;
+import com.tce.smart.tool.constant.SymbolConstants;
+import com.tce.smart.tool.enums.*;
+import com.tce.smart.tool.util.ToolUtils;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * 设备权限表
+ *
+ * @author 王艳勇
+ * @date 2019-04-15 15:15:34
+ */
+@Slf4j
+@Service
+@AllArgsConstructor
+public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorityMapper, SmtDeviceAuthority> implements SmtDeviceAuthorityService {
+	private final SmtDeviceService smtDeviceService;
+	private final SmtDeviceAuthorityMapper smtDeviceAuthorityMapper;
+	private final SmtDeviceAuthorityRelationService smtDeviceAuthorityRelationService;
+	private final SmtBusinessDeviceAuthService smtBusinessDeviceAuthService;
+
+	private final SmtStaffDeviceAuthService smtStaffDeviceAuthService;
+
+	private final SmtDeviceMapper smtDeviceMapper;
+
+	private final SmtDeviceTaskService smtDeviceTaskService;
+
+	private final SmtIscDeviceTaskService smtIscDeviceTaskService;
+
+	private final SmtVehicleApplyService smtVehicleApplyService;
+
+	private final SmtStaffService smtStaffService;
+
+	private final SmtVehicleMapper smtVehicleMapper;
+	private final SmtIscDeviceTaskServiceImpl smtIscDeviceTaskServiceImpl;
+	private final SmtBatchDeviceTaskService smtBatchDeviceTaskService;
+
+
+	/**
+	 * 查询设备权限信息
+	 *
+	 * @param page   分页对象
+	 * @param entity 查询条件
+	 * @return 返回设备权限集合
+	 */
+	@Override
+	public IPage getDeviceAuthority(Page page, SmtDeviceAuthority entity) {
+		return smtDeviceAuthorityMapper.getDeviceAuthority(page, entity);
+	}
+
+	@Override
+	public List<SmtDeviceAuthority> getByStaffId(String staffId) {
+		return baseMapper.getByStaffId(staffId);
+	}
+
+	/**
+	 * 添加设备权限信息
+	 *
+	 * @param entity 设备权限信息
+	 * @return 返回结果
+	 */
+	@Override
+	public boolean saveDeviceAuthority(SmtDeviceAuthorityDTO entity) {
+		entity.setCreateTime(LocalDateTime.now());
+		boolean result = this.save(entity);
+		if (result) {
+			if (ArrayUtil.isNotEmpty(entity.getCheckedlimits())) {
+				for (String deviceId : entity.getCheckedlimits()) {
+					this.addDeviceAuthority(deviceId, entity.getId());
+				}
+			}
+		}
+		return result;
+	}
+
+	private void addDeviceAuthority(String deviceId, Integer id) {
+		SmtDevice smtDevice = smtDeviceService.getById(deviceId);
+		SmtDeviceAuthorityRelation deviceAuthorityRelation = new SmtDeviceAuthorityRelation();
+		deviceAuthorityRelation.setDeviceId(deviceId);
+		deviceAuthorityRelation.setAuthorityId(id);
+		deviceAuthorityRelation.setParkId(smtDevice.getParkId());
+		smtDeviceAuthorityRelationService.save(deviceAuthorityRelation);
+	}
+
+	/**
+	 * 更新设备权限信息 - 性能优化版本
+	 * 优化点：
+	 * 1. 使用高效的设备差异计算算法
+	 * 2. 批量查询和批量插入，减少数据库交互次数
+	 * 3. 精确更新，只处理真正变更的设备
+	 * 4. 添加性能监控日志
+	 * 5. 修复新建权限时设备关联关系为空的问题
+	 *
+	 * @param entity 设备权限信息
+	 * @param parkIds 园区ID列表
+	 * @return 返回结果
+	 */
+	@Transactional
+	@Override
+	public boolean updateDeviceAuthority(SmtDeviceAuthorityDTO entity, List<Integer> parkIds) {
+		long startTime = System.currentTimeMillis();
+		log.info("开始更新设备权限: 权限ID={}, 新设备数量={}", entity.getId(),
+				entity.getCheckedlimits() != null ? entity.getCheckedlimits().length : 0);
+
+		// 1. 获取当前设备关联关系
+		List<SmtDeviceAuthorityRelation> currentRelations = smtDeviceAuthorityRelationService.list(
+			new LambdaQueryWrapper<SmtDeviceAuthorityRelation>()
+				.eq(SmtDeviceAuthorityRelation::getAuthorityId, entity.getId())
+				.in(SmtDeviceAuthorityRelation::getParkId, parkIds)
+				.orderByAsc(SmtDeviceAuthorityRelation::getId)
+		);
+
+		// 2. 提取当前设备ID列表（可能为空列表，但不影响后续处理）
+		List<String> oldDeviceIds = currentRelations.stream()
+			.map(SmtDeviceAuthorityRelation::getDeviceId)
+			.collect(Collectors.toList());
+
+		// 3. 计算设备差异（使用优化的算法）
+		DeviceAuthorityChangesCalculator.DeviceChanges changes =
+			DeviceAuthorityChangesCalculator.calculateChanges(oldDeviceIds, entity.getCheckedlimits());
+
+		// 4. 更新权限基本信息
+		this.updateById(entity);
+
+		// 5. 先更新设备关联关系，确保后续权限任务基于最新的设备关联
+		updateDeviceRelationsBatch(entity.getId(), parkIds, Arrays.asList(entity.getCheckedlimits()));
+		log.info("设备关联关系更新完成，权限ID={}", entity.getId());
+
+		// 6. 如果有设备变更，处理权限任务（基于最新的设备关联关系）
+		if (changes.hasChanges()) {
+			// 获取实际关联用户数用于精确的任务数量预估
+			int actualUserCount = smtStaffDeviceAuthService.count(
+				new LambdaQueryWrapper<SmtStaffDeviceAuth>().eq(SmtStaffDeviceAuth::getAuthId, entity.getId())
+			);
+			// 估算任务数量用于性能监控
+			int estimatedTasks = DeviceAuthorityChangesCalculator.estimateTaskCount(changes, actualUserCount);
+			log.info("设备权限变更详情: {}, 实际关联用户: {}人, 预估任务数量: {}",
+					changes.getChangesSummary(), actualUserCount, estimatedTasks);
+
+			// 根据设备类型处理权限更新
+			if (entity.getType().equals(DeviceTypeEnum.DEVICE_TYPE_1.getCode())) {
+				// 人脸设备 - 使用优化版本
+				updateStaffFaceAuthOptimized(entity.getId(), changes.getDevicesToRemove(), changes.getDevicesToAdd());
+			} else if (entity.getType().equals(DeviceTypeEnum.DEVICE_TYPE_3.getCode())) {
+				// 车辆设备 - 使用优化版本
+				updateVehicleAuthOptimized(entity.getId(), changes.getDevicesToRemove(), changes.getDevicesToAdd());
+			}
+		} else {
+			log.info("设备权限无变更，跳过权限任务处理");
+		}
+
+		long endTime = System.currentTimeMillis();
+		log.info("设备权限更新完成: 权限ID={}, 总耗时={}ms", entity.getId(), endTime - startTime);
+
+		return true;
+	}
+
+	/**
+	 * 更新员工人脸权限 - 性能优化版本
+	 * 优化点：
+	 * 1. 一次性查询所有相关员工权限，避免分页查询
+	 * 2. 批量查询员工信息，减少数据库交互
+	 * 3. 使用批量任务创建工具，提升插入效率
+	 * 4. 添加详细的性能监控日志
+	 *
+	 * @param authId 权限ID
+	 * @param delAuthList 需要删除权限的设备列表
+	 * @param addAuthList 需要新增权限的设备列表
+	 */
+	private void updateStaffFaceAuthOptimized(Integer authId, List<String> delAuthList, List<String> addAuthList) {
+		long startTime = System.currentTimeMillis();
+		log.info("开始更新员工人脸权限: 权限ID={}, 删除设备{}个, 新增设备{}个",
+				authId, delAuthList.size(), addAuthList.size());
+
+		// 如果没有变更，直接返回
+		if (delAuthList.isEmpty() && addAuthList.isEmpty()) {
+			log.info("无设备变更，跳过员工人脸权限更新");
+			return;
+		}
+
+		// 1. 一次性查询所有相关员工权限
+		List<SmtStaffDeviceAuth> staffDeviceAuths = smtStaffDeviceAuthService.list(
+			new LambdaQueryWrapper<SmtStaffDeviceAuth>().eq(SmtStaffDeviceAuth::getAuthId, authId)
+		);
+
+		if (staffDeviceAuths.isEmpty()) {
+			log.info("权限ID={}无关联员工，跳过权限更新", authId);
+			return;
+		}
+
+		log.info("查询到{}个员工权限关联记录", staffDeviceAuths.size());
+
+		// 2. 批量查询有效员工信息（只过滤离职员工，保持与原业务逻辑一致）
+		List<Long> staffIds = staffDeviceAuths.stream()
+			.map(SmtStaffDeviceAuth::getStaffId)
+			.collect(Collectors.toList());
+
+		// 修复：使用分批查询避免Oracle IN子句1000个参数限制
+		List<SmtStaff> validStaffs = new ArrayList<>();
+
+		// 分批处理staffIds，避免Oracle IN子句限制
+		int batchSize = 500; // Oracle安全批次大小
+		for (int i = 0; i < staffIds.size(); i += batchSize) {
+			int endIndex = Math.min(i + batchSize, staffIds.size());
+			List<Long> batchStaffIds = staffIds.subList(i, endIndex);
+
+			log.debug("Oracle分批查询员工信息: 第{}批, 处理{}到{}, 共{}个ID",
+					(i / batchSize + 1), i + 1, endIndex, batchStaffIds.size());
+
+			try {
+				// 【业务逻辑修复】先查询所有员工，只过滤离职员工，保持与原业务逻辑一致
+				List<SmtStaff> allBatchStaffs = smtStaffService.list(
+					Wrappers.<SmtStaff>lambdaQuery()
+						.in(SmtStaff::getId, batchStaffIds)
+				);
+
+				// 过滤离职员工和无人脸图片的员工
+				List<SmtStaff> filteredBatchStaffs = allBatchStaffs.stream()
+					.filter(staff -> {
+						// 过滤离职员工
+						if (StaffStatusEnum.STAFF_STATUS_QUIT.getCode().equals(staff.getStatus())) {
+							log.debug("过滤离职员工: {}", staff.getName());
+							return false;
+						}
+						// 过滤无人脸图片的员工
+						if (StringUtils.isEmpty(staff.getFacePicId())) {
+							log.debug("过滤无人脸图片员工: {}", staff.getName());
+							return false;
+						}
+						return true;
+					})
+					.collect(Collectors.toList());
+
+				validStaffs.addAll(filteredBatchStaffs);
+
+				log.debug("第{}批查询结果: 原始{}人, 过滤离职后{}人",
+						(i / batchSize + 1), allBatchStaffs.size(), filteredBatchStaffs.size());
+
+			} catch (Exception e) {
+				log.error("Oracle分批查询第{}批员工信息失败: {}", (i / batchSize + 1), e.getMessage(), e);
+				// 继续处理下一批，避免单批错误影响整体流程
+				continue;
+			}
+		}
+
+		log.info("过滤后有效员工{}人（已过滤离职员工和无人脸图片员工）", validStaffs.size());
+
+		// 3. 批量创建权限任务（仅为有人脸图片的在职员工创建任务）
+		if (!validStaffs.isEmpty()) {
+			try {
+				int createdTaskCount = smtBatchDeviceTaskService.createStaffFaceAuthTasks(
+					validStaffs, delAuthList, addAuthList
+				);
+				log.info("批量创建权限任务完成: 成功创建{}个任务", createdTaskCount);
+			} catch (Exception e) {
+				log.error("批量创建权限任务异常，回退到逐个创建模式", e);
+				// 回退到传统方式，确保兼容性
+				createTasksIndividually(validStaffs, delAuthList, addAuthList);
+			}
+		}
+
+		long endTime = System.currentTimeMillis();
+		log.info("员工人脸权限更新完成: 权限ID={}, 总耗时={}ms", authId, endTime - startTime);
+	}
+
+	/**
+	 * 回退模式：逐个创建任务（仅处理有人脸图片的在职员工）
+	 */
+	private void createTasksIndividually(List<SmtStaff> staffList, List<String> delAuthList, List<String> addAuthList) {
+		log.info("使用回退模式逐个创建任务");
+		int taskCount = 0;
+
+		for (SmtStaff staff : staffList) {
+			try {
+				String gen = staff.getBadge() + SymbolConstants.MINUS + staff.getName();
+
+				// 生成删除任务
+				if (!delAuthList.isEmpty()) {
+					smtDeviceTaskService.addDeviceDelTaskImmed(delAuthList, staff.getId().toString(), gen,
+							DeviceTaskConstants.CARD_STAFF_IMPORT, DeviceTaskActionEnum.DELAY_DEL.getCode(),
+							SmtVisitorEnum.CAR_CARD_TYPE_1, DeviceTaskConstants.CARD, staff.getFacePicId());
+					taskCount += delAuthList.size();
+				}
+
+				// 生成新增任务
+				if (!addAuthList.isEmpty()) {
+					smtDeviceTaskService.addDeviceTask(addAuthList, staff.getId().toString(), gen,
+							DeviceTaskConstants.CARD_STAFF_IMPORT, DeviceTaskActionEnum.DELAY_DOWN.getCode(),
+							SmtVisitorEnum.CAR_CARD_TYPE_1, DeviceTaskConstants.CARD, staff.getFacePicId(), null);
+					taskCount += addAuthList.size();
+				}
+			} catch (Exception e) {
+				log.error("为员工{}创建任务失败", staff.getName(), e);
+			}
+		}
+
+		log.info("回退模式完成: 共创建{}个任务", taskCount);
+	}
+
+	/**
+	 * 更新车辆权限 - 性能优化版本
+	 * 优化点：
+	 * 1. 一次性查询所有相关车辆权限，避免分页查询
+	 * 2. 使用批量任务创建工具，提升插入效率
+	 * 3. 添加详细的性能监控日志
+	 *
+	 * @param authId 权限ID
+	 * @param delAuthList 需要删除权限的设备列表
+	 * @param addAuthList 需要新增权限的设备列表
+	 */
+	private void updateVehicleAuthOptimized(Integer authId, List<String> delAuthList, List<String> addAuthList) {
+		long startTime = System.currentTimeMillis();
+		log.info("开始更新车辆权限: 权限ID={}, 删除设备{}个, 新增设备{}个",
+				authId, delAuthList.size(), addAuthList.size());
+
+		// 如果没有变更，直接返回
+		if (delAuthList.isEmpty() && addAuthList.isEmpty()) {
+			log.info("无设备变更，跳过车辆权限更新");
+			return;
+		}
+
+		// 1. 一次性查询所有相关车辆权限（使用现有方法的优化版本）
+		List<VehicleAuthDTO> vehicleAuthList = getAllVehicleAuthByAuthId(authId);
+
+		if (vehicleAuthList.isEmpty()) {
+			log.info("权限ID={}无关联车辆，跳过权限更新", authId);
+			return;
+		}
+
+		log.info("查询到{}个车辆权限关联记录", vehicleAuthList.size());
+
+		// 2. 转换为批量任务创建工具需要的格式
+		List<SmtBatchDeviceTaskService.VehicleInfo> vehicleInfoList = vehicleAuthList.stream()
+			.map(v -> new SmtBatchDeviceTaskService.VehicleInfo(v.getVid().toString(), v.getVehiclePlate()))
+			.collect(Collectors.toList());
+
+		// 3. 批量创建权限任务（统一使用saveTask入口）
+		int createdTaskCount = smtBatchDeviceTaskService.createVehicleAuthTasks(
+			vehicleInfoList, delAuthList, addAuthList
+		);
+
+		log.info("批量创建车辆权限任务完成，共创建{}个任务", createdTaskCount);
+
+		long endTime = System.currentTimeMillis();
+		log.info("车辆权限更新完成: 权限ID={}, 总耗时={}ms", authId, endTime - startTime);
+	}
+
+	/**
+	 * 更新车辆权限 - 原版本（保留作为备用）
+	 * @param authId		权限Id
+	 * @param delAuthList	需要删除权限的设备
+	 * @param addAuthList	需要下发权限的设备
+	 */
+	@Deprecated
+	private void updateVehicleAuth(Integer authId,List<String> delAuthList,List<String> addAuthList){
+		//分页查询所有关联该权限的车辆权限数据
+		Page vehiclePage = new Page(1,100);
+		boolean isNext = false;
+		do{
+			//查询一页数据
+			IPage<VehicleAuthDTO> staffVehiclePage = smtVehicleMapper.getVehicleAuthAll(vehiclePage, authId);
+
+			List<VehicleAuthDTO> VehicleAuthList = staffVehiclePage.getRecords();
+
+			if(CollectionUtil.isNotEmpty(VehicleAuthList)) {
+				//修改车辆权限
+				VehicleAuthList.forEach(item -> {
+					//生成旧权限删除的任务
+					smtDeviceTaskService.addDeviceDelTaskImmed(delAuthList,item.getVid().toString(),item.getVehiclePlate(),DeviceTaskConstants.CAR_STAFF, DeviceTaskActionEnum.DELAY_DEL.getCode(), SmtVisitorEnum.CAR_CARD_TYPE_1,DeviceTaskConstants.CAR,null);
+
+					//生成下发新权限的任务
+					smtDeviceTaskService.addDeviceTask(addAuthList,item.getVid().toString(),item.getVehiclePlate(),DeviceTaskConstants.CAR_STAFF,
+							DeviceTaskActionEnum.DELAY_DOWN.getCode(),SmtVisitorEnum.CAR_CARD_TYPE_1,DeviceTaskConstants.CAR,null, null);
+				});
+			}
+			if(vehiclePage.hasNext()){
+				//下一页
+				vehiclePage.setCurrent(vehiclePage.getCurrent() + 1);
+				isNext = true;
+			} else {
+				isNext = false;
+			}
+		} while (isNext);
+	}
+
+	/**
+	 * 删除设备权限信息
+	 *
+	 * @param id 设备权限ID
+	 * @return 返回结果
+	 */
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public Result deleteDeviceAuthority(Integer id, List<Integer> parkIds) {
+		if (DeviceAuthorityEnum.existAuthority(id)) {
+			return new Result<>(false, "该权限策略为系统默认权限不可删除");
+		}
+		//List<SmtDeviceAuthorityRelation> list = smtDeviceAuthorityRelationService.list(Wrappers.<SmtDeviceAuthorityRelation>query().lambda().eq(SmtDeviceAuthorityRelation::getAuthorityId,id).notIn(CollUtil.isNotEmpty(parkIds),SmtDeviceAuthorityRelation::getParkId,parkIds));
+		int count = smtBusinessDeviceAuthService.count(Wrappers.<SmtBusinessDeviceAuth>lambdaQuery()
+				.eq(Objects.nonNull(id), SmtBusinessDeviceAuth::getAuthId, id));
+		if (count > 0) {
+			return new Result<>(false, "该权限策略已被使用，删除请先在区域管理/配置/通行权限界面取消默认权限");
+		}
+		count = smtStaffDeviceAuthService.count(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getAuthId, id));
+		if (count > 0) {
+			return new Result<>(false, "该权限策略已被使用，请先在区域管理/配置/通行权限界面删除关联人员");
+		}
+		count = smtVehicleApplyService.count(Wrappers.<SmtVehicleApply>lambdaQuery().eq(SmtVehicleApply::getAuthorityId, id));
+		if (count > 0) {
+			return new Result<>(false, "该权限策略已被使用，请先在区域管理/配置/通行权限界面删除关联车辆");
+		}
+		smtDeviceAuthorityRelationService.remove(Wrappers.<SmtDeviceAuthorityRelation>query().lambda().eq(SmtDeviceAuthorityRelation::getAuthorityId, id));
+		return new Result<>(this.removeById(id));
+	}
+
+	/**
+	 * 获取权限策略详情
+	 *
+	 * @param id 权限策略ID
+	 * @return 返回结果
+	 */
+	@Override
+	public SmtDeviceAuthorityDTO getDeviceAuthorityById(Integer id, List<Integer> parkIds) {
+		SmtDeviceAuthority smtDeviceAuthority = this.getById(id);
+		SmtDeviceAuthorityDTO smtDeviceAuthorityDTO = new SmtDeviceAuthorityDTO();
+		BeanUtils.copyProperties(smtDeviceAuthority, smtDeviceAuthorityDTO);
+		List<String> list = smtDeviceAuthorityRelationService.getDeviceIds(id, parkIds);
+		String[] checkedlimits = new String[list.size()];
+		smtDeviceAuthorityDTO.setCheckedlimits(list.toArray(checkedlimits));
+		return smtDeviceAuthorityDTO;
+	}
+
+	@Override
+	public List<DeviceTree> getTree(Integer type, List<Integer> parkIds) {
+		List<DeviceTree> list = smtDeviceAuthorityRelationService.getPark(parkIds);
+		List<Integer> types = new ArrayList<>(1);
+		types.add(type);
+		for (DeviceTree deviceTree : list) {
+			deviceTree.setChildren(this.children(Integer.parseInt(deviceTree.getId()), 0, types));
+		}
+		return list;
+	}
+
+	@Override
+	public List<DeviceTree> getTrees(List<Integer> parkIds, Integer areaType) {
+		List<DeviceTree> list = smtDeviceAuthorityRelationService.getPark(parkIds);
+		List<Integer> types = new ArrayList<>(2);
+		types.add(DeviceTypeEnum.DEVICE_TYPE_1.getCode());
+		types.add(DeviceTypeEnum.DEVICE_TYPE_2.getCode());
+		if (areaType == null) {
+			for (DeviceTree deviceTree : list) {
+				deviceTree.setChildren(this.children(Integer.parseInt(deviceTree.getId()), 0, types));
+			}
+		} else {
+			for (DeviceTree deviceTree : list) {
+				deviceTree.setChildren(this.children(Integer.parseInt(deviceTree.getId()), 0, types, areaType));
+			}
+		}
+		return list;
+	}
+
+	@Override
+	public List<SmtDeviceAuthority> list(Integer type, Integer parkId, String name) {
+		return this.baseMapper.selectList(Wrappers.<SmtDeviceAuthority>query().lambda().eq(SmtDeviceAuthority::getType, type)
+				.like(StringUtils.isNotEmpty(name), SmtDeviceAuthority::getAuthorityName, name)
+				.eq(SmtDeviceAuthority::getParkId, parkId));
+	}
+
+	@Override
+	public List<SmtDeviceAuthority> listAll( Integer parkId) {
+		return this.baseMapper.selectList(Wrappers.<SmtDeviceAuthority>query().lambda()
+				.eq(SmtDeviceAuthority::getAreaType, OneOrZeroEnum.ZERO.getCode())
+				.eq(SmtDeviceAuthority::getParkId, parkId));
+	}
+
+	private List<DeviceTree> children(Integer parkId, Integer pId, List<Integer> types) {
+		List<DeviceTree> list = smtDeviceAuthorityRelationService.getArea(parkId, pId);
+		for (DeviceTree deviceTree : list) {
+			deviceTree.setChildren(this.device(smtDeviceAuthorityRelationService.getArea(null, Integer.parseInt(deviceTree.getId())), types));
+		}
+		return list;
+	}
+
+	private List<DeviceTree> children(Integer parkId, Integer pId, List<Integer> types, Integer areaType) {
+		List<DeviceTree> list = smtDeviceAuthorityRelationService.getArea(parkId, pId);
+		for (DeviceTree deviceTree : list) {
+			deviceTree.setChildren(this.device(smtDeviceAuthorityRelationService.getArea(null, Integer.parseInt(deviceTree.getId())), types, areaType));
+		}
+		return list;
+	}
+
+	private List<DeviceTree> device(List<DeviceTree> list, List<Integer> types) {
+		for (DeviceTree deviceTree : list) {
+			deviceTree.setChildren(smtDeviceAuthorityRelationService.getDevice(deviceTree.getId(), types));
+		}
+		return list;
+	}
+
+	private List<DeviceTree> device(List<DeviceTree> list, List<Integer> types, Integer areaType) {
+		for (DeviceTree deviceTree : list) {
+			List<DeviceTree> deviceTreeList = smtDeviceAuthorityRelationService.getDevice(deviceTree.getId(), types);
+			deviceTree.setChildren(deviceTreeList.stream().filter(item -> !checkIsUsed(areaType, item.getId())).collect(Collectors.toList()));
+		}
+		return list;
+	}
+
+	@Override
+	public IPage<DeviceAuthorityVO> page(Page page, SmtDeviceAuthority smtDeviceAuthority) {
+		// TODO Auto-generated method stub
+		List<Integer> parkIdList = SecurityUtils.getUser().getParkIdList();
+		IPage<DeviceAuthorityVO> list = this.baseMapper.getDeviceAuthPage(page, smtDeviceAuthority, parkIdList);
+		return list;
+	}
+
+	@Override
+	public IPage<AuthDetailRespDTO> getAuthDetailPage(Page page, AuthDetailQueryDTO queryDTO) {
+		List<String> badgeList = new ArrayList<>();
+		if(StringUtils.isNotEmpty(queryDTO.getBadges())){
+			badgeList.addAll(ToolUtils.splitBlankString(queryDTO.getBadges()));
+		}
+		if(CollectionUtil.isNotEmpty(badgeList) && badgeList.size() > 200){
+			throw new SmartException("最多查询两百条记录");
+		}
+		if (DeviceAuthTypeEnum.PERSON.getCode().equals(queryDTO.getType())) {
+			return this.baseMapper.getPersonAuthDetailPage(page, queryDTO,badgeList);
+		} else if (DeviceAuthTypeEnum.VEHICLE.getCode().equals(queryDTO.getType())) {
+			return this.baseMapper.getVehicleAuthDetailPage(page, queryDTO);
+		}
+		return new Page<>();
+	}
+
+	@Override
+	public Boolean deviceAuthRelationDel(DeviceAuthRelationDelReqDTO reqDTO) {
+		List<Integer> authIds = new ArrayList<>(1);
+		authIds.add(reqDTO.getAuthId());
+		// 查询该授权关联的设备信息
+		List<SmtDeviceAuthorityRelation> relationList = smtDeviceAuthorityRelationService.getRelationByAuthId(authIds);
+
+		if (CollUtil.isEmpty(relationList)) {
+			if (DeviceAuthTypeEnum.PERSON.getCode().equals(reqDTO.getType())) {
+				return smtStaffDeviceAuthService.removeByIds(reqDTO.getDelIds());
+			} else {
+				return smtVehicleApplyService.removeByIds(reqDTO.getDelIds());
+			}
+		}
+
+		List<String> deviceIds = relationList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
+		if (DeviceAuthTypeEnum.PERSON.getCode().equals(reqDTO.getType())) {
+			for (Integer delId : reqDTO.getDelIds()) {
+				List<String> removableDeviceIds = new ArrayList<>(deviceIds);
+				// 查询授权关系
+				SmtStaffDeviceAuth staffAuth = smtStaffDeviceAuthService.getById(delId);
+				// 查询删除人员关联的权限列表，排除待删除权限
+				List<SmtStaffDeviceAuth> otherAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery()
+						.eq(SmtStaffDeviceAuth::getStaffId, staffAuth.getStaffId())
+						.ne(SmtStaffDeviceAuth::getAuthId, reqDTO.getAuthId()));
+				if (CollUtil.isNotEmpty(otherAuthList)) {
+					List<Integer> otherAuthIds = otherAuthList.stream().map(SmtStaffDeviceAuth::getAuthId).collect(Collectors.toList());
+					log.info("删除人员{}关联其他权限列表：{}", delId, otherAuthIds);
+					// 查询其他权限关联的设备列表
+					List<SmtDeviceAuthorityRelation> otherDeviceList = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds);
+					if (CollUtil.isNotEmpty(otherDeviceList)) {
+						List<String> otherDeviceIds = otherDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
+						removableDeviceIds.removeAll(otherDeviceIds);
+					}
+				}
+				smtStaffDeviceAuthService.removeAuthToDevice(staffAuth, removableDeviceIds);
+			}
+		} else {
+			for (Integer delId : reqDTO.getDelIds()) {
+				List<String> removableDeviceIds = new ArrayList<>(deviceIds);
+				// 查询车辆授权关系
+				SmtVehicleApply vehicleApply = smtVehicleApplyService.getById(delId);
+				// 查询删除车辆关联的权限列表，排除待删除权限
+				List<SmtVehicleApply> otherAuthList = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery()
+						.eq(SmtVehicleApply::getVehicleId, vehicleApply.getVehicleId())
+						.ne(SmtVehicleApply::getAuthorityId, reqDTO.getAuthId()));
+				if (CollUtil.isNotEmpty(otherAuthList)) {
+					List<Integer> otherAuthIds = otherAuthList.stream().map(SmtVehicleApply::getAuthorityId).collect(Collectors.toList());
+					log.info("删除车辆{}关联其他权限列表：{}", delId, otherAuthIds);
+					// 查询其他权限关联的设备列表
+					List<SmtDeviceAuthorityRelation> otherDeviceList = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds);
+					if (CollUtil.isNotEmpty(otherDeviceList)) {
+						List<String> otherDeviceIds = otherDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
+						removableDeviceIds.removeAll(otherDeviceIds);
+					}
+				}
+				smtVehicleApplyService.removeAuthToDevice(vehicleApply, removableDeviceIds);
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public Boolean deviceAuthRelationClear(Integer id) {
+		SmtDeviceAuthority deviceAuthority = getById(id);
+		List<Integer> authRelIds = new ArrayList<>(1);
+		authRelIds.add(id);
+		// 查询该授权关联的设备信息
+		List<SmtDeviceAuthorityRelation> relationList = smtDeviceAuthorityRelationService.getRelationByAuthId(authRelIds);
+
+		if (CollUtil.isEmpty(relationList)) {
+			if (DeviceAuthTypeEnum.PERSON.getCode().equals(deviceAuthority.getType())) {
+				return smtStaffDeviceAuthService.removeByAuthId(id);
+			} else {
+				return smtVehicleApplyService.removeByAuthId(id);
+			}
+		}
+
+		List<String> deviceIds = relationList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
+
+		if (DeviceAuthTypeEnum.PERSON.getCode().equals(deviceAuthority.getType())) {
+			List<SmtStaffDeviceAuth> staffAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getAuthId, id));
+			for (SmtStaffDeviceAuth auth : staffAuthList) {
+				List<String> removableDeviceIds = new ArrayList<>(deviceIds);
+				// 查询删除人员关联的权限列表，排除待删除权限
+				List<SmtStaffDeviceAuth> otherAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery()
+						.eq(SmtStaffDeviceAuth::getStaffId, auth.getStaffId())
+						.ne(SmtStaffDeviceAuth::getAuthId, id));
+				if (CollUtil.isNotEmpty(otherAuthList)) {
+					List<Integer> otherAuthIds = otherAuthList.stream().map(SmtStaffDeviceAuth::getAuthId).collect(Collectors.toList());
+					log.info("删除人员{}关联其他权限列表：{}", auth.getId(), otherAuthIds);
+					// 查询其他权限关联的设备列表
+					List<SmtDeviceAuthorityRelation> otherDeviceList = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds);
+					if (CollUtil.isNotEmpty(otherDeviceList)) {
+						List<String> otherDeviceIds = otherDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
+						removableDeviceIds.removeAll(otherDeviceIds);
+					}
+				}
+				smtStaffDeviceAuthService.removeAuthToDevice(auth, removableDeviceIds);
+			}
+		} else {
+			List<SmtVehicleApply> vehicleApplyList = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery().eq(SmtVehicleApply::getAuthorityId, id));
+			for (SmtVehicleApply delAuth : vehicleApplyList) {
+				List<String> removableDeviceIds = new ArrayList<>(deviceIds);
+				// 查询删除车辆关联的权限列表，排除待删除权限
+				List<SmtVehicleApply> otherAuthList = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery()
+						.eq(SmtVehicleApply::getVehicleId, delAuth.getVehicleId())
+						.ne(SmtVehicleApply::getAuthorityId, id));
+				if (CollUtil.isNotEmpty(otherAuthList)) {
+					List<Integer> otherAuthIds = otherAuthList.stream().map(SmtVehicleApply::getAuthorityId).collect(Collectors.toList());
+					log.info("删除车辆{}关联其他权限列表：{}", delAuth.getId(), otherAuthIds);
+					// 查询其他权限关联的设备列表
+					List<SmtDeviceAuthorityRelation> otherDeviceList = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds);
+					if (CollUtil.isNotEmpty(otherDeviceList)) {
+						List<String> otherDeviceIds = otherDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
+						removableDeviceIds.removeAll(otherDeviceIds);
+					}
+				}
+				smtVehicleApplyService.removeAuthToDevice(delAuth, removableDeviceIds);
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public Boolean checkIsUsed(Integer type, String deviceId) {
+		return this.baseMapper.countByAreaType(type, deviceId) > 0;
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public List<String> deviceAuthRelationAdd(DeviceAuthRelationAddReqDTO reqDTO) {
+		List<SmtStaffDeviceAuth> existAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getAuthId, reqDTO.getAuthId()));
+		List<Long> existList = existAuthList.stream().map(SmtStaffDeviceAuth::getStaffId).collect(Collectors.toList());
+
+		List<SmtDeviceAuthorityRelation> authDeviceList = smtDeviceAuthorityRelationService.list(Wrappers.<SmtDeviceAuthorityRelation>lambdaQuery().eq(SmtDeviceAuthorityRelation::getAuthorityId, reqDTO.getAuthId()));
+		List<String> newDeviceList = authDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
+
+		List<String> noExist = new ArrayList<>();
+		List<SmtStaff> staffList = smtStaffService.list(Wrappers.<SmtStaff>query().lambda()
+				.ne(SmtStaff::getStatus, StaffStatusEnum.STAFF_STATUS_QUIT.getCode())
+				.in(SmtStaff::getBadge, reqDTO.getBadges())
+		);
+
+		Collection<SmtDeviceTask> deviceTaskList = new ArrayList<>();
+		Collection<SmtIscDeviceTask> iscDeviceTaskList = new ArrayList<>();
+		Collection<SmtStaffDeviceAuth> smtStaffDeviceAuthList = new ArrayList<>();
+		for (SmtStaff staff : staffList) {
+			if (existList.contains(staff.getId())) {
+				// 该员工已存在此权限
+				continue;
+			}
+
+			// 员工存在人脸图片
+			if(StrUtil.isNotBlank(staff.getFacePicId())) {
+				String gen = staff.getBadge() + SymbolConstants.MINUS + staff.getName();
+
+				for (String devCode : newDeviceList) {
+					// 判断设备是否为ISC同步的 是则把任务创建在新表中
+					SmtDevice smtDevice = smtDeviceMapper.selectById(devCode);
+					if (smtDevice == null) {
+						log.info("设备{}不存在", devCode);
+						continue;
+					}
+
+					// 判断是否ISC同步设备
+					if (!StaffSyncEnum.YES.getCode().equals(smtDevice.getIsSync())) {
+						SmtDeviceTask smtDeviceTask = new SmtDeviceTask();
+
+						//生成随机序列
+						String sNo = UUID.randomUUID().toString().replaceAll("-", "");
+
+						if (StringUtils.isEmpty(smtDeviceTask.getSerialNo())) {
+							smtDeviceTask.setSerialNo(sNo);
+						}
+
+						smtDeviceTask.setDeviceCode(devCode);
+						smtDeviceTask.setCardNo(staff.getId().toString());
+						smtDeviceTask.setGeneral(gen);
+						smtDeviceTask.setServiceType(DeviceTaskConstants.CARD_STAFF_IMPORT);
+						smtDeviceTask.setAction(DeviceTaskActionEnum.DOWN.getCode());
+						smtDeviceTask.setCardType(SmtVisitorEnum.CAR_CARD_TYPE_1.getType());
+						smtDeviceTask.setDeviceType(DeviceTaskConstants.CARD);
+						smtDeviceTask.setImageId(staff.getFacePicId());
+						smtDeviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
+						smtDeviceTask.setOverTime(DeviceTaskConstants.maxTime);
+						smtDeviceTask.setStartTime(DateUtil.currentSeconds());
+						smtDeviceTask.setCreateTime(LocalDateTime.now());
+
+						deviceTaskList.add(smtDeviceTask);
+					} else {
+						SmtIscDeviceTask smtIscDeviceTask = new SmtIscDeviceTask();
+						smtIscDeviceTask.setDeviceCode(devCode);
+						smtIscDeviceTask.setCardNo(staff.getId().toString());
+						smtIscDeviceTask.setGeneral(gen);
+						smtIscDeviceTask.setServiceType(DeviceTaskConstants.CARD_STAFF_IMPORT);
+						smtIscDeviceTask.setAction(DeviceTaskActionEnum.DOWN.getCode());
+						smtIscDeviceTask.setDeviceType(DeviceTaskConstants.CARD);
+						smtIscDeviceTask.setImageId(staff.getFacePicId());
+						smtIscDeviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
+						smtIscDeviceTask.setOverTime(DeviceTaskConstants.maxTime);
+						smtIscDeviceTask.setStartTime(DateUtil.currentSeconds());
+						smtIscDeviceTask.setCreateTime(LocalDateTime.now());
+
+						if (DeviceTaskConstants.CARD_VISITOR.equals(smtIscDeviceTask.getServiceType())) {
+							smtIscDeviceTask.setOptUser("fkyy");
+						} else {
+							if (Objects.nonNull(SecurityUtils.getUser())) {
+								smtIscDeviceTask.setOptUser(SecurityUtils.getUser().getUsername());
+							} else {
+								smtIscDeviceTask.setOptUser("sys");
+							}
+						}
+
+						iscDeviceTaskList.add(smtIscDeviceTask);
+					}
+
+				}
+
+				SmtStaffDeviceAuth staffDeviceAuth = new SmtStaffDeviceAuth();
+				staffDeviceAuth.setStaffId(staff.getId());
+				staffDeviceAuth.setAuthId(reqDTO.getAuthId());
+				staffDeviceAuth.setCreateTime(new Date());
+				// smtStaffDeviceAuthService.save(staffDeviceAuth);
+				smtStaffDeviceAuthList.add(staffDeviceAuth);
+			}else{
+				noExist.add(staff.getBadge());
+			}
+
+		}
+
+		if (!deviceTaskList.isEmpty()) {
+			smtDeviceTaskService.saveBatch(deviceTaskList);
+		}
+
+		if (!iscDeviceTaskList.isEmpty()) {
+			smtIscDeviceTaskService.saveBatch(iscDeviceTaskList);
+		}
+
+		if (!smtStaffDeviceAuthList.isEmpty()) {
+			smtStaffDeviceAuthService.saveBatch(smtStaffDeviceAuthList);
+		}
+
+		return noExist;
+	}
+
+	/**
+	 * 批量更新设备关联关系
+	 *
+	 * @param authorityId 权限ID
+	 * @param parkIds 园区ID列表
+	 * @param newDeviceIds 新的设备ID列表
+	 */
+	private void updateDeviceRelationsBatch(Integer authorityId, List<Integer> parkIds, List<String> newDeviceIds) {
+		// 删除原来的设备关联数据
+		LambdaQueryWrapper<SmtDeviceAuthorityRelation> deleteWrapper = Wrappers.<SmtDeviceAuthorityRelation>lambdaQuery()
+			.eq(SmtDeviceAuthorityRelation::getAuthorityId, authorityId);
+
+		// 只有当parkIds不为空时才添加园区ID条件
+		if (CollUtil.isNotEmpty(parkIds)) {
+			deleteWrapper.in(SmtDeviceAuthorityRelation::getParkId, parkIds);
+		}
+
+		smtDeviceAuthorityRelationService.remove(deleteWrapper);
+
+		// 批量添加新的设备关联数据
+		if (CollUtil.isNotEmpty(newDeviceIds)) {
+			List<SmtDeviceAuthorityRelation> relationsToInsert = new ArrayList<>();
+			for (String deviceId : newDeviceIds) {
+				SmtDevice smtDevice = smtDeviceService.getById(deviceId);
+				if (smtDevice != null) {
+					SmtDeviceAuthorityRelation relation = new SmtDeviceAuthorityRelation();
+					relation.setDeviceId(deviceId);
+					relation.setAuthorityId(authorityId);
+					relation.setParkId(smtDevice.getParkId());
+					relationsToInsert.add(relation);
+				}
+			}
+
+			if (!relationsToInsert.isEmpty()) {
+				smtDeviceAuthorityRelationService.saveBatch(relationsToInsert);
+			}
+		}
+	}
+
+	/**
+	 * 获取指定权限ID的所有车辆权限信息
+	 *
+	 * @param authId 权限ID
+	 * @return 车辆权限信息列表
+	 */
+	private List<VehicleAuthDTO> getAllVehicleAuthByAuthId(Integer authId) {
+		List<VehicleAuthDTO> allVehicleAuth = new ArrayList<>();
+
+		// 使用分页查询但一次性获取所有数据
+		Page<VehicleAuthDTO> page = new Page<>(1, 10000); // 设置足够大的页面大小
+		IPage<VehicleAuthDTO> result = smtVehicleMapper.getVehicleAuthAll(page, authId);
+
+		allVehicleAuth.addAll(result.getRecords());
+
+		// 如果还有更多数据，继续查询
+		while (result.getCurrent() < result.getPages()) {
+			page.setCurrent(page.getCurrent() + 1);
+			result = smtVehicleMapper.getVehicleAuthAll(page, authId);
+			allVehicleAuth.addAll(result.getRecords());
+		}
+
+		return allVehicleAuth;
+	}
+}

@@ -1,0 +1,80 @@
+## spring security 配置
+security:
+  oauth2:
+    client:
+      client-id: ENC(FW4Hcu2nG5zWMwPCKA9Z2g==)        # app
+      client-secret: ENC(LbJpWwabMw90fSaWjMuBqA==)    # app
+      scope: server
+      # 放行url
+      ignore-urls:
+        - /v2/api-docs
+        - /guide/welcome
+        - /login/face
+        - /sms/send/**
+        - /sms/verify/**
+        - /common/image/view/**
+        - /common/download/**
+        - /password/mobile/query/**
+        - /password/sms/send/**
+        - /password/verify/**
+        - /password/update/**
+        - /park/location/auto/**
+        - /wechat/**
+        - /device/query/list/bind/**
+        - /device/query/list/**
+        - /website/**
+
+# 数据源配置
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: oracle.jdbc.driver.OracleDriver
+    username: app
+    password: ${SMART_APP_DATASOURCE_PASSWORD:}
+    url: jdbc:oracle:thin:@smart-oracle:1521:orcl
+  #    password: ${SMART_APP_LEGACY_DATASOURCE_PASSWORD:}
+  #    url: jdbc:oracle:thin:@plmdb.szyuto.com:1521:ev6db
+  main:
+    allow-bean-definition-overriding: true
+  sms:
+    url: http://10.0.20.97:81/SOS.WebFramework/SMSBll/SendSMS
+    systemName: 会馆系统
+    remarks: 会馆系统
+    token: ${SMART_APP_SMS_TOKEN:}      #token
+  oa:
+    staff:
+      query-url: http://bgserver.szyuto.com/SOS.OA/ADABll/GetUserInfoByWorkCode
+      query-token: ${SMART_APP_OA_QUERY_TOKEN:}      #token
+  #邮箱配置
+  mail:
+    host: mail.szyuto.com
+    username: ${SMART_APP_MAIL_USERNAME:}
+    password: ${SMART_APP_MAIL_PASSWORD:}
+    default-encoding: utf-8
+    port: 25
+  yuto-secsytem:
+    phone:
+      update-url: http://10.0.20.97:81/SOS.WebFramework/Base_UserBll/RevisePhone
+  # Ocr服务
+  ocr:
+    username: test
+    url: http://10.20.20.136:8888/cxfServerX/doAllCardRecon
+  wechat:
+    oauth2:  https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code
+    appId: wx1e6f3e53591dde8f
+    appSecret: ${SMART_APP_WECHAT_APP_SECRET:}
+    #人脸比对阈值
+  face:
+    compare-value: 0.55
+    forget-password: 0.7
+  file:
+    #图片访问地址-公共目录
+    image: http://smartapp.szyuto.com:8090/app/common
+    #PDF附件下载地址
+    text-pdf-enclosure: http://smartapp.szyuto.com:8090/app/common/download/
+    #PDF文件预览地址
+    pdf-preview: http://smartapp.szyuto.com:8090/apprelease/PDF/web/viewer.html?file=
+  icbc:
+    api:
+      #e钱包H5页面URL
+      h5-eaccount: https://gw.open.icbc.com.cn/ui/eaccount/manage/V1

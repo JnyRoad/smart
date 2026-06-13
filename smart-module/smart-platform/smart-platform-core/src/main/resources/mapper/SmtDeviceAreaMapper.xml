@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDeviceAreaMapper">
+
+	<resultMap id="smtDeviceAreaMap" type="com.tce.smart.platform.core.entity.SmtDeviceArea">
+		<id property="id" column="id"/>
+		<result property="deviceId" column="device_id"/>
+		<result property="areaId" column="area_id"/>
+		<result property="createTime" column="create_time"/>
+	</resultMap>
+
+	<resultMap id="areaDeviceMap" type="com.tce.smart.platform.core.dto.AreaDeviceDTO">
+		<id property="id" column="id"/>
+		<result property="areaName" column="AREA_NAME"/>
+		<result property="deviceId" column="DEVICE_ID"/>
+	</resultMap>
+
+	<select id="queryByDeviceId" resultType="com.tce.smart.platform.core.entity.SmtArea">
+		SELECT
+			sa."ID",
+			sa.AREA_NAME,
+			sa.PARK_ID
+		FROM
+			SMT_DEVICE_AREA sda
+		LEFT JOIN SMT_AREA sa ON SDA.AREA_ID = SA."ID"
+		WHERE SDA.DEVICE_ID= #{deviceId}
+	</select>
+
+	<select id="queryAreaDevice" resultMap="areaDeviceMap">
+		select area.ID,min(area.AREA_NAME) AREA_NAME,sda.DEVICE_ID
+		from SMT_AREA area
+		left join SMT_DEVICE_AREA sda on area.ID=sda.AREA_ID
+		where sda.DEVICE_ID is not null
+		<if test="parkId!=null">
+			and area.PARK_ID =#{parkId}
+		</if>
+		GROUP BY area.ID,sda.DEVICE_ID
+	</select>
+
+<!--             <delete id="deleteByDeviceId"> -->
+<!--             	DELETE FROM SMT_DEVICE_AREA sda WHERE sda.DEVICE_ID = #{deviceId} -->
+<!--             </delete> -->
+</mapper>

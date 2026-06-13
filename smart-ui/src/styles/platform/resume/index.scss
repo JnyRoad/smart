@@ -1,0 +1,221 @@
+// 导入全局变量
+@use "../../variables" as *;
+.resume{
+  padding-top: 3%;
+  padding-bottom: 20px;
+  background: #fff;
+  .el-form-item{
+    margin-bottom: 15px;
+  }
+  .el-button{
+    border-radius: 0;
+    height: 36px;
+  }
+  .info2{
+    color: #999;
+  }
+  .btndv{
+    text-align: center;
+    padding-top: 4%;
+    .el-button{
+      width: 260px;
+      height: 40px;
+      border-radius: 0;
+    }
+  }
+  .litbtn{
+    .el-button{
+      width: 140px;
+    }
+  }
+  .tips{
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .p-title{
+    font-size: 20px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .top{
+    text-align: center;
+    line-height: 25px;
+    img{
+      vertical-align: middle;
+      margin: -2px 15px 0 0;
+    }
+    .top-logo{
+      // text-align: right;
+    }
+    .top-titile{
+      font-size: 22px;
+      color: $mainBg;
+      text-align: left;
+      .steps{
+        font-size: 18px;
+        color: #c0c0c0;
+      }
+    }
+  }
+  .cont{
+    padding-top: 3%;
+    .t1, .t2, .t3, .t4{
+      // border: 1px solid red;
+    }
+    .img-bk{
+      text-align: center;
+      .img-info{
+        margin-top: 20px;
+        padding: 0 10%;
+        .img-outer{
+          border: 1px solid #DADADB;
+          .img-inner{
+            background-color: #F4F6F9;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background-size: 90% auto;
+            background-repeat: no-repeat;
+          }
+          .status-dv{
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            width: 40px;
+            height: 40px;
+          }
+          .status-succeed{
+            background: url('/img/rm_pass.png') center no-repeat;
+          }
+          .status-failed{
+            background: url('/img/rm_unpass.png') center no-repeat;
+          }
+          .up-dv{
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: rgba(0, 0, 0, .3);
+            color: #fff;
+            text-align: center;
+            height: 40px;
+            line-height: 42px;
+            font-size: 16px;
+            i{
+              font-size: 18px;
+              margin: 0 5px 0 0;
+            }
+          }
+        }
+      }
+      .card-A{
+        .img-inner{
+          background-position: center 35px;
+          background-image: url(/img/rm_cardA.png);
+        }
+      }
+      .card-B{
+        .img-inner{
+          background-position: center 35px;
+          background-image: url(/img/rm_cardB.png);
+        }
+      }
+      .face-A{
+        .img-inner{
+          background-position: center;
+          background-image: url(/img/rm_face.jpg);
+        }
+      }
+    }
+    .info-title{
+      line-height: 36px;
+      font-size: 20px;
+    }
+    .noData i{
+      padding-top: 60%;
+    }
+    .infosq{
+      margin-top: 8%;
+      margin-bottom: 20px;
+      border-top: 1px solid #EEEEEE;
+      padding-top: 10%;
+      .item{
+        position: relative;
+        font-size: 14px;
+        width: 90%;
+        margin: 0 auto 30px;
+        padding: 12px 15px 5px 20px;
+        line-height: 23px;
+        border-radius: 5px;
+        overflow: hidden;
+        box-shadow: 0 0 8px 0 rgba(0, 0, 0, .09);
+        .i-name{
+          font-size: 16px;
+          width: 80%;
+        }
+        .float-right{
+          padding: 0;
+        }
+        span{
+          padding: 0 10px 0 0;
+          display: inline-block;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .item-btns{
+          position: absolute;
+          top: 0;
+          right: 0;
+          padding: 13px;
+          .el-button{
+            padding: 0;
+            height: 16px;
+            i{
+              color: #333;
+              font-size: 16px;
+            }
+            i:hover{
+              color: $mainBg;
+            }
+            margin-left: 15px;
+          }
+        }
+      }
+    }
+    .t1{
+      // .item{
+      //   min-height: 77px;
+      // }
+      .noData i{
+        background-image: url(/img/rm_jjlxr.png);
+      }
+    }
+    .t2{
+      // .item{
+      //   min-height: 107px;
+      // }
+      .noData i{
+        background-image: url(/img/rm_jtcy.png);
+      }
+    }
+    .t3{
+      .noData i{
+        background-image: url(/img/rm_jyjl.png);
+      }
+    }
+    .t4{
+      .noData i{
+        background-image: url(/img/rm_gzjy.png);
+      }
+    }
+    .t5{
+      .noData i{
+        background-image: url(/img/rm_rzgx.png);
+      }
+    }
+  }
+}

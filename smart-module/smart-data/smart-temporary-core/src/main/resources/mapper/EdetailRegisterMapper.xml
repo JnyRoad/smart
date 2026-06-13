@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.temporary.core.mapper.EdetailRegisterMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.temporary.core.entity.EdetailRegister">
+        <id column="ID" property="id" />
+        <result column="Mobile" property="Mobile" />
+        <result column="email" property="email" />
+        <result column="office_phone" property="officePhone" />
+        <result column="EmergencyName" property="EmergencyName" />
+        <result column="Relation" property="Relation" />
+        <result column="Telephone" property="Telephone" />
+        <result column="badge" property="badge" />
+        <result column="name" property="name" />
+        <result column="azstatus" property="azstatus" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        ID AS id, Mobile, email, office_phone AS officePhone, EmergencyName, Relation, Telephone, badge, name, azstatus
+    </sql>
+
+</mapper>

@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtApplicationMapper">
+
+  <resultMap id="smtApplictionMap" type="com.tce.smart.platform.core.entity.SmtApplication">
+                  <id property="id" column="id"/>
+                        <result property="recruitId" column="recruit_id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="name" column="name"/>
+                        <result property="certno" column="certno"/>
+                        <result property="sex" column="sex"/>
+                        <result property="age" column="age"/>
+                        <result property="nation" column="nation"/>
+                        <result property="birth" column="birth"/>
+                        <result property="phone" column="phone"/>
+                        <result property="wechat" column="wechat"/>
+                        <result property="homeAddress" column="home_address"/>
+                        <result property="liveAddress" column="live_address"/>
+                        <result property="certnoPicId" column="certno_pic_id"/>
+                        <result property="facePicId" column="face_pic_id"/>
+                        <result property="status" column="status"/>
+                        <result property="interviewTime" column="interview_time"/>
+                        <result property="createTime" column="create_time"/>
+                        <result property="isDelete" column="is_delete"/>
+
+		 <result property="refuseReason" column="refuse_reason"/></resultMap>
+
+    <resultMap type="com.tce.smart.platform.core.vo.ApplicationListVO" id="getSmtApplictionListMap">
+
+		                <id property="applicationId" column="id"/>
+                        <result property="jobName" column="job_name"/>
+                        <result property="applicantPhoto" column="face_pic_id"/>
+                        <result property="jobAddress" column="park_name"/>
+                        <result property="jobDept" column="dep_name"/>
+                        <result property="applicantName" column="name"/>
+                        <result property="applicantGender" column="sex"/>
+                        <result property="applicantAge" column="age"/>
+						<result property="applicantAge" column="age"/>
+                        <result property="status" column="STATUS"/>
+						<result property="jcheName" column="JCHE_NAME"/>
+					<result property="applyDate" column="apply_date"/>
+						<result property="parkId" column="PARK_ID"/>
+						<result property="parkName" column="PARK_NAME"/>
+    </resultMap>
+
+
+	<select id="getSmtApplictionPage" parameterType="com.tce.smart.platform.core.dto.ApplicationDTO" resultType="com.tce.smart.platform.core.vo.ApplicationVO">
+		SELECT APP.ID ID,APP.RECRUIT_ID RECRUITID, PARK.PARK_NAME, APP.PARK_ID PARKID,APP.NAME,APP.SEX,APP.AGE,APP.APPLY_DATE APPLYDATE,
+		APP.PHONE,APP.STATUS,APP.CREATE_TIME CREATETIME,RE.JOB_NAME JOBNAME,RE.JCHE_NAME JCHENAME
+		FROM  SMT_APPLICATION APP
+		    INNER JOIN SMT_PARK PARK ON APP.PARK_ID=PARK.ID
+		    INNER JOIN SMT_RECRUITMENT RE ON APP.RECRUIT_ID=RE.ID
+		WHERE  APP.IS_DELETE=0
+		<if test="query.parkId != null">
+			AND APP.PARK_ID =#{query.parkId}
+		</if>
+		<if test="query.depId != null">
+			AND APP.DEP_ID =#{query.depId}
+		</if>
+		<if test="query.compId != null">
+			AND APP.COMP_ID =#{query.compId}
+		</if>
+		<if test="query.jobName != null">
+			AND RE.JOB_NAME LIKE CONCAT(CONCAT('%',#{query.jobName}),'%')
+		</if>
+		<if test="query.status != null">
+			AND APP.STATUS =#{query.status}
+		</if>
+		<if test="query.name != null and query.name != ''">
+			AND APP.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+		</if>
+		<if test="query.phone != null and query.phone != ''">
+			AND APP.PHONE LIKE  CONCAT(CONCAT('%',#{query.phone}),'%')
+		</if>
+		<if test="query.jobId != null and query.jobId != ''">
+			AND RE.JOB_ID =#{query.jobId}
+		</if>
+		<if test="query.startAge != null ">
+			AND APP.AGE &gt;= #{query.startAge}
+		</if>
+		<if test=" query.endAge != null">
+			AND APP.AGE  &lt;  #{query.endAge}
+		</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				and app.apply_date between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		<if test="parkIds != null and parkIds.size > 0">
+			AND APP.PARK_ID IN
+			<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+				#{tempId}
+			</foreach>
+		</if>
+		ORDER BY APP.APPLY_DATE DESC,APP.CREATE_TIME DESC
+	</select>
+
+	<select id="getSmtApplictionList" parameterType="com.tce.smart.platform.core.dto.ApplicationListDTO" resultMap="getSmtApplictionListMap">
+			SELECT APP.ID ,APP.NAME,APP.SEX,APP.AGE,PARK.PARK_NAME,RE.EDUCATION,APP.FACE_PIC_ID,RE.DEP_NAME,RE.JCHE_NAME,
+			APP.APPLY_DATE,APP.STATUS ,RE.JOB_NAME,RE.PARK_ID   FROM  SMT_APPLICATION APP
+			INNER JOIN SMT_RECRUITMENT RE ON APP.RECRUIT_ID=RE.ID
+			INNER JOIN SMT_PARK PARK ON RE.PARK_ID=PARK.ID
+			WHERE  IS_DELETE=0  AND  <![CDATA[ APP.STATUS <> -1 ]]>
+		<if test="query.applyState != null">
+			AND APP.STATUS =#{query.applyState}
+		</if>
+		<if test="query.applicantName != null and query.applicantName != ''">
+			AND APP.NAME LIKE CONCAT(CONCAT('%',#{query.applicantName}),'%')
+		</if>
+
+		<if test="query.applicantMobile != null and query.applicantMobile != ''">
+			AND APP.PHONE LIKE CONCAT(CONCAT('%',#{query.applicantMobile}),'%')
+		</if>
+
+		<if test="query.jobId != null and query.jobId != null">
+			AND APP.RECRUIT_ID =#{query.jobId}
+		</if>
+		<if test="query.ageStart != null and query.ageEnd != null">
+			AND APP.AGE BETWEEN #{query.ageStart} AND #{query.ageEnd}
+		</if>
+		<if test="query.gender != null">
+			AND APP.SEX =#{query.gender}
+		</if>
+		<if test="query.parkId != null">
+			AND APP.park_id =#{query.parkId}
+		</if>
+
+		<if test="ids !=null">
+			AND RE.JCHE_ID in
+			 <foreach collection="ids" item="id" index="index"
+             open="(" close=")" separator=",">
+		      #{id}
+		    </foreach>
+		</if>
+		<if test="parks !=null and parks.size > 0">
+			AND APP.PARK_ID in
+			 <foreach collection="parks" item="id" index="index"
+             open="(" close=")" separator=",">
+		      #{id}
+		    </foreach>
+		</if>
+
+		<if test="query.ageOrder ==1">
+			ORDER BY  APP.AGE  DESC
+		</if>
+		<if test="query.ageOrder ==0">
+			ORDER BY  APP.AGE  ASC
+		</if>
+
+		<if test="query.deliverOrder==1">
+			ORDER BY  APP.APPLY_DATE  DESC
+		</if>
+		<if test="query.deliverOrder ==0">
+			ORDER BY  APP.APPLY_DATE  ASC
+		</if>
+
+
+	</select>
+
+
+
+	<select id="getApplicationProcess" parameterType="java.lang.Long" resultType="com.tce.smart.platform.core.entity.SmtApplicationProcess">
+
+	SELECT * FROM SMT_APPLICATION_PROCESS WHERE APPLICATION_ID=#{id}
+	ORDER BY CREATE_TIME ASC
+	</select>
+
+	<select id="getApplicationResume"   parameterType="java.lang.Long"  resultType="com.tce.smart.platform.core.entity.SmtApplicationResume">
+
+	SELECT * FROM SMT_APPLICATION_RESUME WHERE APPLICATION_ID=#{id}
+	</select>
+
+	<select id="queryFaceApplication" parameterType="java.lang.Long" resultType="com.tce.smart.platform.core.vo.FaceApplicationVO">
+	 SELECT APP.ID APPLICATIONID,NAME APPLICANTNAME ,AGE APPLICANTAGE ,
+	 SEX APPLICANTGENDER,PARK.PARK_NAME JOBADDRESS,
+	 RE.JOB_NAME JOBNAME,RE.DEP_NAME JOBDEPT
+	 FROM SMT_APPLICATION APP
+	 INNER JOIN SMT_PARK PARK ON APP.PARK_ID=PARK.ID
+	 INNER JOIN SMT_RECRUITMENT RE ON RE.ID=APP.RECRUIT_ID
+
+	<where>
+	 APP.ID=#{applicationId}
+	</where>
+
+
+	</select>
+
+
+
+</mapper>

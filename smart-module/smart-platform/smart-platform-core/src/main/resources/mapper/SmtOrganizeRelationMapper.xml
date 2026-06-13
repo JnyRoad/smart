@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtOrganizeRelationMapper">
+	<resultMap id="organizeRelationMap" type="com.tce.smart.platform.core.dto.OrganizeRelationDTO">
+		<id property="id" column="id"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="compName" column="COMP_NAME"/>
+	</resultMap>
+	<select id="getOrgRelation" resultMap="organizeRelationMap">
+		select relation.ID,relation.COMP_NAME,relation.PARK_ID,park.PARK_NAME
+		from smt_organize_relation relation
+		join SMT_PARK park on relation.PARK_ID=park.ID
+		where relation.ID=#{id}
+	</select>
+</mapper>

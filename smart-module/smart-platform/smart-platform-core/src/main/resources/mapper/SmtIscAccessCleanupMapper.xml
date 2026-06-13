@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtIscAccessCleanupMapper">
+
+	<sql id="base_down_record_filters">
+		<if test="query.parkIds != null and query.parkIds.size > 0">
+			AND DR.PARK_ID IN
+			<foreach collection="query.parkIds" item="parkId" open="(" separator="," close=")">
+				#{parkId}
+			</foreach>
+		</if>
+		<if test="query.parkId != null">
+			AND DR.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.deviceCode != null and query.deviceCode != ''">
+			AND DR.DEVICE_CODE = #{query.deviceCode}
+		</if>
+		<if test="query.startTime != null and query.startTime != ''">
+			AND DR.OVER_TIME <![CDATA[>=]]>
+			TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+		</if>
+		<if test="query.endTime != null and query.endTime != ''">
+			AND DR.OVER_TIME <![CDATA[<]]>
+			TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd') + 1
+		</if>
+	</sql>
+
+	<sql id="active_same_person_exists">
+		EXISTS (
+			SELECT 1
+			FROM SMT_ISC_DOWN_RECORD ACTIVE_RECORD
+			WHERE ACTIVE_RECORD.ID != DR.ID
+			  AND ACTIVE_RECORD.DEVICE_TYPE = 1
+			  AND ACTIVE_RECORD.SERVICE_TYPE IN (3, 6)
+			  AND ACTIVE_RECORD.DEVICE_CODE = DR.DEVICE_CODE
+			  AND NVL(ACTIVE_RECORD.PARK_ID, -1) = NVL(DR.PARK_ID, -1)
+			  AND ACTIVE_RECORD.OVER_TIME <![CDATA[>]]> #{now}
+			  AND (
+				(DR.PERSON_ID IS NOT NULL AND ACTIVE_RECORD.PERSON_ID = DR.PERSON_ID)
+				OR (DR.BADGE IS NOT NULL AND ACTIVE_RECORD.BADGE = DR.BADGE)
+				OR (DR.PERSON_ID IS NULL AND DR.BADGE IS NULL AND ACTIVE_RECORD.CARD_NO = DR.CARD_NO)
+			  )
+		)
+	</sql>
+
+	<sql id="visitor_identity_filter">
+		<if test="query.keyword != null and query.keyword != ''">
+			AND (
+				DR.GENERAL LIKE CONCAT(CONCAT('%', #{query.keyword}), '%')
+				OR DR.BADGE LIKE CONCAT(CONCAT('%', #{query.keyword}), '%')
+				OR DR.CARD_NO LIKE CONCAT(CONCAT('%', #{query.keyword}), '%')
+				OR DR.PERSON_ID LIKE CONCAT(CONCAT('%', #{query.keyword}), '%')
+			)
+		</if>
+	</sql>
+
+	<sql id="staff_identity_filter">
+		<if test="query.keyword != null and query.keyword != ''">
+			AND (
+				NVL(STAFF.NAME, DR.GENERAL) LIKE CONCAT(CONCAT('%', #{query.keyword}), '%')
+				OR STAFF.BADGE LIKE CONCAT(CONCAT('%', #{query.keyword}), '%')
+				OR DR.CARD_NO LIKE CONCAT(CONCAT('%', #{query.keyword}), '%')
+				OR DR.PERSON_ID LIKE CONCAT(CONCAT('%', #{query.keyword}), '%')
+			)
+		</if>
+	</sql>
+
+	<sql id="visitor_status_filter">
+		<if test="query.personType != null and query.personType != '' and query.personType != 'VISITOR'">
+			AND 1 = 0
+		</if>
+		<if test="query.cleanupStatus != null and query.cleanupStatus == 'EXECUTABLE'">
+			AND NOT <include refid="active_same_person_exists"/>
+		</if>
+		<if test="query.cleanupStatus != null and query.cleanupStatus == 'PROTECTED'">
+			AND <include refid="active_same_person_exists"/>
+		</if>
+	</sql>
+
+	<sql id="staff_status_filter">
+		<if test="query.personType != null and query.personType != '' and query.personType != 'STAFF'">
+			AND 1 = 0
+		</if>
+		<if test="query.cleanupStatus != null and query.cleanupStatus == 'PROTECTED'">
+			AND 1 = 0
+		</if>
+	</sql>
+
+	<sql id="visitor_has_active_same_person_column">
+		<choose>
+			<when test="query.cleanupStatus != null and query.cleanupStatus == 'EXECUTABLE'">
+				0
+			</when>
+			<when test="query.cleanupStatus != null and query.cleanupStatus == 'PROTECTED'">
+				1
+			</when>
+			<otherwise>
+				CASE
+					WHEN <include refid="active_same_person_exists"/> THEN 1
+					ELSE 0
+				END
+			</otherwise>
+		</choose>
+	</sql>
+
+	<sql id="visitor_record_select">
+		SELECT
+			DR.ID AS DOWN_RECORD_ID,
+			DR.PARK_ID AS PARK_ID,
+			PARK.PARK_NAME AS PARK_NAME,
+			DR.DEVICE_CODE AS DEVICE_CODE,
+			DEVICE.DEVICE_NAME AS DEVICE_NAME,
+			DR.CARD_NO AS CARD_NO,
+			DR.BADGE AS BADGE,
+			DR.PERSON_ID AS PERSON_ID,
+			DR.GENERAL AS PERSON_NAME,
+			DR.SERVICE_TYPE AS SERVICE_TYPE,
+			CASE
+				WHEN DR.SERVICE_TYPE = 3 THEN '访客预约'
+				WHEN DR.SERVICE_TYPE = 6 THEN '入厂申请'
+				ELSE '临时权限'
+			END AS SERVICE_TYPE_DESC,
+			DR.START_TIME AS START_TIME,
+			DR.OVER_TIME AS OVER_TIME,
+			'VISITOR' AS PERSON_TYPE,
+			'访客' AS PERSON_TYPE_DESC,
+			<include refid="visitor_has_active_same_person_column"/> AS HAS_ACTIVE_SAME_PERSON
+		FROM SMT_ISC_DOWN_RECORD DR
+		LEFT JOIN SMT_DEVICE DEVICE ON DEVICE.ID = DR.DEVICE_CODE
+		LEFT JOIN SMT_PARK PARK ON PARK.ID = DR.PARK_ID
+		WHERE DR.DEVICE_TYPE = 1
+		  AND DR.SERVICE_TYPE IN (3, 6)
+		  AND DR.OVER_TIME <![CDATA[<]]> #{now}
+		  <include refid="base_down_record_filters"/>
+		  <include refid="visitor_identity_filter"/>
+		  <include refid="visitor_status_filter"/>
+	</sql>
+
+	<sql id="staff_record_select">
+		SELECT
+			DR.ID AS DOWN_RECORD_ID,
+			DR.PARK_ID AS PARK_ID,
+			PARK.PARK_NAME AS PARK_NAME,
+			DR.DEVICE_CODE AS DEVICE_CODE,
+			DEVICE.DEVICE_NAME AS DEVICE_NAME,
+			DR.CARD_NO AS CARD_NO,
+			STAFF.BADGE AS BADGE,
+			DR.PERSON_ID AS PERSON_ID,
+			NVL(STAFF.NAME, DR.GENERAL) AS PERSON_NAME,
+			DR.SERVICE_TYPE AS SERVICE_TYPE,
+			CASE
+				WHEN DR.SERVICE_TYPE = 7 THEN '人脸更新'
+				ELSE '员工权限'
+			END AS SERVICE_TYPE_DESC,
+			DR.START_TIME AS START_TIME,
+			DR.OVER_TIME AS OVER_TIME,
+			'STAFF' AS PERSON_TYPE,
+			'离职人员' AS PERSON_TYPE_DESC,
+			0 AS HAS_ACTIVE_SAME_PERSON
+		FROM SMT_ISC_DOWN_RECORD DR
+		JOIN SMT_STAFF STAFF
+			ON STAFF.ID = CASE
+				WHEN REGEXP_LIKE(DR.CARD_NO, '^[0-9]+$') THEN TO_NUMBER(DR.CARD_NO)
+			END
+		LEFT JOIN SMT_DEVICE DEVICE ON DEVICE.ID = DR.DEVICE_CODE
+		LEFT JOIN SMT_PARK PARK ON PARK.ID = DR.PARK_ID
+		WHERE DR.DEVICE_TYPE = 1
+		  AND DR.SERVICE_TYPE IN (1, 7)
+		  AND STAFF.STATUS = 0
+		  <include refid="base_down_record_filters"/>
+		  <include refid="staff_identity_filter"/>
+		  <include refid="staff_status_filter"/>
+	</sql>
+
+	<sql id="cleanup_record_union">
+		<include refid="visitor_record_select"/>
+		UNION ALL
+		<include refid="staff_record_select"/>
+	</sql>
+
+	<sql id="visitor_summary_select">
+		SELECT
+			DR.PARK_ID AS PARK_ID,
+			DR.DEVICE_CODE AS DEVICE_CODE,
+			DR.CARD_NO AS CARD_NO,
+			DR.BADGE AS BADGE,
+			DR.PERSON_ID AS PERSON_ID,
+			DR.SERVICE_TYPE AS SERVICE_TYPE,
+			'VISITOR' AS PERSON_TYPE,
+			<include refid="visitor_has_active_same_person_column"/> AS HAS_ACTIVE_SAME_PERSON
+		FROM SMT_ISC_DOWN_RECORD DR
+		WHERE DR.DEVICE_TYPE = 1
+		  AND DR.SERVICE_TYPE IN (3, 6)
+		  AND DR.OVER_TIME <![CDATA[<]]> #{now}
+		  <include refid="base_down_record_filters"/>
+		  <include refid="visitor_identity_filter"/>
+		  <include refid="visitor_status_filter"/>
+	</sql>
+
+	<sql id="staff_summary_select">
+		SELECT
+			DR.PARK_ID AS PARK_ID,
+			DR.DEVICE_CODE AS DEVICE_CODE,
+			DR.CARD_NO AS CARD_NO,
+			STAFF.BADGE AS BADGE,
+			DR.PERSON_ID AS PERSON_ID,
+			DR.SERVICE_TYPE AS SERVICE_TYPE,
+			'STAFF' AS PERSON_TYPE,
+			0 AS HAS_ACTIVE_SAME_PERSON
+		FROM SMT_ISC_DOWN_RECORD DR
+		JOIN SMT_STAFF STAFF
+			ON STAFF.ID = CASE
+				WHEN REGEXP_LIKE(DR.CARD_NO, '^[0-9]+$') THEN TO_NUMBER(DR.CARD_NO)
+			END
+		WHERE DR.DEVICE_TYPE = 1
+		  AND DR.SERVICE_TYPE IN (1, 7)
+		  AND STAFF.STATUS = 0
+		  <include refid="base_down_record_filters"/>
+		  <include refid="staff_identity_filter"/>
+		  <include refid="staff_status_filter"/>
+	</sql>
+
+	<sql id="cleanup_summary_union">
+		<include refid="visitor_summary_select"/>
+		UNION ALL
+		<include refid="staff_summary_select"/>
+	</sql>
+
+	<sql id="delete_task_exists">
+		EXISTS (
+			SELECT 1
+			FROM SMT_ISC_DEVICE_TASK DT
+			WHERE DT.ACTION = 2
+			  AND DT.DEVICE_TYPE = 1
+			  AND DT.DEVICE_CODE = CLEANUP.DEVICE_CODE
+			  AND (DT.STATUS IS NULL OR DT.STATUS IN (0, 2, 3, 6))
+			  AND (
+				(
+					CLEANUP.PERSON_TYPE = 'STAFF'
+					AND DT.CARD_NO = CLEANUP.CARD_NO
+					AND DT.SERVICE_TYPE IN (1, 7)
+				)
+				OR (
+					CLEANUP.PERSON_TYPE = 'VISITOR'
+					AND DT.SERVICE_TYPE = CLEANUP.SERVICE_TYPE
+					AND (
+						(CLEANUP.PERSON_ID IS NOT NULL AND DT.PERSON_ID = CLEANUP.PERSON_ID)
+						OR (CLEANUP.PERSON_ID IS NULL AND CLEANUP.BADGE IS NOT NULL AND DT.BADGE = CLEANUP.BADGE)
+						OR (CLEANUP.PERSON_ID IS NULL AND CLEANUP.BADGE IS NULL AND DT.CARD_NO = CLEANUP.CARD_NO)
+					)
+				)
+			  )
+		)
+	</sql>
+
+	<sql id="retry_delete_task_exists">
+		EXISTS (
+			SELECT 1
+			FROM SMT_ISC_DEVICE_TASK DT
+			WHERE DT.ACTION = 2
+			  AND DT.DEVICE_TYPE = 1
+			  AND DT.DEVICE_CODE = CLEANUP.DEVICE_CODE
+			  AND DT.STATUS IN (2, 6)
+			  AND (
+				(
+					CLEANUP.PERSON_TYPE = 'STAFF'
+					AND DT.CARD_NO = CLEANUP.CARD_NO
+					AND DT.SERVICE_TYPE IN (1, 7)
+				)
+				OR (
+					CLEANUP.PERSON_TYPE = 'VISITOR'
+					AND DT.SERVICE_TYPE = CLEANUP.SERVICE_TYPE
+					AND (
+						(CLEANUP.PERSON_ID IS NOT NULL AND DT.PERSON_ID = CLEANUP.PERSON_ID)
+						OR (CLEANUP.PERSON_ID IS NULL AND CLEANUP.BADGE IS NOT NULL AND DT.BADGE = CLEANUP.BADGE)
+						OR (CLEANUP.PERSON_ID IS NULL AND CLEANUP.BADGE IS NULL AND DT.CARD_NO = CLEANUP.CARD_NO)
+					)
+				)
+			  )
+		)
+	</sql>
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.vo.IscAccessCleanupRecordVO">
+		SELECT CLEANUP.*
+		FROM (
+			<include refid="cleanup_record_union"/>
+		) CLEANUP
+		ORDER BY CLEANUP.OVER_TIME ASC, CLEANUP.DOWN_RECORD_ID DESC
+	</select>
+
+	<select id="getSummary" resultType="com.tce.smart.platform.api.dto.resp.isc.IscAccessCleanupSummaryRespDTO">
+		SELECT
+			COUNT(1) AS "totalCount",
+			NVL(SUM(CASE WHEN CLEANUP.HAS_ACTIVE_SAME_PERSON = 0 THEN 1 ELSE 0 END), 0) AS "executableCount",
+			NVL(SUM(CASE WHEN CLEANUP.HAS_ACTIVE_SAME_PERSON = 1 THEN 1 ELSE 0 END), 0) AS "protectedCount",
+			NVL(SUM(CASE WHEN CLEANUP.PERSON_TYPE = 'VISITOR' THEN 1 ELSE 0 END), 0) AS "visitorCount",
+			NVL(SUM(CASE WHEN CLEANUP.PERSON_TYPE = 'STAFF' THEN 1 ELSE 0 END), 0) AS "staffCount",
+			NVL(SUM(CASE WHEN NOT <include refid="delete_task_exists"/> THEN 1 ELSE 0 END), 0) AS "missingDeleteTaskCount",
+			NVL(SUM(CASE WHEN <include refid="retry_delete_task_exists"/> THEN 1 ELSE 0 END), 0) AS "retryDeleteTaskCount"
+		FROM (
+			<include refid="cleanup_summary_union"/>
+		) CLEANUP
+	</select>
+
+	<select id="listRecords" resultType="com.tce.smart.platform.core.vo.IscAccessCleanupRecordVO">
+		SELECT *
+		FROM (
+			SELECT CLEANUP.*
+			FROM (
+				<include refid="cleanup_record_union"/>
+			) CLEANUP
+			ORDER BY CLEANUP.OVER_TIME ASC, CLEANUP.DOWN_RECORD_ID DESC
+		)
+		WHERE ROWNUM <![CDATA[<=]]> #{limit}
+	</select>
+</mapper>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.mapper.SmtBadgeLossMapper">
+
+  <resultMap id="smtBadgeLossMap" type="com.tce.smart.platform.core.entity.badge.SmtBadgeLoss">
+                  <id property="id" column="ID"/>
+                        <result property="badge" column="BADGE"/>
+                        <result property="name" column="NAME"/>
+                        <result property="compName" column="COMP_NAME"/>
+                        <result property="depName" column="DEP_NAME"/>
+	                    <result property="parkId" column="PARK_ID"/>
+                        <result property="parkName" column="PARK_NAME"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="blank" column="BLANK"/>
+            </resultMap>
+</mapper>

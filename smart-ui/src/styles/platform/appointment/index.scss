@@ -1,0 +1,137 @@
+// 导入全局变量
+@use "../../variables" as *;
+.appointment{
+  .ap-cont{
+    width: 85%;
+    margin: 80px auto;
+  }
+  .top{
+    height: 50px;
+    line-height: 52px;
+    background: #fff;
+    padding: 0 50px;
+    box-shadow: 0 0 10px 1px #D4D5D9;
+    .top-logo{
+      height: 100%;
+      float: left;
+    }
+  }
+  .apt-info{
+    padding: 20px;
+    background: #fff;
+  }
+  .interviewee-info{
+    margin-top: 20px;
+  }
+  .apt-p{
+    font-size: 16px;
+    margin-bottom: 20px;
+  }
+  .verification-item{
+    .el-input{
+      width: 55%;
+      padding-right: 30px;
+      display: inline-block;
+    }
+    .el-button{
+      width: 45%;
+    }
+  }
+  .el-button{
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 40px;
+  }
+  .el-button--primary{
+    background-color: $mainBg;
+    border-color: $mainBg;
+  }
+  .el-button--primary.is-disabled,
+  .el-button--primary.is-disabled:active,
+  .el-button--primary.is-disabled:focus,
+  .el-button--primary.is-disabled:hover{
+    background-color: #CCCCCC;
+    border-color: #CCCCCC;
+  }
+  .el-button--primary.is-plain{
+    color: $mainBg;
+    background: transparent;
+  }
+  .el-button--primary.is-plain:focus,
+  .el-button--primary.is-plain:hover{
+    border-color: $mainBg;
+  }
+  .el-button.is-disabled,
+  .el-button.is-disabled:focus,
+  .el-button.is-disabled:hover{
+    color: #fff;
+    background-color: #CCCCCC;
+    border-color: #CCCCCC;
+  }
+  .entourage-dialog{
+    .el-button{
+      width: 100px;
+    }
+  }
+  .btndv{
+    padding-top: 50px;
+    text-align: right;
+    .el-button{
+      width: 180px;
+      height: 50px;
+      font-size: 16px;
+    }
+  }
+  .row2{
+    padding-left: 40px;
+  }
+  .addbtn{
+    float: right;
+    color: $mainBg;
+    font-size: 16px;
+  }
+  .delbtn{
+    color: #818181;
+    font-size: 20px;
+  }
+  .sximg{
+    width: 50px;
+    height: 50px;
+  }
+  .el-dialog__body{
+    padding-left: 50px;
+    padding-right: 80px;
+  }
+  .entourage-info{
+    height: 630px;
+    overflow: hidden;
+  }
+  .page-outer{
+    padding-top: 25px;
+    text-align: right;
+  }
+  @media screen and (max-width: 1366px) {
+    .ap-cont{
+      width: 95%;
+      margin: 40px auto;
+    }
+    .apt-info{
+      padding-top: 15px;
+      padding-bottom: 15px;
+    }
+    .entourage-info{
+      height: 600px;
+    }
+    .apt-p{
+      margin-bottom: 15px;
+    }
+    .btndv{
+      padding-top: 30px;
+      .el-button{
+        height: 45px;
+        line-height: 45px;
+      }
+    }
+  }
+
+}

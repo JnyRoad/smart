@@ -1,0 +1,36 @@
+.check_in{
+  .check-inner{
+    padding: 20px 0 0 0;
+    .staff-info{
+      border-top: 1px solid #e0e0e0;
+      padding-top: 30px;
+      margin-top: 20px;
+      .btns{
+        .el-button{
+          float: right;
+        }
+      }
+    }
+    .bed_mng_staff{
+      padding-top: 10px;
+      .el-radio.is-bordered{
+        padding: 0 5px 0 10px;
+        width: 90px;
+        height: 40px;
+        line-height: 38px;
+        margin: 20px 20px 0 0;
+        text-align: center;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        .el-radio__input{
+          display: none;
+        }
+        .el-radio__label{
+          padding: 0;
+          display: inline-block;
+        }
+      }
+    }
+  }
+}

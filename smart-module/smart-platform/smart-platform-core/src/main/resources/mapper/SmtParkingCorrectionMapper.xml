@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtParkingCorrectionMapper">
+
+  <resultMap id="smtParkingCorrectionMap" type="com.tce.smart.platform.core.entity.SmtParkingCorrection">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="totalCount" column="total_count"/>
+                        <result property="useCount" column="use_count"/>
+                        <result property="createTime" column="create_time"/>
+            </resultMap>
+            <select id="getParkingCountInfo" resultType="com.tce.smart.platform.core.vo.ParkingCorrectionVO">
+	SELECT
+					SUM (SPC.TOTAL_COUNT) AS TOTAL_COUNT,
+					(SUM (SPC.TOTAL_COUNT) - SUM (SPC.USE_COUNT)) AS FREE_COUNT
+				FROM
+					SMT_PARKING_CORRECTION SPC
+
+				<if test="parkId != null">
+					where PARK_ID=#{parkId}
+				</if>
+
+
+
+
+
+            </select>
+</mapper>

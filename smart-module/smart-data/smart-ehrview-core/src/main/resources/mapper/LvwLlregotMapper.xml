@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.LvwLlregotMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.LvwLlregot">
+        <result column="badge" property="badge" />
+        <result column="Name" property="Name" />
+        <result column="compid" property="compid" />
+        <result column="compname" property="compname" />
+        <result column="DepID" property="DepID" />
+        <result column="depname" property="depname" />
+        <result column="jobid" property="jobid" />
+        <result column="jobname" property="jobname" />
+        <result column="TWID" property="twid" />
+        <result column="otterm" property="otterm" />
+        <result column="OT2STARTTIME" property="ot2starttime" />
+        <result column="OT2ENDTIME" property="ot2endtime" />
+        <result column="OT4STARTTIME" property="ot4starttime" />
+        <result column="OT4ENDTIME" property="ot4endtime" />
+        <result column="OT5STARTTIME" property="ot5starttime" />
+        <result column="OT5ENDTIME" property="ot5endtime" />
+        <result column="amount" property="amount" />
+        <result column="reason" property="reason" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        badge, Name, compid, compname, DepID, depname, jobid, jobname, TWID AS twid, otterm, OT2STARTTIME AS ot2starttime, OT2ENDTIME AS ot2endtime, OT4STARTTIME AS ot4starttime, OT4ENDTIME AS ot4endtime, OT5STARTTIME AS ot5starttime, OT5ENDTIME AS ot5endtime, amount, reason
+    </sql>
+
+</mapper>

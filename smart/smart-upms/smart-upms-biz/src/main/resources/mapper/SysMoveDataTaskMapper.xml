@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper
+	namespace="com.tce.smart.admin.mapper.SysMoveDataTaskMapper">
+
+	<!-- 转移数据 -->
+	<select id="moveData">
+		INSERT INTO
+			${destTable}
+		SELECT *
+			FROM ${srcTable}
+			WHERE ${dateColumn} <![CDATA[<]]> #{endDate}
+	</select>
+
+	<!-- 删除数据 -->
+	<delete id="deleteData">
+		DELETE FROM
+			${tableName}
+		WHERE ${dateColumn} <![CDATA[<]]> #{endDate}
+	</delete>
+
+</mapper>

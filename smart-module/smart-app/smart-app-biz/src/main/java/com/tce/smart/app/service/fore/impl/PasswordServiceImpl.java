@@ -1,0 +1,241 @@
+package com.tce.smart.app.service.fore.impl;
+
+import cn.hutool.core.util.RandomUtil;
+import cn.hutool.json.JSONUtil;
+import com.tce.smart.algorithm.api.dto.req.CompareDTO;
+import com.tce.smart.algorithm.api.dto.req.CompareImageDTO;
+import com.tce.smart.algorithm.api.enums.AlgorithmTypeEnum;
+import com.tce.smart.algorithm.api.enums.FaceTypeEnum;
+import com.tce.smart.algorithm.api.feign.RemoteAlgorithmService;
+import com.tce.smart.app.api.entity.AppUserDevice;
+import com.tce.smart.app.service.AppSmsService;
+import com.tce.smart.app.service.fore.DeviceManageService;
+import com.tce.smart.app.service.fore.PasswordService;
+import com.tce.smart.app.vo.fore.ChackFacePwdVo;
+import com.tce.smart.common.core.constant.SecurityConstants;
+import com.tce.smart.common.core.exception.TCEException;
+import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.core.util.CollectionUtils;
+import com.tce.smart.common.core.util.EncDecryUtils;
+import com.tce.smart.common.core.util.UUIDUtils;
+import com.tce.smart.platform.api.dto.SmtStaffDTO;
+import com.tce.smart.platform.api.dto.resp.StaffInfoRespDTO;
+import com.tce.smart.platform.api.feign.RemoteSmtImageService;
+import com.tce.smart.platform.api.feign.RemoteStaffService;
+import io.netty.util.internal.StringUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 密码服务实现类
+ *
+ * @author mckaywu
+ * @date 2019-06-15 16:11:47
+ */
+@Service
+@Slf4j
+public class PasswordServiceImpl implements PasswordService {
+
+	@Autowired
+	private AppSmsService appSmsService;
+
+	@Autowired
+	private StringRedisTemplate stringRedisTemplate;
+
+	@Autowired
+	private RemoteStaffService remoteStaffService;
+
+	@Autowired
+	private RemoteAlgorithmService remoteAlgorithmService;
+
+	@Autowired
+	private RemoteSmtImageService remoteSmtImageService;
+
+	@Autowired
+	private DeviceManageService deviceManageService;
+
+	@Value("${spring.face.forget-password}")
+	private Double compareValue;
+
+	@Value("${security.auth-code.encode-key:}")
+	private String authCodeEncodeKey;
+
+	@Override
+	public String queryMobile(String badge) {
+		Result<StaffInfoRespDTO> result = remoteStaffService.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN);
+		if (!result.isSuccess() || Objects.isNull(result.getData())) {
+			throw new TCEException(result.getMessage());
+		}
+
+		StaffInfoRespDTO staffInfoVO = result.getData();
+		//String mobile = staffInfoVO.getSmtStaff().getPhone().replaceAll("(\\d{3})\\d{6}(\\d{2})", "$1******$2");
+		String mobile = staffInfoVO.getSmtStaff().getPhone();
+		return mobile;
+	}
+
+	@Override
+	public Boolean sendSmsCode(String badge, String mobile) {
+		// 检查手机号
+		try {
+			checkMobile(badge, mobile);
+		}catch (Exception e){
+			throw new TCEException(e.getMessage());
+		}
+		// 发送短信验证码
+		appSmsService.sendSmsCode(mobile);
+		return Boolean.TRUE;
+	}
+
+	@Override
+	public String verifySmsCode(String badge, String mobile, String smsCode) {
+
+		// 检查手机号
+		checkMobile(badge, mobile);
+
+		// 校验短信验证码
+		appSmsService.verifySmsCode(mobile, smsCode);
+
+		// 短信验证校验成功授权码
+		String verifySuccessCode = saveRedisCode(badge);
+
+		return URLEncoder.encode(EncDecryUtils.encryptByJasypt(verifySuccessCode, authCodeEncodeKey));
+	}
+
+	@Override
+	public ChackFacePwdVo verifyFace(String facePhoto, String deviceNo) {
+		if (StringUtil.isNullOrEmpty(facePhoto) || StringUtil.isNullOrEmpty(deviceNo)) {
+			throw new TCEException("参数不全");
+		}
+
+		List<AppUserDevice> userDeviceList = deviceManageService.queryByDeviceNo(deviceNo);
+		if (CollectionUtils.isEmpty(userDeviceList)) {
+			throw new TCEException("获取设备信息异常");
+		}
+		//只取最近登录过的，优先已绑定的
+		AppUserDevice appUserDevice = userDeviceList.get(0);
+
+		Result<SmtStaffDTO> staffResult;
+		String badge;
+		String staffFaceImgId;
+		try {
+			// 远程调用查询员工信息
+			staffResult = remoteStaffService.getSimpleSttaffByBadge(appUserDevice.getBadge());
+			log.info("remoteStaffService.getSimpleSttaffById.result=={}", staffResult);
+			if (!staffResult.isSuccess() || Objects.isNull(staffResult.getData())) {
+				throw new TCEException("查询员工信息异常");
+			}
+
+			badge = staffResult.getData().getBadge();
+			staffFaceImgId = staffResult.getData().getFacePicId();
+
+			//下载员工人脸图片
+			Result<String> getImageBase64Rs = remoteSmtImageService.getImageBase64ByCode(staffFaceImgId, SecurityConstants.FROM_IN);
+			log.info("forgetPwd.blobService.getBlob completed: Badge=[{}],FacePicId=[{}],success={}", badge, staffFaceImgId, getImageBase64Rs.isSuccess());
+			if (!getImageBase64Rs.isSuccess() || StringUtil.isNullOrEmpty(getImageBase64Rs.getData())) {
+				throw new TCEException("下载员工人脸图异常");
+			}
+
+			CompareDTO compareDTO = new CompareDTO();
+			CompareImageDTO compareImageA = new CompareImageDTO();
+			compareImageA.setImageBase64(facePhoto);
+			compareImageA.setFaceType(FaceTypeEnum.LIVE.getType());
+			CompareImageDTO compareImageB = new CompareImageDTO();
+			compareImageB.setImageBase64(getImageBase64Rs.getData());
+			compareImageB.setFaceType(FaceTypeEnum.LIVE.getType());
+			compareDTO.setCompareImageA(compareImageA);
+			compareDTO.setCompareImageB(compareImageB);
+
+			// 人脸照片1:1对比
+			//log.info("verifyFace 对比请求参数:[{}]",JSONUtil.toJsonStr(compareDTO));
+			Result<com.tce.smart.algorithm.api.dto.resp.CompareDTO> result = remoteAlgorithmService.compare(UUIDUtils.create(),
+					AlgorithmTypeEnum.COMPARE_FACEALL.getType(), compareDTO, SecurityConstants.FROM_IN);
+			log.info("verifyFace 对比相应:[{}]",JSONUtil.toJsonStr(result));
+
+			if (result.isSuccess()) {
+				//小于阀值则认为不是本人
+				if (-1 == (new BigDecimal(String.valueOf(result.getData()))
+						.compareTo(new BigDecimal(compareValue)))) {
+					throw new TCEException("人脸不匹配,请重新拍照");
+				}
+			}
+		} catch (TCEException tce) {
+			throw tce;
+		} catch (Exception e) {
+			log.error("获取员工信息异常", e);
+			throw new TCEException("获取员工信息异常");
+		}
+		String verifySuccessCode = saveRedisCode(badge);
+
+		ChackFacePwdVo chackFacePwdVo = new ChackFacePwdVo();
+		chackFacePwdVo.setUsername(badge);
+		chackFacePwdVo.setPwdUpdateAuthCode(URLEncoder.encode(EncDecryUtils.encryptByJasypt(verifySuccessCode, authCodeEncodeKey)));
+		return chackFacePwdVo;
+	}
+
+	/**
+	 * 生成校验码，并存放redis
+	 * @param badge 员工号
+	 * @return 校验码
+	 */
+	private String saveRedisCode(String badge) {
+		// 授权码
+		String verifySuccessCode = RandomUtil.randomStringUpper(6);
+
+		Map<String, Object> authCodeMap = new HashMap<>();
+		authCodeMap.put(SecurityConstants.PWD_UPDATE_AUTHCODE_SUB_KEY, verifySuccessCode);
+		String pwdUpdateAuthCodeKey = SecurityConstants.APP_PWD_UPDATE_AUTHCODE + badge;
+
+		// 存放redis
+		stringRedisTemplate.opsForValue().set(pwdUpdateAuthCodeKey, JSONUtil.toJsonStr(authCodeMap), 300,
+				TimeUnit.SECONDS);// 5分钟分钟失效
+		return verifySuccessCode;
+	}
+
+	/**
+	 * 检查设备是否已绑定
+	 *
+	 * @param deviceNo 设备号
+	 * @param badge    员工工号
+	 * @return true-已绑定,false-未绑定
+	 */
+	private boolean checkDevcieBind(String deviceNo, String badge) {
+		boolean isBind = false;
+		List<AppUserDevice> bindDeviceList = deviceManageService.queryBindDevice(badge);
+		if (CollectionUtils.isNotEmpty(bindDeviceList)) {
+			for (AppUserDevice tempUserDevice : bindDeviceList) {
+				if (deviceNo.equals(tempUserDevice.getDeviceNo())) {
+					isBind = true;
+					break;
+				}
+			}
+		}
+
+		return isBind;
+	}
+
+	private void checkMobile(String badge, String mobile) {
+		Result<StaffInfoRespDTO> result = remoteStaffService.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN);
+		if (!result.isSuccess() || Objects.isNull(result.getData())) {
+			throw new TCEException("获取员工信息异常");
+		}
+
+		StaffInfoRespDTO staffInfoVO = result.getData();
+		String staffPhone = staffInfoVO.getSmtStaff().getPhone();
+		if (StringUtils.isBlank(staffPhone) || !staffPhone.trim().equals(mobile.trim())) {
+			throw new TCEException("手机号错误，请联系人资管理员，修改预留手机号");
+		}
+	}
+
+}

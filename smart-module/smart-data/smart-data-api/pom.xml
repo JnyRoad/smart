@@ -1,0 +1,38 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.tce</groupId>
+		<artifactId>smart-data</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>smart-data-api</artifactId>
+	<packaging>jar</packaging>
+
+	<description>Data模块Api</description>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-platform-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-core</artifactId>
+		</dependency>
+		<!--mybatis plus extension,包含了mybatis plus core -->
+		<dependency>
+			<groupId>com.baomidou</groupId>
+			<artifactId>mybatis-plus-extension</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-tool</artifactId>
+			<version>${tool.version}</version>
+		</dependency>
+	</dependencies>
+</project>

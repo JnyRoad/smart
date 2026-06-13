@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppContentPictureMapper">
+
+  <resultMap id="appContentPictureMap" type="com.tce.smart.app.entity.AppContentPicture">
+                  <id property="id" column="id"/>
+                        <result property="picName" column="pic_name"/>
+	                    <result property="picBinary" column="pic_binary"/>
+                        <result property="picCode" column="pic_code"/>
+                        <result property="picUrl" column="pic_url"/>
+	                    <result property="picOrder" column="pic_order"/>
+                        <result property="delFlag" column="del_flag"/>
+                        <result property="createTime" column="create_time"/>
+                        <result property="updateTime" column="update_time"/>
+            </resultMap>
+	<!--<insert id="addBootPage" parameterType="com.tce.smart.app.entity.AppContentPicture">
+		insert into APP_CONTENT_PICTURE values
+		(#{pic.id},#{pic.picName},#{pic.picCode},#{pic.picUrl},#{pic.delFlag},#{pic.createTime},#{pic.updateTime})
+	</insert>-->
+</mapper>

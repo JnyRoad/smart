@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwEmphrYsMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwEmphrYs">
+        <result column="Badge" property="Badge" />
+        <result column="Name" property="Name" />
+        <result column="CompID" property="CompID" />
+        <result column="compname" property="compname" />
+        <result column="depid" property="depid" />
+        <result column="depname" property="depname" />
+        <result column="jobid" property="jobid" />
+        <result column="jobname" property="jobname" />
+        <result column="ReportTo" property="ReportTo" />
+        <result column="Status" property="Status" />
+        <result column="statusName" property="statusName" />
+        <result column="EmpType" property="EmpType" />
+        <result column="emptypeName" property="emptypeName" />
+        <result column="JchenID" property="JchenID" />
+        <result column="JchenName" property="JchenName" />
+        <result column="FLCJ" property="flcj" />
+        <result column="joindate" property="joindate" />
+        <result column="LeaDate" property="LeaDate" />
+        <result column="age" property="age" />
+        <result column="BirthDay" property="BirthDay" />
+        <result column="certno" property="certno" />
+        <result column="Gender" property="Gender" />
+        <result column="genderName" property="genderName" />
+        <result column="mobile" property="mobile" />
+        <result column="TEL" property="tel" />
+        <result column="EMAIL" property="email" />
+        <result column="EMERGENCYNAME" property="emergencyname" />
+        <result column="RELATION" property="relation" />
+        <result column="relationName" property="relationName" />
+        <result column="TELEPHONE" property="telephone" />
+        <result column="altertime" property="altertime" />
+        <result column="ezid" property="ezid" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        Badge, Name, CompID, compname, depid, depname, jobid, jobname, ReportTo,
+        Status, statusName, EmpType, emptypeName,
+        JchenID, JchenName, FLCJ, joindate, LeaDate, age,
+        BirthDay, certno, Gender, genderName, mobile, TEL, EMAIL, EMERGENCYNAME,
+        RELATION, relationName, TELEPHONE, altertime,
+        ezid,EID,userid,PZID,e_salarytype,salarytypename,isblacklist
+    </sql>
+
+	<select id="getPage" resultType="com.tce.smart.ehrview.core.entity.EvwEmphrYs">
+		SELECT e.Badge, e.Name, e.CompID, e.compname, e.depid, e.depname, e.jobid, e.jobname, e.ReportTo,
+		e.Status, e.statusName, e.EmpType, e.emptypeName,
+		e.JchenID, e.JchenName, e.FLCJ, e.joindate, e.LeaDate, e.age,
+		e.BirthDay, e.certno, e.Gender, e.genderName, e.mobile, e.TEL, EMAIL, e.EMERGENCYNAME,
+		e.RELATION, e.relationName, e.TELEPHONE, e.altertime,e.residentaddress,e.nation,
+		e.ezid,e.EID,e.userid,e.PZID,e.e_salarytype,e.salarytypename,e.isblacklist,o.depAbbr
+		FROM evw_empHR_ys e
+		LEFT JOIN ovw_YsDep o ON e. depid = o. depid
+		<where>
+			<if test="compId !=null and compId.size>0">
+				and e.CompID in
+				<foreach item="item" index="index" collection="compId" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY e.altertime desc
+	</select>
+</mapper>

@@ -1,0 +1,74 @@
+# 使用说明
+# 1. 使用 docker-compose  宿主机需要配置 host
+# 2. 无需修改源码，根目录  docker-compose up 即可
+# 3. 等待服务启动
+
+version: '3.3'
+services:
+#  smart-redis:
+#    image: redis:4.0.10
+#    restart: always
+#    container_name: smart-redis
+#  #  command: redis-server --requirepass rs10+TCE
+#    ports:
+#      - 6379:6379
+
+  smart-eureka:
+    build:
+      context: ./
+      dockerfile: ./smart-eureka/Dockerfile
+    restart: always
+    container_name: smart-eureka
+    image: smart-eureka
+    ports:
+      - 8761:8761
+    volumes:
+      - /home/tce/smart/logs:/smart-eureka/logs
+
+  smart-config:
+    build:
+      context: ./
+      dockerfile: ./smart-config/Dockerfile
+    restart: always
+    container_name: smart-config
+    image: smart-config
+    ports:
+      - 8888:8888
+    volumes:
+      - /home/tce/smart/logs:/smart-config/logs
+
+  smart-gateway:
+    build:
+      context: ./
+      dockerfile: ./smart-gateway/Dockerfile
+    restart: always
+    container_name: smart-gateway
+    image: smart-gateway
+    ports:
+      - 9990:9990
+    volumes:
+      - /home/tce/smart/logs:/smart-gateway/logs
+
+  smart-auth:
+    build:
+      context: ./
+      dockerfile: ./smart-auth/Dockerfile
+    restart: always
+    container_name: smart-auth
+    image: smart-auth
+    ports:
+      - 3000:3000
+    volumes:
+      - /home/tce/smart/logs:/smart-auth/logs
+
+  smart-upms:
+    build:
+      context: ./
+      dockerfile: ./smart-upms/smart-upms-biz/Dockerfile
+    restart: always
+    image: smart-upms
+    container_name: smart-upms
+    ports:
+      - 4000:4000
+    volumes:
+      - /home/tce/smart/logs:/smart-upms/logs
