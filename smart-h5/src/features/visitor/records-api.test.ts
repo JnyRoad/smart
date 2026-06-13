@@ -43,13 +43,13 @@ describe('mock 开关', () => {
     expect(res.data?.records.length).toBeGreaterThanOrEqual(5)
   })
 
-  it('开关开：sendRecordSms 仍走真实短信 POST', async () => {
+  it('开关开：sendRecordSms 仍复用访客申请短信 GET', async () => {
     setMockFlag(true)
     await sendRecordSms('13700001234')
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('/platform/admittance/apply/app/sendRecordSms')
-    expect(init.method).toBe('POST')
-    expect(JSON.parse(init.body as string)).toEqual({ mobile: '13700001234' })
+    expect(url).toBe('/app/sms/send/getCode/13700001234')
+    expect(init.method).toBe('GET')
+    expect(init.body).toBeUndefined()
   })
 
   it('开关开：详情按 applyId 返回对应演示态', async () => {
