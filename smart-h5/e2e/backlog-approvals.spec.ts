@@ -131,8 +131,8 @@ const REPAIR_DETAIL = {
   faultDesc: '不制冷',
   createTime: '2026-06-10 10:00',
   statusDesc: '待接单',
-  // 原始 base64（无 data: 前缀）——toImageSrc 应补前缀渲染
-  faultImgs: ['aGk='],
+  // 旧详情字段是 imgs；原始 base64（无 data: 前缀）应补前缀渲染。
+  imgs: ['aGk='],
   approvalProcess: [],
   repairReplyList: [
     { replyStatusDesc: '维修成功', replyTime: '2026-06-11 15:00', replyName: '维修工老李', replyDesc: '已加氟' },
