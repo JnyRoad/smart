@@ -316,7 +316,7 @@ function RecordsInner() {
           </div>
 
           {visible.length === 0 ? (
-            <div className="py-8">
+            <div className="py-8" role="status" aria-label="暂无申请记录">
               <ErrorBlock status="empty" title="暂无申请记录" description="" />
               <button
                 type="button"

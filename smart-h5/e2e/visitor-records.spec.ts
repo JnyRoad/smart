@@ -80,6 +80,31 @@ async function verifyToList(page: Page) {
   await expect(page.getByText('当前查询：')).toBeVisible()
 }
 
+async function expectEmptyStateCentered(page: Page, label: string) {
+  const emptyState = page.getByRole('status', { name: label })
+  await expect(emptyState).toBeVisible()
+
+  const metrics = await emptyState.evaluate((node) => {
+    const visual = node.querySelector('.adm-error-block-image svg, .adm-error-block-image img')
+    const title = node.querySelector('.adm-error-block-description-title')
+    const stateBox = node.getBoundingClientRect()
+    const visualBox = visual?.getBoundingClientRect()
+    const titleBox = title?.getBoundingClientRect()
+
+    if (!visualBox || !titleBox) return null
+
+    return {
+      stateCenter: stateBox.left + stateBox.width / 2,
+      visualCenter: visualBox.left + visualBox.width / 2,
+      titleCenter: titleBox.left + titleBox.width / 2,
+    }
+  })
+
+  expect(metrics).not.toBeNull()
+  expect(Math.abs(metrics!.visualCenter - metrics!.stateCenter)).toBeLessThanOrEqual(1)
+  expect(Math.abs(metrics!.visualCenter - metrics!.titleCenter)).toBeLessThanOrEqual(1)
+}
+
 test('记录列表：验证 → 列表渲染 → 筛选 → 换个手机号', async ({ page }) => {
   await disableMock(page)
   await mockListApis(page)
@@ -106,7 +131,7 @@ test('记录列表：验证 → 列表渲染 → 筛选 → 换个手机号', as
   await expect(cards).toHaveCount(1)
   await expect(page.getByText('刘**')).toBeVisible()
   await page.getByRole('tab', { name: '已过期' }).click()
-  await expect(page.getByText('暂无申请记录')).toBeVisible()
+  await expectEmptyStateCentered(page, '暂无申请记录')
   await page.getByRole('tab', { name: '全部' }).click()
   await expect(cards).toHaveCount(3)
 
