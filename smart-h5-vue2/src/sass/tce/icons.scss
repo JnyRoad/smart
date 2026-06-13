@@ -1,0 +1,90 @@
+@use "./variable" as *;
+@use "./mixin" as *;
+@use "../mixin" as app;
+
+.#{$mainname}-icons {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  // overflow: hidden;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  &--before {
+    &::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 100%;
+      height: 100%;
+      transform: translate(-50%, -50%);
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    &::after {
+      display: none;
+    }
+  }
+}
+
+$iconBase: '~@/assets/icons/';
+
+/**
+ * 创建图标
+ */
+ @mixin iconCreat($key, $url, $width, $height) {
+  .#{$mainname}-icons {
+    &--#{$key} {
+      position: relative;
+      width: $width;
+      height: $height;
+      display: inline-block;
+      &::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 100%;
+        height: 100%;
+        transform: translate(-50%, -50%);
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-image: url($url);
+      }
+      &--before {
+        &::before {
+          content: "";
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 100%;
+          height: 100%;
+          transform: translate(-50%, -50%);
+          background-size: contain;
+          background-position: center;
+          background-repeat: no-repeat;
+        }
+        &::after {
+          display: none;
+        }
+      }
+    }
+  }
+}
+
+@include iconCreat('edit', $iconBase + 'icon_edit.png', app.rem(26.8), app.rem(28.3));
+@include iconCreat('del', $iconBase + 'icon_del.png', app.rem(27.6), app.rem(29.5));
+@include iconCreat('scan', $iconBase + 'icon_scan.png', app.rem(43), app.rem(37));
+@include iconCreat('search', $iconBase + 'icon_search.png', app.rem(41), app.rem(41));

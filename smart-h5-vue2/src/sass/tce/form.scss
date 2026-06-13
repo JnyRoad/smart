@@ -1,0 +1,24 @@
+// form 表单
+
+@use "./variable" as *;
+@use "./mixin" as *;
+
+.#{$mainname}-form {
+  &-item {
+    display: flex;
+    align-items: center;
+  }
+  &__label {
+    font-size: 14px;
+    color: #666;
+    &--align-left {
+      text-align: left;
+    }
+  }
+  &__value {
+    font-size: 14px;
+    flex: 1;
+    position: relative;
+    color: #333;
+  }
+}

@@ -1,0 +1,58 @@
+@use 'sass:list';
+@use 'sass:math';
+@use './variable' as *;
+@forward './variable';
+@forward './tce/mixin';
+
+@mixin box-shadow {
+  box-shadow: 0 0 .05rem rgba(22, 36, 73, 0.02);
+}
+
+@mixin margin-top--border {
+  border-top: 10px solid #eee;
+}
+
+@mixin margin-bottom--border {
+  border-bottom: 10px solid #eee;
+}
+
+@mixin is-hover {
+  &.is-hover {
+    background: $TCE-Hover-Color;
+  }
+}
+
+@mixin background($url) {
+  background-image: url($url);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 100% 100%;
+}
+
+/**
+ * px 转换为rem
+ * @param {Object} $size
+ */
+@function px2rem($sizes, $unitDefault: 1rem) {
+  $result: null;
+  @each $size in $sizes {
+    $unit: math.unit($size);
+    $size: math.div(math.div(math.div($size, $size * 0 + 1), 100), 2);
+    $result: list.append($result, $size * $unitDefault);
+  }
+  @return $result;
+}
+
+/**
+ * px 转换为rem
+ * @param {Object} $size
+ */
+@function rem($sizes, $unitDefault: 1rem) {
+  $result: null;
+  @each $size in $sizes {
+    $unit: math.unit($size);
+    $size: math.div(math.div(math.div($size, $size * 0 + 1), 100), 2);
+    $result: list.append($result, $size * $unitDefault);
+  }
+  @return $result;
+}

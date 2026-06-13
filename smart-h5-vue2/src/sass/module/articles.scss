@@ -1,0 +1,49 @@
+@use "../variable" as *;
+// 文章 相关布局
+.articles {
+  $articlesFontTitle: 18px;
+  $articlesFontSize: 15px;
+  $articlesFontWeight: 700;
+  $articlesColor: #666;
+  $articlesTitle: #333;
+  $articlesPadding: 5px;
+  font-size: $articlesFontSize;
+  line-height: 1.4;
+  .line {
+    padding-bottom: 20px;
+  }
+  .padding-v {
+    padding: $articlesPadding 0;
+  }
+  .padding-c {
+    padding: 0 $articlesPadding;
+  }
+  .padding-left {
+    padding-left: $articlesPadding;
+  }
+  .center {
+    text-align: center;
+  }
+  .title {
+    font-size: $articlesFontTitle;
+    font-weight: $articlesFontWeight;
+  }
+  .indent {
+    text-indent: 2em;
+  }
+  .font-21 {
+    font-size: 21px;
+  }
+  .font-18 {
+    font-size: 18px;
+  }
+  .font-14 {
+    font-size: 14px;
+  }
+  .font-12 {
+    font-size: 12px;
+  }
+  .font-w {
+    font-weight: $articlesFontWeight;
+  }
+}

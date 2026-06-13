@@ -1,0 +1,48 @@
+@use "./variable" as *;
+@use "./mixin" as *;
+
+.#{$mainname}-list {
+  &-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    @include border-bottom();
+    &.clearance::after {
+      left: 0;
+    }
+    &.is-noborder {
+      &::after {
+        border-bottom-color: transparent;
+      }
+    }
+  }
+
+
+  &__arrow {
+    position: absolute;
+    right:12px;
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    @include arrow();
+  }
+
+  &__inner {
+    flex: 1;
+  }
+
+
+  &-group {
+    &__prefix {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+    }
+    &__suffix {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}

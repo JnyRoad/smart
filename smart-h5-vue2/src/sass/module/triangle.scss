@@ -1,0 +1,29 @@
+.triangle {
+  position: relative;
+  width: 10px;
+  overflow: hidden;
+  &:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    border: 5px solid transparent;
+  }
+
+  &--bottom {
+    height: 5px;
+    &:after {
+      top: 0;
+      border-top: 5px solid #999;
+    }
+  }
+  &--top {
+    height: 5px;
+    &:after {
+      top: -5px;
+      border-bottom: 5px solid #999;
+    }
+  }
+}

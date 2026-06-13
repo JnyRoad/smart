@@ -1,0 +1,10 @@
+@use "./variable" as *;
+@use "./mixin" as *;
+
+@include button();
+@include btnCreat(primary, #fff, $color-primary, transparent);
+@include btnCreat(info, #fff, $color-info, transparent);
+@include btnCreat(warning, #fff, $color-warning, transparent);
+@include btnCreat(danger, #fff, $color-danger, transparent);
+@include btnCreat(success, #fff, $color-success, transparent);
+@include btnCreat(textbtn, #333, transparent, transparent);

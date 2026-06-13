@@ -1,0 +1,56 @@
+@use "../mixin" as *;
+/**
+ * 状态标签
+ */
+.status-tag {
+  position: relative;
+  min-width: 55px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  font-size: 13px;
+  padding: 0 5px;
+  @include border(3px);
+  &--default {
+    background: #ffeadb;
+    color: $TCE-Color-Warning;
+    // &::after {
+    //   border-color: $TCE-Color-Warning;
+    // }
+  }
+  &--doing {
+    background: #e9f1ff;
+    color: $TCE-Color-Primary;
+    // &::after {
+    //   border-color: $TCE-Color-Primary;
+    // }
+  }
+  &--adopt {
+    background: #e7faf3;
+    color: $TCE-Color-Success;
+    // &::after {
+    //   border-color: $TCE-Color-Success;
+    // }
+  }
+  &--fail {
+    background: #fde9ea;
+    color: $TCE-Color-Danger;
+    // &::after {
+    //   border-color: $TCE-Color-Danger;
+    // }
+  }
+  &--cancel {
+    background: #f2f2f2;
+    color: #c0c0c0;
+    // &::after {
+    //   border-color: #c0c0c0;
+    // }
+  }
+  &--gray {
+    background: #E9EEF4;
+    color: #6d7c8e;
+    // &::after {
+    //   border-color: #c0c0c0;
+    // }
+  }
+}

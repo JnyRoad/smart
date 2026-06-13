@@ -1,0 +1,91 @@
+# 忽略匹配下列规则的Git 提交 V2.1.0
+### gradle ###
+.gradle
+.vscode
+/build/
+!**/src/frontend/build/
+!**/src/frontend/build/**
+!gradle/wrapper/gradle-wrapper.jar
+
+### STS ###
+.settings/
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+rebel.xml
+
+### NetBeans ###
+nbproject/private/
+nbbuild/
+dist/
+dist-face/
+dist-monitor/
+dist-h5/
+nbdist/
+.nb-gradle/
+
+### maven ###
+target/
+*.war
+*.ear
+*.zip
+*.tar
+*.tar.gz
+
+### logs ####
+**/logs/**
+*.log
+
+### temp ignore ###
+*.cache
+*.diff
+*.patch
+*.tmp
+*.java~
+*.properties~
+*.xml~
+
+### system ignore ###
+.DS_Store
+Thumbs.db
+Servers
+.metadata
+upload
+gen_code
+
+### node ###
+node_modules/
+package-lock.json
+yarn.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+.yarn/*
+!.yarn/releases/
+!.yarn/plugins/
+!.yarn/sdks/
+!.yarn/versions/
+.cache/
+.eslintcache
+coverage/
+
+### local env ###
+.env
+.env.local
+.env.*.local
+
+### local agent/worktree scratch ###
+.claude/worktrees/

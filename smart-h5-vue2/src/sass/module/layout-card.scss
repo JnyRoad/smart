@@ -1,0 +1,48 @@
+@use '../mixin' as *;
+
+/**
+ * .layout-card
+ */
+.layout {
+  &-card {
+    padding: $TCE-Page-Padding-Left-Right;
+    &--shadow {
+      @include box-shadow();
+    }
+    &__header {
+      display: flex;
+      align-items: stretch;
+      font-size: 18px;
+      line-height: 1;
+      position: relative;
+      &::before {
+        position: absolute;
+        left: 0;
+        top: 1px;
+        content: '';
+        display: block;
+        width: 4px;
+        height: 100%;
+        background: #ec6c00;
+      }
+    }
+    &__title {
+      padding-left: 10px;
+      color: #333333;
+    }
+    &__inner {
+    }
+  }
+}
+
+.layout {
+  &-card-item {
+    display: flex;
+    align-items: center;
+    &__field {
+    }
+    &__value {
+      flex: 1;
+    }
+  }
+}
