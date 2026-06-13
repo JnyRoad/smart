@@ -1,0 +1,52 @@
+// form 表单
+.business-form {
+}
+
+.business-form-item {
+  display: flex;
+  margin-bottom: 5px;
+  position: relative;
+  background: #fff;
+}
+.business-form-item.textarea {
+  padding-top: 12px;
+  .business-form-item__label {
+    line-height: 1.2;
+    font-size: 14px;
+  }
+  .tce-textarea {
+    height: 87px;
+    padding: 0 12px;
+    textarea {
+      text-align: right;
+      line-height: 1.2;
+      font-size: 14px;
+    }
+    .tce-textarea__vaue {
+      text-align: right;
+      line-height: 1.2;
+      font-size: 14px;
+    }
+  }
+}
+.business-form-item__label {
+  font-size: 14px;
+  color: #666;
+  &--align-left {
+    text-align: left;
+  }
+}
+.business-form-item__value {
+  font-size: 14px;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  color: #333;
+}
+
+.business-form-group {
+  margin-bottom: 5px;
+  .business-form-item {
+    margin-bottom: 0;
+  }
+}

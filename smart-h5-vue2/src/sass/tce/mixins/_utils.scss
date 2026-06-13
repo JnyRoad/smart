@@ -1,0 +1,32 @@
+@mixin vertical-center() {
+  &::after {
+    display: inline-block;
+    content: '';
+    height: 100%;
+    vertical-align: middle;
+  }
+}
+
+@mixin vertical-top() {
+  &::after {
+    display: inline-block;
+    content: '';
+    height: 100%;
+    vertical-align: top;
+  }
+}
+
+@mixin vertical-bottom() {
+  &::after {
+    display: inline-block;
+    content: '';
+    height: 100%;
+    vertical-align: bottom;
+  }
+}
+
+@mixin ellipsis() {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

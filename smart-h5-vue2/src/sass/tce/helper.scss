@@ -1,0 +1,94 @@
+@use "./variable" as *;
+@use "./mixin" as *;
+
+// 使用after伪类实现箭头
+.#{$mainname}-arrow {
+  position: relative;
+  &--default {
+    &::after {
+      position: absolute;
+      top:0;
+      bottom: 0;
+      right:0;
+      margin: auto;
+      content: "";
+      display: block;
+      @include arrow();
+    }
+  }
+  &__target {
+    @include arrow();
+  }
+}
+
+// 边框类 需要父类设置 position
+.#{$mainname}-border {
+  position: relative;
+  // 使用after伪类实现全边框
+  &--default {
+    @include border(0);
+  }
+
+  // 使用after伪类实现底部边框
+  &--bottom {
+    @include border-bottom();
+    &__target {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      z-index: 1;
+      width: 200%;
+      transform: scale(0.5);
+      transform-origin: 0 0;
+      border-bottom: 1px solid #eee;
+      &.clearance {
+        left: 12px;
+      }
+    }
+  }
+
+  &--top {
+    @include border-top();
+    &__targettop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      width: 200%;
+      transform: scale(0.5);
+      transform-origin: 0 0;
+      border-top: 1px solid #eee;
+      &.clearance {
+        left: 12px;
+      }
+    }
+  }
+
+  // 使用after伪类实现底部边框
+  &--right {
+    @include border-right();
+    &__target {
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: 1;
+      height: 200%;
+      transform: scale(0.5);
+      transform-origin: 0 0;
+      border-right: 1px solid #eee;
+    }
+  }
+  &--left {
+    @include border-left();
+    &__target {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      height: 200%;
+      transform: scale(0.5);
+      transform-origin: 0 0;
+      border-left: 1px solid #eee;
+    }
+  }
+}

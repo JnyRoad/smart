@@ -1,0 +1,45 @@
+@use "./variable" as *;
+@use "./mixin" as *;
+
+.#{$mainname}-notice {
+  height: 30px;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  background: #fefcec;
+  position: relative;
+  &.is-group {
+    .#{$mainname}-notice-inner {
+      padding-left: 30px;
+    }
+  }
+  &-inner {
+    line-height:30px;
+    color: #fa6028;
+    font-size: 14px;
+  }
+  &-group {
+    &__prefix {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 99;
+      width: 30px;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    &__suffix {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 30px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+  }
+}

@@ -1,0 +1,12 @@
+@use "../mixin" as *;
+
+@mixin d($w, $h) {
+  width: rem($w);
+  height: rem($h);
+}
+
+$iconBase: '~@/assets/icons/';
+
+@function getIconsUrl($url) {
+  @return $iconBase + $url;
+}

@@ -1,0 +1,37 @@
+@forward "./mixins/clear-button-border";
+@forward "./mixins/btn";
+@forward "./mixins/utils";
+@forward "./mixins/arrow";
+@forward "./mixins/arrow-solid";
+@forward "./mixins/border";
+
+/**
+ * 设置icon图片
+ */
+@mixin set-icon($url, $before: false) {
+  @if $before {
+    &::before {
+      background-image: url($url);
+    }
+  } @else {
+    &::after {
+      background-image: url($url);
+    }
+  }
+}
+
+/**
+ * 设置icon图片
+ */
+@mixin set-icon-base($url: "", $before: false) {
+  $url:$url;
+  @if $before {
+    &::before {
+      background-image: url($url);
+    }
+  } @else {
+    &::after {
+      background-image: url($url);
+    }
+  }
+}
