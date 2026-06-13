@@ -1,0 +1,27 @@
+# Backend release artifact manifest.
+#
+# Format:
+#   service|path/to/spring-boot-executable.jar
+#
+# Only list deployable Spring Boot executable jars. Do not add api/core/library
+# jars here. The build script rejects jars that do not contain the Spring Boot
+# JarLauncher manifest entry.
+#
+# FileReceiver writes its Spring Boot executable jar to build/file.jar; its
+# target/file.jar is only the plain Maven jar. smart-transfer and smart-file-biz
+# currently build plain Maven jars in the inspected baseline. Fix their POM
+# packaging before adding them to this list.
+smart-gateway|smart/smart-gateway/target/smart-gateway.jar
+smart-auth|smart/smart-auth/target/smart-auth.jar
+smart-upms-biz|smart/smart-upms/smart-upms-biz/target/smart-upms-biz.jar
+smart-app-biz|smart-module/smart-app/smart-app-biz/target/smart-app-biz.jar
+smart-platform-biz|smart-module/smart-platform/smart-platform-biz/target/smart-platform-biz.jar
+smart-data-biz|smart-module/smart-data/smart-data-biz/target/smart-data-biz.jar
+smart-bridge-biz|smart-module/smart-bridge/smart-bridge-biz/target/smart-bridge-biz.jar
+smart-bridge-isc-biz|smart-module/smart-bridge-isc/smart-bridge-isc-biz/target/smart-bridge-isc-biz.jar
+smart-bridge-concentrator-biz|smart-module/smart-bridge-concentrator/smart-bridge-concentrator-biz/target/smart-bridge-concentrator-biz.jar
+smart-algorithm-biz|smart-module/smart-algorithm/smart-algorithm-biz/target/smart-algorithm-biz.jar
+smart-push-biz|smart-module/smart-push/smart-push-biz/target/smart-push-biz.jar
+smart-dispatcher-biz|smart-module/smart-dispatcher/smart-dispatcher-biz/target/smart-dispatcher-biz.jar
+smart-schedule|smart-module/smart-schedule/target/smart-schedule.jar
+file|smart-module/FileReceiver/build/file.jar

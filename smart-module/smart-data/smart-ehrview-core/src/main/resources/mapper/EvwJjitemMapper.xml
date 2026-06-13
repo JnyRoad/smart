@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwJjitemMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwJjitem">
+		<result column="ID" property="JJItemId" />
+        <result column="EZID" property="EZID" />
+        <result column="empzone" property="empzone" />
+        <result column="ZRDep" property="ZRDep" />
+        <result column="ZRDepName" property="ZRDepName" />
+        <result column="JJItem" property="JJItem" />
+        <result column="JJR" property="JJR" />
+        <result column="JJRName" property="JJRName" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        ID,EZID, empzone, ZRDep, ZRDepName, JJItem, JJR, JJRName
+    </sql>
+
+    <select id="getEvwJjitem" parameterType="int" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"></include>
+        FROM evw_JJitem
+        WHERE evw_JJitem.EZID = #{ezid}
+        ORDER BY evw_JJitem.ZRDep DESC
+    </select>
+
+</mapper>

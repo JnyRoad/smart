@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtCommonSDMapper">
+
+	<resultMap id="commonSDRecord" type="com.tce.smart.platform.core.dto.commonsd.CommonSDRecordDTO">
+		<id property="id" column="id"/>
+		<result property="sdName" column="SD_NAME"/>
+		<result property="categoryId" column="CATEGORY_ID"/>
+		<result property="dormitoryId" column="DORMITORY_ID"/>
+		<result property="dormitoryName" column="DORMITORY_NAME"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="roomIdList" column="ROOM_LIST"/>
+	</resultMap>
+
+	<select id="getCommonSDCategoryRecord" parameterType="com.tce.smart.platform.core.dto.SmtSdMeterreadDTO" resultMap="commonSDRecord">
+		select csd.ID,csd.SD_NAME,csd.CATEGORY_ID,csd.DORMITORY_ID,dor.DORMITORY_NAME,csd.PARK_ID,
+		park.PARK_NAME,csd.ROOM_LIST
+		from SMT_COMMON_SD csd
+		left join SMT_PARK park on csd.PARK_ID=park.ID
+		left join SMT_DORMITORY dor on csd.DORMITORY_ID=dor.ID
+		where csd.STATUS=1
+		<if test="categoryId!=null">
+			and csd.CATEGORY_ID=#{categoryId}
+		</if>
+		<if test="park!=null and park.size>0">
+			and csd.PARK_ID in
+			<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		order by csd.ID asc
+	</select>
+
+	<select id="getAllCommonSDCategoryRecord" parameterType="com.tce.smart.platform.core.dto.SmtSdMeterreadDTO" resultMap="commonSDRecord">
+		select csd.ID,csd.SD_NAME,csd.CATEGORY_ID,csd.DORMITORY_ID,dor.DORMITORY_NAME,csd.PARK_ID,
+		park.PARK_NAME,csd.ROOM_LIST
+		from SMT_COMMON_SD csd
+		inner join SMT_COMMON_SD_METERREAD csmd on csd.ID=csmd.COMMON_ID
+		left join SMT_PARK park on csd.PARK_ID=park.ID
+		left join SMT_DORMITORY dor on csd.DORMITORY_ID=dor.ID
+		where csd.STATUS=1
+		<if test="parkId!=null">
+			and csd.PARK_ID=#{parkId}
+		</if>
+		<if test="dormitoryId!=null">
+			and csd.DORMITORY_ID=#{dormitoryId}
+		</if>
+		<if test="categoryId!=null">
+			and csd.CATEGORY_ID=#{categoryId}
+		</if>
+		<if test="meterMonth!=null">
+			and csmd.METER_MONTH=#{meterMonth}
+		</if>
+		<if test="park!=null and park.size>0">
+			and csd.PARK_ID in
+			<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		order by csd.ID asc
+	</select>
+</mapper>

@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtStaffRechargeMapper">
+
+	<resultMap id="smtStaffRechargeMap" type="com.tce.smart.platform.core.entity.manage.SmtStaffRecharge">
+		<id property="id" column="ID"/>
+		<result property="badge" column="BADGE"/>
+		<result property="account" column="ACCOUNT"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="syncStatus" column="SYNC_STATUS"/>
+		<result property="blank" column="BLANK"/>
+		<result property="checkMonth" column="CHECK_MONTH"/>
+		<result property="shouldOn" column="SHOULD_ON"/>
+		<result property="actualOn" column="ACTUAL_ON"/>
+		<result property="standard" column="STANDARD"/>
+	</resultMap>
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.vo.RechargePageVO">
+		select distinct re.id,re.SYNC_STATUS, re.CHECK_MONTH, re.SHOULD_ON, re.ACTUAL_ON,RE.BLANK,
+		re.badge,st.comp_Id,
+		re.STANDARD, re.ACCOUNT, re.RECHARGE_TYPE ,st.create_time, st.dep_name, st.comp_name, st.name,
+		st.WELFARE_LEVEL||'-'||st.JCHE_NAME as welfareLevel
+		from smt_staff_recharge re
+		left join smt_staff st on st.badge = re.badge
+		left join smt_park_bu spb on st.comp_id = spb.comp_id
+		<where>
+			<if test="query.name != null and query.name != ''">
+				AND ST.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.rechargeType != null and query.rechargeType != ''">
+				AND re.RECHARGE_TYPE = #{query.rechargeType}
+			</if>
+			<if test="query.badges != null and query.badges != ''">
+				AND re.badge = #{query.badges}
+			</if>
+			<if test="query.checkMonth != null">
+				AND re.CHECK_MONTH = #{query.checkMonth}
+			</if>
+			<if test="query.depId != null and query.depId != ''">
+				AND ST.DEP_ID = #{query.depId}
+			</if>
+			<if test="query.syncStatus != null and query.syncStatus != ''">
+				AND re.SYNC_STATUS = #{query.syncStatus}
+			</if>
+			<if test="query.compId != null and query.compId != '' ">
+				AND ST.COMP_ID = #{query.compId}
+			</if>
+			<if test="query.compIds != null and query.compIds.size > 0 ">
+				AND ST.COMP_ID IN
+				<foreach collection="query.compIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND SPB.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.startEntryTime != null and query.endEntryTime != null">
+				AND st.create_time BETWEEN to_date(#{query.startEntryTime},'yyyy-mm-dd') and
+				to_date(#{query.endEntryTime},'yyyy-mm-dd')
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SPB.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.badgeList != null and query.badgeList.size > 0">
+				AND re.badge IN
+				<foreach collection="query.badgeList" item="badge" open="(" separator="," close=")">
+					#{badge}
+				</foreach>
+			</if>
+			<if test="query.isAccount != null and query.isAccount != ''  and query.isAccount == 2  "  >
+				AND re.ACCOUNT = 0
+			</if>
+			<if test="query.isAccount != null and query.isAccount != ''  and query.isAccount == 1  "  >
+				AND re.ACCOUNT != 0
+			</if>
+		</where>
+		order by re.CHECK_MONTH desc
+	</select>
+
+	<select id="getList" resultType="com.tce.smart.platform.core.vo.RechargePageVO">
+		select distinct re.id,re.SYNC_STATUS, re.CHECK_MONTH, re.SHOULD_ON, re.ACTUAL_ON,
+		re.badge,st.comp_Id,st.dep_Id,
+		re.STANDARD, re.ACCOUNT, re.RECHARGE_TYPE ,st.create_time, st.dep_name, st.comp_name, st.name,
+		st.WELFARE_LEVEL||'-'||st.JCHE_NAME as welfareLevel
+		from smt_staff_recharge re
+		left join smt_staff st on st.badge = re.badge
+		left join smt_park_bu spb on st.comp_id = spb.comp_id
+		<where>
+			re.ACCOUNT != 0
+			<if test="query.name != null and query.name != ''">
+				AND ST.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.rechargeType != null and query.rechargeType != ''">
+				AND re.RECHARGE_TYPE = #{query.rechargeType}
+			</if>
+			<if test="query.badgeList != null and query.badgeList.size > 0">
+				AND re.badge IN
+				<foreach collection="query.badgeList" item="badge" open="(" separator="," close=")">
+					#{badge}
+				</foreach>
+			</if>
+			<if test="query.badges != null and query.badges != ''">
+				AND re.badge = #{query.badges}
+			</if>
+			<if test="query.checkMonth != null">
+				AND re.CHECK_MONTH = #{query.checkMonth}
+			</if>
+			<if test="query.depId != null and query.depId != ''">
+				AND ST.DEP_ID = #{query.depId}
+			</if>
+			<if test="query.syncStatus != null and query.syncStatus != ''">
+				AND re.SYNC_STATUS = #{query.syncStatus}
+			</if>
+			<if test="query.startEntryTime != null and query.endEntryTime != null">
+				AND st.create_time BETWEEN to_date(#{query.startEntryTime},'yyyy-mm-dd') and
+				to_date(#{query.endEntryTime},'yyyy-mm-dd')
+			</if>
+			<if test="query.compId != null and query.compId != '' ">
+				AND ST.COMP_ID = #{query.compId}
+			</if>
+			<if test="query.compIds != null and query.compIds.size > 0">
+				AND ST.COMP_ID IN
+				<foreach collection="query.compIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND SPB.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SPB.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		order by re.CHECK_MONTH desc
+	</select>
+
+	<select id="getListByIds" resultType="com.tce.smart.platform.core.vo.RechargePageVO">
+		select distinct re.id,re.SYNC_STATUS, re.CHECK_MONTH, re.SHOULD_ON, re.ACTUAL_ON,
+		re.badge,st.comp_Id,st.dep_Id,
+		re.STANDARD, re.ACCOUNT, re.RECHARGE_TYPE ,st.create_time, st.dep_name, st.comp_name, st.name
+		from smt_staff_recharge re
+		left join smt_staff st on st.badge = re.badge
+		<where>
+			re.ACCOUNT != 0
+			<if test="ids != null and ids.size > 0">
+				AND RE.ID IN
+				<foreach collection="ids" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		order by re.CHECK_MONTH desc
+	</select>
+
+	<delete id="deleteInfo">
+		delete from smt_staff_recharge where id in
+		(select re.id
+		from smt_staff_recharge re
+		left join smt_staff st on st.badge = re.badge
+		left join smt_park_bu spb on st.comp_id = spb.comp_id
+		<where>
+			<if test="query.name != null and query.name != ''">
+				AND ST.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.rechargeType != null and query.rechargeType != ''">
+				AND re.RECHARGE_TYPE = #{query.rechargeType}
+			</if>
+			<if test="query.badgeList != null and query.badgeList.size > 0">
+				AND re.badge IN
+				<foreach collection="query.badgeList" item="badge" open="(" separator="," close=")">
+					#{badge}
+				</foreach>
+			</if>
+			<if test="query.badges != null and query.badges != ''">
+				AND re.badge = #{query.badges}
+			</if>
+			<if test="query.isAccount != null and query.isAccount != ''  and query.isAccount == 2  "  >
+				AND re.ACCOUNT = 0
+			</if>
+			<if test="query.isAccount != null and query.isAccount != ''  and query.isAccount == 1  "  >
+				AND re.ACCOUNT != 0
+			</if>
+			<if test="query.checkMonth != null">
+				AND re.CHECK_MONTH = #{query.checkMonth}
+			</if>
+			<if test="query.depId != null and query.depId != ''">
+				AND ST.DEP_ID = #{query.depId}
+			</if>
+			<if test="query.syncStatus != null and query.syncStatus != ''">
+				AND re.SYNC_STATUS = #{query.syncStatus}
+			</if>
+			<if test="query.compId != null and query.compId.size > 0">
+				AND ST.COMP_ID IN
+				<foreach collection="query.compId" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND SPB.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SPB.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		)
+	</delete>
+
+	<select id="getMouthList" resultType="com.tce.smart.platform.core.entity.manage.SmtStaffRecharge">
+          select * from smt_staff_recharge WHERE CHECK_MONTH = to_Char( #{date} ,'yyyy-MM')
+          AND RECHARGE_TYPE = #{status} ORDER BY CREATE_TIME DESC
+    </select>
+
+	<select id="getByBadge" resultType="com.tce.smart.platform.core.entity.manage.SmtStaffRecharge">
+          select * from smt_staff_recharge WHERE CHECK_MONTH = to_Char( #{date} ,'yyyy-MM')
+          AND RECHARGE_TYPE = 2
+          AND BADGE =  #{badge}  ORDER BY CREATE_TIME DESC
+    </select>
+
+	<select id="checkMonthList" resultType="com.tce.smart.platform.core.entity.manage.SmtStaffRecharge">
+		select re.id from smt_staff_recharge re
+		left join smt_park_bu spb on re.comp_id = spb.comp_id WHERE re.CHECK_MONTH = to_Char( #{date} ,'yyyy-MM')
+		AND re.RECHARGE_TYPE = #{status} AND rownum &lt;= 1
+		<if test="parkIds != null and parkIds.size > 0">
+			AND SPB.PARK_ID IN
+			<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+				#{tempId}
+			</foreach>
+		</if>
+	</select>
+
+	<update id="updateState">
+		UPDATE
+		smt_staff_recharge
+		SET SYNC_STATUS = 2
+		<where>
+			<if test="ids != null and ids.size > 0">ID IN
+				<foreach collection="ids" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+	</update>
+
+	<update id="updateStateById">
+		UPDATE
+		smt_staff_recharge
+		SET SYNC_STATUS = 2
+		<where>
+			<if test="ids != null and ids != ''">
+				ID = #{ids}
+			</if>
+		</where>
+	</update>
+
+</mapper>

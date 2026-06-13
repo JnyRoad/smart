@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryRepairsMapper">
+
+    <resultMap id="smtDormitoryRepairsPage" type="com.tce.smart.platform.core.vo.SmtDormitoryRepairsVO">
+        <id property="id" column="id"/>
+        <result property="name" column="NAME"/>
+        <result property="staffBadge" column="STAFF_BADGE"/>
+        <result property="compName" column="COMP_NAME"/>
+        <result property="depName" column="DEP_NAME"/>
+		<result property="rangeType" column="RANGE_TYPE"/>
+        <result property="repairType" column="REPAIR_TYPE"/>
+        <result property="dormitoryName" column="DORMITORY_NAME"/>
+        <result property="roomName" column="ROOM_NAME"/>
+        <result property="status" column="STATUS"/>
+        <result property="createTime" column="CREATE_TIME"/>
+        <result property="faultDesc" column="FAULT_DESC"/>
+    </resultMap>
+
+	<resultMap id="smtDormitoryRepairsDetail" type="com.tce.smart.platform.core.vo.SmtDormitoryRepairsDetailVO">
+		<id property="id" column="id"/>
+		<result property="name" column="NAME"/>
+		<result property="compName" column="COMP_NAME"/>
+		<result property="depName" column="DEP_NAME"/>
+		<result property="staffBadge" column="BADGE"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="repairType" column="REPAIR_TYPE"/>
+		<result property="dormitoryName" column="DORMITORY_NAME"/>
+		<result property="roomName" column="ROOM_NAME"/>
+		<result property="status" column="STATUS"/>
+		<result property="faultDesc" column="FAULT_DESC"/>
+		<result property="faultImgs" column="FAULT_IMGS"/>
+		<result property="createTime" column="CREATE_TIME"/>
+	</resultMap>
+
+    <select id="getDormitoryRepairsPage" parameterType="com.tce.smart.platform.core.dto.SmtDormitoryRepairsDTO" resultMap="smtDormitoryRepairsPage">
+        select sdr.ID,staff.NAME,staff.COMP_NAME,staff.DEP_NAME,sdr.STAFF_BADGE,sdr.RANGE_TYPE,
+        sdr.REPAIR_TYPE,sdr.DORMITORY_NAME,sdr.ROOM_NAME,sdr.STATUS,sdr.CREATE_TIME,sdr.FAULT_DESC
+        from SMT_DORMITORY_REPAIRS sdr
+        left join SMT_STAFF staff on sdr.STAFF_BADGE=staff.BADGE
+        <where>
+			<if test="query.staffBadge != null and  query.staffBadge !=''">
+				AND sdr.STAFF_BADGE=#{query.staffBadge}
+			</if>
+
+            <if test="query.parkId != null and  query.parkId !=''">
+                AND sdr.PARK_ID=#{query.parkId}
+            </if>
+
+            <if test="query.staffName != null and  query.staffName !=''">
+                AND staff.NAME like concat(concat('%',#{query.staffName}),'%')
+            </if>
+
+            <if test="query.beginTime != null and query.endTime != null">
+                sdr.CREATE_TIME between #{query.beginTime} and #{query.endTime}
+            </if>
+
+            <if test="query.repairType != null and  query.repairType !=''">
+                AND sdr.REPAIR_TYPE=#{query.repairType}
+            </if>
+
+            <if test="query.status != null and  query.status !='' or query.status == 0">
+                AND sdr.STATUS=#{query.status}
+            </if>
+
+			<if test="query.range!=null and query.range.size>0">
+				and sdr.RANGE_TYPE in
+				<foreach item="item" index="index" collection="query.range" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+
+            <if test="park!=null and park.size>0">
+                and sdr.PARK_ID in
+                <foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
+
+        ORDER BY sdr.CREATE_TIME desc
+    </select>
+
+	<select id="getStaffReportDetail" resultMap="smtDormitoryRepairsDetail">
+		select sdr.ID,staff.NAME,staff.COMP_NAME,staff.DEP_NAME,staff.BADGE,sdr.CREATE_TIME,sdr.RANGE_TYPE,
+		sdr.REPAIR_TYPE,sdr.DORMITORY_NAME,sdr.ROOM_NAME,sdr.STATUS,sdr.FAULT_DESC,sdr.FAULT_IMGS,park.PARK_NAME
+		from SMT_DORMITORY_REPAIRS sdr
+		left join SMT_STAFF staff on sdr.STAFF_BADGE=staff.BADGE
+		left join SMT_PARK park on sdr.PARK_ID=park.ID
+		where sdr.ID=#{id}
+	</select>
+</mapper>

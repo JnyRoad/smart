@@ -1,0 +1,91 @@
+security:
+  oauth2:
+    client:
+      client-id: "${SMART_APP_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
+      client-secret: "${SMART_APP_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      scope: server
+      ignore-urls:
+      - "/guide/welcome"
+      - "/login/face"
+      - "/sms/send/**"
+      - "/sms/verify/**"
+      - "/common/image/view/**"
+      - "/common/download/**"
+      - "/password/mobile/query/**"
+      - "/password/sms/send/**"
+      - "/password/verify/**"
+      - "/password/update/**"
+      - "/park/location/auto/**"
+      - "/wechat/**"
+      - "/device/query/list/bind/**"
+      - "/device/query/list/**"
+      - "/website/**"
+      - "/agreement/service"
+      - "/apparticles/**"
+      - "/appdormitory/queryDormitory"
+      - "/appdormitory/queryRoom"
+      - "/appdormitory/roomDetailByPhone/**"
+      - "/park/**"
+      - "/setting/version/check"
+      - "/yht/user/badge"
+spring:
+  datasource:
+    type: "${SMART_APP_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
+    driver-class-name: "${SMART_APP_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
+    username: "${SMART_APP_DB_USERNAME:${SMART_DB_USERNAME:}}"
+    password: "${SMART_APP_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
+    url: "${SMART_APP_DB_URL:${SMART_DB_URL:}}"
+  main:
+    allow-bean-definition-overriding: true
+  sms:
+    url: "${SMART_SMS_URL:}"
+    systemName: 智慧系统
+    remarks: 智慧系统
+    token: "${SMART_SMS_TOKEN:}"
+  oa:
+    staff:
+      query-url: "${SMART_OA_STAFF_QUERY_URL:}"
+      query-token: "${SMART_OA_STAFF_QUERY_TOKEN:}"
+  mail:
+    host: "${SMART_MAIL_HOST:}"
+    username: "${SMART_MAIL_USERNAME:}"
+    password: "${SMART_MAIL_PASSWORD:}"
+    default-encoding: utf-8
+    port: 25
+  yuto-secsytem:
+    phone:
+      update-url: "${SMART_SECSYSTEM_PHONE_UPDATE_URL:}"
+      update-token: "${SMART_SECSYSTEM_PHONE_UPDATE_TOKEN:}"
+  ocr:
+    username: "${SMART_OCR_USERNAME:}"
+    url: "${SMART_OCR_URL:}"
+  wechat:
+    oauth2: "${SMART_WECHAT_OAUTH2_URL:}"
+    appId: "${SMART_WECHAT_APP_ID:}"
+    appSecret: "${SMART_WECHAT_APP_SECRET:}"
+    xc:
+      userInfo: "${SMART_WECHAT_XC_USER_INFO_URL:}"
+      appId: "${SMART_WECHAT_XC_APP_ID:}"
+      appSecret: "${SMART_WECHAT_XC_APP_SECRET:}"
+      baseUrl: "${SMART_WECHAT_XC_BASE_URL:}"
+  face:
+    compare-value: 0.35
+    forget-password: "${SMART_FACE_FORGET_PASSWORD:0.7}"
+  file:
+    image: "${SMART_APP_FILE_IMAGE_URL:}"
+    text-pdf-enclosure: "${SMART_APP_FILE_TEXT_PDF_ENCLOSURE_URL:}"
+    pdf-preview: "${SMART_APP_FILE_PDF_PREVIEW_URL:}"
+  icbc:
+    api:
+      h5-eaccount: "${SMART_ICBC_H5_EACCOUNT_URL:}"
+  yht:
+    appKey: "${SMART_YHT_APP_KEY:}"
+    appSecret: "${SMART_YHT_APP_SECRET:}"
+    appCode: "${SMART_YHT_APP_CODE:}"
+    accessTokenUrl: "${SMART_YHT_ACCESS_TOKEN_URL:}"
+    userIdUrl: "${SMART_YHT_USER_ID_URL:}"
+    userInfoUrl: "${SMART_YHT_USER_INFO_URL:}"
+swagger:
+  enabled: false
+server:
+  port: 6020

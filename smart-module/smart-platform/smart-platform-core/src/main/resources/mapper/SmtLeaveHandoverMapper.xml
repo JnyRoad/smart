@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtLeaveHandoverMapper">
+
+  <resultMap id="smtLeaveHandovernMap" type="com.tce.smart.platform.core.entity.SmtLeaveHandover">
+                  <id property="id" column="ID"/>
+                        <result property="applicationId" column="APPLICATION_ID"/>
+                        <result property="ezid" column="EZID"/>
+                        <result property="empzone" column="EMPZONE"/>
+                        <result property="badge" column="BADGE"/>
+                        <result property="name" column="NAME"/>
+                        <result property="leaveDate" column="LEAVE_DATE"/>
+                        <result property="zrdep" column="ZRDEP"/>
+                        <result property="zrdepName" column="ZRDEP_NAME"/>
+						<result property="jjItemId" column="JJ_ITEM_ID"/>
+                        <result property="jjItem" column="JJ_ITEM"/>
+                        <result property="jjr" column="JJR"/>
+                        <result property="jjrName" column="JJR_NAME"/>
+                        <result property="qrr" column="QRR"/>
+                        <result property="qrrName" column="QRR_NAME"/>
+                        <result property="je" column="JE"/>
+                        <result property="jjRemark" column="JJ_REMARK"/>
+                        <result property="jjBegin" column="JJ_BEGIN"/>
+                        <result property="jjBeginTime" column="JJ_BEGIN_TIME"/>
+                        <result property="jjClosed" column="JJ_CLOSED"/>
+                        <result property="jjClosedTime" column="JJ_CLOSED_TIME"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+            </resultMap>
+<!--             获取员工ID -->
+            <select id="getStaffByBadge" resultType="long">
+                SELECT
+				    SS. ID,
+				    SS.PARK_ID
+				FROM
+				    SMT_STAFF SS
+				WHERE
+				    SS.BADGE = #{badge}
+            </select>
+
+            <delete id="deleteRoomByStaffId">
+                DELETE FROM SMT_DORMITORY_STAFF SDS WHERE SDS.STAFF_ID = #{staffId}
+            </delete>
+            <!--  修改员工为离职 状态-->
+            <update id="updateStatusByStaffId">
+                UPDATE SMT_STAFF SS
+				SET
+				 SS.STATUS = #{status}
+				WHERE
+				    SS."ID" = #{staffId}
+            </update>
+
+            <select id="getHandoverCount" resultType="int">
+                SELECT
+				    COUNT (1)
+				FROM
+				    SMT_LEAVE_HANDOVER SLH
+				WHERE
+				    SLH.APPLICATION_ID = #{applicationId}
+				AND SLH.JJ_CLOSED != #{jjClose}
+            </select>
+
+            <select id="getLeaveHandover" resultType="com.tce.smart.platform.core.entity.SmtLeaveHandover">
+			    SELECT DISTINCT
+				    TEMP.APPLICATION_ID,
+				    TEMP.ZRDEP,
+				    TEMP.ZRDEP_NAME,
+				    TEMP.JJR,
+				    TEMP."NAME",
+					TEMP.JJ_ITEM_ID
+				FROM
+				    (
+				        SELECT
+					ROW_NUMBER () OVER (
+				                PARTITION BY ALH.ZRDEP
+				                ORDER BY
+				                    ALH.ZRDEP DESC
+				            ) rn,
+				            ALH.APPLICATION_ID,
+				            ALH.ZRDEP,
+				            ALH.ZRDEP_NAME,
+				            ALH.JJR,
+				            ALH."NAME",
+							ALH.JJ_ITEM_ID,
+				            ALH.CREATE_TIME
+				        FROM
+				            SMT_LEAVE_HANDOVER ALH
+
+				        <where>
+				            <if test="applicationId != null">
+				                ALH.APPLICATION_ID = #{applicationId}
+				            </if>
+				            <if test="jjr != null and jjr != ''">
+                                AND ALH.JJR = #{jjr}
+                            </if>
+                            <if test="jjBegin != null">
+		                         AND ALH.JJ_BEGIN = #{jjBegin}
+		                     </if>
+				        </where>
+				        ORDER BY
+				            ALH.CREATE_TIME
+				    ) TEMP WHERE TEMP.RN = 1
+            </select>
+
+
+            <select id="getApproveList" resultType="com.tce.smart.platform.core.entity.SmtLeaveHandover">
+	SELECT DISTINCT
+				    TEMP.APPLICATION_ID,
+				    TEMP.ZRDEP,
+				    TEMP.ZRDEP_NAME,
+				    TEMP.JJR,
+				    TEMP."NAME"
+				FROM
+				    (
+				        SELECT
+					ROW_NUMBER () OVER (
+				                PARTITION BY ALH.JJR
+				                ORDER BY
+				                    ALH.JJR DESC
+				            ) rn,
+				            ALH.APPLICATION_ID,
+				            ALH.ZRDEP,
+				            ALH.ZRDEP_NAME,
+				            ALH.JJR,
+				            ALH."NAME",
+				            ALH.CREATE_TIME
+				        FROM
+				            SMT_LEAVE_HANDOVER ALH
+				        WHERE ALH.APPLICATION_ID = #{applicationId}
+				        ORDER BY
+				            ALH.CREATE_TIME
+				    ) TEMP WHERE TEMP.RN = 1
+            </select>
+
+            <select id="getLeaveHandoverItem" resultType="com.tce.smart.platform.core.entity.SmtLeaveHandover">
+                SELECT
+                    ALH."ID",
+				    ALH.JJ_ITEM,
+				    ALH.JE,
+				    ALH.JJ_REMARK,
+				    ALH.JJR,
+				    ALH.JJR_NAME,
+				    ALH.JJ_CLOSED
+				FROM
+				    SMT_LEAVE_HANDOVER ALH
+			    <where>
+			         <if test="applicationId != null">
+			             AND ALH.APPLICATION_ID = #{applicationId}
+			         </if>
+			         <if test="jjr != null">
+                         AND ALH.JJR = #{jjr}
+                     </if>
+                     <if test="jjBegin != null">
+                         AND ALH.JJ_BEGIN = #{jjBegin}
+                     </if>
+                     <if test="jjClosed != null">
+                         AND ALH.JJ_CLOSED = #{jjClosed}
+                     </if>
+                     <if test="zrdep != null">
+                         AND ALH.ZRDEP = #{zrdep}
+                     </if>
+			    </where>
+			    ORDER BY
+                    ALH.CREATE_TIME
+            </select>
+
+            <select id="writebackLeavehandover" resultType="com.tce.smart.platform.core.entity.SmtLeaveHandover">
+                SELECT
+				    SLH.EZID,
+				    SLH.BADGE,
+				    SLH.LEAVE_DATE,
+				    SLH.ZRDEP,
+				    SLH.JJ_ITEM,
+				    SLH.QRR,
+				    SLH.QRR_NAME,
+				    SLH.JJR,
+				    SLH.JJR_NAME,
+				    SLH.JE,
+				    SLH.JJ_REMARK,
+				    SLH.JJ_BEGIN,
+				    SLH.JJ_BEGIN_TIME,
+				    SLH.JJ_CLOSED,
+				    SLH.JJ_CLOSED_TIME,
+				    SLH.CREATE_TIME
+				FROM
+				    SMT_LEAVE_HANDOVER SLH
+				WHERE
+				    SLH.APPLICATION_ID = #{applicationId}
+<!-- 				AND SLH.JJR = #{jjr} -->
+            </select>
+
+            <update id="endLeaveHandover" parameterType="java.util.List">
+            UPDATE SMT_LEAVE_HANDOVER SLH
+	            <trim prefix="set" suffixOverrides=",">
+	             <trim prefix="SLH.JE =case" suffix="end,">
+	                 <foreach collection="list" item="item" index="index">
+	                         <if test="item.je!=null">
+	                          when SLH.ID=#{item.jjItemId} then #{item.je}
+	                         </if>
+	                 </foreach>
+	              </trim>
+	              <trim prefix="SLH.JJ_REMARK =case" suffix="end,">
+	                 <foreach collection="list" item="item" index="index">
+	                         <if test="item.jjRemark!=null">
+	                          when SLH.ID=#{item.jjItemId} then #{item.jjRemark}
+	                         </if>
+	                 </foreach>
+	              </trim>
+	              SLH.JJ_CLOSED = #{closed,jdbcType=INTEGER},
+	              SLH.JJ_CLOSED_TIME = TO_DATE (#{closedTime},'SYYYY-MM-DD HH24:MI:SS'),
+	            </trim>
+	            <where>
+			          <foreach collection="list" separator="OR" item="item" index="index" open="(" close=")">
+			              SLH.ID=#{item.jjItemId}
+			          </foreach>
+<!-- 		             AND SLH.APPLICATION_ID = #{applicationId} -->
+<!-- 		             AND SLH.JJR = #{jjr,jdbcType=VARCHAR} -->
+	            </where>
+            </update>
+
+            <update id="startLeaveHandover">
+                UPDATE SMT_LEAVE_HANDOVER SLH
+	            SET SLH.JJ_BEGIN = #{query.jjBegin,jdbcType=INTEGER},
+	                SLH.JJ_BEGIN_TIME = #{query.jjBeginTime,jdbcType=TIMESTAMP}
+                WHERE
+                    SLH.APPLICATION_ID = #{query.applicationId,jdbcType=INTEGER}
+            </update>
+
+            <sql id="column">
+                APPLICATION_ID,EZID,EMPZONE,BADGE,LEAVE_DATE,ZRDEP,JJ_ITEM,JJR,JJR_NAME,JJ_BEGIN,JJ_CLOSED,CREATE_TIME,JJ_ITEM_ID,NAME,ZRDEP_NAME,QRR,QRR_NAME
+            </sql>
+
+            <sql id="value">
+                #{item.applicationId,jdbcType=VARCHAR},
+                #{item.ezid,jdbcType=VARCHAR},
+                #{item.empzone,jdbcType=VARCHAR},
+                #{item.badge,jdbcType=VARCHAR},
+                #{item.leaveDate,jdbcType=TIMESTAMP},
+                #{item.zrdep,jdbcType=INTEGER},
+                #{item.jjItem,jdbcType=VARCHAR},
+                #{item.jjr,jdbcType=VARCHAR},
+                #{item.jjrName,jdbcType=VARCHAR},
+                #{item.jjBegin,jdbcType=INTEGER},
+                #{item.jjClosed,jdbcType=INTEGER},
+                #{item.createTime,jdbcType=TIMESTAMP},
+                #{item.jjItemId,jdbcType=INTEGER},
+                #{item.name,jdbcType=VARCHAR},
+                #{item.zrdepName,jdbcType=VARCHAR},
+                #{item.qrr,jdbcType=VARCHAR},
+                #{item.qrrName,jdbcType=VARCHAR}
+            </sql>
+
+            <insert id="initLeaveHandover" parameterType="java.util.List">
+		        INSERT INTO SMT_LEAVE_HANDOVER
+		        (
+		          <include refid="column" />
+		        )
+		        SELECT A.*
+		        FROM
+		        (
+			        <foreach collection="list" index="index" item="item" separator="UNION ALL">
+				        SELECT
+				            <include refid="value" />
+				        FROM dual
+			        </foreach>
+		        ) A
+           </insert>
+</mapper>

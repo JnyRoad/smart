@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtIscDeviceTaskMapper">
+
+	<sql id="base_column_list">
+		SDA.ID,
+		SDA.ACTION,
+		SDA.STATUS,
+		SDA.DEVICE_TYPE,
+		SDA.START_TIME,
+		SDA.OVER_TIME,
+		SDA.DEVICE_CODE,
+		SDA.CARD_NO,
+		SDA.CODE,
+		SDA.CONSUME,
+		SDA.TIMES,
+		SDA.GENERAL,
+		SDA.IMAGE_ID,
+		SDA.SERVICE_TYPE,
+		SDA.REMARK,
+		SDA.CREATE_TIME,
+		SDA.UPDATE_TIME,
+		SDA.ISC_TASK_ID,
+		SDA.BADGE,
+		SDA.OPT_USER,
+		SDA.PERSON_ID
+	</sql>
+
+	<!-- 新增：到期删除任务查询，访客未到期的删除任务不能提前执行 -->
+	<select id="getDeleteTasks" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT * FROM (
+			SELECT <include refid="base_column_list" />, device.park_id
+			FROM SMT_ISC_DEVICE_TASK SDA
+			JOIN SMT_DEVICE device ON SDA.DEVICE_CODE = device.ID
+			WHERE NVL(SDA.STATUS, 0) = 0
+			  AND SDA.ACTION IN (2, 12)
+			  AND SDA.OVER_TIME <![CDATA[<=]]> #{currentTime}
+			  AND SDA.DEVICE_TYPE = #{deviceType}
+			  AND NVL(SDA.CODE, -1) != 200
+			  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+			  AND device.CONNECT_STATUS = 2
+			ORDER BY SDA.CREATE_TIME ASC, SDA.TIMES ASC
+		) WHERE ROWNUM <![CDATA[<=]]> 500
+	</select>
+
+	<!-- 新增：有效权限下发任务查询 -->
+	<select id="getValidDownloadTasks" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT * FROM (
+			SELECT <include refid="base_column_list" />, device.park_id
+			FROM SMT_ISC_DEVICE_TASK SDA
+			JOIN SMT_DEVICE device ON SDA.DEVICE_CODE = device.ID
+			WHERE NVL(SDA.STATUS, 0) = 0
+			  AND SDA.ACTION IN (1, 3, 11, 13)
+			  AND SDA.DEVICE_TYPE = #{deviceType}
+			  AND SDA.OVER_TIME <![CDATA[>]]> #{currentTime}
+			  AND SDA.START_TIME <![CDATA[<]]> #{currentTime}
+			  AND NVL(SDA.CODE, -1) != 200
+			  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+			  AND device.CONNECT_STATUS = 2
+			ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
+		) WHERE ROWNUM <![CDATA[<=]]> 1000
+	</select>
+
+	<!-- 新增：过期任务查询（用于标记过期状态） -->
+	<select id="getExpiredTasks" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT * FROM (
+			SELECT <include refid="base_column_list" />, device.park_id
+			FROM SMT_ISC_DEVICE_TASK SDA
+			JOIN SMT_DEVICE device ON SDA.DEVICE_CODE = device.ID
+			WHERE NVL(SDA.STATUS, 0) = 0
+			  AND SDA.ACTION IN (1, 3, 11, 13)
+			  AND SDA.DEVICE_TYPE = #{deviceType}
+			  AND SDA.OVER_TIME <![CDATA[<=]]> #{currentTime}
+			  AND NVL(SDA.CODE, -1) != 200
+			  AND device.CONNECT_STATUS = 2
+			ORDER BY SDA.OVER_TIME ASC
+		) WHERE ROWNUM <![CDATA[<=]]> 500
+	</select>
+
+	<!-- 新增：最近上线设备的待处理任务查询 -->
+	<select id="getRecentOnlineDeviceTasks" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />, device.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+		JOIN SMT_DEVICE device ON SDA.DEVICE_CODE = device.ID
+		WHERE SDA.STATUS IN (0, 6)
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+		  AND device.CONNECT_STATUS = 2
+		  AND device.ID IN
+		  <foreach collection="deviceCodes" item="deviceCode" open="(" separator="," close=")">
+			#{deviceCode}
+		  </foreach>
+		ORDER BY SDA.ACTION DESC, SDA.CREATE_TIME ASC
+	</select>
+
+	<!-- 长期离线或已删除设备的待处理下发任务，用于自动取消避免重复任务长期阻塞 -->
+	<select id="getStaleOfflineDownloadTasks" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT * FROM (
+			SELECT <include refid="base_column_list" />, device.park_id
+			FROM SMT_ISC_DEVICE_TASK SDA
+			LEFT JOIN SMT_DEVICE device ON SDA.DEVICE_CODE = device.ID
+			WHERE (SDA.STATUS IN (0, 3, 6) OR SDA.STATUS IS NULL)
+			  AND SDA.ACTION IN (1, 3, 11, 13)
+			  AND SDA.DEVICE_TYPE = #{deviceType}
+			  AND (SDA.CODE != 200 OR SDA.CODE IS NULL)
+			  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+			  AND SDA.CREATE_TIME <![CDATA[<=]]> ADD_MONTHS(SYSDATE, 0 - #{staleMonths})
+			  AND (device.ID IS NULL OR device.CONNECT_STATUS IS NULL OR device.CONNECT_STATUS != 2)
+			ORDER BY SDA.CREATE_TIME ASC
+		) WHERE ROWNUM <![CDATA[<=]]> 500
+	</select>
+
+	<!-- 设备离线时把待下发任务显式标记为设备离线状态，设备恢复在线后由调度查询自动恢复 -->
+	<update id="markOfflineDeviceTasks">
+		UPDATE SMT_ISC_DEVICE_TASK SDA
+		SET SDA.STATUS = 6,
+			SDA.REMARK = '设备离线，待设备恢复在线后自动重试',
+			SDA.UPDATE_TIME = #{updateTime}
+		WHERE (SDA.STATUS = 0 OR SDA.STATUS IS NULL)
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND (SDA.CODE != 200 OR SDA.CODE IS NULL)
+		  AND EXISTS (
+			SELECT 1
+			FROM SMT_DEVICE device
+			WHERE device.ID = SDA.DEVICE_CODE
+			  AND (device.CONNECT_STATUS IS NULL OR device.CONNECT_STATUS != 2)
+		  )
+	</update>
+
+	<update id="cancelStaleOfflineDownloadTask">
+		UPDATE SMT_ISC_DEVICE_TASK SDA
+		SET SDA.STATUS = #{status},
+			SDA.CODE = #{code},
+			SDA.REMARK = #{remark},
+			SDA.UPDATE_TIME = #{updateTime},
+			SDA.OPT_USER = #{optUser}
+		WHERE SDA.ID = #{id}
+		  AND (SDA.STATUS IN (0, 3, 6) OR SDA.STATUS IS NULL)
+		  AND SDA.ACTION IN (1, 3, 11, 13)
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND (SDA.CODE != 200 OR SDA.CODE IS NULL)
+		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+		  AND SDA.CREATE_TIME <![CDATA[<=]]> ADD_MONTHS(SYSDATE, 0 - #{staleMonths})
+		  AND (
+			NOT EXISTS (
+				SELECT 1 FROM SMT_DEVICE device WHERE device.ID = SDA.DEVICE_CODE
+			)
+			OR EXISTS (
+				SELECT 1
+				FROM SMT_DEVICE device
+				WHERE device.ID = SDA.DEVICE_CODE
+				  AND (device.CONNECT_STATUS IS NULL OR device.CONNECT_STATUS != 2)
+			)
+		  )
+	</update>
+
+	<select id="getPersonDown" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT  <include refid="base_column_list" />,device.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+				 join SMT_DEVICE device on sda.DEVICE_CODE = device.ID
+		WHERE (SDA.STATUS = 0 or SDA.STATUS is null)
+		  AND SDA.OVER_TIME <![CDATA[>]]> #{overTime}
+		  AND SDA.START_TIME <![CDATA[<]]> #{overTime}
+		  AND (SDA.ACTION = 1 or SDA.ACTION = 3)
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND (SDA.CODE != 200 or SDA.CODE is null)
+		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+		  and device.CONNECT_STATUS = 2
+		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
+	</select>
+
+	<!-- 查询门禁下发 -->
+	<select id="getCardDown" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />, device.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+		JOIN SMT_DEVICE device ON SDA.DEVICE_CODE = device.ID
+		WHERE (SDA.STATUS IN (0, 6) OR SDA.STATUS IS NULL)
+		  AND (SDA.ACTION = 1 or SDA.ACTION = 3)
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND SDA.OVER_TIME <![CDATA[>]]> #{overTime}
+		  AND (SDA.START_TIME IS NULL OR SDA.START_TIME <![CDATA[<]]> #{overTime})
+		  AND (SDA.CODE != 200 OR SDA.CODE IS NULL)
+		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+		  AND device.CONNECT_STATUS = 2
+		ORDER BY CASE WHEN SDA.START_TIME IS NULL THEN 0 ELSE 1 END ASC, SDA.START_TIME ASC, SDA.TIMES ASC
+	</select>
+
+	<select id="getReTryCardDown" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />,device.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+				 join SMT_DEVICE device on SDA.DEVICE_CODE = device.ID
+		WHERE SDA.OVER_TIME <![CDATA[>]]> #{overTime}
+		  AND SDA.START_TIME <![CDATA[<]]> #{overTime}
+		  AND SDA.START_TIME <![CDATA[>]]> (#{overTime} - 2 * 24 * 60 * 60)
+		  AND (SDA.ACTION = 1 or SDA.ACTION = 3 or SDA.ACTION = 11 or SDA.ACTION = 13)
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND SDA.CODE in (502,506)
+		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+		  and device.CONNECT_STATUS = 2
+		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
+	</select>
+
+	<select id="getDelayDown" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />,device.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+				 join SMT_DEVICE device on sda.DEVICE_CODE = device.ID
+		WHERE (SDA.STATUS IN (0, 6) or SDA.STATUS is null)
+		  AND SDA.OVER_TIME <![CDATA[>]]> #{overTime}
+		  AND SDA.START_TIME <![CDATA[<]]> #{overTime}
+		  AND (SDA.ACTION = 11 or SDA.ACTION = 13)
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND (SDA.CODE != 200 or SDA.CODE is null)
+		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+		  and device.CONNECT_STATUS = 2
+		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
+	</select>
+
+	<select id="getPersonDel" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />,SD.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+				 JOIN SMT_DEVICE SD ON SDA.DEVICE_CODE = SD.ID
+		WHERE SDA.STATUS = 1
+		  AND SDA.ACTION = 2
+		  AND SDA.OVER_TIME <![CDATA[<]]> #{overTime}
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND SDA.SERVICE_TYPE = #{serviceType}
+		  AND SDA.CODE = 200
+		  and SD.CONNECT_STATUS = 2
+		  and not exists(select 1 from SMT_ISC_DOWN_RECORD IDR where SDA.CARD_NO = IDR.CARD_NO and IDR.DEVICE_TYPE = 1)
+		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
+	</select>
+
+	<select id="getDelayPersonDel" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />,SD.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+				 join SMT_DEVICE SD ON SDA.DEVICE_CODE = SD.ID
+		WHERE SDA.STATUS = 1
+		  AND SDA.ACTION = 12
+		  AND SDA.OVER_TIME <![CDATA[<]]> #{overTime}
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND SDA.SERVICE_TYPE = #{serviceType}
+		  AND SDA.CODE = 200
+		  and SD.CONNECT_STATUS = 2
+		  and not exists(select 1 from SMT_ISC_DOWN_RECORD IDR where SDA.CARD_NO = IDR.CARD_NO and IDR.DEVICE_TYPE = 1)
+		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
+	</select>
+
+	<select id="getDel" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />,device.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+				 join SMT_DEVICE device on sda.DEVICE_CODE = device.ID
+		WHERE (SDA.STATUS IN (0, 6) OR SDA.STATUS IS NULL)
+		  AND SDA.ACTION = 2
+		  AND SDA.OVER_TIME <![CDATA[<=]]> #{overTime}
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND (SDA.CODE != 200 or SDA.CODE is null)
+		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+		  and device.CONNECT_STATUS = 2
+		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
+	</select>
+
+	<select id="getDelayDel" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />,device.park_id
+		FROM SMT_ISC_DEVICE_TASK SDA
+				 join SMT_DEVICE device on sda.DEVICE_CODE = device.ID
+		WHERE (SDA.STATUS IN (0, 6) OR SDA.STATUS IS NULL)
+		  AND SDA.ACTION = 12
+		  AND SDA.OVER_TIME <![CDATA[<=]]> #{overTime}
+		  AND SDA.DEVICE_TYPE = #{deviceType}
+		  AND (SDA.CODE != 200 or SDA.CODE is null)
+		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
+		  and device.CONNECT_STATUS = 2
+		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
+	</select>
+
+	<select id="getDeviceTask" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT SDA.ID,
+			   SDA.DEVICE_TYPE
+		FROM SMT_ISC_DEVICE_TASK SDA
+		WHERE SDA.DEVICE_CODE = #{deviceCode}
+		  AND SDA.CARD_NO = #{cardNo}
+		  AND (SDA.STATUS = 0 OR SDA.STATUS = 1 OR SDA.STATUS = 3)
+		ORDER BY SDA.ID ASC
+	</select>
+
+	<select id="getDeviceCode" resultType="String">
+		SELECT
+		SDT.DEVICE_CODE
+		FROM
+		SMT_ISC_DEVICE_TASK SDT
+		<where>
+			<if test="query.cardNo != null and query.cardNo != ''">
+				AND SDT.CARD_NO = #{query.cardNo}
+			</if>
+
+			<if test="query.deviceType != null">
+				AND SDT.DEVICE_TYPE = #{query.deviceType}
+			</if>
+		</where>
+		ORDER BY SDT.ID ASC
+	</select>
+
+	<select id="getPerson" resultType="com.tce.smart.platform.core.vo.TaskDownRecordVO">
+		SELECT
+		SDT.ID,
+		SDT.CARD_NO,
+		SDT.DEVICE_CODE,
+		SDT.SERVICE_TYPE,
+		SDT.STATUS TASK_TYPE,
+		SDT.GENERAL,
+		SDT.CREATE_TIME,
+		SS.BADGE,
+		SDT.UPDATE_TIME OVER_TIME,
+		SDT.ID TASK_ID,
+		SD.DEVICE_NAME,
+		SD.DEVICE_TYPE,
+		SDT.REMARK,
+		SA.AREA_NAME
+		FROM
+		SMT_ISC_DEVICE_TASK SDT
+		LEFT JOIN SMT_STAFF SS ON SDT.CARD_NO = SS."ID"
+		LEFT JOIN SMT_DEVICE SD ON SD.ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_DEVICE_AREA SDA ON SDA.DEVICE_ID = SD.ID
+		LEFT JOIN SMT_AREA SA ON SA.ID = SDA.AREA_ID
+		<where>
+			SDT.DEVICE_TYPE = 1
+			<if test="query.taskType != null and  query.taskType != ''">
+				AND SDT.STATUS = #{query.taskType}
+			</if>
+			<if test="query.action != null and  query.action != ''">
+				AND SDT.ACTION = #{query.action}
+			</if>
+			<if test="query.deviceCode != null and  query.deviceCode != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceCode}
+			</if>
+			<if test="query.general != null and  query.general != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.general}),'%')
+			</if>
+			<if test="query.badge != null and  query.badge != ''">
+				AND SS.BADGE = #{query.badge}
+			</if>
+			<if test="query.deviceType != null">
+				AND SD.DEVICE_TYPE = #{query.deviceType}
+			</if>
+			<if test="query.areaId != null">
+				AND SA.ID = #{query.areaId}
+			</if>
+			<if test="query.serviceType != null">
+				AND SDT.SERVICE_TYPE = #{query.serviceType}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SDT.CREATE_TIME <![CDATA[>=]]>
+				TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND SDT.CREATE_TIME <![CDATA[<]]>
+				TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd') + 1
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SD.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC, SDT.UPDATE_TIME DESC
+	</select>
+
+	<select id="listSmtDeviceTask" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT
+		V_SDT.CARD_NO,
+		V_SDT.GENERAL,
+		V_SDT.IMAGE_ID
+		FROM
+		(
+		SELECT
+		ROW_NUMBER () OVER (
+		PARTITION BY SDT.CARD_NO
+		ORDER BY SDT.CREATE_TIME
+		) rn,
+		SDT.CARD_NO,
+		SDT.GENERAL,
+		SDT.IMAGE_ID
+		FROM
+		SMT_ISC_DEVICE_TASK SDT
+		LEFT JOIN SMT_DEVICE SD ON SDT.DEVICE_CODE = SD."ID"
+		<where>
+			<if test="query.general != null and query.general != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.general}),'%')
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND SD.PARK_ID = #{query.parkId}
+			</if>
+			<if test="parkIds != null and parkIds.size > 0">
+				AND SD.PARK_ID IN
+				<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.deviceType != null">
+				AND SDT.DEVICE_TYPE = #{query.deviceType}
+			</if>
+			<if test="query.status != null">
+				AND SDT.STATUS = #{query.status}
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC
+		) V_SDT
+		WHERE
+		V_SDT.RN = 1
+
+	</select>
+
+</mapper>

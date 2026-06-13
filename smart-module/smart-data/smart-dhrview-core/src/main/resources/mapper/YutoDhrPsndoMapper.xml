@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.dhrview.core.mapper.YutoDhrPsndoMapper">
+
+	<select id="getDhrEmpList" resultType="com.tce.smart.dhrview.core.entity.YutoDhrPsndo">
+		select CODE,NAME,PK_ORG,BUNAME,PK_DEPT,DEPNAME,DEPONE,
+		PK_POST,POSTNAME,JOBGLBDEF18,JOBGLBDEF19,JCHEN,
+		JOBGLBDEF21,JOBGLBDEF1,PSNTYPE,JOBGLBDEF12,GLBDEF7,DEPTWE,
+		GLBDEF2,SEX,MOBILE,EMAIL,NOWHOMETOWN,ENDDATE,GENDER,LEATYPE,CENSUSADDR,PQCOMPANY
+		from NCC2005.YUTO_DHR_PSNDOC
+		where PK_ORG in
+		<foreach collection="pkOrgs" item="tempId" open="(" separator="," close=")">
+			#{tempId}
+		</foreach>
+		and   to_date(WRITETIME, 'yyyy-mm-dd hh24:mi:ss') >= trunc(sysdate)
+	</select>
+
+	<select id="getByUserId" resultType="com.tce.smart.dhrview.core.entity.YutoDhrPsndo">
+		select USERID,CODE,NAME,PK_ORG,BUNAME,PK_DEPT,DEPNAME,DEPONE,
+		PK_POST,POSTNAME,JOBGLBDEF18,JOBGLBDEF19,JCHEN,
+		JOBGLBDEF21,JOBGLBDEF1,PSNTYPE,JOBGLBDEF12,GLBDEF7,
+		GLBDEF2,SEX,MOBILE,EMAIL,NOWHOMETOWN,ENDDATE,GENDER,LEATYPE,CENSUSADDR
+		from NCC2005.YUTO_DHR_PSNDOC
+		where USERID = #{userId}
+	</select>
+</mapper>

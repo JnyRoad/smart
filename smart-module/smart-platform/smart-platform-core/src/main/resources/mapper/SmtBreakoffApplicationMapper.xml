@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtBreakoffApplicationMapper">
+
+	<resultMap id="smtBreakoffApplicationMap" type="com.tce.smart.platform.core.entity.SmtBreakoffApplication">
+		<id property="id" column="id"/>
+		<result property="staffId" column="staff_id"/>
+		<result property="staffBadge" column="staff_badge"/>
+		<result property="staffName" column="staff_name"/>
+		<result property="startTime" column="start_time"/>
+		<result property="endTime" column="end_time"/>
+		<result property="restCount" column="rest_count"/>
+		<result property="restAbleCount" column="rest_able_count"/>
+		<result property="processid" column="processId"/>
+		<result property="createtime" column="createTime"/>
+	</resultMap>
+
+	<select id="getSmtBreakoffApplicationPage" parameterType="com.tce.smart.platform.core.entity.SmtBreakoffApplication"
+			resultType="com.tce.smart.platform.core.vo.SearchBreakoffApplicationVO">
+		SELECT
+		B. ID AS RECORDID,
+		B.STAFF_NAME,
+		B.TYPE,
+		B.REST_TIME AS RESTDATE,
+		B.WORK_TIME AS WORKDATE,
+		B.CREATE_TIME AS recordDate,
+		B.PROCESS_ID,
+		B.REST_COUNT,
+		B.REST_ABLE_COUNT,
+		B.CREATE_TIME
+		FROM
+		SMT_BREAKOFF_APPLICATION B
+		<where>
+			<if test="query.staffBadge!=null and query.staffBadge!=''">
+				B.STAFF_BADGE =#{query.staffBadge}
+			</if>
+		</where>
+		ORDER BY B.CREATE_TIME DESC
+	</select>
+
+	<select id="getSmtBreakoffApplicationPageList" parameterType="com.tce.smart.platform.core.dto.SearchBreakOffDTO"
+			resultType="com.tce.smart.platform.core.vo.SearchBreakoffApplicationVO">
+		SELECT
+		B. ID AS RECORDID,
+		B.STAFF_BADGE,
+		B.STAFF_NAME,
+		STAFF.COMP_NAME,
+		STAFF.DEP_NAME,
+		STAFF.JOB_NAME,
+		B.TYPE,
+		B.REST_TIME AS RESTDATE,
+		B.WORK_TIME AS WORKDATE,
+		B.CREATE_TIME AS recordDate,
+		B.CREATE_TIME,
+		B.PROCESS_ID,
+		B.REST_COUNT,
+		B.REST_ABLE_COUNT,
+		B.CAUSE RESTDESC
+		FROM
+		SMT_BREAKOFF_APPLICATION B
+		INNER JOIN SMT_STAFF STAFF ON B.STAFF_BADGE=STAFF.BADGE
+		<where>
+			<if test="query.staffBadge!=null and query.staffBadge!=''">
+				B.STAFF_BADGE LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.staffName!=null and query.staffName!=''">
+				AND B.STAFF_NAME LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND B.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND STAFF.COMP_ID IN (
+				SELECT DISTINCT SPB.COMP_ID from SMT_PARK_BU SPB
+				<where>
+					SPB.PARK_ID IN
+					<foreach collection="query.parkIds" item="id" index="index" open="(" close=")" separator=",">
+						#{id}
+					</foreach>
+				</where>
+				)
+			</if>
+		</where>
+		ORDER BY B.CREATE_TIME DESC
+	</select>
+
+</mapper>

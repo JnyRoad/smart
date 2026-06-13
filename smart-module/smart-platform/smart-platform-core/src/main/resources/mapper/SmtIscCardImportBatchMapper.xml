@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtIscCardImportBatchMapper">
+
+	<resultMap id="smtIscCardImportBatchMap" type="com.tce.smart.platform.core.entity.SmtIscCardImportBatch">
+		<id property="id" column="ID"/>
+		<result property="mode" column="IMPORT_MODE"/>
+		<result property="status" column="STATUS"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="dispatcherParkId" column="DISPATCHER_PARK_ID"/>
+		<result property="dispatcherParkName" column="DISPATCHER_PARK_NAME"/>
+		<result property="totalCount" column="TOTAL_COUNT"/>
+		<result property="successCount" column="SUCCESS_COUNT"/>
+		<result property="skipCount" column="SKIP_COUNT"/>
+		<result property="conflictCount" column="CONFLICT_COUNT"/>
+		<result property="failCount" column="FAIL_COUNT"/>
+		<result property="consume" column="CONSUME"/>
+		<result property="paramsJson" column="PARAMS_JSON"/>
+		<result property="remark" column="REMARK"/>
+		<result property="startTime" column="START_TIME"/>
+		<result property="endTime" column="END_TIME"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="updateTime" column="UPDATE_TIME"/>
+		<result property="optUser" column="OPT_USER"/>
+	</resultMap>
+
+	<select id="getById" resultMap="smtIscCardImportBatchMap">
+		SELECT
+			ID,
+			IMPORT_MODE,
+			STATUS,
+			PARK_ID,
+			PARK_NAME,
+			DISPATCHER_PARK_ID,
+			DISPATCHER_PARK_NAME,
+			TOTAL_COUNT,
+			SUCCESS_COUNT,
+			SKIP_COUNT,
+			CONFLICT_COUNT,
+			FAIL_COUNT,
+			CONSUME,
+			PARAMS_JSON,
+			REMARK,
+			START_TIME,
+			END_TIME,
+			CREATE_TIME,
+			UPDATE_TIME,
+			OPT_USER
+		FROM SMT_ISC_CARD_IMPORT_BATCH
+		WHERE ID = #{id}
+	</select>
+
+	<select id="getPage" resultMap="smtIscCardImportBatchMap">
+		SELECT
+			ID,
+			IMPORT_MODE,
+			STATUS,
+			PARK_ID,
+			PARK_NAME,
+			DISPATCHER_PARK_ID,
+			DISPATCHER_PARK_NAME,
+			TOTAL_COUNT,
+			SUCCESS_COUNT,
+			SKIP_COUNT,
+			CONFLICT_COUNT,
+			FAIL_COUNT,
+			CONSUME,
+			PARAMS_JSON,
+			REMARK,
+			START_TIME,
+			END_TIME,
+			CREATE_TIME,
+			UPDATE_TIME,
+			OPT_USER
+		FROM SMT_ISC_CARD_IMPORT_BATCH
+		<where>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND PARK_ID IN
+				<foreach collection="query.parkIds" item="parkId" open="(" separator="," close=")">
+					#{parkId}
+				</foreach>
+			</if>
+			<if test="query.parkId != null">
+				AND PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.mode != null and query.mode != ''">
+				AND IMPORT_MODE = #{query.mode}
+			</if>
+			<if test="query.status != null and query.status != ''">
+				AND STATUS = #{query.status}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND TO_DATE(TO_CHAR(CREATE_TIME, 'YYYY-MM-DD'),'YYYY-MM-DD') <![CDATA[>=]]>
+				TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND TO_DATE(TO_CHAR(CREATE_TIME, 'YYYY-MM-DD'),'YYYY-MM-DD') <![CDATA[<=]]>
+				TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd')
+			</if>
+		</where>
+		ORDER BY CREATE_TIME DESC, ID DESC
+	</select>
+</mapper>

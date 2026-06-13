@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.OvwYsjobMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.OvwYsjob">
+        <result column="jobid" property="jobid" />
+        <result column="jobname" property="jobname" />
+        <result column="DepID" property="DepID" />
+        <result column="depname" property="depname" />
+        <result column="JchenID" property="JchenID" />
+        <result column="JchenName" property="JchenName" />
+        <result column="JXianID" property="JXianID" />
+        <result column="JxianName" property="JxianName" />
+        <result column="JQunID" property="JQunID" />
+        <result column="JqunName" property="JqunName" />
+        <result column="JZuID" property="JZuID" />
+        <result column="JzuName" property="JzuName" />
+        <result column="JZongID" property="JZongID" />
+        <result column="JzongName" property="JzongName" />
+        <result column="JobType" property="JobType" />
+        <result column="jobTypeName" property="jobTypeName" />
+        <result column="flCJ" property="flCJ" />
+        <result column="EMPKIND" property="empkind" />
+        <result column="empkindName" property="empkindName" />
+        <result column="JCostID" property="JCostID" />
+        <result column="JcostName" property="JcostName" />
+        <result column="timestamp" property="timestamp" />
+        <result column="ASzstatus" property="ASzstatus" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        jobid, jobname, DepID, depname, JchenID, JchenName, JXianID, JxianName, JQunID, JqunName, JZuID, JzuName, JZongID, JzongName, JobType, jobTypeName, flCJ, EMPKIND AS empkind, empkindName, JCostID, JcostName, timestamp, ASzstatus
+    </sql>
+
+    <select id="getByCompId" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+
+    SELECT COUNT(1) FROM OVW_YSJOB JOB
+
+	INNER JOIN OVW_YSDEP DEP
+
+	ON JOB.DEPID=DEP.DEPID
+
+	WHERE DEP.COMPID=#{compId}
+
+
+    </select>
+
+
+    <select id="getListByCompId"   parameterType="java.lang.Integer"  resultMap="BaseResultMap">
+
+    SELECT JOB.* FROM OVW_YSJOB JOB
+
+	INNER JOIN OVW_YSDEP DEP
+
+	ON JOB.DEPID=DEP.DEPID
+
+	WHERE DEP.COMPID=#{compId}
+
+    </select>
+
+	<select id="getJchenList" resultMap="BaseResultMap">
+		select JchenID,min(JchenName) as JchenName from ovw_YsJob group by JchenID
+	</select>
+</mapper>

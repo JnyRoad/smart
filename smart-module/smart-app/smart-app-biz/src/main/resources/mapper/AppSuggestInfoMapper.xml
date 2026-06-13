@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppSuggestInfoMapper">
+
+  <resultMap id="appSuggestInfoMap" type="com.tce.smart.app.entity.AppSuggestInfo">
+                  <id property="id" column="id"/>
+                        <result property="userName" column="user_name"/>
+                        <result property="userPhone" column="user_phone"/>
+                        <result property="suggestDesc" column="suggest_desc"/>
+                        <result property="versionCode" column="version_code"/>
+                        <result property="delFlag" column="del_flag"/>
+                        <result property="createTime" column="create_time"/>
+                        <result property="updateTime" column="update_time"/>
+            </resultMap>
+
+	<select id="getAppSuggestInfoPage" parameterType="com.tce.smart.app.dto.AppQuestionDto"  resultMap="appSuggestInfoMap">
+
+		select * from APP_SUGGEST_INFO app
+		<where>
+		<if test="query.startTime != null and query.startTime != ''">
+		<![CDATA[   and app.CREATE_TIME >=  to_date(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')   ]]>
+		</if>
+		</where>
+		order by update_time desc
+	</select>
+</mapper>

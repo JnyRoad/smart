@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtStaffPhotoUploadRecordMapper">
+
+
+	<resultMap type="com.tce.smart.platform.core.entity.SmtStaffPhotoUploadRecord" id="baseMap">
+		<id property="id" column="id"/>
+                        <result property="name" column="name"/>
+                        <result property="jobId" column="job_id"/>
+                        <result property="jobName" column="job_name"/>
+                        <result property="compId" column="comp_id"/>
+                        <result property="compName" column="comp_name"/>
+                        <result property="depId" column="dep_id"/>
+                        <result property="depName" column="dep_name"/>
+                        <result property="jcheId" column="jche_id"/>
+                        <result property="jcheName" column="jche_name"/>
+                        <result property="badge" column="badge"/>
+                        <result property="createTime" column="create_time"/>
+                        <result property="createUser" column="create_user"/>
+                        <result property="status" column="status"/>
+                         <result property="facePicId" column="face_pic_id"/>
+
+	</resultMap>
+
+	<select id="getSmtRecordPage" parameterType="com.tce.smart.platform.core.dto.SearchPhotoRecordDTO" resultMap="baseMap">
+	select * from smt_staff_photo_upload_record
+	<where>
+
+		<if test="query.name != null and query.name  != ''">
+			 NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.badge != null and query.badge  != ''">
+			AND BADGE LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+			</if>
+            <!-- <if test="query.compId != null and query.compId  != ''">
+			AND COMP_ID =#{query.compId}
+			</if>
+             <if test="query.depId != null and query.depId  != ''">
+			AND DEP_ID =#{query.depId}
+			</if>
+			 <if test="query.jobId != null and query.jobId  != ''">
+			AND JOB_ID =#{query.jobId}
+			</if>
+			 <if test="query.jcheId != null and query.jcheId != ''">
+			AND JCHE_ID =#{query.jcheId}
+			</if> -->
+			<if test="query.status!= null">
+			AND STATUS =#{query.status}
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				and  create_time between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+
+				and COMP_ID in  (
+				select DISTINCT  bu.COMP_ID from SMT_PARK_BU bu
+				<where>
+					<if test="query.parkId!= null">
+					AND bu.park_id =#{query.parkId}
+					</if>
+					<if test="park!=null and park.size>0">
+					 AND bu.park_id in
+					<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+						 #{item}
+					</foreach>
+					</if>
+				</where>
+				)
+	</where>
+
+	order by create_time desc
+
+	</select>
+
+</mapper>

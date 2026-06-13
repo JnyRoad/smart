@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtLogisticsAppointmentMapper">
+
+  <resultMap id="smtLogisticsAppointmentMap" type="com.tce.smart.platform.core.entity.SmtLogisticsAppointment">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="vehiclePlate" column="vehicle_plate"/>
+                        <result property="driverName" column="driver_name"/>
+                        <result property="driverPhone" column="driver_phone"/>
+                        <result property="supplier" column="supplier"/>
+                        <result property="arrivalTime" column="arrival_time"/>
+                        <result property="leaveTime" column="leave_time"/>
+                        <result property="planCode" column="plan_code"/>
+                        <result property="status" column="status"/>
+                        <result property="createTime" column="create_time"/>
+            </resultMap>
+
+            <select id="getLogisticsAppointment" resultType="com.tce.smart.platform.core.entity.SmtLogisticsAppointment">
+	            SELECT
+				SLA.DRIVER_NAME,
+				SLA.DRIVER_PHONE,
+				SLA.VEHICLE_PLATE,
+				SLA.ARRIVAL_TIME,
+				SLA.LEAVE_TIME,
+				SLA.SUPPLIER,
+				SLA. ID,
+				SLA.CREATE_TIME,
+				SLA.START_TIME,
+				SLA.END_TIME,
+				SP.PARK_NAME
+				FROM
+					SMT_LOGISTICS_APPOINTMENT SLA
+				LEFT JOIN SMT_PARK SP ON SLA.PARK_ID = SP."ID"
+			    <where>
+				<if test="query.supplier != null and query.supplier != ''">
+						AND SLA.SUPPLIER LIKE CONCAT(CONCAT('%',#{query.supplier}),'%')
+					</if>
+					<if test="query.driverName != null and query.driverName != ''">
+						AND SLA.DRIVER_NAME LIKE CONCAT(CONCAT('%',#{query.driverName}),'%')
+					</if>
+				<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+						AND SLA.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+				</if>
+					<if test="query.parkId != null">
+						AND SLA.PARK_ID = #{query.parkId}
+					</if>
+					<if test="parkIds != null and parkIds.size > 0">
+						AND SLA.PARK_ID IN
+						<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+							#{tempId}
+						</foreach>
+					</if>
+				<if test="query.status != null">
+						AND  SLA.STATUS = #{query.status}
+						<if test="query.status == 4">
+							<![CDATA[ AND TO_DATE(TO_CHAR(SLA.END_TIME, 'YYYY-MM-DD hh24:mi:ss'),'YYYY-MM-DD hh24:mi:ss') >= TO_Date("CONCAT"(TO_CHAR(SYSDATE,'YYYY-MM-DD'), ' 00:00:00'),'YYYY-MM-DD hh24:mi:ss')]]>
+							<![CDATA[ AND TO_DATE(TO_CHAR(SLA.END_TIME, 'YYYY-MM-DD hh24:mi:ss'),'YYYY-MM-DD hh24:mi:ss') < TO_Date(TO_CHAR(SYSDATE,'YYYY-MM-DD hh24:mi:ss'),'YYYY-MM-DD hh24:mi:ss')]]>
+						</if>
+				</if>
+			    </where>
+				ORDER BY SLA.CREATE_TIME DESC
+            </select>
+
+            <select id="queryByVehicleID" resultType="com.tce.smart.platform.core.entity.SmtLogisticsAppointment">
+	SELECT
+					SMT_LOGISTICS_APPOINTMENT.ID,
+					SMT_LOGISTICS_APPOINTMENT.PARK_ID,
+					SMT_LOGISTICS_APPOINTMENT.VEHICLE_PLATE,
+					SMT_LOGISTICS_APPOINTMENT.DRIVER_NAME,
+					SMT_LOGISTICS_APPOINTMENT.DRIVER_PHONE,
+					SMT_LOGISTICS_APPOINTMENT.SUPPLIER,
+					SMT_LOGISTICS_APPOINTMENT.ARRIVAL_TIME,
+					SMT_LOGISTICS_APPOINTMENT.LEAVE_TIME,
+					SMT_LOGISTICS_APPOINTMENT.PLAN_CODE,
+					SMT_LOGISTICS_APPOINTMENT.STATUS,
+					SMT_LOGISTICS_APPOINTMENT.CREATE_TIME
+				FROM
+					SMT_LOGISTICS_APPOINTMENT
+				WHERE
+					SMT_LOGISTICS_APPOINTMENT."ID" = #{cardNo}
+            </select>
+
+            <update id="updateStatus">
+	<![CDATA[update SMT_LOGISTICS_APPOINTMENT SLA SET SLA.STATUS = 4 WHERE SLA.STATUS = 1 AND SLA.END_TIME < TO_Date(TO_CHAR(SYSDATE,'YYYY-MM-DD hh24:mi:ss'),'YYYY-MM-DD hh24:mi:ss')]]>
+            </update>
+
+</mapper>

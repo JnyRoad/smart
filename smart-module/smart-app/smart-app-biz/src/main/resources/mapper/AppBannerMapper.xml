@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppBannerMapper">
+
+	<resultMap id="appSubjectMap" type="com.tce.smart.app.entity.AppSubject">
+		<id property="id" column="id"/>
+		<result property="parentSubject" column="parent_subject"/>
+		<result property="subjectName" column="subject_name"/>
+		<result property="subjectUrl" column="subject_url"/>
+		<result property="catalogCode" column="catalog_code"/>
+		<result property="subjectOrder" column="subject_order"/>
+		<result property="topFlag" column="top_flag"/>
+		<result property="publishFlag" column="publish_flag"/>
+		<result property="delFlag" column="del_flag"/>
+		<result property="createTime" column="create_time"/>
+		<result property="updateTime" column="update_time"/>
+	</resultMap>
+
+	<select id="getBannerList" resultType="com.tce.smart.app.entity.AppSubject" parameterType="com.baomidou.mybatisplus.core.metadata.IPage">
+		SELECT sub.ID id, sub.SUBJECT_NAME subjectName, sub.SUBJECT_URL subjectUrl,sub.PUBLISH_FLAG publishFlag,
+		sub.CREATE_TIME createTime, sub.UPDATE_TIME updateTime, sub.SUBJECT_ORDER subjectOrder
+		FROM APP_SUBJECT sub
+		WHERE sub.CATALOG_CODE = '1'
+		AND sub.DEL_FLAG = '1'
+		ORDER BY sub.PUBLISH_FLAG DESC,sub.SUBJECT_ORDER ASC,sub.CREATE_TIME DESC
+	</select>
+
+	<select id="getOnlineBannerList" resultType="com.tce.smart.app.entity.AppSubject">
+		SELECT ID id, SUBJECT_NAME subjectName,SUBJECT_URL subjectUrl
+		FROM APP_SUBJECT
+		WHERE CATALOG_CODE = '1'
+		AND DEL_FLAG = '1'
+		AND PUBLISH_FLAG = '1'
+		ORDER BY SUBJECT_ORDER ASC
+	</select>
+
+</mapper>

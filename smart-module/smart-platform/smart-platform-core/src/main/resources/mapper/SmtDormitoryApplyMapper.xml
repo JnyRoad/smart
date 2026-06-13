@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryApplyMapper">
+	<resultMap id="applyRecordMap" type="com.tce.smart.platform.core.dto.dormitorymanage.DormitoryApplyDTO">
+		<id property="id" column="id"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="staffBadge" column="STAFF_BADGE"/>
+		<result property="staffName" column="NAME"/>
+		<result property="applyDate" column="CREATE_TIME"/>
+		<result property="resultDate" column="UPDATE_TIME"/>
+		<result property="status" column="STATUS"/>
+		<result property="likeType" column="LIKE_TYPE"/>
+		<result property="applyRemark" column="APPLY_REMARK"/>
+		<result property="compName" column="COMP_NAME"/>
+		<result property="depName" column="DEP_NAME"/>
+		<result property="jcheName" column="JCHE_NAME"/>
+	</resultMap>
+	<select id="getApplyRecord" parameterType="com.tce.smart.platform.core.dto.dormitorymanage.DormitoryApplyDTO" resultMap="applyRecordMap">
+		select apply.ID,apply.PARK_ID,apply.STAFF_BADGE,apply.LIKE_TYPE,apply.APPLY_REMARK,
+		apply.STATUS,apply.CREATE_TIME,apply.UPDATE_TIME,
+		staff.NAME,staff.COMP_NAME,staff.DEP_NAME,staff.JCHE_NAME,park.PARK_NAME
+		from SMT_DORMITORY_APPLY apply
+		join SMT_STAFF staff on apply.STAFF_BADGE=staff.BADGE
+		join SMT_PARK park on apply.PARK_ID=park.ID
+		<where>
+			<if test="query.parkId != null">
+				and apply.PARK_ID=#{query.parkId}
+			</if>
+			<if test="query.parkList!=null and query.parkList.size>0">
+				and apply.PARK_ID in
+				<foreach item="item" index="index" collection="query.parkList" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.staffBadge != null and  query.staffBadge != ''">
+				and apply.STAFF_BADGE=#{query.staffBadge}
+			</if>
+			<if test="query.staffName != null and  query.staffName != ''">
+				AND staff.NAME LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.applyDate != null">
+				and apply.CREATE_TIME &lt; #{query.applyDate}
+			</if>
+			<if test="query.resultDate != null">
+				and apply.UPDATE_TIME &lt; #{query.resultDate}
+			</if>
+			<if test="query.status != null">
+				and apply.STATUS=#{query.status}
+			</if>
+		</where>
+		ORDER BY apply.CREATE_TIME DESC
+	</select>
+</mapper>

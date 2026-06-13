@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtParkingCountMapper">
+
+  <resultMap id="smtParkingCountMap" type="com.tce.smart.platform.core.entity.SmtParkingCount">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="totalCount" column="total_count"/>
+                        <result property="useCount" column="use_count"/>
+                        <result property="freeCount" column="free_count"/>
+                        <result property="createTime" column="create_time"/>
+            </resultMap>
+            <select id="getByParkingId" resultType="com.tce.smart.platform.core.entity.SmtParkingCount">
+	SELECT
+					"spc_order".PARK_ID,
+					"spc_order".TOTAL_COUNT,
+					"spc_order".USE_COUNT,
+					"spc_order".FREE_COUNT,
+					"spc_order".CREATE_TIME,
+					"spc_order".PARKING_ID
+				FROM
+					(
+						SELECT
+							"spc".PARK_ID,
+							"spc".TOTAL_COUNT,
+							"spc".USE_COUNT,
+							"spc".FREE_COUNT,
+							"spc".CREATE_TIME,
+							"spc".PARKING_ID
+						FROM
+							SMT_PARKING_COUNT "spc"
+						WHERE
+							"spc".PARKING_ID = #{parkingId}
+						ORDER BY
+							"spc".CREATE_TIME DESC
+					) "spc_order"
+				WHERE
+					ROWNUM = 1
+            </select>
+</mapper>

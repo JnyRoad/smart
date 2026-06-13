@@ -1,0 +1,44 @@
+package com.tce.smart.dispatcher.api.dto.req;
+
+import cn.hutool.core.util.IdUtil;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+import java.io.Serializable;
+
+/**
+ * @Description: TODO
+ * @ProjectName smart-dispatcher
+ * @ClassName: DispatcherDTO
+ * @Author jinbo
+ * @Date 2019/11/6
+ */
+@Data
+public class DispatcherDTO<T> implements Serializable {
+	private static final long serialVersionUID = 1L;
+	/**
+	 * 事件ID
+	 */
+	@ApiModelProperty(value = "事件ID")
+	private String eventId = IdUtil.fastSimpleUUID().toUpperCase();
+	/**
+	 * 事件类型
+	 */
+	@ApiModelProperty(value = "事件类型")
+	private Integer eventType;
+	/**
+	 * 园区ID
+	 */
+	@ApiModelProperty(value = "园区ID")
+	private Integer parkId;
+	/**
+	 * 设备ID
+	 */
+	@ApiModelProperty(value = "设备ID")
+	private String deviceId;
+	/**
+	 * 业务数据
+	 */
+	@ApiModelProperty(value = "业务数据")
+	private T data;
+}

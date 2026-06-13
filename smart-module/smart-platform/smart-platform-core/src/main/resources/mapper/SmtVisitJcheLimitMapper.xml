@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtVisitJcheLimitMapper">
+
+	<resultMap id="smtVisitJcheLimitMap" type="com.tce.smart.platform.core.entity.SmtVisitJcheLimit">
+		<id property="id" column="ID"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="jcheId" column="JCHE_ID"/>
+		<result property="jcheDesc" column="JCHE_DESC"/>
+		<result property="createTime" column="CREATE_TIME"/>
+	</resultMap>
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.entity.SmtVisitJcheLimit">
+		SELECT
+		DISTINCT
+		park_id,create_time
+		FROM
+		SMT_VISIT_JCHE_LIMIT
+		<where>
+			<if test="parkId !=null and parkId.size>0">
+				and PARK_ID in
+				<foreach item="item" index="index" collection="parkId" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="type !=null and type != '' ">
+				and limit_type = #{type}
+			</if>
+		</where>
+		ORDER BY
+		CREATE_TIME DESC
+	</select>
+</mapper>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtEhrToStaffMapper">
+
+	<select id="page" parameterType="com.tce.smart.platform.core.dto.SearchEhrToStaffDTO" resultType="com.tce.smart.platform.core.entity.SmtEhrToStaff">
+
+		select id,badge,name,comp_name compName, dep_name depName,job_name jobName,create_time createTime
+
+		from smt_ehr_to_staff
+
+		<where>
+			<if test="query.name!=null and query.name!='' ">
+			AND name LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.badge!=null  and query.badge!=''">
+			AND badge LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+			AND create_time between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		</where>
+		order by create_time desc
+	</select>
+
+
+</mapper>

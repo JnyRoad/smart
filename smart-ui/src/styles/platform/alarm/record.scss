@@ -1,0 +1,53 @@
+.alarm_record{
+  .el-card__body{
+    padding-right: 0;
+  }
+  .alarm-list{
+    display: -webkit-flex; /* Safari */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    .alarm-card{
+      border: 1px solid #E8EBF1;
+      width: 240px;
+      margin: 0 13px 20px;
+      padding-bottom: 10px;
+      .al-img{
+        position: relative;
+        height: 180px;
+        text-align: center;
+        background: #E8EBF1;
+        img{
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          max-width: 100%;
+          height: auto;
+          max-height: 100%;
+          width: auto;
+        }
+      }
+      p{
+        padding: 0 15px;
+      }
+      .c-info{
+        text-align: center;
+        margin: 15px 0 10px 0;
+      }
+      .a-info{
+        margin-bottom: 5px;
+      }
+      .a-lbl{
+        color: #666;
+        float: left;
+      }
+      .a-val{
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+}

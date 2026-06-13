@@ -1,0 +1,551 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSnapVehicleMapper">
+
+	<resultMap id="smtSnapVehicleMap" type="com.tce.smart.platform.core.entity.SmtSnapVehicle">
+		<id property="id" column="id"/>
+		<result property="parkId" column="park_id"/>
+		<result property="deviceId" column="device_id"/>
+		<result property="channelNo" column="channel_no"/>
+		<result property="areaId" column="area_id"/>
+		<result property="areaName" column="area_name"/>
+		<result property="vehiclePlate" column="vehicle_plate"/>
+		<result property="vehicleBrand" column="vehicle_brand"/>
+		<result property="vehicleColor" column="vehicle_color"/>
+		<result property="plateColor" column="plate_color"/>
+		<result property="vehicleType" column="vehicle_type"/>
+		<result property="vehicleAscription" column="vehicle_ascription"/>
+		<result property="snapPhotoId" column="snap_photo_id"/>
+		<result property="eventType" column="event_type"/>
+		<result property="snapTime" column="snap_time"/>
+		<result property="driverId" column="driver_id"/>
+		<result property="driverName" column="driver_name"/>
+		<result property="driverType" column="driver_type"/>
+		<result property="driverPhone" column="driver_phone"/>
+		<result property="createTime" column="create_time"/>
+	</resultMap>
+	<resultMap id="SearchSmtSnapVehicleVoMap" type="com.tce.smart.platform.core.vo.SearchSmtSnapVehicleVO">
+		<id property="id" column="id"/>
+		<result property="areaName" column="area_name"/>
+		<result property="vehiclePlate" column="vehicle_plate"/>
+		<result property="snapPhotoId" column="snap_photo_id"/>
+		<result property="eventType" column="event_type"/>
+		<result property="snapTime" column="snap_time"/>
+		<result property="driverName" column="driver_name"/>
+		<result property="driverPhone" column="driver_phone"/>
+		<result property="company" column="company"/>
+		<result property="authority" column="authority"/>
+		<result property="letPass" column="let_pass"/>
+		<result property="parkName" column="park_name"/>
+		<result property="compName" column="comp_name"/>
+	</resultMap>
+	<resultMap id="SearchOneSnapVehicleVoMap" type="com.tce.smart.platform.core.vo.SearchOneSnapVehicleVO">
+		<id property="id" column="id"/>
+		<result property="vehiclePlate" column="vehicle_plate"/>
+		<result property="vehicleBrand" column="vehicle_brand"/>
+		<result property="vehicleColor" column="vehicle_color"/>
+		<result property="areaName" column="area_name"/>
+		<result property="eventType" column="event_type"/>
+		<result property="snapTime" column="snap_time"/>
+		<result property="snapPhotoId" column="snap_photo_id"/>
+		<result property="driverName" column="driver_name"/>
+		<result property="driverPhone" column="driver_phone"/>
+		<result property="driverType" column="driver_type"/>
+		<result property="staffBadge" column="badge"/>
+		<result property="compName" column="comp_name"/>
+		<result property="depName" column="dep_name"/>
+		<result property="jobName" column="job_name"/>
+		<result property="jcheName" column="jche_name"/>
+		<result property="company" column="company"/>
+	</resultMap>
+
+	<select id="searchVehicleVisitorAccess" parameterType="com.tce.smart.platform.core.dto.SnapVehicleAccessDTO"
+			resultMap="SearchSmtSnapVehicleVoMap">
+		SELECT
+		V. ID,
+		V.VEHICLE_PLATE,
+		V.AREA_NAME,
+		V.SNAP_PHOTO_ID,
+		V.EVENT_TYPE,
+		V.SNAP_TIME,
+		V.DRIVER_NAME,
+		V.DRIVER_PHONE,
+		V.AUTHORITY,
+		V.LET_PASS,
+		V.CREATE_TIME,
+		SV.COMPANY,P.PARK_NAME
+		FROM
+		SMT_SNAP_VEHICLE V
+		LEFT JOIN SMT_VISITOR SV ON V.DRIVER_ID = SV. ID
+		INNER JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		<where>
+			V.DRIVER_TYPE !=1
+			<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+				AND V.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+			</if>
+			<if test="query.areaId != null and query.areaId != ''">
+				AND V.AREA_ID=#{query.areaId}
+			</if>
+			<if test="query.eventType != null">
+				AND V.EVENT_TYPE=#{query.eventType}
+			</if>
+			<if test="query.driverName != null and query.driverName != ''">
+				AND V.DRIVER_NAME LIKE CONCAT(CONCAT('%',#{query.driverName}),'%')
+			</if>
+			<if test="query.driverPhone != null and query.driverPhone != ''">
+				AND V.DRIVER_PHONE LIKE CONCAT(CONCAT('%',#{query.driverPhone}),'%')
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND V.SNAP_TIME  <![CDATA[>=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND V.SNAP_TIME  <![CDATA[<=]]>
+				TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND V.PARK_ID=#{query.parkId}
+			</if>
+			<if test="park!=null and park.size>0">
+				and V.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		ORDER BY V.SNAP_TIME DESC
+	</select>
+	<select id="searchVehicleAdmittanceAccess" parameterType="com.tce.smart.platform.core.dto.SnapVehicleAccessDTO"
+			resultMap="SearchSmtSnapVehicleVoMap">
+		SELECT
+		V. ID,
+		SAV.PLATE,
+		V.AREA_NAME,
+		V.SNAP_PHOTO_ID,
+		V.EVENT_TYPE,
+		V.SNAP_TIME,
+		V.DRIVER_NAME,
+		V.DRIVER_PHONE,
+		V.AUTHORITY,
+		V.LET_PASS,
+		V.CREATE_TIME,
+		SV.COMPANY,P.PARK_NAME
+		FROM
+		SMT_SNAP_VEHICLE V
+		LEFT JOIN SMT_ADMITTANCE_VEHICLE SAV ON V.DRIVER_ID = SAV.ID
+		LEFT JOIN SMT_VISITOR SV ON SAV.VISITOR_ID = SV.ID
+		INNER JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		<where>
+			V.DRIVER_TYPE !=1
+			<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+				AND V.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+			</if>
+			<if test="query.areaId != null and query.areaId != ''">
+				AND V.AREA_ID=#{query.areaId}
+			</if>
+			<if test="query.eventType != null">
+				AND V.EVENT_TYPE=#{query.eventType}
+			</if>
+			<if test="query.driverName != null and query.driverName != ''">
+				AND V.DRIVER_NAME LIKE CONCAT(CONCAT('%',#{query.driverName}),'%')
+			</if>
+			<if test="query.driverPhone != null and query.driverPhone != ''">
+				AND V.DRIVER_PHONE LIKE CONCAT(CONCAT('%',#{query.driverPhone}),'%')
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND V.SNAP_TIME  <![CDATA[>=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND V.SNAP_TIME  <![CDATA[<=]]>
+				TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND V.PARK_ID=#{query.parkId}
+			</if>
+			<if test="park!=null and park.size>0">
+				and V.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		ORDER BY V.SNAP_TIME DESC
+	</select>
+	<select id="searchVehicleStaffAccess" parameterType="com.tce.smart.platform.core.dto.SnapVehicleAccessDTO"
+			resultMap="SearchSmtSnapVehicleVoMap">
+		SELECT
+		V. ID,
+		V.VEHICLE_PLATE,
+		V.AREA_NAME,
+		V.SNAP_PHOTO_ID,
+		V.EVENT_TYPE,
+		V.SNAP_TIME,
+		V.DRIVER_NAME,
+		V.DRIVER_PHONE,
+		V.AUTHORITY,
+		V.LET_PASS,
+		P.PARK_NAME,
+		V.CREATE_TIME,
+		ST.COMP_NAME
+		FROM
+		SMT_SNAP_VEHICLE V
+		LEFT JOIN SMT_STAFF ST ON V.DRIVER_ID = ST. ID
+		INNER JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		<where>
+			V.DRIVER_TYPE = 1
+			<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+				AND V.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+			</if>
+			<if test="query.compId != null and query.compId != ''">
+				AND ST.COMP_ID=#{query.compId}
+			</if>
+			<if test="query.depId != null and query.depId != ''">
+				AND ST.DEP_ID=#{query.depId}
+			</if>
+			<if test="query.areaId != null and query.areaId != ''">
+				AND V.AREA_ID=#{query.areaId}
+			</if>
+			<if test="query.eventType != null">
+				AND V.EVENT_TYPE=#{query.eventType}
+			</if>
+			<if test="query.driverName != null and query.driverName != ''">
+				AND V.DRIVER_NAME LIKE CONCAT(CONCAT('%',#{query.driverName}),'%')
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND V.SNAP_TIME  <![CDATA[>=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND V.SNAP_TIME  <![CDATA[<=]]>
+				TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND V.PARK_ID=#{query.parkId}
+			</if>
+			<if test="park!=null and park.size>0">
+				and V.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY V.SNAP_TIME DESC
+	</select>
+
+	<select id="searchVehicleAccessVisitorById" parameterType="com.tce.smart.platform.core.entity.SmtSnapVehicle"
+			resultMap="SearchOneSnapVehicleVoMap">
+		SELECT
+		V.ID,
+		V.VEHICLE_PLATE,
+		V.VEHICLE_BRAND,
+		V.VEHICLE_COLOR,
+		V.AREA_NAME,
+		V.EVENT_TYPE,
+		V.SNAP_TIME,
+		V.SNAP_PHOTO_ID,
+		V.DRIVER_NAME,
+		V.DRIVER_PHONE,
+		V.DRIVER_TYPE,
+		V.CREATE_TIME,
+		SV.COMPANY
+		FROM
+		SMT_SNAP_VEHICLE V
+		LEFT JOIN SMT_VISITOR SV ON V.DRIVER_ID = SV. ID
+		<where>
+			<if test="query.id != null">
+				V.ID=#{query.id}
+			</if>
+		</where>
+	</select>
+	<select id="searchVehicleAccessAdmittanceById" parameterType="com.tce.smart.platform.core.entity.SmtSnapVehicle"
+			resultMap="SearchOneSnapVehicleVoMap">
+		SELECT
+		V.ID,
+		V.VEHICLE_PLATE,
+		V.VEHICLE_BRAND,
+		V.VEHICLE_COLOR,
+		V.AREA_NAME,
+		V.EVENT_TYPE,
+		V.SNAP_TIME,
+		V.SNAP_PHOTO_ID,
+		V.DRIVER_NAME,
+		V.DRIVER_PHONE,
+		V.DRIVER_TYPE,
+		V.CREATE_TIME,
+		SV.COMPANY
+		FROM
+		SMT_SNAP_VEHICLE V
+		LEFT JOIN SMT_ADMITTANCE_VEHICLE SAV ON V.DRIVER_ID = SAV.ID
+		LEFT JOIN SMT_VISITOR SV ON SAV.VISITOR_ID = SV.ID
+		<where>
+			<if test="query.id != null">
+				V.ID=#{query.id}
+			</if>
+		</where>
+	</select>
+	<select id="searchVehicleAccessById" parameterType="com.tce.smart.platform.core.entity.SmtSnapVehicle"
+			resultMap="SearchOneSnapVehicleVoMap">
+		SELECT
+		V.ID,
+		V.VEHICLE_PLATE,
+		V.VEHICLE_BRAND,
+		V.VEHICLE_COLOR,
+		V.AREA_NAME,
+		V.EVENT_TYPE,
+		V.SNAP_TIME,
+		V.SNAP_PHOTO_ID,
+		V.DRIVER_NAME,
+		V.DRIVER_PHONE,
+		V.CREATE_TIME,
+		V.DRIVER_TYPE
+		FROM
+		SMT_SNAP_VEHICLE V
+		<where>
+			<if test="query.id != null">
+				V.ID=#{query.id}
+			</if>
+		</where>
+	</select>
+
+	<select id="searchVehicleAccessStaffById" parameterType="com.tce.smart.platform.core.entity.SmtSnapVehicle"
+			resultMap="SearchOneSnapVehicleVoMap">
+		SELECT
+		V. ID,
+		V.VEHICLE_PLATE,
+		V.VEHICLE_BRAND,
+		V.VEHICLE_COLOR,
+		V.AREA_NAME,
+		V.EVENT_TYPE,
+		V.SNAP_TIME,
+		V.SNAP_PHOTO_ID,
+		V.DRIVER_NAME,
+		V.DRIVER_PHONE,
+		V.DRIVER_TYPE,
+		SF.BADGE,
+		SF.COMP_NAME,
+		SF.DEP_NAME,
+		SF.JOB_NAME,
+		SF.JCHE_NAME
+		FROM
+		SMT_SNAP_VEHICLE V
+		LEFT JOIN SMT_STAFF SF ON V.DRIVER_ID = SF. ID
+		<where>
+			<if test="query.id != null">
+				V.ID=#{query.id}
+			</if>
+		</where>
+	</select>
+
+	<select id="getSnapVehicle" resultType="com.tce.smart.platform.core.entity.SmtSnapVehicle">
+		SELECT
+		SMT_SNAP_VEHICLE. ID,
+		SMT_SNAP_VEHICLE.VEHICLE_PLATE,
+		SMT_SNAP_VEHICLE.EVENT_TYPE,
+		SMT_SNAP_VEHICLE.SNAP_TIME,
+		SMT_SNAP_VEHICLE.DRIVER_NAME,
+		SMT_SNAP_VEHICLE.DRIVER_PHONE,
+		SMT_SNAP_VEHICLE.PARK_ID
+		FROM
+		SMT_SNAP_VEHICLE
+		<where>
+			AND SMT_SNAP_VEHICLE.DEVICE_ID IN(
+			SELECT
+			SMT_DEVICE."ID"
+			FROM
+			SMT_DEVICE
+			WHERE
+			SMT_DEVICE.DEVICE_SUBTYPE IN (
+			SELECT
+			SMT_PARKING."ID"
+			FROM
+			SMT_PARKING
+			)
+			)
+			<if test="query.parkId != null">
+				AND SMT_SNAP_VEHICLE.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SMT_SNAP_VEHICLE.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+				AND SMT_SNAP_VEHICLE.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+			</if>
+			<if test="query.driverName != null and query.driverName != ''">
+				AND SMT_SNAP_VEHICLE.DRIVER_NAME LIKE CONCAT(CONCAT('%',#{query.driverName}),'%')
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SMT_SNAP_VEHICLE.SNAP_TIME  <![CDATA[>=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND SMT_SNAP_VEHICLE.SNAP_TIME <![CDATA[<]]>
+				TO_DATE(#{query.endTime}, 'yyyy-MM-dd') + 1
+			</if>
+			<if test="query.eventType != null">
+				AND SMT_SNAP_VEHICLE.EVENT_TYPE = #{query.eventType}
+			</if>
+		</where>
+		ORDER BY SMT_SNAP_VEHICLE.SNAP_TIME DESC
+	</select>
+
+	<select id="getCurrentVehicle" resultType="com.tce.smart.platform.core.entity.SmtSnapVehicle">
+		SELECT
+		V_SNAP_VEHICLE. ID,
+		V_SNAP_VEHICLE.VEHICLE_PLATE,
+		V_SNAP_VEHICLE.EVENT_TYPE,
+		V_SNAP_VEHICLE.SNAP_TIME,
+		V_SNAP_VEHICLE.DRIVER_NAME,
+		V_SNAP_VEHICLE.DRIVER_PHONE,
+		V_SNAP_VEHICLE.PARK_ID
+		FROM
+		(
+		SELECT
+		ROW_NUMBER () OVER (
+		PARTITION BY VEHICLE_PLATE
+		ORDER BY
+		SNAP_TIME DESC
+		) rn,
+		SMT_SNAP_VEHICLE. ID,
+		SMT_SNAP_VEHICLE.VEHICLE_PLATE,
+		SMT_SNAP_VEHICLE.EVENT_TYPE,
+		SMT_SNAP_VEHICLE.DRIVER_NAME,
+		SMT_SNAP_VEHICLE.DRIVER_PHONE,
+		SMT_SNAP_VEHICLE.SNAP_TIME,
+		SMT_SNAP_VEHICLE.CREATE_TIME,
+		SMT_SNAP_VEHICLE.PARK_ID
+		FROM
+		SMT_SNAP_VEHICLE
+		<where>
+			<if test="query.parkId != null">
+				AND SMT_SNAP_VEHICLE.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SMT_SNAP_VEHICLE.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+				AND SMT_SNAP_VEHICLE.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+			</if>
+			<if test="query.driverName != null and query.driverName != ''">
+				AND SMT_SNAP_VEHICLE.DRIVER_NAME LIKE CONCAT(CONCAT('%',#{query.driverName}),'%')
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SMT_SNAP_VEHICLE.SNAP_TIME  <![CDATA[>=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND SMT_SNAP_VEHICLE.SNAP_TIME  <![CDATA[<]]>
+				TO_DATE(#{query.endTime}, 'yyyy-MM-dd') + 1
+			</if>
+			<if test="query.parkingId != null and query.parkingId != ''">
+				AND SMT_SNAP_VEHICLE.DEVICE_ID IN(
+				SELECT
+				SMT_DEVICE."ID"
+				FROM
+				SMT_DEVICE
+				WHERE
+				SMT_DEVICE.DEVICE_SUBTYPE = #{query.parkingId}
+				)
+			</if>
+		</where>
+		) V_SNAP_VEHICLE
+		<where>
+			AND V_SNAP_VEHICLE.RN = 1
+			<if test="query.eventType != null">
+				AND V_SNAP_VEHICLE.EVENT_TYPE = #{query.eventType}
+			</if>
+		</where>
+		ORDER BY V_SNAP_VEHICLE.SNAP_TIME DESC
+	</select>
+
+	<select id="getVehicleCountBySnapTime" resultType="com.tce.smart.platform.core.dto.SnapVehicleCountDTO">
+		SELECT
+		TRUNC (
+		TO_NUMBER (
+		TO_CHAR (SSV.SNAP_TIME, 'hh24')
+		) / 4
+		) AS ORDER_INDEX,
+		COUNT (*) AS TOTAL,
+		SSV.EVENT_TYPE
+		FROM
+		SMT_SNAP_VEHICLE SSV
+		WHERE
+		<if test="parkId != null">
+			PARK_ID=#{parkId} and
+		</if>
+
+		SSV.SNAP_TIME > TRUNC (SYSDATE)
+		AND SSV.DEVICE_ID NOT IN (
+		SELECT
+		SD."ID"
+		FROM
+		SMT_DEVICE SD
+		WHERE
+		SD.DEVICE_SUBTYPE IN (
+		SELECT
+		SP. ID
+		FROM
+		SMT_PARKING SP
+		)
+		)
+		GROUP BY
+		TRUNC (
+		TO_NUMBER (
+		TO_CHAR (SSV.SNAP_TIME, 'hh24')
+		) / 4
+		),
+		SSV.EVENT_TYPE
+		ORDER BY
+		SSV.EVENT_TYPE,
+		ORDER_INDEX
+	</select>
+
+	<!-- 获取当天的抓拍车辆数据 -->
+	<select id="getSnapVehicleList" parameterType="com.tce.smart.platform.core.dto.SnapVehicleAccessDTO"
+			resultMap="smtSnapVehicleMap">
+		SELECT
+		V.SNAP_PHOTO_ID,
+		V.DRIVER_ID,
+		V.CREATE_TIME,
+		V.SNAP_TIME
+		FROM
+		SMT_SNAP_VEHICLE V
+		<where>
+			<if test="query.vehicleAscription != null">
+				V.VEHICLE_ASCRIPTION=#{query.vehicleAscription}
+			</if>
+			<if test="query.eventType != null">
+				AND V.EVENT_TYPE=#{query.eventType}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND V.SNAP_TIME  <![CDATA[>=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND V.SNAP_TIME  <![CDATA[<=]]>
+				TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		</where>
+		ORDER BY V.SNAP_TIME DESC
+	</select>
+
+	<select id="getSnapVehicleListLasted" resultType="com.tce.smart.platform.core.entity.SmtSnapVehicle">
+		SELECT * FROM (
+		select AREA_NAME,SNAP_TIME,VEHICLE_PLATE,EVENT_TYPE from smt_snap_vehicle
+		<if test="parkId != null">
+			where PARK_ID=#{parkId}
+		</if>
+		ORDER BY SNAP_TIME desc) WHERE ROWNUM &lt;= 4
+	</select>
+
+</mapper>

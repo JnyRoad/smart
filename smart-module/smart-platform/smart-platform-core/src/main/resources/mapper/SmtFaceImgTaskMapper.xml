@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtFaceImgTaskMapper">
+
+  <resultMap id="smtFaceImgTaskMap" type="com.tce.smart.platform.core.entity.SmtFaceImgTask">
+                  <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="taskName" column="TASK_NAME"/>
+                        <result property="totalNum" column="TOTAL_NUM"/>
+                        <result property="successNum" column="SUCESS_NUM"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+            </resultMap>
+</mapper>

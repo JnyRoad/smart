@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtTravelApplicationMapper">
+
+  <resultMap id="smtTravelApplicationMap" type="com.tce.smart.platform.core.entity.SmtTravelApplication">
+                  <id property="id" column="id"/>
+                        <result property="staffId" column="staff_id"/>
+                        <result property="staffBadge" column="staff_badge"/>
+                        <result property="staffName" column="staff_name"/>
+                        <result property="startTime" column="start_time"/>
+                        <result property="endTime" column="end_time"/>
+                        <result property="duration" column="duration"/>
+                        <result property="cause" column="cause"/>
+                        <result property="processId" column="processId"/>
+                        <result property="createTime" column="createTime"/>
+                        <result property="travleLocal" column="travle_local"/>
+            </resultMap>
+     <select id="getSmtTravelApplicationPage" parameterType="com.tce.smart.platform.core.entity.SmtTravelApplication" resultType="com.tce.smart.platform.core.vo.SearchTravelApplicationVO">
+		SELECT
+			T . ID AS RECORDID,
+			T .STAFF_NAME,
+			T .TRAVLE_LOCAL AS TRAVELCITY,
+			T .START_TIME AS STARTDATE,
+			T .END_TIME AS ENDDATE,
+			T .DURATION AS TRAVELCOUNT,
+			T .CREATE_TIME AS RECORDDATE,
+			T .PROCESS_ID
+		FROM
+			SMT_TRAVEL_APPLICATION T
+	  <where>
+		   <if test="query.staffBadge!=null and query.staffBadge!=''" >
+	         T.STAFF_BADGE =#{query.staffBadge}
+	       </if>
+      </where>
+	  </select>
+</mapper>

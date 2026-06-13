@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtReplaceApplicationMapper">
+
+	<resultMap id="smtReplaceApplicationMap" type="com.tce.smart.platform.core.entity.SmtReplaceApplication">
+		<id property="id" column="id"/>
+		<result property="staffId" column="staff_id"/>
+		<result property="staffBadge" column="staff_badge"/>
+		<result property="staffName" column="staff_name"/>
+		<result property="time" column="time"/>
+		<result property="process_id" column="processId"/>
+		<result property="cause" column="cause"/>
+		<result property="create_time" column="createTime"/>
+	</resultMap>
+
+	<select id="getSmtReplaceApplicationPage" parameterType="com.tce.smart.platform.core.entity.SmtReplaceApplication"
+			resultType="com.tce.smart.platform.core.vo.SearchReplaceApplicationVO">
+		SELECT
+		R. ID AS RECORDID,
+		R.STAFF_NAME,
+		R.CAUSE,
+		R.START_TIME AS PATCHDATE,
+		R.CREATE_TIME AS RECORDDATE,
+		R.PROCESS_ID,
+		S.COMP_NAME AS BUNAME
+		FROM
+		SMT_REPLACE_APPLICATION R
+		LEFT JOIN SMT_STAFF S ON R.STAFF_BADGE = S.BADGE
+		<where>
+			<if test="query.staffBadge!=null and query.staffBadge!=''">
+				R.STAFF_BADGE =#{query.staffBadge}
+			</if>
+		</where>
+		ORDER BY R.CREATE_TIME DESC
+	</select>
+
+	<select id="getSmtReplaceApplicationPageList" parameterType="com.tce.smart.platform.core.dto.SearchReplaceDTO"
+			resultType="com.tce.smart.platform.core.vo.SearchReplaceApplicationVO">
+		SELECT
+		R. ID AS RECORDID,
+		R.STAFF_NAME,
+		STAFF.COMP_NAME,
+		STAFF.DEP_NAME,
+		STAFF.JOB_NAME,
+		R.CAUSE,
+		R.START_TIME AS PATCHDATE,
+		R.CREATE_TIME AS RECORDDATE,
+		R.PROCESS_ID,
+		R.STAFF_BADGE,
+		R.CREATE_TIME,
+		R.WORK_MONTH
+		FROM
+		SMT_REPLACE_APPLICATION R
+		INNER JOIN SMT_STAFF STAFF ON R.STAFF_BADGE=STAFF.BADGE
+		<where>
+			<if test="query.staffBadge!=null and query.staffBadge!=''">
+				R.STAFF_BADGE LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.staffName!=null and query.staffName!=''">
+				AND R.STAFF_NAME LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND R.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND STAFF.COMP_ID IN (
+				SELECT DISTINCT SPB.COMP_ID from SMT_PARK_BU SPB
+				<where>
+					SPB.PARK_ID IN
+					<foreach collection="query.parkIds" item="id" index="index" open="(" close=")" separator=",">
+						#{id}
+					</foreach>
+				</where>
+				)
+			</if>
+		</where>
+		ORDER BY R.CREATE_TIME DESC
+	</select>
+
+	<select id="patchStatistics" resultType="com.tce.smart.platform.core.vo.PatchStatisticsVo"
+			parameterType="com.tce.smart.platform.core.dto.PatchStatisticsDTO">
+		SELECT
+		SP. ID AS PARK_ID,
+		SS.COMP_NAME,
+		SS.DEP_NAME,
+		SRA.CAUSE,
+		SRA.START_TIME,
+		COUNT(*) as STATISTICS
+		FROM
+		SMT_REPLACE_APPLICATION SRA
+		LEFT JOIN SMT_STAFF SS ON SRA.STAFF_BADGE = SS.BADGE
+		LEFT JOIN SMT_PARK_BU SPB ON SS.COMP_ID = SPB.COMP_ID
+		LEFT JOIN SMT_PARK SP ON SPB.PARK_ID = SP.ID
+		<where>
+			<if test="query.parkId != null">
+				SP.ID = #{query.parkId}
+			</if>
+			<if test="query.compId != null and query.compId != ''">
+				AND SS.COMP_ID = #{query.compId}
+			</if>
+			<if test="query.depId != null and query.depId != ''">
+				AND SS.DEP_ID = #{query.depId}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SRA.START_TIME = #{query.startTime}
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SP.ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		GROUP BY SP.ID,SS.COMP_NAME,SS.DEP_NAME,SRA.CAUSE,SRA.START_TIME
+		ORDER BY SRA.START_TIME DESC
+	</select>
+</mapper>

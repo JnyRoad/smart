@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDeviceVehicleMapper">
+
+	<resultMap id="smtDeviceVehicleMap" type="com.tce.smart.platform.core.entity.SmtDeviceVehicle">
+		<id property="id" column="id"/>
+		<result property="deviceId" column="device_id"/>
+		<result property="vehicleId" column="vehicle_Id"/>
+		<result property="deviceAuthorityId" column="device_authority_id"/>
+		<result property="startValidTime" column="start_valid_time"/>
+		<result property="endValidTime" column="end_valid_time"/>
+		<result property="createTime" column="create_time"/>
+	</resultMap>
+	<select id="getDeviceVehicle" resultType="com.tce.smart.platform.core.dto.DeviceVehicleDTO">
+		SELECT
+		SDT.CARD_NO,
+		SDT.GENERAL AS PLATE,
+		PERSON.PERSON_NAME,
+		SDT.CREATE_TIME,
+		SDT.OVER_TIME
+		FROM
+		SMT_TASK_DOWN_RECORD SDT
+		LEFT JOIN (
+		SELECT
+		SLA. ID AS VEHICLE_ID,
+		SLA.DRIVER_NAME AS PERSON_NAME
+		FROM
+		SMT_LOGISTICS_APPOINTMENT SLA
+		UNION ALL
+		SELECT
+		SV. ID AS VEHICLE_ID,
+		SV.VISITOR_NAME AS PERSON_NAME
+		FROM
+		SMT_VISITOR SV
+		UNION ALL
+		SELECT
+		SNS.VEHICLE_ID AS VEHICLE_ID,
+		SNS."NAME" AS PERSON_NAME
+		FROM
+		SMT_NOT_STAFF SNS
+		UNION ALL
+		SELECT
+		SVS.VEHICLE_ID AS VEHICLE_ID,
+		SS."NAME" AS PERSON_NAME
+		FROM
+		SMT_VEHICLE_STAFF SVS
+		LEFT JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS."ID"
+		) PERSON ON PERSON.VEHICLE_ID = SDT.CARD_NO
+		<where>
+			SDT.DEVICE_TYPE = 2
+			AND SDT.ACTION = 1
+			<if test="query.deviceId != null and  query.deviceId != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceId}
+			</if>
+			<if test="query.name != null and  query.name != ''">
+				AND PERSON.PERSON_NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.plate != null and  query.plate != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.plate}),'%')
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC
+	</select>
+
+	<select id="getDeviceAuthVehiclePage" resultType="com.tce.smart.platform.api.dto.resp.DeviceAuthVehicleRespDTO">
+		SELECT
+		SD.DEVICE_NAME,
+		SA.AREA_NAME,
+		SDT.GENERAL AS PLATE,
+		SDT.DEVICE_CODE,
+		SDT.CARD_NO,
+		SDT.START_TIME,
+		SDT.CREATE_TIME,
+		SDT.OVER_TIME
+		FROM
+		SMT_TASK_DOWN_RECORD SDT
+		LEFT JOIN (
+			SELECT
+			SLA.ID AS VEHICLE_ID,
+			SLA.DRIVER_NAME AS PERSON_NAME
+			FROM
+			SMT_LOGISTICS_APPOINTMENT SLA
+			UNION ALL
+			SELECT
+			SV.ID AS VEHICLE_ID,
+			SV.VISITOR_NAME AS PERSON_NAME
+			FROM
+			SMT_VISITOR SV
+			UNION ALL
+			SELECT
+			SNS.VEHICLE_ID AS VEHICLE_ID,
+			SNS."NAME" AS PERSON_NAME
+			FROM
+			SMT_NOT_STAFF SNS
+			UNION ALL
+			SELECT
+			SVS.VEHICLE_ID AS VEHICLE_ID,
+			SS."NAME" AS PERSON_NAME
+			FROM
+			SMT_VEHICLE_STAFF SVS
+			LEFT JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS."ID"
+		) PERSON ON PERSON.VEHICLE_ID = SDT.CARD_NO
+		LEFT JOIN SMT_DEVICE SD ON SD.ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_DEVICE_AREA SDA ON SDA.DEVICE_ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_AREA SA ON SA.ID = SDA.AREA_ID
+		WHERE
+		SDT.DEVICE_TYPE = 2
+		AND SDT.ACTION = 1
+		<if test="query.deviceName != null and query.deviceName != ''">
+			AND SD.DEVICE_NAME LIKE CONCAT('%', CONCAT(#{query.deviceName}, '%'))
+		</if>
+		<if test="query.plate != null and query.plate != ''">
+			AND SDT.GENERAL LIKE CONCAT('%', CONCAT(#{query.plate}, '%'))
+		</if>
+		<if test="query.parkId != null or query.parAreaId != null or query.areaId != null">
+			AND SDA.AREA_ID IN (
+			SELECT SA."ID" FROM SMT_AREA SA
+			<where>
+				<if test="query.parkId != null">
+					AND SA.PARK_ID = #{query.parkId}
+				</if>
+				<if test="query.parAreaId != null">
+					AND SA.PID = #{query.parAreaId}
+				</if>
+				<if test="query.areaId != null">
+					AND SA."ID" = #{query.areaId}
+				</if>
+			</where>
+			)
+		</if>
+		<if test="query.parkIds != null and query.parkIds.size > 0">
+			AND SD.PARK_ID IN
+			<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+				#{tempId}
+			</foreach>
+		</if>
+		ORDER BY SDT.CREATE_TIME DESC
+	</select>
+</mapper>

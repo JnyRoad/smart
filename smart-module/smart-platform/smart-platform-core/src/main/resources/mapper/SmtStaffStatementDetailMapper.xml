@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtStaffStatementDetailMapper">
+
+	<resultMap id="staffSDStatement" type="com.tce.smart.platform.core.dto.SmtStaffStatementDTO">
+		<id property="id" column="id"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="badge" column="STAFF_BADGE"/>
+		<result property="name" column="STAFF_NAME"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="compName" column="COMP_NAME"/>
+		<result property="depName" column="DEP_NAME"/>
+		<result property="depAbbr" column="DEP_ABBR"/>
+		<result property="statementDate" column="STATEMENT_DATE"/>
+		<result property="fee" column="FEE"/>
+	</resultMap>
+
+	<resultMap id="sdStatementDetail" type="com.tce.smart.platform.core.dto.SDStatementFeeDetailDTO">
+		<result property="staffBadge" column="STAFF_BADGE"/>
+		<result property="fee" column="FEE"/>
+		<result property="meterMonth" column="METER_MONTH"/>
+		<result property="statementDate" column="STATEMENT_DATE"/>
+		<result property="cateId" column="CATEGORY_ID"/>
+		<result property="meterType" column="METER_TYPE"/>
+	</resultMap>
+
+	<select id="getStaffSDStatementDetail" parameterType="com.tce.smart.platform.core.dto.SmtStaffStatementDTO"  resultMap="staffSDStatement">
+		select min(sssd.STAFF_BADGE) as STAFF_BADGE,
+		min(staff.name) as STAFF_NAME,
+		min(staff.STATUS) as status,
+		sum(sssd.FEE) as FEE,
+		min(sssd.REMARK_DAYS) as remarkDays,
+		min(sssd.STAY_DAYS) as inDays,
+		min(sssd.IN_TIME) as inTime,
+		min(sssd.STATEMENT_DATE) as STATEMENT_DATE,
+		min(sssd.METER_MONTH) as METER_MONTH,
+		min(park.PARK_NAME) as PARK_NAME,
+		min(staff.COMP_NAME) as COMP_NAME,
+		min(staff.DEP_NAME) as DEP_NAME,
+		min(sssd.ROOM_NAME) as roomName,
+		min(sssd.ROOM_ID) as roomId,
+		(select DISTINCT STAFF_NAME from SMT_DORMITORY_STAFF_HISTORY where STAFF_BADGE=sssd.STAFF_BADGE and rownum=1) as roomInName
+		from SMT_STAFF_STATEMENTDETAIL sssd
+		left join SMT_STAFF staff on sssd.STAFF_BADGE=staff.BADGE
+		left join SMT_PARK park on sssd.PARK_ID=park.ID
+		<where>
+			sssd.STATEMENT_STATUS=1
+			<if test="query.parkId != null and  query.parkId !=''">
+				AND sssd.PARK_ID=#{query.parkId}
+				<if test="query.compId != null and  query.compId !=''">
+					AND staff.COMP_ID=#{query.compId}
+					<if test="query.depId != null and  query.depId !=''">
+						AND staff.DEP_ID=#{query.depId}
+					</if>
+				</if>
+			</if>
+
+			<if test="query.badge != null and  query.badge !=''">
+				AND sssd.STAFF_BADGE=#{query.badge}
+			</if>
+
+			<if test="query.name != null and  query.name !=''">
+				AND sssd.STAFF_NAME like concat(concat('%',#{query.name}),'%')
+			</if>
+
+			<if test="query.meterMonth != null">
+				AND sssd.METER_MONTH=#{query.meterMonth}
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and sssd.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		GROUP BY sssd.STAFF_BADGE, sssd.METER_MONTH
+		ORDER BY sssd.METER_MONTH desc
+	</select>
+
+	<select id="getStaffSDStatementDetailNew" parameterType="com.tce.smart.platform.core.dto.SmtStaffStatementDTO"  resultMap="staffSDStatement">
+		select min(sssd.STAFF_BADGE) as STAFF_BADGE,
+		min(staff.name) as STAFF_NAME,
+		min(staff.STATUS) as status,
+		sum(sssd.FEE) as FEE,
+		sum(sssd.REMARK_DAYS) / 3 as remarkDays,
+		sum(sssd.STAY_DAYS) / 3 as inDays,
+		min(sssd.IN_TIME) as inTime,
+		min(sssd.STATEMENT_DATE) as STATEMENT_DATE,
+		min(sssd.METER_MONTH) as METER_MONTH,
+		min(park.PARK_NAME) as PARK_NAME,
+		min(staff.COMP_NAME) as COMP_NAME,
+		min(staff.DEP_NAME) as DEP_NAME,
+		min(staff.DEP_ABBR) as DEP_ABBR,
+		min(staff.CREATE_TIME) as CREATE_TIME,
+		min(sssd.ROOM_NAME) as roomName,
+		min(sssd.ROOM_ID) as roomId,
+		(select DISTINCT STAFF_NAME from SMT_DORMITORY_STAFF_HISTORY where STAFF_BADGE=sssd.STAFF_BADGE and rownum=1) as roomInName
+		from SMT_STAFF_STATEMENTDETAIL sssd
+		left join SMT_STAFF staff on sssd.STAFF_BADGE=staff.BADGE
+		left join SMT_PARK park on sssd.PARK_ID=park.ID
+		<where>
+			sssd.STATEMENT_STATUS=1
+			<if test="query.parkId != null and  query.parkId !=''">
+				AND sssd.PARK_ID=#{query.parkId}
+				<if test="query.compId != null and  query.compId !=''">
+					AND staff.COMP_ID=#{query.compId}
+					<if test="query.depId != null and  query.depId !=''">
+						AND staff.DEP_ID=#{query.depId}
+					</if>
+				</if>
+			</if>
+
+			<if test="query.badge != null and  query.badge !=''">
+				AND sssd.STAFF_BADGE=#{query.badge}
+			</if>
+
+			<if test="query.name != null and  query.name !=''">
+				AND sssd.STAFF_NAME like concat(concat('%',#{query.name}),'%')
+			</if>
+
+			<if test="query.meterMonth != null">
+				AND sssd.METER_MONTH=#{query.meterMonth}
+			</if>
+
+			<if test="roomIdList != null and roomIdList.size > 0">
+				<foreach item="idList" index="idListIndex" collection="roomIdList">
+					<if test="idListIndex == 0">
+						and sssd.ROOM_ID in
+					</if>
+					<if test="idListIndex > 0">
+						or sssd.ROOM_ID in
+					</if>
+					<foreach item="item" index="index" collection="idList" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+				</foreach>
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and sssd.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		GROUP BY sssd.STAFF_BADGE, sssd.ROOM_ID,sssd.METER_MONTH,sssd.ROOM_NAME
+		ORDER BY sssd.METER_MONTH desc,sssd.ROOM_NAME
+	</select>
+
+	<select id="getStaffSDStatementDetailNewDaily" parameterType="com.tce.smart.platform.core.dto.SmtStaffStatementDTO"  resultMap="staffSDStatement">
+		SELECT
+			t1.STAFF_BADGE AS STAFF_BADGE,
+			t2.name AS STAFF_NAME,
+			t2.STATUS AS status,
+			sum( t1.FEE ) AS FEE,
+			sum( t1.REMARK_DAYS ) AS remarkDays,
+			sum( t1.STAY_DAYS ) AS inDays,
+			t1.IN_TIME AS inTime,
+			#{query.meterMonth} AS METER_MONTH,
+			t3.PARK_NAME AS PARK_NAME,
+			t2.COMP_NAME AS COMP_NAME,
+			t2.DEP_NAME AS DEP_NAME,
+			t2.DEP_ABBR AS DEP_ABBR,
+			t1.ROOM_NAME AS roomName,
+			t1.ROOM_ID AS roomId,
+			( SELECT DISTINCT STAFF_NAME FROM SMT_DORMITORY_STAFF_HISTORY WHERE STAFF_BADGE = t1.STAFF_BADGE AND ROWNUM = 1 ) AS roomInName
+		FROM
+			SMT_STAFF_STATEMENTDETAIL_DAILY t1
+			LEFT JOIN SMT_STAFF t2 ON t1.STAFF_BADGE = t2.BADGE
+			LEFT JOIN SMT_PARK t3 ON t1.PARK_ID = t3.ID
+		<where>
+			t1.STATEMENT_STATUS is null
+			<if test="query.parkId != null and  query.parkId !=''">
+				AND t1.PARK_ID=#{query.parkId}
+				<if test="query.compId != null and  query.compId !=''">
+					AND t2.COMP_ID=#{query.compId}
+					<if test="query.depId != null and  query.depId !=''">
+						AND t2.DEP_ID=#{query.depId}
+					</if>
+				</if>
+			</if>
+
+			<if test="query.badge != null and  query.badge !=''">
+				AND t1.STAFF_BADGE=#{query.badge}
+			</if>
+
+			<if test="query.name != null and  query.name !=''">
+				AND t1.STAFF_NAME like concat(concat('%',#{query.name}),'%')
+			</if>
+
+			<if test="query.meterMonth != null">
+				AND to_char( t1.METER_MONTH, 'yyyy-mm' ) = to_char( #{query.meterMonth}, 'yyyy-mm')
+			</if>
+
+			<if test="roomIdList != null and roomIdList.size > 0">
+				<foreach item="idList" index="idListIndex" collection="roomIdList">
+					<if test="idListIndex == 0">
+						and t1.ROOM_ID in
+					</if>
+					<if test="idListIndex > 0">
+						or t1.ROOM_ID in
+					</if>
+					<foreach item="item" index="index" collection="idList" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+				</foreach>
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and t1.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		GROUP BY
+			t1.STAFF_BADGE,
+			t2.name,
+			t2.status,
+			t1.IN_TIME,
+			t3.PARK_NAME,
+			t2.COMP_NAME,
+			t2.DEP_NAME,
+			t2.DEP_ABBR,
+			t1.ROOM_NAME,
+			t1.ROOM_ID
+		ORDER BY t1.room_name desc
+	</select>
+
+	<select id="getStaffSDStatementDetailWithDor" parameterType="com.tce.smart.platform.core.dto.SmtStaffStatementDTO"  resultMap="staffSDStatement">
+		SELECT
+			t1.STAFF_BADGE AS STAFF_BADGE,
+			sum( t1.FEE ) AS FEE,
+			sum( t1.REMARK_DAYS ) / 3 AS remarkDays,
+			sum( t1.STAY_DAYS ) / 3 AS inDays,
+			t1.IN_TIME AS inTime,
+			t1.STATEMENT_DATE AS STATEMENT_DATE,
+			t1.METER_MONTH AS METER_MONTH,
+			nvl( t4.ALIAS_NAME, t1.ROOM_NAME ) AS roomName,
+			t1.ROOM_ID AS roomId,
+			t2.name AS STAFF_NAME,
+			t2.create_time AS CREATE_TIME,
+			t2.STATUS AS status,
+			t2.COMP_NAME AS COMP_NAME,
+			t2.DEP_NAME AS DEP_NAME,
+			t2.DEP_ABBR AS DEP_ABBR,
+			t3.PARK_NAME AS PARK_NAME,
+			t5.DORMITORY_NAME AS dormitoryName
+		FROM
+			SMT_STAFF_STATEMENTDETAIL t1
+			LEFT JOIN SMT_STAFF t2 ON t1.STAFF_BADGE = t2.BADGE
+			LEFT JOIN SMT_PARK t3 ON t1.PARK_ID = t3.ID
+			LEFT JOIN SMT_DORMITORY_ROOM t4 ON t1.ROOM_ID = t4.id
+			LEFT JOIN SMT_DORMITORY t5 on t4.DORMITORY_ID = t5.id
+		<where>
+			t1.STATEMENT_STATUS = 1
+			AND t4.DORMITORY_ID in
+			<foreach item="item" index="index" collection="dorIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+			AND t1.METER_MONTH = #{meterMonth}
+			<if test="park!=null and park.size>0">
+				and t1.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		GROUP BY
+			t1.STAFF_BADGE,
+			t1.IN_TIME,
+			t1.STATEMENT_DATE,
+			t1.METER_MONTH,
+			t1.ROOM_ID,
+			t1.ROOM_NAME,
+			t2.name,
+			t2.CREATE_TIME,
+			t2.STATUS,
+			t2.COMP_NAME,
+			t2.DEP_NAME,
+			t2.DEP_ABBR,
+			t3.PARK_NAME,
+			t4.ALIAS_NAME,
+			t5.DORMITORY_NAME
+		ORDER BY
+			t1.METER_MONTH DESC,
+			t1.ROOM_NAME
+	</select>
+
+	<select id="getStaffSDMeterRecord" resultMap="sdStatementDetail">
+		select min(sssd.STAFF_BADGE) STAFF_BADGE,sum(sssd.FEE) FEE,sssd.CATEGORY_ID,
+		min(sssd.STATEMENT_DATE) STATEMENT_DATE,sssd.METER_TYPE,sssd.METER_MONTH
+		from SMT_STAFF_STATEMENTDETAIL sssd
+		where sssd.STAFF_BADGE=#{staffBadge}
+		and sssd.STATEMENT_STATUS=1
+		and sssd.METER_MONTH in
+		<foreach item="item" index="index" collection="timeList" open="(" separator="," close=")">
+		#{item}
+		</foreach>
+		group by sssd.METER_MONTH,sssd.METER_TYPE,sssd.CATEGORY_ID
+		order by sssd.METER_MONTH asc, sssd.METER_TYPE asc , sssd.CATEGORY_ID asc
+	</select>
+
+	<select id="getStaffSDStatementDetailExport" parameterType="com.tce.smart.platform.core.dto.SmtStaffStatementDTO"
+			resultType="com.tce.smart.platform.core.dto.SmtStaffStatementDetailDTO">
+		select
+		min(sssd.staff_badge) as BADGE,
+		min(staff.name) as NAME,
+		min(staff.create_time) as CREATE_TIME,
+		min(staff.STATUS) as status,
+		sum(sssd.FEE) as FEE,
+		sum(sssd.REMARK_DAYS) as remarkDays,
+		sum(sssd.STAY_DAYS) as inDays,
+		min(sssd.IN_TIME) as inTime,
+		min(sssd.STATEMENT_DATE) as STATEMENT_DATE,
+		sssd.METER_MONTH as METER_MONTH,
+		min(park.PARK_NAME) as PARK_NAME,
+		min(staff.COMP_NAME) as COMP_NAME,
+		min(staff.COMP_NAME) as BEAR_BU,
+		min(staff.DEP_NAME) as DEP_NAME,
+		min(sssd.ROOM_NAME) as roomName,
+		sssd.ROOM_ID as roomId
+		from SMT_STAFF_STATEMENTDETAIL sssd
+		left join SMT_STAFF staff on sssd.STAFF_BADGE=staff.BADGE
+		left join SMT_PARK park on sssd.PARK_ID=park.ID
+		<where>
+			sssd.STATEMENT_STATUS = 1
+			AND sssd.CATEGORY_ID = 3
+			AND TO_DATE(TO_CHAR(sssd.METER_MONTH, 'yyyy-MM'),'yyyy-MM')
+			= TO_DATE(TO_CHAR(#{query.meterMonth}, 'yyyy-MM'), 'yyyy-MM')
+			and sssd.ROOM_ID in
+			<foreach item="item" index="index" collection="query.roomIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+
+			<if test="park!=null and park.size>0">
+				and sssd.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		GROUP BY SSSD.ROOM_ID, sssd.METER_MONTH,sssd.STAFF_BADGE
+		ORDER BY sssd.METER_MONTH,sssd.room_id desc
+	</select>
+
+</mapper>

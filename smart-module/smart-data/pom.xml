@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<parent>
+		<artifactId>smart-module</artifactId>
+		<groupId>com.tce</groupId>
+		<version>${revision}</version>
+	</parent>
+	<modelVersion>4.0.0</modelVersion>
+
+	<artifactId>smart-data</artifactId>
+
+	<description>裕同数据通讯模块</description>
+	<packaging>pom</packaging>
+
+	<modules>
+		<module>smart-data-biz</module>
+		<module>smart-data-api</module>
+		<module>samrt-businesstrip-core</module>
+		<module>smart-ehrview-core</module>
+		<module>smart-guard-core</module>
+		<module>smart-temporary-core</module>
+		<module>smart-dhrview-core</module>
+        <module>smart-xcc6-core</module>
+    </modules>
+
+</project>

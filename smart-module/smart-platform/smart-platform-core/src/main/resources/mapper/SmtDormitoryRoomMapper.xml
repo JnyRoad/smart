@@ -1,0 +1,925 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryRoomMapper">
+
+	<resultMap id="smtDormitoryRoomMap" type="com.tce.smart.platform.core.entity.SmtDormitoryRoom">
+		<id property="id" column="id"/>
+		<result property="roomName" column="room_name"/>
+		<result property="roomNum" column="room_num"/>
+		<result property="bedTotal" column="bed_total"/>
+		<result property="roomSex" column="room_sex"/>
+		<result property="roomType" column="room_type"/>
+		<result property="isDormitoryRoom" column="is_dormitory_room"/>
+		<result property="floorId" column="floor_id"/>
+		<result property="dormitoryId" column="dormitory_id"/>
+		<result property="parkId" column="park_id"/>
+	</resultMap>
+
+	<resultMap id="smtDormitoryRoomPage" type="com.tce.smart.platform.core.vo.DormitoryRoomVO">
+		<id property="id" column="id"/>
+		<result property="roomName" column="SHOW_NAME"/>
+		<result property="roomNum" column="room_num"/>
+		<result property="bedTotal" column="bed_total"/>
+		<result property="roomSex" column="room_sex"/>
+		<result property="roomType" column="room_type"/>
+		<result property="typeName" column="type_name"/>
+		<result property="isDormitoryRoom" column="is_dormitory_room"/>
+		<result property="floorId" column="floor_id"/>
+		<result property="dormitoryId" column="dormitory_id"/>
+		<result property="parkId" column="park_id"/>
+		<result property="parkName" column="park_name"/>
+		<result property="dormitoryName" column="dormitory_name"/>
+		<result property="sdTemplateId" column="SD_TEMPLATE_ID"/>
+		<result property="templateName" column="TEMPLATE_NAME"/>
+	</resultMap>
+	<resultMap id="dormitoryCountByFloor" type="com.tce.smart.platform.core.model.DormitoryCountByFloor">
+		<result property="roomSex" column="room_sex"/>
+		<result property="parkId" column="park_id"/>
+		<result property="parkName" column="park_name"/>
+		<result property="dormitoryId" column="dormitory_id"/>
+		<result property="dormitoryName" column="dormitory_name"/>
+		<result property="floorId" column="floor_id"/>
+		<result property="floorName" column="floor_name"/>
+		<result property="total" column="total"/>
+		<result property="actualNumber" column="actual_number"/>
+		<result property="surplus" column="surplus"/>
+	</resultMap>
+	<resultMap id="dormitoryCountBySex" type="com.tce.smart.platform.core.model.DormitoryCountBySex">
+		<result property="roomSex" column="room_sex"/>
+		<result property="parkId" column="park_id"/>
+		<result property="parkName" column="park_name"/>
+		<result property="dormitoryId" column="dormitory_id"/>
+		<result property="dormitoryName" column="dormitory_name"/>
+		<result property="roomType" column="room_type"/>
+		<result property="typeName" column="type_name"/>
+		<result property="total" column="total"/>
+		<result property="actualNumber" column="actual_number"/>
+		<result property="surplus" column="surplus"/>
+	</resultMap>
+	<resultMap id="dormitoryCountByType" type="com.tce.smart.platform.core.model.DormitoryCountByType">
+		<result property="parkId" column="park_id"/>
+		<result property="parkName" column="park_name"/>
+		<result property="roomType" column="room_type"/>
+		<result property="typeName" column="type_name"/>
+		<result property="manNumber" column="man_number"/>
+		<result property="womanNumber" column="woman_number"/>
+		<result property="total" column="total"/>
+		<result property="surplus" column="surplus"/>
+		<result property="manTotal" column="man_total"/>
+		<result property="manSurplus" column="man_surplus"/>
+		<result property="womanTotal" column="woman_total"/>
+		<result property="womanSurplus" column="woman_surplus"/>
+	</resultMap>
+	<resultMap id="dormitoryCountList" type="com.tce.smart.platform.core.model.DormitoryCountList">
+		<result property="parkId" column="park_id"/>
+		<result property="parkName" column="park_name"/>
+		<result property="buildingNumber" column="building_number"/>
+		<result property="total" column="total"/>
+		<result property="actualNumber" column="actual_number"/>
+	</resultMap>
+
+	<resultMap id="dormitoryCountByBuilding" type="com.tce.smart.platform.core.model.DormitoryCountByBuilding">
+		<result property="parkId" column="park_id"/>
+		<result property="dormitoryId" column="DORMITORY_ID"/>
+		<result property="dormitoryName" column="DORMITORY_NAME"/>
+		<result property="total" column="total"/>
+		<result property="actualNumber" column="actual_number"/>
+	</resultMap>
+
+	<resultMap id="dormitoryCountBuilding" type="com.tce.smart.platform.core.model.DormitoryCountBuilding">
+		<result property="dormitoryId" column="dormitory_id"/>
+		<result property="dormitoryName" column="dormitory_name"/>
+		<result property="total" column="total"/>
+		<result property="manNumber" column="man_number"/>
+		<result property="womanNumber" column="woman_number"/>
+		<result property="surplus" column="surplus"/>
+	</resultMap>
+	<resultMap id="dormitoryCountFloor" type="com.tce.smart.platform.core.model.DormitoryCountFloor">
+		<result property="floorId" column="floor_id"/>
+		<result property="floorName" column="floor_name"/>
+		<result property="total" column="total"/>
+		<result property="manNumber" column="man_number"/>
+		<result property="manTotal" column="man_total"/>
+		<result property="womanNumber" column="woman_number"/>
+		<result property="womanTotal" column="woman_total"/>
+		<result property="actualNumber" column="actual_number"/>
+		<result property="surplus" column="surplus"/>
+	</resultMap>
+	<resultMap type="com.tce.smart.platform.core.vo.RoomInfoVisualVO" id="getRoomVisualMap">
+		<result property="id" column="id"/>
+		<result property="roomName" column="room_name"/>
+		<result property="bedTotal" column="bed_total"/>
+		<result property="used" column="used"/>
+		<result property="typeId" column="type_id"/>
+		<result property="isDormitoryRoom" column="IS_DORMITORY_ROOM"/>
+		<result property="roomSex" column="room_sex"/>
+		<result property="typeName" column="type_name"/>
+	</resultMap>
+
+
+	<resultMap type="com.tce.smart.platform.core.vo.DormitoryCountJche" id="dormitoryCountByJche">
+		<result property="jcheId" column="jche_id"/>
+		<result property="jcheName" column="jche_name"/>
+		<result property="manNum" column="manNum"/>
+		<result property="womanNum" column="womanNum"/>
+		<result property="otherNum" column="otherNum"/>
+		<result property="total" column="total"/>
+		<result property="welfareLevel" column="WELFARE_LEVEL"/>
+	</resultMap>
+
+	<resultMap type="com.tce.smart.platform.core.dto.dormitorymanage.DormitoryRoomStayDTO" id="dormitoryRoomStay">
+		<result property="parkId" column="PARK_ID"/>
+		<result property="dormitoryId" column="DORMITORY_ID"/>
+		<result property="roomId" column="ROOM_ID"/>
+		<result property="actCount" column="actCount"/>
+	</resultMap>
+
+	<resultMap id="roomVisualPage" type="com.tce.smart.platform.core.dto.dormitorymanage.DormitoryRoomDetailDTO">
+		<result property="parkId" column="PARK_ID"/>
+		<result property="dormitoryId" column="DORMITORY_ID"/>
+		<result property="floorId" column="FLOOR_ID"/>
+		<result property="sex" column="ROOM_SEX"/>
+		<result property="roomId" column="ID"/>
+		<result property="roomName" column="ROOM_NAME"/>
+		<result property="roomType" column="ROOM_TYPE"/>
+		<result property="roomTypeName" column="TYPE_NAME"/>
+		<result property="bedTotal" column="BED_TOTAL"/>
+		<result property="actCount" column="actCount"/>
+	</resultMap>
+
+	<resultMap id="floorRoomListMap" type="com.tce.smart.platform.core.dto.dormitorymanage.FloorRoomListDTO">
+		<result property="roomId" column="ID"/>
+		<result property="roomName" column="ROOM_NAME"/>
+		<result property="floorId" column="FLOOR_ID"/>
+		<result property="floorName" column="FLOOR_NAME"/>
+	</resultMap>
+
+	<select id="getSmtDormitoryRoomPage" parameterType="com.tce.smart.platform.core.entity.SmtDormitoryRoom"
+			resultMap="smtDormitoryRoomPage">
+
+		SELECT ROOM.*,TY.TYPE_NAME ,park_name,dormitory_name FROM SMT_DORMITORY_ROOM ROOM
+
+		LEFT JOIN SMT_DORMITORY_TYPE TY
+
+
+		ON ROOM.ROOM_TYPE=TY.ID
+		left join SMT_DORMITORY do on do.id =room.dormitory_id
+		left join SMT_PARK pa on pa.id=room.park_id
+		<where>
+			<if test="query.roomSex != null ">
+				and ROOM.room_sex =#{query.roomSex }
+			</if>
+			<if test="query.parkId != null">
+				and ROOM.park_id =#{query.parkId }
+			</if>
+			<if test="query.roomType != null">
+				and ROOM.room_type =#{query.roomType }
+			</if>
+			<if test="query.dormitoryId != null">
+				and ROOM.dormitory_id =#{query.dormitoryId }
+			</if>
+			<if test="query.floorId != null">
+				and ROOM.floor_id =#{query.floorId  }
+			</if>
+			<if test="query.id!= null">
+				and ROOM.id =#{query.id }
+			</if>
+			<if test="query.isDormitoryRoom != null ">
+				and ROOM.is_dormitory_room =#{query.isDormitoryRoom  }
+			</if>
+			<if test="park!=null and park.size>0">
+				and ROOM.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+
+		</where>
+		ORDER BY ROOM.floor_id,ROOM.id
+
+	</select>
+
+	<select id="getSmtDormitoryRoomList" parameterType="com.tce.smart.platform.core.entity.SmtDormitoryRoom"
+			resultMap="smtDormitoryRoomPage">
+
+		SELECT ROOM.*,nvl(ROOM.ALIAS_NAME,ROOM.ROOM_NAME) SHOW_NAME,TY.TYPE_NAME ,park_name,dormitory_name FROM SMT_DORMITORY_ROOM ROOM
+
+		LEFT JOIN SMT_DORMITORY_TYPE TY
+
+
+		ON ROOM.ROOM_TYPE=TY.ID
+		left join SMT_DORMITORY do on do.id =room.dormitory_id
+		left join SMT_PARK pa on pa.id=room.park_id
+		<where>
+			<if test="query.roomSex != null ">
+				and ROOM.room_sex =#{query.roomSex }
+			</if>
+			<if test="query.isCount != null ">
+				and ROOM.is_count =#{query.isCount }
+			</if>
+			<if test="query.parkId != null">
+				and ROOM.park_id =#{query.parkId }
+			</if>
+			<if test="query.roomType != null">
+				and ROOM.room_type =#{query.roomType }
+			</if>
+			<if test="query.dormitoryId != null">
+				and ROOM.dormitory_id =#{query.dormitoryId }
+			</if>
+			<if test="query.floorId != null">
+				and ROOM.floor_id =#{query.floorId  }
+			</if>
+			<if test="query.id!= null">
+				and ROOM.id =#{query.id }
+			</if>
+			<if test="query.isDormitoryRoom != null ">
+				and ROOM.is_dormitory_room =#{query.isDormitoryRoom  }
+			</if>
+			<if test="park!=null and park.size>0">
+				and ROOM.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+
+		</where>
+		ORDER BY ROOM.floor_id,ROOM.id
+
+	</select>
+
+	<select id="getCountByFloor" resultMap="dormitoryCountByFloor">
+		SELECT
+		M.ROOM_SEX,
+		M.PARK_ID,
+		( SELECT P.PARK_NAME FROM SMT_PARK P WHERE P.ID = M.PARK_ID ) PARK_NAME,
+		M.DORMITORY_ID,
+		( SELECT D.DORMITORY_NAME FROM SMT_DORMITORY D WHERE D.ID = M.DORMITORY_ID ) DORMITORY_NAME,
+		M.FLOOR_ID,
+		( SELECT F.FLOOR_NAME FROM SMT_DORMITORY_FLOOR F WHERE F.ID = M.FLOOR_ID ) FLOOR_NAME,
+		M.TOTAL,
+		(nvl(M.ACTUAL_NUMBER,0) + nvl(M.NO_ROOM_NUMBER,0)) ACTUAL_NUMBER,
+		(M.TOTAL - nvl(M.ACTUAL_NUMBER,0) - nvl(M.NO_ROOM_NUMBER,0) ) SURPLUS
+		FROM
+		(
+		SELECT
+		T.ROOM_SEX,
+		T.PARK_ID,
+		T.DORMITORY_ID,
+		T.FLOOR_ID,
+		SUM( T.BED_TOTAL ) TOTAL,
+		(
+		SELECT
+		COUNT( S.STAFF_BADGE )
+		FROM
+		SMT_DORMITORY_STAFF S
+		LEFT JOIN SMT_DORMITORY_ROOM R ON R.ID = S.ROOM_ID
+		WHERE
+		S.PARK_ID = T.PARK_ID
+		AND R.ROOM_SEX = T.ROOM_SEX
+		AND S.FLOOR_ID = T.FLOOR_ID
+		AND R.IS_DORMITORY_ROOM=0
+		) ACTUAL_NUMBER,
+		(
+		SELECT SUM(BED_TOTAL) FROM SMT_DORMITORY_ROOM DR WHERE DR.PARK_ID = T.PARK_ID
+		AND DR.ROOM_SEX = T.ROOM_SEX
+		AND DR.FLOOR_ID = T.FLOOR_ID
+		AND DR.IS_DORMITORY_ROOM=1
+		) NO_ROOM_NUMBER
+		FROM
+		SMT_DORMITORY_ROOM T
+		<if test="query.parkId != null and query.parkId != ''">
+			WHERE T.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and T.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		GROUP BY
+		T.PARK_ID,
+		T.DORMITORY_ID,
+		T.FLOOR_ID,
+		T.ROOM_SEX
+		) M
+		WHERE
+		M.TOTAL != 0
+		ORDER BY
+		M.DORMITORY_ID,
+		M.FLOOR_ID
+	</select>
+
+	<select id="getCountByFree" resultMap="dormitoryCountByFloor">
+		SELECT
+		M.ROOM_SEX,
+		M.PARK_ID,
+		( SELECT P.PARK_NAME FROM SMT_PARK P WHERE P.ID = M.PARK_ID ) PARK_NAME,
+		M.DORMITORY_ID,
+		( SELECT D.DORMITORY_NAME FROM SMT_DORMITORY D WHERE D.ID = M.DORMITORY_ID ) DORMITORY_NAME,
+		M.FLOOR_ID,
+		( SELECT F.FLOOR_NAME FROM SMT_DORMITORY_FLOOR F WHERE F.ID = M.FLOOR_ID ) FLOOR_NAME,
+		M.TOTAL,
+		(nvl(M.ACTUAL_NUMBER,0) + nvl(M.NO_ROOM_NUMBER,0)) ACTUAL_NUMBER,
+		( M.TOTAL - nvl(M.ACTUAL_NUMBER,0) - nvl(M.NO_ROOM_NUMBER,0) ) SURPLUS
+		FROM
+		(
+		SELECT
+		T.ROOM_SEX,
+		T.PARK_ID,
+		T.DORMITORY_ID,
+		T.FLOOR_ID,
+		SUM( T.BED_TOTAL ) TOTAL,
+		(
+		SELECT
+		COUNT( S.STAFF_BADGE )
+		FROM
+		SMT_DORMITORY_STAFF S
+		LEFT JOIN SMT_DORMITORY_ROOM R ON R.ID = S.ROOM_ID
+		WHERE
+		S.PARK_ID = T.PARK_ID
+		AND R.ROOM_SEX = T.ROOM_SEX
+		AND S.FLOOR_ID = T.FLOOR_ID
+		AND R.IS_DORMITORY_ROOM=0
+		) ACTUAL_NUMBER,
+		(
+		SELECT SUM(BED_TOTAL) FROM SMT_DORMITORY_ROOM DR WHERE DR.PARK_ID = T.PARK_ID
+		AND DR.ROOM_SEX = T.ROOM_SEX
+		AND DR.FLOOR_ID = T.FLOOR_ID
+		AND DR.IS_DORMITORY_ROOM=1
+		) NO_ROOM_NUMBER
+		FROM SMT_DORMITORY_ROOM T
+
+		<if test="query.parkId != null and query.parkId != ''">
+			WHERE T.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and T.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		GROUP BY T.PARK_ID, T.DORMITORY_ID, T.FLOOR_ID, T.ROOM_SEX) M
+		where M.TOTAL &lt;&gt; 0 and M.TOTAL &lt;&gt; (nvl(M.ACTUAL_NUMBER,0)+nvl(M.NO_ROOM_NUMBER,0))
+		ORDER BY M.DORMITORY_ID,M.FLOOR_ID
+	</select>
+
+	<select id="getCountBySex" resultMap="dormitoryCountBySex">
+		SELECT
+		M.ROOM_SEX,
+		M.PARK_ID,
+		( SELECT P.PARK_NAME FROM SMT_PARK P WHERE P.ID = M.PARK_ID ) PARK_NAME,
+		M.ROOM_TYPE,
+		( SELECT Y.TYPE_NAME FROM SMT_DORMITORY_TYPE Y WHERE Y.ID = M.ROOM_TYPE ) TYPE_NAME,
+		M.TOTAL,
+		(nvl(M.ACTUAL_NUMBER,0) + nvl(M.NO_ROOM_NUMBER,0)) ACTUAL_NUMBER,
+		( M.TOTAL - nvl(M.ACTUAL_NUMBER,0) - nvl(M.NO_ROOM_NUMBER,0) ) SURPLUS
+		FROM
+		(
+		SELECT
+		T.ROOM_SEX,
+		T.PARK_ID,
+		T.ROOM_TYPE,
+		SUM( T.BED_TOTAL ) TOTAL,
+		(
+		SELECT
+		COUNT( S.STAFF_BADGE )
+		FROM
+		SMT_DORMITORY_STAFF S
+		LEFT JOIN SMT_DORMITORY_ROOM R ON R.ID = S.ROOM_ID
+		WHERE
+		S.PARK_ID = T.PARK_ID
+		AND R.ROOM_SEX = T.ROOM_SEX
+		AND R.ROOM_TYPE = T.ROOM_TYPE
+		AND R.IS_DORMITORY_ROOM = 0
+		) ACTUAL_NUMBER,
+		(
+		SELECT
+		SUM( BED_TOTAL )
+		FROM
+		SMT_DORMITORY_ROOM DR
+		WHERE
+		DR.PARK_ID = T.PARK_ID
+		AND DR.ROOM_SEX = T.ROOM_SEX
+		AND DR.ROOM_TYPE = T.ROOM_TYPE
+		AND DR.IS_DORMITORY_ROOM = 1
+		) NO_ROOM_NUMBER
+		FROM SMT_DORMITORY_ROOM T
+		<if test="query.parkId != null and query.parkId != ''">
+			WHERE T.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and T.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		GROUP BY T.PARK_ID, T.ROOM_SEX, T.ROOM_TYPE) M
+		order by m.room_type,m.room_sex
+	</select>
+	<select id="getCountByType" resultMap="dormitoryCountByType" parameterType="java.lang.Integer">
+		SELECT M.PARK_ID,
+		M.PARK_NAME,
+		M.ROOM_TYPE,
+		M.TYPE_NAME,
+		M.MAN_NUMBER,
+		M.WOMAN_NUMBER,
+		M.TOTAL,
+		(M.TOTAL - M.MAN_NUMBER - M.WOMAN_NUMBER) SURPLUS,
+		NVL(M.MAN_TOTAL, 0) MAN_TOTAL,
+		NVL((M.MAN_TOTAL - M.MAN_NUMBER), 0) MAN_SURPLUS,
+		NVL(M.WOMAN_TOTAL, 0) WOMAN_TOTAL,
+		NVL((M.WOMAN_TOTAL - M.WOMAN_NUMBER), 0) WOMAN_SURPLUS
+		FROM (SELECT R.PARK_ID,
+		(SELECT P.PARK_NAME FROM SMT_PARK P WHERE P.ID = R.PARK_ID) PARK_NAME,
+		R.ROOM_TYPE,
+		(SELECT T.TYPE_NAME
+		FROM SMT_DORMITORY_TYPE T
+		WHERE T.ID = R.ROOM_TYPE) TYPE_NAME,
+		(SELECT COUNT(F.ID)
+		FROM SMT_DORMITORY_STAFF F
+		LEFT JOIN SMT_DORMITORY_ROOM O
+		ON O.ID = F.ROOM_ID
+		WHERE F.PARK_ID = R.PARK_ID
+		AND O.ROOM_SEX = 0
+		AND O.ROOM_TYPE = R.ROOM_TYPE) MAN_NUMBER,
+		(SELECT COUNT(F.ID)
+		FROM SMT_DORMITORY_STAFF F
+		LEFT JOIN SMT_DORMITORY_ROOM O
+		ON O.ID = F.ROOM_ID
+		WHERE F.PARK_ID = R.PARK_ID
+		AND O.ROOM_SEX = 1
+		AND O.ROOM_TYPE = R.ROOM_TYPE) WOMAN_NUMBER,
+		(select SUM(BED_TOTAL) from SMT_DORMITORY_ROOM RM where RM.PARK_ID=R.PARK_ID
+		AND RM.ROOM_TYPE = R.ROOM_TYPE) TOTAL,
+		(SELECT SUM(DR.BED_TOTAL)
+		FROM SMT_DORMITORY_ROOM DR
+		WHERE DR.PARK_ID = R.PARK_ID
+		AND DR.ROOM_TYPE = R.ROOM_TYPE
+		AND DR.ROOM_SEX = 0) MAN_TOTAL,
+		(SELECT SUM(DR.BED_TOTAL)
+		FROM SMT_DORMITORY_ROOM DR
+		WHERE DR.PARK_ID = R.PARK_ID
+		AND DR.ROOM_TYPE = R.ROOM_TYPE
+		AND DR.ROOM_SEX = 1) WOMAN_TOTAL
+		FROM SMT_DORMITORY_ROOM R
+		LEFT JOIN SMT_DORMITORY_STAFF S
+		ON R.ID = S.ROOM_ID
+		<if test="parkId != null and parkId != ''">
+			WHERE R.PARK_ID = #{parkId}
+		</if>
+
+		GROUP BY R.PARK_ID, R.ROOM_TYPE) M
+		ORDER BY M.ROOM_TYPE
+	</select>
+
+	<select id="getCountByJche" resultMap="dormitoryCountByJche">
+
+		SELECT S.JCHE_ID,S.JCHE_Name ,S.WELFARE_LEVEL,
+		(select count(1) from SMT_DORMITORY_STAFF ff LEFT JOIN SMT_STAFF
+		ss on ff.STAFF_ID=ss."ID" and ss.WELFARE_LEVEL=s.WELFARE_LEVEL
+		where sex=0 and SS.JCHE_ID=S.JCHE_ID
+		<if test="query.parkId != null and query.parkId != ''">
+			AND ff.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and ff.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		) manNum,
+
+		(select count(1) from SMT_DORMITORY_STAFF ff LEFT JOIN SMT_STAFF
+		ss on ff.STAFF_ID=ss."ID"
+		where sex=1 and SS.JCHE_ID=S.JCHE_ID and ss.WELFARE_LEVEL=s.WELFARE_LEVEL
+		<if test="query.parkId != null and query.parkId != ''">
+			AND ff.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and ff.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		) womanNum,
+
+		(select count(1) from SMT_DORMITORY_STAFF ff LEFT JOIN SMT_STAFF
+		ss on ff.STAFF_ID=ss."ID"
+		where sex is null and SS.JCHE_ID=S.JCHE_ID and ss.WELFARE_LEVEL=s.WELFARE_LEVEL
+		<if test="query.parkId != null and query.parkId != ''">
+			AND ff.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and ff.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		) otherNum,
+
+		(select count(1) from SMT_DORMITORY_STAFF ff LEFT JOIN SMT_STAFF
+		ss on ff.STAFF_ID=ss."ID"
+		where SS.JCHE_ID=S.JCHE_ID and ss.WELFARE_LEVEL=s.WELFARE_LEVEL
+		<if test="query.parkId != null and query.parkId != ''">
+			AND ff.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and ff.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		) total
+
+		from SMT_DORMITORY_STAFF F LEFT JOIN SMT_STAFF
+		S on F.STAFF_ID=S."ID"
+		WHERE S.JCHE_ID is not null and S.WELFARE_LEVEL is not null
+		<if test="query.parkId != null and query.parkId != ''">
+			AND F.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and F.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		GROUP BY S.JCHE_ID ,s.JCHE_Name,S.WELFARE_LEVEL
+	</select>
+
+	<select id="getCountList" resultMap="dormitoryCountList" parameterType="java.lang.Integer">
+        SELECT D.PARK_ID,
+               (SELECT P.PARK_NAME FROM SMT_PARK P WHERE P.ID = D.PARK_ID) PARK_NAME,
+               COUNT(D.ID) BUILDING_NUMBER,
+               (SELECT SUM(R.BED_TOTAL)
+                  FROM SMT_DORMITORY_ROOM R
+                 WHERE R.PARK_ID = D.PARK_ID) TOTAL,
+               (NVL((SELECT COUNT(S.ID) FROM SMT_DORMITORY_STAFF S
+               LEFT JOIN SMT_DORMITORY_ROOM M ON M.ID = S.ROOM_ID
+               WHERE S.PARK_ID = D.PARK_ID AND M.IS_DORMITORY_ROOM = 0),0) +
+               NVL((SELECT sum(S.BED_TOTAL)
+               FROM SMT_DORMITORY_ROOM S
+               WHERE S.PARK_ID = D.PARK_ID AND S.IS_DORMITORY_ROOM = 1),0)) ACTUAL_NUMBER
+          FROM SMT_DORMITORY D
+         WHERE D.PARK_ID = #{parkId}
+         GROUP BY D.PARK_ID
+
+    </select>
+	<select id="getCountDormList" resultMap="dormitoryCountByBuilding" parameterType="java.lang.Integer">
+        SELECT D.ID DORMITORY_ID,D.PARK_ID,
+               min(D.DORMITORY_NAME) DORMITORY_NAME,
+               NVL(SUM(R.BED_TOTAL), 0) TOTAL,
+              (SELECT COUNT(S.ID)
+                  FROM SMT_DORMITORY_STAFF S
+                 WHERE S.PARK_ID = D.PARK_ID and S.DORMITORY_ID=D.ID ) ACTUAL_NUMBER
+          FROM SMT_DORMITORY D
+          LEFT JOIN SMT_DORMITORY_ROOM R
+            ON D.ID = R.DORMITORY_ID
+         WHERE D.PARK_ID = #{parkId}
+         GROUP BY D.PARK_ID,D.ID
+
+    </select>
+	<select id="getCountBuilding" resultMap="dormitoryCountBuilding" parameterType="java.lang.Integer">
+        SELECT D.ID DORMITORY_ID,
+               D.DORMITORY_NAME,
+               NVL(SUM(R.BED_TOTAL), 0) TOTAL,
+               (SELECT COUNT(S.ID)
+                  FROM SMT_DORMITORY_STAFF S
+                  LEFT JOIN SMT_DORMITORY_ROOM M
+                    ON M.ID = S.ROOM_ID
+                 WHERE S.DORMITORY_ID = D.ID
+                   AND M.ROOM_SEX = 0) MAN_NUMBER,
+               (SELECT COUNT(S.ID)
+                  FROM SMT_DORMITORY_STAFF S
+                  LEFT JOIN SMT_DORMITORY_ROOM M
+                    ON M.ID = S.ROOM_ID
+                 WHERE S.DORMITORY_ID = D.ID
+                   AND M.ROOM_SEX = 1) WOMAN_NUMBER,
+
+				(NVL((SELECT COUNT(S.ID)
+                  FROM SMT_DORMITORY_STAFF S
+                  LEFT JOIN SMT_DORMITORY_ROOM M
+                    ON M.ID = S.ROOM_ID
+                 WHERE S.DORMITORY_ID = D.ID
+				AND M.IS_DORMITORY_ROOM = 0),0) +
+				NVL((SELECT sum(R.BED_TOTAL)
+                  FROM SMT_DORMITORY_ROOM R
+                 WHERE R.DORMITORY_ID = D.ID
+								 AND R.IS_DORMITORY_ROOM = 1
+                   ),0)) totalUseNumber
+          FROM SMT_DORMITORY D
+          LEFT JOIN SMT_DORMITORY_ROOM R
+            ON D.ID = R.DORMITORY_ID
+		<where>
+			D.PARK_ID=#{parkId}
+			<if test="dormitoryIds!=null and dormitoryIds.size>0">
+				and D.dormitory_id in
+				<foreach item="item" index="index" collection="dormitoryIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+         GROUP BY D.ID, D.DORMITORY_NAME
+
+    </select>
+	<select id="getCountFloor" resultMap="dormitoryCountFloor" parameterType="java.lang.Integer">
+        SELECT L.FLOOR_ID,
+               L.FLOOR_NAME,
+               L.TOTAL,
+               L.MAN_TOTAL,
+               L.WOMAN_TOTAL,
+               L.ACTUAL_MAN_NUMBER,
+               L.ACTUAL_WOMAN_NUMBER,
+               (L.ACTUAL_MAN_NUMBER + L.ACTUAL_WOMAN_NUMBER) ACTUAL_NUMBER
+          FROM (SELECT R.FLOOR_ID,
+                       (SELECT F.FLOOR_NAME
+                          FROM SMT_DORMITORY_FLOOR F
+                         WHERE F.ID = R.FLOOR_ID) FLOOR_NAME,
+                       (SELECT SUM(M.BED_TOTAL)
+                          FROM SMT_DORMITORY_ROOM M
+                         WHERE M.DORMITORY_ID = R.DORMITORY_ID
+                           AND R.FLOOR_ID = M.FLOOR_ID) TOTAL,
+                       (SELECT SUM(M.BED_TOTAL)
+                          FROM SMT_DORMITORY_ROOM M
+                         WHERE M.DORMITORY_ID = R.DORMITORY_ID
+                           AND R.FLOOR_ID = M.FLOOR_ID
+                           AND M.ROOM_SEX = 0) MAN_TOTAL,
+                       (SELECT SUM(M.BED_TOTAL)
+                          FROM SMT_DORMITORY_ROOM M
+                         WHERE M.DORMITORY_ID = R.DORMITORY_ID
+                           AND R.FLOOR_ID = M.FLOOR_ID
+                           AND M.ROOM_SEX = 1) WOMAN_TOTAL,
+                       (SELECT COUNT(F.ID)
+                          FROM SMT_DORMITORY_STAFF F
+                          LEFT JOIN SMT_DORMITORY_ROOM Y
+                            ON F.ROOM_ID = Y.ID
+                         WHERE F.DORMITORY_ID = R.DORMITORY_ID
+                           AND F.FLOOR_ID = R.FLOOR_ID
+                           AND Y.ROOM_SEX = 0) ACTUAL_MAN_NUMBER,
+                       (SELECT COUNT(F.ID)
+                          FROM SMT_DORMITORY_STAFF F
+                          LEFT JOIN SMT_DORMITORY_ROOM Y
+                            ON F.ROOM_ID = Y.ID
+                         WHERE F.DORMITORY_ID = R.DORMITORY_ID
+                           AND F.FLOOR_ID = R.FLOOR_ID
+                           AND Y.ROOM_SEX = 1) ACTUAL_WOMAN_NUMBER
+                  FROM SMT_DORMITORY_ROOM R
+                  LEFT JOIN SMT_DORMITORY_STAFF S
+                    ON R.ID = S.ROOM_ID
+                 WHERE R.DORMITORY_ID = #{dormitoryId}
+                 GROUP BY R.FLOOR_ID, R.FLOOR_ID) L
+         ORDER BY L.FLOOR_ID
+
+    </select>
+	<select id="queryRoom" parameterType="java.lang.Integer" resultMap="smtDormitoryRoomMap">
+
+	SELECT * FROM SMT_DORMITORY_ROOM
+	WHERE FLOOR_ID=#{floorId}
+	ORDER BY ROOM_NUM ASC
+    </select>
+	<select id="getRoomVisual" parameterType="java.lang.Integer" resultMap="getRoomVisualMap">
+
+		SELECT
+		ROOM.ID,
+		ROOM.ROOM_NAME,
+		ROOM.BED_TOTAL,
+		TY.TYPE_NAME,TY.ID TYPE_ID,ROOM.IS_DORMITORY_ROOM,
+		ROOM.ROOM_SEX ,USEBED.USED
+		FROM SMT_DORMITORY_ROOM  ROOM
+		INNER JOIN SMT_DORMITORY_TYPE TY ON ROOM.ROOM_TYPE=TY.ID
+		LEFT JOIN
+		(SELECT COUNT(1) USED,ROOM_ID  FROM SMT_DORMITORY_STAFF GROUP BY ROOM_ID) USEBED
+		ON ROOM.ID=USEBED.ROOM_ID
+		WHERE ROOM.FLOOR_ID =#{floorId}
+		ORDER BY ROOM_NAME
+
+    </select>
+	<select id="getJcheToalBed" resultType="java.lang.Integer">
+    select count(1) from SMT_DORMITORY_BED bed
+	inner join SMT_DORMITORY_ROOM room on bed.ROOM_ID=room."ID"
+	inner join SMT_DORMITORY_LEVEL LEV
+	on LEV.DORMITORY_TYPE_ID=room.room_type
+	WHERE ROOM_SEX=#{sex} and LEV.jche_id=#{jcheId} AND bed.PARK_ID=#{parkId}
+    </select>
+	<select id="getJcheUseBed" resultType="java.lang.Integer">
+    select count(1) from SMT_DORMITORY_STAFF
+	inner join SMT_STAFF on  STAFF_ID=SMT_STAFF."ID"
+	where JCHE_ID=#{jcheId} and SEX=#{sex} AND PARK_ID=#{parkId}
+    </select>
+
+	<select id="getFreeRoomCount" resultType="java.lang.Integer">
+		select count(*) from SMT_DORMITORY_ROOM room
+		<where>
+			<if test="parkId!=null">
+				PARK_ID =#{parkId}
+			</if>
+			and not EXISTS (select 1 from SMT_DORMITORY_STAFF df where room.ID=df.ROOM_ID)
+		</where>
+	</select>
+
+
+	<select id="getCountByRoomType" resultType="com.tce.smart.platform.core.entity.ext.DormitoryRoomExt">
+		select room.ROOM_TYPE,min(dtype.TYPE_NAME) typeName,sum(room.BED_TOTAL) bedTotal,room.ROOM_SEX
+		,(select count(*) from SMT_DORMITORY_ROOM dr
+		join SMT_DORMITORY_STAFF ds on dr.ID=ds.ROOM_ID
+		where dr.PARK_ID=room.PARK_ID and dr.ROOM_TYPE=room.ROOM_TYPE and dr.ROOM_SEX=room.ROOM_SEX) as useBedNum
+		from SMT_DORMITORY_ROOM room
+		join SMT_DORMITORY_TYPE dtype on room.ROOM_TYPE=dtype.ID
+		where room.PARK_ID=#{parkId}
+		GROUP BY room.ROOM_TYPE,room.ROOM_SEX,room.PARK_ID
+	</select>
+
+	<select id="getDormitoryRoomStay" resultMap="dormitoryRoomStay">
+		select min(PARK_ID) as PARK_ID,min(DORMITORY_ID) as DORMITORY_ID ,ROOM_ID,count(*) actCount
+		from SMT_DORMITORY_STAFF
+		<where>
+			<if test="rooms!=null and rooms.size>0">
+				and ROOM_ID in
+				<foreach item="item" index="index" collection="rooms" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		GROUP BY ROOM_ID
+	</select>
+	<select id="getRoomVisualPage"
+			parameterType="com.tce.smart.platform.core.dto.dormitorymanage.SearchDormitoryRoomDetailDTO"
+			resultMap="roomVisualPage">
+		select dr.PARK_ID,dr.DORMITORY_ID,dr.FLOOR_ID,dr.ID,nvl(dr.ALIAS_NAME,dr.ROOM_NAME) ROOM_NAME,dr.ROOM_TYPE,dr.BED_TOTAL,
+		dr.ROOM_SEX,(select count(*) from SMT_DORMITORY_STAFF df where df.ROOM_ID=dr.ID) as actCount,dt.TYPE_NAME
+		from SMT_DORMITORY_ROOM dr
+		left join SMT_DORMITORY_TYPE dt on dr.ROOM_TYPE=dt.ID
+		<where>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND dr.PARK_ID=#{query.parkId}
+			</if>
+			<if test="query.dormitoryId != null and query.dormitoryId != ''">
+				AND dr.DORMITORY_ID=#{query.dormitoryId}
+			</if>
+			<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+				and dr.DORMITORY_ID in
+				<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.floorId != null and query.floorId != ''">
+				AND dr.FLOOR_ID=#{query.floorId}
+			</if>
+			<if test="query.roomType != null and query.roomType != ''">
+				AND dr.ROOM_TYPE=#{query.roomType}
+			</if>
+			<if test="query.sex != null and query.sex != ''">
+				AND dr.ROOM_SEX=#{query.sex}
+			</if>
+			<if test="park!=null and park.size>0">
+				and dr.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.inStatus != null and query.inStatus != ''">
+				<if test="query.inStatus == 1">
+					AND dr.BED_TOTAL &gt; (select count(*) from SMT_DORMITORY_STAFF df where df.ROOM_ID=dr.ID)
+				</if>
+				<if test="query.inStatus == 2">
+					AND dr.BED_TOTAL=(select count(*) from SMT_DORMITORY_STAFF df where df.ROOM_ID=dr.ID)
+				</if>
+				<if test="query.inStatus == 3">
+					AND 0=(select count(*) from SMT_DORMITORY_STAFF df where df.ROOM_ID=dr.ID)
+				</if>
+			</if>
+			<if test="query.isNormal != null and query.isNormal != ''">
+				<if test="query.isNormal == 1">
+					AND 0 = (select count(*) from SMT_DORMITORY_STAFF ds left join SMT_STAFF staff on
+					ds.STAFF_BADGE=staff.BADGE where ds.ROOM_ID=dr.ID and staff.STATUS=0)
+				</if>
+				<if test="query.isNormal == 2">
+					AND 0 &lt; (select count(*) from SMT_DORMITORY_STAFF ds left join SMT_STAFF staff on
+					ds.STAFF_BADGE=staff.BADGE where ds.ROOM_ID=dr.ID and staff.STATUS=0)
+				</if>
+			</if>
+		</where>
+		ORDER BY dr.ID asc
+	</select>
+
+	<select id="getFloorRoomList" resultMap="floorRoomListMap">
+		select room.ID,room.ROOM_NAME,room.FLOOR_ID,floor.FLOOR_NAME
+		from SMT_DORMITORY_ROOM room
+		join SMT_DORMITORY_FLOOR floor on room.FLOOR_ID=floor.ID
+		where room.DORMITORY_ID=#{dormitoryId}
+		order by room.ID asc
+	</select>
+
+	<select id="getRoomListByCondition" resultType="com.tce.smart.platform.core.entity.ext.DormitoryRoomExt">
+		SELECT
+		room.ID,
+		room.ROOM_NAME,
+		room.ALIAS_NAME,
+		room.BED_TOTAL,
+		room.ROOM_TYPE,
+		room.DORMITORY_ID,
+		room.ROOM_SEX,
+		room.FLOOR_ID,
+		(room.BED_TOTAL-(select count(*) from SMT_DORMITORY_STAFF ds where ds.ROOM_ID=room.ID)) AS freeBedNum
+		FROM
+		SMT_DORMITORY_ROOM room
+		<where>
+			<if test="room.parkId != null">
+				and room.PARK_ID=#{room.parkId}
+			</if>
+			<if test="room.dormitoryId != null">
+				and room.DORMITORY_ID=#{room.dormitoryId}
+			</if>
+			<if test="room.floorId != null">
+				and room.FLOOR_ID=#{room.floorId}
+			</if>
+			<if test="room.roomType != null">
+				and room.ROOM_TYPE=#{room.roomType}
+			</if>
+			<if test="room.roomSex != null">
+				and room.ROOM_SEX=#{room.roomSex}
+			</if>
+			<if test="freeBedNum != null">
+				and room.BED_TOTAL - (select count(*) from SMT_DORMITORY_STAFF ds where ds.ROOM_ID =
+				room.ID)=#{freeBedNum}
+			</if>
+			<if test="typeIds!=null and typeIds.size>0">
+				and room.ROOM_TYPE in
+				<foreach item="item" index="index" collection="typeIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			order by room.FLOOR_ID asc,room.ROOM_NUM asc
+		</where>
+	</select>
+
+	<select id="getRoomStatistics" resultType="com.tce.smart.platform.core.entity.ext.DormitoryStatisticsExt">
+		SELECT
+		Q.ROOM_SEX,Q.DORMITORY_DESC,Q.ROOM_TYPE_DESC,Q.ROOM_NUM,Q.TYPE_BED_TOTAL,Q.ROOM_BED_TOTAL,Q.FREE_ROOM_NUM,
+		NVL(Q.ROOM_BED_TOTAL,0) - NVL(Q.AC_ALREADY_USE,0) - NVL(Q.NO_ROOM_USE,0) FREE_BED_NUM ,
+		NVL(Q.AC_ALREADY_USE,0) + NVL(Q.NO_ROOM_USE,0) ALREADY_USE,
+		NVL(Q.ROOM_NUM,0) * NVL(Q.TYPE_BED_TOTAL,0) STANDARD_BED_NUM,
+		NVL(Q.ROOM_NUM,0) * NVL(Q.TYPE_BED_TOTAL,0) - NVL(Q.ROOM_BED_TOTAL,0) LOCK_BED_NUM
+		FROM (SELECT B.ROOM_SEX ROOM_SEX,(SELECT DORMITORY_NAME FROM SMT_DORMITORY WHERE ID = B.DORMITORY_ID)
+		DORMITORY_DESC,
+		T.TYPE_NAME ROOM_TYPE_DESC,COUNT(*) ROOM_NUM,T.BED_TOTAL TYPE_BED_TOTAL,SUM(B.BED_TOTAL) ROOM_BED_TOTAL,
+
+		(SELECT COUNT(S.STAFF_BADGE ) FROM SMT_DORMITORY_STAFF S
+		LEFT JOIN SMT_DORMITORY_ROOM R ON R.ID = S.ROOM_ID
+		WHERE R.ROOM_SEX = B.ROOM_SEX AND R.ROOM_TYPE = B.ROOM_TYPE
+		AND S.DORMITORY_ID = B.DORMITORY_ID
+		AND R.IS_DORMITORY_ROOM = 0) AC_ALREADY_USE,
+
+		(SELECT SUM(BED_TOTAL) FROM SMT_DORMITORY_ROOM R
+		WHERE R.PARK_ID = B.PARK_ID
+		AND R.ROOM_TYPE = B.ROOM_TYPE
+		AND R.ROOM_SEX = B.ROOM_SEX
+		AND R.DORMITORY_ID = B.DORMITORY_ID
+		AND R.IS_DORMITORY_ROOM = 1
+		) NO_ROOM_USE,
+
+		(SELECT COUNT(*) FROM SMT_DORMITORY_ROOM R
+		WHERE R.DORMITORY_ID = B.DORMITORY_ID
+		AND R.ROOM_TYPE = B.ROOM_TYPE
+		AND R.IS_DORMITORY_ROOM = 0
+		AND R.ROOM_SEX = B.ROOM_SEX AND
+		R.ID NOT IN (SELECT ROOM_ID FROM SMT_DORMITORY_STAFF S
+		LEFT JOIN SMT_DORMITORY_ROOM r on s.room_id = r.id
+		WHERE S.DORMITORY_ID = B.DORMITORY_ID AND r.ROOM_TYPE = B.ROOM_TYPE
+		AND B.ROOM_SEX = r.ROOM_SEX)) FREE_ROOM_NUM
+
+		FROM SMT_DORMITORY_ROOM B LEFT JOIN SMT_DORMITORY_TYPE T ON T.ID = B.ROOM_TYPE
+		<where>
+			<if test="query.dormitoryId!=null and query.dormitoryId.size>0">
+				and B.DORMITORY_ID in
+				<foreach item="item" index="index" collection="query.dormitoryId" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				and B.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.roomType!=null and query.roomType.size>0">
+				and B.ROOM_TYPE in
+				<foreach item="item" index="index" collection="query.roomType" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.roomSex != null">
+				and B.ROOM_SEX = #{query.roomSex}
+			</if>
+		</where>
+		GROUP BY B.PARK_ID,B.DORMITORY_ID, B.ROOM_TYPE,B.ROOM_SEX, T.TYPE_NAME, T.BED_TOTAL
+		ORDER BY B.DORMITORY_ID ASC
+		) Q
+	</select>
+
+	<update id="decrementBedNum">
+		update SMT_DORMITORY_ROOM set BED_TOTAL=BED_TOTAL-1 where ID=#{roomId}
+	</update>
+
+	<update id="incrementBedNum">
+		update SMT_DORMITORY_ROOM set BED_TOTAL=BED_TOTAL+1 where ID=#{roomId}
+	</update>
+</mapper>

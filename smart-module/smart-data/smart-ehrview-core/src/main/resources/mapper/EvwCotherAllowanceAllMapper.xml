@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwCotherAllowanceAllMapper">
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwCotherAllowanceAll">
+		<result column="BADGE" property="BADGE" />
+		<result column="NAME" property="NAME" />
+		<result column="DEPID" property="DEPID" />
+		<result column="XTYPE" property="XTYPE" />
+		<result column="BEGINDATE" property="BEGINDATE" />
+		<result column="APPENDDATE" property="APPENDDATE" />
+		<result column="AMOUNT" property="AMOUNT" />
+		<result column="REAMRK" property="REAMRK" />
+	</resultMap>
+
+	<!-- 通用查询结果列 -->
+	<sql id="Base_Column_List">
+        BADGE, NAME, XTYPE, DEPID, BEGINDATE, APPENDDATE, AMOUNT, REAMRK
+    </sql>
+
+	<select id="list" resultMap="BaseResultMap">
+		SELECT <include refid="Base_Column_List"></include>
+		FROM evw_CotherALLOWANCE_all
+		WHERE evw_CotherALLOWANCE_all.BADGE = #{badge, jdbcType = VARCHAR}
+		<if test="queryMonth != null and queryMonth != ''">
+			AND CONVERT(VarChar(7), evw_CotherALLOWANCE_all.BEGINDATE, 120) = #{ queryMonth, jdbcType = VARCHAR }
+		</if>
+		ORDER BY evw_CotherALLOWANCE_all.BEGINDATE
+	</select>
+</mapper>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtCommonConfigMapper">
+
+  <resultMap id="smtCommonConfigMap" type="com.tce.smart.platform.core.entity.SmtCommonConfig">
+                  <id property="id" column="ID"/>
+                        <result property="bussinessId" column="BUSSINESS_ID"/>
+                        <result property="bussinessType" column="BUSSINESS_TYPE"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="configType" column="CONFIG_TYPE"/>
+                        <result property="value" column="VALUE"/>
+                        <result property="publicField" column="PUBLIC_FIELD"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="updateTime" column="UPDATE_TIME"/>
+                        <result property="isDelete" column="IS_DELETE"/>
+            </resultMap>
+</mapper>

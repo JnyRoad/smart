@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtVehicleStaffMapper">
+
+  <resultMap id="smtVehicleStaffMap" type="com.tce.smart.platform.core.entity.SmtVehicleStaff">
+                  <id property="id" column="id"/>
+                        <result property="vehicleId" column="vehicle_id"/>
+                        <result property="staffId" column="staff_id"/>
+            </resultMap>
+
+            <delete id="deleteByStaffId">
+                DELETE FROM SMT_VEHICLE_STAFF SVS WHERE SVS.STAFF_ID = #{staffId}
+            </delete>
+
+            <select id="getByVehicleID" resultType="com.tce.smart.platform.core.vo.VehicleStaffVO">
+                SELECT
+					SS. ID,
+					SS. NAME,
+					SS.PHONE,
+					SV.VEHICLE_ASCRIPTION,
+					SV.VEHICLE_COLOR,
+					SV.VEHICLE_TYPE,
+					SV.VEHICLE_BRAND
+				FROM
+					SMT_VEHICLE_STAFF SVS
+				INNER JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS."ID"
+				INNER JOIN SMT_VEHICLE SV ON SVS.VEHICLE_ID = SV. ID
+				AND SV.ID = #{cardNo} AND SV.IS_DELETE = 0
+            </select>
+
+            <select id="getDeivceByStaffId" resultType="long">
+                SELECT
+				    SVS.VEHICLE_ID
+				FROM
+				   SMT_VEHICLE_STAFF SVS
+				WHERE
+				    SVS.STAFF_ID = #{staffId}
+            </select>
+
+	<select id="getStaffVehicleByAuthId" resultType="com.tce.smart.platform.core.dto.VehicleAuthDTO">
+		SELECT
+			va.ID,ve.VEHICLE_PLATE,ve.ID as VID,vs.STAFF_ID,staff.JCHE_ID
+		FROM
+			SMT_VEHICLE_STAFF vs
+			JOIN SMT_VEHICLE ve ON vs.VEHICLE_ID = ve.ID
+			JOIN SMT_VEHICLE_APPLY va ON va.VEHICLE_ID = ve.ID
+			JOIN SMT_STAFF staff on vs.STAFF_ID=staff.ID
+		WHERE
+			va.AUTHORITY_ID = #{authId} and ve.VEHICLE_ASCRIPTION=1 and va.STATUS=1
+	</select>
+</mapper>

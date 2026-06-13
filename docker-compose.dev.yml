@@ -1,0 +1,333 @@
+name: yuto-smart-dev
+
+services:
+  smart-nacos:
+    image: nacos/nacos-server:v1.4.6
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-nacos
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      JVM_XMS: ${NACOS_JVM_XMS:-256m}
+      JVM_XMX: ${NACOS_JVM_XMX:-512m}
+      JVM_XMN: ${NACOS_JVM_XMN:-128m}
+    ports:
+      - "${NACOS_HOST_PORT:-8848}:8848"
+    volumes:
+      - smart-nacos-data:/home/nacos/data
+      - smart-nacos-logs:/home/nacos/logs
+    networks:
+      - smart-dev
+
+  smart-nacos-init:
+    image: curlimages/curl:8.8.0
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-nacos-init
+    depends_on:
+      smart-nacos:
+        condition: service_started
+    environment:
+      NACOS_SERVER: http://smart-nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-eda914a9-b100-427b-9d37-4d7da89b841f}
+      NACOS_NAMESPACE_NAME: ${NACOS_NAMESPACE_NAME:-smart-local-dev}
+      NACOS_GROUP: ${NACOS_GROUP:-dev}
+      NACOS_CONFIG_DIR: /nacos-config/dev
+    volumes:
+      - ./docker/nacos/config:/nacos-config:ro
+      - ./docker/nacos/init-nacos.sh:/init-nacos.sh:ro
+    entrypoint: ["/bin/sh", "/init-nacos.sh"]
+    networks:
+      - smart-dev
+
+  smart-redis:
+    image: redis:7-alpine
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-redis
+    ports:
+      - "${SMART_REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - smart-redis-data:/data
+    networks:
+      - smart-dev
+
+  smart-zookeeper:
+    image: bitnami/zookeeper:3.9
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-zookeeper
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    ports:
+      - "${SMART_ZOOKEEPER_HOST_PORT:-2181}:2181"
+    volumes:
+      - smart-zookeeper-data:/bitnami/zookeeper
+    networks:
+      - smart-dev
+
+  smart-kafka:
+    image: bitnami/kafka:3.7
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-kafka
+    depends_on:
+      smart-zookeeper:
+        condition: service_started
+    environment:
+      KAFKA_ENABLE_KRAFT: "no"
+      KAFKA_BROKER_ID: "1"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_CFG_ZOOKEEPER_CONNECT: smart-zookeeper:2181
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://smart-kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "${SMART_KAFKA_HOST_PORT:-9092}:9092"
+    volumes:
+      - smart-kafka-data:/bitnami/kafka
+    networks:
+      - smart-dev
+
+  smart-gateway:
+    build:
+      context: ./smart
+      dockerfile: smart-gateway/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: yuto-smart/smart-gateway:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-gateway
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-redis:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: &backend-env
+      APP_ENV: ${APP_ENV:-local}
+      NACOS_URL: smart-nacos
+      NACOS_PORT: 8848
+      NACOS_GROUP: ${NACOS_GROUP:-dev}
+      TZ: Asia/Shanghai
+    ports:
+      - "${SMART_GATEWAY_HOST_PORT:-9990}:9990"
+    volumes:
+      - smart-logs:/smart-gateway/logs
+    networks:
+      - smart-dev
+
+  smart-auth:
+    build:
+      context: ./smart
+      dockerfile: smart-auth/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: yuto-smart/smart-auth:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-auth
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-redis:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_AUTH_HOST_PORT:-3000}:3000"
+    volumes:
+      - smart-logs:/smart-auth/logs
+    networks:
+      - smart-dev
+
+  smart-upms:
+    build:
+      context: ./smart
+      dockerfile: smart-upms/smart-upms-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: yuto-smart/smart-upms:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-upms
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-redis:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_UPMS_HOST_PORT:-4000}:4000"
+    volumes:
+      - smart-logs:/smart-upms/logs
+    networks:
+      - smart-dev
+
+  smart-platform:
+    build:
+      context: ./smart-module
+      dockerfile: smart-platform/smart-platform-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: yuto-smart/smart-platform:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-platform
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-redis:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_PLATFORM_HOST_PORT:-6030}:6030"
+    volumes:
+      - smart-logs:/smart-platform/logs
+    networks:
+      - smart-dev
+
+  smart-app:
+    build:
+      context: ./smart-module
+      dockerfile: smart-app/smart-app-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: yuto-smart/smart-app:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-app
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-redis:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_APP_HOST_PORT:-6020}:6020"
+    volumes:
+      - smart-logs:/smart-app/logs
+    networks:
+      - smart-dev
+
+  smart-dispatcher:
+    build:
+      context: ./smart-module
+      dockerfile: smart-dispatcher/smart-dispatcher-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: yuto-smart/smart-dispatcher:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-dispatcher
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-platform:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_DISPATCHER_HOST_PORT:-8082}:8082"
+    volumes:
+      - smart-logs:/smart-dispatcher/logs
+    networks:
+      - smart-dev
+
+  smart-bridge-isc:
+    build:
+      context: ./smart-module
+      dockerfile: smart-bridge-isc/smart-bridge-isc-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: yuto-smart/smart-bridge-isc:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-bridge-isc
+    profiles: ["bridge-isc"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-dispatcher:
+        condition: service_started
+      smart-kafka:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_BRIDGE_ISC_HOST_PORT:-6060}:6060"
+    volumes:
+      - smart-logs:/smart-bridge-isc/logs
+      - smart-bridge-isc-db:/smart-bridge-isc/database
+    networks:
+      - smart-dev
+
+  smart-schedule:
+    build:
+      context: ./smart-module
+      dockerfile: smart-schedule/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: yuto-smart/smart-schedule:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-schedule
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-dispatcher:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_SCHEDULE_HOST_PORT:-7070}:7070"
+    volumes:
+      - smart-logs:/smart-schedule/logs
+    networks:
+      - smart-dev
+
+  smart-ui:
+    build:
+      context: ./smart-ui
+      dockerfile: Dockerfile
+    image: yuto-smart/smart-ui:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-ui
+    profiles: ["frontend"]
+    depends_on:
+      smart-gateway:
+        condition: service_started
+    ports:
+      - "${SMART_UI_HOST_PORT:-8080}:80"
+    networks:
+      - smart-dev
+
+  smart-h5:
+    build:
+      context: ./smart-h5
+      dockerfile: Dockerfile
+    image: yuto-smart/smart-h5:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-h5
+    profiles: ["frontend"]
+    depends_on:
+      smart-gateway:
+        condition: service_started
+    ports:
+      - "${SMART_H5_HOST_PORT:-8081}:80"
+    networks:
+      - smart-dev
+
+networks:
+  smart-dev:
+    name: smart-dev
+
+volumes:
+  smart-nacos-data:
+  smart-nacos-logs:
+  smart-redis-data:
+  smart-zookeeper-data:
+  smart-kafka-data:
+  smart-bridge-isc-db:
+  smart-logs:

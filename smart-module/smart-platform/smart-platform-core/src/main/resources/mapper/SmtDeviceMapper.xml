@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDeviceMapper">
+
+  <resultMap id="smtDeviceMap" type="com.tce.smart.platform.core.entity.SmtDevice">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="channelNo" column="CHANNEL_NO"/>
+                        <result property="channelManager" column="CHANNEL_MANAGER"/>
+                        <result property="deviceVendor" column="DEVICE_VENDOR"/>
+                        <result property="deviceType" column="DEVICE_TYPE"/>
+                        <result property="deviceIp" column="DEVICE_IP"/>
+                        <result property="devicePort" column="DEVICE_PORT"/>
+                        <result property="deviceUsername" column="DEVICE_USERNAME"/>
+                        <result property="devicePassword" column="DEVICE_PASSWORD"/>
+                        <result property="deviceAddress" column="DEVICE_ADDRESS"/>
+                        <result property="createTime" column="CREATE_TIME" jdbcType="DATE"/>
+                        <result property="deviceName" column="DEVICE_NAME" jdbcType="VARCHAR"/>
+                        <result property="deviceCode" column="DEVICE_CODE"/>
+                        <result property="enableStatus" column="ENABLE_STATUS"/>
+                        <result property="connectStatus" column="CONNECT_STATUS"/>
+                        <result property="updateTime" column="UPDATE_TIME" jdbcType="DATE"/>
+                        <result property="deviceSubtype" column="DEVICE_SUBTYPE"/>
+                        <result property="protocolType" column="PROTOCOL_TYPE"/>
+                        <result property="isSync" column="IS_SYNC"/>
+                        <result property="deviceTag" column="DEVICE_TAG"/>
+                        <result property="deviceCapability" column="DEVICE_CAPABILITY"/>
+            </resultMap>
+            <select id="getDevice" resultType="com.tce.smart.platform.core.vo.DeviceVO">
+				SELECT
+					SD.ID,
+					SD.CREATE_TIME,
+					SDA.AREA_ID,
+					SD.ENABLE_STATUS,
+					SD.CONNECT_STATUS,
+					SD.DEVICE_NAME,
+					SA.AREA_NAME,
+					SA.PID,
+					SD.DEVICE_TYPE,
+					SD.DEVICE_VENDOR,
+				    SD.IS_SYNC,
+				    SD.DEVICE_TAG,
+				    SD.DEVICE_CAPABILITY
+				FROM
+					SMT_DEVICE SD
+				LEFT JOIN SMT_DEVICE_AREA SDA ON SD. ID = SDA.DEVICE_ID
+				LEFT JOIN SMT_AREA SA ON SA. ID = SDA.AREA_ID
+	<where>
+		<if test="query.parkId != null or query.parAreaId != null or query.areaId != null">
+						AND SDA.AREA_ID IN(
+							SELECT SA."ID" FROM SMT_AREA SA
+							<where>
+								<if test="query.parkId != null">
+									AND SA.PARK_ID = #{query.parkId}
+								</if>
+								<if test="query.parAreaId != null">
+									AND SA.PID = #{query.parAreaId}
+								</if>
+								<if test="query.areaId != null">
+									AND SA."ID" = #{query.areaId}
+								</if>
+							</where>
+						)
+					</if>
+					<if test="query.tags != null  and query.tags.size > 0">
+						AND SD.ID IN(
+						SELECT SA.DEVICE_ID FROM SMT_DEVICE_TAG_RELATION SA
+						<where>
+							AND SA.TAG_ID IN
+							<foreach collection="query.tags" item="tempId" open="(" separator="," close=")">
+								#{tempId}
+							</foreach>
+						</where>
+						)
+					</if>
+					<if test="query.deviceName != null and query.deviceName  != ''">
+						and SD.DEVICE_NAME LIKE CONCAT(CONCAT('%',#{query.deviceName}),'%')
+					</if>
+					<if test="query.parkIds != null and query.parkIds.size > 0">
+						AND SD.PARK_ID IN
+						<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+							#{tempId}
+						</foreach>
+					</if>
+					<if test="query.enableStatus != null">
+						AND SD.ENABLE_STATUS = #{query.enableStatus}
+					</if>
+					<if test="query.connectStatus != null">
+						AND SD.CONNECT_STATUS = #{query.connectStatus}
+					</if>
+					<if test="query.deviceType != null">
+						AND SD.DEVICE_TYPE = #{query.deviceType}
+					</if>
+					<if test="query.deviceTag != null">
+						AND SD.DEVICE_TAG = #{query.deviceTag}
+					</if>
+				</where>
+				ORDER BY SA.AREA_NAME,SD.DEVICE_NAME DESC
+            </select>
+
+            <delete id="deleteDeviceArea" parameterType="String">
+                DELETE FROM SMT_DEVICE_AREA WHERE SMT_DEVICE_AREA.DEVICE_ID = #{deviceId}
+            </delete>
+
+            <select id="getDeviceDetail" parameterType="String" resultType="com.tce.smart.platform.core.vo.DeviceVO">
+	SELECT
+					"sd". ID,
+					"sd".CREATE_TIME,
+					"sda".AREA_ID,
+					"sd".ENABLE_STATUS,
+					"sd".CONNECT_STATUS,
+					"sd".DEVICE_NAME,
+					"sa".AREA_NAME,
+					"sa".PID,
+					"sd".DEVICE_IP,
+					"sd".DEVICE_PORT,
+					"sd".DEVICE_USERNAME,
+					"sd".DEVICE_PASSWORD,
+					"sd".DEVICE_CODE,
+					"sd".PARK_ID,
+					"sd".DEVICE_SUBTYPE,
+					"sd".DEVICE_VENDOR,
+					"sd".LED_SCREEN_IP,
+					"sd".LED_SCREEN,
+					"sd".DEVICE_TYPE,
+					"sd".PROTOCOL_TYPE,
+					"sd".CHANNEL_MANAGER,
+					"sd".CHANNEL_NO,
+					"sd".EVENT_TYPE,
+	    "sd".IS_SYNC,
+	    "sd".DEVICE_TAG,
+	    "sd".DEVICE_CAPABILITY
+				FROM
+					SMT_DEVICE "sd"
+				LEFT JOIN SMT_DEVICE_AREA "sda" ON "sd". ID = "sda".DEVICE_ID
+				LEFT JOIN SMT_AREA "sa" ON "sa". ID = "sda".AREA_ID
+				WHERE "sd". ID = #{deviceId}
+            </select>
+
+            <select id="getPark" parameterType="int" resultType="com.tce.smart.platform.core.model.AreaTree">
+	SELECT
+					SP. ID AS VALUE,
+					SP.PARK_NAME AS LABEL
+				FROM
+					SMT_PARK SP
+				<where>
+					<if test="parkIds != null and parkIds.size > 0">
+						AND SP.ID IN
+						<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+							#{tempId}
+						</foreach>
+					</if>
+				</where>
+            </select>
+
+            <select id="getArea" resultType="com.tce.smart.platform.core.model.AreaTree">
+	SELECT
+					SA. ID AS VALUE,
+					SA.AREA_NAME AS LABEL
+				FROM
+					SMT_AREA SA
+				<where>
+					<if test="parkId != null">
+						AND SA.PARK_ID = #{parkId}
+					</if>
+					<if test="pId != null">
+						AND SA.PID = #{pId}
+					</if>
+				</where>
+            </select>
+
+            <select id="getByAreaId">
+	SELECT
+					SD. ID,
+					SD.DEVICE_NAME
+				FROM
+					SMT_DEVICE SD
+				INNER JOIN SMT_DEVICE_AREA SDA ON SD. ID = SDA.DEVICE_ID
+				WHERE
+					SDA.AREA_ID = #{id}
+            </select>
+
+            <select id="getDeviceById" resultType="com.tce.smart.platform.core.vo.GetDeviceVO">
+				SELECT
+					D .CHANNEL_NO,
+					SR. ID AS AREAID,
+					SR.AREA_NAME,
+					D .DEVICE_NAME
+				FROM
+					SMT_DEVICE D
+				LEFT JOIN SMT_DEVICE_AREA SA ON D . ID = SA.DEVICE_ID
+				LEFT JOIN SMT_AREA SR ON SA.AREA_ID = SR. ID
+				<where>
+					 D.ID =#{id}
+				</where>
+            </select>
+
+            <select id="getDeviceIds" resultType="String">
+	SELECT
+					SD. ID
+				FROM
+					SMT_DEVICE SD
+				<where>
+					SD.IS_SYNC != 1
+					<if test="parkId != null">
+						AND SD.PARK_ID = #{parkId}
+					</if>
+				</where>
+            </select>
+
+
+           <select id="selectDeviceByAuthId" parameterType="java.lang.Integer"  resultMap="smtDeviceMap">
+
+
+			SELECT de.* FROM smt_device de INNER JOIN SMT_DEVICE_AUTHORITY_RELATION relation ON
+
+			de.ID=relation.DEVICE_ID
+
+			WHERE relation.AUTHORITY_ID=#{authId}
+
+			ORDER BY de.CREATE_TIME ASC
+
+
+		  </select>
+</mapper>

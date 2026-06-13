@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryBedMapper">
+
+	<resultMap id="smtDormitoryBedMap" type="com.tce.smart.platform.core.entity.SmtDormitoryBed">
+		<id property="id" column="id"/>
+		<result property="bedNumber" column="bed_number"/>
+		<result property="roomId" column="room_id"/>
+		<result property="floorId" column="floor_id"/>
+		<result property="dormitoryId" column="dormitory_id"/>
+		<result property="parkId" column="park_id"/>
+	</resultMap>
+
+	<resultMap id="dormitoryBedOfStaffMap" type="com.tce.smart.platform.core.vo.DormitoryStaffVO">
+
+		<id property="id" column="id"/>
+		<id property="bedId" column="bed_id"/>
+		<result property="roomName" column="room_name"/>
+		<result property="bedNumber" column="bed_number"/>
+		<result property="bedName" column="BED_NAME"/>
+		<result property="delFlag" column="DEL_FLAG"/>
+		<result property="dormitoryTypeName" column="dormitory_type_name"/>
+		<result property="staffBadge" column="staff_badge"/>
+		<result property="name" column="staff_name"/>
+		<result property="sex" column="staff_sex"/>
+		<result property="roomSex" column="room_sex"/>
+		<result property="roomId" column="ROOM_ID"/>
+		<result property="depName" column="dep_name"/>
+		<result property="jcheName" column="jche_name"/>
+		<result property="jobName" column="job_name"/>
+		<result property="dormitoryTypeName" column="type_name"/>
+		<result property="parkName" column="park_name"/>
+		<result property="pqcompany" column="pqcompany"/>
+		<result property="dormitoryName" column="dormitory_name"/>
+
+	</resultMap>
+
+	<resultMap id="bedDetailMap" type="com.tce.smart.platform.core.dto.dormitorymanage.BedDetailDTO">
+		<result property="bedId" column="ID"/>
+		<result property="bedNumber" column="BED_NUMBER"/>
+		<result property="staffBadge" column="STAFF_BADGE"/>
+		<result property="staffName" column="STAFF_NAME"/>
+		<result property="staffSex" column="STAFF_SEX"/>
+		<result property="depName" column="DEP_NAME"/>
+		<result property="jobName" column="JOB_NAME"/>
+		<result property="staffStatus" column="staffStatus"/>
+		<result property="inTime" column="CREATE_TIME"/>
+	</resultMap>
+
+	<select id="getDormitoryBedOfStaff" parameterType="com.tce.smart.platform.core.dto.DormitoryBedPageQueryDTO"
+			resultMap="dormitoryBedOfStaffMap">
+		SELECT
+		DSTAFF.ID,
+		DBED.ID BED_ID,
+		nvl( ROOM.ALIAS_NAME, ROOM.ROOM_NAME ) AS ROOM_NAME,
+		DBED.BED_NUMBER,
+		DSTAFF.STAFF_BADGE,
+		ROOM.ROOM_SEX,
+		DBED.BED_NAME,
+		DBED.ROOM_ID,
+		STAFF.PQCOMPANY,
+		DSTAFF.STAFF_NAME,
+		DSTAFF.STAFF_SEX,
+		STAFF.COMP_NAME,
+		STAFF.DEP_NAME,
+		STAFF.JCHE_NAME,
+		STAFF.JOB_NAME,
+		DSTAFF.comp_name AS dor_comp_name,
+		DSTAFF.dep_name AS dor_dep_name,
+		DSTAFF.job_name AS dor_job_name,
+		STAFF.STATUS,
+		room.room_type AS dormitory_type_id,
+		DBED.DORMITORY_ID,
+		DBED.DEL_FLAG,
+		STAFF.DEP_ABBR,
+		DSTAFF.SIMPLE_REMARK,
+		DSTAFF.CREATE_TIME,
+		DBED.PARK_ID,
+		STAFF.RESIDENTADDRESS,
+		STAFF.CERTNO,
+		STAFF.LEA_DATE,
+		STAFF.LEA_TYPE,
+		STAFF.NATION,
+		STAFF.PHONE
+		FROM
+		SMT_DORMITORY_BED DBED
+		LEFT JOIN SMT_DORMITORY_STAFF DSTAFF ON (
+		DSTAFF.PARK_ID = DBED.PARK_ID
+		AND DSTAFF.FLOOR_ID = DBED.FLOOR_ID
+		AND DSTAFF.ROOM_ID = DBED.ROOM_ID
+		AND DSTAFF.DORMITORY_ID = DBED.DORMITORY_ID
+		AND DSTAFF.BED_ID = DBED.ID
+		)
+		LEFT JOIN SMT_STAFF STAFF ON DSTAFF.STAFF_BADGE = STAFF.BADGE
+		LEFT JOIN SMT_DORMITORY_ROOM ROOM ON ROOM.ID = DBED.ROOM_ID
+		<where>
+			<!-- <if test="query.bedId != null and query.bedId != ''">
+                AND DBED.ID=#{query.bedId}
+            </if> -->
+			<if test="query.staffBadge != null and query.staffBadge  != ''">
+				and DSTAFF.staff_badge LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND DBED.PARK_ID=#{query.parkId }
+			</if>
+			<if test="query.dormitoryId != null and query.dormitoryId != ''">
+				AND DBED.DORMITORY_ID=#{query.dormitoryId}
+			</if>
+			<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+				and DBED.DORMITORY_ID in
+				<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.floorId != null and query.floorId  != ''">
+				AND DBED.FLOOR_ID =#{query.floorId }
+			</if>
+			<if test="query.roomId != null and query.roomId != ''">
+				AND DBED.ROOM_ID =#{query.roomId }
+			</if>
+			<if test="query.compName != null and query.compName != ''">
+				and (DSTAFF.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%')
+				or STAFF.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%') )
+			</if>
+			<if test="query.name != null and query.name != ''">
+				AND DSTAFF.STAFF_NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.pqcompany != null and query.pqcompany != ''">
+				AND STAFF.PQCOMPANY LIKE CONCAT(CONCAT('%',#{query.pqcompany}),'%')
+			</if>
+			<if test="query.status != null">
+				AND STAFF.STATUS =#{query.status}
+			</if>
+			<if test="query.staffBadge != null and query.staffBadge != ''">
+				AND DSTAFF.STAFF_BADGE LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.bedEmpty != null ">
+				<if test="query.bedEmpty==1">
+					AND DSTAFF.STAFF_BADGE is null
+				</if>
+				<if test="query.bedEmpty==0">
+					AND DSTAFF.STAFF_BADGE is not null
+				</if>
+			</if>
+			<if test="query.roomType != null">
+				AND room.room_type =#{query.roomType}
+			</if>
+			<if test="park!=null and park.size>0">
+				and DBED.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND DSTAFF.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.phone != null and query.phone != ''">
+				AND STAFF.PHONE LIKE CONCAT(CONCAT('%',#{query.phone}),'%')
+			</if>
+			ORDER BY ROOM_NAME ,BED_NUMBER, CASE WHEN STAFF.BADGE IS NULL THEN 1 ELSE 0 END ASC, DSTAFF.CREATE_TIME DESC
+		</where>
+	</select>
+
+
+	<select id="getStaffFamily"
+			resultType="com.tce.smart.platform.core.vo.DormitoryStaffFamilyVO">
+		SELECT DSTAFF.ID, DBED.ID BED_ID,nvl(ROOM.ALIAS_NAME,ROOM.ROOM_NAME) ROOM_NAME,DBED.BED_NUMBER,DSTAFF.STAFF_BADGE,
+		ROOM.ROOM_SEX,DBED.BED_NAME,DBED.ROOM_ID,
+		DSTAFF.STAFF_NAME name, DSTAFF.STAFF_SEX,STAFF.COMP_NAME, STAFF.DEP_NAME,STAFF.JCHE_NAME ,STAFF.JOB_NAME,
+		DSTAFF.comp_name as dor_comp_name ,DSTAFF.dep_name as dor_dep_name,DSTAFF.job_name as dor_job_name,
+		STAFF.STATUS,ty.type_name,lev.JCHE_ID,DORMITORY.DORMITORY_NAME,DBED.DEL_FLAG,STAFF.DEP_ABBR,
+		DSTAFF.CREATE_TIME ,PARK.PARK_NAME,STAFF.RESIDENTADDRESS, STAFF.CERTNO,
+		STAFF.LEA_DATE,STAFF.LEA_TYPE,STAFF.NATION,STAFF.PHONE,
+		F.NAME FAMILY_NAME, F.BADGE FAMILY_BADGE, F.CERTNO FAMILY_CERTNO,
+		F.PHONE FAMILY_PHONE, F.RELATION FAMILY_RELATION
+		FROM SMT_DORMITORY_BED DBED
+		LEFT JOIN SMT_DORMITORY_STAFF DSTAFF
+		ON (DSTAFF.PARK_ID=DBED.PARK_ID AND
+		DSTAFF.FLOOR_ID=DBED.FLOOR_ID AND DSTAFF.ROOM_ID=DBED.ROOM_ID AND
+		DSTAFF.DORMITORY_ID=DBED.DORMITORY_ID AND DSTAFF.BED_ID=DBED.ID)
+		LEFT JOIN SMT_STAFF STAFF ON DSTAFF.STAFF_BADGE = STAFF.BADGE
+		LEFT JOIN SMT_DORMITORY_ROOM ROOM ON ROOM.ID=DBED.ROOM_ID
+		RIGHT  JOIN SMT_STAFF_FAMILY_DORMITORY F ON F.STAFF_BADGE = DSTAFF.STAFF_BADGE
+		left join smt_dormitory_type ty on ty.id=room.room_type
+		LEFT JOIN SMT_DORMITORY_LEVEL lev on lev.DORMITORY_TYPE_ID=room.room_type
+		LEFT JOIN SMT_PARK PARK on DBED.PARK_ID=PARK.ID
+		LEFT JOIN SMT_DORMITORY DORMITORY on DBED.DORMITORY_ID = DORMITORY.ID
+		<where>
+			F.DEL_FLAG = 0
+			<if test="query.staffBadge != null and query.staffBadge  != ''">
+				and DSTAFF.staff_badge LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				AND DBED.PARK_ID=#{query.parkId }
+			</if>
+			<if test="query.dormitoryId != null and query.dormitoryId != ''">
+				AND DBED.DORMITORY_ID=#{query.dormitoryId}
+			</if>
+			<if test="query.floorId != null and query.floorId  != ''">
+				AND DBED.FLOOR_ID =#{query.floorId }
+			</if>
+			<if test="query.roomId != null and query.roomId != ''">
+				AND DBED.ROOM_ID =#{query.roomId }
+			</if>
+			<if test="query.compName != null and query.compName != ''">
+				and (DSTAFF.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%')
+				or STAFF.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%') )
+			</if>
+			<if test="query.name != null and query.name != ''">
+				AND DSTAFF.STAFF_NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.status != null">
+				AND STAFF.STATUS =#{query.status }
+			</if>
+			<if test="query.staffBadge != null and query.staffBadge != ''">
+				AND DSTAFF.STAFF_BADGE LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.bedEmpty != null ">
+				<if test="query.bedEmpty==1">
+					AND DSTAFF.STAFF_BADGE is null
+				</if>
+				<if test="query.bedEmpty==0">
+					AND DSTAFF.STAFF_BADGE is not null
+				</if>
+			</if>
+			<if test="query.roomType != null">
+				AND room.room_type =#{query.roomType}
+			</if>
+			<if test="park!=null and park.size>0">
+				and DBED.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND DSTAFF.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.phone != null and query.phone != ''">
+				AND STAFF.PHONE LIKE CONCAT(CONCAT('%',#{query.phone}),'%')
+			</if>
+			ORDER BY CASE WHEN STAFF.BADGE IS NULL THEN 1 ELSE 0 END, ROOM_NAME ,BED_NUMBER ASC, DSTAFF.CREATE_TIME DESC
+		</where>
+	</select>
+
+	<select id="getLeaveStaff" parameterType="com.tce.smart.platform.core.dto.DormitoryBedPageQueryDTO"
+			resultType="java.lang.Integer">
+
+		select count(1) from SMT_DORMITORY_STAFF DSTAFF
+		inner join SMT_STAFF STAFF ON DSTAFF.STAFF_BADGE = STAFF.BADGE
+		where STAFF.status=0
+
+		<if test="query.parkId != null and query.parkId != ''">
+			AND DSTAFF.PARK_ID=#{query.parkId }
+		</if>
+		<if test="query.dormitoryId != null and query.dormitoryId != ''">
+			AND DSTAFF.DORMITORY_ID=#{query.dormitoryId}
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and DSTAFF.DORMITORY_ID in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		<if test="query.floorId != null and query.floorId  != ''">
+			AND DSTAFF.FLOOR_ID =#{query.floorId }
+		</if>
+		<if test="query.roomId != null and query.roomId != ''">
+			AND DSTAFF.ROOM_ID =#{query.roomId }
+		</if>
+	</select>
+
+	<select id="getFreeBedCount" resultType="java.lang.Integer">
+		SELECT count(*) FROM SMT_DORMITORY_BED bed
+		<where>
+			<if test="parkId!=null">
+				and PARK_ID =#{parkId }
+
+			</if>
+			and not exists (select 1 from SMT_DORMITORY_STAFF df where df.BED_ID=bed.ID)
+		</where>
+	</select>
+
+
+	<select id="getBedDetail" resultType="com.tce.smart.platform.core.dto.dormitorymanage.BedDetailDTO">
+		select ds.ID DOR_STAFF_ID, db.ID,db.BED_NUMBER,ds.STAFF_BADGE,ds.STAFF_NAME,
+		ds.STAFF_SEX,ds.CREATE_TIME in_time,ds.DEP_NAME,ds.JOB_NAME,db.ID BED_ID,
+		(select STATUS from SMT_STAFF staff where staff.ID=ds.STAFF_ID) as staffStatus
+		from SMT_DORMITORY_BED db left join SMT_DORMITORY_STAFF ds on db.ID=ds.BED_ID
+		where db.ROOM_ID=#{roomId}
+		order by db.ID asc
+	</select>
+
+	<delete id="delBedByIds">
+		DELETE FROM SMT_DORMITORY_BED sdb WHERE ID IN
+		<foreach item="item" index="index" collection="ids" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+		and not EXISTS (select 1 from SMT_DORMITORY_STAFF sds where sdb.ID=sds.BED_ID)
+	</delete>
+
+</mapper>

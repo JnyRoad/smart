@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAttendanceExceptionMapper">
+
+  <resultMap id="smtAttendanceExceptionMap" type="com.tce.smart.platform.core.entity.SmtAttendanceException">
+                  <id property="id" column="id"/>
+                        <result property="staffId" column="staff_id"/>
+                        <result property="staffBadge" column="staff_badge"/>
+                        <result property="staffName" column="staff_name"/>
+                        <result property="exceptionTime" column="exception_time"/>
+                        <result property="cause" column="cause"/>
+                        <result property="processid" column="processId"/>
+                        <result property="createtime" column="createTime"/>
+            </resultMap>
+</mapper>

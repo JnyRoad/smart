@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSDTemplatesMapper">
+
+	<resultMap id="smtDormitorySDTemplatePage" type="com.tce.smart.platform.core.vo.SmtSDTemplateVO">
+		<id property="id" column="id"/>
+		<result property="templateName" column="TEMPLATE_NAME"/>
+		<result property="parkId" column="park_id"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="jchenid" column="JCHENID"/>
+		<result property="jchenname" column="JCHENNAME"/>
+	</resultMap>
+
+	<resultMap id="staffSDRuleMap" type="com.tce.smart.platform.core.dto.commonsd.StaffSDRuleRespDTO">
+		<result property="staffBadge" column="BADGE"/>
+		<result property="categoryId" column="CATEGORY_ID"/>
+		<result property="standardQty" column="STANDARD_QTY"/>
+		<result property="overFee" column="OVER_FEE"/>
+	</resultMap>
+
+	<select id="getSmtDormitorySDTemplatePage" parameterType="com.tce.smart.platform.core.entity.SmtSdTemplates" resultMap="smtDormitorySDTemplatePage">
+		SELECT SDT.ID,SDT.TEMPLATE_NAME,SDT.PARK_ID,PARK.PARK_NAME,SDT.JCHENID,SDT.JCHENNAME
+		FROM SMT_SD_TEMPLATES SDT
+		INNER JOIN SMT_PARK PARK
+		ON SDT.PARK_ID=PARK.ID
+		<where>
+			<if test="query.parkId != null and  query.parkId !=''">
+				AND SDT.PARK_ID=#{query.parkId}
+			</if>
+
+			<if test="query.templateName != null and  query.templateName !=''">
+				AND SDT.TEMPLATE_NAME=#{query.templateName}
+			</if>
+
+			<if test="query.jchenid != null and  query.jchenid !=''">
+				AND SDT.JCHENID=#{query.jchenid}
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and SDT.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		ORDER BY SDT.ID
+
+	</select>
+
+	<select id="getStaffSDRule" resultMap="staffSDRuleMap">
+		select staff.BADGE,sdr.CATEGORY_ID,sdr.STANDARD_QTY,sdr.OVER_FEE
+		from SMT_SD_TEMPLATES sdt
+		join SMT_TEMPLATES_RULE sdr on sdt.ID=sdr.TEMP_ID
+		join SMT_STAFF staff on staff.JCHE_ID=sdt.JCHENID
+		where staff.BADGE in
+		<foreach item="item" index="index" collection="staffBadgeList" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+		and sdr.MONTH_NUM=#{monthNum} and sdr.CATEGORY_ID=#{categoryId}
+	</select>
+
+	<select id="getSDRuleById" resultMap="staffSDRuleMap">
+		select sdr.CATEGORY_ID,sdr.STANDARD_QTY,sdr.OVER_FEE,null as BADGE
+		from SMT_SD_TEMPLATES sdt
+		join SMT_TEMPLATES_RULE sdr on sdt.ID=sdr.TEMP_ID
+		where sdt.ID=#{tempId} and sdr.CATEGORY_ID=#{categoryId} and sdr.MONTH_NUM=#{monthNum}
+	</select>
+
+</mapper>

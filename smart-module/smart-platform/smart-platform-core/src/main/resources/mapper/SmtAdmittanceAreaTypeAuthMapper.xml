@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAdmittanceAreaTypeAuthMapper">
+
+  <resultMap id="smtAdmittanceAreaTypeAuthMap" type="com.tce.smart.platform.core.entity.admittance.SmtAdmittanceAreaTypeAuth">
+                  <id property="id" column="ID"/>
+                        <result property="areaTypeId" column="AREA_TYPE_ID"/>
+                        <result property="areaName" column="AREA_NAME"/>
+                        <result property="authIds" column="AUTH_IDS"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+            </resultMap>
+</mapper>

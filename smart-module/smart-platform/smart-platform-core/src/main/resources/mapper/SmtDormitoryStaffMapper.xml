@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryStaffMapper">
+
+	<resultMap id="smtDormitoryStaffVOMap" type="com.tce.smart.platform.core.vo.StaffInDormitoryVO">
+		<id property="id" column="id"/>
+		<result property="staffName" column="staff_name"/>
+		<result property="staffBadge" column="staff_badge"/>
+		<result property="sex" column="staff_sex"/>
+		<result property="roomName" column="room_name"/>
+		<result property="dormitoryTypeName" column="dormitory_type_name"/>
+		<result property="dormitoryName" column="dormitory_name"/>
+		<result property="createTime" column="create_time"/>
+		<result property="compName" column="comp_name"/>
+		<result property="depName" column="dep_name"/>
+		<result property="parkName" column="park_name"/>
+		<result property="jobName" column="job_name"/>
+		<result property="dorCompName" column="dor_comp_name"/>
+		<result property="dorDepName" column="dor_dep_name"/>
+		<result property="dorJobName" column="dor_job_name"/>
+		<result property="jcheName" column="jche_name"/>
+	</resultMap>
+
+
+	<resultMap id="smtDormitoryStaffMap" type="com.tce.smart.platform.core.entity.SmtDormitoryStaff">
+		<id property="id" column="id"/>
+		<id property="staffId" column="staff_idd"/>
+		<result property="staffName" column="staff_name"/>
+		<result property="staffBadge" column="staff_badge"/>
+		<result property="parkId" column="park_id"/>
+		<result property="parkName" column="park_name"/>
+		<result property="dormitoryId" column="dormitory_id"/>
+		<result property="dormitoryName" column="dormitory_name"/>
+		<result property="floorId" column="floor_id"/>
+		<result property="floorName" column="floor_name"/>
+		<result property="roomId" column="room_id"/>
+		<result property="roomName" column="room_name"/>
+		<result property="bedId" column="bed_id"/>
+		<result property="bedNumber" column="bed_number"/>
+		<result property="dormitoryTypeId" column="dormitory_type_id"/>
+		<result property="dormitoryTypeName" column="dormitory_type_name"/>
+		<result property="createTime" column="create_time"/>
+
+	</resultMap>
+
+
+	<select id="getSmtDormitoryStaff" resultMap="smtDormitoryStaffVOMap"
+			parameterType="com.tce.smart.platform.core.dto.StaffInDormitoryDTO">
+		SELECT
+			dor.id,
+			dor.staff_name,
+			dor.staff_badge,
+			dor.opt_user,
+			dor.staff_sex,
+			dor.room_id,
+			nvl( t3.ALIAS_NAME, t3.ROOM_NAME ) room_name,
+			dor.bed_number,
+			dor.park_name,
+			dor.dormitory_name,
+			dor.dormitory_type_name,
+			dor.create_time,
+			sta.comp_name,
+			sta.dep_name,
+			sta.job_name,
+			sta.status,
+			dor.comp_name AS dor_comp_name,
+			dor.dep_name AS dor_dep_name,
+			dor.job_name AS dor_job_name,
+			sta.jche_name
+		FROM
+			smt_dormitory_staff dor
+			LEFT JOIN smt_staff sta ON dor.staff_id = sta.id
+			LEFT JOIN smt_dormitory_room t3 ON dor.room_id = t3.id
+		<where>
+			<if test="query.staffName != null and query.staffName  != ''">
+				and dor.staff_name LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.staffBadge != null and query.staffBadge  != ''">
+				and dor.staff_badge LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+
+			</if>
+			<if test="query.compName != null and query.compName != ''">
+
+				and (dor.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%')
+				or sta.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%') )
+			</if>
+			<if test="query.sex != null ">
+				and (sta.sex =#{query.sex } or dor.STAFF_SEX=#{query.sex })
+			</if>
+			<if test="query.parkId != null">
+				and dor.park_id =#{query.parkId }
+			</if>
+			<!-- 	<if test="query.dormitoryTypeId != nul">
+                    and dor.dormitory_type_id =#{query.dormitoryTypeId }
+                </if> -->
+			<if test="query.dormitoryId != null">
+				and dor.dormitory_id =#{query.dormitoryId }
+			</if>
+			<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+				and dor.dormitory_id in
+				<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.floorId != null ">
+				and dor.floor_id =#{query.floorId  }
+			</if>
+			<if test="query.roomId != null ">
+				and dor.room_id =#{query.roomId  }
+			</if>
+
+			<if test="query.jcheId != null  and query.jcheId !=''">
+				and sta.jche_id =#{query.jcheId  }
+			</if>
+			<if test="park!=null and park.size>0">
+				and dor.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND dor.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		</where>
+
+		ORDER BY dor.floor_name,dor.room_name,dor.bed_number
+
+	</select>
+
+
+	<!-- 奇数是下铺，偶数是上铺  1-上铺，2-下铺-->
+	<select id="getEmptyBed" parameterType="com.tce.smart.platform.core.dto.InDormitoryDTO"
+			resultType="com.tce.smart.platform.core.entity.SmtDormitoryBed">
+
+		select bed.* from SMT_DORMITORY_ROOM room
+		inner join SMT_DORMITORY_BED bed
+		on room.id=BED.ROOM_ID
+		where ROOM_SEX=#{sex} and ROOM_TYPE=#{roomType}
+		and bed.id not in (select BED_ID from SMT_DORMITORY_STAFF)
+		<if test="parkId!=null and parkId!=''">
+			and bed.park_id=#{parkId}
+		</if>
+		<if test="bedType != null">
+
+			<if test="bedType==1">
+				and mod(bed.BED_NUMBER,2) = 0
+			</if>
+			<if test="bedType==2">
+				and mod(bed.BED_NUMBER,2) = 1
+			</if>
+		</if>
+	</select>
+
+	<select id="getBedInfo" parameterType="java.lang.Integer" resultMap="smtDormitoryStaffMap">
+
+	select bed.PARK_ID,bed.dormitory_id, bed.FLOOR_ID,bed.ROOM_ID,
+	bed.id bed_id, park_name,room_name,DORMITORY_name,floor_name ,bed.bed_number ,
+	types.id  dormitory_type_id ,types.type_name  dormitory_type_name
+	from SMT_DORMITORY_BED bed
+	inner join SMT_PARK park
+	on bed.PARK_ID =PARK."ID"
+	inner join  SMT_DORMITORY dormitory
+	on dormitory.id=bed.dormitory_id
+	inner join  SMT_DORMITORY_FLOOR floors
+	on floors.id=bed.floor_id
+	inner join SMT_DORMITORY_ROOM room
+	on room.id=bed.room_id
+	inner join SMT_DORMITORY_TYPE types
+	on room.room_type=types.id
+	where bed.id=#{id}
+	</select>
+
+
+	<select id="getOutDormitoryStaff" parameterType="java.lang.String"
+			resultType="com.tce.smart.platform.core.entity.SmtOutDormitoryStaff">
+
+	select * from SMT_OUT_DORMITORY_STAFF where STAFF_BADGE=#{staffBadge} and ALLOWANCE_TYPE=#{allowanceType}
+	order by create_time desc
+
+	</select>
+
+	<select id="selectCallowanceCancelRecord" parameterType="java.lang.String"
+			resultType="com.tce.smart.platform.core.entity.SmtCallowanceCancelRecord">
+
+	select id, process_id as processId, create_time as  createTime  from SMT_CALLOWANCE_CANCEL_RECORD where badge=#{staffBadge}
+
+	order by create_time desc
+
+	</select>
+
+	<select id="getRoomBedUse" resultType="com.tce.smart.platform.core.entity.ext.DormitoryRoomExt">
+		select ROOM_ID as id,count(*) as useBedNum from SMT_DORMITORY_STAFF
+		<where>
+			<if test="rooms !=null and rooms.size>0">
+				and ROOM_ID in
+				<foreach item="item" index="index" collection="rooms" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		GROUP BY ROOM_ID
+	</select>
+
+	<select id="getToLock" resultType="com.tce.smart.platform.api.dto.req.remoteLock.LockDormitoryStaffDTO">
+		SELECT D.DORMITORY_ID, D.FLOOR_ID, D.ROOM_ID, D.CREATE_TIME, D.PARK_ID,
+		D.STAFF_BADGE BADGE, D.STAFF_NAME NAME, S.PHONE, D.IS_STAFF
+		FROM SMT_DORMITORY_STAFF D
+		LEFT JOIN SMT_STAFF S ON D.STAFF_ID = S.ID
+		<where>
+			<if test="parkId !=null and parkId !=''">
+				and d.park_id = #{parkId}
+			</if>
+			<if test="createTime !=null and createTime !=''">
+				and to_char( d.create_time,'yyyy-mm-dd') = #{createTime}
+			</if>
+		</where>
+		order by d.create_time desc
+	</select>
+</mapper>

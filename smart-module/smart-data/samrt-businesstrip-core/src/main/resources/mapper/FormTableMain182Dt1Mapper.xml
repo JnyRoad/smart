@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.businesstrip.core.mapper.FormTableMain182Dt1Mapper">
+
+	<select id="getByMainId" resultType="com.tce.smart.businesstrip.core.entity.FormTableMain182Dt1">
+		select *
+		FROM ECOLOGY.FORMTABLE_MAIN_182_DT1
+		<where>
+			1=1 and MAINID = #{mainId}
+		</where>
+	</select>
+
+	<update id="updateFcsj" parameterType="java.util.List">
+		update ECOLOGY.FORMTABLE_MAIN_182_DT1
+		<trim prefix="set" suffixOverrides=",">
+			<trim prefix="FCRQ =case" suffix="end,">
+				<foreach collection="dt1List" item="item" index="index">
+					when ID=#{item.id} then #{item.fcrq}
+				</foreach>
+			</trim>
+			<trim prefix="FCSJ =case" suffix="end,">
+				<foreach collection="dt1List" item="item" index="index">
+					when ID=#{item.id} then #{item.fcsj}
+				</foreach>
+			</trim>
+		</trim>
+		where ID in
+		<foreach collection="dt1List" index="index" item="item" separator="," open="(" close=")">
+			#{item.id,jdbcType=BIGINT}
+		</foreach>
+	</update>
+</mapper>

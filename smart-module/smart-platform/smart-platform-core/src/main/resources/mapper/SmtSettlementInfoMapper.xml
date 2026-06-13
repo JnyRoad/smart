@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.leavecount.mapper.SmtSettlementInfoMapper">
+
+  <resultMap id="smtSettlementInfoMap" type="com.tce.smart.platform.core.entity.leavecount.SmtSettlementInfo">
+                  <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="badge" column="BADGE"/>
+                        <result property="name" column="NAME"/>
+                        <result property="bu" column="BU"/>
+                        <result property="dept" column="DEPT"/>
+                        <result property="fee" column="FEE"/>
+                        <result property="leaveDate" column="LEAVE_DATE"/>
+                        <result property="status" column="STATUS"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="quitDate" column="QUIT_DATE"/>
+                        <result property="preCollect" column="PRE_COLLECT"/>
+                        <result property="leaveDays" column="LEAVE_DAYS"/>
+            </resultMap>
+</mapper>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtApplicationEducationMapper">
+
+  <resultMap id="smtApplictionEdutionMap" type="com.tce.smart.platform.core.entity.SmtApplicationEducation">
+                  <id property="id" column="id"/>
+                        <result property="startTime" column="start_time"/>
+                        <result property="endTime" column="end_time"/>
+                        <result property="schoolName" column="school_name"/>
+                        <result property="major" column="major"/>
+                        <result property="education" column="education"/>
+                        <result property="degree" column="degree"/>
+                        <result property="applicationId" column="application_id"/>
+ </resultMap>
+
+
+
+
+	<select id="getSmtApplictionEducationList" parameterType="java.lang.String" resultMap="smtApplictionEdutionMap">
+		SELECT ed."ID", ed.APPLICATION_ID,ed.EDUCATION,ed.START_TIME,ed.END_TIME,ed.DEGREE
+		,ed.SCHOOL_NAME FROM SMT_APPLICATION_EDUCATION ed
+		INNER JOIN SMT_APPLICATION ap
+		on ed.APPLICATION_ID=ap."ID"
+		INNER JOIN SMT_RECRUITMENT re
+		on re.ID = ap.RECRUIT_ID
+		<where>
+		<if test="job_id != null and job_id != ''">
+		re.JOB_ID=#{job_id}
+		</if>
+		</where>
+	</select>
+
+	<select id="getMaxEdu" resultType="java.lang.Integer">
+		SELECT MIN(education) FROM smt_application_education WHERE application_id = #{applicationId}
+	</select>
+</mapper>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.temporary.core.mapper.AcardlostRegisterMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.temporary.core.entity.AcardlostRegister">
+        <id column="ID" property="id" />
+        <result column="EZID" property="ezid" />
+        <result column="Term" property="Term" />
+        <result column="EID" property="eid" />
+        <result column="Badge" property="Badge" />
+        <result column="Name" property="Name" />
+        <result column="compid" property="compid" />
+        <result column="DepID" property="DepID" />
+        <result column="jobid" property="jobid" />
+        <result column="TWID" property="twid" />
+        <result column="KqStartDate" property="KqStartDate" />
+        <result column="KqInTime2" property="KqInTime2" />
+        <result column="KqInTime4" property="KqInTime4" />
+        <result column="KqInTime5" property="KqInTime5" />
+        <result column="KqOutTime2" property="KqOutTime2" />
+        <result column="KqOutTime4" property="KqOutTime4" />
+        <result column="KqOutTime5" property="KqOutTime5" />
+        <result column="Remarks" property="Remarks" />
+        <result column="DataCreateDay" property="DataCreateDay" />
+        <result column="ErrMsg" property="ErrMsg" />
+        <result column="IsDisPose" property="IsDisPose" />
+        <result column="Unit" property="Unit" />
+        <result column="Reason" property="Reason" />
+        <result column="RegBy" property="RegBy" />
+        <result column="Regdate" property="Regdate" />
+        <result column="Initialized" property="Initialized" />
+        <result column="InitializedBy" property="InitializedBy" />
+        <result column="InitializedTime" property="InitializedTime" />
+        <result column="Submit" property="Submit" />
+        <result column="SubmitBy" property="SubmitBy" />
+        <result column="SubmitTime" property="SubmitTime" />
+        <result column="Closed" property="Closed" />
+        <result column="ClosedBy" property="ClosedBy" />
+        <result column="ClosedTime" property="ClosedTime" />
+        <result column="SeqID" property="SeqID" />
+        <result column="KqBillNo" property="KqBillNo" />
+        <result column="EmpNoList" property="EmpNoList" />
+        <result column="shift" property="shift" />
+        <result column="stdIn2" property="stdIn2" />
+        <result column="stdOt2" property="stdOt2" />
+        <result column="stdIn4" property="stdIn4" />
+        <result column="stdOt4" property="stdOt4" />
+        <result column="stdIn5" property="stdIn5" />
+        <result column="stdOt5" property="stdOt5" />
+        <result column="out2" property="out2" />
+        <result column="in4" property="in4" />
+        <result column="out4" property="out4" />
+        <result column="in5" property="in5" />
+        <result column="out5" property="out5" />
+        <result column="FJ" property="fj" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+<!--    <sql id="Base_Column_List">-->
+<!--        ID AS id, EZID AS ezid, Term, EID AS eid, Badge, Name, compid, DepID, jobid, TWID AS twid, KqStartDate, KqInTime2, KqInTime4, KqInTime5, KqOutTime2, KqOutTime4, KqOutTime5, Remarks, DataCreateDay, ErrMsg, IsDisPose, Unit, Reason, RegBy, Regdate, Initialized, InitializedBy, InitializedTime, Submit, SubmitBy, SubmitTime, Closed, ClosedBy, ClosedTime, SeqID, KqBillNo, EmpNoList, shift, stdIn2, stdOt2, stdIn4, stdOt4, stdIn5, stdOt5, out2, in4, out4, in5, out5, FJ AS fj-->
+<!--    </sql>-->
+
+</mapper>

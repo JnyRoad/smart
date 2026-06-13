@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAdmittanceVehicleMapper">
+
+  <resultMap id="smtAdmittanceVehicleMap" type="com.tce.smart.platform.core.entity.admittance.SmtAdmittanceVehicle">
+                  <id property="id" column="ID"/>
+                        <result property="visitorId" column="VISITOR_ID"/>
+                        <result property="plate" column="PLATE"/>
+                        <result property="name" column="NAME"/>
+                        <result property="nativePlace" column="NATIVE"/>
+                        <result property="licenseNo" column="LICENSE_NO"/>
+                        <result property="emergencyName" column="EMERGENCY_NAME"/>
+                        <result property="emergencyPhone" column="EMERGENCY_PHONE"/>
+                        <result property="modle" column="MODLE"/>
+                        <result property="colour" column="COLOUR"/>
+                        <result property="certImg" column="CERT_IMG"/>
+                        <result property="certType" column="CERT_TYPE"/>
+            </resultMap>
+</mapper>

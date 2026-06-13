@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtApplicationEmergencyMapper">
+
+    <resultMap id="smtApplicationEmergencyMap" type="com.tce.smart.platform.core.entity.SmtApplicationEmergency">
+        <id property="id" column="id"/>
+        <result property="relation" column="relation"/>
+        <result property="emergency_name" column="emergencyName"/>
+        <result property="telephont" column="telephont"/>
+        <result property="application_id" column="applicationId"/>
+    </resultMap>
+
+
+    <!--获取最新添加的一位员工 -->
+    <select id="selectByApplicationId"  resultMap="smtApplicationEmergencyMap" parameterType="java.lang.String">
+        select * from  SMT_Application_EMERGENCY
+        where Application_ID=#{applicationId}
+    </select>
+
+
+</mapper>
