@@ -53,3 +53,15 @@ body {
   background: var(--surface);
   box-shadow: var(--shadow-large);
 }
+
+.app-frame .adm-error-block-image {
+  display: flex;
+  justify-content: center;
+  margin-inline: auto;
+}
+
+.app-frame .adm-error-block-image svg,
+.app-frame .adm-error-block-image img {
+  display: block;
+  margin-inline: auto;
+}

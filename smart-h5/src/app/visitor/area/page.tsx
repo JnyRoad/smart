@@ -16,7 +16,6 @@ function AreaForm({ factory }: { factory: FactoryAreaConfig & { factoryType: str
   const router = useRouter()
   const setFactoryAreas = useVisitorFlow((s) => s.setFactoryAreas)
   const areas = factory.areas ?? []
-  const [keyword, setKeyword] = useState('')
   // Echo the stored selection, intersected with the currently valid codes.
   const [selected, setSelected] = useState<string[]>(() => {
     const stored = useVisitorFlow.getState().areasByFactory[factory.factoryType]
@@ -27,9 +26,6 @@ function AreaForm({ factory }: { factory: FactoryAreaConfig & { factoryType: str
     () => useVisitorFlow.getState().areasByFactory[factory.factoryType]?.custom ?? '',
   )
 
-  const filtered = keyword
-    ? areas.filter((a) => a.name.toLowerCase().includes(keyword.toLowerCase()))
-    : areas
   const allSelected = areas.length > 0 && selected.length === areas.length
 
   function handleConfirm() {
@@ -39,13 +35,6 @@ function AreaForm({ factory }: { factory: FactoryAreaConfig & { factoryType: str
 
   return (
     <div className="flex flex-col gap-3">
-      <input
-        placeholder="搜索授权区域"
-        value={keyword}
-        onChange={(e) => setKeyword(e.target.value)}
-        className={SMS_INPUT_CLASS}
-      />
-
       <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-[0_16px_40px_rgba(89,87,87,0.10)]">
         <span className="text-sm text-mid">
           已选 {selected.length}/{areas.length}
@@ -60,14 +49,12 @@ function AreaForm({ factory }: { factory: FactoryAreaConfig & { factoryType: str
       </div>
 
       <div className="rounded-2xl bg-white p-4 shadow-[0_16px_40px_rgba(89,87,87,0.10)]">
-        {filtered.length === 0 ? (
-          <p className="py-8 text-center text-sm text-weak">
-            {areas.length === 0 ? '暂无可选区域' : '暂无匹配区域'}
-          </p>
+        {areas.length === 0 ? (
+          <p className="py-8 text-center text-sm text-weak">暂无可选区域</p>
         ) : (
           <Checkbox.Group value={selected} onChange={(v) => setSelected(v as string[])}>
             <div className="flex flex-col gap-3">
-              {filtered.map((a) => (
+              {areas.map((a) => (
                 <Checkbox key={a.code} value={a.code}>
                   <span className="text-sm">{a.name}</span>
                 </Checkbox>
