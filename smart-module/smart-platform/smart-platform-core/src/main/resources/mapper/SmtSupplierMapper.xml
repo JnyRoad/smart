@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSupplierMapper">
+
+
+
+	<select id="searchPage" parameterType="com.tce.smart.platform.core.entity.SmtSupplier"
+		resultType="com.tce.smart.platform.core.entity.SmtSupplier">
+		SELECT
+			ID, NAME,legal_Person legalPerson,PARK_ID parkId, PARK_NAME parkName,REMARK,NUMBERS,
+			CREATE_TIME CREATETIME
+		FROM
+			SMT_SUPPLIER
+		<where>
+			<if test="query.parkId != null">
+				park_Id= #{query.parkId}
+			</if>
+			<if test="query.name != null">
+				and name LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="park!=null and  park.size>0">
+				and PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		order by CREATETIME
+
+	</select>
+
+</mapper>

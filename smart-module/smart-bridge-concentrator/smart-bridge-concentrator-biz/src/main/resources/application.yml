@@ -1,0 +1,32 @@
+server:
+  port: 6062
+  servlet:
+    context-path: /
+# 数据源
+
+spring:
+  application:
+    name: @artifactId@
+  main:
+    allow-bean-definition-overriding: true
+  profiles:
+    active: dev
+  kafka:
+    bootstrap-servers: smart-kafka:9092
+    consumer.group-id: 0
+    listener:
+      concurrency: 5
+
+# mybatis-plus配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+    # 关闭MP3.0自带的banner
+    banner: false
+
+smart:
+  server:
+    port: 6001  #Netty服务端端口号

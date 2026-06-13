@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppParkSubjectMapper">
+
+  <resultMap id="appParkSubjectMap" type="com.tce.smart.app.entity.AppParkSubject">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="subjectId" column="subject_id"/>
+            </resultMap>
+
+	<delete id="deleteParkById">
+		delete  from  APP_PARK_SUBJECT  where  SUBJECT_ID = #{id}
+	</delete>
+</mapper>

@@ -1,0 +1,31 @@
+// 全局变量
+@use "./variables" as *;
+// ele样式覆盖
+@use "./element-ui" as *;
+// 顶部右侧显示
+@use "./top" as *;
+// 导航标签
+@use "./tags" as *;
+// 工具类函数
+@use "./mixin" as *;
+// 侧面导航栏
+@use "./sidebar" as *;
+// 动画
+@use "./animate/vue-transition" as *;
+//主题
+@use "./theme/index" as *;
+//适配
+@use "./media" as *;
+//通用配置
+@use "./normalize" as *;
+//裕同 覆盖element-ui
+@use "./platform/my-element-ui" as *;
+//裕同 公用
+@use "./platform/public" as *;
+a{
+  text-decoration: none;
+  color:#333;
+}
+*{
+  outline: none;
+}

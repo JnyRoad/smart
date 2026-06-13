@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.temporary.core.mapper.LregleaveRegisterMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.temporary.core.entity.LregleaveRegister">
+        <id column="ID" property="id" />
+        <result column="ezid" property="ezid" />
+        <result column="Term" property="Term" />
+        <result column="Badge" property="Badge" />
+        <result column="EID" property="eid" />
+        <result column="Name" property="Name" />
+        <result column="compid" property="compid" />
+        <result column="DepID" property="DepID" />
+        <result column="jobid" property="jobid" />
+        <result column="TWID" property="twid" />
+        <result column="BeginTime" property="BeginTime" />
+        <result column="EndTime" property="EndTime" />
+        <result column="Amount" property="Amount" />
+        <result column="Unit" property="Unit" />
+        <result column="regBy" property="regBy" />
+        <result column="regdate" property="regdate" />
+        <result column="Initialized" property="Initialized" />
+        <result column="InitializedBy" property="InitializedBy" />
+        <result column="InitializedTime" property="InitializedTime" />
+        <result column="Submit" property="Submit" />
+        <result column="SubmitBy" property="SubmitBy" />
+        <result column="SubmitTime" property="SubmitTime" />
+        <result column="Closed" property="Closed" />
+        <result column="ClosedBy" property="ClosedBy" />
+        <result column="ClosedTime" property="ClosedTime" />
+        <result column="Remark" property="Remark" />
+        <result column="SeqID" property="SeqID" />
+        <result column="marrydate" property="marrydate" />
+        <result column="DayoffReason" property="DayoffReason" />
+        <result column="IsDispose" property="IsDispose" />
+        <result column="ErrMsg" property="ErrMsg" />
+        <result column="DataCreateDay" property="DataCreateDay" />
+        <result column="wfinstanceID" property="wfinstanceID" />
+        <result column="begindate" property="begindate" />
+        <result column="enddate" property="enddate" />
+        <result column="FJ" property="fj" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        ID AS id, ezid, Term, Badge, EID AS eid, Name, compid, DepID, jobid, TWID AS twid, BeginTime, EndTime, Amount, Unit, regBy, regdate, Initialized, InitializedBy, InitializedTime, Submit, SubmitBy, SubmitTime, Closed, ClosedBy, ClosedTime, Remark, SeqID, marrydate, DayoffReason, IsDispose, ErrMsg, DataCreateDay, wfinstanceID, begindate, enddate, FJ AS fj
+    </sql>
+
+</mapper>

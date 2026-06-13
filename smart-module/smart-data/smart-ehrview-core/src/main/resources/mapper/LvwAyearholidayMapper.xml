@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.LvwAyearholidayMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.LvwAyearholiday">
+        <result column="BADGE" property="badge" />
+        <result column="name" property="name" />
+        <result column="compid" property="compid" />
+        <result column="compname" property="compname" />
+        <result column="depid" property="depid" />
+        <result column="depname" property="depname" />
+        <result column="jobid" property="jobid" />
+        <result column="jobname" property="jobname" />
+        <result column="startdate" property="startdate" />
+        <result column="FromDate" property="FromDate" />
+        <result column="PREBALANCEUSED" property="prebalanceused" />
+        <result column="THISSHOULD" property="thisshould" />
+        <result column="THISUSED" property="thisused" />
+        <result column="ALTERNUM" property="alternum" />
+        <result column="THISBALANCE" property="thisbalance" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        BADGE AS badge, name, compid, compname, depid, depname, jobid, jobname, startdate, FromDate, PREBALANCEUSED AS prebalanceused, THISSHOULD AS thisshould, THISUSED AS thisused, ALTERNUM AS alternum, THISBALANCE AS thisbalance
+    </sql>
+
+</mapper>

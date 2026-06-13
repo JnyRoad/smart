@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppEmployeeNoteMapper">
+
+  <resultMap id="appSubjectMap" type="com.tce.smart.app.entity.AppSubject">
+                  <id property="id" column="id"/>
+                        <result property="parentSubject" column="parent_subject"/>
+                        <result property="subjectName" column="subject_name"/>
+                        <result property="subjectUrl" column="subject_url"/>
+                        <result property="catalogCode" column="catalog_code"/>
+                        <result property="subjectOrder" column="subject_order"/>
+                        <result property="topFlag" column="top_flag"/>
+                        <result property="publishFlag" column="publish_flag"/>
+                        <result property="delFlag" column="del_flag"/>
+                        <result property="createTime" column="create_time"/>
+                        <result property="updateTime" column="update_time"/>
+            </resultMap>
+    <select id="getPageList" resultType="com.tce.smart.app.entity.AppSubject" parameterType="com.baomidou.mybatisplus.core.metadata.IPage">
+        SELECT S."ID", S.SUBJECT_NAME, PS.PARK_ID, S.CREATE_TIME, S.SUBJECT_URL
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_PARK_SUBJECT PS ON PS.SUBJECT_ID = S."ID"
+		WHERE S.DEL_FLAG = '1' AND S.CATALOG_CODE = '11'
+		<if test="query != null">
+			<if test="query.parkId != null and query.parkId != ''">
+	  AND PS.PARK_ID = #{query.parkId}
+	   </if>
+	<if test="query.subjectName != null and query.subjectName != ''">
+	AND S.SUBJECT_NAME LIKE "CONCAT"(CONCAT('%',#{query.subjectName}),'%')
+	</if>
+	<if test="query.createTime != null">
+	AND S.CREATE_TIME &gt;= to_date(#{query.createTime},'yyyy-mm-dd hh24:mi:ss')
+	</if>
+		</if>
+		ORDER BY S.CREATE_TIME DESC
+    </select>
+
+    <select id="noteDetail" resultType="com.tce.smart.app.vo.AppEmployeeNoteVo">
+        SELECT S."ID", S.SUBJECT_NAME, CT.PIC_BINARY, CT.TEXT_DESC, S.SUBJECT_URL
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_CATALOG C ON S.CATALOG_CODE = C.CATALOG_CODE, APP_CONTENT_TEXT CT,
+        APP_SUBJECT_CONTENT_TEXT SCT
+        WHERE
+        S."ID" = #{id} AND S."ID" = SCT.SUBJECT_ID AND CT."ID" = SCT.CONTENT_TEXT_ID AND S.DEL_FLAG = '1'
+    </select>
+</mapper>

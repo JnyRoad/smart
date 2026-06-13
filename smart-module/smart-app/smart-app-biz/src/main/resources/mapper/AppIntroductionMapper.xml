@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppIntroductionMapper">
+
+  <resultMap id="appSubjectMap" type="com.tce.smart.app.entity.AppSubject">
+                  <id property="id" column="id"/>
+                        <result property="parentSubject" column="parent_subject"/>
+                        <result property="subjectName" column="subject_name"/>
+                        <result property="subjectUrl" column="subject_url"/>
+                        <result property="catalogCode" column="catalog_code"/>
+                        <result property="subjectOrder" column="subject_order"/>
+                        <result property="topFlag" column="top_flag"/>
+                        <result property="publishFlag" column="publish_flag"/>
+                        <result property="delFlag" column="del_flag"/>
+                        <result property="createTime" column="create_time"/>
+                        <result property="updateTime" column="update_time"/>
+            </resultMap>
+    <select id="getByPageOnline" resultType="com.tce.smart.app.entity.AppSubject">
+        SELECT S."ID", s.SUBJECT_ORDER AS subjectOrder, s.SUBJECT_NAME AS subjectName, s.CREATE_TIME AS createTime
+        FROM
+        APP_SUBJECT s, APP_CATALOG c
+        WHERE
+        s.SUBJECT_ORDER >= 0 AND s.CATALOG_CODE = c.CATALOG_CODE AND s.DEL_FLAG = '1' AND s.PUBLISH_FLAG = '1' AND c.CATALOG_NAME = '裕同简介'
+        ORDER BY
+        s.SUBJECT_ORDER
+    </select>
+
+    <select id="getByPageDown" resultType="com.tce.smart.app.vo.AppIntroductionVo">
+        SELECT S."ID",CT.PIC_BINARY,S.SUBJECT_NAME, S.CREATE_TIME, S.UPDATE_TIME
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_CATALOG C ON S.CATALOG_CODE = C.CATALOG_CODE, APP_CONTENT_TEXT CT,APP_SUBJECT_CONTENT_TEXT SCT
+		WHERE s."ID" = SCT.SUBJECT_ID and CT."ID" = SCT.CONTENT_TEXT_ID and S.PUBLISH_FLAG = '2' AND S.DEL_FLAG = '1' AND C.CATALOG_NAME = '裕同简介'
+		ORDER BY S.UPDATE_TIME DESC
+    </select>
+
+    <select id="getPageByNotRelease" resultType="com.tce.smart.app.vo.AppIntroductionVo">
+        SELECT S."ID", CT.PIC_BINARY, S.SUBJECT_NAME, S.UPDATE_TIME
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_CATALOG C ON S.CATALOG_CODE = C.CATALOG_CODE, APP_CONTENT_TEXT CT,APP_SUBJECT_CONTENT_TEXT SCT
+		WHERE s."ID" = scT.SUBJECT_ID and CT."ID" = SCT.CONTENT_TEXT_ID and S.PUBLISH_FLAG = '0' AND S.DEL_FLAG = '1' AND C.CATALOG_NAME = '裕同简介'
+		ORDER BY S.UPDATE_TIME DESC
+    </select>
+
+    <select id="detailIntroduction" resultType="com.tce.smart.app.vo.AppIntroductionVo">
+        SELECT S.SUBJECT_NAME, CT.PIC_BINARY, CT.TEXT_DESC
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_CATALOG C ON S.CATALOG_CODE = C.CATALOG_CODE, APP_CONTENT_TEXT CT,
+        APP_SUBJECT_CONTENT_TEXT SCT
+        WHERE
+        S."ID" = #{id} AND S."ID" = SCT.SUBJECT_ID AND CT."ID" = SCT.CONTENT_TEXT_ID AND S.DEL_FLAG = '1'
+    </select>
+
+    <select id="downByOrderList" resultType="com.tce.smart.app.entity.AppSubject">
+        SELECT S."ID", S.SUBJECT_ORDER
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_CATALOG C ON S.CATALOG_CODE = C.CATALOG_CODE
+        WHERE S.SUBJECT_ORDER &gt;= #{order} AND S.DEL_FLAG = '1' AND S.PUBLISH_FLAG = '1' AND C.CATALOG_NAME = '裕同简介'
+    </select>
+
+    <select id="selectNum" resultType="java.lang.Integer">
+        SELECT COUNT(S.PUBLISH_FLAG)
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_CATALOG C ON S.CATALOG_CODE = C.CATALOG_CODE
+        WHERE S.DEL_FLAG = '1' AND S.PUBLISH_FLAG = '1' AND S.SUBJECT_ORDER &gt; 0 AND C.CATALOG_NAME = '裕同简介'
+    </select>
+
+    <select id="selectByOrder" resultType="com.tce.smart.app.entity.AppSubject">
+        SELECT S.*
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_CATALOG C ON S.CATALOG_CODE = C.CATALOG_CODE
+        WHERE S.SUBJECT_ORDER = #{order} AND S.DEL_FLAG = '1' AND S.PUBLISH_FLAG = '1' AND C.CATALOG_NAME = '裕同简介'
+    </select>
+
+    <select id="selectDown" resultType="com.tce.smart.app.entity.AppSubject">
+        SELECT S.*
+        FROM
+        APP_SUBJECT S LEFT JOIN APP_CATALOG C ON S.CATALOG_CODE = C.CATALOG_CODE
+        WHERE S."ID" = #{id} AND S.DEL_FLAG = '1' AND S.PUBLISH_FLAG = '2' AND C.CATALOG_NAME = '裕同简介'
+    </select>
+</mapper>

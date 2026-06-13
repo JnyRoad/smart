@@ -1,0 +1,160 @@
+security:
+  oauth2:
+    client:
+      client-id: "${SMART_SCHEDULE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
+      client-secret: "${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      scope: server
+      ignore-urls:
+      - "/**"
+spring:
+  datasource:
+    type: "${SMART_SCHEDULE_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
+    driver-class-name: "${SMART_SCHEDULE_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
+    username: "${SMART_SCHEDULE_DB_USERNAME:${SMART_DB_USERNAME:}}"
+    password: "${SMART_SCHEDULE_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_SCHEDULE_DB_URL:${SMART_DB_URL:}}"
+  yuto-secsytem:
+    phone: "${SMART_SECSYSTEM_PHONE_UPDATE_TOKEN:}"
+    update-url: "${SMART_SECSYSTEM_PHONE_UPDATE_URL:}"
+  lock:
+    base:
+      url: "${SMART_LOCK_BASE_URL:http://host.docker.internal:8001}"
+smart:
+  image:
+    base-url: "${SMART_SCHEDULE_IMAGE_BASE_URL:}"
+    staff-photo-url: "${SMART_STAFF_PHOTO_URL:}"
+    staff-photo-lookback-days: "${SMART_STAFF_PHOTO_LOOKBACK_DAYS:5}"
+  park:
+    xc-id: 5000021
+  xc-park-id: 5000021
+  hf-park-id: 10001
+  org:
+    xc-hpo-index-code: "${SMART_ORG_XC_HPO_INDEX_CODE:}"
+    xc-visitor-index-code: "${SMART_ORG_XC_VISITOR_INDEX_CODE:}"
+    hf-index-code: "${SMART_ORG_HF_INDEX_CODE:}"
+  device-mode:
+    access: "${SMART_DEVICE_MODE_ACCESS:DS-K1T672MW|DS-K5604A-3XFZW-ZV|DS-K5604A-3XF/ZV|DS-K1T671THZ-SZ|DS-K1T607M|DS-K5604A-ZV|DS-K1T642MW|DS-K1T671BM|DS-K5604B-ZV|DS-K1T673M|DS-K1T6QT-ZC|DS-K1T671TM|DS-K1T673MW|DS-K1T670M|DS-K1T105AM}"
+  schedule:
+    sync:
+      task:
+        syncDhrFaceImg: 300000
+        syncXcDhrFaceImg: 300000
+        syncDhrStaffTask: 300000
+  task:
+    retry:
+      enabled: true
+      device-task-timeout: 900
+      isc-config-timeout: 1800
+      isc-download-timeout: 2400
+      exclude-codes: '200,502,506,413'
+platform:
+  datasource:
+    type: "${SMART_PLATFORM_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
+    driver-class-name: "${SMART_PLATFORM_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
+    username: "${SMART_PLATFORM_DB_USERNAME:${SMART_DB_USERNAME:}}"
+    password: "${SMART_PLATFORM_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_PLATFORM_DB_URL:${SMART_DB_URL:}}"
+attendance:
+  datasource:
+    type: "${SMART_ATTENDANCE_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
+    driver-class-name: "${SMART_ATTENDANCE_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
+    username: "${SMART_ATTENDANCE_DB_USERNAME:}"
+    password: "${SMART_ATTENDANCE_DB_PASSWORD:}"
+    jdbc-url: "${SMART_ATTENDANCE_DB_URL:}"
+businesstrip:
+  datasource:
+    type: "${SMART_BUSINESSTRIP_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
+    driver-class-name: "${SMART_BUSINESSTRIP_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
+    username: "${SMART_BUSINESSTRIP_DB_USERNAME:}"
+    password: "${SMART_BUSINESSTRIP_DB_PASSWORD:}"
+    jdbc-url: "${SMART_BUSINESSTRIP_DB_URL:}"
+ehrview:
+  datasource:
+    type: "${SMART_EHRVIEW_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
+    driver-class-name: "${SMART_EHRVIEW_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
+    username: "${SMART_EHRVIEW_DB_USERNAME:}"
+    password: "${SMART_EHRVIEW_DB_PASSWORD:}"
+    jdbc-url: "${SMART_EHRVIEW_DB_URL:}"
+temporary:
+  datasource:
+    type: "${SMART_TEMPORARY_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
+    driver-class-name: "${SMART_TEMPORARY_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
+    username: "${SMART_TEMPORARY_DB_USERNAME:}"
+    password: "${SMART_TEMPORARY_DB_PASSWORD:}"
+    jdbc-url: "${SMART_TEMPORARY_DB_URL:}"
+guard:
+  datasource:
+    type: "${SMART_GUARD_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
+    driver-class-name: "${SMART_GUARD_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
+    username: "${SMART_GUARD_DB_USERNAME:}"
+    password: "${SMART_GUARD_DB_PASSWORD:}"
+    jdbc-url: "${SMART_GUARD_DB_URL:}"
+task:
+  ehr:
+    wageSignTaskTime: 0 10 0 1 * ?
+    noticeTaskTime: 0 0 10 * * ?
+    emailPush: 0 0 10 * * ?
+    dealyQuit: 0 0 23 * * ?
+  meter:
+    checkOnline: 0 0/5 * * * ?
+    water:
+      reading: 0 */59 * * * ?
+    ele:
+      reading: 0 */59 * * * ?
+    day:
+      calc: 0 0 2 * * ?
+  job:
+    device-status: false
+    sync-dhr-face-img: false
+    sync-staff: false
+    sync-dhr-staff: false
+    sync-xc-dhr-face-img: false
+    staff-no-photo-sync-xc: false
+    staff-no-photo-sync: false
+    leave-reason: false
+    leave-type: false
+    leave-leaintent: false
+    visitor-type: false
+    admittance-remind: false
+    admittance-update-oa: false
+    admittance-come-ontime: false
+    admittance-overtime: false
+    visitor-no-leave: false
+    new-staff-recharge: false
+    news-terminal-check: false
+    senior-staff-recharge: false
+    outdormitory-type: false
+    dormitory-dealy-quit: false
+    push-visitor-email: false
+    replace-type: false
+    refresh-recruit: false
+    refresh-comp: false
+    wage-sign-info: false
+    attendance-sign-info: false
+    ehr-set-send-msg: false
+    logistics-appointment-type: false
+    isc-device-type-down-card: "${SMART_JOB_ISC_DOWN_CARD:false}"
+    isc-auth-process-handle: "${SMART_JOB_ISC_AUTH_PROCESS_HANDLE:false}"
+    isc-auth-result-handle: "${SMART_JOB_ISC_AUTH_RESULT_HANDLE:false}"
+    isc-auto-auth-result-handle: "${SMART_JOB_ISC_AUTO_AUTH_RESULT_HANDLE:false}"
+    isc-device-type-del-card: "${SMART_JOB_ISC_DEL_CARD:false}"
+    isc-device-sync: "${SMART_JOB_ISC_DEVICE_SYNC:false}"
+    isc-person-face-retry: "${SMART_JOB_ISC_PERSON_FACE_RETRY:false}"
+    isc-temperature-get: false
+    isc-device-offline-handler: "${SMART_JOB_ISC_DEVICE_OFFLINE_HANDLER:false}"
+    device-type-down-card: false
+    device-type-down-car: false
+    device-type-del-card: false
+    device-type-del-car: false
+    device-task-repeat: false
+    supplier-notify: false
+    admittance-oa-area-type: false
+    supplier-auto-auth-delete: false
+    supplier-auth-msg: false
+    leave-application-process-type: false
+    smart-meter-status: false
+    water-meter-reading: false
+    ele-meter-reading: false
+    gen-settlement-daily: false
+server:
+  port: 7070

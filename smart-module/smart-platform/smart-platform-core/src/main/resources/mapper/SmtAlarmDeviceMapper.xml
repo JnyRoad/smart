@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAlarmDeviceMapper">
+
+  <resultMap id="smtAlarmDeviceMap" type="com.tce.smart.platform.core.entity.SmtAlarmDevice">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="alarmId" column="alarm_id"/>
+                        <result property="deviceType" column="device_type"/>
+                        <result property="deviceId" column="device_id"/>
+                        <result property="areaId" column="area_id"/>
+                        <result property="createTime" column="create_time"/>
+            </resultMap>
+</mapper>

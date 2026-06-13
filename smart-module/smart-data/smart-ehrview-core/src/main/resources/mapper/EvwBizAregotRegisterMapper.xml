@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwBizAregotRegisterMapper">
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwBizAregotRegister">
+		<result column="Badge" property="BADGE" />
+		<result column="Name" property="NAME" />
+		<result column="DepID" property="DEPID" />
+		<result column="OTTerm" property="OTTERM" />
+		<result column="OTType" property="OTTYPE" />
+		<result column="Ot2StartTime" property="OT2STARTTIME" />
+		<result column="Ot2EndTime" property="OT2ENDTIME" />
+		<result column="Ot4StartTime" property="OT4STARTTIME" />
+		<result column="Ot4EndTime" property="OT4ENDTIME" />
+		<result column="Amount" property="Amount" />
+		<result column="Reason" property="Reason" />
+		<result column="FormState" property="FormState" />
+	</resultMap>
+
+	<!-- 通用查询结果列 -->
+	<sql id="Base_Column_List">
+        Badge, Name, OTTerm, DepID, OTType, Ot2StartTime, Ot2EndTime, Ot4StartTime, Ot4EndTime, Amount, Reason, FormState
+    </sql>
+
+	<select id="list" resultMap="BaseResultMap">
+		SELECT <include refid="Base_Column_List"></include>
+		FROM evw_BIZ_AREGOT_REGISTER
+		WHERE evw_BIZ_AREGOT_REGISTER.Badge = #{badge, jdbcType = VARCHAR}
+		<if test="queryMonth != null and queryMonth != ''">
+			AND CONVERT(VarChar(7), evw_BIZ_AREGOT_REGISTER.OTTerm, 120) = #{ queryMonth, jdbcType = VARCHAR }
+		</if>
+		ORDER BY evw_BIZ_AREGOT_REGISTER.OTTerm
+	</select>
+</mapper>

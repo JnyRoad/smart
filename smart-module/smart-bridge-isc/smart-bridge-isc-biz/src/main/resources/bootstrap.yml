@@ -1,0 +1,51 @@
+server:
+  port: 6060
+
+spring:
+  application:
+    name: ${smart.application-name}-${smart.park-id}
+  cloud:
+    nacos:
+      config:
+        file-extension: yml
+        group: ${NACOS_GROUP:dev}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        shared-configs[0]:
+          data-id: common.yml
+          group: ${NACOS_GROUP:dev}
+          refresh: true
+        shared-configs[1]:
+          data-id: smart-bridge-biz-5000021.yml
+          group: ${NACOS_GROUP:dev}
+          refresh: true
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+      discovery:
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        group: ${NACOS_GROUP:dev}
+  main:
+    allow-bean-definition-overriding: true
+
+# Feign 超时配置
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 30000  # 连接超时 30秒
+        readTimeout: 60000     # 读取超时 60秒
+        loggerLevel: basic
+  httpclient:
+    enabled: true
+    max-connections: 200
+    max-connections-per-route: 50
+
+# Ribbon 超时配置（作为备用）
+ribbon:
+  ConnectTimeout: 30000      # 连接超时 30秒
+  ReadTimeout: 60000         # 读取超时 60秒
+  MaxAutoRetries: 1          # 最大重试次数
+  MaxAutoRetriesNextServer: 1 # 切换服务器重试次数
+
+smart:
+  application-name: smart-bridge-isc-biz                        # application-name
+  park-id: 5000021                                               # 园区ID

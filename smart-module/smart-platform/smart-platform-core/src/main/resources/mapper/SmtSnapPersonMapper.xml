@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSnapPersonMapper">
+
+	<resultMap id="smtSnapPersonMap"
+		type="com.tce.smart.platform.core.entity.SmtSnapPerson">
+		<id property="id" column="id" />
+		<result property="parkId" column="park_id" />
+		<result property="deviceId" column="device_id" />
+		<result property="channelNo" column="channel_no" />
+		<result property="areaId" column="area_id" />
+		<result property="areaName" column="area_name" />
+		<result property="eventType" column="event_type" />
+		<result property="snapTime" column="snap_time" />
+		<result property="snapPhotoId" column="snap_photo_id" />
+		<result property="photoId" column="photo_id" />
+		<result property="personId" column="person_id" />
+		<result property="personName" column="person_name" />
+		<result property="personType" column="person_type" />
+		<result property="personPhone" column="person_phone" />
+		<result property="createTime" column="create_time" />
+	</resultMap>
+
+	<select id="getSnapPersonVisotorById" parameterType="com.tce.smart.platform.core.entity.SmtSnapPerson"
+		resultType="com.tce.smart.platform.core.vo.SmtSnapPersonDetailVO">
+		SELECT
+			S. ID,
+			S.PARK_ID,
+			SV.VISITOR_PHOTO_ID AS PHOTOID,
+			S.PERSON_NAME,
+			S.AREA_NAME,
+			S.EVENT_TYPE,
+			S.SNAP_TIME,
+			SV.COMPANY,
+			S.PERSON_PHONE,
+			S.SNAP_PHOTO_ID,
+			S.PERSON_TYPE,
+			S.CREATE_TIME,
+			S.DEVICE_ID,
+			dev.DEVICE_NAME
+		FROM
+			SMT_SNAP_PERSON S
+		LEFT JOIN SMT_VISITOR SV ON S.PERSON_ID = SV. ID
+		LEFT JOIN SMT_DEVICE dev ON S.DEVICE_ID = dev.ID
+		<where>
+			<if test="query.id != null">
+				S.ID = #{query.id}
+			</if>
+		</where>
+	</select>
+	<select id="getSnapPersonFellowVisotorById" parameterType="com.tce.smart.platform.core.entity.SmtSnapPerson"
+		resultType="com.tce.smart.platform.core.vo.SmtSnapPersonDetailVO">
+		SELECT
+			s. ID,
+		    s.PARK_ID,
+			sf.FELLOW_PHOTO_ID AS photoId,
+			s.PERSON_NAME,
+			s.AREA_NAME,
+			s.EVENT_TYPE,
+			s.SNAP_TIME,
+			SV.COMPANY,
+			s.PERSON_PHONE,
+			s.SNAP_PHOTO_ID,
+			s.person_type,
+			s.DEVICE_ID,
+			dev.DEVICE_NAME
+		FROM
+			SMT_SNAP_PERSON s
+		LEFT JOIN SMT_FELLOW_VISITOR sf ON s.PERSON_ID = sf. ID
+		LEFT JOIN SMT_VISITOR sv ON sf.VISITOR_ID = sv. ID
+		LEFT JOIN SMT_DEVICE dev ON s.DEVICE_ID = dev.ID
+		<where>
+			<if test="query.id != null">
+				S.ID = #{query.id}
+			</if>
+		</where>
+	</select>
+	<select id="getSnapPersonAdmittanceFellowById" parameterType="com.tce.smart.platform.core.entity.SmtSnapPerson"
+			resultType="com.tce.smart.platform.core.vo.SmtSnapPersonDetailVO">
+		SELECT
+		s. ID,
+		s.PARK_ID,
+		sf.FELLOW_PHOTO_ID AS photoId,
+		s.PERSON_NAME,
+		s.AREA_NAME,
+		s.EVENT_TYPE,
+		s.SNAP_TIME,
+		SV.COMPANY,
+		s.PERSON_PHONE,
+		s.SNAP_PHOTO_ID,
+		s.person_type,
+		s.DEVICE_ID,
+		dev.DEVICE_NAME
+		FROM
+		SMT_SNAP_PERSON s
+		LEFT JOIN smt_admittance_fellow sf ON s.PERSON_ID = sf. ID
+		LEFT JOIN smt_admittance_apply sv ON sf.VISITOR_ID = sv. ID
+		LEFT JOIN SMT_DEVICE dev ON s.DEVICE_ID = dev.ID
+		<where>
+			<if test="query.id != null">
+				S.ID = #{query.id}
+			</if>
+		</where>
+	</select>
+	<select id="getSnapPersonById" parameterType="com.tce.smart.platform.core.entity.SmtSnapPerson"
+		resultType="com.tce.smart.platform.core.vo.SmtSnapPersonDetailVO">
+		SELECT
+			s. ID,
+			S.PARK_ID,
+			st.FACE_PIC_ID AS photoId,
+			s.PERSON_NAME,
+			st.BADGE AS staffBadge,
+			st.COMP_NAME,
+			st.DEP_NAME,
+			st.JOB_NAME,
+			st.JCHE_NAME,
+			st.STATUS AS staffStatus,
+			s.AREA_NAME,
+			s.EVENT_TYPE,
+			s.SNAP_TIME,
+			s.PERSON_PHONE,
+			s.SNAP_PHOTO_ID,
+			s.person_type,
+			s.DEVICE_ID,
+			dev.DEVICE_NAME
+		FROM
+			SMT_SNAP_PERSON s
+		LEFT JOIN SMT_STAFF st ON s.PERSON_ID = st. ID
+		LEFT JOIN SMT_DEVICE dev ON s.DEVICE_ID = dev.ID
+		<where>
+			<if test="query.id != null">
+				S.ID = #{query.id}
+			</if>
+		</where>
+	</select>
+
+	<resultMap id="searchSmtSnapPersonVoMap"
+		type="com.tce.smart.platform.core.vo.SearchSmtSnapPersonVO">
+		<id property="id" column="id" />
+		<result property="personName" column="person_name" />
+		<result property="personId" column="person_id" />
+		<result property="compName" column="comp_name" />
+		<result property="depName" column="dep_name" />
+		<result property="jobName" column="job_name" />
+		<result property="jcheName" column="jche_name" />
+		<result property="areaName" column="area_name" />
+		<result property="eventType" column="event_type" />
+		<result property="snapTime" column="snap_time" />
+		<result property="company" column="company" />
+		<result property="parkName" column="park_name" />
+		<result property="snapPhotoId" column="snap_photo_id" />
+		<result property="deviceId" column="device_id" />
+		<result property="deviceName" column="device_name" />
+		<result property="faceTemperature" column="face_temperature" />
+		<result property="isNormal" column="is_normal" />
+		<result property="badge" column="badge" />
+	</resultMap>
+
+	<resultMap id="snapPersonStatis" type="com.tce.smart.platform.core.dto.SnapPersonStatisDTO">
+		<id property="id" column="id" />
+		<result property="areaId" column="AREA_ID" />
+		<result property="areaName" column="AREA_NAME" />
+		<result property="count" column="count" />
+		<result property="eventType" column="EVENT_TYPE" />
+	</resultMap>
+
+	<!-- 判断类型为外部员工时-->
+	<select id="getSmtSnapVisitorPersonPage" parameterType="com.tce.smart.platform.core.dto.SearchSnapPersonAccessDTO" resultType="com.tce.smart.platform.core.vo.SearchSmtSnapPersonVO">
+		SELECT
+			S. ID,
+			S.PERSON_NAME,
+			S.PERSON_ID,
+			S.AREA_NAME,
+			S.EVENT_TYPE,
+			S.SNAP_TIME,
+			S.SNAP_PHOTO_ID,
+			P.PARK_NAME,
+			S.CREATE_TIME,
+			S.FACE_TEMPERATURE,
+			S.DEVICE_ID,
+			dev.DEVICE_NAME
+		FROM
+			SMT_SNAP_PERSON S
+			INNER JOIN SMT_PARK P ON S.PARK_ID=P.ID
+			LEFT JOIN SMT_DEVICE dev ON S.DEVICE_ID=dev.ID
+		<where>
+			s.PERSON_TYPE = 2
+			<if test="query.personName != null and query.personName != ''">
+				AND S.PERSON_NAME LIKE  CONCAT(CONCAT('%',#{query.personName}),'%')
+			</if>
+			<if test="query.areaId != null and query.areaId != ''">
+				AND S.AREA_ID=#{query.areaId}
+			</if>
+			<if test="query.eventType != null">
+				AND S.EVENT_TYPE=#{query.eventType}
+			</if>
+			<if test="query.parkId != null">
+				AND S.PARK_ID=#{query.parkId}
+			</if>
+			<if test="query.company != null and query.company != ''">
+				AND S.COMPANY LIKE  CONCAT(CONCAT('%',#{query.company}),'%')
+			</if>
+			<if test="query.deviceId != null and query.deviceId != ''">
+				AND S.DEVICE_ID =#{query.deviceId}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND S.SNAP_TIME  <![CDATA[>=]]> TO_DATE(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND S.SNAP_TIME  <![CDATA[<=]]> TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.isNormal != null">
+				<if test="query.isNormal == 1">
+					AND (dev.THERMAL_ENABLE=0 or dev.THERMAL_ENABLE is null or S.FACE_TEMPERATURE is null or S.FACE_TEMPERATURE &lt;= dev.THERMAL_THRESHOLD)
+				</if>
+				<if test="query.isNormal == 0">
+					AND (dev.THERMAL_ENABLE=1 and dev.THERMAL_ENABLE is not null and S.FACE_TEMPERATURE is not null and S.FACE_TEMPERATURE &gt; dev.THERMAL_THRESHOLD)
+				</if>
+			</if>
+			<if test="park!=null and park.size>0">
+				and S.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			</where>
+		ORDER BY s.snap_time DESC
+	</select>
+	<!-- 判断类型为内部员工时 -->
+	<select id="getSmtSnapPersonPage" parameterType="com.tce.smart.platform.core.dto.SearchSnapPersonAccessDTO" resultMap="searchSmtSnapPersonVoMap">
+		SELECT
+			S. ID,
+			S.PERSON_NAME,
+			ST.COMP_NAME,
+			ST.DEP_NAME,
+			ST.JOB_NAME,
+			ST.JCHE_NAME,
+			ST.BADGE,
+			S.AREA_NAME,
+			S.EVENT_TYPE,
+			S.SNAP_TIME,
+			S.SNAP_PHOTO_ID,
+			P.PARK_NAME,
+			S.CREATE_TIME,
+			S.FACE_TEMPERATURE,
+			S.DEVICE_ID,
+			dev.DEVICE_NAME
+		FROM
+			SMT_SNAP_PERSON S
+		LEFT JOIN SMT_STAFF ST ON S.PERSON_ID = ST. ID
+		INNER JOIN SMT_PARK P ON S.PARK_ID=P.ID
+		LEFT JOIN SMT_DEVICE dev ON S.DEVICE_ID=dev.ID
+		<where>
+		    S.PERSON_TYPE = 1
+			<if test="query.personName != null and query.personName != ''">
+				AND S.PERSON_NAME LIKE CONCAT(CONCAT('%',#{query.personName}),'%')
+			</if>
+			<if test="query.areaId != null and query.areaId != ''">
+				AND S.AREA_ID=#{query.areaId}
+			</if>
+			<if test="query.badge != null and query.badge != ''">
+				AND ST.BADGE LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+			</if>
+			<if test="query.eventType != null">
+				AND S.EVENT_TYPE=#{query.eventType}
+			</if>
+			<if test="query.parkId != null">
+				AND S.PARK_ID=#{query.parkId}
+			</if>
+			<if test="query.compId != null and query.compId  != ''">
+				AND ST.COMP_ID =#{query.compId}
+			</if>
+			<if test="query.depId != null and query.depId != ''">
+				AND ST.DEP_ID =#{query.depId}
+			</if>
+			<if test="query.jobId != null and query.jobId != ''">
+				AND ST.JOB_ID =#{query.jobId}
+			</if>
+			<if test="query.jobName != null and query.jobName != ''">
+				AND ST.JOB_NAME LIKE CONCAT(CONCAT('%',#{query.jobName}),'%')
+			</if>
+			<if test="query.jcheId != null and query.jcheId != ''">
+				AND ST.JCHE_ID =#{query.jcheId}
+			</if>
+			<if test="query.deviceId != null and query.deviceId != ''">
+				AND S.DEVICE_ID =#{query.deviceId}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND S.SNAP_TIME  <![CDATA[>=]]> TO_DATE(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND S.SNAP_TIME  <![CDATA[<=]]> TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.isNormal != null">
+				<if test="query.isNormal == 1">
+					AND (dev.THERMAL_ENABLE=0 or dev.THERMAL_ENABLE is null or S.FACE_TEMPERATURE is null or S.FACE_TEMPERATURE &lt;= dev.THERMAL_THRESHOLD)
+				</if>
+				<if test="query.isNormal == 0">
+					AND (dev.THERMAL_ENABLE=1 and dev.THERMAL_ENABLE is not null and S.FACE_TEMPERATURE is not null and S.FACE_TEMPERATURE &gt; dev.THERMAL_THRESHOLD)
+				</if>
+			</if>
+			<if test="park!=null and park.size>0">
+				and S.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY S.SNAP_TIME DESC
+	</select>
+		<!-- 查询当天的抓拍数据-->
+	<select id="getSnapPersonList" parameterType="com.tce.smart.platform.core.dto.SearchSnapPersonAccessDTO" resultType="com.tce.smart.platform.core.entity.SmtSnapPerson">
+		SELECT
+			s.PERSON_ID,
+			s.SNAP_TIME,
+			s.SNAP_PHOTO_ID,
+			s.AREA_NAME,
+			s.PARK_ID
+		FROM
+			SMT_SNAP_PERSON s
+		<where>
+			<if test="query.personType != null">
+				s.PERSON_TYPE=#{query.personType}
+			</if>
+			<if test="query.eventType != null">
+				AND s.EVENT_TYPE=#{query.eventType}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND s.SNAP_TIME  <![CDATA[>=]]> TO_DATE(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND s.SNAP_TIME  <![CDATA[<=]]> TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			</where>
+		ORDER BY s.SNAP_TIME DESC
+	</select>
+
+	<!-- 统计今天的人员抓拍记录 -->
+	<select id="getSnapPersonStatis" resultMap="snapPersonStatis">
+		select min(AREA_ID) AREA_ID,min(AREA_NAME) AREA_NAME,count(*) count,EVENT_TYPE
+		from SMT_SNAP_PERSON
+		where
+		<if test="parkId != null">
+			 PARK_ID=#{parkId} and
+		</if>
+		 CREATE_TIME BETWEEN trunc(sysdate) and trunc(sysdate+1)
+		GROUP BY AREA_ID,EVENT_TYPE
+	</select>
+
+</mapper>

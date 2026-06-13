@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.ApproveListMapper">
+
+  <resultMap id="approveListMap" type="com.tce.smart.platform.core.entity.ApproveList">
+                  <id property="id" column="ID"/>
+                        <result property="businessId" column="BUSINESS_ID"/>
+                        <result property="approveName" column="APPROVE_NAME"/>
+                        <result property="approveType" column="APPROVE_TYPE"/>
+                        <result property="approveState" column="APPROVE_STATE"/>
+                        <result property="approveBadge" column="APPROVE_BADGE"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+            </resultMap>
+
+            <update id="updateState">
+                UPDATE SMT_APPROVE_LIST SAL
+				SET SAL.APPROVE_STATE = #{query.approveState}
+				WHERE
+				    SAL.APPROVE_TYPE = #{query.approveType}
+				AND SAL.APPROVE_BADGE = #{query.approveBadge}
+				AND SAL.BUSINESS_ID = #{query.businessId}
+            </update>
+
+            <select id="getPage" resultType="com.tce.smart.platform.core.entity.ApproveList">
+                SELECT
+				    SAL.BUSINESS_ID,
+				    SAL.APPROVE_NAME,
+				    SAL.APPROVE_TYPE,
+				    SAL.APPROVE_STATE,
+				    SAL.CREATE_TIME,
+				    SAL.APPROVE_BADGE
+				FROM
+				    SMT_APPROVE_LIST SAL
+				WHERE
+				    SAL.APPROVE_STATE = #{query.approveState}
+				AND SAL.APPROVE_BADGE = #{query.approveBadge}
+            </select>
+
+            <select id="getPageEnd" resultType="com.tce.smart.platform.core.entity.ApproveList">
+	SELECT
+					SMT_APPROVE_LIST. ID,
+					SMT_APPROVE_LIST.BUSINESS_ID,
+					SMT_APPROVE_LIST.APPROVE_NAME,
+					SMT_APPROVE_LIST.APPROVE_TYPE,
+					SMT_APPROVE_LIST.APPROVE_STATE,
+					SMT_APPROVE_LIST.CREATE_TIME,
+					SMT_APPROVE_LIST.APPROVE_BADGE,
+					SMT_APPROVE_LIST.SORT
+				FROM
+					SMT_APPROVE_LIST
+				WHERE
+					SMT_APPROVE_LIST.APPROVE_BADGE = #{query.approveBadge} AND SMT_APPROVE_LIST.APPROVE_TYPE = #{query.approveType}
+				AND (
+					SMT_APPROVE_LIST.APPROVE_STATE = 1
+					OR SMT_APPROVE_LIST.APPROVE_STATE = 2
+					OR SMT_APPROVE_LIST.APPROVE_STATE = 3
+				)
+				ORDER BY
+					SMT_APPROVE_LIST.CREATE_TIME DESC
+            </select>
+
+            <select id="getPageStart" resultType="com.tce.smart.platform.core.entity.ApproveList">
+	            SELECT
+					SMT_APPROVE_LIST. ID,
+					SMT_APPROVE_LIST.BUSINESS_ID,
+					SMT_APPROVE_LIST.APPROVE_NAME,
+					SMT_APPROVE_LIST.APPROVE_TYPE,
+					SMT_APPROVE_LIST.APPROVE_STATE,
+					SMT_APPROVE_LIST.CREATE_TIME,
+					SMT_APPROVE_LIST.APPROVE_BADGE,
+					SMT_APPROVE_LIST.SORT
+				FROM
+					SMT_APPROVE_LIST
+				WHERE
+					SMT_APPROVE_LIST.APPROVE_BADGE = #{query.approveBadge} AND SMT_APPROVE_LIST.APPROVE_TYPE = #{query.approveType}
+				AND
+					SMT_APPROVE_LIST.APPROVE_STATE = 0
+				ORDER BY
+					SMT_APPROVE_LIST.CREATE_TIME DESC
+            </select>
+
+	<select id="getNewPage" resultType="com.tce.smart.platform.core.entity.ApproveList">
+		SELECT
+		SAL.ID,
+		SAL.BUSINESS_ID,
+		SAL.APPROVE_NAME,
+		SAL.APPROVE_TYPE,
+		SAL.APPROVE_STATE,
+		SAL.CREATE_TIME,
+		SAL.APPROVE_BADGE,
+		SAL.SORT,
+		SAL.NODE_ID,
+		SAL.REMARK
+		FROM
+			SMT_APPROVE_LIST SAL LEFT JOIN SMT_ARTICLES_RELEASE SAR ON SAL.BUSINESS_ID = SAR.ID
+		WHERE
+		      SAL.APPROVE_BADGE = #{approveBadge} AND SAL.APPROVE_TYPE = #{query.recordType}
+		  <if test="stateList != null and stateList.size > 0">
+			  AND SAL.APPROVE_STATE IN
+			<foreach collection="stateList" item="state" index="index" separator="," open="(" close=")">
+				#{state}
+			</foreach>
+		  </if>
+		<if test="query.name != null and query.name != ''">
+			AND SAR.CARRIER LIKE CONCAT('%', CONCAT(#{query.name}, '%'))
+		</if>
+		<if test="query.badge != null and query.badge != ''">
+			AND SAR.BADGE = #{query.badge}
+		</if>
+		<if test="query.startTime != null and query.startTime != ''">
+			AND SAR.CREATE_TIME &gt; to_date(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+		</if>
+		<if test="query.endTime != null and query.endTime != ''">
+			AND SAR.CREATE_TIME &lt; to_date(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+		</if>
+		ORDER BY SAL.CREATE_TIME DESC
+	</select>
+
+	<select id="getRepairsPass" resultType="com.tce.smart.platform.core.dto.RepairsApprovalListDTO">
+					SELECT
+					SAL.ID,
+					SAL.BUSINESS_ID,
+					SAL.APPROVE_NAME,
+					SAL.APPROVE_TYPE,
+					SAL.APPROVE_STATE,
+					SAL.APPROVE_BADGE,
+					SAL.SORT,
+					SAL.NODE_ID,
+					SAR.RANGE_TYPE,
+					SAR.REPAIR_TYPE,
+					SAR.DORMITORY_NAME,
+					SAR.FAULT_DESC,
+					SAR.CREATE_TIME,
+					SAR.STATUS
+				FROM
+					SMT_APPROVE_LIST SAL LEFT JOIN SMT_DORMITORY_REPAIRS SAR ON SAL.BUSINESS_ID = SAR.ID
+				WHERE
+					SAL.APPROVE_BADGE = #{query.approveBadge} AND SAL.APPROVE_TYPE = #{query.approveType}
+				AND (
+					SAL.APPROVE_STATE = 1
+					OR SAL.APPROVE_STATE = 2
+					OR SAL.APPROVE_STATE = 3
+				) AND SAR.STATUS != 1
+				ORDER BY
+					SAL.CREATE_TIME DESC
+            </select>
+
+	<select id="getRepairsWaitPass" resultType="com.tce.smart.platform.core.dto.RepairsApprovalListDTO">
+		     SELECT
+					SAL. ID,
+					SAL.BUSINESS_ID,
+					SAL.APPROVE_NAME,
+					SAL.APPROVE_TYPE,
+					SAL.APPROVE_STATE,
+					SAL.APPROVE_BADGE,
+					SAL.SORT,
+					SAL.NODE_ID,
+					SAR.RANGE_TYPE,
+					SAR.REPAIR_TYPE,
+					SAR.DORMITORY_NAME,
+					SAR.FAULT_DESC,
+					SAR.CREATE_TIME,
+					SAR.STATUS
+				FROM
+					SMT_APPROVE_LIST SAL LEFT JOIN SMT_DORMITORY_REPAIRS SAR ON SAL.BUSINESS_ID = SAR.ID
+				WHERE
+					SAL.APPROVE_BADGE = #{query.approveBadge} AND SAL.APPROVE_TYPE = #{query.approveType}
+				AND
+					(SAL.APPROVE_STATE = 0 OR SAR.STATUS = 1)
+				ORDER BY
+					SAL.CREATE_TIME DESC
+            </select>
+</mapper>

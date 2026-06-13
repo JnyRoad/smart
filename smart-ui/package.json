@@ -1,0 +1,81 @@
+{
+  "name": "smart-ui",
+  "version": "2.6.0",
+  "private": true,
+  "packageManager": "pnpm@11.3.0",
+  "scripts": {
+    "pre": "pnpm install",
+    "dev": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "check:admin-search": "node scripts/check-admin-search.js",
+    "check:bundle": "node scripts/check-bundle-optimization.js",
+    "check:isc-card-fast-add-ui": "node scripts/check-isc-card-fast-add-ui.js",
+    "check:isc-card-ui": "node scripts/check-isc-card-ui.js",
+    "lint": "vue-cli-service lint --no-fix",
+    "prepare": "husky",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "babel-polyfill": "^6.26.0",
+    "classlist-polyfill": "^1.2.0",
+    "echarts": "^4.2.1",
+    "element-ui": "^2.4.11",
+    "exif-js": "^2.3.0",
+    "file-saver": "^2.0.2",
+    "html2canvas": "^1.0.0-rc.3",
+    "js-cookie": "^2.2.0",
+    "js-file-download": "^0.4.12",
+    "lrz": "^4.9.40",
+    "net": "^1.0.2",
+    "nprogress": "^0.2.0",
+    "script-loader": "^0.7.2",
+    "sockjs-client": "^1.3.0",
+    "stompjs": "^2.3.3",
+    "v-viewer": "^1.7.4",
+    "viewerjs": "^1.11.6",
+    "vue": "^2.7.16",
+    "vue-awesome-swiper": "^3.1.3",
+    "vue-axios": "^2.1.2",
+    "vue-clipboard2": "^0.3.0",
+    "vue-json-editor": "^1.2.3",
+    "vue-json-tree-view": "^2.1.4",
+    "vue-pdf": "^4.3.0",
+    "vue-print-nb": "^1.5.0",
+    "vue-router": "^3.0.2",
+    "vue-seamless-scroll": "^1.1.23",
+    "vuex": "^3.0.1",
+    "wangeditor": "^3.1.1",
+    "xlsx": "^0.14.3"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.29.7",
+    "@vitejs/plugin-vue2": "^2.3.4",
+    "@vue/cli-plugin-babel": "^3.1.1",
+    "@vue/cli-plugin-eslint": "^3.1.5",
+    "@vue/cli-service": "^3.1.4",
+    "@vue/test-utils": "^1.3.6",
+    "cache-loader": "2.0.1",
+    "chai": "^4.1.2",
+    "husky": "9.1.7",
+    "jsdom": "^29.1.1",
+    "lint-staged": "15.5.2",
+    "prettier": "2.8.8",
+    "resolve-url-loader": "^5.0.0",
+    "sass": "^1.89.2",
+    "sass-loader": "^10.5.2",
+    "vitest": "^4.1.8",
+    "vue-template-compiler": "^2.7.16"
+  },
+  "lint-staged": {
+    "*.{js,vue}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=11"
+  }
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.tce</groupId>
+		<artifactId>smart-algorithm</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>smart-algorithm-api</artifactId>
+	<packaging>jar</packaging>
+
+	<description>算法模块API</description>
+
+
+	<dependencies>
+		<!--core 工具类-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-swagger</artifactId>
+		</dependency>
+	</dependencies>
+</project>

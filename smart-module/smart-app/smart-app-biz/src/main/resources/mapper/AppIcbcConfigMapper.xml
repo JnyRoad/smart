@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppIcbcConfigMapper">
+	<resultMap id="appSubjectMap"
+		type="com.tce.smart.app.entity.AppIcbcConfig">
+		<id property="id" column="id" />
+		<result property="appId" column="app_id" />
+		<result property="aesKey" column="aes_key" />
+		<result property="rsaPrivKey" column="rsa_priv_key" />
+		<result property="gatePubKey" column="gate_pub_key" />
+		<result property="testReqTime" column="test_req_time" />
+		<result property="enabled" column="enabled" />
+		<result property="deleteFlag" column="delete_flag" />
+		<result property="remark1" column="remark1" />
+		<result property="remark2" column="remark2" />
+		<result property="remark3" column="remark3" />
+	</resultMap>
+
+	<select id="getEnabledConfig" resultType="com.tce.smart.app.entity.AppIcbcConfig">
+		SELECT * FROM app_icbc_config WHERE delete_flag = 1 AND enabled =1
+	</select>
+</mapper>

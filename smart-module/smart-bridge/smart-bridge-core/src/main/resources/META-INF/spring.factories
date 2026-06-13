@@ -1,0 +1,1 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.tce.smart.bridge.core.config.BridgeAutoConfiguration

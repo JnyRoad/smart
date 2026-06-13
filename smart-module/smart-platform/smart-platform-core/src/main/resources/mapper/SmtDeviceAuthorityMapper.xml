@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDeviceAuthorityMapper">
+
+	<resultMap id="smtDeviceAuthorityMap" type="com.tce.smart.platform.core.entity.SmtDeviceAuthority">
+		<id property="id" column="id"/>
+		<result property="authorityName" column="authority_name"/>
+		<result property="remark" column="remark"/>
+		<result property="createTime" column="create_time"/>
+		<result property="type" column="TYPE"/>
+		<result property="areaType" column="area_type"/>
+	</resultMap>
+
+	<select id="getDeviceAuthority" resultType="com.tce.smart.platform.core.entity.SmtDeviceAuthority">
+		SELECT
+		SDA. ID,
+		SDA.AUTHORITY_NAME,
+		SDA.REMARK,
+		SDA.CREATE_TIME
+		FROM
+		SMT_DEVICE_AUTHORITY SDA
+		<where>
+			<if test="query.authorityName != null and query.authorityName != ''">
+				AND SDA.AUTHORITY_NAME = LIKE CONCAT('%',#{query.authorityName},'%')
+			</if>
+		</where>
+	</select>
+
+	<select id="getByStaffId" resultType="com.tce.smart.platform.core.entity.SmtDeviceAuthority">
+		SELECT SDA.ID,
+			   SDA.AUTHORITY_NAME,
+			   SDA.REMARK,
+			   SDA.CREATE_TIME
+		FROM SMT_DEVICE_AUTHORITY SDA
+				 LEFT JOIN SMT_STAFF_DEVICE_AUTH SSDA ON SDA.ID = SSDA.AUTH_ID
+		WHERE SSDA.STAFF_ID = #{staffId}
+	</select>
+
+	<select id="getDeviceAuthPage" resultType="com.tce.smart.platform.core.vo.DeviceAuthorityVO">
+		SELECT
+		SDA.ID,
+		SDA.TYPE,
+		SDA.AREA_TYPE,
+		SDA.AUTHORITY_NAME,
+		SDA.REMARK,
+		SDA.CREATE_TIME,
+		park.park_name
+		FROM
+		SMT_DEVICE_AUTHORITY SDA
+		left join smt_park park on park.id=SDA.park_id
+		<where>
+			<if test="query.authorityName != null and query.authorityName != ''">
+				AND SDA.AUTHORITY_NAME LIKE CONCAT(CONCAT('%',#{query.authorityName}),'%')
+			</if>
+
+			<if test="query.type != null">
+				AND SDA.TYPE = #{query.type}
+			</if>
+
+			<if test="query.areaType != null">
+				AND SDA.AREA_TYPE = #{query.areaType}
+			</if>
+
+			<if test="query.parkId != null and query.parkId  != ''">
+				AND SDA.park_id =#{query.parkId}
+			</if>
+
+			<if test="query.deviceUseType != null">
+				AND SDA.device_use_type = #{query.deviceUseType}
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and SDA.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+	</select>
+
+	<select id="getPersonAuthDetailPage" resultType="com.tce.smart.platform.api.dto.resp.AuthDetailRespDTO"
+			parameterType="com.tce.smart.platform.api.dto.req.AuthDetailQueryDTO">
+		SELECT
+		DISTINCT SSDA.ID,
+		SS.BADGE,
+		SS.NAME AS PERSON_NAME,
+		SS.STATUS AS staff_status,
+		SSDA.CREATE_TIME
+		FROM SMT_DEVICE_AUTHORITY SDA
+		LEFT JOIN SMT_STAFF_DEVICE_AUTH SSDA ON SSDA.AUTH_ID = SDA.ID
+		LEFT JOIN SMT_DEVICE_AUTHORITY_RELATION SDAR ON SDAR.AUTHORITY_ID = SDA.ID
+		LEFT JOIN SMT_STAFF SS ON SS.ID = SSDA.STAFF_ID
+		WHERE SDA.ID = #{query.authId}
+		AND SDA.TYPE = 1
+		<if test="badges != null and badges.size>0">
+			AND SS.BADGE in
+			<foreach item="item" index="index" collection="badges" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		<if test="query.personName != null and query.personName != ''">
+			AND SS.NAME LIKE CONCAT('%', CONCAT(#{query.personName}, '%'))
+		</if>
+		ORDER BY SSDA.CREATE_TIME DESC
+	</select>
+
+	<select id="getVehicleAuthDetailPage" resultType="com.tce.smart.platform.api.dto.resp.AuthDetailRespDTO"
+			parameterType="com.tce.smart.platform.api.dto.req.AuthDetailQueryDTO">
+		SELECT
+		SVA.ID,
+		SS.NAME AS PERSON_NAME,
+		SS.STATUS AS staff_status,
+		SV.VEHICLE_PLATE,
+		SVA.CREATE_TIME
+		FROM SMT_DEVICE_AUTHORITY SDA
+		LEFT JOIN SMT_VEHICLE_APPLY SVA ON SDA.ID = SVA.AUTHORITY_ID
+		LEFT JOIN SMT_VEHICLE SV ON SVA.VEHICLE_ID = SV.ID
+		LEFT JOIN SMT_VEHICLE_STAFF SVS ON SVA.VEHICLE_ID = SVS.VEHICLE_ID
+		LEFT JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS.ID
+		WHERE SDA.ID = #{query.authId}
+		AND SDA.TYPE = 3
+		AND SVA.STATUS = 1
+		AND SV.VEHICLE_ASCRIPTION != 2
+		AND SV.IS_DELETE = 0
+		AND SS.ID IS NOT NULL
+		<if test="query.personName != null and query.personName != ''">
+			AND SS.NAME LIKE CONCAT('%', CONCAT(#{query.personName}, '%'))
+		</if>
+		<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+			AND SV.VEHICLE_PLATE LIKE CONCAT('%', CONCAT(#{query.vehiclePlate}, '%'))
+		</if>
+		ORDER BY SVA.CREATE_TIME DESC
+	</select>
+
+	<select id="countByAreaType" resultType="java.lang.Integer">
+		SELECT COUNT(SDA.ID)
+		FROM SMT_DEVICE_AUTHORITY_RELATION SDAR
+				 LEFT JOIN SMT_DEVICE_AUTHORITY SDA ON SDAR.AUTHORITY_ID = SDA.ID
+		WHERE SDAR.DEVICE_ID = #{deviceId}
+		  AND SDA.AREA_TYPE != #{areaType}
+	</select>
+</mapper>

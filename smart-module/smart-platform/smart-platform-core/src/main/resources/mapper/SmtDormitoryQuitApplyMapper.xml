@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryQuitApplyMapper">
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.entity.SmtDormitoryQuitApply">
+		SELECT * FROM SMT_DORMITORY_QUIT_APPLY S
+		<where>
+			<if test="query.badge != null and query.badge != ''">
+				AND S.BADGE LIKE CONCAT('%', CONCAT(#{query.badge}, '%'))
+			</if>
+			<if test="query.name!= null and query.name != ''">
+				AND S.NAME LIKE CONCAT('%', CONCAT(#{query.name}, '%'))
+			</if>
+			<if test="query.parkId!= null and query.parkId != ''">
+				AND S.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.status!= null and query.status != ''">
+				AND S.STATUS = #{query.status}
+			</if>
+			<if test="query.parkList != null and query.parkList.size > 0">
+				AND S.PARK_ID IN
+				<foreach collection="query.parkList" item="state" index="index" separator="," open="(" close=")">
+					#{state}
+				</foreach>
+			</if>
+			<if test="query.roomIds != null and query.roomIds.size > 0">
+				<foreach collection="query.roomIds" item="tempId" open="AND (" close=")" separator="or">
+					instr(S.room_Ids||',', #{tempId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
+				</foreach>
+			</if>
+			<if test="query.startTime != null and query.startTime != '' and query.endTime != null and query.endTime != ''">
+				and S.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss')
+				and to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		</where>
+		ORDER BY S.CREATE_TIME DESC
+
+	</select>
+
+</mapper>

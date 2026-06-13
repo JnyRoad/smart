@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwHortationsAllMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwHortationsAll">
+        <result column="eid" property="eid" />
+        <result column="badge" property="badge" />
+        <result column="name" property="name" />
+        <result column="CompID" property="CompID" />
+        <result column="depOne" property="depOne" />
+        <result column="depTwo" property="depTwo" />
+        <result column="DepID" property="DepID" />
+        <result column="JobID" property="JobID" />
+        <result column="Status" property="Status" />
+        <result column="JchenID" property="JchenID" />
+        <result column="isout" property="isout" />
+        <result column="begindate" property="begindate" />
+        <result column="type" property="type" />
+        <result column="kind" property="kind" />
+        <result column="sumMoney" property="sumMoney" />
+        <result column="paymonth" property="paymonth" />
+        <result column="Fraction" property="Fraction" />
+        <result column="reason" property="reason" />
+        <result column="description" property="description" />
+        <result column="remark" property="remark" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        eid, badge, name, CompID, depOne, depTwo, DepID, JobID, Status, JchenID, isout, begindate, type, kind, sumMoney, paymonth, Fraction, reason, description, remark
+    </sql>
+
+    <select id="list" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"></include>
+        FROM evw_hortationsAll
+        WHERE evw_hortationsAll.badge = #{badge, jdbcType = VARCHAR}
+        <if test="queryMonth != null and queryMonth != ''">
+            AND CONVERT(VarChar(7), evw_hortationsAll.begindate, 120) = #{ queryMonth, jdbcType = VARCHAR }
+        </if>
+        ORDER BY evw_hortationsAll.begindate
+    </select>
+</mapper>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.leavecount.mapper.SmtSettlementLogMapper">
+
+  <resultMap id="smtSettlementLogMap" type="com.tce.smart.platform.core.entity.leavecount.SmtSettlementLog">
+                  <id property="id" column="ID"/>
+                        <result property="infoId" column="INFO_ID"/>
+                        <result property="requestName" column="REQUEST_NAME"/>
+                        <result property="requestIp" column="REQUEST_IP"/>
+                        <result property="requestLog" column="REQUEST_LOG"/>
+                        <result property="requestTime" column="REQUEST_TIME"/>
+                        <result property="responseStatus" column="RESPONSE_STATUS"/>
+                        <result property="responseDesc" column="RESPONSE_DESC"/>
+                        <result property="responseLog" column="RESPONSE_LOG"/>
+                        <result property="responseTime" column="RESPONSE_TIME"/>
+            </resultMap>
+</mapper>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtOutDormitoryStaffMapper">
+
+
+	<select id="getOutDormitoryPageList" parameterType="com.tce.smart.platform.core.dto.SearchOutDormitoryDTO"
+			resultType="com.tce.smart.platform.core.vo.SearchOutDormitoryVO">
+		SELECT
+		O.ID,
+		O.STAFF_BADGE,
+		F.NAME,
+		F.COMP_NAME,
+		F.DEP_NAME,
+		F.JOB_NAME,
+		O.START_TIME,
+		O.PROCESS_ID,
+		O.ALLOWANCE_TYPE,
+		O.AMOUNT,
+		O.COMPUTAION_RULE,
+		O.EXPLAIN,
+		O.REMARK,
+		O.CREATE_TIME,
+		O.STATUS,
+		O.OUT_ADDRESS
+		FROM
+		SMT_OUT_DORMITORY_STAFF O
+		INNER JOIN SMT_STAFF F ON O.STAFF_BADGE=F.BADGE
+		where IS_DELETE=0
+		<if test="query.staffBadge!=null and query.staffBadge!=''">
+			AND O.STAFF_BADGE LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+		</if>
+		<if test="query.staffName!=null and query.staffName!=''">
+			AND F.NAME LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+		</if>
+		<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+			AND O.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+			to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+		</if>
+		<if test="query.parkIds != null and query.parkIds.size > 0">
+			AND F.COMP_ID IN (
+			SELECT DISTINCT SPB.COMP_ID from SMT_PARK_BU SPB
+			<where>
+				SPB.PARK_ID IN
+				<foreach collection="query.parkIds" item="id" index="index" open="(" close=")" separator=",">
+					#{id}
+				</foreach>
+			</where>
+			)
+		</if>
+		ORDER BY O.CREATE_TIME DESC
+	</select>
+
+</mapper>

@@ -1,0 +1,43 @@
+.room{
+  .avue-tree{
+    margin-top: 20px;
+    .el-input-group{
+      .el-input-group__append{
+        font-family: element-icons!important;
+      }
+      .el-input-group__append::before{
+        content: "\E619";
+      }
+    }
+  }
+  .top-menu{
+    margin-bottom: 20px;
+    .iconBtn{
+      padding: 2px 2px 0 1px;
+      margin-left: 10px;
+      i{
+        font-size: 20px !important;
+        margin: 0;
+      }
+    }
+    .iconBtn.is-disabled{
+      color: #333;
+    }
+  }
+  .lft-block{
+    .lft-title{
+      color: #666;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+  }
+  .btnsdv{
+    border-top: 1px solid #EEF0F5;
+    padding-top: 20px;
+    margin-top: 50px;
+    text-align: center;
+    .el-button{
+      margin: 0 20px 20px;
+    }
+  }
+}

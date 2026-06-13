@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.temporary.core.mapper.EleaveRegisterMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.temporary.core.entity.EleaveRegister">
+        <id column="id" property="id" />
+        <result column="type" property="type" />
+        <result column="EZID" property="ezid" />
+        <result column="eid" property="eid" />
+        <result column="badge" property="badge" />
+        <result column="name" property="name" />
+        <result column="compid" property="compid" />
+        <result column="depid" property="depid" />
+        <result column="jobid" property="jobid" />
+        <result column="joindate" property="joindate" />
+        <result column="lastleavedate" property="lastleavedate" />
+        <result column="ApplyDate" property="ApplyDate" />
+        <result column="leavedate" property="leavedate" />
+        <result column="leavetype" property="leavetype" />
+        <result column="leavereason" property="leavereason" />
+        <result column="isEndCon" property="isEndCon" />
+        <result column="isPay" property="isPay" />
+        <result column="PayFee" property="PayFee" />
+        <result column="IsExpenses" property="IsExpenses" />
+        <result column="ExpenseFee" property="ExpenseFee" />
+        <result column="Iscompete" property="Iscompete" />
+        <result column="competeFee" property="competeFee" />
+        <result column="NewCompany" property="NewCompany" />
+        <result column="NewJob" property="NewJob" />
+        <result column="NewSalary" property="NewSalary" />
+        <result column="isBlackList" property="isBlackList" />
+        <result column="regBy" property="regBy" />
+        <result column="regdate" property="regdate" />
+        <result column="initialized" property="initialized" />
+        <result column="initializedby" property="initializedby" />
+        <result column="initializedtime" property="initializedtime" />
+        <result column="submit" property="submit" />
+        <result column="submitby" property="submitby" />
+        <result column="submittime" property="submittime" />
+        <result column="closed" property="closed" />
+        <result column="closedby" property="closedby" />
+        <result column="closedtime" property="closedtime" />
+        <result column="remark" property="remark" />
+        <result column="Seqid" property="Seqid" />
+        <result column="ISRCK" property="isrck" />
+        <result column="ConCount" property="ConCount" />
+        <result column="contract" property="contract" />
+        <result column="ConType" property="ConType" />
+        <result column="ConProperty" property="ConProperty" />
+        <result column="ConNo" property="ConNo" />
+        <result column="ConBeginDate" property="ConBeginDate" />
+        <result column="ConTerm" property="ConTerm" />
+        <result column="ConEndDate" property="ConEndDate" />
+        <result column="status" property="status" />
+        <result column="wfinstanceID" property="wfinstanceID" />
+        <result column="IsRetain" property="IsRetain" />
+        <result column="leaintent" property="leaintent" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, type, EZID AS ezid, eid, badge, name, compid, depid, jobid, joindate, lastleavedate, ApplyDate, leavedate, leavetype, leavereason, isEndCon, isPay, PayFee, IsExpenses, ExpenseFee, Iscompete, competeFee, NewCompany, NewJob, NewSalary, isBlackList, regBy, regdate, initialized, initializedby, initializedtime, submit, submitby, submittime, closed, closedby, closedtime, remark, Seqid, ISRCK AS isrck, ConCount, contract, ConType, ConProperty, ConNo, ConBeginDate, ConTerm, ConEndDate, status, wfinstanceID, IsRetain, leaintent
+    </sql>
+
+</mapper>

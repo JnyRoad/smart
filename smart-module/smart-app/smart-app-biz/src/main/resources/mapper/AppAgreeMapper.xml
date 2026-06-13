@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppAgreeMapper">
+	<resultMap id="appSubjectMap" type="com.tce.smart.app.entity.AppSubject">
+		<id property="id" column="id"/>
+		<result property="parentSubject" column="parent_subject"/>
+		<result property="subjectName" column="subject_name"/>
+		<result property="subjectUrl" column="subject_url"/>
+		<result property="catalogCode" column="catalog_code"/>
+		<result property="subjectOrder" column="subject_order"/>
+		<result property="topFlag" column="top_flag"/>
+		<result property="publishFlag" column="publish_flag"/>
+		<result property="delFlag" column="del_flag"/>
+		<result property="createTime" column="create_time"/>
+		<result property="updateTime" column="update_time"/>
+	</resultMap>
+	<resultMap id="AppAgreeVo" type="com.tce.smart.app.vo.AppAgreeVo">
+		<id property="id" column="id"/>
+		<result property="contentTextId" column="content_text_id"/>
+		<result property="subjectName" column="subject_name"/>
+		<result property="createTime" column="create_time"/>
+		<result property="textDesc" column="text_desc"/>
+<!--		<collection property="parkId" ofType="com.tce.smart.app.entity.AppParkSubject" >
+			<result property="parkId" column="park_id"/>
+			<result property="subjectId" column="subject_id"/>
+		</collection>-->
+	</resultMap>
+
+<!-- <select id="getAppAgreePage" resultType="com.tce.smart.app.entity.AppSubject">
+    select distinct subject.ID,subject.SUBJECT_NAME,subject.CREATE_TIME from
+		APP_SUBJECT subject
+		left join APP_SUBJECT_CONTENT_TEXT asct on subject.ID=asct.SUBJECT_ID
+		left join APP_CONTENT_TEXT act on asct.CONTENT_TEXT_ID=act.ID,APP_PARK_SUBJECT
+     WHERE APP_PARK_SUBJECT.SUBJECT_ID=subject.ID and subject.CATALOG_CODE = '13' and subject.del_flag = '1'
+ </select>-->
+
+	<select id="getAppAgreePage" resultType="com.tce.smart.app.entity.AppSubject">
+    select distinct subject.ID,subject.SUBJECT_NAME,subject.CREATE_TIME from
+		APP_SUBJECT subject
+		left join APP_SUBJECT_CONTENT_TEXT asct on subject.ID=asct.SUBJECT_ID
+		left join APP_CONTENT_TEXT act on asct.CONTENT_TEXT_ID=act.ID
+     WHERE subject.CATALOG_CODE = '13' and subject.del_flag = '1'
+	</select>
+</mapper>

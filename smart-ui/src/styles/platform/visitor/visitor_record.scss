@@ -1,0 +1,121 @@
+.el-card__body{
+  padding-right: 0;
+}
+.visitor-card{
+  position: relative;
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+  background-color: #fff;
+  overflow: hidden;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+  color: #303133;
+  min-width: 385px;
+  min-height: 280px;
+  float: left;
+  margin: 0 10px 30px 0;
+  padding: 15px;
+  cursor: pointer;
+}
+
+.vs-status p{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vs-info{
+  height: 186px;
+}
+.vs-btm{
+  position: absolute;
+  left: 15px;
+  right: 15px;
+  bottom: 0;
+  clear: both;
+  border-top: 1px dashed #E7EAF1;
+  padding: 13px 0;
+  line-height: 25px;
+}
+.vs-left, .vs-right{
+  float: left;
+}
+.vs-left{
+  position: relative;
+  width: 40%;
+  height: 170px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+.vs-left img{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  width: auto;
+}
+.vs-right{
+  display: table;
+  height: 100%;
+  margin-left: 15px;
+}
+.vs-cell{
+  display: table-cell;
+  vertical-align: middle;
+  line-height: 28px;
+  padding-top: 10px;
+}
+.vs-cell p{
+  width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vs-right i{
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin: -1px 5px 0 0;
+  vertical-align: middle;
+}
+.vs-right .vs-name{
+  width: 13px;
+  background-image: url("/img/vs_name.png");
+}
+.vs-right .vs-phone{
+  width: 11px;
+  background-image: url("/img/vs_phone.png");
+}
+.vs-vehicle-license{
+  background-image: url("/img/vs_phone_license.png");
+}
+.vs-right .vs-firm{
+  background-image: url("/img/vs_firm.png");
+}
+.vs-time{
+  float: left;
+  width: 49%;
+  text-align: center;
+}
+.vs-time:first-child{
+  border-right: 1px solid #E7EAF1;
+}
+.vs-time p{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media screen and (max-width: 1366px){
+  .visitor-card{
+    width: 54%;
+    min-width: 475px;
+    margin-right: 30px;
+  }
+  .vs-cell p{
+    width: 250px;
+  }
+}

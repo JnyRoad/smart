@@ -1,0 +1,63 @@
+security:
+  oauth2:
+    client:
+      client-id: "${SMART_BRIDGE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
+      client-secret: "${SMART_BRIDGE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      scope: server
+      ignore-urls:
+      - "/**"
+device:
+  admin:
+    baseurl: "${SMART_DEVICE_ADMIN_BASEURL:http://host.docker.internal:7001/devicemanager/}"
+    faceurl: "${SMART_DEVICE_ADMIN_FACEURL:http://host.docker.internal:7002/facerecognition/}"
+spring:
+  datasource:
+    type: "${SMART_BRIDGE_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
+    driver-class-name: "${SMART_BRIDGE_DB_DRIVER:org.sqlite.JDBC}"
+    url: "${SMART_BRIDGE_DB_URL:jdbc:sqlite:./database/smart_bridge.db}"
+    username: "${SMART_BRIDGE_DB_USERNAME:}"
+    password: "${SMART_BRIDGE_DB_PASSWORD:}"
+  kafka:
+    bootstrap-servers: "${SMART_KAFKA_BOOTSTRAP_SERVERS:smart-kafka:9092}"
+    consumer.group-id: "${SMART_KAFKA_CONSUMER_GROUP_ID:smart-local}"
+    listener:
+      concurrency: 5
+  mybatis-plus:
+    configuration:
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+      map-underscore-to-camel-case: true
+    global-config:
+      banner: false
+      db-config:
+        table-underline: true
+    mapper-locations: classpath:/mapper/*Mapper.xml
+smart:
+  application-name: smart-bridge-isc-biz
+  park-id: 10001
+  hik:
+    host: "${SMART_HIK_HOST:}"
+    app-key: "${SMART_HIK_APP_KEY:}"
+    app-secret: "${SMART_HIK_APP_SECRET:}"
+    event-subscribe-enabled: "${SMART_HIK_EVENT_SUBSCRIBE_ENABLED:false}"
+    callback-url: "${SMART_HIK_CALLBACK_URL:http://host.docker.internal:6060/bridge/handle}"
+  image:
+    expire: 90
+  exception-log:
+    retry: 300
+  bridge:
+    c-process:
+      url: "${SMART_BRIDGE_C_PROCESS_URL:http://host.docker.internal:7001}"
+      bridge-url: "${SMART_BRIDGE_C_PROCESS_BRIDGE_URL:http://smart-bridge-isc:6060}"
+  kafka:
+    consumer:
+      event-topic: "${SMART_KAFKA_EVENT_TOPIC:smart-local-event}"
+      event-group-id: "${SMART_KAFKA_EVENT_GROUP_ID:smart-local-event-group}"
+      image-topic: "${SMART_KAFKA_IMAGE_TOPIC:smart-local-image}"
+      image-group-id: "${SMART_KAFKA_IMAGE_GROUP_ID:smart-local-image-group}"
+      bridge-event-topic: "${SMART_KAFKA_BRIDGE_EVENT_TOPIC:smart-local-bridge-event}"
+      bridge-event-group-id: "${SMART_KAFKA_BRIDGE_EVENT_GROUP_ID:smart-local-bridge-event-group}"
+hbase:
+  zookeeper:
+    znode: "${SMART_HBASE_ZOOKEEPER_ZNODE:/hbase}"
+    port: "${SMART_HBASE_ZOOKEEPER_PORT:2181}"
+    quorum: "${SMART_HBASE_ZOOKEEPER_QUORUM:smart-hbase}"

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppWechatAuthAccessTokenMapper">
+	<resultMap id="appSubjectMap"
+		type="com.tce.smart.app.entity.AppWechatAuthAccessToken">
+		<id property="id" column="id" />
+		<result property="wechatAcct" column="wechat_acct" />
+		<result property="expired_time" column="expiredTime" />
+		<result property="remark1" column="remark1" />
+		<result property="remark2" column="remark2" />
+		<result property="remark3" column="remark3" />
+	</resultMap>
+
+</mapper>

@@ -1,0 +1,18 @@
+.pn-bt{
+  display: flex;
+  &_left{
+    padding-left: 5px;
+    display: flex;
+    flex-direction: column;
+    &_top{
+      display: flex;
+      &_l{
+        display: flex;
+        flex-direction: column;
+      }
+    }
+  }
+  &_right{
+    padding-top: 11px;
+  }
+}

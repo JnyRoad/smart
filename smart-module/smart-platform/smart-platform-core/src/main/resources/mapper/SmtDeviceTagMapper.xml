@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDeviceTagMapper">
+
+	<resultMap type="com.tce.smart.platform.core.entity.SmtDeviceTag" id="SmtDeviceTagMap">
+		<result property="id" column="ID"/>
+		<result property="tagName" column="TAG_NAME"/>
+		<result property="createTime" column="CREATE_TIME"/>
+	</resultMap>
+
+	<select id="getByDeviceId" resultMap="SmtDeviceTagMap" parameterType="java.lang.String">
+		SELECT SDT.*
+		FROM SMT_DEVICE_TAG SDT
+		    LEFT JOIN SMT_DEVICE_TAG_RELATION SDTR ON SDT.ID = SDTR.TAG_ID
+		WHERE SDTR.DEVICE_ID = #{deviceId}
+	</select>
+
+</mapper>

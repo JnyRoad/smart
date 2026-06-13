@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.guard.core.mapper.VcallCarMapper">
+
+	<resultMap id="approveListMap" type="com.tce.smart.guard.core.entity.VcallCar">
+		<result property="callCode" column="CALLCODE"/>
+		<result property="callSentTime" column="CALLSENTTIME"/>
+		<result property="callStatus" column="CALLSTATUS"/>
+		<result property="carIdStr" column="CARIDSTR"/>
+		<result property="driverNameStr" column="DRIVERNAMESTR"/>
+		<result property="driverTelStr" column="DRIVERTELSTR"/>
+		<result property="supplierName" column="SUPPLIERNAME"/>
+	</resultMap>
+
+	<select id="getVcallCarPage" resultType="com.tce.smart.guard.core.entity.VcallCar">
+		SELECT
+			B.*,
+			A.COMPANYID
+		FROM
+			ytwl.WARELIST A
+			RIGHT JOIN ytwl.VCALLCAR2 B ON A.WARECODE = B.CALLCODE
+		<where>
+			B.CALLSTATUS = 3
+			<if test="parkLogistics != null and parkLogistics.size > 0">
+				AND A.COMPANYID IN
+				<foreach collection="parkLogistics" item="temp" open="(" separator="," close=")">
+					#{temp.companyId}
+				</foreach>
+			</if>
+			AND B.CALLSENTTIME <![CDATA[>=]]> TO_DATE (#{nowTime}, 'yyyy-mm-dd hh24:mi:ss')
+		</where>
+		ORDER BY
+			B.CALLSENTTIME DESC
+	</select>
+
+</mapper>

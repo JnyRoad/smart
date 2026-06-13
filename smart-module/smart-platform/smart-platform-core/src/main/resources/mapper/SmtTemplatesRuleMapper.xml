@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtTemplatesRuleMapper">
+
+	<select id="getSDTemplateRules"  resultType="com.tce.smart.platform.core.entity.SmtTemplatesRule">
+		select stpr.TEMP_ID,stpr.CATEGORY_ID,stpr.MONTH_NUM,stpr.STANDARD_QTY,stpr.OVER_FEE from SMT_SD_TEMPLATES sdtp
+		inner join SMT_TEMPLATES_RULE stpr on sdtp.ID=stpr.TEMP_ID
+		<where>
+			<if test="park!=null and park.size>0">
+				and sdtp.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+	</select>
+</mapper>

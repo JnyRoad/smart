@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAreaMapper">
+
+  <resultMap id="smtAreaMap" type="com.tce.smart.platform.core.vo.SearchAreaVO">
+                     <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                         <result property="parkName" column="PARK_NAME"/>
+                        <result property="areaName" column="AREA_NAME"/>
+                        <result property="pid" column="PID"/>
+                         <result property="parentAreaName" column="parentAreaName"/>
+						<result property="areaLongitude" column="AREA_LONGITUDE"/>
+						<result property="areaLatitude" column="AREA_LATITUDE"/>
+                        <result property="remark" column="remark"/>
+  </resultMap>
+
+
+  <resultMap id="AllAreaMap" type="com.tce.smart.platform.core.entity.SmtArea">
+                     <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="areaName" column="AREA_NAME"/>
+                        <result property="pid" column="PID"/>
+						<result property="areaLongitude" column="AREA_LONGITUDE"/>
+						<result property="areaLatitude" column="AREA_LATITUDE"/>
+                        <result property="remark" column="remark"/>
+  </resultMap>
+
+
+
+	<select id="getSmtAreaPage" parameterType="com.tce.smart.platform.core.entity.SmtArea"  resultMap="smtAreaMap">
+
+		SELECT FIR.ID ,FIR.PARK_ID ,FIR.AREA_NAME,FIR.PID,
+		FIR.AREA_LONGITUDE,PARK.PARK_NAME,
+		 FIR.AREA_LATITUDE
+		,FIR.REMARK,SEC.AREA_NAME PARENTAREANAME FROM SMT_AREA
+		FIR  INNER JOIN SMT_PARK PARK
+		ON PARK.ID=FIR.PARK_ID
+		LEFT JOIN SMT_AREA  SEC
+		ON FIR.PID=SEC.ID
+		WHERE  1=1
+		<if test="query.areaName != null and query.areaName  != ''">
+			and fir.area_name LIKE CONCAT('%',#{query.areaName},'%')
+		</if>
+		<if test="query.parkId != null and query.parkId  != ''">
+			and fir.park_id =#{query.parkId}
+		</if>
+		<if test="query.pid != null and query.pid != ''">
+			and fir.pid =#{query.pid}
+		</if>
+			<if test="query.id != null and query.id != ''">
+			and fir.id=#{query.id}
+		</if>
+		<if test="parkIdList != null and parkIdList.size > 0">
+			AND fir.park_id IN
+			<foreach collection="parkIdList" item="tempId" open="(" separator="," close=")">
+				#{tempId}
+			</foreach>
+		</if>
+
+	</select>
+
+	<select id="getSmtAreaAll" parameterType="com.tce.smart.platform.core.entity.SmtArea"  resultMap="AllAreaMap" >
+		select ID ,PARK_ID ,AREA_NAME,PID,AREA_LONGITUDE,
+		AREA_LATITUDE,
+		remark from SMT_AREA  where PARK_ID=#{parkId} and PID=#{pid} order by ID asc
+	</select>
+
+</mapper>

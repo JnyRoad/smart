@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtVisitorApprovalWhiteMapper">
+	<resultMap id="pageQueryMap" type="com.tce.smart.platform.core.dto.VisitorWhiteDTO">
+		<id property="id" column="id"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="staffBadge" column="STAFF_BADGE"/>
+		<result property="staffName" column="NAME"/>
+		<result property="compId" column="COMP_ID"/>
+		<result property="compName" column="COMP_NAME"/>
+		<result property="depId" column="DEP_ID"/>
+		<result property="depName" column="DEP_NAME"/>
+		<result property="jobId" column="JOB_ID"/>
+		<result property="jobName" column="JOB_NAME"/>
+		<result property="createTime" column="CREATE_TIME"/>
+	</resultMap>
+	<select id="pageQuery" parameterType="com.tce.smart.platform.core.dto.VisitorWhiteDTO" resultMap="pageQueryMap">
+		select white.ID,white.PARK_ID,park.PARK_NAME,white.STAFF_BADGE,white.CREATE_TIME,
+		staff.NAME,staff.COMP_ID,staff.COMP_NAME,staff.DEP_ID,staff.DEP_NAME,staff.JOB_ID,staff.JOB_NAME
+		from SMT_VISITOR_APPROVAL_WHITE white
+		join SMT_STAFF staff on white.STAFF_BADGE=staff.BADGE
+		join SMT_PARK park on white.PARK_ID=park.ID
+		<where>
+			<if test="query.parkId != null">
+				and white.PARK_ID=#{query.parkId}
+			</if>
+			<if test="query.parkIds!=null and query.parkIds.size>0">
+				and white.PARK_ID in
+				<foreach item="item" index="index" collection="query.parkIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.staffBadge != null and  query.staffBadge != ''">
+				and white.STAFF_BADGE=#{query.staffBadge}
+			</if>
+			<if test="query.staffName != null and  query.staffName != ''">
+				AND staff.NAME LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.compId != null">
+				and staff.COMP_ID=#{query.compId}
+			</if>
+			<if test="query.depId != null">
+				and staff.DEP_ID=#{query.depId}
+			</if>
+			<if test="query.jobId != null">
+				and staff.JOB_ID=#{query.jobId}
+			</if>
+		</where>
+		order by white.CREATE_TIME desc
+	</select>
+</mapper>

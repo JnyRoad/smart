@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.watermeter.SmtEleMeterMapper">
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.vo.SmtEleMeterVO">
+		SELECT
+			SEM.ID id,
+			SEM.NAME name,
+			SEM.SEQ seq,
+			SEM.CONCENTRATOR_ID concentratorId,
+			SEMC.IP ip,
+			SEMC.PORT port,
+			SEMC.PARK_ID parkId
+		FROM
+			SMT_ELE_METER SEM
+			LEFT JOIN SMT_ELE_METER_CONCENTRATOR SEMC ON SEMC.ID = SEM.CONCENTRATOR_ID
+		WHERE
+			SEM.IS_DELETE = 0
+			AND SEMC.IP IS NOT NULL
+	</select>
+
+	<select id="getSdMeterStatisticsPage" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+			PLACE_TYPE,
+			ID,
+			3 AS sdType,
+			DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+			NAME AS deviceName,
+			UPDATE_TIME
+		FROM
+			SMT_ELE_METER
+		WHERE
+			IS_DELETE = 0
+			<if test="param.placeType != null">
+				and PLACE_TYPE = #{param.placeType}
+			</if>
+			<if test="param.deviceId != null">
+				and ID = #{param.deviceId}
+			</if>
+		UNION ALL
+		SELECT
+			PLACE_TYPE,
+			ID,
+			DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) AS sdType,
+			DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+			NAME AS deviceName,
+			UPDATE_TIME
+		FROM
+			SMT_WATER_METER
+		WHERE
+			IS_DELETE =0
+			<if test="param.placeType != null">
+				and PLACE_TYPE = #{param.placeType}
+			</if>
+			<if test="param.deviceId != null">
+				and ID = #{param.deviceId}
+			</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getSdUseStatisticsPage" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		se.PLACE_TYPE,
+		se.ID,
+		se.CONCENTRATOR_ID,
+		3 AS sdType,
+		DECODE( se.PLACE_TYPE, 0, se.DORMITORY_NAME || se.ROOM_NAME, 1, se.AREA_NAME, '' ) AS areaName,
+		se.NAME AS deviceName,
+		se.ADDRESS,
+		se.UPDATE_TIME,
+		tag.TAG_NAME as deviceTag
+		FROM
+		SMT_ELE_METER se join SMT_ELE_METER_TAG setag ON se.id = setag.METER_ID join  SMT_DEVICE_TAG tag  on tag.ID = setag.TAG_ID
+		WHERE
+		se.IS_DELETE = 0
+		<if test="param.areaId != null">
+			and se.AREA_ID = #{param.areaId}
+		</if>
+		<if test="meterIds != null and meterIds.size > 0">
+			and se.ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		UNION ALL
+		SELECT
+		sw.PLACE_TYPE,
+		sw.ID,
+		sw.CONCENTRATOR_ID,
+		DECODE( sw.LARGE_CLASS, 1, 1, 0, 2, 2 ) AS sdType,
+		DECODE( sw.PLACE_TYPE, 0, sw.DORMITORY_NAME || sw.ROOM_NAME, 1, sw.AREA_NAME, '' ) AS areaName,
+		sw.NAME AS deviceName,
+		sw.ADDRESS,
+		sw.UPDATE_TIME,
+		tag.TAG_NAME as deviceTag
+		FROM
+		SMT_WATER_METER sw join SMT_WATER_METER_TAG setag ON sw.id = setag.METER_ID join  SMT_DEVICE_TAG tag  on tag.ID = setag.TAG_ID
+		WHERE
+		sw.IS_DELETE =0
+		<if test="param.areaId != null">
+			and sw.AREA_ID = #{param.areaId}
+		</if>
+		<if test="meterIds != null and meterIds.size > 0">
+			and sw.ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getSdUseStatisticsList" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		PLACE_TYPE,
+		ID,
+		CONCENTRATOR_ID,
+		3 AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		ADDRESS,
+		UPDATE_TIME
+		FROM
+		SMT_ELE_METER
+		WHERE
+		IS_DELETE = 0
+		<if test="param.areaId != null">
+			and AREA_ID = #{param.areaId}
+		</if>
+		<if test="meterIds != null and meterIds.size > 0">
+			and ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		UNION ALL
+		SELECT
+		PLACE_TYPE,
+		ID,
+		CONCENTRATOR_ID,
+		DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		ADDRESS,
+		UPDATE_TIME
+		FROM
+		SMT_WATER_METER
+		WHERE
+		IS_DELETE =0
+		<if test="param.areaId != null">
+			and AREA_ID = #{param.areaId}
+		</if>
+		<if test="meterIds != null and meterIds.size > 0">
+			and ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getWaterMeterStatisticsPage" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		PLACE_TYPE,
+		ID,
+		DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		UPDATE_TIME
+		FROM
+		SMT_WATER_METER
+		WHERE
+		IS_DELETE =0
+		<if test="param.placeType != null">
+			and PLACE_TYPE = #{param.placeType}
+		</if>
+		<if test="param.deviceId != null">
+			and ID = #{param.deviceId}
+		</if>
+		<if test="param.sdType != null">
+			and DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) = #{param.sdType}
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getWaterUseStatisticsPage" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		sw.PLACE_TYPE,
+		sw.ID,
+		sw.CONCENTRATOR_ID,
+		DECODE( sw.LARGE_CLASS, 1, 1, 0, 2, 2 ) AS sdType,
+		DECODE( sw.PLACE_TYPE, 0, sw.DORMITORY_NAME || sw.ROOM_NAME, 1, sw.AREA_NAME, '' ) AS areaName,
+		sw.NAME AS deviceName,
+		sw.ADDRESS,
+		sw.UPDATE_TIME,
+		tag.TAG_NAME as deviceTag
+		FROM
+		SMT_WATER_METER sw join SMT_WATER_METER_TAG setag ON sw.id = setag.METER_ID join  SMT_DEVICE_TAG tag  on tag.ID = setag.TAG_ID
+		WHERE
+		sw.IS_DELETE =0
+		<if test="param.areaId != null">
+			and sw.AREA_ID = #{param.areaId}
+		</if>
+		<if test="meterIds != null and meterIds.size > 0">
+			and sw.ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		<if test="param.sdType != null">
+			and DECODE( sw.LARGE_CLASS, 1, 1, 0, 2, 2 ) = #{param.sdType}
+		</if>
+		order by sw.UPDATE_TIME asc
+	</select>
+
+	<select id="getWaterUseStatisticsList" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		PLACE_TYPE,
+		ID,
+		CONCENTRATOR_ID,
+		DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		ADDRESS,
+		UPDATE_TIME
+		FROM
+		SMT_WATER_METER
+		WHERE
+		IS_DELETE =0
+		<if test="param.areaId != null">
+			and AREA_ID = #{param.areaId}
+		</if>
+		<if test="meterIds != null and meterIds.size > 0">
+			and ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		<if test="param.sdType != null">
+			and DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) = #{param.sdType}
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getEleMeterStatisticsPage" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		PLACE_TYPE,
+		ID,
+		3 AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		UPDATE_TIME
+		FROM
+		SMT_ELE_METER
+		WHERE
+		IS_DELETE = 0
+		<if test="param.placeType != null">
+			and PLACE_TYPE = #{param.placeType}
+		</if>
+		<if test="param.deviceId != null">
+			and ID = #{param.deviceId}
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getEleUseStatisticsPage" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		se.PLACE_TYPE,
+		se.ID,
+		se.CONCENTRATOR_ID,
+		3 AS sdType,
+		DECODE( se.PLACE_TYPE, 0, se.DORMITORY_NAME || se.ROOM_NAME, 1, se.AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		se.ADDRESS,
+		se.UPDATE_TIME,
+		setag.TAG_ID,
+		tag.TAG_NAME as deviceTag
+		FROM
+		SMT_ELE_METER se join SMT_ELE_METER_TAG setag ON se.id = setag.METER_ID join  SMT_DEVICE_TAG tag  on tag.ID = setag.TAG_ID
+		WHERE
+		se.IS_DELETE = 0
+		<if test="param.areaId != null">
+			and se.AREA_ID = #{param.areaId}
+		</if>
+		<if test="meterIds != null and meterIds.size > 0">
+			and se.ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		order by se.UPDATE_TIME asc
+	</select>
+
+	<select id="getEleUseStatisticsList" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		PLACE_TYPE,
+		ID,
+		CONCENTRATOR_ID,
+		3 AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		ADDRESS,
+		UPDATE_TIME
+		FROM
+		SMT_ELE_METER
+		WHERE
+		IS_DELETE = 0
+		<if test="param.areaId != null">
+			and AREA_ID = #{param.areaId}
+		</if>
+		<if test="meterIds != null and meterIds.size > 0">
+			and ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+
+	<select id="getSdMeterStatisticsList" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		PLACE_TYPE,
+		ID,
+		3 AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		UPDATE_TIME
+		FROM
+		SMT_ELE_METER
+		WHERE
+		IS_DELETE = 0
+		<if test="param.placeType != null">
+			and PLACE_TYPE = #{param.placeType}
+		</if>
+		<if test="param.deviceId != null">
+			and ID = #{param.deviceId}
+		</if>
+		UNION ALL
+		SELECT
+		PLACE_TYPE,
+		ID,
+		DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		UPDATE_TIME
+		FROM
+		SMT_WATER_METER
+		WHERE
+		IS_DELETE =0
+		<if test="param.placeType != null">
+			and PLACE_TYPE = #{param.placeType}
+		</if>
+		<if test="param.deviceId != null">
+			and ID = #{param.deviceId}
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getWaterMeterStatisticsList" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		PLACE_TYPE,
+		ID,
+		DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		UPDATE_TIME
+		FROM
+		SMT_WATER_METER
+		WHERE
+		IS_DELETE =0
+		<if test="param.placeType != null">
+			and PLACE_TYPE = #{param.placeType}
+		</if>
+		<if test="param.deviceId != null">
+			and ID = #{param.deviceId}
+		</if>
+		<if test="param.sdType != null">
+			and DECODE( LARGE_CLASS, 1, 1, 0, 2, 2 ) = #{param.sdType}
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getEleMeterStatisticsList" resultType="com.tce.smart.platform.core.dto.meter.SdDeviceRecordDTO">
+		SELECT
+		PLACE_TYPE,
+		ID,
+		3 AS sdType,
+		DECODE( PLACE_TYPE, 0, DORMITORY_NAME || ROOM_NAME, 1, AREA_NAME, '' ) AS areaName,
+		NAME AS deviceName,
+		UPDATE_TIME
+		FROM
+		SMT_ELE_METER
+		WHERE
+		IS_DELETE = 0
+		<if test="param.placeType != null">
+			and PLACE_TYPE = #{param.placeType}
+		</if>
+		<if test="param.deviceId != null">
+			and ID = #{param.deviceId}
+		</if>
+		order by UPDATE_TIME asc
+	</select>
+
+	<select id="getWaterMonthUse" resultType="com.tce.smart.platform.core.dto.meter.SdMonthStatisticsDTO">
+		SELECT
+			WATER_METER_ID as id,
+			to_char( COLLECT_TIME, 'yyyy-mm' ) as month,
+			MAX(CURRENT_READING) - MIN( CURRENT_READING ) as monthUse
+		FROM
+			SMT_WATER_METER_HISTORY
+		WHERE
+			WATER_METER_ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		  AND COLLECT_TIME BETWEEN to_date( #{startTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		  AND to_date( #{endTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		GROUP BY
+			WATER_METER_ID,
+			to_char( COLLECT_TIME, 'yyyy-mm' )
+		ORDER BY
+			to_char( COLLECT_TIME, 'yyyy-mm' )
+	</select>
+
+	<select id="getEleMonthUse" resultType="com.tce.smart.platform.core.dto.meter.SdMonthStatisticsDTO">
+		SELECT
+			ELE_METER_ID as id,
+			to_char( COLLECT_TIME, 'yyyy-mm' ) as month,
+			MAX(CURRENT_READING) - MIN( CURRENT_READING ) as monthUse
+		FROM
+			SMT_ELE_METER_HISTORY
+		WHERE
+			ELE_METER_ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		  AND COLLECT_TIME BETWEEN to_date( #{startTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		  AND to_date( #{endTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		GROUP BY
+			ELE_METER_ID,
+			to_char( COLLECT_TIME, 'yyyy-mm' )
+		ORDER BY
+			to_char( COLLECT_TIME, 'yyyy-mm' )
+	</select>
+
+	<select id="getEleMonthUse2" resultType="com.tce.smart.platform.core.dto.meter.SdUseStatisticsDTO">
+		SELECT
+		ELE_METER_ID as id,
+		Min(COLLECT_TIME) as startDate,
+		Max(COLLECT_TIME) as endDate,
+		MIN(CURRENT_READING) as startNum,
+		MAX(CURRENT_READING) as endNum,
+		MAX(CURRENT_READING) - MIN(CURRENT_READING) as monthUse
+		FROM
+		SMT_ELE_METER_HISTORY
+		WHERE
+		ELE_METER_ID in
+		<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+			#{meterId}
+		</foreach>
+		AND COLLECT_TIME BETWEEN to_date( #{startTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		AND to_date( #{endTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		GROUP BY
+		ELE_METER_ID,
+		to_char( COLLECT_TIME, 'yyyy-mm' )
+		ORDER BY
+		to_char( COLLECT_TIME, 'yyyy-mm' )
+	</select>
+
+	<select id="getMeterIdWithTag" resultType="java.lang.Long">
+		SELECT
+			em.id
+		FROM
+			SMT_ELE_METER em
+				JOIN SMT_ELE_METER_TAG emt ON em.ID = emt.METER_ID
+				JOIN SMT_DEVICE_TAG dt ON emt.TAG_ID = dt.ID
+		WHERE
+			dt.TAG_NAME LIKE CONCAT(CONCAT('%',#{tagName}),'%')
+	</select>
+
+	<select id="getEleHistoryStatistics" resultType="com.tce.smart.platform.api.dto.resp.watermeter.SdUseStatisticsRespDTO">
+		SELECT
+			ELE_METER_ID as id,
+			to_char(Min(COLLECT_TIME),'yyyy-mm-dd') as startDate,
+			to_char(Max(COLLECT_TIME),'yyyy-mm-dd') as endDate,
+			MIN(CURRENT_READING) as startNum,
+			MAX(CURRENT_READING) as endNum,
+			MAX(CURRENT_READING) - MIN(CURRENT_READING) as sumNum
+		FROM
+			SMT_ELE_METER_HISTORY
+		WHERE
+			COLLECT_TIME BETWEEN to_date( #{startTime}, 'yyyy-mm-dd hh24:mi:ss' )
+				AND to_date(#{endTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		<if test="meterIds != null and meterIds.size > 0">
+			and ELE_METER_ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		GROUP BY
+			ELE_METER_ID,
+			to_char( COLLECT_TIME, 'yyyy-mm' )
+		ORDER BY
+			to_char( COLLECT_TIME, 'yyyy-mm' ) desc
+	</select>
+
+	<select id="getWaterHistoryStatistics" resultType="com.tce.smart.platform.api.dto.resp.watermeter.SdUseStatisticsRespDTO">
+		SELECT
+		WATER_METER_ID as id,
+		to_char(Min(COLLECT_TIME),'yyyy-mm-dd') as startDate,
+		to_char(Max(COLLECT_TIME),'yyyy-mm-dd') as endDate,
+		MIN(CURRENT_READING) as startNum,
+		MAX(CURRENT_READING) as endNum,
+		MAX(CURRENT_READING) - MIN(CURRENT_READING) as sumNum
+		FROM
+		SMT_WATER_METER_HISTORY
+		WHERE
+		COLLECT_TIME BETWEEN to_date( #{endTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		AND to_date(#{endTime}, 'yyyy-mm-dd hh24:mi:ss' )
+		<if test="meterIds != null and meterIds.size > 0">
+			and WATER_METER_ID in
+			<foreach collection="meterIds" item="meterId" index="index" separator="," open="(" close=")">
+				#{meterId}
+			</foreach>
+		</if>
+		GROUP BY
+		WATER_METER_ID,
+		to_char( COLLECT_TIME, 'yyyy-mm' )
+		ORDER BY
+		to_char( COLLECT_TIME, 'yyyy-mm' ) desc
+	</select>
+</mapper>

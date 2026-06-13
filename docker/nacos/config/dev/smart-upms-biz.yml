@@ -1,0 +1,48 @@
+security:
+  oauth2:
+    client:
+      client-id: "${SMART_UPMS_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
+      client-secret: "${SMART_UPMS_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      scope: server
+      ignore-urls:
+      - "/actuator/**"
+      - "/v2/api-docs"
+      - "/user/info/*"
+      - "/user/query/*"
+      - "/user/verify/*"
+      - "/user/delete/*"
+      - "/user/simple"
+      - "/user/social/simple"
+      - "/user/password/update/**"
+      - "/user/park/list/**"
+      - "/social/info/*"
+      - "/mobile/*"
+      - "/log/save"
+      - "/dict/id"
+      - "/dict/value"
+      - "/dict/type"
+      - "/dict/save"
+      - "/movetask/list"
+      - "/user/edit"
+      - "/api/**"
+spring:
+  datasource:
+    type: "${SMART_UPMS_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
+    driver-class-name: "${SMART_UPMS_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
+    username: "${SMART_UPMS_DB_USERNAME:${SMART_DB_USERNAME:}}"
+    password: "${SMART_UPMS_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
+    url: "${SMART_UPMS_DB_URL:${SMART_DB_URL:}}"
+  yuto-secsytem:
+    login:
+      sign-on: "${SMART_SECSYSTEM_LOGIN_SIGN_ON:}"
+      sign-token: "${SMART_SECSYSTEM_LOGIN_SIGN_TOKEN:}"
+    password:
+      update-url: "${SMART_SECSYSTEM_PASSWORD_UPDATE_URL:}"
+      update-token: "${SMART_SECSYSTEM_PASSWORD_UPDATE_TOKEN:}"
+logging:
+  level:
+    com.tce.smart.admin.mapper: debug
+env:
+  test: false
+server:
+  port: 4000

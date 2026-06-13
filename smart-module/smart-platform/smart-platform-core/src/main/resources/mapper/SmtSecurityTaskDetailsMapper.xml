@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityTaskDetailsMapper">
+
+  <resultMap id="smtSecurityTaskDetailsMap" type="com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails">
+                  <id property="id" column="ID"/>
+                        <result property="staffBadge" column="STAFF_BADGE"/>
+                        <result property="staffName" column="STAFF_NAME"/>
+                        <result property="areaId" column="AREA_ID"/>
+                        <result property="areaName" column="AREA_NAME"/>
+                        <result property="status" column="STATUS"/>
+                        <result property="remark" column="REMARK"/>
+                        <result property="imgCode" column="IMG_CODE"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="updateTime" column="UPDATE_TIME"/>
+            </resultMap>
+</mapper>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtWechatBandingMapper">
+
+	<resultMap id="smtWechatBandingMap" type="com.tce.smart.platform.core.entity.SmtWechatBanding">
+		<id property="id" column="ID"/>
+		<result property="openId" column="OPEN_ID"/>
+		<result property="unionId" column="UNION_ID"/>
+		<result property="badge" column="BADGE"/>
+		<result property="createTime" column="CREATE_TIME"/>
+	</resultMap>
+
+	<select id="queryPage" resultType="com.tce.smart.platform.core.entity.SmtWechatBanding">
+		SELECT
+		SWS.ID,
+		SWS.OPEN_ID,
+		SWS.UNION_ID,
+		SWS. BADGE,
+		SWS.PARK_ID,
+		SWS.CREATE_TIME
+		FROM
+		SMT_WECHAT_BANDING SWS
+		LEFT JOIN SMT_STAFF SS ON SWS.BADGE = SS.BADGE
+		<where>
+			<if test="query.badge != null and query.badge != ''">
+				AND SWS.BADGE = #{query.badge}
+			</if>
+			<if test="query.parkId != null">
+				AND SWS.PARK_ID = #{query.parkId}
+			</if>
+			<if test="parkIds != null and parkIds.size > 0">
+				AND SWS.PARK_ID IN
+				<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.name != null and query.name != ''">
+				AND SS. NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+		</where>
+		ORDER BY
+		SWS.CREATE_TIME DESC
+	</select>
+
+</mapper>

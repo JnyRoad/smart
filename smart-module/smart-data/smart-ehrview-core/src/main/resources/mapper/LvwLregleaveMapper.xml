@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.LvwLregleaveMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.LvwLregleave">
+        <result column="badge" property="badge" />
+        <result column="Name" property="Name" />
+        <result column="compid" property="compid" />
+        <result column="compname" property="compname" />
+        <result column="DepID" property="DepID" />
+        <result column="depname" property="depname" />
+        <result column="jobid" property="jobid" />
+        <result column="jobname" property="jobname" />
+        <result column="TWID" property="twid" />
+        <result column="begintime" property="begintime" />
+        <result column="endtime" property="endtime" />
+        <result column="begindate" property="begindate" />
+        <result column="enddate" property="enddate" />
+        <result column="amount" property="amount" />
+        <result column="unit" property="unit" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        badge, Name, compid, compname, DepID, depname, jobid, jobname, TWID AS twid, begintime, endtime, begindate, enddate, amount, unit
+    </sql>
+
+</mapper>

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppSubjectMapper">
+
+    <resultMap id="appSubjectMap" type="com.tce.smart.app.entity.AppSubject">
+		<id property="id" column="id"/>
+		<result property="parentSubject" column="parent_subject"/>
+		<result property="subjectName" column="subject_name"/>
+		<result property="subjectUrl" column="subject_url"/>
+		<result property="catalogCode" column="catalog_code"/>
+		<result property="subjectOrder" column="subject_order"/>
+		<result property="topFlag" column="top_flag"/>
+		<result property="publishFlag" column="publish_flag"/>
+		<result property="delFlag" column="del_flag"/>
+		<result property="createTime" column="create_time"/>
+		<result property="updateTime" column="update_time"/>
+    </resultMap>
+	<resultMap id="AppQuestionVo" type="com.tce.smart.app.vo.AppQuestionVo">
+		<id property="id" column="id"/>
+		<result property="contentTextId" column="content_text_id"/>
+		<result property="subjectName" column="subject_name"/>
+		<result property="createTime" column="create_time"/>
+		<result property="textDesc" column="text_desc"/>
+	</resultMap>
+
+	<resultMap id="AppSubjectListByApp" type="com.tce.smart.app.ao.fore.AppSubjectAO">
+		<id property="id" column="id"/>
+		<result property="subTitle" column="SUBJECT_NAME"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="contentTextId" column="CONTENT_TEXT_ID"/>
+	</resultMap>
+
+	<select id="getAppSubjectPage" resultType="com.tce.smart.app.entity.AppSubject" parameterType="com.baomidou.mybatisplus.core.metadata.IPage">
+		SELECT sub.ID id, sub.SUBJECT_NAME subjectName, sub.SUBJECT_URL subjectUrl,
+		sub.CREATE_TIME createTime, sub.UPDATE_TIME updateTime, sub.SUBJECT_ORDER subjectOrder
+		FROM APP_SUBJECT sub LEFT JOIN APP_PARK_SUBJECT PS ON PS.SUBJECT_ID = sub.ID
+		WHERE sub.CATALOG_CODE = #{catalogCode}
+		AND sub.PUBLISH_FLAG = #{publishFlag}
+		AND sub.DEL_FLAG = '1'
+		<if test="parkId != null and parkId != ''">
+			AND PS.PARK_ID = #{parkId}
+		</if>
+		ORDER BY sub.SUBJECT_ORDER ASC, sub.CREATE_TIME  DESC
+	</select>
+
+	<select id="getAppSubjectPageByParkId" resultType="com.tce.smart.app.entity.AppSubject" parameterType="com.tce.smart.app.ao.AppealAreaAo">
+		SELECT sub.ID id, sub.SUBJECT_NAME subjectName, sub.SUBJECT_URL subjectUrl,
+		sub.CREATE_TIME createTime, sub.UPDATE_TIME updateTime, sub.SUBJECT_ORDER subjectOrder
+		FROM APP_SUBJECT sub LEFT JOIN APP_PARK_SUBJECT PS ON PS.SUBJECT_ID = sub.ID
+		WHERE sub.DEL_FLAG = '1'
+		<if test="query.catalogCode != null and query.catalogCode != ''">
+			AND sub.CATALOG_CODE = #{query.catalogCode}
+		</if>
+		<if test="query.publishFlag != null and query.publishFlag != ''">
+			AND sub.PUBLISH_FLAG = #{query.publishFlag}
+		</if>
+		<if test="query.parkId != null and query.parkId != ''">
+			AND PS.PARK_ID = #{query.parkId}
+		</if>
+		<if test="query.subjectName != null and query.subjectName != ''">
+			AND sub.SUBJECT_NAME like concat(concat('%',#{query.subjectName}),'%')
+		</if>
+		<if test="parkIds!=null and parkIds.size>0">
+			and PS.PARK_ID in
+			<foreach item="item" index="index" collection="parkIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		ORDER BY sub.SUBJECT_ORDER ASC, sub.CREATE_TIME  DESC
+	</select>
+
+	<select id="getAppSubjectListByApp" resultMap="AppSubjectListByApp" parameterType="com.tce.smart.app.ao.AppealAreaAo">
+		SELECT sub.ID, sub.SUBJECT_NAME, sub.SUBJECT_URL,sub.CREATE_TIME,sct.CONTENT_TEXT_ID
+		FROM APP_SUBJECT sub
+		LEFT JOIN APP_PARK_SUBJECT PS ON PS.SUBJECT_ID = sub."ID"
+		left JOIN APP_SUBJECT_CONTENT_TEXT sct ON sub.ID=sct.SUBJECT_ID
+		WHERE sub.DEL_FLAG = '1'
+		<if test="query.catalogCode != null and query.catalogCode != ''">
+			AND sub.CATALOG_CODE = #{query.catalogCode}
+		</if>
+		<if test="query.publishFlag != null and query.publishFlag != ''">
+			AND sub.PUBLISH_FLAG = #{query.publishFlag}
+		</if>
+		<if test="query.parkId != null and query.parkId != ''">
+			AND PS.PARK_ID = #{query.parkId}
+		</if>
+		<if test="parkIds!=null and parkIds.size>0">
+			and PS.PARK_ID in
+			<foreach item="item" index="index" collection="parkIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		ORDER BY sub.CREATE_TIME  DESC
+	</select>
+
+	<select id="selectOrder" resultType="java.lang.Integer" parameterType="java.lang.Integer">
+		SELECT SUBJECT_ORDER
+		FROM APP_SUBJECT
+		WHERE ID = #{id}
+	</select>
+
+	<select id="selectId" resultType="java.lang.Integer">
+		SELECT ID
+		FROM APP_SUBJECT
+		WHERE SUBJECT_ORDER = #{order}
+		AND CATALOG_CODE =  #{catalogCode}
+	</select>
+
+	<update id="updateOrder" parameterType="java.lang.Integer" >
+		UPDATE APP_SUBJECT SET SUBJECT_ORDER = #{order} WHERE ID = #{id}
+	</update>
+
+	<update id="updateBatchOrder">
+		UPDATE APP_SUBJECT SET SUBJECT_ORDER = SUBJECT_ORDER ${operate}
+		WHERE CATALOG_CODE = #{catalogCode}
+		AND SUBJECT_ORDER BETWEEN #{frist} AND #{last}
+	</update>
+
+	<select id="selectTextId" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+		SELECT CONTENT_TEXT_ID
+		FROM APP_SUBJECT_CONTENT_TEXT
+		WHERE SUBJECT_ID = #{subjectId}
+	</select>
+
+	<select id="selectText" parameterType="java.lang.Integer" resultType="com.tce.smart.app.entity.AppContentText">
+		SELECT text.ID,text.PIC_BINARY picBinary, text.TEXT_NAME textName, text.TEXT_DESC textDesc, text.ENCLOSURE enclosure,
+		text.ENCLOSURE_NAME enclosureName
+		FROM APP_CONTENT_TEXT text LEFT JOIN APP_SUBJECT_CONTENT_TEXT con ON text.ID = con.CONTENT_TEXT_ID
+		WHERE con.SUBJECT_ID = #{id}
+	</select>
+
+	<select id="selectTextNew" parameterType="java.lang.Integer" resultType="com.tce.smart.app.entity.AppContentText">
+		SELECT text.ID, text.TEXT_NAME textName,
+		text.ENCLOSURE_NAME enclosureName,DBMS_LOB.GETLENGTH(text.PIC_BINARY) as picLength
+		FROM APP_CONTENT_TEXT text
+		LEFT JOIN APP_SUBJECT_CONTENT_TEXT con ON text.ID = con.CONTENT_TEXT_ID
+		WHERE con.SUBJECT_ID = #{id}
+	</select>
+
+	<insert id="addBootSubject" parameterType="com.tce.smart.app.entity.AppSubject">
+		insert into APP_SUBJECT values (#{subject.id},#{subject.parentSubject},#{subject.subjectName}
+		,#{subject.subjectUrl},#{subject.catalogCode},#{subject.subjectOrder},#{subject.topFlag}
+		,#{subject.publishFlag},#{subject.delFlag},#{subject.createTime},#{subject.updateTime})
+	</insert>
+
+    <select id="getAppQuestion" resultType="com.tce.smart.app.vo.AppQuestionVo">
+		select subject.ID, asct.CONTENT_TEXT_ID,subject.SUBJECT_NAME,subject.CREATE_TIME, act.TEXT_DESC from
+		APP_SUBJECT subject
+		left join APP_SUBJECT_CONTENT_TEXT asct on subject.ID=asct.SUBJECT_ID
+		left join APP_CONTENT_TEXT act on asct.CONTENT_TEXT_ID=act.ID
+		<where>
+		<if test="query != null and query != ''">
+			and subject.ID = #{query}
+		</if>
+		</where>
+	</select>
+
+	<select id="getAppQuestionPage" parameterType="com.tce.smart.app.dto.AppQuestionDto" resultType="com.tce.smart.app.entity.AppSubject">
+		select subject.ID,subject.SUBJECT_NAME,subject.CREATE_TIME from
+		APP_SUBJECT subject
+		left join APP_SUBJECT_CONTENT_TEXT asct on subject.ID=asct.SUBJECT_ID
+		left join APP_CONTENT_TEXT act on asct.CONTENT_TEXT_ID=act.ID
+		where subject.del_flag = '1'
+		<if test="query.subjectName != null and query.subjectName != ''">
+			    and subject.SUBJECT_NAME LIKE #{query.subjectName}
+		</if>
+		<if test="query.startTime != null and query.startTime != ''">
+			  <![CDATA[   and subject.CREATE_TIME >=  to_date(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')   ]]>
+		</if>
+		<if test="query.endTime != null and query.endTime != ''">
+			  <![CDATA[   and subject.CREATE_TIME <=  to_date(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')   ]]>
+		</if>
+		<if test="query.catalogCode != null and query.catalogCode != ''">
+			and subject.CATALOG_CODE = #{query.catalogCode}
+		</if>
+		order by subject.UPDATE_TIME desc
+	</select>
+</mapper>

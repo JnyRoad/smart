@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.tce</groupId>
+		<artifactId>smart-common</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>smart-common-security</artifactId>
+	<packaging>jar</packaging>
+
+	<description>安全工具类</description>
+
+
+	<dependencies>
+		<!--工具类核心包-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-core</artifactId>
+		</dependency>
+		<!--安全模块-->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security.oauth.boot</groupId>
+			<artifactId>spring-security-oauth2-autoconfigure</artifactId>
+		</dependency>
+		<!--UPMS API-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-upms-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.github.openfeign</groupId>
+			<artifactId>feign-hystrix</artifactId>
+			<version>10.12</version>
+		</dependency>
+		<!--缓存操作-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-data</artifactId>
+		</dependency>
+	</dependencies>
+</project>

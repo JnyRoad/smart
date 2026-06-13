@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtIscCardImportDetailMapper">
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.entity.SmtIscCardImportDetail">
+		SELECT
+			ID,
+			BATCH_ID,
+			STAFF_ID,
+			BADGE,
+			NAME,
+			PARK_ID,
+			DISPATCHER_PARK_ID,
+			PERSON_ID,
+			ISC_CARD_NO,
+			LOCAL_CARD_NO,
+			RESULT_CODE,
+			RESULT_DESC,
+			REASON,
+			CREATE_TIME,
+			UPDATE_TIME
+		FROM SMT_ISC_CARD_IMPORT_DETAIL
+		<where>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND PARK_ID IN
+				<foreach collection="query.parkIds" item="parkId" open="(" separator="," close=")">
+					#{parkId}
+				</foreach>
+			</if>
+			<if test="query.batchId != null">
+				AND BATCH_ID = #{query.batchId}
+			</if>
+			<if test="query.badge != null and query.badge != ''">
+				AND BADGE LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+			</if>
+			<if test="query.name != null and query.name != ''">
+				AND NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.iscCardNo != null and query.iscCardNo != ''">
+				AND ISC_CARD_NO LIKE CONCAT(CONCAT('%',#{query.iscCardNo}),'%')
+			</if>
+			<if test="query.resultCode != null and query.resultCode != ''">
+				AND RESULT_CODE = #{query.resultCode}
+			</if>
+		</where>
+		ORDER BY CREATE_TIME DESC, ID DESC
+	</select>
+</mapper>

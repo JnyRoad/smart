@@ -1,0 +1,47 @@
+.vehicle_add{
+  .img-info{
+    max-width: 200px;
+    .img-outer{
+      .img-inner{
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        background-color: #F4F8FE;
+      }
+    }
+  }
+  .minWidth{
+    min-width: 40%;
+  }
+  .avatar-uploader-icon{
+    width: 100%;
+    height: 100%;
+    font-size: 12px !important;
+    font-style: normal;
+    text-align: center;
+    color: #999;
+    padding-top: 30%;
+    display: inline-block;
+    background-position: center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+  }
+  .car-img{
+    .avatar-uploader-icon{
+      background-image: url('/img/car_upload.png');
+    }
+  }
+  .person-img{
+    .avatar-uploader-icon{
+      background-image: url('/img/person_upload.png');
+    }
+  }
+  .form-outer{
+    margin-top: 40px;
+    max-width: 400px;
+  }
+  .el-form-item__label{
+    text-align: left;
+  }
+}

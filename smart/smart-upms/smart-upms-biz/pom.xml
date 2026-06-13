@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.tce</groupId>
+		<artifactId>smart-upms</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>smart-upms-biz</artifactId>
+	<packaging>jar</packaging>
+
+	<description>通用用户权限管理系统业务处理模块</description>
+
+	<dependencies>
+		<!--upms api、model 模块-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-upms-api</artifactId>
+		</dependency>
+		<!--日志处理-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-log</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-data</artifactId>
+		</dependency>
+		<!--swagger-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-swagger</artifactId>
+		</dependency>
+		<!--spring security 、oauth、jwt依赖-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-security</artifactId>
+		</dependency>
+		<!--支持动态路由配置 -->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-gateway</artifactId>
+		</dependency>
+		<!--mybatis-->
+		<dependency>
+			<groupId>com.baomidou</groupId>
+			<artifactId>mybatis-plus-boot-starter</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.mybatis</groupId>
+			<artifactId>mybatis</artifactId>
+		</dependency>
+		<!--数据库-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>oracle</artifactId>
+		</dependency>
+		<!--web 模块-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<!--undertow容器-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-undertow</artifactId>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<includeSystemScope>true</includeSystemScope>
+					<mainClass>com.tce.smart.admin.SmartAdminApplication</mainClass>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.spotify</groupId>
+				<artifactId>docker-maven-plugin</artifactId>
+				<version>1.2.2</version>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

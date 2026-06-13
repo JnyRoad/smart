@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtVehicleMapper">
+
+  <resultMap id="smtVehicleMap" type="com.tce.smart.platform.core.entity.SmtVehicle">
+                  <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="vehiclePlate" column="VEHICLE_PLATE"/>
+                        <result property="vehicleBrand" column="VEHICLE_BRAND"/>
+                        <result property="vehicleColor" column="VEHICLE_COLOR"/>
+                        <result property="vehicleType" column="VEHICLE_TYPE"/>
+                        <result property="driverLicenseId" column="DRIVER_LICENSE_ID"/>
+                        <result property="drivinglLicenseId" column="DRIVINGL_LICENSE_ID"/>
+                        <result property="vehicleAscription" column="VEHICLE_ASCRIPTION"/>
+                        <result property="isDelete" column="IS_DELETE"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+            </resultMap>
+
+			<select id="getApplyVehicle" resultType="int">
+				SELECT
+					COUNT (*)
+				FROM
+					SMT_VEHICLE_APPLY SVA
+				LEFT JOIN SMT_VEHICLE SV ON SVA.VEHICLE_ID = SV."ID"
+				WHERE
+					SV.IS_DELETE = #{isDelete}
+				AND SV.VEHICLE_PLATE = #{vehiclePlate}
+				AND instr(','||SVA.PARK_ID||',', ',' <![CDATA[||]]> #{parkId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
+				AND SVA.STATUS != #{status}
+			</select>
+
+            <select id="getVehicle" resultType="com.tce.smart.platform.core.vo.VehicleVO">
+				SELECT
+					SV. ID,
+					SVS.VEHICLE_ID,
+					SS.NAME,
+					SS.BADGE,
+					SV.VEHICLE_PLATE,
+					SS.PHONE,
+					SS.DEP_NAME,
+					SV.VEHICLE_TYPE,
+					SV.IS_DELETE,
+					SS.JCHE_NAME,
+					SV.PARK_ID,
+					SS.STATUS AS STAFF_STATUS,
+					SV.CREATE_TIME
+				FROM
+					SMT_VEHICLE SV
+				LEFT JOIN SMT_VEHICLE_STAFF SVS ON SV. ID = SVS.VEHICLE_ID
+				LEFT JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS. ID
+				INNER JOIN SMT_VEHICLE_APPLY VA on SV.VEHICLE_PLATE=VA.VEHICLE_PLATE
+				<where>
+					SV.VEHICLE_ASCRIPTION = 0 and SV.IS_DELETE=0
+					<if test="query.authorityId != null and query.authorityId != ''">
+						and VA.AUTHORITY_ID=#{query.authorityId}
+					</if>
+					<if test="query.name != null and query.name != ''">
+						AND SS.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+					</if>
+					<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+						AND SV.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+					</if>
+					<if test="query.vehicleType != null and query.vehicleType != ''">
+						AND SV.VEHICLE_TYPE = #{query.vehicleType}
+					</if>
+					<if test="query.depId != null and query.depId != ''">
+						AND SS.DEP_ID = #{query.depId}
+					</if>
+					<if test="query.compId != null and query.compId != ''">
+						AND SS.COMP_ID = #{query.compId}
+					</if>
+					<if test="query.staffStatus != null and query.staffStatus != ''">
+						AND SS.STATUS = #{query.staffStatus}
+					</if>
+					<if test="query.welfareLevel != null and query.welfareLevel != ''">
+						AND SS.JCHE_NAME = #{query.welfareLevel}
+					</if>
+					<if test="query.isDelete != null and query.isDelete != ''">
+						AND SV.IS_DELETE = #{query.isDelete}
+					</if>
+					<if test="query.parkId != null and query.parkId != ''">
+						AND instr(','||SV.PARK_ID||',', ',' <![CDATA[||]]> #{query.parkId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
+					</if>
+					<if test="query.parkIds != null and query.parkIds.size > 0">
+						<foreach collection="query.parkIds" item="tempId" open="AND (" close=")" separator="or">
+							instr(','||SV.PARK_ID||',', ',' <![CDATA[||]]> #{tempId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
+						</foreach>
+					</if>
+				</where>
+					ORDER BY SV.CREATE_TIME DESC
+            </select>
+
+			<select id="getStaffVehicle" resultType="com.tce.smart.platform.core.vo.VehicleVO">
+				SELECT
+					SV. ID,
+					SVS.VEHICLE_ID,
+					SS.NAME,
+					SS.BADGE,
+					SV.VEHICLE_PLATE,
+					SS.PHONE,
+					SS.DEP_NAME,
+					SV.VEHICLE_TYPE,
+					SV.IS_DELETE,
+					SS.JCHE_NAME,
+					SS.STATUS AS STAFF_STATUS,
+					SV.PARK_ID,
+					SV.CREATE_TIME
+				FROM
+				SMT_VEHICLE SV
+				LEFT JOIN SMT_VEHICLE_STAFF SVS ON SV. ID = SVS.VEHICLE_ID
+				LEFT JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS. ID
+				RIGHT JOIN (
+				SELECT
+				DISTINCT SVA.VEHICLE_ID
+				FROM
+				SMT_VEHICLE_APPLY SVA
+				<where>
+					<if test="query.status != null">
+						AND SVA.STATUS = #{query.status}
+					</if>
+					<if test="query.authorityId != null">
+						AND SVA.AUTHORITY_ID = #{query.authorityId}
+					</if>
+				</where>
+				) SVA ON SVA.VEHICLE_ID = SV. ID
+				<where>
+					SV.VEHICLE_ASCRIPTION = 1
+					and SV.IS_DELETE=0
+					<if test="query.name != null and query.name != ''">
+						AND SS.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+					</if>
+					<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+						AND SV.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+					</if>
+					<if test="query.vehicleType != null and query.vehicleType != ''">
+						AND SV.VEHICLE_TYPE = #{query.vehicleType}
+					</if>
+					<if test="query.depId != null and query.depId != ''">
+						AND SS.DEP_ID = #{query.depId}
+					</if>
+					<if test="query.compId != null and query.compId != ''">
+						AND SS.COMP_ID = #{query.compId}
+					</if>
+					<if test="query.staffStatus != null and query.staffStatus != ''">
+						AND SS.STATUS = #{query.staffStatus}
+					</if>
+					<if test="query.welfareLevel != null  and query.welfareLevel != ''">
+						AND SS.JCHE_NAME = #{query.welfareLevel}
+					</if>
+					<if test="query.isDelete != null">
+						AND SV.IS_DELETE = #{query.isDelete}
+					</if>
+					<if test="query.parkId != null and query.parkId != ''">
+						AND instr(','||SV.PARK_ID||',', ',' <![CDATA[||]]> #{query.parkId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
+					</if>
+					<if test="query.parkIds != null and query.parkIds.size > 0">
+						<foreach collection="query.parkIds" item="tempId" open="AND (" close=")" separator="or">
+							instr(','||SV.PARK_ID||',', ',' <![CDATA[||]]> #{tempId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
+						</foreach>
+					</if>
+				</where>
+				ORDER BY SV.CREATE_TIME DESC
+			</select>
+
+			<select id="getNotStaffVehicle" resultType="com.tce.smart.platform.core.vo.NotStaffVehicleVO">
+				SELECT
+					SV.ID,
+					SNS.NAME,
+					SNS.PHONE,
+					SNS.REMARK,
+					VA.PARK_ID,
+					SV.VEHICLE_PLATE,
+					SV.VEHICLE_BRAND,
+					SV.VEHICLE_COLOR,
+					SV.VEHICLE_TYPE,
+					SV.DRIVER_LICENSE_ID,
+					SV.DRIVINGL_LICENSE_ID,
+					VA.AUTHORITY_ID,
+					SV.CREATE_TIME
+				FROM
+				SMT_NOT_STAFF SNS
+				LEFT JOIN SMT_VEHICLE SV ON SV.ID = SNS.VEHICLE_ID
+				LEFT JOIN SMT_VEHICLE_APPLY VA ON SV.ID = VA.VEHICLE_ID
+				<where>
+					<if test="query.isDelete != null">
+						AND SV.IS_DELETE = #{query.isDelete}
+					</if>
+					<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+						AND SV.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+					</if>
+					<if test="query.vehicleAscription != null and query.vehicleAscription != ''">
+						AND SV.VEHICLE_ASCRIPTION = #{query.vehicleAscription}
+					</if>
+					<if test="query.authorityId != null">
+						AND VA.AUTHORITY_ID = #{query.authorityId}
+					</if>
+					<if test="query.parkId != null and query.parkId != ''">
+						AND instr(','||SNS.PARK_ID||',', ',' <![CDATA[||]]> #{query.parkId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
+					</if>
+					<if test="query.parkIds != null and query.parkIds.size > 0">
+						<foreach collection="query.parkIds" item="tempId" open="AND (" close=")" separator="or">
+							instr(','||SNS.PARK_ID||',', ',' <![CDATA[||]]> #{tempId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
+						</foreach>
+					</if>
+					<if test="query.id != null">
+						AND SV.ID = #{query.id}
+					</if>
+				</where>
+				ORDER BY SV.CREATE_TIME DESC
+			</select>
+
+			<select id="getWelfareLevel" resultType="String">
+				SELECT
+					SS.JCHE_NAME
+				FROM
+					SMT_VEHICLE_STAFF SVS
+				INNER JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS. ID
+				GROUP BY
+					SS.JCHE_NAME
+				ORDER BY
+					SS.JCHE_NAME
+			</select>
+
+            <select id="getDetail" parameterType="long" resultType="com.tce.smart.platform.core.vo.VehicleVO">
+            SELECT
+					*
+				FROM
+					(
+						SELECT
+							SV. ID,
+							SS. NAME,
+							SV.VEHICLE_PLATE,
+							SS.PHONE,
+							SS.DEP_NAME,
+							SV.VEHICLE_TYPE,
+							SV.DRIVER_LICENSE_ID,
+							SV.DRIVINGL_LICENSE_ID,
+							SS.FACE_PIC_ID,
+							SS.SEX,
+							SS.BADGE,
+							SS.CERTNO,
+							SV.VEHICLE_COLOR,
+							SV.VEHICLE_BRAND,
+							SV.VEHICLE_ASCRIPTION,
+							SS.COMP_ID,
+							SS.COMP_NAME,
+							SS.DEP_ID,
+							SV.PARK_ID,
+							SS. ID AS STAFF_ID
+						FROM
+							SMT_VEHICLE SV
+						LEFT JOIN SMT_VEHICLE_STAFF SVS ON SV. ID = SVS.VEHICLE_ID
+						LEFT JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS. ID
+						WHERE
+							SV. ID = #{id}
+					)
+				WHERE
+					ROWNUM = 1
+            </select>
+
+            <select id="getStaff" parameterType="int" resultType="com.tce.smart.platform.core.model.VehicleStaff">
+                SELECT
+				    SS. ID,
+				    SS. NAME
+				FROM
+				    SMT_STAFF SS
+				WHERE
+				    SS.DEP_ID = #{depId}
+            </select>
+
+            <update id="deleteVehilce">
+                UPDATE SMT_VEHICLE SV
+				SET SV.IS_DELETE = #{status}
+				WHERE
+				    SV."ID" =#{id}
+            </update>
+
+            <select id="getVehicleCountInfo" resultType="com.tce.smart.platform.core.vo.VehicleCountVO">
+	SELECT
+					(
+						SELECT
+							"COUNT" (DISTINCT SSV.VEHICLE_PLATE)
+						FROM
+							SMT_SNAP_VEHICLE SSV
+						WHERE
+							(
+								SSV.VEHICLE_ASCRIPTION = 1
+								OR SSV.VEHICLE_ASCRIPTION = 2
+							)
+						<if test="park!=null and park.size>0">
+							and SSV.PARK_ID in
+							<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+								#{item}
+							</foreach>
+						</if>
+					) AS INNER_TOTAL,
+					(
+						SELECT
+							"COUNT" (DISTINCT SSV.VEHICLE_PLATE)
+						FROM
+							SMT_SNAP_VEHICLE SSV
+						WHERE
+							(
+								SSV.VEHICLE_ASCRIPTION = 3
+								OR SSV.VEHICLE_ASCRIPTION = 4
+							)
+						<if test="park!=null and park.size>0">
+							and SSV.PARK_ID in
+							<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+								#{item}
+							</foreach>
+						</if>
+					) AS FOREIGN_TOTAL
+				FROM
+					dual
+            </select>
+
+			<select id="getParkBu"  resultType="com.tce.smart.platform.core.entity.SmtPark">
+				SELECT
+					SP.ID,
+					SP.PARK_NAME
+				FROM
+					SMT_PARK_BU SPB
+				INNER JOIN SMT_PARK SP ON SP.ID = SPB.PARK_ID
+				<where>
+					<if test="compId != null and compId != ''">
+						AND SPB.COMP_ID = #{compId}
+					</if>
+					<if test="parkIds != null and parkIds.size > 0">
+						AND SPB.PARK_ID IN
+						<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+							#{tempId}
+						</foreach>
+					</if>
+				</where>
+            </select>
+
+	<select id="getParkTempBu"  resultType="com.tce.smart.platform.core.entity.SmtPark">
+		SELECT
+		SP.ID,
+		SP.PARK_NAME
+		FROM
+		SMT_PARK SP, SMT_ORGANIZE_RELATION SOR
+		WHERE SP.ID=SOR.PARK_ID
+		<if test="compId != null and compId != ''">
+			AND SOR.ID = #{compId}
+		</if>
+		<if test="parkIds != null and parkIds.size > 0">
+			AND SOR.PARK_ID IN
+			<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+				#{tempId}
+			</foreach>
+		</if>
+	</select>
+
+	<select id="getVehicleAuth"  resultType="com.tce.smart.platform.core.dto.VehicleAuthDTO">
+		SELECT
+			va.ID,ve.VEHICLE_PLATE,ve.ID as VID
+		FROM
+			SMT_VEHICLE ve
+			JOIN SMT_VEHICLE_APPLY va ON va.VEHICLE_ID = ve.ID
+		WHERE
+			va.AUTHORITY_ID = #{authId} and ve.VEHICLE_ASCRIPTION=#{type} and va.STATUS=1
+	</select>
+
+	<select id="getVehicleAuthAll"  resultType="com.tce.smart.platform.core.dto.VehicleAuthDTO">
+		SELECT
+			va.ID,ve.VEHICLE_PLATE,ve.ID as VID
+		FROM
+			SMT_VEHICLE ve
+			JOIN SMT_VEHICLE_APPLY va ON va.VEHICLE_ID = ve.ID
+		WHERE
+			va.AUTHORITY_ID = #{authId} and va.STATUS=1
+	</select>
+</mapper>

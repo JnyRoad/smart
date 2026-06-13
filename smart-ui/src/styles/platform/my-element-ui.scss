@@ -1,0 +1,54 @@
+.el-button{
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.el-button.is-round{
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.el-button--mini, .el-button--small{
+  font-size: 14px;
+}
+.el-card{
+  color: #333;
+}
+.el-textarea__inner{
+  resize: none;
+}
+.avue-sidebar .el-menu-item,
+.avue-sidebar .el-submenu__title{
+  height: 45px;
+  line-height: 45px;
+}
+.avue-sidebar .el-submenu .el-menu-item{
+  height: 45px;
+  line-height: 45px;
+}
+.avue-crud__pagination{
+  margin-bottom: 20px;
+}
+.el-input--mini .el-input__inner {
+  height: 32px!important;
+  line-height: 32px!important;
+}
+.el-range-editor--mini.el-input__inner{
+  height: 32px!important;
+}
+.el-col{
+  margin-bottom: 0;
+}
+
+.el-dialog__body{
+  padding: 10px 50px 0 40px;
+}
+.el-dialog__footer{
+  border-top: 1px solid #EEF0F2;
+  padding-top: 20px;
+}
+
+.el-tabs--card>.el-tabs__header .el-tabs__nav{
+  border: none;
+}
+.el-tabs--card>.el-tabs__header .el-tabs__item{
+  border-left: none;
+}

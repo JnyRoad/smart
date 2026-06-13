@@ -2,7 +2,7 @@
 
 智慧园区 H5 应用，基于 Next.js App Router、React、TypeScript、antd-mobile 和 Tailwind CSS 构建，面向微信内嵌 H5 场景。
 
-当前已覆盖认证、首页、公告、我的、访客、帮助中心、宿舍、门锁和宿舍报修等阶段一功能。后续模块继续在本目录内按现有 `src/features/` 结构扩展。
+当前已覆盖认证、首页、公告、我的、访客、帮助中心、宿舍、门锁、宿舍报修、入住/退宿、物品放行、返厂、待办审批等移动端流程。后续模块继续在本目录内按现有 `src/app/` 路由和 `src/features/` 业务域结构扩展。
 
 ## 命令
 
@@ -26,6 +26,7 @@ src/features/     业务模块（api + 流程逻辑）
 src/lib/          API 兼容层 / 认证存储 / 租户配置 / 微信 OAuth
 src/components/   跨模块通用组件
 e2e/              Playwright 用例（网络层 mock）
+scripts/          standalone 部署产物整理脚本
 public/config.js  运行时租户配置（window.__SMART_CONFIG__，部署期渲染）
 ```
 
@@ -36,7 +37,7 @@ public/config.js  运行时租户配置（window.__SMART_CONFIG__，部署期渲
 - 全量页面清单（69 页）：docs/superpowers/specs/2026-06-11-page-inventory.md
 - 原型规格与 mockup：docs/prototype/
 
-## 已实现（阶段一）
+## 已实现
 
 - **认证**：微信 snsapi_base 静默授权 → `POST auth:/wx/public/token`（Basic）换 token；
   已绑定员工无感进 `/home`；未绑定 → `/login/badge` 工号 + 身份证后六位绑定
@@ -61,6 +62,8 @@ public/config.js  运行时租户配置（window.__SMART_CONFIG__，部署期渲
   未入住回跳）、`/dorm/get-code` 人脸刷新动态码。
 - **宿舍报修（3 页）**：`/dorm-repairs` 工单提交（区域→楼栋联动、base64 多图）、
   列表（状态配色）、详情（审批时间线 + 维修结果区）。
+- **入住 / 退宿 / 返厂 / 物品放行 / 待办**：`/check-in`、`/dorm-exit`、
+  `/return-factory`、`/good-release`、`/backlog` 相关路由和 E2E 用例已在当前目录中存在。
 
 ## 关键实现说明
 
@@ -69,9 +72,8 @@ public/config.js  运行时租户配置（window.__SMART_CONFIG__，部署期渲
 - `src/lib/react19-compat.ts`：antd-mobile v5 命令式 API 的 React 19 适配（官方 unstableSetRender 方案）。
 - 多租户：`public/config.js` 注入 `window.__SMART_CONFIG__`，部署期按租户渲染。
 
-## 待办
+## 后续重点
 
-- 访客模块（重点，许昌/合肥双流程配置化）
-- 敏感字段 AES 加解密
-- 微信 JSSDK 扫码（真机 Spike：JS 安全域名/授权回调域名配置）
-- 短信登录、PDF 的 pdfjs 渲染、审批/宿舍等业务模块
+- 继续补齐许昌/合肥等租户差异的配置化路径。
+- 微信 JSSDK 能力需要真机、JS 安全域名和授权回调域名联调验证。
+- 涉及敏感字段、短信、PDF 渲染和审批细节时，先对照当前后端 API 和真实移动端流程。

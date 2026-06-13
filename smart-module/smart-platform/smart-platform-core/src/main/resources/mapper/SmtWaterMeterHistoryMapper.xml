@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.watermeter.SmtWaterMeterHistoryMapper">
+
+	<select id="maxReading" resultType="com.tce.smart.platform.core.dto.meter.MeterReadHisDTO">
+		SELECT
+			current_reading
+		FROM
+			smt_water_meter_history
+		WHERE
+			is_delete = 0
+			AND water_meter_id = #{meterId}
+			<if test="firstDay != null and firstDay != ''">
+				AND collect_time >= to_date( #{firstDay}, 'yyyy-mm-dd hh24:mi:ss' )
+			</if>
+			<if test="lastDay != null and lastDay != ''">
+				AND to_date( #{lastDay}, 'yyyy-mm-dd hh24:mi:ss' ) >= collect_time
+			</if>
+		order by collect_time desc
+	</select>
+
+	<select id="initReading" resultType="com.tce.smart.platform.core.dto.meter.MeterReadHisDTO">
+		SELECT
+			current_reading
+		FROM
+			smt_water_meter_history
+		WHERE
+			is_delete = 0
+			AND water_meter_id = #{meterId}
+			<if test="meterMonth != null and meterMonth != ''">
+				AND collect_time >= to_date( #{meterMonth}, 'yyyy-mm-dd hh24:mi:ss' )
+			</if>
+		order by collect_time asc
+	</select>
+</mapper>

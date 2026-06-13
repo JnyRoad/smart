@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtStaffDeviceAuthMapper">
+
+
+	<select id="getSecurityAuth" resultType="com.tce.smart.platform.core.entity.SmtStaffDeviceAuth">
+	            SELECT
+				SDA.STAFF_ID, SDA.AUTH_ID,SDA.CREATE_TIME
+				FROM SMT_STAFF_DEVICE_AUTH SDA
+				LEFT JOIN SMT_DEVICE_AUTHORITY DA ON SDA.AUTH_ID = DA.ID
+				WHERE
+				SDA.AUTH_TYPE = 2 AND DA.PARK_ID = #{parkId}
+				ORDER BY SDA.CREATE_TIME DESC
+            </select>
+</mapper>

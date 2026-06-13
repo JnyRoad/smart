@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.leavecount.mapper.SmtSettlementTemplateRuleMapper">
+
+  <resultMap id="smtSettlementTemplateRuleMap" type="com.tce.smart.platform.core.entity.leavecount.SmtSettlementTemplateRule">
+                  <id property="id" column="ID"/>
+                        <result property="tempId" column="TEMP_ID"/>
+                        <result property="categoryId" column="CATEGORY_ID"/>
+                        <result property="monthNum" column="MONTH_NUM"/>
+                        <result property="standardQty" column="STANDARD_QTY"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+            </resultMap>
+</mapper>

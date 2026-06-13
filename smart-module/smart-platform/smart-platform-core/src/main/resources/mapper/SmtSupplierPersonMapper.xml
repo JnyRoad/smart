@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSupplierPersonMapper">
+
+	<resultMap id="SupplierPersonData" type="com.tce.smart.platform.core.dto.SmtSupplierPersonDTO">
+		<id property="id" column="id"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="companyName" column="COMPANY_NAME"/>
+		<result property="personName" column="PERSON_NAME"/>
+		<result property="idCard" column="ID_CARD"/>
+		<result property="phone" column="PHONE"/>
+		<result property="remark" column="REMARK"/>
+	</resultMap>
+
+	<select id="getSupplierPersonPage" parameterType="com.tce.smart.platform.core.dto.SmtSupplierPersonDTO"
+			resultMap="SupplierPersonData">
+		select
+		sp.ID,ss.PARK_ID,ss.COMPANY_NAME,sp.PERSON_NAME,sp.ID_CARD,sp.PHONE,sp.REMARK,park.PARK_NAME,sp.CREATE_TIME
+		from SMT_SUPPLIER_PERSON sp
+		left join SMT_SECURITYAREA_SUPPLIER ss on sp.SUPPLIER_ID=ss.ID
+		left join SMT_PARK park on ss.PARK_ID=park.ID
+		<where>
+			<if test="query.parkId != null">
+				AND ss.PARK_ID=#{query.parkId}
+			</if>
+			<if test="query.supplierId != null">
+				AND ss.Id=#{query.supplierId}
+			</if>
+
+			<if test="query.companyName != null and  query.companyName !=''">
+				AND ss.COMPANY_NAME=#{query.companyName}
+			</if>
+
+			<if test="query.personName != null and  query.personName !=''">
+				AND sp.PERSON_NAME like concat(concat('%',#{query.personName}),'%')
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and ss.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		ORDER BY sp.CREATE_TIME desc
+	</select>
+
+
+</mapper>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwAcardlostAllMapper">
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwAcardlostAll">
+		<result column="BADGE" property="BADGE" />
+		<result column="NAME" property="NAME" />
+		<result column="KQSTARTDATE" property="KQSTARTDATE" />
+		<result column="REASON" property="REASON" />
+		<result column="SHIFT" property="SHIFT" />
+		<result column="DEPID" property="DEPID" />
+	</resultMap>
+
+	<!-- 通用查询结果列 -->
+	<sql id="Base_Column_List">
+        BADGE, NAME, KQSTARTDATE, DEPID, REASON, SHIFT
+    </sql>
+
+	<select id="list" resultMap="BaseResultMap">
+		SELECT <include refid="Base_Column_List"></include>
+		FROM evw_ACARDLOST_ALL
+		WHERE evw_ACARDLOST_ALL.BADGE = #{badge, jdbcType = VARCHAR}
+		<if test="queryMonth != null and queryMonth != ''">
+			AND CONVERT(VarChar(7), evw_ACARDLOST_ALL.KQSTARTDATE, 120) = #{ queryMonth, jdbcType = VARCHAR }
+		</if>
+		ORDER BY evw_ACARDLOST_ALL.KQSTARTDATE
+	</select>
+</mapper>

@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDeviceTaskMapper">
+
+	<select id="getDown" resultType="com.tce.smart.platform.core.entity.SmtDeviceTask">
+		SELECT
+		    SDA.*
+		FROM
+			SMT_DEVICE_TASK SDA
+			join SMT_DEVICE device on sda.DEVICE_CODE=device.ID
+		WHERE
+			NVL(SDA.STATUS, 0) = 0
+		AND SDA.OVER_TIME <![CDATA[>]]> #{overTime}
+		AND SDA.START_TIME <![CDATA[<]]>  #{overTime}
+		AND (SDA.ACTION = 1 or SDA.ACTION = 3)
+		AND SDA.DEVICE_TYPE = #{deviceType}
+		AND NVL(SDA.CODE, -1) != 200
+		and device.CONNECT_STATUS=2
+		ORDER BY SDA.TIMES ASC
+	</select>
+
+	<select id="getDelayDown" resultType="com.tce.smart.platform.core.entity.SmtDeviceTask">
+		SELECT
+		    SDA.*
+		FROM
+			SMT_DEVICE_TASK SDA
+			join SMT_DEVICE device on sda.DEVICE_CODE=device.ID
+		WHERE
+			NVL(SDA.STATUS, 0) = 0
+		AND SDA.OVER_TIME <![CDATA[>]]> #{overTime}
+		AND SDA.START_TIME <![CDATA[<]]>  #{overTime}
+		AND (SDA.ACTION = 11 or SDA.ACTION = 13)
+		AND SDA.DEVICE_TYPE = #{deviceType}
+		AND NVL(SDA.CODE, -1) != 200
+		and device.CONNECT_STATUS=2
+		ORDER BY SDA.TIMES ASC
+	</select>
+
+	<select id="getDel" resultType="com.tce.smart.platform.core.entity.SmtDeviceTask">
+		SELECT
+		    SDA.*
+		FROM
+			SMT_DEVICE_TASK SDA
+			join SMT_DEVICE device on sda.DEVICE_CODE=device.ID
+		WHERE
+			SDA.STATUS = 0
+			AND SDA.ACTION = 2
+			AND SDA.OVER_TIME <![CDATA[<]]> #{overTime}
+			AND SDA.DEVICE_TYPE = #{deviceType}
+			AND NVL(SDA.CODE, -1) != 200
+			and device.CONNECT_STATUS=2
+		ORDER BY SDA.TIMES ASC
+	</select>
+
+	<select id="getDelayDel" resultType="com.tce.smart.platform.core.entity.SmtDeviceTask">
+		SELECT
+		    SDA.*
+		FROM
+			SMT_DEVICE_TASK SDA
+			join SMT_DEVICE device on sda.DEVICE_CODE=device.ID
+		WHERE
+			SDA.STATUS = 0
+			AND SDA.ACTION = 12
+			AND SDA.OVER_TIME <![CDATA[<]]> #{overTime}
+			AND SDA.DEVICE_TYPE = #{deviceType}
+			AND NVL(SDA.CODE, -1) != 200
+			and device.CONNECT_STATUS=2
+		ORDER BY SDA.TIMES ASC
+	</select>
+
+	<select id="getDeviceTask" resultType="com.tce.smart.platform.core.entity.SmtDeviceTask">
+		SELECT
+		    SDA.ID,
+			SDA.DEVICE_TYPE
+		FROM
+			SMT_DEVICE_TASK SDA
+		WHERE
+			SDA.DEVICE_CODE = #{deviceCode}
+			AND SDA.CARD_NO= #{cardNo}
+			AND (SDA.STATUS = 0 OR SDA.STATUS = 1 OR SDA.STATUS = 3)
+		ORDER BY SDA.ID ASC
+	</select>
+
+	<select id="getDeviceCode" resultType="String">
+		SELECT
+		SDT.DEVICE_CODE
+		FROM
+		SMT_DEVICE_TASK SDT
+		<where>
+			<if test="query.cardNo != null and query.cardNo != ''">
+				AND SDT.CARD_NO = #{query.cardNo}
+			</if>
+
+			<if test="query.deviceType != null">
+				AND SDT.DEVICE_TYPE = #{query.deviceType}
+			</if>
+		</where>
+		ORDER BY SDA.ID ASC
+	</select>
+
+	<select id="getPerson" resultType="com.tce.smart.platform.core.vo.TaskDownRecordVO">
+		SELECT
+		SDT.ID,
+		SDT.CARD_NO,
+		SDT.DEVICE_CODE,
+		SDT.SERVICE_TYPE,
+		SDT.STATUS TASK_TYPE,
+		SDT.GENERAL,
+		SDT.CREATE_TIME,
+		SS.BADGE,
+		SDT.ACTION,
+		SDT.UPDATE_TIME OVER_TIME,
+		SDT.ID TASK_ID,
+		SD.DEVICE_NAME,
+		SD.DEVICE_TYPE,
+		SDT.REMARK,
+		SA.AREA_NAME
+		FROM
+		SMT_DEVICE_TASK SDT
+		LEFT JOIN SMT_STAFF SS ON SDT.CARD_NO = SS."ID"
+		LEFT JOIN SMT_DEVICE SD ON SD.ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_DEVICE_AREA SDA ON SDA.DEVICE_ID = SD.ID
+		LEFT JOIN SMT_AREA SA ON SA.ID = SDA.AREA_ID
+		<where>
+			SDT.DEVICE_TYPE = 1
+			<if test="query.taskType != null and  query.taskType != ''">
+				AND SDT.STATUS = #{query.taskType}
+			</if>
+			<if test="query.action != null and  query.action != ''">
+				AND SDT.ACTION = #{query.action}
+			</if>
+			<if test="query.deviceCode != null and  query.deviceCode != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceCode}
+			</if>
+			<if test="query.general != null and  query.general != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.general}),'%')
+			</if>
+			<if test="query.badge != null and  query.badge != ''">
+				AND SS.BADGE = #{query.badge}
+			</if>
+			<if test="query.deviceType != null">
+				AND SD.DEVICE_TYPE = #{query.deviceType}
+			</if>
+			<if test="query.areaId != null">
+				AND SA.ID = #{query.areaId}
+			</if>
+			<if test="query.serviceType != null">
+				AND SDT.SERVICE_TYPE = #{query.serviceType}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SDT.CREATE_TIME <![CDATA[>=]]>
+				TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND SDT.CREATE_TIME <![CDATA[<]]>
+				TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd') + 1
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SD.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC, SDT.UPDATE_TIME DESC
+	</select>
+
+	<select id="getPersonForISC" resultType="com.tce.smart.platform.core.vo.ISCTaskDownRecordVO">
+		SELECT
+		    SDT.ID, SDT.CARD_NO, SDT.DEVICE_CODE, SDT.SERVICE_TYPE,
+		    SDT.STATUS TASK_TYPE, SDT.GENERAL, SDT.ACTION, SDT.CREATE_TIME,
+		    SS.BADGE, SDT.UPDATE_TIME OVER_TIME, SD.DEVICE_NAME,
+		    SD.DEVICE_TYPE, SDT.REMARK, SA.AREA_NAME, SDT.OPT_USER
+		FROM (
+		    SELECT * FROM SMT_ISC_DEVICE_TASK
+		    WHERE DEVICE_TYPE = 1
+			<if test="query.taskType != null">
+				AND STATUS = #{query.taskType}
+			</if>
+			<if test="query.action != null">
+				AND ACTION = #{query.action}
+			</if>
+			<if test="query.deviceCode != null and  query.deviceCode != ''">
+				AND DEVICE_CODE = #{query.deviceCode}
+			</if>
+			<if test="query.general != null and  query.general != ''">
+				AND GENERAL LIKE CONCAT(CONCAT('%',#{query.general}),'%')
+			</if>
+			<if test="query.serviceType != null">
+				AND SERVICE_TYPE = #{query.serviceType}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND CREATE_TIME <![CDATA[>=]]> TO_DATE(#{query.startTime} || ' 00:00:00', 'yyyy-MM-dd HH24:MI:SS')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND CREATE_TIME <![CDATA[<=]]> TO_DATE(#{query.endTime} || ' 23:59:59', 'yyyy-MM-dd HH24:MI:SS')
+			</if>
+		) SDT
+		LEFT JOIN SMT_DEVICE SD ON SD.ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_STAFF SS ON SDT.CARD_NO = SS."ID"
+		LEFT JOIN SMT_DEVICE_AREA SDA ON SDA.DEVICE_ID = SD.ID
+		LEFT JOIN SMT_AREA SA ON SA.ID = SDA.AREA_ID
+		<where>
+			1=1
+			<if test="query.badge != null and  query.badge != ''">
+				AND SS.BADGE = #{query.badge}
+			</if>
+			<if test="query.deviceType != null">
+				AND SD.DEVICE_TYPE = #{query.deviceType}
+			</if>
+			<if test="query.deviceName != null and  query.deviceName != ''">
+				AND SD.DEVICE_NAME LIKE CONCAT(CONCAT('%',#{query.deviceName}),'%')
+			</if>
+			<if test="query.areaId != null">
+				AND SA.ID = #{query.areaId}
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SD.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC, SDT.UPDATE_TIME DESC
+	</select>
+
+	<select id="listSmtDeviceTask" resultType="com.tce.smart.platform.core.entity.SmtDeviceTask">
+		SELECT
+				V_SDT.CARD_NO,
+                V_SDT.GENERAL,
+				V_SDT.IMAGE_ID
+			FROM
+				(
+					SELECT
+						ROW_NUMBER () OVER (
+							PARTITION BY SDT.CARD_NO
+							ORDER BY SDT.CREATE_TIME
+						) rn,
+						SDT.CARD_NO,
+				SDT.GENERAL,
+						SDT.IMAGE_ID
+					FROM
+						SMT_DEVICE_TASK SDT
+					LEFT JOIN SMT_DEVICE SD ON SDT.DEVICE_CODE = SD."ID"
+					<where>
+						<if test="query.general != null and query.general != ''">
+							AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.general}),'%')
+						</if>
+						<if test="query.parkId != null and query.parkId != ''">
+							AND SD.PARK_ID = #{query.parkId}
+						</if>
+						<if test="parkIds != null and parkIds.size > 0">
+							AND SD.PARK_ID IN
+							<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+								#{tempId}
+							</foreach>
+						</if>
+						<if test="query.deviceType != null">
+							AND SDT.DEVICE_TYPE = #{query.deviceType}
+						</if>
+						<if test="query.status != null">
+							AND SDT.STATUS = #{query.status}
+						</if>
+					</where>
+					ORDER BY SDT.CREATE_TIME DESC
+				) V_SDT
+	WHERE
+			V_SDT.RN = 1
+
+	</select>
+
+</mapper>

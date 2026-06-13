@@ -1,0 +1,46 @@
+-- 手工数据清理：软删除不符合海康 ISC 卡号规则的本地有效卡。
+-- 适用场景：旧版本或手工写库已经把非法卡号写入 SMT_ISC_STAFF_CARD，ISC 新增任务已被取消，本地仍显示“已有ISC卡片”。
+-- 海康 ISC 卡号规则：8-20 位数字或大写字母；999 开头为虚拟卡，不作为实体卡维护。
+-- 本脚本不会创建 ISC 删除任务，因为这些非法卡号不会成功写入 ISC。
+-- 前置条件：先执行 20260602_add_smt_isc_staff_card.sql 补齐同步状态字段；若主脚本提示非法有效卡，再执行本脚本并重跑主脚本。
+-- 执行前可先运行下面的 SELECT 预览影响范围：
+-- SELECT ID, STAFF_ID, BADGE, PARK_ID, DISPATCHER_PARK_ID, CARD_NO, CREATE_TIME, UPDATE_TIME
+-- FROM SMT_ISC_STAFF_CARD
+-- WHERE DEL_FLAG = 0
+--   AND (CARD_NO IS NULL OR NOT REGEXP_LIKE(CARD_NO, '^[0-9A-Z]{8,20}$') OR CARD_NO LIKE '999%');
+
+DECLARE
+	V_COUNT NUMBER;
+BEGIN
+	UPDATE SMT_ISC_STAFF_CARD
+	SET DEL_FLAG = 1,
+		ACTIVE_KEY = NULL,
+		SYNC_STATUS = 2,
+		LAST_TASK_ID = (
+			SELECT MAX(T.ID) KEEP (DENSE_RANK LAST ORDER BY T.CREATE_TIME, T.ID)
+			FROM SMT_ISC_CARD_TASK T
+			WHERE T.SOURCE_ID = SMT_ISC_STAFF_CARD.STAFF_ID
+			  AND T.PARK_ID = SMT_ISC_STAFF_CARD.DISPATCHER_PARK_ID
+			  AND T.CARD_NO = SMT_ISC_STAFF_CARD.CARD_NO
+			  AND T.ACTION = 1
+		),
+		LAST_SYNC_CODE = 506,
+		LAST_SYNC_REMARK = CASE
+			WHEN CARD_NO LIKE '999%' THEN '999开头为ISC虚拟卡号，不允许维护'
+			ELSE 'ISC卡号必须为8-20位数字或大写字母'
+		END,
+		LAST_SYNC_TIME = SYSDATE,
+		REMARK = '历史非法ISC卡号已清理',
+		DELETE_TIME = SYSDATE,
+		UPDATE_TIME = SYSDATE
+	WHERE DEL_FLAG = 0
+	  AND (
+		CARD_NO IS NULL
+		OR NOT REGEXP_LIKE(CARD_NO, '^[0-9A-Z]{8,20}$')
+		OR CARD_NO LIKE '999%'
+	  );
+
+	V_COUNT := SQL%ROWCOUNT;
+	DBMS_OUTPUT.PUT_LINE('Cleaned invalid active ISC staff cards: ' || V_COUNT);
+	COMMIT;
+END;

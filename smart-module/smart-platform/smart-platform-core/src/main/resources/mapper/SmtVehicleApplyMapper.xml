@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtVehicleApplyMapper">
+
+  <resultMap id="smtVehicleApplyMap" type="com.tce.smart.platform.core.entity.SmtVehicleApply">
+                  <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="vehiclePlate" column="VEHICLE_PLATE"/>
+                        <result property="vehicleId" column="VEHICLE_ID"/>
+                        <result property="status" column="STATUS"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="reason" column="REASON"/>
+            </resultMap>
+
+            <select id="getVehicleApply" resultType="com.tce.smart.platform.core.vo.VehicleApplyListVO">
+	            SELECT
+		SVA.ID,
+					SVS.VEHICLE_ID,
+					SP.PARK_NAME,
+					SS. NAME,
+					SS.DEP_NAME,
+					SVA.STATUS AS APPLY_STATUS,
+					SVA.CREATE_TIME,
+					SV.VEHICLE_PLATE,
+					SS.PHONE,
+					SS.WELFARE_LEVEL
+				FROM
+					SMT_VEHICLE_APPLY SVA
+				LEFT JOIN SMT_VEHICLE SV ON SV. ID = SVA.VEHICLE_ID
+				LEFT JOIN SMT_VEHICLE_STAFF SVS ON SV. ID = SVS.VEHICLE_ID
+				INNER JOIN SMT_STAFF SS ON SVS.STAFF_ID = SS. ID
+				LEFT JOIN SMT_PARK SP ON SVA.PARK_ID = SP. ID
+				<where>
+					<if test="query.vehiclePlate != null and query.vehiclePlate != ''">
+						AND SV.VEHICLE_PLATE LIKE CONCAT(CONCAT('%',#{query.vehiclePlate}),'%')
+					</if>
+					<if test="query.parkId != null and query.parkId != ''">
+						AND SVA.PARK_ID = #{query.parkId}
+					</if>
+
+					<if test="query.parkIds != null and query.parkIds.size > 0">
+						AND SVA.PARK_ID IN
+						<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+							#{tempId}
+						</foreach>
+					</if>
+					<if test="query.status != null">
+						AND SVA.STATUS = #{query.status}
+					</if>
+					<if test="query.startTime != null and query.startTime != ''">
+						AND TO_DATE(TO_CHAR(SVA.CREATE_TIME, 'YYYY-MM-DD'),'YYYY-MM-DD')  <![CDATA[>=]]> TO_DATE(#{query.startTime}, 'yyyy-MM-dd')
+					</if>
+					<if test="query.endTime != null and query.endTime != ''">
+						AND TO_DATE(TO_CHAR(SVA.CREATE_TIME, 'YYYY-MM-DD'),'YYYY-MM-DD')  <![CDATA[<=]]> TO_DATE(#{query.endTime}, 'yyyy-MM-dd')
+					</if>
+				</where>
+					ORDER BY SVA.CREATE_TIME DESC
+            </select>
+
+</mapper>

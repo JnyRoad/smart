@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityAuthRelationMapper">
+
+  <resultMap id="smtSecurityAuthRelationMap" type="com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthRelation">
+                  <id property="id" column="ID"/>
+                        <result property="securityId" column="SECURITY_ID"/>
+                        <result property="authId" column="AUTH_ID"/>
+            </resultMap>
+</mapper>

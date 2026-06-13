@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.ToC6EphotoMapper">
+
+	<select id="searchPage" parameterType="com.tce.smart.platform.core.dto.SearchToC6DTO" resultType="com.tce.smart.platform.core.vo.SearchToC6VO">
+
+		select id,emp_no empNo,name,photo photo,is_dispose isDispose,create_time createTime
+
+		from TO_C6_EPHOTO
+
+		<where>
+			<if test="query.name!=null and query.name!='' ">
+			AND name LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.empNo!=null  and query.empNo!=''">
+			AND emp_no LIKE CONCAT(CONCAT('%',#{query.empNo}),'%')
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+			AND create_time between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		</where>
+		order by create_time desc
+	</select>
+
+
+</mapper>

@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDevicePersonMapper">
+
+	<resultMap id="smtDevicePersonMap" type="com.tce.smart.platform.core.entity.SmtDevicePerson">
+		<id property="id" column="id"/>
+		<result property="deviceId" column="device_id"/>
+		<result property="staffId" column="staff_id"/>
+		<result property="deviceAuthorityId" column="device_authority_id"/>
+		<result property="createTime" column="create_time"/>
+	</resultMap>
+
+	<select id="getDevicePerson" resultType="com.tce.smart.platform.core.dto.DevicePersonDTO">
+		SELECT
+		SDT.CARD_NO,
+		SDT.ACTION,
+		SDT.IMAGE_ID,
+		SDT.GENERAL AS PERSON_NAME,
+		SDT.CREATE_TIME
+		FROM
+		SMT_TASK_DOWN_RECORD SDT
+		<where>
+			SDT.DEVICE_TYPE = 1
+			AND SDT.ACTION = 1
+			<if test="query.deviceId != null and query.deviceId != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceId}
+			</if>
+			<if test="query.name != null and  query.name != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.badge != null and  query.badge != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND SDT.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC
+	</select>
+
+	<select id="getISCDevicePerson" resultType="com.tce.smart.platform.core.dto.DevicePersonDTO">
+		SELECT
+		SDT.CARD_NO,
+		SDT.ACTION,
+		SDT.IMAGE_ID,
+		SDT.GENERAL AS PERSON_NAME,
+		SDT.CREATE_TIME
+		FROM
+		SMT_ISC_DOWN_RECORD SDT
+		<where>
+			SDT.DEVICE_TYPE = 1
+			AND SDT.ACTION = 1
+			<if test="query.deviceId != null and query.deviceId != ''">
+				AND SDT.DEVICE_CODE = #{query.deviceId}
+			</if>
+			<if test="query.name != null and  query.name != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.badge != null and  query.badge != ''">
+				AND SDT.GENERAL LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND SDT.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+		</where>
+		ORDER BY SDT.CREATE_TIME DESC
+	</select>
+
+	<select id="getDeviceAuthPerson" resultType="com.tce.smart.platform.api.dto.resp.DeviceAuthPersonRespDTO">
+		SELECT
+		SD.DEVICE_NAME,
+		SD.DEVICE_TYPE,
+		SDT.DEVICE_CODE,
+		SDT.CARD_NO,
+		SDT.IMAGE_ID,
+		SDT.SERVICE_TYPE,
+		SA.AREA_NAME,
+		SDT.GENERAL,
+		SDT.CREATE_TIME,
+		SDT.START_TIME,
+		SDT.OVER_TIME
+		FROM
+		SMT_TASK_DOWN_RECORD SDT
+		LEFT JOIN SMT_DEVICE SD ON SD.ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_DEVICE_AREA SDA ON SDA.DEVICE_ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_AREA SA ON SA.ID = SDA.AREA_ID
+		WHERE
+		SDT.ACTION = 1
+		AND SD.DEVICE_NAME IS NOT NULL
+		<if test="query.deviceId != null and query.deviceId != ''">
+			AND SD.ID = #{query.deviceId}
+		</if>
+		<if test="query.deviceName != null and query.deviceName != ''">
+			AND SD.DEVICE_NAME LIKE CONCAT('%', CONCAT(#{query.deviceName}, '%'))
+		</if>
+		<if test="query.badge != null and query.badge != ''">
+			AND SDT.GENERAL LIKE CONCAT('%', CONCAT(#{query.badge}, '%'))
+		</if>
+		<if test="query.deviceType != null">
+			AND SDT.DEVICE_TYPE = #{query.deviceType}
+		</if>
+		<if test="query.parkId != null or query.parAreaId != null or query.areaId != null">
+			AND SDA.AREA_ID IN (
+			SELECT SA."ID" FROM SMT_AREA SA
+			<where>
+				<if test="query.parkId != null">
+					AND SA.PARK_ID = #{query.parkId}
+				</if>
+				<if test="query.parAreaId != null">
+					AND SA.PID = #{query.parAreaId}
+				</if>
+				<if test="query.areaId != null">
+					AND SA."ID" = #{query.areaId}
+				</if>
+			</where>
+			)
+		</if>
+		<if test="query.parkIds != null and query.parkIds.size > 0">
+			AND SD.PARK_ID IN
+			<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+				#{tempId}
+			</foreach>
+		</if>
+		ORDER BY SDT.CREATE_TIME DESC
+	</select>
+
+	<select id="getISCDeviceAuthPerson" resultType="com.tce.smart.platform.api.dto.resp.DeviceAuthPersonRespDTO">
+		SELECT
+		SD.DEVICE_NAME,
+		SD.DEVICE_TYPE,
+		SDT.DEVICE_CODE,
+		SDT.CARD_NO,
+		SDT.IMAGE_ID,
+		SDT.SERVICE_TYPE,
+		SA.AREA_NAME,
+		SDT.GENERAL,
+		SDT.CREATE_TIME,
+		SDT.START_TIME,
+		SDT.OVER_TIME
+		FROM
+		SMT_ISC_DOWN_RECORD SDT
+		LEFT JOIN SMT_DEVICE SD ON SD.ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_DEVICE_AREA SDA ON SDA.DEVICE_ID = SDT.DEVICE_CODE
+		LEFT JOIN SMT_AREA SA ON SA.ID = SDA.AREA_ID
+		WHERE
+		SDT.ACTION = 1
+		AND SD.DEVICE_NAME IS NOT NULL
+		<if test="query.deviceId != null and query.deviceId != ''">
+			AND SD.ID = #{query.deviceId}
+		</if>
+		<if test="query.badge != null and query.badge != ''">
+			AND SDT.GENERAL LIKE CONCAT('%', CONCAT(#{query.badge}, '%'))
+		</if>
+		<if test="query.deviceName != null and query.deviceName != ''">
+			AND SD.DEVICE_NAME LIKE CONCAT('%', CONCAT(#{query.deviceName}, '%'))
+		</if>
+		<if test="query.deviceType != null">
+			AND SDT.DEVICE_TYPE = #{query.deviceType}
+		</if>
+		<if test="query.parkId != null or query.parAreaId != null or query.areaId != null">
+			AND SDA.AREA_ID IN (
+			SELECT SA."ID" FROM SMT_AREA SA
+			<where>
+				<if test="query.parkId != null">
+					AND SA.PARK_ID = #{query.parkId}
+				</if>
+				<if test="query.parAreaId != null">
+					AND SA.PID = #{query.parAreaId}
+				</if>
+				<if test="query.areaId != null">
+					AND SA."ID" = #{query.areaId}
+				</if>
+			</where>
+			)
+		</if>
+		<if test="query.parkIds != null and query.parkIds.size > 0">
+			AND SD.PARK_ID IN
+			<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+				#{tempId}
+			</foreach>
+		</if>
+		ORDER BY SDT.CREATE_TIME DESC
+	</select>
+</mapper>

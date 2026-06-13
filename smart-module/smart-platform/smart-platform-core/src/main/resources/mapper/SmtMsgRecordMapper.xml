@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+	namespace="com.tce.smart.platform.core.mapper.SmtMsgRecordMapper">
+
+	<resultMap id="smtMsgRecordMap"
+		type="com.tce.smart.platform.core.entity.SmtMsgRecord">
+		<id property="id" column="id" />
+		<result property="tempId" column="temp_id" />
+		<result property="tempName" column="temp_name" />
+		<result property="msgObject" column="msg_object" />
+		<result property="msgContent" column="msg_content" />
+		<result property="readState" column="read_state" />
+		<result property="msgState" column="msg_state" />
+		<result property="msgDesc" column="msg_desc" />
+		<result property="remark1" column="remark1" />
+		<result property="remark2" column="remark2" />
+		<result property="remark3" column="remark3" />
+		<result property="deleteState" column="delete_state" />
+		<result property="createTime" column="create_time" />
+	</resultMap>
+
+	<select id="listRecordByPage" resultType="com.tce.smart.platform.core.entity.SmtMsgRecord">
+		SELECT
+			mr.*
+		FROM
+			smt_msg_record mr INNER JOIN smt_msg_template mt ON mr.temp_id=mt.id
+		WHERE
+			mr.delete_state = 0
+			AND mr.msg_object = #{msgObject}
+		<if test="msgType !=null">
+			AND mt.msg_type=#{msgType}
+		</if>
+		<if test="readState !=null">
+			AND mr.read_state=#{readState}
+		</if>
+		<if test="startTime !=null">
+			AND mr.create_time <![CDATA[>=]]> #{startTime}
+		</if>
+		<if test="endTime !=null">
+			AND mr.create_time <![CDATA[<=]]> #{endTime}
+		</if>
+		ORDER BY mr.read_state,mr.create_time DESC
+	</select>
+
+	<select id="queryAllRecordToUpdate" resultType="com.tce.smart.platform.core.entity.SmtMsgRecord" >
+
+	SELECT
+			mr.*
+		FROM
+			smt_msg_record mr INNER JOIN smt_msg_template mt ON mr.temp_id=mt.id
+		WHERE
+			mr.delete_state = 0
+			AND mr.msg_object = #{msgObject}
+		<if test="msgType !=null">
+			AND mt.msg_type=#{msgType}
+		</if>
+		<if test="readState !=null">
+			AND mr.read_state=#{readState}
+		</if>
+	</select>
+
+	<select id="countByCondition" resultType="java.lang.Integer">
+		SELECT
+			count(1)
+		FROM
+			smt_msg_record mr INNER JOIN smt_msg_template mt ON mr.temp_id=mt.id
+		WHERE 1=1
+		<if test="tempCode !=null">
+			AND mt.temp_code=#{tempCode}
+		</if>
+		<if test="msgType !=null">
+			AND mt.msg_type=#{msgType}
+		</if>
+		<if test="condition.tempId !=null">
+			AND mr.temp_id=#{condition.tempId}
+		</if>
+		<if test="condition.msgObject !=null">
+			AND mr.msg_object=#{condition.msgObject}
+		</if>
+		<if test="condition.readState !=null">
+			AND mr.read_state=#{condition.readState}
+		</if>
+		<if test="condition.msgState !=null">
+			AND mr.msg_state=#{condition.msgState}
+		</if>
+		<if test="condition.deleteState !=null">
+			AND mr.delete_state=#{condition.deleteState}
+		</if>
+		<if test="startTime !=null">
+			AND mr.create_time <![CDATA[>=]]> #{startTime}
+		</if>
+		<if test="endTime !=null">
+			AND mr.create_time <![CDATA[<=]]> #{endTime}
+		</if>
+	</select>
+
+	<!-- 转移数据 -->
+	<select id="moveData">
+		INSERT INTO
+			${destTable}
+		SELECT *
+			FROM ${srcTable}
+			WHERE ${dateColumn} <![CDATA[<]]> #{endDate}
+	</select>
+
+	<!-- 删除数据 -->
+	<delete id="deleteData">
+		DELETE FROM
+			${tableName}
+		WHERE ${dateColumn} <![CDATA[<]]> #{endDate}
+	</delete>
+
+	<select id="getMsgInfo" parameterType="com.tce.smart.platform.core.entity.ext.QueryMsgExt" resultType="com.tce.smart.platform.core.entity.SmtMsgRecord">
+		SELECT
+		mr.*
+		FROM
+		smt_msg_record mr INNER JOIN smt_msg_template mt ON mr.temp_id=mt.id
+		WHERE mt.msg_type = 1
+		AND mr.delete_state = 0
+		<if test="query != null">
+			<if test="query.phoneNo != null">
+				AND mr.msg_object = #{query.phoneNo}
+			</if>
+			<if test="query.msgState != null">
+				AND mr.msg_state=#{query.msgState}
+			</if>
+			<if test="query.tempId != null">
+				AND mr.temp_id=#{query.tempId}
+			</if>
+			<if test="query.startTime != null">
+				AND mr.create_time <![CDATA[>=]]> #{query.startTime}
+			</if>
+			<if test="query.endTime != null">
+				AND mr.create_time <![CDATA[<=]]> #{query.endTime}
+			</if>
+		</if>
+		ORDER BY mr.create_time DESC
+	</select>
+</mapper>

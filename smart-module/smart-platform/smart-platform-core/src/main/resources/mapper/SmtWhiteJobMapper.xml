@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtWhiteJobMapper">
+
+	<select id="page" parameterType="com.tce.smart.platform.core.entity.SmtWhiteJob" resultType="com.tce.smart.platform.core.vo.WhiteJobVO">
+
+	select W.Id,job_id as jobId ,job_name as jobName,comp_id as compId,comp_name as compName,dep_id as depId,dep_name as depName,
+	create_time as createTime, park_name as parkName from SMT_WHITE_JOB W
+	inner join SMT_PARK P on W.PARK_ID = P.ID
+	<where>
+		<if test="query.jobName!=null and query.jobName!='' ">
+			AND job_name LIKE CONCAT(CONCAT('%',#{query.jobName}),'%')
+		</if>
+		<if test="query.parkId!=null">
+			AND PARK_ID =#{query.parkId}
+		</if>
+		<if test="park!=null and  park.size>0">
+			and W.PARK_ID in
+			<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+			</foreach>
+		</if>
+
+	</where>
+	order by CREATE_TIME desc
+	</select>
+
+</mapper>

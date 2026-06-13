@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtPersonMapper">
+
+  <resultMap id="smtPersonMap" type="com.tce.smart.platform.core.entity.SmtPerson">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="identityType" column="identity_type"/>
+                        <result property="personType" column="person_type"/>
+                        <result property="personName" column="person_name"/>
+                        <result property="personSex" column="person_sex"/>
+                        <result property="identityCard" column="identity_card"/>
+                        <result property="mobilePhone" column="mobile_phone"/>
+                        <result property="isDelete" column="is_delete"/>
+                        <result property="createTime" column="create_time"/>
+            </resultMap>
+</mapper>

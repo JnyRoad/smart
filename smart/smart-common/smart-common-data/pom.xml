@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.tce</groupId>
+		<artifactId>smart-common</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>smart-common-data</artifactId>
+	<packaging>jar</packaging>
+
+	<description>数据操作相关</description>
+
+
+	<dependencies>
+		<!--工具类核心包-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-core</artifactId>
+		</dependency>
+		<!--缓存依赖-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<!-- ShedLock-轻量级分布式定时任务 -->
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId >
+			<artifactId>shedlock-spring</artifactId >
+		</dependency >
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId>
+			<artifactId>shedlock-provider-redis-spring</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.data</groupId>
+			<artifactId>spring-data-redis</artifactId>
+			<version>2.5.3</version>
+		</dependency>
+	</dependencies>
+</project>

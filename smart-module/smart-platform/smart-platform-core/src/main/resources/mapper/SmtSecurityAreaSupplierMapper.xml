@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityAreaSupplierMapper">
+
+	<resultMap id="securityAreaSupplierData" type="com.tce.smart.platform.core.dto.SmtSecurityAreaSupplierDTO">
+		<id property="id" column="id"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="companyName" column="COMPANY_NAME"/>
+		<result property="beginEffectTime" column="BEGIN_EFFECT_TIME"/>
+		<result property="endEffectTime" column="END_EFFECT_TIME"/>
+		<result property="remark" column="REMARK"/>
+		<result property="carryItem" column="CARRY_ITEM"/>
+	</resultMap>
+
+	<select id="getSecurityAreaSupplierPage" parameterType="com.tce.smart.platform.core.dto.SmtSecurityAreaSupplierDTO"  resultMap="securityAreaSupplierData">
+		select ss.ID,ss.PARK_ID,ss.COMPANY_NAME,ss.BEGIN_EFFECT_TIME,ss.END_EFFECT_TIME,ss.REMARK,park.PARK_NAME,ss.CARRY_ITEM
+		from SMT_SECURITYAREA_SUPPLIER ss
+		left join SMT_PARK park on ss.PARK_ID=park.ID
+		<where>
+			<if test="query.parkId != null and  query.parkId !=''">
+				AND ss.PARK_ID=#{query.parkId}
+			</if>
+
+			<if test="query.companyName != null and  query.companyName !=''">
+				AND ss.COMPANY_NAME like concat(concat('%',#{query.companyName}),'%')
+			</if>
+
+			<if test="query.status != null and  query.status == 1">
+				AND (BEGIN_EFFECT_TIME &lt; sysdate and END_EFFECT_TIME &gt; sysdate)
+			</if>
+
+			<if test="query.status != null and  query.status == 2">
+				AND (BEGIN_EFFECT_TIME &gt; sysdate or END_EFFECT_TIME &lt; sysdate)
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and ss.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		ORDER BY ss.CREATE_TIME desc
+	</select>
+
+	<select id="getNotifyList" resultMap="securityAreaSupplierData">
+		select ID,PARK_ID,BEGIN_EFFECT_TIME,END_EFFECT_TIME,CARRY_ITEM from SMT_SECURITYAREA_SUPPLIER
+		WHERE PARK_ID=#{parkId}
+		AND NOTIFY_FLAG=0
+		and (END_EFFECT_TIME-BEGIN_EFFECT_TIME) &lt; #{days}
+		order by ID asc
+	</select>
+
+	<select id="getSupplierList" resultType="com.tce.smart.platform.core.dto.securityarea.SecuritySupplierDTO">
+		select SUPPLIER.ID,SUPPLIER.COMPANY_NAME,SUPPLIER.COMPANY_CODE,SUPPLIER.END_EFFECT_TIME,SUPPLIER.PROTOCOL_CODE,
+		SUPPLIER.SUPPLIER_TYPE,SUPPLIER.PARK_ID,PARK.PARK_NAME,SUPPLIER.CARRY_ITEM,
+		SUPPLIER.AUTHORIZED_AREA,
+		SUPPLIER.AUTH_PERSON_NUM,
+		SUPPLIER.CERT_NO,
+		SUPPLIER.PERSON_NAME
+		from SMT_SECURITYAREA_SUPPLIER SUPPLIER
+		JOIN SMT_PARK PARK
+		ON SUPPLIER.PARK_ID=PARK.ID
+		<where>
+			<if test="parkId !=null">
+				and SUPPLIER.PARK_ID=#{parkId}
+			</if>
+			<if test="compName != null and  compName !=''">
+				AND SUPPLIER.COMPANY_NAME like concat(concat('%',#{compName}),'%')
+			</if>
+			<if test="parks!=null and parks.size>0">
+				and SUPPLIER.PARK_ID in
+				<foreach item="item" index="index" collection="parks" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		order by SUPPLIER.CREATE_TIME desc
+	</select>
+</mapper>

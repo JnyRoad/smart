@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSdMeterreadMapper">
+
+	<resultMap id="smtSDMeterreadPage" type="com.tce.smart.platform.core.vo.SmtSdMeterreadVO">
+		<id property="id" column="id"/>
+		<result property="parkId" column="park_id"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="dormitoryId" column="DORMITORY_ID"/>
+		<result property="dormitoryName" column="DORMITORY_NAME"/>
+		<result property="floorId" column="FLOOR_ID"/>
+		<result property="floorName" column="FLOOR_NAME"/>
+		<result property="roomName" column="ROOM_NAME"/>
+		<result property="meterMonth" column="METER_MONTH"/>
+		<result property="status" column="STATUS"/>
+		<result property="statementStatus" column="STATEMENT_STATUS"/>
+	</resultMap>
+
+	<resultMap id="generateStatementData" type="com.tce.smart.platform.core.dto.GenerateStatementDTO">
+		<id property="id" column="id"/>
+		<result property="tempId" column="SD_TEMPLATE_ID"/>
+		<result property="meterMonth" column="METER_MONTH"/>
+		<result property="monthNum" column="month_Num"/>
+		<result property="roomId" column="ROOM_ID"/>
+	</resultMap>
+
+	<resultMap id="dormitorySDMeterread" type="com.tce.smart.platform.core.dto.commonsd.DormitorySDMeterreadDTO">
+		<id property="id" column="id"/>
+		<result property="roomId" column="ROOM_ID"/>
+		<result property="roomName" column="ROOM_NAME"/>
+		<result property="meterMonth" column="METER_MONTH"/>
+		<result property="statementStatus" column="STATEMENT_STATUS"/>
+		<result property="categoryId" column="CATEGORY_ID"/>
+		<result property="preMonthNum" column="PRE_MONTH_NUM"/>
+		<result property="curMonthNum" column="CUR_MONTH_NUM"/>
+		<result property="revPreMonthNum" column="REV_PRE_MONTH_NUM"/>
+		<result property="isRevise" column="IS_REVISE"/>
+		<result property="totalInStay" column="TOTAL_STAY_DAYS"/>
+	</resultMap>
+
+	<select id="getSDMeterreadPage" parameterType="com.tce.smart.platform.core.dto.SmtSdMeterreadDTO" resultMap="smtSDMeterreadPage">
+		select dmr.ID,room.PARK_ID,park.PARK_NAME,room.DORMITORY_ID,do.DORMITORY_NAME,
+		room.FLOOR_ID,flo.FLOOR_NAME,dmr.ROOM_ID,room.ROOM_NAME,dmr.METER_MONTH,
+		dmr.STATUS,dmr.STATEMENT_STATUS
+		from SMT_SD_METERREAD dmr
+		left join SMT_DORMITORY_ROOM room on dmr.ROOM_ID=room.ID
+		left join SMT_DORMITORY do on room.dormitory_id=do.ID
+		left join SMT_DORMITORY_FLOOR flo on room.floor_id=flo.ID
+		left join SMT_PARK park on room.park_id=park.ID
+		<where>
+			<if test="query.parkId != null and  query.parkId !=''">
+				AND room.PARK_ID=#{query.parkId}
+				<if test="query.dormitoryId != null and  query.dormitoryId !=''">
+					AND room.DORMITORY_ID=#{query.dormitoryId}
+					<if test="query.floorId != null and  query.floorId !=''">
+						AND room.FLOOR_ID=#{query.floorId}
+					</if>
+				</if>
+			</if>
+
+			<if test="query.status != null">
+				AND dmr.STATUS=#{query.status}
+			</if>
+
+			<if test="query.roomName != null and  query.roomName !=''">
+				AND room.ROOM_NAME like concat(concat('%',#{query.roomName}),'%')
+			</if>
+
+			<if test="query.meterMonth != null">
+				AND dmr.METER_MONTH=#{query.meterMonth}
+			</if>
+
+			<if test="query.isStatement != null and  query.isStatement == true">
+				AND dmr.STATEMENT_STATUS = 1
+			</if>
+
+			<if test="query.statementStatus != null">
+				AND dmr.STATEMENT_STATUS=#{query.statementStatus}
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and room.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		ORDER BY flo.FLOOR_NAME,room.ROOM_NAME, dmr.STATUS
+
+	</select>
+
+	<select id="getRoomSDMeterread" parameterType="com.tce.smart.platform.core.dto.SmtSdMeterreadDTO" resultMap="smtSDMeterreadPage">
+		select room.id as roomId,room.PARK_ID,park.PARK_NAME,room.DORMITORY_ID,
+		do.DORMITORY_NAME, room.FLOOR_ID,flo.FLOOR_NAME,
+		room.ROOM_NAME
+		from SMT_DORMITORY_ROOM room
+		left join SMT_DORMITORY do on room.dormitory_id=do.ID
+		left join SMT_DORMITORY_FLOOR flo on room.floor_id=flo.ID
+		left join SMT_PARK park on room.park_id=park.ID
+		<where>
+			<if test="query.parkId != null and  query.parkId !=''">
+				AND room.PARK_ID=#{query.parkId}
+				<if test="query.dormitoryId != null and  query.dormitoryId !=''">
+					AND room.DORMITORY_ID=#{query.dormitoryId}
+					<if test="query.floorId != null and  query.floorId !=''">
+						AND room.FLOOR_ID=#{query.floorId}
+					</if>
+				</if>
+			</if>
+
+			<if test="query.roomName != null and  query.roomName !=''">
+				AND room.ROOM_NAME like concat(concat('%',#{query.roomName}),'%')
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and room.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		ORDER BY flo.FLOOR_NAME,room.ROOM_NAME
+	</select>
+
+	<select id="getFloorMeterRecord" parameterType="com.tce.smart.platform.core.dto.SmtSdMeterreadDTO" resultMap="smtSDMeterreadPage">
+		select room."ID" as room_id,sdm."ID" from SMT_DORMITORY_ROOM room  left join
+		(select ID,ROOM_ID from SMT_SD_METERREAD where METER_MONTH=#{query.meterMonth}) sdm on sdm.ROOM_ID=room.id
+		where room.FLOOR_ID=#{query.floorId}
+	</select>
+
+	<select id="getRoomMeterRecord"  resultMap="smtSDMeterreadPage">
+		select sdm.ID,sdm.ROOM_ID,sdm.METER_MONTH,room.PARK_ID,sdm.STATEMENT_STATUS
+		from SMT_SD_METERREAD sdm
+		join SMT_DORMITORY_ROOM room on sdm.ROOM_ID=room.id
+		where sdm.ID=#{id}
+	</select>
+
+	<select id="getNeedStatementRecord"  resultMap="generateStatementData">
+		select DISTINCT dmr.ID,room.SD_TEMPLATE_ID,
+		dmr.ROOM_ID,dmr.METER_MONTH,to_char(dmr.METER_MONTH,'fmmm') as month_Num
+		from SMT_SD_METERREAD dmr
+		join SMT_DORMITORY_ROOM room on dmr.ROOM_ID=room.ID
+		join SMT_SD_METERREADDETAIL sddt on dmr.ID=sddt.MR_ID
+		WHERE room.PARK_ID in
+		<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+		<if test="dormitoryId != null">
+			AND room.DORMITORY_ID=#{dormitoryId}
+		</if>
+		and room.IS_COUNT = 1
+		and dmr.STATUS=2
+		and dmr.STATEMENT_STATUS=0
+	</select>
+
+	<select id="getDormitorySDMeterread" resultMap="dormitorySDMeterread">
+		select sd.ID,sd.ROOM_ID,sd.METER_MONTH,sd.STATEMENT_STATUS,sdmd.PRE_MONTH_NUM,
+		sdmd.CUR_MONTH_NUM,sdmd.CATEGORY_ID,sdmd.REV_PRE_MONTH_NUM,sdmd.IS_REVISE,sdmd.TOTAL_STAY_DAYS
+		from SMT_SD_METERREAD sd
+		left join SMT_SD_METERREADDETAIL sdmd on sd.ID=sdmd.MR_ID
+		where sd.ROOM_ID=#{roomId} and METER_MONTH=#{date}
+		order by sdmd.CATEGORY_ID asc
+	</select>
+
+	<select id="getRoomsSDMeterread" resultMap="dormitorySDMeterread">
+		select sdm.ROOM_ID,sdm.STATUS,sdm.STATEMENT_STATUS,
+		sdmd.PRE_MONTH_NUM,sdmd.CUR_MONTH_NUM,sdmd.CATEGORY_ID,sdmd.CREATE_TIME,sdmd.REV_PRE_MONTH_NUM,
+		sdmd.IS_REVISE,sdmd.METER_USER
+		from SMT_SD_METERREAD sdm
+		left join SMT_SD_METERREADDETAIL sdmd on sdm.ID=sdmd.MR_ID
+		where sdm.ROOM_ID in
+		<foreach item="item" index="index" collection="roomIds" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+		and METER_MONTH=#{date}
+		order by sdmd.CATEGORY_ID asc
+	</select>
+
+	<select id="getFloorSDMeterread" resultMap="dormitorySDMeterread">
+		select sdmd.ID,room.ID as ROOM_ID,room.ROOM_NAME,room.FLOOR_ID,
+		sd.METER_MONTH,sd.STATEMENT_STATUS,
+		sdmd.PRE_MONTH_NUM,sdmd.REV_PRE_MONTH_NUM,sdmd.CUR_MONTH_NUM,sdmd.CATEGORY_ID,sdmd.TOTAL_STAY_DAYS
+		from SMT_DORMITORY_ROOM room
+		left join SMT_SD_METERREAD sd on room.ID=sd.ROOM_ID and sd.METER_MONTH=#{date}
+		left join SMT_SD_METERREADDETAIL sdmd on sd.ID=sdmd.MR_ID
+		where room.FLOOR_ID=#{floorId}
+		order by room.ID asc
+	</select>
+
+	<select id="getFloorSDMeterreadNew" resultMap="dormitorySDMeterread">
+		select sdmd.ID,room.ID as ROOM_ID,nvl(room.ALIAS_NAME,room.ROOM_NAME) as ROOM_NAME,room.FLOOR_ID,room.DORMITORY_ID,room.SD_TEMPLATE_ID,room.ROOM_SEX,
+		sd.METER_MONTH,sd.STATEMENT_STATUS,sd.Id as mrId,sd.STATUS,
+		sdmd.PRE_MONTH_NUM,sdmd.REV_PRE_MONTH_NUM,sdmd.CUR_MONTH_NUM,sdmd.CATEGORY_ID,
+		sdmd.CUR_STD_QTY,sdmd.CUR_OVER_FEE,sdmd.TOTAL_STAY_DAYS
+		from SMT_DORMITORY_ROOM room
+		left join SMT_SD_METERREAD sd on room.ID=sd.ROOM_ID and sd.METER_MONTH=#{date}
+		left join SMT_SD_METERREADDETAIL sdmd on sd.ID=sdmd.MR_ID
+		<where>
+			<if test="dormitoryId != null">
+				AND room.DORMITORY_ID=#{dormitoryId}
+			</if>
+			<if test="dormitoryIds != null">
+				AND room.DORMITORY_ID in
+				<foreach item="item" index="index" collection="dormitoryIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="floorId != null">
+				AND room.FLOOR_ID=#{floorId}
+			</if>
+			<if test="roomId != null">
+				AND room.ID=#{roomId}
+			</if>
+			<if test="dormitoryIds != null">
+				AND room.DORMITORY_ID in
+				<foreach item="item" index="index" collection="dormitoryIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		order by room.ID asc
+	</select>
+
+	<select id="getInRoomNum" resultType="java.lang.Integer">
+		select sum(c) from
+		(
+		select count(*) c from SMT_DORMITORY_STAFF WHERE STAFF_BADGE=#{badge}
+		UNION ALL
+		select count(*) c from SMT_DORMITORY_STAFF_HISTORY WHERE STAFF_BADGE=#{badge}
+		AND CREATE_TIME BETWEEN #{startTime} and #{endTime} and TYPE != 0
+		group by ROOM_ID
+		) t
+	</select>
+
+</mapper>
