@@ -49,7 +49,7 @@ test('办公区审批：列表（保安搜索含放行事项）→ 详情需图�
   await seedLogin(page)
   await mockBaseInfo(page, 0)
   const queries: URLSearchParams[] = []
-  await page.route('**/platform/articlesrelease/office/page*', (route) => {
+  await page.route('**/platform/articlesrelease/office/approval/page*', (route) => {
     queries.push(new URL(route.request().url()).searchParams)
     return route.fulfill({
       json: {
