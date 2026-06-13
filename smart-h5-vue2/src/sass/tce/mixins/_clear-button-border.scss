@@ -1,0 +1,12 @@
+
+/**
+ * 清除h5中的button中border
+ */
+@mixin clear-button-border {
+	/* #ifdef H5 */
+	-webkit-appearance:none;
+	&:after{
+		border: none;
+	}
+	/* #endif */
+}

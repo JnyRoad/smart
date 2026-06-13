@@ -1,0 +1,61 @@
+@use "./variable" as *;
+@use "./mixin" as *;
+
+.#{$mainname}-tag {
+  position: relative;
+  padding: 0 10px;
+  border-radius: 3px;
+  background: #ebf5ff;
+  color: #1890ff;
+  font-size: 12px;
+  line-height: 20px;
+  @include border();
+  &__inner {
+    max-width: 90px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  &::after {
+    border-color: transparent;
+  }
+  > text {
+    // font-size: 12px;
+    // line-height: 1;
+  }
+  &.is-round {
+    border-radius: 10px;
+    &::after {
+      border-radius: 20px;
+    }
+  }
+
+  &--none {
+    background: transparent;
+    color: #666;
+  }
+  &--primary {
+    background: $color-primary;
+    color: #fff;
+  }
+  &--success {
+    background: $color-success;
+    color: #fff;
+  }
+  &--info {
+    background: $color-info;
+    color: #fff;
+  }
+  &--warning {
+    background: $color-warning;
+    color: #fff;
+  }
+  &--danger {
+    background: $color-danger;
+    color: #fff;
+  }
+  &--gray {
+    background: $color-info;
+    color: #6d7c8e;
+  }
+}

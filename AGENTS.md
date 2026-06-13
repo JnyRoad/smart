@@ -4,7 +4,7 @@
 
 ## 仓库组织
 
-- 子项目按目录平铺，例如 `smart/`、`smart-module/`、`smart-ui/`、`smart-h5/`，后续新增模块继续作为根目录同级子目录。
+- 子项目按目录平铺，例如 `smart/`、`smart-module/`、`smart-ui/`、`smart-h5/`、`smart-h5-vue2/`，后续新增模块继续作为根目录同级子目录。
 - 子项目不要初始化独立 `.git`；需要例外时先说明原因。
 - 新增子项目时，同步更新根 `README.md` 和本文件的“子项目”清单。
 - 设计文档放在对应子项目自己的 `docs/` 下；实现时以当前代码、当前 README、当前配置为准。
@@ -15,6 +15,15 @@
 - 测试按金字塔组织：纯规则和工具优先单测，模块协作用集成测试，关键用户路径再补 E2E。
 - 影响业务行为的改动按 TDD 走：先补能暴露问题的测试，再实现，再重跑相关验证。
 - 提交前确认没有依赖、构建产物、测试报告、环境文件、日志、证书进入暂存区。
+
+## Git / PR 工作流
+
+- 所有变更都必须通过功能分支提交，并通过 PR 合并到 `main`；禁止把业务、文档、配置或规则改动直接提交到 `main`。
+- 分支从最新 `origin/main` 创建；如本地已有未合并提交，应先切出合规分支承载这些提交，再把本地 `main` 恢复到 `origin/main`。
+- PR 创建前检查暂存区和提交内容，确认没有依赖目录、构建产物、测试报告、环境文件、日志、证书或数据库快照。
+- PR 合并后必须更新本地 `main` 到远端最新状态，优先执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main`。
+- PR 合并且本地 `main` 已更新后，清理已合并分支：删除本地分支；如果远端平台没有自动删除源分支，再删除远端分支。
+- 清理分支前先确认对应 PR 已合并，且分支没有未合并到 `main` 的额外提交。
 
 ## 子项目
 
@@ -41,7 +50,15 @@
 
 ### `smart-h5`
 
-- 用途：智慧园区微信 H5 应用。
+- 用途：当前维护的智慧园区微信 H5 应用；后续移动端 H5 功能更新统一落在这里。
 - 技术栈：Next.js 16、React 19、TypeScript strict、antd-mobile 5、Tailwind CSS 4、TanStack Query、Zustand、Vitest、Playwright。
 - 常用命令：在 `smart-h5/` 内执行 `pnpm check`、`pnpm test`、`pnpm e2e`、`pnpm build`。
 - 目录边界：`src/app/` 放路由页面，`src/features/<module>/` 放业务域 API/状态/纯函数，`src/lib/` 放共享基础设施，`src/components/` 放跨模块组件，`e2e/` 放 Playwright。
+
+### `smart-h5-vue2`
+
+- 用途：历史 Vue2 微信公众号版 H5，仅作为旧页面、旧交互和旧接口调用方式的参考。
+- 维护状态：不再维护、不再发布、不承接新功能；新需求和缺陷修复应改在 `smart-h5/`。
+- 技术栈：Vue 2、Vue CLI、Vue Router、Vuex、cube-ui、pnpm。
+- 常用命令：默认不执行；如需本地核对历史行为，可在 `smart-h5-vue2/` 内执行 `pnpm install`、`pnpm run serve`、`pnpm run test`、`pnpm run build`。
+- 目录边界：`src/views-mobile/` 放旧移动端页面，`src/router/` 放旧路由，`src/services/` 放旧接口封装，`src/components/` 放旧通用组件；只读对标优先，不主动扩展业务。

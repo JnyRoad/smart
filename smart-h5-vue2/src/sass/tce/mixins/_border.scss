@@ -1,0 +1,83 @@
+$border-color: #eeeeee;
+@mixin border($border-radius: 3px) {
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    width: 200%;
+    height: 200%;
+    transform: scale(0.5);
+    transform-origin: 0 0;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    box-sizing: border-box;
+  }
+}
+
+@mixin border-bottom {
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    transform: scaleY(0.5);
+    transform-origin: 0 0;
+    border-bottom: 1px solid $border-color;
+    box-sizing: border-box;
+  }
+  &.clearance::after {
+    left: 12px;
+  }
+}
+
+@mixin border-top {
+  &::before {
+    content: '';
+    position: absolute;
+    top:0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    transform: scaleY(0.5);
+    transform-origin: 0 0;
+    border-top: 1px solid $border-color;
+    box-sizing: border-box;
+  }
+  &.clearance::after {
+    left: 12px;
+  }
+}
+
+@mixin border-right {
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    transform: scaleX(0.5);
+    transform-origin: 0 0;
+    border-right: 1px solid $border-color;
+    box-sizing: border-box;
+  }
+}
+
+@mixin border-left {
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1;
+    transform: scaleX(0.5);
+    transform-origin: 0 0;
+    border-left: 1px solid $border-color;
+    box-sizing: border-box;
+  }
+}
