@@ -23,6 +23,7 @@ function ReleaseWorkApprovalDetailInner() {
   const config = getTenantConfig()
   const id = params.get('id') ?? ''
   const readOnly = params.get('tab') === 'done'
+  const fromScan = params.get('scan') === '1'
   const [guardImgs, setGuardImgs] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -88,7 +89,7 @@ function ReleaseWorkApprovalDetailInner() {
       })
       if (res.code === 0 && res.data) {
         // 修正旧版误跳生活区列表的 bug：回本模块「我审批的」。
-        router.replace('/backlog/release-work?tab=done')
+        router.replace(fromScan ? '/home' : '/backlog/release-work?tab=done')
       } else {
         Toast.show(res.message || res.msg || '网络错误')
       }

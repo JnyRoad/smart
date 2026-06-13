@@ -22,6 +22,7 @@ function ReleaseLiveApprovalDetailInner() {
   const id = params.get('id') ?? ''
   const sort = Number(params.get('sort'))
   const readOnly = params.get('tab') === 'done'
+  const fromScan = params.get('scan') === '1'
   const [remark, setRemark] = useState('')
   const [guardImgs, setGuardImgs] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -64,7 +65,7 @@ function ReleaseLiveApprovalDetailInner() {
     try {
       const res = await updateReleaseStatus({ approveBadge: badge, id, status: nextStatus, remark })
       if (res.code === 0 && res.data) {
-        router.replace('/backlog/release-live?tab=done')
+        router.replace(fromScan ? '/home' : '/backlog/release-live?tab=done')
       } else {
         Toast.show(res.message || res.msg || '网络错误')
       }
@@ -95,7 +96,7 @@ function ReleaseLiveApprovalDetailInner() {
         remark,
       })
       if (res.code === 0 && res.data) {
-        router.replace('/backlog/release-live?tab=done')
+        router.replace(fromScan ? '/home' : '/backlog/release-live?tab=done')
       } else {
         Toast.show(res.message || res.msg || '网络错误')
       }

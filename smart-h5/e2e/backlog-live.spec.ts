@@ -177,6 +177,15 @@ test('生活区审批详情：sort=3 保安需图拦截 → 传图确认放行�
   expect(body.parkId).toBe(5000021)
   expect(body.status).toBe(4)
   expect(body.badge).toBe('YT20180326')
+
+  await page.goto('/backlog/release-live/detail?id=9&sort=3&scan=1')
+  await page.setInputFiles('[data-testid=image-list-input]', {
+    name: 'scan.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('89504e470d0a1a0a', 'hex'),
+  })
+  await page.getByRole('button', { name: '确认放行' }).click()
+  await page.waitForURL('**/home')
 })
 
 test('/code：五态互斥 + tel 链接 + 免登录访问', async ({ page }) => {

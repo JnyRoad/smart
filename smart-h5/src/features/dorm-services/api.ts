@@ -128,6 +128,10 @@ export function getDormExitDetail(id: string): Promise<Envelope<DormExitDetail>>
   return request({ module: 'platform', url: `/dor/quit/detail/${id}` })
 }
 
+export function getDormExitScanDetail(code: string): Promise<Envelope<DormExitDetail>> {
+  return request({ module: 'platform', url: `/dor/quit/list/check/${code}` })
+}
+
 // ===== check-in =====
 
 export interface Dormitory {

@@ -13,11 +13,13 @@ import {
   getGoodReleaseApprovalCount,
   getRepairsApprovalCount,
   getServiceModules,
+  getWechatSignature,
   getWeather,
 } from '@/features/home/api'
 import { resolveModuleRoute } from '@/features/home/module-routes'
 import { clearSession } from '@/lib/auth/token'
 import { getTenantConfig } from '@/lib/config/tenant'
+import { scanReleaseCode } from '@/lib/wechat/scan-release'
 import { BADGE_BINDING_PATH, redirectToWechatOAuth } from '@/lib/wechat/oauth'
 
 function formatBadge(count: number | undefined): string | null {
@@ -143,6 +145,22 @@ export default function HomePage() {
   const latest = latestBbs.data?.data?.records?.[0]
   const modules = serviceModules.data?.data?.serviceModule ?? []
 
+  async function handleScanRelease() {
+    try {
+      const route = await scanReleaseCode({
+        appId: config.wxAppId,
+        getSignature: async (url) => {
+          const res = await getWechatSignature({ url })
+          if (res.code !== 0 || !res.data) throw new Error(res.message || '微信配置失败')
+          return res.data
+        },
+      })
+      router.push(route)
+    } catch (error) {
+      Toast.show(error instanceof Error ? error.message : '扫码失败')
+    }
+  }
+
   const approvalEntries = [
     {
       key: 'good-release-live',
@@ -238,8 +256,7 @@ export default function HomePage() {
                       if (route) {
                         router.push(route)
                       } else if (isScan) {
-                        // WeChat JSSDK scanning ships with the good-release module.
-                        Toast.show('扫码放行即将上线')
+                        void handleScanRelease()
                       }
                     }}
                     className="flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl py-2 active:bg-surface"
