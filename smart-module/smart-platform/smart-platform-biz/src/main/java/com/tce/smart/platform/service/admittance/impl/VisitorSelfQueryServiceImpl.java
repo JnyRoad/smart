@@ -22,7 +22,9 @@ import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceFellow;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceVehicle;
 import com.tce.smart.platform.core.mapper.SmtAdmittanceApplyMapper;
 import com.tce.smart.platform.core.service.SmtApprovalNodeService;
+import com.tce.smart.platform.core.vo.FlowVO;
 import com.tce.smart.platform.service.ApproveListService;
+import com.tce.smart.platform.service.SmtOutDormitoryStaffService;
 import com.tce.smart.platform.service.SmtParkService;
 import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceFellowService;
@@ -32,6 +34,7 @@ import com.tce.smart.tool.constant.ApproveListTypeConstants;
 import com.tce.smart.tool.enums.AdmittanceCarCauseEnum;
 import com.tce.smart.tool.enums.AdmittanceCauseEnum;
 import com.tce.smart.tool.enums.AdmittanceTypeEnum;
+import com.tce.smart.tool.enums.ApplicationEnum;
 import com.tce.smart.tool.enums.ApproveListStateEnum;
 import com.tce.smart.tool.enums.DeviceDownStatusEnum;
 import com.tce.smart.tool.enums.VisitorStatusEnum;
@@ -41,10 +44,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +83,8 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 	private SmtStaffService smtStaffService;
 	@Autowired
 	private SmtApprovalNodeService smtApprovalNodeService;
+	@Autowired
+	private SmtOutDormitoryStaffService smtOutDormitoryStaffService;
 
 	private Supplier<String> queryTokenSupplier = () -> UUID.randomUUID().toString().replace("-", "");
 
@@ -103,7 +110,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 	public VisitorApprovalProgressRespDTO getApprovalProgress(String applyId, String queryToken) {
 		SmtAdmittanceApply apply = requireOwnedApply(applyId, queryToken);
 		VisitorApprovalProgressRespDTO response = new VisitorApprovalProgressRespDTO();
-		response.setNodes(toApprovalNodes(visitorApproves(String.valueOf(apply.getId()))));
+		response.setNodes(approvalNodes(apply));
 		return response;
 	}
 
@@ -233,6 +240,53 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		return response;
 	}
 
+	private List<VisitorApprovalNodeRespDTO> approvalNodes(SmtAdmittanceApply apply) {
+		if (StringUtils.hasText(apply.getProcessId())) {
+			return toOaApprovalNodes(oaProcessFlow(apply.getProcessId()));
+		}
+		return toApprovalNodes(visitorApproves(String.valueOf(apply.getId())));
+	}
+
+	private List<FlowVO> oaProcessFlow(String processId) {
+		List<FlowVO> flowList = new ArrayList<>();
+		smtOutDormitoryStaffService.getOAProcessFlow(processId, flowList);
+		return flowList;
+	}
+
+	private List<VisitorApprovalNodeRespDTO> toOaApprovalNodes(List<FlowVO> flowList) {
+		if (flowList == null) {
+			return Collections.emptyList();
+		}
+		return flowList.stream()
+				.filter(Objects::nonNull)
+				.map(this::toOaApprovalNode)
+				.collect(Collectors.toList());
+	}
+
+	private VisitorApprovalNodeRespDTO toOaApprovalNode(FlowVO flow) {
+		VisitorApprovalNodeRespDTO node = new VisitorApprovalNodeRespDTO();
+		node.setTitle(StringUtils.hasText(trim(flow.getNodeName())) ? trim(flow.getNodeName()) : "审批节点");
+		node.setState(oaNodeState(flow));
+		node.setStatusText(trim(flow.getProcessDesc()));
+		node.setApproverName(maskName(flow.getCreateUser()));
+		node.setTime(format(flow.getProcessDate()));
+		node.setComment(trim(flow.getRemark()));
+		return node;
+	}
+
+	private String oaNodeState(FlowVO flow) {
+		String processDesc = trim(flow.getProcessDesc());
+		if (Objects.equals(processDesc, ApplicationEnum.RECORD_STATUS_3.getDesc())
+				|| Objects.equals(processDesc, ApplicationEnum.RECORD_STATUS_12.getDesc())
+				|| Objects.equals(processDesc, ApplicationEnum.RECORD_STATUS_13.getDesc())) {
+			return "rejected";
+		}
+		if (Objects.equals(processDesc, ApplicationEnum.RECORD_STATUS_c.getDesc())) {
+			return "current";
+		}
+		return "done";
+	}
+
 	private List<VisitorApprovalNodeRespDTO> toApprovalNodes(List<ApproveList> approveList) {
 		if (approveList == null) {
 			return Collections.emptyList();
@@ -321,6 +375,9 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 	}
 
 	private String currentNode(SmtAdmittanceApply apply) {
+		if (StringUtils.hasText(apply.getProcessId())) {
+			return oaCurrentNode(apply.getProcessId());
+		}
 		if (approveListService == null || apply.getId() == null) {
 			return null;
 		}
@@ -330,6 +387,21 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 				.orElse(null);
 		String node = pendingApprove == null ? null : approvalNodeName(pendingApprove);
 		return StringUtils.hasText(node) ? node + " 审批中" : null;
+	}
+
+	private String oaCurrentNode(String processId) {
+		FlowVO currentFlow = oaProcessFlow(processId).stream()
+				.filter(flow -> Objects.equals(trim(flow.getProcessDesc()), ApplicationEnum.RECORD_STATUS_c.getDesc()))
+				.findFirst()
+				.orElse(null);
+		if (currentFlow == null) {
+			return null;
+		}
+		String nodeName = trim(currentFlow.getNodeName());
+		if (!StringUtils.hasText(nodeName)) {
+			nodeName = maskName(currentFlow.getCreateUser());
+		}
+		return StringUtils.hasText(nodeName) ? nodeName + " 审批中" : null;
 	}
 
 	private List<ApproveList> visitorApproves(String applyId) {
@@ -448,6 +520,10 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 
 	private String format(LocalDateTime time) {
 		return time == null ? "" : DATE_TIME.format(time);
+	}
+
+	private String format(Date time) {
+		return time == null ? "" : DATE_TIME.format(LocalDateTime.ofInstant(time.toInstant(), ZoneId.systemDefault()));
 	}
 
 	private String tokenKey(String token) {

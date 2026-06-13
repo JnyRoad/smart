@@ -1,7 +1,7 @@
 import { ApiError, request } from '@/lib/api/http'
 import { getTenantConfig } from '@/lib/config/tenant'
 import { sendVisitorSms } from './api'
-import type { ApplyStatus, DispatchStatus } from './record-status'
+import type { ApplyStatus, ApprovalNodeState, DispatchStatus } from './record-status'
 import { MOCK_DETAILS, MOCK_IDENTITY, MOCK_LIST, MOCK_QUERY_TOKEN, mockDelay } from './records-mock'
 
 /**
@@ -54,7 +54,8 @@ export interface ApplyRecordDetail {
 
 export interface ApprovalNode {
   title: string
-  state: 'done' | 'current' | 'wait' | 'rejected'
+  state: ApprovalNodeState
+  statusText?: string
   approverName?: string
   time?: string
   comment?: string
