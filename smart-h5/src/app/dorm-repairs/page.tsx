@@ -13,6 +13,7 @@ import {
   FALLBACK_RANGES,
   REPAIR_TYPES,
   buildingsForRange,
+  normalizeRepairOptions,
   type RepairOption,
 } from '@/features/dorm-services/repair-options'
 import { getTenantConfig } from '@/lib/config/tenant'
@@ -65,10 +66,8 @@ export default function DormRepairsPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const rangeEnum = useQuery({ queryKey: ['repair-range-enum'], queryFn: getRepairRangeEnum, enabled: authorized })
-  const ranges: RepairOption[] =
-    rangeEnum.data?.code === 0 && rangeEnum.data.data?.length
-      ? rangeEnum.data.data.map((item) => ({ code: Number(item.code), desc: item.desc }))
-      : FALLBACK_RANGES
+  const apiRanges = normalizeRepairOptions(rangeEnum.data?.code === 0 ? rangeEnum.data.data : undefined)
+  const ranges: RepairOption[] = apiRanges.length ? apiRanges : FALLBACK_RANGES
 
   function pickRange(codeText: string) {
     const next = ranges.find((r) => String(r.code) === codeText)

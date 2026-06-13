@@ -40,3 +40,33 @@ const BUILDINGS: Record<number, string[]> = {
 export function buildingsForRange(rangeCode: number): string[] {
   return BUILDINGS[rangeCode] ?? []
 }
+
+function textValue(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const text = value.trim()
+  if (!text || text.toLowerCase() === 'null' || text.toLowerCase() === 'undefined') return undefined
+  return text
+}
+
+function positiveInteger(value: unknown): number | undefined {
+  if (typeof value === 'string' && value.trim() === '') return undefined
+  const code = Number(value)
+  return Number.isInteger(code) && code > 0 ? code : undefined
+}
+
+/**
+ * The enum endpoint returns code/desc, while legacy tce-form picker data uses
+ * value/label. Normalize both shapes before a submit body can be built.
+ */
+export function normalizeRepairOptions(items: unknown[] | undefined): RepairOption[] {
+  return (items ?? []).flatMap((item) => {
+    if (typeof item !== 'object' || item === null) return []
+    const record = item as Record<string, unknown>
+    const rawCode = record.code ?? record.value
+    if (rawCode === null || rawCode === undefined) return []
+    const code = positiveInteger(rawCode)
+    const desc = textValue(record.desc) ?? textValue(record.label)
+    if (code === undefined || desc === undefined) return []
+    return [{ code, desc }]
+  })
+}
