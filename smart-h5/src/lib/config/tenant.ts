@@ -9,7 +9,7 @@ export interface TenantConfig {
   /** AES key for legacy-compatible field encryption; injected at deploy time, never committed. */
   securityEncodeKey?: string
   features: {
-    /** Backend for visitor records is not live yet; mock data ships by default. */
+    /** Explicit local/demo fallback for visitor records list/detail APIs. */
     visitorRecordsMock: boolean
   }
 }
@@ -22,7 +22,7 @@ const DEFAULTS: TenantConfig = {
   weatherCity: '许昌',
   wxAppId: 'wx5c0d26056102d41e',
   flows: { visitor: 'standard' },
-  features: { visitorRecordsMock: true },
+  features: { visitorRecordsMock: false },
 }
 
 declare global {

@@ -8,7 +8,7 @@ window.__SMART_CONFIG__ = {
   weatherCity: '许昌',
   wxAppId: 'wx5c0d26056102d41e',
   flows: { visitor: 'standard' },
-  // visitorRecordsMock: backend endpoints for visitor records are not
-  // implemented yet; flip to false once the gateway ships them.
-  features: { visitorRecordsMock: true },
+  // visitorRecordsMock only affects visitor record list/detail fixtures.
+  // Keep false for real business traffic; enable explicitly for local demos.
+  features: { visitorRecordsMock: false },
 }

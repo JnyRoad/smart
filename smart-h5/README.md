@@ -53,8 +53,8 @@ public/config.js  运行时租户配置（window.__SMART_CONFIG__，部署期渲
   合肥变体以 `flows.visitor==='hefei'` 配置分支预留，未实现。
 - **访客申请记录（2 页，新增功能）**：`/visitor/records`（短信验证 + 状态筛选列表）、
   `/visitor/records/[applyId]`（审批进度时间线 + 六态详情）；queryToken 鉴权防 IDOR；
-  后端接口未实现，`features.visitorRecordsMock` 开关（默认开）返回演示数据，契约见
-  specs/2026-06-12-visitor-records-design.md §2。
+  短信验证码始终请求真实发送接口；`features.visitorRecordsMock` 开关仅用于显式本地演示
+  列表/详情数据，默认关闭。
 - **帮助中心（2 页）**：`/help` 分页列表 + `/help/[id]` 富文本详情。
 - **我的宿舍 / 门锁（4 页）**：`/dorm` 聚合页、`/dorm/water-elec` 水电账单（月份筛选
   + 热水过滤/冷水改名规则）、`/dorm/lock` 门锁动态码（hex 密文前端 AES 解密、修改、
