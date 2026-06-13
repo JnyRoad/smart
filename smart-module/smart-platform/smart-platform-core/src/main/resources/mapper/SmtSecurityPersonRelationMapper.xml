@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityPersonRelationMapper">
+
+	<resultMap id="smtSecurityPersonRelationMap"
+			   type="com.tce.smart.platform.core.entity.securityzone.SmtSecurityPersonRelation">
+		<id property="id" column="ID"/>
+		<result property="securityId" column="SECURITY_ID"/>
+		<result property="staffId" column="STAFF_ID"/>
+		<result property="staffBadge" column="STAFF_BADGE"/>
+		<result property="staffName" column="STAFF_NAME"/>
+		<result property="parkId" column="PARK_ID"/>
+	</resultMap>
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.dto.SecurityPersonRelationDTO">
+		select r.id, r. security_id,r.staff_id,r.staff_badge,s.name staff_name, r.park_id,
+		s.job_id, s.job_name, s.comp_id, s.comp_name, s.dep_id, s.dep_name, s.create_time in_time
+		from smt_security_person_relation r
+		left join smt_staff s on r.staff_id = s.id
+		<where>
+			<if test="query.securityId != null">
+				and r.security_id = #{query.securityId}
+			</if>
+			<if test="query.staffBadge != null and  query.staffBadge != ''">
+				and r.staff_badge LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.staffName != null and  query.staffName != ''">
+				and r.staff_name LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.parkId != null and query.parkId != ''">
+				and r.park_id = #{query.parkId}
+			</if>
+			<if test="query.buId != null and query.buId != ''">
+				and s.comp_id = #{query.buId}
+			</if>
+			<if test="query.depId != null and query.depId != ''">
+				and s.dep_id = #{query.depId}
+			</if>
+		</where>
+	</select>
+
+	<select id="getPageById" resultType="com.tce.smart.platform.core.dto.SecurityPersonRelationDTO">
+		select r.id, r. security_id,r.staff_id,r.staff_badge,s.name staffName, r.park_id,
+		s.job_id, s.job_name, s.comp_id, s.comp_name, s.dep_id, s.dep_name, s.create_time inTime
+		from smt_security_person_relation r left join smt_staff s on r.staff_id = s.id
+		<where>
+			<if test="query.relationId!=null and query.relationId>0">
+				r.id in
+				<foreach item="item" index="index" collection="query.relationId" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+	</select>
+
+	<select id="getList" resultType="com.tce.smart.platform.core.entity.securityzone.SmtSecurityPersonRelation">
+		select r.*
+		from smt_security_person_relation r left join smt_staff s on r.staff_id = s.id
+		<where>
+			<if test="query.securityId != null">
+				and r.security_id = #{query.securityId}
+			</if>
+			<if test="query.staffBadge != null and  query.staffBadge != ''">
+				and r.staff_badge LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.staffName != null and  query.staffName != ''">
+				and r.staff_name LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.parkId != null ">
+				and r.park_id = #{query.parkId}
+			</if>
+			<if test="query.buId != null and  query.buId != ''">
+				and s.comp_id = #{query.buId}
+			</if>
+			<if test="query.depId != null and  query.depId != ''">
+				and s.dep_id = #{query.depId}
+			</if>
+		</where>
+	</select>
+
+	<select id="getListById" resultType="com.tce.smart.platform.core.entity.securityzone.SmtSecurityPersonRelation">
+		select r.* from smt_security_person_relation
+		<where>
+			<if test="relationId!=null and relationId>0">
+				 r.id in
+				<foreach item="item" index="index" collection="relationId" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+	</select>
+
+</mapper>

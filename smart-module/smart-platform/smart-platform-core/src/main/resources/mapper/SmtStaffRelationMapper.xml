@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtStaffRelationMapper">
+
+    <resultMap id="smtStaffRelationMap" type="com.tce.smart.platform.core.entity.SmtStaffRelation">
+        <id property="id" column="id"/>
+        <result property="relation" column="relation"/>
+        <result property="name" column="name"/>
+        <result property="badge" column="badge"/>
+        <result property="staff_id" column="staffId"/>
+        <result property="comp_name" column="compName"/>
+        <result property="dept_name" column="deptName"/>
+        <result property="class_name" column="className"/>
+    </resultMap>
+    <!--获取最新添加的一位员工 -->
+    <select id="selectByStaffId"  resultMap="smtStaffRelationMap" parameterType="java.lang.String">
+        select * from  smt_staff_RELATION
+        where STAFF_ID=#{staffId};
+    </select>
+
+
+</mapper>

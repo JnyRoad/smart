@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAdmittanceFellowMapper">
+
+  <resultMap id="smtAdmittanceFellowMap" type="com.tce.smart.platform.core.entity.admittance.SmtAdmittanceFellow">
+                  <id property="id" column="id"/>
+                        <result property="visitorId" column="VISITOR_ID"/>
+                        <result property="fellowName" column="FELLOW_NAME"/>
+                        <result property="fellowPhotoId" column="FELLOW_PHOTO_ID"/>
+                        <result property="certNo" column="CERT_NO"/>
+                        <result property="certType" column="CERT_TYPE"/>
+            </resultMap>
+</mapper>

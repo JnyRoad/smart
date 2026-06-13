@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.temporary.core.mapper.EleaveJjitemMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.temporary.core.entity.EleaveJjitem">
+        <id column="id" property="id" />
+        <result column="EZID" property="ezid" />
+        <result column="badge" property="badge" />
+        <result column="name" property="name" />
+        <result column="leaveDate" property="leaveDate" />
+        <result column="ZRDep" property="zrDep" />
+        <result column="JJItem" property="jjItem" />
+        <result column="JJR" property="jjr" />
+        <result column="JJRName" property="jjrName" />
+        <result column="QRR" property="qrr" />
+        <result column="JE" property="je" />
+        <result column="JJRemark" property="jjRemark" />
+        <result column="JJBegin" property="jjBegin" />
+        <result column="JJBegintime" property="jjBegintime" />
+        <result column="JJClosed" property="jjClosed" />
+        <result column="JJClosedTime" property="jjClosedTime" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, EZID AS ezid, badge, name, leaveDate, ZRDep AS zrDep, JJItem AS jjItem, JJR AS jjr, JJRName AS jjrName, QRR AS qrr, JE AS je, JJRemark AS jjRemark, JJBegin AS jjBegin, JJBegintime AS jjBegintime, JJClosed AS jjClosed, JJClosedTime AS jjClosedTime
+    </sql>
+
+    <insert id="saveBatchEleaveJjitem" parameterType="java.util.List">
+                INSERT INTO eLeave_JJitem
+                (
+                    EZID,
+                    EID,
+				    badge,
+				    name,
+				    leaveDate,
+				    ZRDep,
+				    JJItem,
+				    JJR,
+				    JJRName,
+				    QRR,
+				    QRRName,
+				    JE,
+				    JJRemark,
+				    JJBegin,
+				    JJBegintime,
+				    JJClosed,
+				    JJClosedTime
+                ) VALUES
+                <foreach collection="list" item="item" index="index" separator=",">
+                           (#{item.ezid},
+                            #{item.eid},
+                            #{item.badge},
+                            #{item.name},
+                            #{item.leaveDate},
+                            #{item.zrDep},
+                            #{item.jjItem},
+                            #{item.jjr},
+                            #{item.jjrName},
+                            #{item.qrr},
+                            #{item.qrrName},
+                            #{item.je},
+                            #{item.jjRemark},
+                            #{item.jjBegin},
+                            #{item.jjBegintime},
+                            #{item.jjClosed},
+                            #{item.jjClosedTime})
+                </foreach>
+           </insert>
+</mapper>

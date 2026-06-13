@@ -1,0 +1,21 @@
+security:
+  encode:
+    key: "${SMART_SECURITY_ENCODE_KEY:}"
+ignore:
+  clients:
+  - test
+  - smart
+  - platform
+  - bridge
+  - app
+  - data
+  - oaview
+  swagger-providers:
+  - smart-auth
+  - smart-platform
+  - smart-bridge
+  - smart-app
+  - smart-data
+  - smart-oaview
+server:
+  port: 9990

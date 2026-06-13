@@ -1,0 +1,85 @@
+.dormitory-visual{
+    .male-color{
+        color: #2A7FFE;
+    }
+    .female-color{
+        color: #FF698C;
+    }
+    .gray-color{
+        color: #666;
+    }
+    .formL{
+        border-bottom: 1px solid #EEF0F5;
+        .el-form-item__label{
+            margin-bottom: 10px;
+        }
+    }
+    .cont-chart{
+        border-bottom: 1px solid #EEF0F5;
+    }
+    .btnsdv{
+        text-align: center;
+        padding-top: 20px;
+        .el-button{
+            margin: 0 20px 20px;
+        }
+    }
+    .info-ul{
+        text-align: center;
+        line-height: 25px;
+        margin-bottom: 50px;
+        li{
+           width: 50%;
+           float: left;
+       }
+    }
+    .dorm-item{
+        .dorm-top{
+            .oprbtns{
+                float: right;
+            }
+            .dp-i{
+                margin-right: 25px;
+            }
+            margin: 40px 0;
+        }
+        .layer-item{
+            display: flex;
+            width: 80%;
+            margin: 0 auto 40px;
+            min-width: 410px;
+            .l-name{
+                background: #F0F2F5;
+                border-radius: 3px;
+                min-width: 35px;
+                height: 35px;
+                text-align: center;
+                line-height: 35px;
+                display: inline-block;
+                margin: 4px 20px 0 0;
+                vertical-align: middle;
+            }
+            .ps{
+                min-width: 250px;
+            }
+            .ps-i{
+                display: inline-block;
+                width: 50%;
+                margin-top: 5px;
+            }
+            .el-rate{
+                display: inline-block;
+            }
+        }
+    }
+}
+@media screen and (max-width: 1450px) {
+    .dormitory-visual{
+        .dorm-item{
+            .el-col-lg-12{
+                width: 100%;
+            }
+        }
+
+    }
+}

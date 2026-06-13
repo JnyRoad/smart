@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtLeaveApplicationMapper">
+
+  <resultMap id="smtLeaveApplicationMap" type="com.tce.smart.platform.core.entity.SmtLeaveApplication">
+                  <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="ezid" column="EZID"/>
+                        <result property="badge" column="BADGE"/>
+                        <result property="name" column="NAME"/>
+                        <result property="compId" column="COMP_ID"/>
+                        <result property="compName" column="COMP_NAME"/>
+                        <result property="depId" column="DEP_ID"/>
+                        <result property="depName" column="DEP_NAME"/>
+                        <result property="jchenId" column="JCHEN_ID"/>
+                        <result property="jchenName" column="JCHEN_NAME"/>
+                        <result property="jobId" column="JOB_ID"/>
+                        <result property="jobName" column="JOB_NAME"/>
+                        <result property="leaveType" column="LEAVE_TYPE"/>
+                        <result property="leaveReason" column="LEAVE_REASON"/>
+                        <result property="leaveStatus" column="LEAVE_STATUS"/>
+                        <result property="yearHoliday" column="YEAR_HOLIDAY"/>
+                        <result property="joinTime" column="JOIN_TIME"/>
+                        <result property="leaveTime" column="LEAVE_TIME"/>
+                        <result property="processId" column="PROCESS_ID"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="approveStatus" column="APPROVE_STATUS"/>
+            </resultMap>
+
+<!--             <select id="getLeaveApplication" parameterType="String" resultType="com.tce.smart.platform.core.entity.SmtLeaveApplication"> -->
+<!-- 	            SELECT -->
+<!-- 				    SLA. ID, -->
+<!-- 				    SLA.BADGE, -->
+<!-- 				    SLA. NAME, -->
+<!-- 				    SLA.COMP_NAME, -->
+<!-- 				    SLA.DEP_NAME, -->
+<!-- 				    SLA.JCHEN_NAME, -->
+<!-- 				    SLA.LEAVE_TYPE, -->
+<!-- 				    SLA.LEAVE_REASON, -->
+<!-- 				    SLA.LEAVE_TIME, -->
+<!-- 				    SLA.JOIN_TIME, -->
+<!-- 				    SLA.YEAR_HOLIDAY, -->
+<!-- 				    SLA.PROCESS_ID -->
+<!-- 				FROM -->
+<!-- 				    SMT_LEAVE_APPLICATION SLA -->
+<!-- 				WHERE -->
+<!-- 				    SLA.BADGE = #{badge} -->
+<!--             </select> -->
+
+            <select id="getLeaveApplicationByProcessId" parameterType="String" resultType="com.tce.smart.platform.core.entity.SmtLeaveApplication">
+                SELECT
+                    SLA. ID,
+                    SLA.BADGE,
+                    SLA. NAME,
+                    SLA.COMP_NAME,
+                    SLA.DEP_NAME,
+                    SLA.JCHEN_NAME,
+                    SLA.JOB_NAME,
+                    SLA.LEAVE_TYPE,
+                    SLA.LEAVE_REASON,
+                    SLA.LEAVE_TIME,
+                    SLA.JOIN_TIME,
+                    SLA.YEAR_HOLIDAY,
+                    SLA.EZID,
+                    SLA.PROCESS_ID,
+                    SLA.LEAVE_STATUS,
+                    SLA.APPROVE_STATUS,
+                    SLA.EID
+                FROM
+                    SMT_LEAVE_APPLICATION SLA
+                WHERE
+                    SLA.PROCESS_ID = #{processId}
+            </select>
+
+            <update id="updateStatus">
+                UPDATE SMT_LEAVE_APPLICATION SLA
+				SET SLA.APPROVE_STATUS = #{approveStatus}
+				WHERE
+				    SLA.PROCESS_ID = #{processId}
+            </update>
+
+            <select id="getPhoneByBadge" resultType="String">
+                SELECT
+				    SS.PHONE
+				FROM
+				    SMT_STAFF SS
+				WHERE
+				    SS.BADGE = #{badge}
+            </select>
+
+            <select id="getLeaveRecordList" resultType="com.tce.smart.platform.core.vo.LeaveRecordVO">
+				SELECT
+				    V_SPR.TITLE,
+				    V_SPR.NODE_NAME,
+				    V_SPR.NODE_STATE,
+				    V_SPR.LEAVE_TIME,
+				    V_SPR.RECORD_DATE,
+				    V_SPR.PROCESS_ID,
+				    V_SPR."ID",
+				    V_SPR.LEAVE_STATUS,
+				    V_SPR."NAME",
+					  V_SPR.APPROVE_STATUS,
+						V_SPR.CREATE_TIME,
+						V_SPR.RN
+				FROM
+				    (
+				        SELECT
+				            ROW_NUMBER () OVER (
+				                PARTITION BY SPRF.PROCESS_ID
+				                ORDER BY
+				                    SPRF.ORDER_ID DESC
+				            ) RN,
+				            SPRF.TITLE,
+				            SPRF.NODE_NAME,
+				            SPRF.NODE_STATE,
+				            SPRF.LEAVE_TIME,
+				            SPRF.RECORD_DATE,
+				            SPRF.PROCESS_ID,
+				            SPRF."ID",
+				            SPRF.LEAVE_STATUS,
+				            SPRF."NAME",
+				            SPRF.Badge,
+							SPRF.APPROVE_STATUS,
+							SPRF.CREATE_TIME,
+							SPRF.ORDER_ID
+				        FROM
+				            (
+				                SELECT
+				                    CONCAT (SLA. NAME, '离职申请') AS TITLE,
+				                    SPR.NODE_NAME,
+				                    SPR.STATUS AS NODE_STATE,
+				                    SLA.LEAVE_TIME,
+				                    SPR.RECORD_DATE,
+				                    SLA.PROCESS_ID,
+				                    SLA."ID",
+				                    SLA.LEAVE_STATUS,
+				                    SLA."NAME",
+				                    SLA.Badge,
+									SLA.APPROVE_STATUS,
+									SLA.CREATE_TIME,
+									SPR."ID" AS ORDER_ID
+				                FROM
+				                    SMT_LEAVE_APPLICATION SLA
+				                LEFT JOIN SMT_PROCESS_RECORD SPR ON SLA.PROCESS_ID = SPR.PROCESS_ID
+				                WHERE
+				                    SLA.APPLY_BADGE = #{badge}
+				                    AND SLA.LEAVE_STATUS = #{leaveStatus}
+<!-- 												ORDER BY SLA.CREATE_TIME DESC -->
+				            ) SPRF
+				    ) V_SPR
+				WHERE
+						V_SPR.RN = 1
+				ORDER BY
+				    V_SPR.CREATE_TIME DESC
+            </select>
+
+			<select id="getPage" resultType="com.tce.smart.platform.core.entity.SmtLeaveApplication">
+				SELECT
+				SLA. ID,
+				SLA.PARK_ID,
+				SLA.BADGE,
+				SLA. NAME,
+				SLA.COMP_ID,
+				SLA.COMP_NAME,
+				SLA.DEP_ID,
+				SLA.DEP_NAME,
+				SLA.JCHEN_ID,
+				SLA.JCHEN_NAME,
+				SLA.LEAVE_TYPE,
+				SLA.LEAVE_REASON,
+				SLA.YEAR_HOLIDAY,
+				SLA.PROCESS_ID,
+				SLA.JOIN_TIME,
+				SLA.LEAVE_TIME,
+				SLA.CREATE_TIME,
+				SLA.EZID,
+				SLA.JOB_ID,
+				SLA.JOB_NAME,
+				SLA.LEAVE_STATUS,
+				SLA.APPROVE_STATUS,
+				SLA.APPLY_BADGE,
+				SLA.EID
+				FROM
+					SMT_LEAVE_APPLICATION SLA
+				<where>
+					<if test="query.name != null and  query.name != ''">
+						AND SLA.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+					</if>
+					<if test="query.badge != null and query.badge != ''">
+						AND SLA.BADGE = #{query.badge}
+					</if>
+					<if test="query.parkIds != null and query.parkIds.size > 0">
+						AND SLA.COMP_ID IN (
+						SELECT DISTINCT SPB.COMP_ID from SMT_PARK_BU SPB
+						<where>
+							SPB.PARK_ID IN
+							<foreach collection="query.parkIds" item="id" index="index" open="(" close=")" separator=",">
+								#{id}
+							</foreach>
+						</where>
+						)
+					</if>
+					<if test="query.startTime != null and query.startTime != ''">
+						AND TO_DATE(TO_CHAR(SLA.LEAVE_TIME, 'YYYY-MM-DD'),'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+					</if>
+					<if test="query.endTime != null and query.endTime != ''">
+						AND TO_DATE(TO_CHAR(SLA.LEAVE_TIME, 'YYYY-MM-DD'),'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd')
+					</if>
+				</where>
+				ORDER BY
+					SLA.CREATE_TIME DESC
+			</select>
+</mapper>

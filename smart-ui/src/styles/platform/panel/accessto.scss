@@ -1,0 +1,349 @@
+.pn-at{
+  width: 1280px;
+  height: 100%;
+  background:#04112C url('/img/pn_bg.png') center no-repeat;
+  background-size:  100% 100%;
+  display: flex;
+  flex-direction: column;
+  color: #5DB1FF;
+}
+.ft-zn-cn::before{
+  content: '一';
+  display: inline-block;
+  visibility: hidden;
+}
+.ft-zn-cn2::before{
+  content: '一一';
+  display: inline-block;
+  visibility: hidden;
+}
+.pn-top{
+  display: flex;
+  height: 60px;
+  background: url('/img/pn_top.png') center no-repeat;
+  background-size:  100% 100%;
+  font-size: 18px;
+}
+.pn-top-item{
+  flex: 1;
+  text-align: center;
+}
+.pn-btn{
+  display: inline-block;
+  height: 37px;
+  width: 106px;
+  text-align: center;
+  line-height: 37px;
+  margin: 0 20px;
+  vertical-align: middle;
+  opacity: .8;
+  cursor: pointer;
+}
+.pn-btn.pn-btn-active{
+  opacity: 1;
+  background: url('/img/pn_btn.png') center no-repeat;
+  background-size:  100% 100%;
+}
+.pn-title{
+  color: #fff;
+  letter-spacing: 20px;
+  font-weight: bold;
+  font-size: 0;
+  line-height: 50px;
+}
+.pn-top-it-tm{
+  display: flex;
+  align-items: center;
+}
+.pn-exit{
+  width: 18px;
+  height: 18px;
+  margin: 0 20px 0 0;
+  background: url('/img/pn_exit.png') center no-repeat;
+  background-size:  100% 100%;
+  cursor: pointer;
+}
+.pn-time{
+  flex: 1;
+  text-align: center;
+}
+.pn-btm{
+  flex: 1;
+  display: flex;
+  padding: 0 20px 20px 20px;
+}
+.pn-btm-lft ,.pn-btm-md ,.pn-btm-rt{
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pn-btm-lft{
+  flex: 1;
+}
+.pn-btm-md{
+  flex: 1;
+}
+.pn-btm-rt{
+  flex: 1.3;
+}
+.pn-btm-sq{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 30px 20px 20px;
+  background: url('/img/pn_at_sq1.png') center no-repeat;
+  background-size:  100% 100%;
+  overflow: hidden;
+}
+.pn-btm-rt-item{
+  display: flex;
+  flex: 1.3;
+}
+.pn-btm-rt-sq2{
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  background: url('/img/pn_at_sq2.png') center no-repeat;
+  background-size:  100% 100%;
+  padding: 12px 20px 20px 20px;
+  overflow: hidden;
+}
+.pn-chart1{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.pn-ct1-item{
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.pn-ct1-item p{
+  flex: 1;
+  font-size: 14px;
+}
+.pn-fkfx-i{
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 15px 0 0;
+  background: #FF7780;
+}
+.pn-i-cl1{
+  background: #FF7780;
+}
+.pn-i-cl2{
+  background: #FFCD80;
+}
+.pn-i-cl3{
+  background: #63CDFF;
+}
+.pn-i-cl4{
+  background: #AC9EFF;
+}
+.pn-fkfx-percent{
+  padding: 0 8px 0 0;
+}
+.pn-rt-fkss{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  padding: 5px 0 10px 0;
+}
+.pn-fkss-item{
+  flex: 1;
+  font-size: 14px;
+  width: 182px;
+}
+.pn-fkss-info{
+  display: flex;
+  margin-bottom: 5px;
+}
+.pn-fkss-i{
+  width: 18px;
+  height: 18px;
+  margin: 0 10px 0 0;
+}
+.pn-fkss-in{
+  background: url('/img/pn-fk-in.png') center no-repeat;
+  background-size:  100% 100%;
+}
+.pn-fkss-out{
+  background: url('/img/pn-fk-out.png') center no-repeat;
+  background-size:  100% 100%;
+}
+.pn-fkss-num{
+  flex: 1;
+  text-align: right;
+  font-size: 18px;
+}
+.pn-fkss-doors{
+  flex: 1.3;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 14px;
+  width: 100%;
+}
+.pn-fk-dr-item{
+  display: flex;
+  flex: 1;
+}
+.pn-fk-dr-item p{
+  display: flex;
+  align-items: center;
+  flex: 1;
+  overflow: hidden;
+}
+.pn-fkss-dr-value{
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 8px 0 0;
+  text-align: right;
+}
+.pn-fkss-dr-label{
+  width: 38px;
+  overflow: hidden;
+}
+.pn-fk-dr-item p:first-child{
+  flex: 1.3;
+}
+.pn-fk-dr-item p:first-child .pn-fkss-dr-value{
+  text-align: left;
+}
+.pn-btm-rt-sq3{
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  background: url('/img/pn_at_sq3.png') center no-repeat;
+  background-size:  100% 100%;
+  padding: 12px 30px 20px 20px;
+}
+.pn-chart2{
+  display: flex;
+  flex: 1;
+}
+.pn-btm-rt-sq3 .carTitile{
+  display: flex;
+  flex-direction: row;
+}
+.carTitile span{
+  flex: 1;
+}
+.carTitile .indoor, .carTitile .outdoor{
+  flex: .5;
+  font-size: 14px;
+  line-height: 50px;
+}
+.carTitile .indoor{
+  color: #5DB1FF;
+}
+.carTitile .outdoor{
+  color: #9FA3FF;
+}
+.carTitile .indoor::before{
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #5DB1FF;
+  vertical-align: middle;
+  margin: -2px 8px 0 0;
+}
+.carTitile .outdoor::before{
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #9FA3FF;
+  vertical-align: middle;
+  margin: -2px 8px 0 0;
+}
+.carAnalysisChart{
+  flex: 1;
+}
+.pn-sec-titile{
+  color: #5DB1FF;
+  font-size: 17px;
+  margin-bottom: 15px;
+}
+.pn-sq-item{
+  flex: 1;
+  display: flex;
+}
+.pn-sq-img{
+  flex: 1;
+  padding-right: 8%;
+}
+.pn-img-outer{
+  position: relative;
+  height: 100%;
+  background: #082150;
+}
+.pn-img-inner{
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+}
+.pn-img-inner img{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  width: auto;
+}
+.pn-img-bg{
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 15px;
+  font-size: 12px;
+  line-height: 15px;
+  padding: 1px 4px;
+  background: url('/img/img_outer.png') center no-repeat;
+  background-size:  100% 100%;
+}
+.pn-img-bg span{
+  transform: scale(.7);
+}
+.pn-sq-info{
+  flex: .8;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  font-size: 14px;
+  margin-top: 10px;
+}
+.pn-sq-info p{
+  display: flex;
+}
+.pn-sq-item-outer{
+  display: flex;
+}
+.pn-sq-item-outer p{
+  flex: 1;
+  overflow: hidden;
+}
+.pn-label{
+  width: 56px;
+  opacity: .8;
+  margin: 0 20px 0 0;
+}
+.pn-value{
+  flex: 1;
+  color: #9ECAF4;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+	namespace="com.tce.smart.platform.core.mapper.SmtMsgTemplateMapper">
+
+	<resultMap id="smtMsgRecordMap"
+		type="com.tce.smart.platform.core.entity.SmtMsgTemplate">
+		<id property="id" column="id" />
+		<result property="msgType" column="msg_type"/>
+		<result property="tempType" column="temp_type" />
+		<result property="tempName" column="temp_name" />
+		<result property="tempContent" column="temp_content" />
+		<result property="tempState" column="temp_state" />
+		<result property="remark1" column="remark1" />
+		<result property="remark2" column="remark2" />
+		<result property="remark3" column="remark3" />
+		<result property="createTime" column="create_time" />
+	</resultMap>
+
+	<resultMap id="smtTemplateMap" type="com.tce.smart.platform.core.entity.SmtMsgTemplate">
+		<id property="id" column="id"/>
+		<!--     <result property="parkId" column="PARK_ID"/> -->
+		<result property="tempName" column="temp_name"/>
+		<result property="tempContent" column="temp_content"/>
+
+	</resultMap>
+
+	<select id="getSmtMessageTemplate" resultMap="smtTemplateMap">
+
+    select id,temp_name, temp_content from smt_msg_template
+    </select>
+</mapper>

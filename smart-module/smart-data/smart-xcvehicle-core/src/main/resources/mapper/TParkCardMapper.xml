@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.xcvehicle.core.mapper.TParkCardMapper">
+
+
+	<select id="getMaxCId" resultType="java.lang.Integer">
+		SELECT Max(CID) as MaxID from t_ParkCard  with (nolock)
+	</select>
+
+	<insert id="addParkCard">
+		INSERT INTO t_parkcard (
+			CID,UserName,CTID,
+			FCTCode,RegisterDate,
+			IOState,CardNo,
+			PCardNo,CardState,
+			sendState,Address,
+			Phone,CarNo,
+			Carlocate,DRiveNo,
+			CarColor,StartDate,
+			ValidDate,Remark,
+			CUser,CDate,
+			GrantDesc,ChargeType,
+			bluetoothstate,GrantState,
+			CardMoney,CarModel,
+			FeePeriod,AreaID,
+			TimeGroupNumber,LimitDayType,HCardNo
+		)
+		VALUES
+			(
+				#{maxCId},
+				#{param.userName},
+				#{param.ctId},
+				#{param.fctCode},
+				getdate( ),
+				0,
+				#{param.plat},
+				'',
+				1,
+				0,
+				'',
+				#{param.phone},
+				#{param.plat},
+				'',
+				'',
+				#{param.carColor},
+				#{param.startDate},
+				#{param.endDate},
+				#{param.remark},
+				#{param.cUser},
+				getdate( ),
+				'00000000',
+				2,
+				1,
+				'0',
+				0,
+				'',
+				'',- 1,
+				0,
+				0,
+				#{param.hCardNo}
+			)
+	</insert>
+
+	<insert id="addValidDate">
+		INSERT INTO CardValidDateRange ( CardNo, StartDate, EndDate, CreateTime )
+		VALUES
+			( #{plat}, #{startDate}, #{endDate}, getdate( ) )
+	</insert>
+
+	<insert id="addCardMLog">
+		INSERT INTO t_CardMLog (
+			otypeid,SLID,
+			DriveNo,CarNo,
+			Username,Phone,
+			Cardmoney,[Note],
+			Cardno,CUser,
+			CDate,ValidFlag,
+			OType,CTID,
+			PCardNo,CarLocate,
+			Address,CarTypeDesc,
+			ValidDate1,ValidDate2
+		) SELECT
+			  0,
+			  ( SELECT IsNull( MAX ( SLID ), 0 ) + 1 FROM t_cardmlog ),
+			  DriveNo,
+			  Carno,
+			  Username,
+			  Phone,
+			  CASE
+
+				  WHEN ctid = 4 THEN
+					  0 ELSE 0.00
+				  END,
+			  '',
+			  CardNo,
+			  CUser,
+			  getdate( ),
+			  'Y',
+			  '注册',
+			  CTID,
+			  PCardNo,
+			  CarLocate,
+			  Address,
+			  ( SELECT CDesc FROM t_controldt WHERE property = 20 AND code = tp.FCTCode ),
+			  StartDate,
+			  ValidDate
+		FROM
+			t_ParkCard tp
+		WHERE
+			CardNo = '豫K2330Y'
+	</insert>
+
+	<select id="queryUser" resultType="java.lang.String">
+		SELECT UserName From UserInfo with (nolock)  Where  UserName= #{userName}
+	</select>
+
+	<update id="updateUser">
+		Update UserInfo set  Phone=#{phone},Address='',DriveNo='' where UserName=#{userName}
+	</update>
+
+	<update id="updateGateIo">
+		update pk_gateio set carType=#{carType} ,CarTypedesc=#{carTypedesc} where cardtype=0 and cardno=#{plat}
+	</update>
+
+	<delete id="deleteParkCard">
+		delete from t_parkcard where CardNo = #{cardNo}
+	</delete>
+
+	<delete id="deleteCardValidDateRange">
+		delete from CardValidDateRange where CardNo = #{cardNo}
+	</delete>
+</mapper>

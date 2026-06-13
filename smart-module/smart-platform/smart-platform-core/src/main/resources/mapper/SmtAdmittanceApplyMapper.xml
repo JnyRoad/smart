@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAdmittanceApplyMapper">
+
+  <resultMap id="smtAdmittanceApplyMap" type="com.tce.smart.platform.core.entity.admittance.SmtAdmittanceApply">
+                  <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="visitorName" column="VISITOR_NAME"/>
+                        <result property="visitorPhotoId" column="VISITOR_PHOTO_ID"/>
+                        <result property="visitorPhone" column="VISITOR_PHONE"/>
+                        <result property="status" column="STATUS"/>
+                        <result property="startTime" column="START_TIME"/>
+                        <result property="endTime" column="END_TIME"/>
+                        <result property="receptionistBadge" column="RECEPTIONIST_BADGE"/>
+                        <result property="receptionistName" column="RECEPTIONIST_NAME"/>
+                        <result property="receptionistPhone" column="RECEPTIONIST_PHONE"/>
+                        <result property="isSend" column="IS_SEND"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="certNo" column="CERT_NO"/>
+                        <result property="certType" column="CERT_TYPE"/>
+                        <result property="visitorFrontPhotoid" column="VISITOR_FRONT_PHOTOID"/>
+                        <result property="visitorBackPhotoid" column="VISITOR_BACK_PHOTOID"/>
+                        <result property="remark" column="REMARK"/>
+                        <result property="smsCode" column="SMS_CODE"/>
+                        <result property="company" column="COMPANY"/>
+                        <result property="cause" column="CAUSE"/>
+                        <result property="thing" column="THING"/>
+                        <result property="permitArea" column="PERMIT_AREA"/>
+                        <result property="permitType" column="PERMIT_TYPE"/>
+                        <result property="permitTypeId" column="PERMIT_TYPE_ID"/>
+            </resultMap>
+	<resultMap id="searchSmtVisitorVOMap" type="com.tce.smart.platform.core.vo.SearchSmtVisitorVO">
+		<id property="id" column="id"/>
+		<result property="visitorName" column="visitor_name"/>
+		<result property="visitorPhotoId" column="visitor_photo_id"/>
+		<result property="visitorPhone" column="visitor_phone"/>
+		<result property="vehiclePlate" column="vehicle_plate"/>
+		<result property="company" column="company"/>
+		<result property="status" column="status"/>
+		<result property="isVehicle" column="is_vehicle"/>
+		<result property="cause" column="cause"/>
+		<result property="startTime" column="start_time"/>
+		<result property="endTime" column="end_time"/>
+		<result property="receptionistBadge" column="receptionist_badge"/>
+		<result property="receptionistName" column="receptionist_name"/>
+		<result property="receptionistPhone" column="receptionist_phone"/>
+		<result property="compName" column="comp_name"/>
+		<result property="depName" column="dep_name"/>
+		<result property="jobName" column="job_name"/>
+		<result property="parkName" column="park_name"/>
+		<result property="parkId" column="park_id"/>
+		<result property="visitorCertNo" column="cert_no"/>
+
+	</resultMap>
+
+	<select id="getSmtVisitorPage" parameterType="com.tce.smart.platform.core.dto.SearchSmtVisitorDTO"
+			resultMap="searchSmtVisitorVOMap">
+		SELECT distinct
+		V.ID,
+		V.VISITOR_NAME,
+		V.VISITOR_PHOTO_ID,
+		V.VISITOR_PHONE,
+		V.COMPANY,
+		V.STATUS,
+		V.DEVICE_STATUS,
+		V.IS_VEHICLE,
+		V.CAUSE,
+		V.START_TIME,
+		V.PERSON_TYPE,
+		V.END_TIME,
+		V.RECEPTIONIST_BADGE,
+		V.RECEPTIONIST_NAME,
+		V.RECEPTIONIST_PHONE,
+		SAV.PLATE VEHICLE_PLATE,
+		V.CERT_NO VISITOR_CERT_NO,
+		S.COMP_NAME,
+		S.DEP_NAME,
+		S.JOB_NAME,
+		P.PARK_NAME,
+		V.PARK_ID,
+		V.APPLY_TYPE,
+		V.CREATE_TIME
+		FROM
+		SMT_ADMITTANCE_APPLY V
+		LEFT JOIN SMT_STAFF S ON V.RECEPTIONIST_BADGE = S.BADGE
+		LEFT JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		LEFT JOIN SMT_ADMITTANCE_FELLOW SAF ON  SAF.VISITOR_ID = V.ID
+		LEFT JOIN SMT_ADMITTANCE_VEHICLE SAV ON SAV.VISITOR_ID = V.ID
+		<where>
+			<if test="query.visitorName != null and query.visitorName != ''">
+				V.VISITOR_NAME LIKE CONCAT(CONCAT('%',#{query.visitorName}),'%')
+			</if>
+			<if test="query.visitorPhone != null and query.visitorPhone != ''">
+				and V.VISITOR_PHONE LIKE CONCAT(CONCAT('%',#{query.visitorPhone}),'%')
+			</if>
+			<if test="query.receptionistName != null and query.receptionistName != ''">
+				and V.receptionist_name LIKE CONCAT(CONCAT('%',#{query.receptionistName}),'%')
+			</if>
+			<if test="query.company != null and query.company != ''">
+				and V.COMPANY LIKE CONCAT(CONCAT('%',#{query.company}),'%')
+			</if>
+			<if test="query.certNo != null and query.certNo != ''">
+				and SAF.CERT_NO LIKE CONCAT(CONCAT('%',#{query.certNo}),'%')
+			</if>
+			<if test="query.status != null">
+				and V.STATUS =#{query.status}
+			</if>
+			<if test="query.applyType != null">
+				and V.APPLY_TYPE =#{query.applyType}
+			</if>
+			<if test="query.isVehicle != null ">
+				and V.IS_VEHICLE =#{query.isVehicle}
+			</if>
+			<if test="query.cause != null">
+				and V.CAUSE =#{query.cause}
+			</if>
+			<if test="query.compId != null  and query.compId != ''">
+				and S.COMP_ID =#{query.compId}
+			</if>
+			<if test="query.depId != null  and query.depId != ''">
+				and S.DEP_ID =#{query.depId}
+			</if>
+			<if test="query.parkId != null">
+				and V.PARK_ID =#{query.parkId}
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				and V.START_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="park!=null and  park.size>0">
+				and V.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY V.CREATE_TIME DESC, V.START_TIME DESC
+	</select>
+	<select id="searchAppVisitorPage" parameterType="com.tce.smart.platform.core.dto.SearchVisitorAppDTO"
+			resultType="com.tce.smart.platform.core.vo.SearchAppSmtVisitorVO">
+		SELECT
+		V. ID AS VISITORID,
+		V.VISITOR_NAME,
+		V.VISITOR_PHOTO_ID,
+		V.STATUS,
+		V.CAUSE,
+		V.START_TIME,
+		V.END_TIME,
+		P.PARK_NAME PARKNAME,
+		V.PARK_ID,
+		V.CREATE_TIME
+		FROM
+		SMT_VISITOR V
+		INNER JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		<where>
+			<if test="query.receptionistBadge != null and query.receptionistBadge  != ''">
+				AND V.RECEPTIONIST_BADGE =#{query.receptionistBadge}
+				AND TO_DATE(TO_CHAR(V.END_TIME, 'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi:ss')  <![CDATA[>=]]>
+				TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+				AND V.PROMOTER_BADGE IS NULL
+			</if>
+			<if test="query.promoterBadge != null and query.promoterBadge  != ''">
+				AND V.PROMOTER_BADGE =#{query.promoterBadge}
+				AND V.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.status != null">
+				AND V.STATUS !=#{query.status}
+			</if>
+		</where>
+		ORDER BY V.CREATE_TIME DESC
+	</select>
+	<select id="selectVisitorById" parameterType="com.tce.smart.platform.core.entity.SmtVisitor"
+			resultType="com.tce.smart.platform.core.entity.SearchVisitorDetail">
+		SELECT
+		V. ID AS VISITORID,
+		V.VISITOR_NAME AS VISITORNAME,
+		V.VISITOR_PHOTO_ID AS VISITORPHOTOID,
+		V.VISITOR_PHONE AS VISITORPHONE,
+		V.VEHICLE_PLATE AS VEHICLEPLATE,
+		V.COMPANY,
+		V.STATUS,
+		V.IS_VEHICLE AS ISVEHICLE,
+		V.CAUSE,
+		V.START_TIME AS STARTTIME,
+		V.END_TIME AS ENDTIME,
+		V.CERT_NO,
+		S. ID AS RECEPTIONISTID,
+		S. NAME AS RECEPTIONISTNAME,
+		S.BADGE AS RECEPTIONISTNUMBER,
+		S.COMP_NAME AS RECEPTIONISTBU,
+		S.DEP_NAME AS RECEPTIONISTDEPT,
+		S.JOB_NAME AS RECEPTIONISTJOB,
+		S.JCHE_NAME AS RECEPTIONISTJCHENAME,
+		S.PHONE AS RECEPTIONISTPHONE,
+		V.VISITOR_FRONT_PHOTO_ID AS VISITORFRONTPHOTOID ,
+		V.VISITOR_BACK_PHOTO_ID AS VISITORBACKPHOTOID,
+		V.REMARK,
+		P.PARK_NAME AS PAKRNAME ,
+		V.PARK_ID AS PARKID,
+		V.CREATE_TIME,
+		V.CERT_TYPE
+		FROM
+		SMT_VISITOR V
+		LEFT JOIN SMT_STAFF S ON V.RECEPTIONIST_BADGE = S.BADGE
+		LEFT JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		<where>
+			<if test="query.id !=null and query.id!=''">
+				V.ID =#{query.id}
+			</if>
+		</where>
+	</select>
+	<select id="selectAppVisitorById" parameterType="com.tce.smart.platform.core.entity.SmtVisitor"
+			resultType="com.tce.smart.platform.core.vo.SearchAppVisitorDetailVO">
+		SELECT
+		V. ID AS VISITORID,
+		V.VISITOR_NAME AS VISITORNAME,
+		V.VISITOR_PHOTO_ID AS VISITORPHOTOID,
+		V.VISITOR_PHONE AS VISITORPHONE,
+		V.VEHICLE_PLATE AS VEHICLEPLATE,
+		V.COMPANY,
+		V.CAUSE,
+		V.STATUS,
+		V.START_TIME AS STARTTIME,
+		V.END_TIME AS ENDTIME,
+		V.RECEPTIONIST_NAME,
+		V.RECEPTIONIST_PHONE,
+		V.STATUS,
+		V.CERT_NO,
+		V.VISITOR_FRONT_PHOTO_ID AS VISITORFRONTPHOTO ,
+		V.VISITOR_BACK_PHOTO_ID AS VISITORBACKPHOTO,
+		V.REMARK,
+		P.ID AS PARKID,
+		P.PARK_NAME AS PARKNAME
+		FROM
+		SMT_VISITOR V
+		INNER JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		<where>
+			<if test="query.id !=null and query.id!=''">
+				V.ID =#{query.id}
+			</if>
+		</where>
+	</select>
+	<select id="selectTodayVisitorById" parameterType="com.tce.smart.platform.core.entity.SmtVisitor"
+			resultType="com.tce.smart.platform.core.entity.SearchTadayVisitorDetail">
+		SELECT
+		V. ID AS VISITORID,
+		V.VISITOR_NAME AS VISITORNAME,
+		V.VISITOR_PHOTO_ID AS VISITORPHOTOID,
+		V.VISITOR_PHONE AS VISITORPHONE,
+		V.VEHICLE_PLATE AS VEHICLEPLATE,
+		V.COMPANY,
+		V.STATUS,
+		V.IS_VEHICLE AS ISVEHICLE,
+		V.CAUSE,
+		V.START_TIME,
+		V.END_TIME,
+		V.CERT_NO,
+		S. ID AS RECEPTIONISTID,
+		S. NAME AS RECEPTIONISTNAME,
+		S.DEP_NAME AS RECEPTIONISTDEPT,
+		S.PHONE AS RECEPTIONISTPHONE
+		FROM
+		SMT_VISITOR V
+		LEFT JOIN SMT_STAFF S ON V.RECEPTIONIST_BADGE = S.BADGE
+		<where>
+			<if test="query.id !=null and query.id!=''">
+				V.ID =#{query.id}
+			</if>
+		</where>
+	</select>
+	<select id="getTodayVisitor" parameterType="com.tce.smart.platform.core.dto.SearchTodayVisitorDTO"
+			resultType="com.tce.smart.platform.core.entity.SearchTodayVisitor">
+		SELECT
+		V. ID AS VISITORID,
+		V.VISITOR_NAME AS VISITORNAME,
+		V.COMPANY,
+		V.START_TIME AS STARTTIME,
+		V.END_TIME AS ENDTIME,
+		V.CERT_NO,
+		S.DEP_NAME AS RECEPTIONISTDEPT,
+		P.PARK_NAME,
+		V.CREATE_TIME
+		FROM
+		SMT_VISITOR V
+		LEFT JOIN SMT_STAFF S ON V.RECEPTIONIST_BADGE = S.BADGE
+		LEFT JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		<where>
+			V.STATUS IN (0,3)
+			<if test="query.startTime != null">
+				AND TO_DATE(TO_CHAR(V.START_TIME, 'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi:ss')  <![CDATA[<=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.endTime!= null">
+				AND TO_DATE(TO_CHAR(V.END_TIME, 'yyyy-mm-dd hh24:mi:ss'),'yyyy-mm-dd hh24:mi:ss')  <![CDATA[>=]]>
+				TO_DATE(#{query.endTime}, 'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="park!=null  and park.size>0">
+				and V.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		ORDER BY V.CREATE_TIME DESC
+	</select>
+
+
+	<select id="searchReceptionist" parameterType="com.tce.smart.platform.core.entity.SmtVisitor"
+			resultType="com.tce.smart.platform.core.entity.SmtStaff">
+
+		select S.ID,S.NAME,S.BADGE,S.JCHE_ID, S.JCHE_NAME JCHENAME from SMT_STAFF S
+
+		inner join SMT_PARK_BU B
+
+		on S.COMP_ID = B.COMP_ID
+
+		where
+		S.STATUS &lt;&gt; 0
+		<if test="query.receptionistName != null and query.receptionistName!=''">
+			AND S.NAME=#{query.receptionistName}
+		</if>
+		<if test="query.receptionistPhone != null and query.receptionistPhone!=''">
+			AND S.PHONE=#{query.receptionistPhone}
+		</if>
+		<if test="query.parkId!= null and query.parkId!=''">
+			AND B.PARK_ID=#{query.parkId}
+		</if>
+	</select>
+
+	<select id="searchReceptionistForTemp" parameterType="com.tce.smart.platform.core.entity.SmtVisitor"
+			resultType="com.tce.smart.platform.core.entity.SmtStaff">
+
+		select S.ID,S.NAME,S.BADGE,S.JCHE_ID, S.JCHE_NAME JCHENAME from SMT_STAFF S
+
+		inner join SMT_ORGANIZE_RELATION B
+
+		on S.COMP_ID = B.ID
+
+		where
+		S.STATUS &lt;&gt; 0
+		<if test="query.receptionistName != null and query.receptionistName!=''">
+			AND S.NAME=#{query.receptionistName}
+		</if>
+		<if test="query.receptionistPhone != null and query.receptionistPhone!=''">
+			AND S.PHONE=#{query.receptionistPhone}
+		</if>
+		<if test="query.parkId!= null and query.parkId!=''">
+			AND B.PARK_ID=#{query.parkId}
+		</if>
+	</select>
+
+	<update id="updateSmsCode">
+		update SMT_VISITOR set DEL_FLAG = 1 where ID = #{id}
+	</update>
+
+
+	<select id="countActiveMainFellowOverlapByCertNo" resultType="int">
+		SELECT COUNT(1)
+		FROM SMT_ADMITTANCE_APPLY A
+		INNER JOIN SMT_ADMITTANCE_FELLOW F ON F.VISITOR_ID = A.ID
+		WHERE F.CERT_NO = #{certNo}
+			AND F.IS_MAIN = 1
+			AND A.STATUS != 1
+			AND A.START_TIME &lt; #{endTime}
+			AND A.END_TIME &gt; #{startTime}
+	</select>
+
+</mapper>

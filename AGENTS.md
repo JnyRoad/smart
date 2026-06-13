@@ -4,10 +4,10 @@
 
 ## 仓库组织
 
-- 根目录是统一 Git 仓库；子项目按目录平铺，例如 `smart-h5/`，后续新增模块继续作为根目录同级子目录。
-- 子项目不要再初始化独立 `.git`，也不要默认使用 submodule。需要例外时先说明原因。
+- 子项目按目录平铺，例如 `smart/`、`smart-module/`、`smart-ui/`、`smart-h5/`，后续新增模块继续作为根目录同级子目录。
+- 子项目不要初始化独立 `.git`；需要例外时先说明原因。
 - 新增子项目时，同步更新根 `README.md` 和本文件的“子项目”清单。
-- 历史设计文档放在对应子项目自己的 `docs/` 下；实现时以当前代码、当前 README、当前配置为准。
+- 设计文档放在对应子项目自己的 `docs/` 下；实现时以当前代码、当前 README、当前配置为准。
 
 ## 通用开发约定
 
@@ -17,6 +17,27 @@
 - 提交前确认没有依赖、构建产物、测试报告、环境文件、日志、证书进入暂存区。
 
 ## 子项目
+
+### `smart`
+
+- 用途：智慧园区基础平台后端，包含网关、认证、UPMS 和公共组件。
+- 技术栈：Java 8、Maven、Spring Boot 2.1、Spring Cloud Greenwich、Nacos、Redis。
+- 常用命令：在 `smart/` 内执行 `mvn clean install -DskipTests`；单服务用 `mvn -pl <module> -am package -DskipTests`。
+- 目录边界：`smart-gateway/` 放网关服务，`smart-auth/` 放认证服务，`smart-upms/` 放用户权限服务，`smart-common/` 放跨服务公共组件。
+
+### `smart-module`
+
+- 用途：智慧园区业务微服务后端，包含 App、平台、数据、桥接、ISC、推送、调度等业务模块。
+- 技术栈：Java 8、Maven、Spring Boot、Spring Cloud、MyBatis / MyBatis-Plus、Nacos、Kafka。
+- 常用命令：在 `smart-module/` 内执行 `mvn clean package -DskipTests`；单服务用 `mvn -pl <module>/<service> -am test` 或 `package`。
+- 目录边界：业务按一级目录划分；`api` 放服务契约，`biz` 放可部署服务，`core` 放领域复用代码，`database/manual/` 放人工数据库脚本。
+
+### `smart-ui`
+
+- 用途：智慧园区管理后台前端。
+- 技术栈：Vue 2、Element UI、Avue、Vue CLI、pnpm。
+- 常用命令：在 `smart-ui/` 内执行 `pnpm install`、`pnpm dev`、`pnpm lint`、`pnpm test`、`pnpm build`。
+- 目录边界：`src/api/` 放接口封装，`src/views/` 放业务页面，`src/router/` 放路由和 axios 配置，`src/store/` 放 Vuex，`public/` 放原样发布静态资源。
 
 ### `smart-h5`
 

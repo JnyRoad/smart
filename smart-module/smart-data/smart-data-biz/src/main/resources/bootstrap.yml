@@ -1,0 +1,32 @@
+server:
+  port: 6060
+
+spring:
+  application:
+    name: smart-data
+  cloud:
+    nacos:
+      config:
+        file-extension: yml
+        group: ${NACOS_GROUP:dev}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        shared-configs[0]:
+          data-id: common.yml
+          group: ${NACOS_GROUP:dev}
+          refresh: true
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+      discovery:
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        group: ${NACOS_GROUP:dev}
+  main:
+    allow-bean-definition-overriding: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized

@@ -1,0 +1,673 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtStaffMapper">
+
+	<resultMap id="smtStaffMap" type="com.tce.smart.platform.core.entity.SmtStaff">
+		<id property="id" column="id"/>
+		<result property="parkId" column="park_id"/>
+		<result property="name" column="name"/>
+		<result property="jobId" column="job_id"/>
+		<result property="jobName" column="job_name"/>
+		<result property="compId" column="comp_id"/>
+		<result property="compName" column="comp_name"/>
+		<result property="depId" column="dep_id"/>
+		<result property="depName" column="dep_name"/>
+		<result property="jcheId" column="jche_id"/>
+		<result property="jcheName" column="jche_name"/>
+		<result property="welfareLevel" column="welfare_level"/>
+		<result property="badge" column="badge"/>
+		<result property="certno" column="certno"/>
+		<result property="sex" column="sex"/>
+		<result property="age" column="age"/>
+		<result property="birth" column="birth"/>
+		<result property="phone" column="phone"/>
+		<result property="wechat" column="wechat"/>
+		<result property="email" column="email"/>
+		<result property="homeAddress" column="home_address"/>
+		<result property="liveAddress" column="live_address"/>
+		<result property="certnoPicId" column="certno_pic_id"/>
+		<result property="facePicId" column="face_pic_id"/>
+		<result property="status" column="status"/>
+		<result property="createTime" column="create_time"/>
+		<result property="dormitoryStatus" column="dormitory_status"/>
+
+
+	</resultMap>
+
+	<resultMap id="smtStaffPage" type="com.tce.smart.platform.core.vo.StaffListVO">
+		<id property="id" column="id"/>
+		<result property="parkId" column="park_id"/>
+		<result property="name" column="name"/>
+		<result property="jobName" column="job_name"/>
+		<result property="compId" column="comp_id"/>
+		<result property="compName" column="comp_name"/>
+		<result property="depName" column="dep_name"/>
+		<result property="jcheName" column="jche_name"/>
+		<result property="badge" column="badge"/>
+		<result property="phone" column="phone"/>
+		<result property="status" column="status"/>
+		<result property="parkName" column="park_name"/>
+		<result property="createTime" column="create_time"/>
+		<result property="dormitoryStatus" column="dormitory_status"/>
+		<result property="deviceAuth" column="authority_name"/>
+		<result property="appAuth" column="auth_name"/>
+		<result property="facePicId" column="face_pic_id"/>
+		<result property="seqId" column="seq_id"/>
+	</resultMap>
+
+	<resultMap id="smtVehicleMap" type="com.tce.smart.platform.core.entity.SmtVehicle">
+		<id property="id" column="ID"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="vehiclePlate" column="VEHICLE_PLATE"/>
+		<result property="vehicleBrand" column="VEHICLE_BRAND"/>
+		<result property="vehicleColor" column="VEHICLE_COLOR"/>
+		<result property="vehicleType" column="VEHICLE_TYPE"/>
+		<result property="driverLicenseId" column="DRIVER_LICENSE_ID"/>
+		<result property="drivinglLicenseId" column="DRIVINGL_LICENSE_ID"/>
+		<result property="vehicleAscription" column="VEHICLE_ASCRIPTION"/>
+		<result property="isDelete" column="IS_DELETE"/>
+		<result property="createTime" column="CREATE_TIME"/>
+	</resultMap>
+
+	<resultMap type="com.tce.smart.platform.core.vo.VehicleParkDetailVO" id="VehicleParkMap">
+		<result property="vehiclePlate" column="VEHICLE_PLATE"/>
+		<result property="vehicleBrand" column="VEHICLE_BRAND"/>
+		<result property="vehicleColor" column="VEHICLE_COLOR"/>
+		<result property="vehicleType" column="VEHICLE_TYPE"/>
+		<result property="reason" column="REASON"/>
+		<result property="driverLicenseId" column="DRIVER_LICENSE_ID"/>
+		<result property="drivinglLicenseId" column="DRIVINGL_LICENSE_ID"/>
+		<result property="vehicleAscription" column="VEHICLE_ASCRIPTION"/>
+
+	</resultMap>
+
+
+	<resultMap id="staffMap" type="com.tce.smart.platform.core.vo.StaffNODormitoryVO">
+		<id property="id" column="id"/>
+		<result property="name" column="name"/>
+		<result property="badge" column="badge"/>
+		<result property="jobName" column="job_name"/>
+		<result property="compName" column="comp_name"/>
+		<result property="depName" column="dep_name"/>
+		<result property="jcheName" column="jche_name"/>
+		<result property="phone" column="phone"/>
+		<result property="certno" column="certno"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="parkName" column="PARK_NAME"/>
+		<result property="welfareLevel" column="welfare_level"/>
+	</resultMap>
+
+	<!--      查询员工分页 -->
+	<select id="getSmtStaffPage" parameterType="com.tce.smart.platform.core.dto.SearchStaffDTO"
+			resultMap="smtStaffPage">
+
+		SELECT STAFF.ID,
+		BADGE,
+		STAFF.NAME,
+		STAFF.DEP_ABBR,
+		COMP_NAME,
+		DEP_NAME,
+		JCHE_NAME,
+		JOB_NAME,
+		STAFF.CREATE_TIME,
+		STATUS
+		,DORMITORY_STATUS,
+		STAFF.certno,
+		STAFF.face_pic_id,
+		STAFF.comp_id
+		FROM SMT_STAFF STAFF
+		<where>
+			<if test="query.name != null and query.name  != ''">
+				NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.badge != null and query.badge  != ''">
+				AND BADGE LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+			</if>
+			<if test="query.badgeList != null and query.badgeList.size>0">
+				AND BADGE in
+				<foreach item="item" index="index" collection="query.badgeList" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.phone != null and query.phone  != ''">
+				AND PHONE LIKE CONCAT(CONCAT('%',#{query.phone}),'%')
+			</if>
+			<if test="query.compId != null and query.compId  != ''">
+				AND COMP_ID =#{query.compId}
+			</if>
+			<if test="query.depId != null and query.depId  != ''">
+				AND DEP_ID =#{query.depId}
+			</if>
+			<if test="query.jobId != null and query.jobId  != ''">
+				AND JOB_ID =#{query.jobId}
+			</if>
+			<if test="query.jobName != null and query.jobName  != ''">
+				AND JOB_NAME LIKE CONCAT(CONCAT('%',#{query.jobName}),'%')
+			</if>
+			<if test="query.depAbbr != null and query.depAbbr  != ''">
+				AND DEP_ABBR LIKE CONCAT(CONCAT('%',#{query.depAbbr}),'%')
+			</if>
+			<if test="query.jcheId != null and query.jcheId != ''">
+				AND JCHE_ID =#{query.jcheId}
+			</if>
+			<if test="query.status!= null">
+				AND STATUS =#{query.status}
+			</if>
+			<if test=" query.facePicId==0 ">
+				AND STAFF.face_pic_id is null
+			</if>
+			<if test="query.facePicId==1 ">
+				AND STAFF.face_pic_id is not null
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND STAFF.CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			AND STAFF.COMP_ID is not null
+			AND
+			(
+			STAFF.COMP_ID in (
+			select DISTINCT bu.COMP_ID from SMT_PARK_BU bu
+			<where>
+				<if test="query.parkId!= null">
+					AND bu.park_id =#{query.parkId}
+				</if>
+				<if test="park != null and park.size>0">
+					AND bu.park_id in
+					<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+				</if>
+			</where>
+			)
+			or
+			STAFF.COMP_ID in (
+			select DISTINCT bu.ID from smt_organize_relation bu
+			<where>
+				<if test="query.parkId!= null">
+					AND bu.park_id =#{query.parkId}
+				</if>
+				<if test="park != null and park.size>0">
+					AND bu.park_id in
+					<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+				</if>
+			</where>
+			)
+			)
+		</where>
+		ORDER BY CREATE_TIME DESC,STAFF.NAME ASC
+
+	</select>
+
+	<!--      查询员工分页 -->
+	<select id="getStaffPage" parameterType="com.tce.smart.platform.core.entity.ext.SecurityPersonRelationExt"
+			resultType="com.tce.smart.platform.core.dto.SecurityAllStaffListDTO">
+		SELECT STAFF.ID STAFF_ID,
+		STAFF.BADGE,
+		STAFF.NAME,
+		STAFF.DEP_ABBR,
+		STAFF.COMP_NAME,
+		STAFF.DEP_NAME,
+		STAFF.JCHE_NAME,
+		STAFF.JOB_NAME,
+		STAFF.CREATE_TIME,
+		STAFF.STATUS,
+		STAFF.DORMITORY_STATUS,
+		STAFF.CERTNO,
+		STAFF.FACE_PIC_ID,
+		STAFF.COMP_ID
+		FROM SMT_STAFF STAFF
+		<where>
+			<if test="query.staffName != null and query.staffName  != ''">
+				AND STAFF.NAME LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.staffBadge != null and query.staffBadge  != ''">
+				AND STAFF.BADGE LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.buIds != null and query.buIds.size>0">
+				AND STAFF.COMP_ID in
+				<foreach item="item" index="index" collection="query.buIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.staffBadges != null and query.staffBadges.size>0">
+				AND STAFF.BADGE in
+				<foreach item="item" index="index" collection="query.staffBadges" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.depIds != null and query.depIds.size>0">
+				AND STAFF.DEP_ID in
+				<foreach item="item" index="index" collection="query.depIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.buId != null">
+				AND STAFF.COMP_ID = #{query.buId}
+			</if>
+			<if test="query.depId != null">
+				AND STAFF.DEP_ID = #{query.depId}
+			</if>
+			<if test="query.startDate != null and query.startDate != ''">
+				AND STAFF.CREATE_TIME BETWEEN to_date(#{query.startDate},'yyyy-MM-dd hh24:mi:ss')
+				AND to_date(#{query.endDate},'yyyy-MM-dd hh24:mi:ss')
+			</if>
+			<if test="query.signStatus != null and query.signStatus == 1 ">
+				AND STAFF.ID IN (SELECT STAFF_ID FROM SMT_SECURITY_PERSON_RELATION)
+			</if>
+			<if test="query.signStatus != null and query.signStatus == 0 ">
+				AND STAFF.ID NOT IN (SELECT STAFF_ID FROM SMT_SECURITY_PERSON_RELATION)
+			</if>
+			AND STAFF.COMP_ID IS NOT NULL
+			AND
+			(
+			STAFF.COMP_ID in (
+			select DISTINCT bu.COMP_ID from SMT_PARK_BU bu
+			<where>
+				<if test="query.parkId!= null">
+					AND bu.park_id =#{query.parkId}
+				</if>
+				<if test="query.parkIds != null and query.parkIds.size>0">
+					AND bu.park_id in
+					<foreach item="item" index="index" collection="query.parkIds" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+				</if>
+			</where>
+			)
+			or
+			STAFF.COMP_ID in (
+			select DISTINCT bu.ID from smt_organize_relation bu
+			<where>
+				<if test="query.parkId!= null">
+					AND bu.park_id =#{query.parkId}
+				</if>
+				<if test="query.parkIds != null and query.parkIds.size>0">
+					AND bu.park_id in
+					<foreach item="item" index="index" collection="query.parkIds" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+				</if>
+			</where>
+			)
+			)
+		</where>
+		ORDER BY STAFF.CREATE_TIME DESC,STAFF.NAME ASC
+	</select>
+
+	<!--   	单个员工的床位信息 -->
+	<select id="myDormitory" parameterType="com.tce.smart.platform.core.entity.SmtStaff"
+			resultType="com.tce.smart.platform.core.vo.MyDormitoryVO">
+		SELECT
+		DORMITORY_NAME DORMITORYNAME,
+		FLOOR_NAME FLOORNAME,
+		DS.ROOM_NAME ROOMNAME,
+		BED_NUMBER BEDNUMBER,
+		ROOM_ID ROOMID,
+		SR.FLOOR_ID FLOORID,
+		SR.PARK_ID PARKID,
+		SR.BED_TOTAL BEDTOTAL,
+		PARK.PARK_NAME PARKNAME,
+		SR.DORMITORY_ID
+		FROM
+		SMT_DORMITORY_STAFF DS
+		LEFT JOIN SMT_DORMITORY_ROOM SR ON DS.ROOM_ID = SR. ID
+		INNER JOIN SMT_PARK PARK ON SR.PARK_ID = PARK.ID
+		<where>
+			<if test="badge != null and badge != ''">
+				AND DS.STAFF_BADGE=#{badge}
+			</if>
+			<if test="id != null and id != ''">
+				AND DS.STAFF_ID=#{badge}
+			</if>
+		</where>
+	</select>
+
+
+	<!--获取最新添加的一位员工 -->
+	<select id="SelectLastStaff" resultMap="smtStaffMap" parameterType="com.tce.smart.platform.core.dto.StaffBadgeDTO">
+          select * from(
+          SELECT  to_number(SUBSTR (badge, INSTR (badge,#{compAbbr}, 1, 1)+length(#{compAbbr}))) badge  FROM SMT_STAFF WHERE comp_id=#{compId} and
+          badge LIKE CONCAT(#{compAbbr},'%') AND BADGE NOT LIKE CONCAT('LGLS','%')
+          ORDER BY BADGE  DESC)
+			where rownum=1
+         </select>
+
+	<!--获取当月入职新员工 -->
+	<select id="getNewStaff" resultType="com.tce.smart.platform.core.entity.SmtStaff">
+          select * from SMT_STAFF WHERE CREATE_TIME <![CDATA[>=]]> TRUNC(SYSDATE, 'MM')
+          AND CREATE_TIME <![CDATA[<]]> ADD_MONTHS(TRUNC(SYSDATE, 'MM'), 1)
+         </select>
+
+	<select id="getSeniorStaff" resultType="com.tce.smart.platform.core.entity.SmtStaff">
+          select * from SMT_STAFF
+          WHERE CREATE_TIME <![CDATA[<]]> TRUNC(SYSDATE, 'MM') AND status != 0
+    </select>
+
+	<select id="getSeniorRechargeStaff" resultType="com.tce.smart.platform.core.entity.SmtStaff">
+          select st.id,st.pzid,st.badge,st.comp_Id,st.welfare_Level,st.create_Time,st.status,st.jche_Id from SMT_STAFF st
+          WHERE st.CREATE_TIME <![CDATA[<]]> TRUNC(SYSDATE, 'MM')
+          AND st.status != 0
+    </select>
+
+	<!--根据员工号获取员工车辆的进出园区的列表 -->
+	<select id="getVehiclePark" parameterType="java.lang.String"
+			resultType="com.tce.smart.platform.core.vo.VehicleApplyVO">
+		SELECT SVP.ID ,SVP.PARK_ID,SVP.VEHICLE_PLATE VEHICLEPLATE , SP.PARK_NAME PARKNAME ,
+		SVP.STATUS ,SVP.REASON FROM SMT_VEHICLE_APPLY SVP
+		INNER JOIN SMT_PARK SP
+		ON SVP.PARK_ID=SP.ID
+		<if test="vehiclePlate != null and vehiclePlate != ''">
+			WHERE SVP.VEHICLE_ID=#{vehiclePlate}
+		</if>
+	</select>
+
+	<!-- 根据入园权限id,查询入园车辆信息 -->
+	<select id="getVehicleParkById" parameterType="java.lang.Integer" resultMap="VehicleParkMap">
+         SELECT SV.VEHICLE_PLATE,SV.VEHICLE_BRAND,
+         SV.VEHICLE_COLOR,SV.VEHICLE_TYPE,SVA.REASON,
+         SV.DRIVER_LICENSE_ID,SV.DRIVINGL_LICENSE_ID FROM
+         SMT_VEHICLE SV INNER JOIN SMT_VEHICLE_APPLY SVA
+         ON SV.ID=SVA.VEHICLE_ID
+         WHERE SVA.ID=#{id}
+         </select>
+
+	<!--  根据员工号查询车辆列表 -->
+	<select id="getMyVehicleByBadge" parameterType="java.lang.String" resultMap="smtVehicleMap">
+        SELECT SV.ID, SV.VEHICLE_PLATE,SV.VEHICLE_BRAND,SV.VEHICLE_COLOR,SV.VEHICLE_TYPE,
+          SV.DRIVER_LICENSE_ID,SV.DRIVINGL_LICENSE_ID FROM  SMT_VEHICLE SV
+          INNER JOIN SMT_VEHICLE_STAFF SVS ON SV.ID=SVS.VEHICLE_ID AND SV.IS_DELETE = 0
+          INNER JOIN SMT_STAFF SS ON SS.ID=SVS.STAFF_ID
+
+			WHERE SS.BADGE=#{badge}
+
+         </select>
+
+	<!-- 修改手机号 -->
+	<update id="updatePhone" parameterType="com.tce.smart.platform.core.entity.SmtStaff">
+         UPDATE SMT_STAFF SET PHONE=#{phone}
+         WHERE badge=#{badge}
+
+         </update>
+
+	<!--   根据条件查询未住宿的在职员工 -->
+	<select id="quetyStaffNODormitory" parameterType="com.tce.smart.platform.core.dto.SearchStaffDTO"
+			resultMap="staffMap">
+
+		SELECT STAFF.ID, STAFF.NAME,STAFF.BADGE,COMP_NAME,COMP_ID,DEP_NAME,STAFF.WELFARE_LEVEL,
+		JCHE_NAME,JOB_NAME,STAFF.certno,STAFF.CREATE_TIME from SMT_STAFF STAFF
+
+		WHERE
+		<!-- (STAFF.DORMITORY_STATUS=#{query.dormitoryStatus}
+		OR STAFF.DORMITORY_STATUS IS NULL) AND -->
+		STAFF.STATUS &lt;&gt; #{query.status}
+		<!--    <if test="query.parkId != null ">
+               AND  STAFF.PARK_ID=#{query.parkId}
+           </if> -->
+		<if test="query.compId != null and query.compId  != ''">
+			AND STAFF.COMP_ID =#{query.compId}
+		</if>
+		<if test="query.depId != null and query.depId  != ''">
+			AND STAFF.DEP_ID =#{query.depId}
+		</if>
+		<if test="query.jobId != null and query.jobId  != ''">
+			AND STAFF.JOB_ID =#{query.jobId}
+		</if>
+		<!-- 	 <if test="query.sex != null ">
+				AND STAFF.SEX =#{query.sex}
+			</if>
+			 <if test="query.jcheId != null ">
+				AND STAFF.JCHE_ID =#{query.jcheId}
+			</if> -->
+		<if test="query.name != null and query.name  != ''">
+			AND STAFF.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+		</if>
+		<if test="query.badge != null and query.badge  != ''">
+			AND STAFF.BADGE LIKE CONCAT(CONCAT('%',#{query.badge}),'%')
+		</if>
+		and
+		(
+		STAFF.COMP_ID in (
+		select DISTINCT bu.COMP_ID from SMT_PARK_BU bu
+		<where>
+			<if test="query.parkId!= null">
+				AND bu.park_id =#{query.parkId}
+			</if>
+			<if test="park != null and park.size>0">
+				AND bu.park_id in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		)
+		or
+		STAFF.COMP_ID in (
+		select DISTINCT bu.ID from smt_organize_relation bu
+		<where>
+			<if test="query.parkId!= null">
+				AND bu.park_id =#{query.parkId}
+			</if>
+			<if test="park != null and park.size>0">
+				AND bu.park_id in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+		)
+		)
+		ORDER BY CREATE_TIME DESC
+	</select>
+
+	<select id="getStaffAppAuth" parameterType="java.lang.Long"
+			resultType="com.tce.smart.platform.core.entity.SmtAppAuth">
+
+	  select AUTH_NAME authName from SMT_APP_STAFF_AUTH staff
+
+				inner join SMT_APP_AUTH auth
+
+				on STAFF.AUTH_ID=AUTH.ID
+
+				where STAFF_ID=#{staffId}
+
+         </select>
+
+
+	<select id="getStaffDeviceStafff" parameterType="java.lang.Integer"
+			resultType="com.tce.smart.platform.core.vo.StaffDeviceAuthListVO">
+         select park.park_name parkName,area.pid pId,area.area_name areaName,device.device_name deviceName from SMT_STAFF_DEVICE_AUTH auth
+
+		inner join SMT_DEVICE_AUTHORITY_RELATION rela
+
+		on AUTH.AUTH_ID=rela.AUTHORITY_ID
+
+		inner join SMT_DEVICE_AREA dar
+
+		ON rela.device_id=dar.device_id
+
+		inner join SMT_DEVICE device on device.id=dar.device_id
+
+		inner join SMT_AREA area on area.id=dar.area_id
+
+
+		inner join SMT_PARK park on park.id =area.park_id
+
+
+		where auth.id = #{authId}
+         </select>
+
+
+	<select id="getTOStaffPage" parameterType="com.tce.smart.platform.core.dto.SearchToStaffDTO"
+			resultMap="smtStaffPage">
+
+		SELECT STAFF.ID,BADGE,STAFF.NAME,COMP_NAME,DEP_NAME,JCHE_NAME,JOB_NAME,STAFF.CREATE_TIME,SEQ_ID
+		FROM SMT_STAFF STAFF
+
+		<where>
+			APPLICATION_ID is not null
+			<if test="query.staffName != null and query.staffName  != ''">
+				AND NAME LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+			</if>
+			<if test="query.staffBadge != null and query.staffBadge != ''">
+				AND BADGE LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+			</if>
+			<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+				AND CREATE_TIME between to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') and
+				to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND STAFF.COMP_ID IN (
+				SELECT DISTINCT SPB.COMP_ID from SMT_PARK_BU SPB
+				<where>
+					SPB.PARK_ID IN
+					<foreach collection="query.parkIds" item="id" index="index" open="(" close=")" separator=",">
+						#{id}
+					</foreach>
+				</where>
+				)
+			</if>
+
+		</where>
+
+		ORDER BY CREATE_TIME DESC,STAFF.NAME ASC
+
+	</select>
+
+	<select id="getStaffLikeBadge" resultType="com.tce.smart.platform.core.entity.SmtStaff">
+		select  * from
+		(
+		select BADGE,NAME,DEP_NAME from SMT_STAFF where BADGE LIKE CONCAT(CONCAT('%',#{badge}),'%') ORDER BY create_time DESC
+		) where rownum &lt; 11
+
+	</select>
+
+	<select id="getStaffIgnoreCase" resultType="com.tce.smart.platform.core.entity.SmtStaff">
+		select  * from SMT_STAFF WHERE LOWER(BADGE) = LOWER(#{badge})
+
+	</select>
+
+	<select id="listIscCardImportStaff" resultMap="smtStaffMap">
+		SELECT DISTINCT
+			STAFF.ID,
+			STAFF.BADGE,
+			STAFF.NAME,
+			STAFF.STATUS
+		FROM SMT_STAFF STAFF
+		LEFT JOIN SMT_PARK_BU EBU ON EBU.COMP_ID = STAFF.COMP_ID
+		LEFT JOIN SMT_ORGANIZE_RELATION OBU ON OBU.ID = STAFF.COMP_ID
+		WHERE STAFF.COMP_ID IS NOT NULL
+		  AND (
+			EBU.PARK_ID = #{parkId}
+			OR OBU.PARK_ID = #{parkId}
+		  )
+			<if test="badge != null and badge != ''">
+				AND STAFF.BADGE = #{badge}
+			</if>
+			<if test="'ACTIVE'.equals(staffScope)">
+				AND STAFF.STATUS != 0
+			</if>
+			<if test="'RESIGNED'.equals(staffScope)">
+				AND STAFF.STATUS = 0
+			</if>
+			ORDER BY STAFF.BADGE ASC
+	</select>
+
+	<update id="updateReportTo">
+		update SMT_STAFF set REPORT_TO = null where ID = #{id}
+	</update>
+
+	<!--	<select id="remoteSyncStaffInfo"-->
+	<!--			resultMap="smtStaffPage">-->
+	<!--		SELECT STAFF.ID,-->
+	<!--		BADGE,-->
+	<!--		STAFF.NAME,-->
+	<!--		COMP_NAME,-->
+	<!--		DEP_NAME,-->
+	<!--		JCHE_NAME,-->
+	<!--		JOB_NAME,-->
+	<!--		STAFF.CREATE_TIME,-->
+	<!--		STATUS,-->
+	<!--		DORMITORY_STATUS,-->
+	<!--		STAFF.certno,-->
+	<!--		STAFF.comp_id-->
+	<!--		FROM SMT_STAFF STAFF-->
+	<!--		<where>-->
+	<!--			STAFF.COMP_ID is not null-->
+	<!--			AND STAFF.STATUS != 0-->
+	<!--			<if test="createTime !=null and  createTime !='' ">-->
+	<!--				AND to_Char(STAFF.CREATE_TIME,'yyyy-MM-dd') = #{createTime}-->
+	<!--			</if>-->
+	<!--			AND-->
+	<!--			(-->
+	<!--			STAFF.COMP_ID in (-->
+	<!--			select DISTINCT bu.COMP_ID from SMT_PARK_BU bu-->
+	<!--			<where>-->
+	<!--				<if test="parkId!= null">-->
+	<!--					AND bu.park_id =#{parkId}-->
+	<!--				</if>-->
+	<!--			</where>-->
+	<!--			)-->
+	<!--			or-->
+	<!--			STAFF.COMP_ID in (-->
+	<!--			select DISTINCT bu.ID from smt_organize_relation bu-->
+	<!--			<where>-->
+	<!--				<if test="parkId!= null">-->
+	<!--					AND bu.park_id =#{parkId}-->
+	<!--				</if>-->
+	<!--			</where>-->
+	<!--			)-->
+	<!--			)-->
+	<!--		</where>-->
+	<!--	</select>-->
+
+	<select id="remoteSyncStaffInfo"
+			resultMap="smtStaffPage">
+		SELECT ID,BADGE,NAME,PHONE,
+		case when OPARK_ID IS NOT NULL then OPARK_ID
+		when EPARK_ID IS NOT NULL then EPARK_ID
+		ELSE NULL END PARK_ID
+		FROM (
+		SELECT STAFF.ID ID,
+		STAFF.BADGE BADGE,
+		STAFF.NAME NAME,
+		STAFF.PHONE PHONE,
+		EBU.PARK_ID EPARK_ID,
+		OBU.PARK_ID OPARK_ID
+		FROM SMT_STAFF STAFF
+		LEFT JOIN SMT_PARK_BU EBU ON EBU.ID = STAFF.COMP_ID
+		LEFT JOIN SMT_ORGANIZE_RELATION OBU ON OBU.ID = STAFF.COMP_ID
+		<where>
+			STAFF.COMP_ID is not null
+			AND STAFF.STATUS != 0
+			<if test="createTime !=null and  createTime !='' ">
+				AND STAFF.CREATE_TIME <![CDATA[>=]]> TO_DATE(#{createTime}, 'yyyy-MM-dd')
+				AND STAFF.CREATE_TIME <![CDATA[<]]> TO_DATE(#{createTime}, 'yyyy-MM-dd') + 1
+			</if>
+			AND
+			(
+			EBU.PARK_ID = #{parkId}
+			OR
+			OBU.PARK_ID = #{parkId}
+			)
+			)
+		</where>
+	</select>
+
+	<update id="updateStaffLeaveStatus">
+		UPDATE SMT_STAFF
+		<set>
+			<if test="leaDate == null">
+				LEA_DATE = NULL,
+			</if>
+			<if test="leaType == null or leaType ==''">
+				LEA_TYPE = NULL,
+			</if>
+		</set>
+		WHERE ID = #{staffId}
+	</update>
+</mapper>

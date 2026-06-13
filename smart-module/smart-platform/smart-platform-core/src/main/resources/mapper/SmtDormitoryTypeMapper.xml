@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryTypeMapper">
+
+			<resultMap id="smtDormitoryTypeMap" type="com.tce.smart.platform.core.entity.SmtDormitoryType">
+                  <id property="id" column="id"/>
+                        <result property="typeName" column="type_name"/>
+                        <result property="bedTotal" column="bed_total"/>
+            </resultMap>
+
+              <resultMap id="dormitoryTypeVOMap" type="com.tce.smart.platform.core.vo.DormitoryTypeVO">
+                  <id property="id" column="id"/>
+                        <result property="typeName" column="type_name"/>
+                        <result property="bedTotal" column="bed_total"/>
+                        <result property="jcheName" column="jche_name"/>
+                        <result property="jcheId" column="jche_id"/>
+                        <result property="parkName" column="park_name"/>
+                        <result property="parkId" column="park_id"/>
+            </resultMap>
+
+     <select id="getSmtDormitoryTypePage" parameterType="com.tce.smart.platform.core.entity.SmtDormitoryType" resultMap="dormitoryTypeVOMap">
+
+     SELECT TYPY.id,type_name,bed_total,park_name,park_id
+     FROM SMT_DORMITORY_TYPE TYPY
+
+	LEFT JOIN SMT_PARK PARK ON PARK.ID=TYPY.PARK_ID
+
+	<where>
+		<if test="query.parkId != null and query.parkId  != ''">
+			 TYPY.park_id =#{query.parkId}
+		</if>
+
+
+		<if test="park!=null and park.size>0">
+			and TYPY.PARK_ID in
+			<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		</where>
+
+     </select>
+</mapper>

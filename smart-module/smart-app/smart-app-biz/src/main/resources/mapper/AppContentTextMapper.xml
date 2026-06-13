@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppContentTextMapper">
+
+  <resultMap id="appContentTextMap" type="com.tce.smart.app.entity.AppContentText">
+                  <id property="id" column="id"/>
+                        <result property="textName" column="text_name"/>
+                        <result property="textDesc" column="text_desc"/>
+	                    <result property="picBinary" column="pic_binary"/>
+	                    <result property="textOrder" column="text_order"/>
+	                    <result property="delFlag" column="del_flag"/>
+                        <result property="createTime" column="create_time"/>
+                        <result property="updateTime" column="update_time"/>
+						<result property="enclosure" column="enclosure"/>
+            </resultMap>
+
+    <!--<insert id="addContentText">
+        INSERT INTO APP_CONTENT_TEXT VALUES (#{id},#{textName},#{textDesc},#{delFlag},#{createTime},#{updateTime})
+    </insert>-->
+</mapper>

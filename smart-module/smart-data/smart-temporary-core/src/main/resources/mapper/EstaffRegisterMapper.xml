@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.temporary.core.mapper.EstaffRegisterMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.temporary.core.entity.EstaffRegister">
+        <id column="ID" property="id" />
+        <result column="SeqID" property="SeqID" />
+        <result column="Type" property="Type" />
+        <result column="EZID" property="ezid" />
+        <result column="isCyear" property="isCyear" />
+        <result column="Cyear_adjust" property="cyearAdjust" />
+        <result column="OldEID" property="OldEID" />
+        <result column="OldBadge" property="OldBadge" />
+        <result column="Badge" property="Badge" />
+        <result column="Name" property="Name" />
+        <result column="eName" property="eName" />
+        <result column="CompID" property="CompID" />
+        <result column="DepID" property="DepID" />
+        <result column="JobID" property="JobID" />
+        <result column="reportto" property="reportto" />
+        <result column="WFReportTo" property="WFReportTo" />
+        <result column="EmpType" property="EmpType" />
+        <result column="EmpGrade" property="EmpGrade" />
+        <result column="EmpCategory" property="EmpCategory" />
+        <result column="EmpProperty" property="EmpProperty" />
+        <result column="EmpGroup" property="EmpGroup" />
+        <result column="EmpKind" property="EmpKind" />
+        <result column="JoinType" property="JoinType" />
+        <result column="WorkCity" property="WorkCity" />
+        <result column="Status" property="Status" />
+        <result column="JoinDate" property="JoinDate" />
+        <result column="isPrac" property="isPrac" />
+        <result column="PracTerm" property="PracTerm" />
+        <result column="PracEndDate" property="PracEndDate" />
+        <result column="isProb" property="isProb" />
+        <result column="ProbTerm" property="ProbTerm" />
+        <result column="ProbEndDate" property="ProbEndDate" />
+        <result column="contract" property="contract" />
+        <result column="conType" property="conType" />
+        <result column="conProperty" property="conProperty" />
+        <result column="conNo" property="conNo" />
+        <result column="conBeginDate" property="conBeginDate" />
+        <result column="conTerm" property="conTerm" />
+        <result column="conEndDate" property="conEndDate" />
+        <result column="Country" property="Country" />
+        <result column="CertType" property="CertType" />
+        <result column="CertNo" property="CertNo" />
+        <result column="birthday" property="birthday" />
+        <result column="Gender" property="Gender" />
+        <result column="workbegindate" property="workbegindate" />
+        <result column="Regby" property="Regby" />
+        <result column="RegDate" property="RegDate" />
+        <result column="Initialized" property="Initialized" />
+        <result column="InitializedBy" property="InitializedBy" />
+        <result column="InitializedTime" property="InitializedTime" />
+        <result column="Submit" property="Submit" />
+        <result column="SubmitBy" property="SubmitBy" />
+        <result column="SubmitTime" property="SubmitTime" />
+        <result column="Closed" property="Closed" />
+        <result column="ClosedBy" property="ClosedBy" />
+        <result column="ClosedTime" property="ClosedTime" />
+        <result column="Remark" property="Remark" />
+        <result column="Rappid" property="Rappid" />
+        <result column="JobBeginTime" property="JobBeginTime" />
+        <result column="EmpAuType" property="EmpAuType" />
+        <result column="PostLevel" property="PostLevel" />
+        <result column="PostGrade" property="PostGrade" />
+        <result column="DisEmptype" property="DisEmptype" />
+        <result column="DisCompany" property="DisCompany" />
+        <result column="LabEndTime" property="LabEndTime" />
+        <result column="AssignmentCity" property="AssignmentCity" />
+        <result column="AssignmentEndTime" property="AssignmentEndTime" />
+        <result column="TalentSave" property="TalentSave" />
+        <result column="depOne" property="depOne" />
+        <result column="depTwo" property="depTwo" />
+        <result column="DepThree" property="DepThree" />
+        <result column="JQunID" property="JQunID" />
+        <result column="JZuID" property="JZuID" />
+        <result column="JZongID" property="JZongID" />
+        <result column="JchenID" property="JchenID" />
+        <result column="JXianID" property="JXianID" />
+        <result column="Jobgrade" property="Jobgrade" />
+        <result column="Jobtype" property="Jobtype" />
+        <result column="FLCJ" property="flcj" />
+        <result column="IsThrough" property="IsThrough" />
+        <result column="ValidDate" property="ValidDate" />
+        <result column="EmergencyName" property="EmergencyName" />
+        <result column="Relation" property="Relation" />
+        <result column="Telephone" property="Telephone" />
+        <result column="IsProcess" property="IsProcess" />
+        <result column="effectdate" property="effectdate" />
+        <result column="TradeYear_adjust" property="tradeyearAdjust" />
+        <result column="tradebegindate" property="tradebegindate" />
+        <result column="RESIDENTADDRESS" property="residentaddress" />
+        <result column="nation" property="nation" />
+        <result column="salarytype" property="salarytype" />
+        <result column="e_TJTypte" property="eTjtypte" />
+        <result column="e_TJDate" property="eTjdate" />
+        <result column="e_TJEndDate" property="eTjenddate" />
+        <result column="phone" property="phone" />
+        <result column="email" property="email" />
+        <result column="EmpJGkind" property="EmpJGkind" />
+        <result column="Iscg" property="Iscg" />
+        <result column="police" property="police" />
+        <result column="validdatefm" property="validdatefm" />
+        <result column="PerSonEmail" property="PerSonEmail" />
+        <result column="PANNum" property="PANNum" />
+        <result column="Aadhar" property="Aadhar" />
+        <result column="VoterNum" property="VoterNum" />
+        <result column="DrivingNo" property="DrivingNo" />
+        <result column="Validity" property="Validity" />
+        <result column="bankNo" property="bankNo" />
+        <result column="IFSC" property="ifsc" />
+        <result column="WedDate" property="WedDate" />
+        <result column="blood" property="blood" />
+        <result column="PreAddress" property="PreAddress" />
+        <result column="pqbadge" property="pqbadge" />
+        <result column="marriage" property="marriage" />
+        <result column="Incorp" property="Incorp" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        ID AS id, SeqID, Type, EZID AS ezid, isCyear, Cyear_adjust AS cyearAdjust, OldEID, OldBadge, Badge, Name, eName, CompID, DepID, JobID, reportto, WFReportTo, EmpType, EmpGrade, EmpCategory, EmpProperty, EmpGroup, EmpKind, JoinType, WorkCity, Status, JoinDate, isPrac, PracTerm, PracEndDate, isProb, ProbTerm, ProbEndDate, contract, conType, conProperty, conNo, conBeginDate, conTerm, conEndDate, Country, CertType, CertNo, birthday, Gender, workbegindate, Regby, RegDate, Initialized, InitializedBy, InitializedTime, Submit, SubmitBy, SubmitTime, Closed, ClosedBy, ClosedTime, Remark, Rappid, JobBeginTime, EmpAuType, PostLevel, PostGrade, DisEmptype, DisCompany, LabEndTime, AssignmentCity, AssignmentEndTime, TalentSave, depOne, depTwo, DepThree, JQunID, JZuID, JZongID, JchenID, JXianID, Jobgrade, Jobtype, FLCJ AS flcj, IsThrough, ValidDate, EmergencyName, Relation, Telephone, IsProcess, effectdate, TradeYear_adjust AS tradeyearAdjust, tradebegindate, RESIDENTADDRESS AS residentaddress, nation, salarytype, e_TJTypte AS eTjtypte, e_TJDate AS eTjdate, e_TJEndDate AS eTjenddate, phone, email, EmpJGkind, Iscg, police, validdatefm, PerSonEmail, PANNum, Aadhar, VoterNum, DrivingNo, Validity, bankNo, IFSC AS ifsc, WedDate, blood, PreAddress, pqbadge, marriage, Incorp
+    </sql>
+
+</mapper>

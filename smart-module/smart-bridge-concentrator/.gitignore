@@ -1,0 +1,79 @@
+# 忽略匹配下列规则的Git 提交 V2.1.0
+### gradle ###
+.gradle
+/build/
+!**/src/frontend/build/
+!**/src/frontend/build/**
+!gradle/wrapper/gradle-wrapper.jar
+
+### STS ###
+.settings/
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+rebel.xml
+
+### NetBeans ###
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+### maven ###
+target/
+*.war
+*.ear
+*.zip
+*.tar
+*.tar.gz
+
+### logs ####
+**/logs/**
+*.log
+
+### temp ignore ###
+*.cache
+*.diff
+*.patch
+*.tmp
+*.bak
+*.orig
+*.pid
+*.pid.lock
+*.seed
+*.java~
+*.properties~
+*.xml~
+hs_err_pid*
+replay_pid*
+dependency-reduced-pom.xml
+release.properties
+.flattened-pom.xml
+.mvn/timing.properties
+jacoco.exec
+coverage/
+
+### system ignore ###
+.DS_Store
+Thumbs.db
+Servers
+.metadata
+upload
+gen_code
+
+### node ###
+node_modules/
+
+### local agent/worktree scratch ###
+.claude/worktrees/

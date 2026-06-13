@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.app.mapper.AppWechatPlatFormApiMapper">
+	<resultMap id="appSubjectMap"
+		type="com.tce.smart.app.entity.AppWechatPlatFormApi">
+		<id property="id" column="id" />
+		<result property="wechatAcct" column="wechat_acct" />
+		<result property="appId" column="app_id" />
+		<result property="appSecret" column="app_secret" />
+		<result property="tokenUrl" column="token_url" />
+		<result property="createMenuUrl" column="create_menu_url" />
+		<result property="sendTempUrl" column="send_temp_url" />
+		<result property="sendCustomUrl" column="send_custom_url" />
+		<result property="queryUserinfoUrl" column="query_userinfo_url" />
+		<result property="getJsticketUrl" column="get_jsticket_url" />
+		<result property="downMediaUrl" column="down_media_url" />
+		<result property="remark1" column="remark1" />
+		<result property="remark2" column="remark2" />
+		<result property="remark3" column="remark3" />
+	</resultMap>
+
+</mapper>

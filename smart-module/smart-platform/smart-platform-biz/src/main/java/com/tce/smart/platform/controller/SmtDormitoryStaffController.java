@@ -1,0 +1,430 @@
+package com.tce.smart.platform.controller;
+
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.core.util.StringUtils;
+import com.tce.smart.common.log.annotation.SysLog;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.util.SecurityUtils;
+import com.tce.smart.platform.api.dto.req.DorStaffPerfectDTO;
+import com.tce.smart.platform.api.dto.req.DormitoryQueryNoStaffDTO;
+import com.tce.smart.platform.api.dto.req.LockPwdUpdateDTO;
+import com.tce.smart.platform.api.dto.req.lock.*;
+import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.DormitoryStaffRespDTO;
+import com.tce.smart.platform.api.feign.RemoteSmartLockService;
+import com.tce.smart.platform.core.dto.*;
+import com.tce.smart.platform.service.SmtDormitoryStaffService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.models.auth.In;
+import lombok.AllArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.validation.Valid;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+
+/**
+ * 员工宿舍信息表
+ *
+ * @author 齐佩
+ * @date 2019-04-18 14:32:40
+ */
+@Api(tags = "住宿管理")
+@RestController
+@AllArgsConstructor
+@RequestMapping("/dormitory/staff")
+public class SmtDormitoryStaffController {
+
+  private final  SmtDormitoryStaffService smtDormitoryStaffService;
+
+  private final RemoteSmartLockService remoteSmartLockService;
+
+  /**
+   * 分页查询员工内宿列表
+   * @param page 分页对象
+   * @param staffInDormitoryDTO 员工宿舍信息表
+   * @return
+   */
+  @GetMapping("/page")
+  public Result getSmtDormitoryStaffPage(Page page, StaffInDormitoryDTO staffInDormitoryDTO) {
+    return new Result<>(smtDormitoryStaffService.getSmtDormitoryStaff(page,staffInDormitoryDTO));
+  }
+
+	@GetMapping("/edit/remark")
+	public Result editSimpleRemark(@RequestParam("id") Integer id, @RequestParam("remark") String remark) {
+		return new Result<>(smtDormitoryStaffService.editSimpleRemark(id,remark));
+	}
+
+	/**
+	 * 删除已入住未报道员工
+	 * @param ids
+	 * @return
+	 */
+	@PostMapping("/delete/leave")
+	public Result deleteNotRegister(@RequestBody DormitoryQueryNoStaffDTO ids) {
+		return new Result<>(smtDormitoryStaffService.deleteNotRegister(ids.getIds()));
+	}
+
+	/**
+	 * 员工同步至智能锁平台
+	 *
+	 * @param
+	 * @return
+	 */
+	@GetMapping("/remote/to/lock")
+	public Result remoteSyncStaffInfo(@RequestParam("parkId") Integer parkId,
+														 @RequestParam(value = "createTime", required = false) String createTime) {
+		return new Result<>(smtDormitoryStaffService.getSmtDormitoryStaffToLock(parkId, createTime));
+	}
+
+  /**
+   * 通过id查询员工宿舍信息表
+   * @param id id
+   * @return Result
+   */
+  @GetMapping("/{id}")
+  public Result getById(@PathVariable("id") Integer id){
+    return new Result<>(smtDormitoryStaffService.getById(id));
+  }
+
+  /**
+   * 新增员工宿舍信息表
+   * @param dormitoryStaffDTO 员工宿舍信息表
+   * @return Result
+   */
+  @SysLog("新增员工宿舍信息表  ")
+  @PostMapping("addDormitoryStaff")
+  public Result<Boolean> save(@RequestBody DormitoryStaffDTO dormitoryStaffDTO){
+    return new Result<>(smtDormitoryStaffService.addDormitoryStaff(dormitoryStaffDTO));
+  }
+
+  @ApiOperation("批量导入员工入住信息记录")
+  @PostMapping("/batch")
+  public List<DormitoryStaffReqDTO> batch(@RequestBody List<DormitoryStaffReqDTO> dormitoryStaffDTOList) {
+	  List<DormitoryStaffReqDTO> dormitoryStaffReqDTOS = smtDormitoryStaffService.batchAddDormitoryStaff(dormitoryStaffDTOList);
+	  // 过滤出插入失败的记录
+	  return dormitoryStaffReqDTOS.stream().filter(item -> StringUtils.isNotBlank(item.getMark())).collect(Collectors.toList());
+  }
+
+	@PostMapping("/info")
+	@ApiOperation(value = "通过Excel批量更新员工入住及退宿信息")
+	public ResponseEntity<byte[]> batchImportPersons(@RequestParam("dormId") Integer dormId,
+													 @RequestParam("filename") MultipartFile multipartFile) {
+		return this.smtDormitoryStaffService.batchImportPersons(dormId, multipartFile);
+	}
+
+  @SysLog("新增非员工宿舍信息表  ")
+  @PostMapping("addDormitory")
+  public Result addDormitory(@RequestBody DormitoryStaffDTO dormitoryStaffDTO){
+    return smtDormitoryStaffService.addDormitory(dormitoryStaffDTO);
+  }
+
+  /**
+   * 修改员工宿舍信息表
+   * @param smtDormitoryStaff 员工宿舍信息表
+   * @return Result
+   */
+  @SysLog("修改员工宿舍信息表  ")
+  @PostMapping("updateDormitoryStaff")
+  public Result updateById(@RequestBody UpdateDormitoryStaffDTO smtDormitoryStaff){
+    return smtDormitoryStaffService.updateById(smtDormitoryStaff);
+  }
+
+  /**
+   * 通过id删除员工宿舍信息表
+   * @param id id
+   * @return Result
+   */
+  @SysLog("删除员工宿舍信息表 ，离职 ")
+  @PostMapping("/{id}")
+  public Result removeById(@PathVariable Integer id){
+    return smtDormitoryStaffService.removeBedById(id);
+  }
+
+
+  @SysLog("修改员工住宿，离职，换宿，外宿 ")
+  @PostMapping("changeDormitory")
+  public Result changeDormitory(@RequestBody UpdateDormitoryStaffDTO smtDormitoryStaff){
+    return smtDormitoryStaffService.changeDormitory(smtDormitoryStaff);
+  }
+
+	/**
+	 * 申请内宿
+	 * @param inDormitory
+	 * @return
+	 */
+	@SysLog("申请内宿")
+	@PostMapping("addInDormitory")
+	public Result addInDormitory(@RequestBody InDormitoryDTO inDormitory) {
+		return smtDormitoryStaffService.addInDormitory(inDormitory);
+	}
+
+
+	/**
+	 * 查询今日入住
+	 * @return
+	 */
+	@ApiOperation("查询今日入住")
+	@PostMapping("/todayIn")
+	public Result<IPage<DormitoryStaffRespDTO>> queryTodayIn(@ApiParam(name = "current",value = "当前页",required = true) @RequestParam Long current,
+															 @ApiParam(name = "size",value = "大小",required = true) @RequestParam Long size) {
+		return new Result<>(smtDormitoryStaffService.queryTodayIn(new Page(current,size)));
+	}
+
+	/**
+	 * 换宿操作
+	 * @return
+	 */
+	@ApiOperation("换宿操作")
+	@PostMapping("/changeBed")
+	public Result<Boolean> changeBed(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @RequestParam String staffBadge,
+															 @ApiParam(name = "bedId",value = "床位ID",required = true) @RequestParam Integer bedId,
+									 @ApiParam(name = "oldBedId",value = "旧床位ID",required = true) @RequestParam Integer oldBedId) {
+		return new Result<>(smtDormitoryStaffService.changeBed(staffBadge,bedId,oldBedId));
+	}
+
+	/**
+	 * 退宿操作
+	 * @param inId
+	 * @return
+	 */
+	@ApiOperation("退宿操作")
+	@PostMapping("/checkOutDormitory/{inId}")
+	public Result<Boolean> checkOutDormitory(@ApiParam(name = "inId",value = "住宿记录ID",required = true) @PathVariable Integer inId){
+		return new Result<>(smtDormitoryStaffService.checkOutDormitory(inId, null));
+	}
+
+	/**
+	 * 根据员工工号查询入住信息
+	 * @param staffBadge
+	 * @return
+	 */
+	@ApiOperation("根据员工工号查询入住信息")
+	@GetMapping("/roomDetail/{staffBadge}")
+	public Result<DormitoryRoomDetailRespDTO> getStaffRoomInfo(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
+		return new Result<>(smtDormitoryStaffService.getStaffRoomInfo(staffBadge));
+	}
+
+	@Inner
+	@ApiOperation("根据员工工号查询入住信息列表")
+	@GetMapping("/roomList/{staffBadge}")
+	public Result<List<DormitoryRoomDetailRespDTO>> getStaffRoomInfoList(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
+		return new Result<>(smtDormitoryStaffService.getStaffRoomInfoList(staffBadge));
+	}
+
+	@Inner
+	@ApiOperation("根据员工工号查询入住信息列表")
+	@GetMapping("/simple/roomList/{staffBadge}")
+	public Result<List<DormitoryRoomDetailRespDTO>> getSimpleStaffRoomList(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
+		return new Result<>(smtDormitoryStaffService.getSimpleStaffRoomList(staffBadge));
+	}
+
+	@ApiOperation("根据手机号码查询入住信息")
+	@GetMapping("/roomDetailByPhone/{phone}/{name}")
+	public Result<DormitoryRoomDetailRespDTO> getStaffRoomInfoByPhone(@ApiParam(name = "phone",value = "手机号码",required = true) @PathVariable String phone,
+																	  @ApiParam(name = "name",value = "姓名",required = true) @PathVariable String name){
+		return new Result<>(smtDormitoryStaffService.getStaffRoomInfoByPhone(phone,name));
+	}
+
+	@GetMapping("/lock/device/page")
+	@ApiOperation(value = "智能锁分页查询")
+	public Result devicePage(DevicePageReqDTO reqDTO) {
+		List<Integer> parkIdList = SecurityUtils.getUser().getParkIdList();
+		if (Objects.nonNull(reqDTO.getParkId())) {
+			parkIdList = new ArrayList<>(1);
+			parkIdList.add(reqDTO.getParkId());
+		}
+		reqDTO.setParkIds(parkIdList);
+		return remoteSmartLockService.devicePage(reqDTO);
+	}
+
+	@PostMapping("/lock/bind/room")
+	@ApiOperation(value = "智能锁绑定房间")
+	public Result<Boolean> bindRoom(@RequestBody @Valid DeviceBindReqDTO reqDTO) {
+		return remoteSmartLockService.bindRoom(reqDTO);
+	}
+
+	@GetMapping("/lock/open-door/record/page")
+	@ApiOperation(value = "智能锁开门记录查询")
+	public Result getOpenDoorRecordPage(@Valid OpenDoorRecordQueryDTO queryDTO) {
+		List<Integer> parkIdList = SecurityUtils.getUser().getParkIdList();
+		if (queryDTO.getParkId() != null) {
+			parkIdList = new ArrayList<>();
+			parkIdList.add(queryDTO.getParkId());
+		}
+		queryDTO.setParkIds(parkIdList);
+		return remoteSmartLockService.getOpenDoorRecordPage(queryDTO);
+	}
+
+	@GetMapping("/lock/open-door/record/export")
+	@ApiOperation(value = "开门记录导出Excel")
+	public ResponseEntity<byte[]> exportOpenDoorRecord(OpenDoorRecordQueryDTO queryDTO) {
+		List<Integer> parkIdList = SecurityUtils.getUser().getParkIdList();
+		queryDTO.setParkIds(parkIdList);
+		return remoteSmartLockService.exportOpenDoorRecord(queryDTO);
+	}
+
+	@GetMapping("/lock/support/key/{roomId}}")
+	@ApiOperation(value = "根据房间id获得门锁支持的钥匙")
+	public Result supportKeyByRoomId(@PathVariable("roomId") Long roomId) {
+		return remoteSmartLockService.supportKeyByRoomId(roomId);
+	}
+
+	/**
+	 * 分页查询
+	 *
+	 * @param reqDTO 设备权限表
+	 * @return
+	 */
+	@GetMapping("/lock/permission/page")
+	@ApiOperation("智能锁授权分页查询")
+	public Result getLkDevicePermissionsPage(@Valid ApiDeviceAuthReqDTO reqDTO) {
+		List<Integer> parkIdList = SecurityUtils.getUser().getParkIdList();
+		if (reqDTO.getParkId() != null) {
+			parkIdList = new ArrayList<>();
+			parkIdList.add(reqDTO.getParkId());
+		}
+		reqDTO.setParkIds(parkIdList);
+		return remoteSmartLockService.getLkDevicePermissionsPage(reqDTO);
+	}
+
+	/**
+	 * 通过id查询设备权限表
+	 *
+	 * @param id id
+	 * @return Result
+	 */
+	@GetMapping("/lock/permission/{id}")
+	@ApiOperation("通过id查询设备权限")
+	public Result getById(@PathVariable("id") Long id) {
+		return remoteSmartLockService.getById(id);
+	}
+
+	/**
+	 * 根据设备ID查找绑定的人员列表
+	 *
+	 * @param deviceId
+	 * @return
+	 */
+	@GetMapping("/lock/permission/person/{deviceId}")
+	@ApiOperation("根据设备ID查找绑定的人员列表")
+	public Result getPersonsByDeviceId(@PathVariable("deviceId") Long deviceId) {
+		return remoteSmartLockService.getPersonsByDeviceId(deviceId);
+	}
+
+	@PostMapping("/lock/permission/batch")
+	@ApiOperation("批量授权")
+	public Result<Boolean> addBatch(@RequestBody @Valid ApiBatchAuthDTO reqDTO) {
+		return remoteSmartLockService.addBatch(reqDTO);
+	}
+
+	/**
+	 * 修改设备权限表
+	 *
+	 * @param authDTO 设备权限表
+	 * @return Result
+	 */
+	@PostMapping("/lock/permission/edit")
+	@ApiOperation("编辑授权")
+	public Result<Boolean> updateById(@RequestBody @Valid ApiEditAuthDTO authDTO) {
+		return remoteSmartLockService.updateById(authDTO);
+	}
+
+	/**
+	 * 重新授权
+	 *
+	 * @param authDTO 设备权限表
+	 * @return Result
+	 */
+	@PostMapping("/lock/permission/reAuth")
+	@ApiOperation("重新授权")
+	public Result<Boolean> reAuth(@RequestBody @Valid ApiEditAuthDTO authDTO) {
+		return remoteSmartLockService.reAuth(authDTO);
+	}
+
+	/**
+	 * 通过id删除设备权限表
+	 *
+	 * @param id id
+	 * @return Result
+	 */
+	@PostMapping("/lock/permission/del/{id}")
+	@ApiOperation("删除授权")
+	public Result<Boolean> removeById(@PathVariable("id") Long id) {
+		return remoteSmartLockService.removeById(id);
+	}
+
+	/**
+	 * 取消授权
+	 *
+	 * @param id
+	 * @return
+	 */
+	@PostMapping("/lock/permission/cancelAuth/{id}")
+	@ApiOperation("取消授权")
+	public Result<Boolean> cancelAuth(@PathVariable Long id) {
+		return remoteSmartLockService.cancelAuth(id);
+	}
+
+	/**
+	 * 分页查询
+	 *
+	 * @param reqDTO  分页对象
+	 * @return
+	 */
+	@GetMapping("/lock/task/record/page")
+	public Result getTaskPage(@Valid ApiDeviceTaskQueryDTO reqDTO) {
+		return remoteSmartLockService.getTaskPage(reqDTO);
+	}
+
+	/**
+	 * 通过人员编号或姓名查询人员
+	 *
+	 * @param queryName queryName
+	 * @return Result
+	 */
+	@GetMapping("/lock/person/search/{queryName}")
+	@ApiOperation(value = "通过人员编号或姓名查询人员")
+	public Result getByNumOrName(@PathVariable("queryName") @ApiParam("人员编号或姓名") String queryName) {
+		return remoteSmartLockService.getByNumOrName(queryName);
+	}
+
+	@ApiOperation("人脸比对获取动态码")
+	@PostMapping("/face/compare")
+	public Result<String> faceCompare(@RequestBody DorStaffPerfectDTO perfectDTO){
+		return new Result<>(smtDormitoryStaffService.faceCompare(perfectDTO));
+	}
+
+	@ApiOperation("根据工号获取动态码")
+	@GetMapping("/get/pwd")
+	public Result<String> getPwdByBadge(@RequestParam("badge") String badge){
+		return new Result<>(smtDormitoryStaffService.getPwdByBadge(badge));
+	}
+
+	@ApiOperation("根据工号更新动态码")
+	@PostMapping("/update/pwd")
+	public Result<String> updatePwdByBadge(@RequestBody DorStaffPerfectDTO perfectDTO){
+		return new Result<>(smtDormitoryStaffService.updatePwdByBadge(perfectDTO));
+	}
+
+	@ApiOperation("根据工号修改门锁密码")
+	@PostMapping("/update/lock/pwd")
+	public Result<String> updateLockPwdByBadge(@RequestBody LockPwdUpdateDTO lockPwdUpdateDTO){
+		return new Result<>(smtDormitoryStaffService.updateLockPwdByBadge(lockPwdUpdateDTO));
+	}
+
+	@ApiOperation("修改入住备注")
+	@GetMapping("/update/remark")
+	public Result<Boolean> updateSimpleRemark(@RequestParam("id") String id, @RequestParam("remark") String remark){
+		return Result.success(smtDormitoryStaffService.updateSimpleRemark(Long.parseLong(id), remark));
+	}
+}

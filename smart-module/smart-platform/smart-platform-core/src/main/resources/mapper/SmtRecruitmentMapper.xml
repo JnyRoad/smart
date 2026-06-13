@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtRecruitmentMapper">
+
+  <resultMap id="smtRecruitmentMap" type="com.tce.smart.platform.core.vo.RecruitmentVO">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="jobId" column="job_id"/>
+                        <result property="jobName" column="job_name"/>
+                        <result property="compId" column="comp_id"/>
+                        <result property="compName" column="comp_name"/>
+                        <result property="depId" column="dep_id"/>
+                        <result property="depName" column="dep_name"/>
+                        <result property="jcheId" column="jche_id"/>
+                        <result property="jcheName" column="jche_name"/>
+                        <result property="major" column="major"/>
+                         <result property="education" column="education"/>
+                         <result property="workYear" column="work_year"/>
+
+                        <result property="welfareLevel" column="welfare_level"/>
+                        <result property="salaryStart" column="salary_start"/>
+                        <result property="salaryEnd" column="salary_end"/>
+                        <result property="ageStart" column="age_start"/>
+                        <result property="ageEnd" column="age_end"/>
+                        <result property="recruitNum" column="recruit_num"/>
+                        <result property="reqLanguage" column="req_language"/>
+                        <result property="compRequire" column="comp_require"/>
+                        <result property="welfare" column="welfare"/>
+                        <result property="jobCotent" column="job_cotent"/>
+                        <result property="status" column="status"/>
+                        <result property="createUser" column="create_user"/>
+                        <result property="createTime" column="create_time"/>
+                        <result property="startTime" column="start_time"/>
+                        <result property="endTime" column="end_time"/>
+                        <result property="parkName" column="park_name"/>
+                        <result property="parkLatitude" column="park_latitude"/>
+                        <result property="parkLongitude" column="park_longitude"/>
+                         <result property="isUp" column="is_up"/>
+                         <result property="relation" column="relation"/>
+            </resultMap>
+
+
+            <select id="selectPage" parameterType="com.tce.smart.platform.core.entity.SmtRecruitment" resultMap="smtRecruitmentMap">
+             SELECT RE.ID,JOB_ID,JOB_NAME, COMP_ID, COMP_NAME, AGE_START,AGE_END,SALARY_START,SALARY_END,IS_UP,
+	         DEP_ID,DEP_NAME,JCHE_ID,JCHE_NAME,RECRUIT_NUM,STATUS,CREATE_TIME,PARK.PARK_NAME,PARK.PARK_LONGITUDE,PARK.PARK_LATITUDE
+			FROM SMT_RECRUITMENT RE  INNER JOIN SMT_PARK PARK ON RE.PARK_ID =PARK.ID
+
+            <where>
+	<if test="query.status != null">
+				 RE.STATUS =#{query.status}
+				</if>
+	            <!-- <if test="query.compId != null and query.compId  != ''">
+				 and  re.comp_id =#{query.compId}
+				</if>
+	             <if test="query.depId != null and query.depId  != ''">
+				and re.dep_id =#{query.depId}
+				</if>
+				 <if test="query.jobId != null and query.jobId  != ''">
+				and re.job_id =#{query.jobId}
+				</if> -->
+				 <if test="query.jobName!= null and query.jobName  != ''">
+				 AND re.job_name LIKE CONCAT(CONCAT('%',#{query.jobName}),'%')
+				</if>
+				 <if test="query.jcheId != null and query.jcheId != ''">
+				and  re.jche_id =#{query.jcheId}
+				</if>
+				<if test="query.parkId != null">
+				and re.park_id =#{query.parkId}
+				</if>
+				<if test="parkIds != null and parkIds.size > 0">
+					AND re.park_id IN
+					<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+						#{tempId}
+					</foreach>
+				</if>
+			</where>
+			order by re.create_time desc
+            </select>
+
+
+
+           <select id="getJobList" parameterType="com.tce.smart.platform.core.entity.SmtRecruitment" resultMap="smtRecruitmentMap">
+             SELECT RE.ID,JOB_ID,JOB_NAME, COMP_ID, COMP_NAME, AGE_START,AGE_END,SALARY_START,SALARY_END,
+	         DEP_ID,DEP_NAME,JCHE_ID,JCHE_NAME,RECRUIT_NUM,STATUS,CREATE_TIME,PARK.PARK_NAME
+			FROM SMT_RECRUITMENT RE  INNER JOIN SMT_PARK PARK ON RE.PARK_ID =PARK.ID
+			where RE.RECRUIT_NUM >0 and RE.STATUS=1
+				<if test="query.parkId != null">
+				and re.park_id =#{query.parkId}
+				</if>
+				order by re.create_time desc
+            </select>
+
+            <select id="getRecruitById" parameterType="java.lang.Integer" resultMap="smtRecruitmentMap"  >
+			SELECT RE.ID,JOB_ID,JOB_NAME, COMP_ID, COMP_NAME, AGE_START,AGE_END,SALARY_START,SALARY_END,WELFARE,END_TIME,
+	         DEP_ID,DEP_NAME,JCHE_ID,JCHE_NAME,RECRUIT_NUM,STATUS,CREATE_TIME,PARK.PARK_NAME,REQ_LANGUAGE,COMP_REQUIRE,
+	         PARK.PARK_LONGITUDE,PARK.PARK_LATITUDE,RELATION,WORK_YEAR,MAJOR,EDUCATION,
+	         JOB_COTENT FROM SMT_RECRUITMENT RE  INNER JOIN SMT_PARK PARK ON RE.PARK_ID =PARK.ID
+	            <where>
+		            <if test="id != null ">
+					 RE.ID =#{id}
+					</if>
+	            </where>
+            </select>
+</mapper>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryMapper">
+
+  <resultMap id="
+" type="com.tce.smart.platform.core.vo.DormitoryVO">
+                  <id property="id" column="id"/>
+                        <result property="dormitoryName" column="dormitory_name"/>
+                         <result property="floorNum" column="floor_num"/>
+                        <result property="parkId" column="park_id"/>
+   </resultMap>
+
+     <resultMap id="DormitoryMap" type="com.tce.smart.platform.core.entity.SmtDormitory">
+                  <id property="id" column="id"/>
+                        <result property="dormitoryName" column="dormitory_name"/>
+                         <result property="floorNum" column="floor_num"/>
+                        <result property="parkId" column="park_id"/>
+   </resultMap>
+
+
+
+
+    <!-- 判断该栋楼的某楼层是否存在房间 -->
+    <select id="queryRoomByFloor"  resultType="java.lang.Integer" parameterType="com.tce.smart.platform.core.entity.SmtDormitoryFloor" >
+     SELECT COUNT(1) FROM SMT_DORMITORY_ROOM AS R  INNER JOIN SMT_DORMITORY_FLOOR AS F
+		WHERE F.FLOOR_NAME=#{floorName} AND F.DORMITORY_ID=#{dormitoryId}
+
+    </select>
+
+	<select id="getSmtDormitoryPage" parameterType="com.tce.smart.platform.core.entity.SmtDormitory"  resultType="com.tce.smart.platform.core.vo.DormitoryVO">
+		SELECT D.ID,D.DORMITORY_NAME DORMITORYNAME ,D.FLOOR_NUM FLOORNUM,D.PARK_ID PARKID  , P.PARK_NAME PARKNAME FROM  SMT_DORMITORY D
+		INNER JOIN SMT_PARK P ON D.PARK_ID =P.ID
+		<where>
+		<if test="query.parkId != null and query.parkId  != ''">
+			 d.park_id =#{query.parkId}
+		</if>
+		<if test="query.dormitoryName != null and query.dormitoryName  != ''">
+			and d.dormitory_name LIKE CONCAT('%',#{query.dormitoryName},'%')
+		</if>
+
+		<if test="park!=null and park.size>0">
+			and D.PARK_ID in
+			<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		</where>
+
+	</select>
+
+	<select id="queryDormitory" parameterType="java.lang.Integer" resultMap="DormitoryMap">
+
+		SELECT * FROM smt_dormitory WHERE PARK_ID=#{parkId}
+		ORDER BY ID ASC
+	 </select>
+
+</mapper>

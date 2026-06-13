@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtParkBuMapper">
+
+  <resultMap id="smtParkBuMap" type="com.tce.smart.platform.core.entity.SmtParkBu">
+                  <id property="id" column="id"/>
+                        <result property="parkId" column="park_id"/>
+                        <result property="compId" column="comp_id"/>
+                        <result property="createTime" column="create_time"/>
+            </resultMap>
+
+            <select id="getParkListByBu" parameterType="java.lang.Long" resultType="com.tce.smart.platform.core.entity.SmtPark">
+
+	            select park.id, park_name as parkName from SMT_PARK_BU pbu
+
+				inner join SMT_PARK park
+
+				on PBU.PARK_ID=PARK."ID"
+				where pbu.comp_id =#{compId }
+
+            </select>
+
+			<select id="getUserParkByBu" parameterType="java.lang.Integer" resultType="com.tce.smart.platform.core.entity.SmtPark">
+
+	            select park.id, park.park_name as parkName from SMT_PARK_BU pbu
+
+				inner join SMT_PARK park
+
+				on PBU.PARK_ID=PARK."ID"
+				<where>
+				pbu.comp_id =#{compId }
+				<if test="parkIds != null and parkIds.size > 0">
+					AND pbu.PARK_ID IN
+					<foreach collection="parkIds" item="tempId" open="(" separator="," close=")">
+						#{tempId}
+					</foreach>
+				</if>
+				</where>
+			</select>
+</mapper>

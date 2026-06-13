@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryStaffHistoryMapper">
+
+  <resultMap id="smtDormitoryStaffVOMap" type="com.tce.smart.platform.core.vo.DormitoryStaffHistoryVO">
+                  <id property="id" column="id"/>
+                        <result property="staffName" column="staff_name"/>
+                        <result property="staffBadge" column="staff_badge"/>
+                         <result property="staffSex" column="staff_sex"/>
+                        <result property="roomId" column="room_id"/>
+                        <result property="roomName" column="room_name"/>
+                        <result property="bedNumber" column="bed_number"/>
+                        <result property="dormitoryTypeName" column="dormitory_type_name"/>
+                        <result property="compName" column="comp_name"/>
+                        <result property="depName" column="dep_name"/>
+                        <result property="jobName" column="job_name"/>
+                        <result property="inTime" column="in_time"/>
+                        <result property="time" column="time"/>
+                        <result property="createTime" column="create_time"/>
+                         <result property="type" column="type"/>
+                         <result property="dorCompName" column="dor_comp_name"/>
+                        <result property="dorDepName" column="dor_dep_name"/>
+                        <result property="dorJobName" column="dor_job_name"/>
+                         <result property="parkName" column="park_name"/>
+						<result property="dormitoryName" column="dormitory_name"/>
+						<result property="inOptUser" column="in_opt_user"/>
+						<result property="inCreateTime" column="in_create_time"/>
+    </resultMap>
+
+
+
+
+    <select id="getSmtDormitoryStaffHistory" resultMap="smtDormitoryStaffVOMap" parameterType="com.tce.smart.platform.core.dto.StaffInDormitoryHistoryDTO">
+		SELECT
+			dor.id,
+			dor.staff_name,
+			dor.staff_badge,
+			dor.staff_sex,
+			nvl( t3.ALIAS_NAME, t3.ROOM_NAME ) room_name,
+			dor.bed_number,
+			dor.TYPE,
+			dor.room_id,
+			dor.opt_user,
+			dor.dormitory_type_name,
+			dor.time,
+			dor.create_time,
+			sta.comp_name,
+			sta.dep_name,
+			sta.job_name,
+			dor.in_time,
+			dor.park_name,
+			dor.dormitory_name,
+			dor.comp_name AS dor_comp_name,
+			dor.dep_name AS dor_dep_name,
+			dor.job_name AS dor_job_name,
+			sta.lea_type,
+			sta.status,
+			sta.jche_name,
+			dor.in_opt_user,
+			dor.in_create_time
+		FROM
+			smt_dormitory_staff_history dor
+			LEFT JOIN smt_staff sta ON dor.staff_id = sta.id
+			LEFT JOIN smt_dormitory_room t3 ON dor.room_id = t3.id
+		where dor.type!=0
+
+        <if test="query.type != null ">
+			and dor.type =#{query.type}
+
+		</if>
+	<if test="query.staffName != null and query.staffName  != ''">
+			and dor.staff_name LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+
+		</if>
+		<if test="query.staffBadge != null and query.staffBadge  != ''">
+			and dor.staff_badge LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+
+		</if>
+		<if test="query.compName != null and query.compName != ''">
+
+		and (dor.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%')
+		or sta.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%') )
+		</if>
+		<if test="query.sex != null ">
+			and sta.sex =#{query.sex }
+		</if>
+		 <if test="query.parkId != null">
+			and dor.park_id =#{query.parkId }
+		</if>
+
+		<if test="query.dormitoryId != null">
+			and dor.dormitory_id =#{query.dormitoryId }
+		</if>
+		<if test="query.floorId != null ">
+			and dor.floor_id =#{query.floorId  }
+		</if>
+		<if test="query.roomId != null ">
+			and dor.room_id =#{query.roomId  }
+		</if>
+
+		<if test="query.jcheId != null  and query.jcheId !=''">
+			and sta.jche_id =#{query.jcheId  }
+		</if>
+		<if test="query.inStartTime != null and query.inEndTime != '' and query.inEndTime != null and query.inStartTime != ''">
+				and dor.in_time between to_date(#{query.inStartTime},'yyyy-mm-dd hh24:mi:ss') and to_date(#{query.inEndTime},'yyyy-mm-dd hh24:mi:ss')
+		</if>
+		<if test="query.outStartTime != null and query.outEndTime != '' and query.outEndTime != null and query.outStartTime != ''">
+				and dor.time between to_date(#{query.outStartTime},'yyyy-mm-dd hh24:mi:ss') and to_date(#{query.outEndTime},'yyyy-mm-dd hh24:mi:ss')
+		</if>
+		<if test="park!=null and park.size>0">
+			and dor.PARK_ID in
+			<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		<if test="query.dormitoryIds!=null and query.dormitoryIds.size>0">
+			and dor.dormitory_id in
+			<foreach item="item" index="index" collection="query.dormitoryIds" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+
+		ORDER BY  dor.create_time DESC
+
+    </select>
+
+
+     <select id="statistics"  resultType="java.lang.Integer" parameterType="com.tce.smart.platform.core.dto.DormitoryStatisticsDTO"  >
+
+      select count(1) from smt_dormitory_staff_history  dor INNER JOIN
+		(
+			SELECT STAFF_BADGE,staff_name,MAX(CREATE_TIME) AS "atime"
+			FROM SMT_DORMITORY_STAFF_HISTORY
+			<where>
+			<if test="query.parkId != null">
+				 park_id =#{query.parkId }
+			</if>
+
+			<if test="query.dormitoryId != null">
+				and dormitory_id =#{query.dormitoryId }
+			</if>
+			</where>
+			group by STAFF_BADGE,staff_name
+
+		) B
+		ON dor.STAFF_BADGE = B.STAFF_BADGE AND dor.CREATE_TIME = B."atime"
+		where dor."TYPE"=0
+		<if test="query.parkId != null">
+			and dor.park_id =#{query.parkId }
+		</if>
+
+		<if test="query.dormitoryId != null">
+			and dor.dormitory_id =#{query.dormitoryId }
+		</if>
+
+		<if test="query.inTime != null and query.inTime != '' ">
+			and dor.in_time &lt; to_date(#{query.inTime},'yyyy-mm-dd hh24:mi:ss')
+		</if>
+
+
+
+    </select>
+
+    <select id="statisticsDetial"  resultMap="smtDormitoryStaffVOMap" parameterType="com.tce.smart.platform.core.dto.DormitoryStatisticsDTO">
+
+    select dor.id, dor.staff_name, dor.staff_badge ,dor.staff_sex,dor.room_name,dor.bed_number, dor.type,
+	   dor.dormitory_type_name,dor.time,dor.create_time,sta.comp_name,sta.dep_name,sta.job_name,dor.in_time,
+	   dor.comp_name as dor_comp_name ,dor.dep_name as dor_dep_name,dor.job_name as dor_job_name,
+       sta.jche_name from smt_dormitory_staff_history dor
+       left join smt_staff sta  on dor.staff_id=sta.id INNER JOIN
+		(
+			SELECT STAFF_BADGE,staff_name,MAX(CREATE_TIME) AS "atime"
+			FROM SMT_DORMITORY_STAFF_HISTORY
+			<where>
+			<if test="query.parkId != null">
+				 park_id =#{query.parkId }
+			</if>
+
+			<if test="query.dormitoryId != null">
+				and dormitory_id =#{query.dormitoryId }
+			</if>
+			</where>
+			group by STAFF_BADGE,staff_name
+
+		) B
+		ON dor.STAFF_BADGE = B.STAFF_BADGE AND dor.CREATE_TIME = B."atime"
+		where dor."TYPE"=0
+		<if test="query.parkId != null">
+			and dor.park_id =#{query.parkId }
+		</if>
+
+		<if test="query.dormitoryId != null">
+			and dor.dormitory_id =#{query.dormitoryId }
+		</if>
+
+		 <if test="query.staffName != null and query.staffName  != ''">
+			and dor.staff_name LIKE CONCAT(CONCAT('%',#{query.staffName}),'%')
+
+		</if>
+		<if test="query.staffBadge != null and query.staffBadge  != ''">
+			and dor.staff_badge LIKE CONCAT(CONCAT('%',#{query.staffBadge}),'%')
+
+		</if>
+		<if test="query.roomName != null and query.roomName  != ''">
+			and dor.room_name LIKE CONCAT(CONCAT('%',#{query.roomName}),'%')
+
+		</if>
+		<if test="query.compName != null and query.compName != ''">
+
+		and (dor.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%')
+		or sta.comp_name LIKE CONCAT(CONCAT('%',#{query.compName}),'%') )
+		</if>
+
+		<if test="query.inTime != null and query.inTime != '' ">
+			and dor.in_time &lt; to_date(#{query.inTime},'yyyy-mm-dd hh24:mi:ss')
+		</if>
+
+		<if test="query.startInTime != null and query.startInTime != '' and query.endInTime!= null and query.endInTime != ''">
+				and dor.in_time between to_date(#{query.startInTime},'yyyy-mm-dd hh24:mi:ss') and to_date(#{query.endInTime},'yyyy-mm-dd hh24:mi:ss')
+		</if>
+		ORDER BY dor.room_name
+
+    </select>
+
+    <select id="totalBed" parameterType="com.tce.smart.platform.core.dto.DormitoryStatisticsDTO"  resultType="java.lang.Integer">
+     select count(1) from smt_dormitory_bed a
+     <where>
+	<if test="query.parkId != null">
+			and a.park_id =#{query.parkId }
+		</if>
+
+		<if test="query.dormitoryId != null">
+			and a.dormitory_id =#{query.dormitoryId }
+		</if>
+
+     </where>
+
+    </select>
+
+	<select id="getStatffHistory" resultType="com.tce.smart.platform.core.entity.SmtDormitoryStaffHistory">
+		SELECT id,staff_id,staff_name,staff_sex,staff_badge,park_id,park_name,dormitory_id,dormitory_name,floor_id,
+		floor_name,room_id,room_name,bed_id,bed_number,dormitory_type_id,dormitory_type_name,type,
+		in_time,time,create_time,df_id,is_staff,job_name,comp_name,dep_name
+		FROM smt_dormitory_staff_history t1
+		WHERE t1.room_id IN
+		<foreach item="item" index="index" collection="roomIds" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+		AND t1.type IN (1,2,3,4,5)
+		AND t1.statis_flag &lt;&gt; 0
+		AND (
+			(t1.IN_TIME BETWEEN #{startTime} AND #{endTime})
+			or
+			(t1."TIME" BETWEEN #{startTime} AND #{endTime})
+			or
+			(t1.IN_TIME &lt;= #{startTime} AND t1."TIME" &gt;=  #{endTime})
+			or
+			(#{startTime} &lt;= t1.IN_TIME AND #{endTime} &gt;= t1."TIME" )
+		)
+
+	</select>
+
+	<select id="getNeedModifyData"  resultType="com.tce.smart.platform.core.entity.SmtDormitoryStaffHistory">
+		select * from SMT_DORMITORY_STAFF_HISTORY WHERE TYPE=1 AND IN_TIME=CREATE_TIME
+	</select>
+
+	<select id="getNeedModifyStatisData"  resultType="com.tce.smart.platform.core.entity.SmtDormitoryStaffHistory">
+		select * from SMT_DORMITORY_STAFF_HISTORY WHERE TYPE in (1,2,3,4,5) AND STATIS_FLAG=1
+	</select>
+</mapper>

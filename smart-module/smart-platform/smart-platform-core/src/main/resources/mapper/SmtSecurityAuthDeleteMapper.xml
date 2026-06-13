@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityAuthDeleteMapper">
+
+  <resultMap id="smtSecurityAuthDeleteMap" type="com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthDelete">
+                  <id property="id" column="ID"/>
+                        <result property="deleteDay" column="DELETE_DAY"/>
+                        <result property="isHoliday" column="IS_HOLIDAY"/>
+                        <result property="isBusiness" column="IS_BUSINESS"/>
+                        <result property="isLeave" column="IS_LEAVE"/>
+                        <result property="isCompensatory" column="IS_COMPENSATORY"/>
+                        <result property="isWhiteList" column="IS_WHITE_LIST"/>
+                        <result property="blank1" column="BLANK1"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+                        <result property="updateTime" column="UPDATE_TIME"/>
+            </resultMap>
+</mapper>

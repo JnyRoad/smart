@@ -1,0 +1,45 @@
+server:
+  port: 6030
+
+spring:
+  application:
+    name: smart-platform
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+        group: ${NACOS_GROUP:dev}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+      config:
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+        file-extension: yml
+        group: ${NACOS_GROUP:dev}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        shared-configs[0]:
+          data-id: common.yml
+          group: ${NACOS_GROUP:dev}
+          refresh: true
+    inetutils:
+      preferred-networks: 10
+  servlet:
+    multipart:
+      # 默认10MB
+      max-request-size: 10MB
+      # 默认1MB
+      max-file-size: 5MB
+  main:
+    allow-bean-definition-overriding: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# 保密区预约附件下载相对地址
+security-area:
+  order:
+    addition-link: http://smartapp.szyuto.com:9990/platform/securityarea/order/view/additional/detail/

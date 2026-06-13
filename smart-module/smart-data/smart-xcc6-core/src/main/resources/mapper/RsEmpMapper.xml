@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.xcc6.core.mapper.RsXCEmpMapper">
+
+	<select id="getRsEmpByEmpNo" resultType="com.tce.smart.xcc6.core.entity.RsEmp">
+		SELECT  EmpSysID,EmpNo,EmpName,EmpEngName,EmpSexID,DptSysID,EmpIsForeign,
+		EmpIsStopSalary,EmpNationality,EmpNation,EmpBirthday,EmpGrpDate,EmpStatusID,
+		GrdSysID,EduSysID,TitSysID,PosSysID,TypSysID,LzxSysID,LzySysID,PrvSysID,GzjSysID,GzdSysID
+		FROM RS_Emp
+		WHERE EmpNo = #{empNo}
+	</select>
+
+	<update id="updateRsEmp">
+		UPDATE RS_Emp
+		SET EmpSexID=#{rsEmp.EmpSexID},EmpStatusID=#{rsEmp.EmpStatusID},EmpLeaveDate=#{rsEmp.EmpLeaveDate}
+		WHERE EmpNo = #{rsEmp.EmpNo}
+	</update>
+
+	<select id="queryEmpPhoto" resultType="java.util.Map">
+		SELECT a.EmpNo,b.EmpPhotoImage from rs_emp a,RS_EmpPhoto b
+		WHERE a.EmpSysID=b.EmpSysID and a.EMPNO=#{empNo}
+	</select>
+</mapper>

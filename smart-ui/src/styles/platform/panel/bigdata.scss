@@ -1,0 +1,437 @@
+$scale: 0.5;
+
+@function get-size($n) {
+  @return $n * $scale;
+}
+
+.big-screen {
+  position: relative;
+  flex: 1;
+  display: flex;
+  // width: 100%;
+  // height: 100%;
+  // background: url(/img/pn_bg.png) no-repeat center;
+  // background-size: 100% 100%;
+
+  &__inner {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    margin: 0 auto;
+  }
+  &__left{
+    flex: 1;
+  }
+  &__right{
+    flex: 2.2;
+  }
+  &__left{
+    margin: 0 0 0 20px;
+  }
+  &__right {
+    margin: 0 20px 0 5px;
+  }
+
+  // &__content {
+  //   overflow: hidden;
+  // }
+}
+.big-right {
+  display: flex;
+  flex-direction: column;
+  &__top,
+  &__bottom {
+    flex: 1;
+    display: flex;
+  }
+}
+
+// 展示块
+.screen-area {
+  position: relative;
+  // margin-bottom: get-size(10px);
+  &__title {
+    position: absolute;
+    top: get-size(36px);
+    left: get-size(40px);
+    color: #5db1ff;
+    font-size: 32px * $scale;
+  }
+  &__content {
+    padding-top: get-size(114px);
+  }
+  &-item {
+    width: 50%;
+    float: left;
+    &__inner {
+      padding: 0 35px;
+    }
+  }
+}
+
+.park-info {
+  display: inline-block;
+  &__content {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 10px 10px 5px;
+  }
+  &__icon {
+    display: block;
+    width: get-size(28px);
+    height: get-size(28px);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    margin-top: get-size(5px);
+
+    @for $i from 1 through 20 {
+      &.icon#{$i} {
+        background-image: url(/img/big-screen/icon-#{$i}.png);
+      }
+    }
+  }
+  &__text {
+    flex: 1;
+    text-align: right;
+    color: #a6d4ff;
+    font-size: get-size(28px);
+    line-height: 1;
+  }
+  &__title {
+    color: #448fd5;
+    font-size: get-size(28px);
+    letter-spacing: 1px;
+  }
+}
+
+// 园区描述
+.park-describe {
+  width: get-size(778px);
+  height: get-size(404px);
+  background-image: url(/img/big-screen/area.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  .screen-area-item {
+    margin: 0 0 get-size(20px);
+    text-align: center;
+  }
+}
+
+// 园区员工
+.park-staff {
+  width: get-size(778px);
+  height: get-size(404px);
+  background-image: url(/img/big-screen/area.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  .screen-area-item {
+    margin: 0 0 get-size(20px);
+    text-align: center;
+  }
+}
+
+// 组织构成
+.org-composition {
+  width: get-size(778px);
+  height: get-size(404px);
+  background-image: url(/img/big-screen/area.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  .screen-area-item {
+    margin: 5px 0 get-size(20px);
+    text-align: center;
+  }
+}
+
+// 宿舍动态
+.dormitory-dynamics {
+  width: get-size(778px);
+  height: get-size(610px);
+  background-image: url(/img/big-screen/area4.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  &__info {
+    padding: 0px 40px;
+    overflow: hidden;
+    .park-info__text {
+      text-align: center;
+    }
+    .screen-area-item__inner {
+    }
+  }
+  &__chart {
+    display: flex;
+    align-items: flex-end;
+    padding-left: get-size(40px);
+    &-item {
+      // margin: 0 10px 0 0;
+    }
+  }
+  &__chart-item {
+  }
+  .screen-area-item {
+    margin: 15px 0 get-size(50px);
+    text-align: center;
+  }
+
+  .chart-panel-box {
+    position: relative;
+    margin: 0 10px 0 0;
+  }
+  .chart-panel {
+    width: get-size(366px);
+    height: get-size(186px);
+  }
+  .chart-info {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 99;
+    box-sizing: border-box;
+    padding-left: get-size(60px);
+    width: 100%;
+    text-align: left;
+    color: #448fd5;
+    font-size: get-size(28px);
+    span {
+      display: inline-block;
+      font-size: get-size(28px);
+      color: #a6d4ff;
+      margin-left: 15px;
+    }
+  }
+
+  .chart-item {
+    color: #1b3f88;
+    margin-top: 5px;
+    &.active {
+      color: #448fd5;
+    }
+
+    > i {
+      display: inline-block;
+      width: get-size(79px);
+      height: get-size(30px);
+      border-radius: 5px;
+      background: #ccc;
+      vertical-align: middle;
+      &.i1 {
+        background: #fe756e;
+      }
+
+      &.i2 {
+        background: #9d6efe;
+      }
+
+      &.i3 {
+        background: #6e7ffe;
+      }
+
+      &.i4 {
+        background: #5db1ff;
+      }
+    }
+
+    > span:nth-of-type(1) {
+      margin: 0 10px;
+    }
+  }
+}
+
+// 车位剩余
+.parking-place {
+  width: get-size(1171px);
+  height: get-size(383px);
+  background-image: url(/img/big-screen/area5.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  .screen-area-item {
+    margin: 20px 0 get-size(100px);
+    text-align: center;
+  }
+}
+
+// 车辆动态
+.vehicle-trends {
+  width: get-size(1171px);
+  height: get-size(383px);
+  background-image: url(/img/big-screen/area5.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  .screen-area-item {
+    margin: 20px 0 get-size(100px);
+    text-align: center;
+  }
+}
+
+.screen-map {
+  width: get-size(880px);
+  height: get-size(590px);
+  // height: get-size(850px);
+  margin: 0 auto;
+  background: url(/img/big-screen/map.png) no-repeat center;
+  background-size: contain;
+  position: relative;
+}
+
+// 柱状统计图
+.bar-chart {
+  width: get-size(1690px);
+  height: get-size(602px);
+  // flex: 1;
+  // margin: 0 0 10px 0;
+  background-image: url(/img/big-screen/area3.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  &__title {
+    color: #5db1ff;
+    font-size: get-size(52px);
+    // text-align: center;
+    // line-height: 1;
+  }
+  &__content {
+    width: 100%;
+    padding-left: 20px;
+    padding-right: 20px;
+    .chart-pie {
+      width: 100%;
+      height: get-size(200px);
+    }
+    .chart-bar{
+      width: 100%;
+      height: get-size(260px);
+    }
+  }
+}
+
+.animation-box {
+  width: get-size(529px);
+  height: get-size(490px);
+  transform: scale(.6);
+  overflow: hidden;
+  position: absolute;
+  bottom: -25px;
+  right: 40px;
+  .canva-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+  }
+  .canva-linemove {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+  }
+  .round {
+    position: absolute;
+    z-index: 3;
+  }
+  .round:nth-of-type(1) {
+    left: get-size(263px) - 12px;
+    top: get-size(397px) - 12px;
+    width: get-size(46px);
+    height: get-size(46px);
+  }
+  .round:nth-of-type(2) {
+    left: get-size(257px) - 8px;
+    top: get-size(16px) - 8px;
+    width: get-size(32px);
+    height: get-size(32px);
+  }
+  .round:nth-of-type(3) {
+    left: get-size(62px) - 8px;
+    top: get-size(209px) - 8px;
+    width: get-size(32px);
+    height: get-size(32px);
+  }
+  .round:nth-of-type(4) {
+    left: get-size(360px) - 8px;
+    top: get-size(232px) - 8px;
+    width: get-size(32px);
+    height: get-size(32px);
+  }
+  .round:nth-of-type(5) {
+    left: get-size(304px) - 8px;
+    top: get-size(268px) - 8px;
+    width: get-size(32px);
+    height: get-size(32px);
+  }
+  .round:nth-of-type(6) {
+    left: get-size(138px) - 8px;
+    top: get-size(295px) - 8px;
+    width: get-size(32px);
+    height: get-size(32px);
+  }
+  .round:nth-of-type(7) {
+    left: get-size(15px) - 8px;
+    top: get-size(387px) - 8px;
+    width: get-size(32px);
+    height: get-size(32px);
+  }
+}
+
+
+// 小动画
+
+@keyframes round {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes round-opacity {
+  0% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+.round {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  animation: round-opacity infinite 1.5s;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 99;
+    transform: translate(-50%, -50%);
+    width: 50%;
+    height: 50%;
+    border-radius: 50%;
+    background: #fff;
+  }
+  &:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #5db1ff;
+    border-radius: 50%;
+    animation: round infinite 1.5s;
+  }
+}

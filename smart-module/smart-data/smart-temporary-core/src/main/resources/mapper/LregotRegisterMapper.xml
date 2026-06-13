@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.temporary.core.mapper.LregotRegisterMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tce.smart.temporary.core.entity.LregotRegister">
+        <id column="ID" property="id" />
+        <result column="EZID" property="ezid" />
+        <result column="Term" property="Term" />
+        <result column="EID" property="eid" />
+        <result column="Badge" property="Badge" />
+        <result column="Name" property="Name" />
+        <result column="compid" property="compid" />
+        <result column="DepID" property="DepID" />
+        <result column="jobid" property="jobid" />
+        <result column="TWID" property="twid" />
+        <result column="OTTerm" property="OTTerm" />
+        <result column="BeginTime" property="BeginTime" />
+        <result column="EndTime" property="EndTime" />
+        <result column="Amount" property="Amount" />
+        <result column="Unit" property="Unit" />
+        <result column="Reason" property="Reason" />
+        <result column="RegBy" property="RegBy" />
+        <result column="Regdate" property="Regdate" />
+        <result column="Initialized" property="Initialized" />
+        <result column="InitializedBy" property="InitializedBy" />
+        <result column="InitializedTime" property="InitializedTime" />
+        <result column="Submit" property="Submit" />
+        <result column="SubmitBy" property="SubmitBy" />
+        <result column="SubmitTime" property="SubmitTime" />
+        <result column="Closed" property="Closed" />
+        <result column="ClosedBy" property="ClosedBy" />
+        <result column="ClosedTime" property="ClosedTime" />
+        <result column="Remark" property="Remark" />
+        <result column="SeqID" property="SeqID" />
+        <result column="Ot2TypeName" property="Ot2TypeName" />
+        <result column="Ot4TypeName" property="Ot4TypeName" />
+        <result column="Ot5TypeName" property="Ot5TypeName" />
+        <result column="Ot2StartTime" property="Ot2StartTime" />
+        <result column="Ot2EndTime" property="Ot2EndTime" />
+        <result column="Ot4StartTime" property="Ot4StartTime" />
+        <result column="Ot4EndTime" property="Ot4EndTime" />
+        <result column="Ot5StartTime" property="Ot5StartTime" />
+        <result column="Ot5EndTime" property="Ot5EndTime" />
+        <result column="IsDispose" property="IsDispose" />
+        <result column="ErrMsg" property="ErrMsg" />
+        <result column="DataCreateDay" property="DataCreateDay" />
+        <result column="Ot2IsDirectResult" property="Ot2IsDirectResult" />
+        <result column="Ot4IsDirectResult" property="Ot4IsDirectResult" />
+        <result column="Ot5IsDirectResult" property="Ot5IsDirectResult" />
+        <result column="sqlid" property="sqlid" />
+        <result column="OTControl" property="OTControl" />
+        <result column="weeks" property="weeks" />
+        <result column="months" property="months" />
+        <result column="OtweekTotal" property="OtweekTotal" />
+        <result column="OtMonthTotal" property="OtMonthTotal" />
+        <result column="ifempot" property="ifempot" />
+        <result column="otType" property="otType" />
+        <result column="iscc" property="iscc" />
+        <result column="fj" property="fj" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        ID AS id, EZID AS ezid, Term, EID AS eid, Badge, Name, compid, DepID, jobid, TWID AS twid, OTTerm, BeginTime, EndTime, Amount, Unit, Reason, RegBy, Regdate, Initialized, InitializedBy, InitializedTime, Submit, SubmitBy, SubmitTime, Closed, ClosedBy, ClosedTime, Remark, SeqID, Ot2TypeName, Ot4TypeName, Ot5TypeName, Ot2StartTime, Ot2EndTime, Ot4StartTime, Ot4EndTime, Ot5StartTime, Ot5EndTime, IsDispose, ErrMsg, DataCreateDay, Ot2IsDirectResult, Ot4IsDirectResult, Ot5IsDirectResult, sqlid, OTControl, weeks, months, OtweekTotal, OtMonthTotal, ifempot, otType, iscc, fj
+    </sql>
+
+</mapper>

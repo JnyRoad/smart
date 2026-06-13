@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtProcessRecordMapper">
+
+  <resultMap id="smtAlarmDeviceMap" type="com.tce.smart.platform.core.entity.SmtProcessRecord">
+                  <id property="id" column="id"/>
+                        <result property="staffBadge" column="staff_badge"/>
+                        <result property="processId" column="process_id"/>
+                        <result property="status" column="status"/>
+                        <result property="remark" column="remark"/>
+                        <result property="recordDate" column="record_date"/>
+            </resultMap>
+
+            <select id="getProcessRecord"  resultType="com.tce.smart.platform.core.entity.SmtProcessRecord">
+                SELECT
+				    SPR.STATUS,
+				    SPR.NODE_NAME,
+				    SPR.RECORD_DATE,
+				    SPR.REMARK,
+				    SPR.STAFF_NAME,
+				    SPR."ID"
+				FROM
+				   SMT_PROCESS_RECORD SPR
+				WHERE
+				    SPR.PROCESS_ID = #{processId}
+			   ORDER BY SPR."ID"
+            </select>
+
+            <select id="getHandoverRecord" resultType="com.tce.smart.platform.core.entity.SmtProcessRecord">
+	SELECT
+					SPR. ID
+				FROM
+					SMT_PROCESS_RECORD SPR
+				WHERE
+					SPR.PROCESS_ID = #{processId}
+				AND SPR.STAFF_BADGE = #{staffBadge}
+				AND (
+					SPR.STATUS = 'n'
+					OR SPR.STATUS = 'f'
+				)
+            </select>
+</mapper>

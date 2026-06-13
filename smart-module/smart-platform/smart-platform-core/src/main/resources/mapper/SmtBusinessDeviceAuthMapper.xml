@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtBusinessDeviceAuthMapper">
+
+  <resultMap id="smtBusinessDeviceAuthMap" type="com.tce.smart.platform.core.entity.SmtBusinessDeviceAuth">
+                  <id property="id" column="ID"/>
+                        <result property="businessCode" column="BUSINESS_CODE"/>
+                        <result property="authId" column="AUTH_ID"/>
+                        <result property="type" column="TYPE"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="depId" column="DEP_ID"/>
+            </resultMap>
+</mapper>

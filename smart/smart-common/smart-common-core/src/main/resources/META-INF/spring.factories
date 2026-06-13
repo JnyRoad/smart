@@ -1,0 +1,8 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.tce.smart.common.core.config.JacksonConfig,\
+  com.tce.smart.common.core.config.MybatisPlusConfig,\
+  com.tce.smart.common.core.config.MessageSourceConfig,\
+  com.tce.smart.common.core.event.SmartEventPublisher,\
+  com.tce.smart.common.core.util.SpringContextHolder,\
+  com.tce.smart.common.core.wrapper.ControllerWrapper,\
+  com.tce.smart.common.core.config.GlobalExceptionHandlerResolver

@@ -1,0 +1,46 @@
+server:
+  port: 9527
+
+spring:
+  application:
+    name: smart-schedule
+  cloud:
+    nacos:
+      config:
+        file-extension: yml
+        group: ${NACOS_GROUP:dev}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        shared-configs[0]:
+          data-id: common.yml
+          group: ${NACOS_GROUP:dev}
+          refresh: true
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+      discovery:
+        server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
+        namespace: ${NACOS_NAMESPACE:eda914a9-b100-427b-9d37-4d7da89b841f}
+        group: ${NACOS_GROUP:dev}
+
+  main:
+    allow-bean-definition-overriding: true
+
+# 一期正式环境 platform数据源
+platform1:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: oracle.jdbc.driver.OracleDriver
+    username: platform
+    password: ${SMART_TRANSFER_PLATFORM1_DATASOURCE_PASSWORD:}
+    url: jdbc:oracle:thin:@10.0.20.118:1521:ev6db
+    initialSize: 10
+    maxActive: 20
+
+# 二期正式环境 platform数据源
+platform2:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: oracle.jdbc.driver.OracleDriver
+    username: tech_platform
+    password: ${SMART_TRANSFER_PLATFORM2_DATASOURCE_PASSWORD:}
+    url: jdbc:oracle:thin:@10.0.20.118:1521:ev6db
+    initialSize: 10
+    maxActive: 20

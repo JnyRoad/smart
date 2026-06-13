@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtNewsPublishDetailsMapper">
+
+  <resultMap id="smtNewsPublishDetailsMap" type="com.tce.smart.platform.core.entity.news.SmtNewsPublishDetails">
+                  <id property="id" column="ID"/>
+                        <result property="type" column="TYPE"/>
+                        <result property="terminalId" column="TERMINL_ID"/>
+                        <result property="timeType" column="TIME_TYPE"/>
+                        <result property="startTime" column="START_TIME"/>
+                        <result property="endTime" column="END_TIME"/>
+                        <result property="content" column="CONTENT"/>
+                        <result property="file" column="FILE"/>
+            </resultMap>
+</mapper>

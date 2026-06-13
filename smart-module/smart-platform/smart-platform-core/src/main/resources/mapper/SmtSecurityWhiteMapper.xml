@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityWhiteMapper">
+
+  <resultMap id="smtSecurityWhiteMap" type="com.tce.smart.platform.core.entity.securityzone.SmtSecurityWhite">
+                  <id property="id" column="ID"/>
+                        <result property="staffId" column="STAFF_ID"/>
+                        <result property="authConfigId" column="AUTH_CONFIG_ID"/>
+                        <result property="staffBadge" column="STAFF_BADGE"/>
+                        <result property="staffName" column="STAFF_NAME"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+            </resultMap>
+</mapper>

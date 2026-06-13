@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtStaffAppealMapper">
+
+	<resultMap id="staffAppealData" type="com.tce.smart.platform.core.vo.SmtStaffAppealVO">
+		<id property="id" column="id"/>
+		<result property="badge" column="BADGE"/>
+		<result property="staffName" column="NAME"/>
+		<result property="compName" column="COMP_NAME"/>
+		<result property="depName" column="DEP_NAME"/>
+		<result property="staffPhone" column="PHONE"/>
+		<result property="appealType" column="APPEAL_TYPE"/>
+		<result property="status" column="STATUS"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="appealDesc" column="APPEAL_DESC"/>
+		<result property="appealImgs" column="APPEAL_IMGS"/>
+		<result property="replyName" column="REPLY_NAME"/>
+		<result property="replyDesc" column="REPLY_DESC"/>
+		<result property="replyTime" column="REPLY_TIME"/>
+		<result property="ischange" column="ischange"/>
+	</resultMap>
+
+	<select id="getStaffAppealPage" parameterType="com.tce.smart.platform.core.dto.StaffAppealSearchDTO"  resultMap="staffAppealData">
+		select sa.ID,staff.BADGE,staff.NAME,staff.COMP_NAME,staff.DEP_NAME,staff.PHONE,sa.APPEAL_TYPE,
+		sa.STATUS,sa.APPEAL_DESC,sa.APPEAL_IMGS,sa.CREATE_TIME,sa.REPLY_NAME,sa.REPLY_DESC,sa.REPLY_TIME,
+		sa.ischange
+		from SMT_STAFF_APPEAL sa
+		left join SMT_STAFF staff on sa.STAFF_BADGE=staff.BADGE
+		<where>
+			<if test="query.id != null and  query.id !=''">
+				AND sa.ID=#{query.id}
+			</if>
+
+			<if test="query.staffBadge != null and  query.staffBadge !=''">
+				AND sa.STAFF_BADGE=#{query.staffBadge}
+			</if>
+
+			<if test="query.appealType != null and  query.appealType !=''">
+				AND sa.APPEAL_TYPE=#{query.appealType}
+			</if>
+
+			<if test="query.beginTime != null and  query.endTime != null">
+				AND sa.CREATE_TIME between #{query.beginTime} and #{query.endTime}
+			</if>
+
+			<if test="query.status != null and  query.status != ''">
+				AND sa.STATUS=#{query.status}
+			</if>
+
+			<if test="park!=null and park.size>0">
+				and sa.PARK_ID in
+				<foreach item="item" index="index" collection="park" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+		</where>
+
+		ORDER BY sa.CREATE_TIME desc
+	</select>
+
+	<select id="getStaffAppealDetail" resultMap="staffAppealData">
+		select sa.ID,staff.BADGE,staff.NAME,staff.COMP_NAME,staff.DEP_NAME,staff.PHONE,sa.APPEAL_TYPE,
+		sa.STATUS,sa.APPEAL_DESC,sa.APPEAL_IMGS,sa.CREATE_TIME,sa.REPLY_NAME,sa.REPLY_DESC,sa.REPLY_TIME,
+		sa.ischange
+		from SMT_STAFF_APPEAL sa
+		left join SMT_STAFF staff on sa.STAFF_BADGE=staff.BADGE
+		where sa.ID=#{id}
+	</select>
+</mapper>

@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtWageSignMapper">
+
+	<resultMap id="smtWageSignMap" type="com.tce.smart.platform.core.entity.SmtWageSign">
+		<id property="id" column="id"/>
+		<result property="badge" column="BADGE"/>
+		<result property="wageDate" column="WAGE_DATE"/>
+		<result property="signImg" column="SIGN_IMG"/>
+		<result property="createTime" column="CREATE_TIME"/>
+	</resultMap>
+
+	<select id="getPage" resultType="com.tce.smart.platform.core.vo.WageSignVO">
+		SELECT
+		DISTINCT
+		SWS. ID,
+		SWS.BADGE,
+		SWS.WAGE_DATE,
+		SS. NAME,
+		SS.COMP_NAME,
+		SS.DEP_NAME,
+		SWS.CREATE_TIME,
+		SWS.SIGN_STATUS
+		FROM
+		SMT_WAGE_SIGN SWS
+		LEFT JOIN SMT_STAFF SS ON SWS.BADGE = SS.BADGE
+		LEFT JOIN SMT_PARK_BU SPB ON SS.COMP_ID = SPB.COMP_ID
+		<where>
+			<if test="query.badge != null and query.badge != ''">
+				AND SWS.BADGE = #{query.badge}
+			</if>
+			<if test="query.parkId != null">
+				AND SPB.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SPB.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.name != null and query.name != ''">
+				AND SS.NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.wageDate != null and query.wageDate != ''">
+				AND SWS.WAGE_DATE = #{query.wageDate}
+			</if>
+			<if test="query.compId != null">
+				AND SS.COMP_ID = #{query.compId}
+			</if>
+			<if test="query.depId != null">
+				AND SS.DEP_ID = #{query.depId}
+			</if>
+			<if test="query.signStatus != null">
+				AND SWS.SIGN_STATUS = #{query.signStatus}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SWS.CREATE_TIME  <![CDATA[>=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND SWS.CREATE_TIME  <![CDATA[<]]>
+				TO_DATE(#{query.endTime}, 'yyyy-MM-dd') + 1
+			</if>
+		</where>
+		ORDER BY
+		SWS.CREATE_TIME DESC
+	</select>
+
+	<select id="getCount" resultType="com.tce.smart.platform.core.vo.WageSignVO">
+		SELECT
+		DISTINCT
+		SWS.id, SWS.SIGN_STATUS, SS.PHONE, SS.NAME
+		/* sum(case when SIGN_STATUS = 2 then 1 ELSE 0 end) as countSign,
+		sum(case when SIGN_STATUS = 1 then 1 ELSE 0 end) as countNotSign*/
+		FROM
+		SMT_WAGE_SIGN SWS
+		LEFT JOIN SMT_STAFF SS ON SWS.BADGE = SS.BADGE
+		LEFT JOIN SMT_PARK_BU SPB ON SS.COMP_ID = SPB.COMP_ID
+		<where>
+			<if test="query.badge != null and query.badge != ''">
+				AND SWS.BADGE = #{query.badge}
+			</if>
+			<if test="query.parkId != null">
+				AND SPB.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.parkIds != null and query.parkIds.size > 0">
+				AND SPB.PARK_ID IN
+				<foreach collection="query.parkIds" item="tempId" open="(" separator="," close=")">
+					#{tempId}
+				</foreach>
+			</if>
+			<if test="query.name != null and query.name != ''">
+				AND SS. NAME LIKE CONCAT(CONCAT('%',#{query.name}),'%')
+			</if>
+			<if test="query.wageDate != null and query.wageDate != ''">
+				AND SWS.WAGE_DATE = #{query.wageDate}
+			</if>
+			<if test="query.compId != null">
+				AND SS.COMP_ID = #{query.compId}
+			</if>
+			<if test="query.depId != null">
+				AND SS.DEP_ID = #{query.depId}
+			</if>
+			<if test="query.signStatus != null">
+				AND SWS.SIGN_STATUS = #{query.signStatus}
+			</if>
+			<if test="query.startTime != null and query.startTime != ''">
+				AND SWS.CREATE_TIME  <![CDATA[>=]]>
+				TO_DATE(#{query.startTime}, 'yyyy-MM-dd')
+			</if>
+			<if test="query.endTime != null and query.endTime != ''">
+				AND SWS.CREATE_TIME  <![CDATA[<]]>
+				TO_DATE(#{query.endTime}, 'yyyy-MM-dd') + 1
+			</if>
+		</where>
+	</select>
+
+	<select id="getMegInfo" resultType="com.tce.smart.platform.core.vo.WageSignVO">
+		SELECT
+		DISTINCT
+		SWS.ID,
+		SS.PHONE,
+		SS.NAME
+		FROM
+		SMT_WAGE_SIGN SWS
+		LEFT JOIN SMT_STAFF SS ON SWS.BADGE = SS.BADGE
+		LEFT JOIN SMT_PARK_BU SPB ON SS.COMP_ID = SPB.COMP_ID
+		<where>
+			<if test="query.parkId != null">
+				AND SPB.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.wageDate != null and query.wageDate != ''">
+				AND SWS.WAGE_DATE = #{query.wageDate}
+			</if>
+			<if test="query.signStatus != null">
+				AND SWS.SIGN_STATUS = #{query.signStatus}
+			</if>
+		</where>
+	</select>
+
+	<update id="autoConfirm">
+		update SMT_WAGE_SIGN
+		set SIGN_STATUS = 3
+		WHERE id in (
+		SELECT
+		DISTINCT
+		SWS.ID
+		FROM
+		SMT_WAGE_SIGN SWS
+		LEFT JOIN SMT_STAFF SS ON SWS.BADGE = SS.BADGE
+		LEFT JOIN SMT_PARK_BU SPB ON SS.COMP_ID = SPB.COMP_ID
+		<where>
+			<if test="query.parkId != null">
+				AND SPB.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query.wageDate != null and query.wageDate != ''">
+				AND SWS.WAGE_DATE = #{query.wageDate}
+			</if>
+			<if test="query.signStatus != null">
+				AND SWS.SIGN_STATUS = #{query.signStatus}
+			</if>
+		</where>
+		)
+	</update>
+
+	<update id="updateNotice">
+		UPDATE
+		SMT_WAGE_SIGN
+		SET NOTICE_STATUS = 1
+		<where>
+		<if test="ids != null and ids.size > 0">ID IN
+			<foreach collection="ids" item="tempId" open="(" separator="," close=")">
+				#{tempId}
+			</foreach>
+		</if>
+		</where>
+	</update>
+
+
+</mapper>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAlarmRecordMapper">
+
+  <resultMap id="smtAlarmRecordMap" type="com.tce.smart.platform.core.entity.SmtAlarmRecord">
+                  <id property="id" column="ID"/>
+                        <result property="parkId" column="PARK_ID"/>
+                        <result property="personId" column="PERSON_ID"/>
+                        <result property="personName" column="PERSON_NAME"/>
+                        <result property="personCertno" column="PERSON_CERTNO"/>
+                        <result property="alarmId" column="ALARM_ID"/>
+                        <result property="alarmType" column="ALARM_TYPE"/>
+                        <result property="alarmName" column="ALARM_NAME"/>
+                        <result property="deviceId" column="DEVICE_ID"/>
+                        <result property="deviceType" column="DEVICE_TYPE"/>
+                        <result property="deviceName" column="DEVICE_NAME"/>
+                        <result property="areaId" column="AREA_ID"/>
+                        <result property="areaName" column="AREA_NAME"/>
+                        <result property="photoId" column="PHOTO_ID"/>
+                        <result property="snapId" column="SNAP_ID"/>
+                        <result property="thumbnailId" column="THUMBNAIL_ID"/>
+                        <result property="similarity" column="SIMILARITY"/>
+                        <result property="alarmTime" column="ALARM_TIME"/>
+                        <result property="createTime" column="CREATE_TIME"/>
+            </resultMap>
+            <select id="getAlarmRecord" resultType="com.tce.smart.platform.core.entity.SmtAlarmRecord">
+	SELECT
+					"sar".AREA_NAME,
+					"sar".ALARM_TIME,
+					"sar".DEVICE_NAME,
+					CASE
+				WHEN "sar".ALARM_TYPE = 1 THEN
+					'非法闯入'
+				WHEN "sar".ALARM_TYPE = 2 THEN
+					'陌生人警报'
+				END AS ALARM_NAME,
+				 "sar". ID,
+				 "sar".ALARM_TYPE,
+				 "sar".SNAP_ID
+				FROM
+					SMT_ALARM_RECORD "sar"
+				<where>
+					<!-- <if test="query.parkId != null">
+						AND "sar".PARK_ID = #{query.parkId}
+					</if> -->
+					<if test="query.parkIds != null and query.parkIds.size > 0">
+						AND "sar".PARK_ID IN
+						<foreach collection="query.parkIds" item="id" index="index" open="(" close=")" separator=",">
+							#{id}
+						</foreach>
+					</if>
+					<if test="query.areaId != null">
+						AND "sar".AREA_ID = #{query.areaId}
+					</if>
+					<if test="query.areaId == null and query.list != null">
+						AND "sar".AREA_ID IN
+						<foreach collection="query.list" item="id" index="index" open="(" close=")" separator=",">
+							 #{id}
+						</foreach>
+					</if>
+					<if test="query.startTime != null and query.startTime != ''">
+						AND TO_DATE(TO_CHAR("sar".ALARM_TIME, 'YYYY-MM-DD'),'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(#{query.startTime,jdbcType=DATE}, 'yyyy-MM-dd')
+					</if>
+					<if test="query.endTime != null and query.endTime != ''">
+						AND TO_DATE(TO_CHAR("sar".ALARM_TIME, 'YYYY-MM-DD'),'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(#{query.endTime,jdbcType=DATE}, 'yyyy-MM-dd')
+					</if>
+				</where>
+				ORDER BY "sar".ALARM_TIME DESC
+            </select>
+            <select id="getAreaId" resultType="Integer">
+	SELECT
+					SA."ID"
+				FROM
+					SMT_AREA SA
+				<where>
+					<if test="parkId != null">
+						AND SA.PARK_ID = #{parkId}
+					</if>
+					<if test="pid != null">
+						AND SA.PID = #{pid}
+					</if>
+				</where>
+            </select>
+
+</mapper>

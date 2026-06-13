@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtDormitoryPersonMapper">
+
+  <resultMap id="smtDormitoryPersonMap" type="com.tce.smart.platform.core.entity.dormitoryconfig.SmtDormitoryPerson">
+                  <id property="id" column="ID"/>
+                        <result property="configId" column="CONFIG_ID"/>
+                        <result property="account" column="ACCOUNT"/>
+                        <result property="name" column="NAME"/>
+                        <result property="dormitoryIds" column="DORMITORY_IDS"/>
+                        <result property="parkId" column="PARK_ID"/>
+            </resultMap>
+</mapper>

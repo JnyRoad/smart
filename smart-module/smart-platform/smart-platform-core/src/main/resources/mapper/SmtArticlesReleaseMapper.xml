@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtArticlesReleaseMapper">
+
+	<select id="getOfficeZoneApprovalPage" resultType="com.tce.smart.platform.core.entity.SmtArticlesRelease">
+		SELECT
+		SAR.*
+		FROM
+		SMT_ARTICLES_RELEASE SAR LEFT JOIN SMT_PROCESS_RECORD SPR ON SAR.PROCESS_ID = SPR.PROCESS_ID
+		WHERE SAR.ARTICLES_TYPE = 5
+		<if test="query.approvalStatus == 0">
+			AND (SPR.STATUS = '0' OR SPR.STATUS = 'e')
+			<if test="parkIds != null and parkIds.size > 0">
+				AND SAR.PARK_ID IN
+				<foreach collection="parkIds" item="id" index="index" open="(" close=")" separator=",">
+					#{id}
+				</foreach>
+			</if>
+		</if>
+		<if test="query.approvalStatus == 1">
+			AND (SPR.STATUS = '0' OR SPR.STATUS = 'e') AND SAR.SECURITY_STAFF = #{approveBadge}
+		</if>
+		<if test="query.licensePlate != null and query.licensePlate != ''">
+			AND (SELECT COUNT(SART.ID) FROM SMT_ARTICLES_RELEASE_THING SART WHERE SART.RELEASE_ID = SAR.ID AND SART.CPH
+			= #{query.licensePlate}) > 0
+		</if>
+		<if test="query.name != null and query.name != ''">
+			AND (SAR.CARRIER LIKE CONCAT('%', CONCAT(#{query.name}, '%')) OR SAR.NAME LIKE CONCAT('%',
+			CONCAT(#{query.name}, '%')))
+		</if>
+		<if test="query.badge != null and query.badge != ''">
+			AND SAR.BADGE = #{query.badge}
+		</if>
+		<if test="query.startTime != null and query.endTime != '' and query.endTime != null and query.startTime != ''">
+			AND SAR.CREATE_TIME BETWEEN to_date(#{query.startTime},'yyyy-mm-dd hh24:mi:ss') AND
+			to_date(#{query.endTime},'yyyy-mm-dd hh24:mi:ss')
+		</if>
+		ORDER BY SAR.CREATE_TIME DESC
+	</select>
+</mapper>

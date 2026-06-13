@@ -1,0 +1,104 @@
+jasypt:
+  encryptor:
+    password: "${SMART_JASYPT_PASSWORD:}"
+spring:
+  redis:
+    host: "${SMART_REDIS_HOST:smart-redis}"
+    port: "${SMART_REDIS_PORT:6379}"
+    password: "${SMART_REDIS_PASSWORD:}"
+    database: "${SMART_REDIS_DATABASE:0}"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+    enabled-by-default: false
+feign:
+  hystrix:
+    enabled: false
+  okhttp:
+    enabled: false
+  httpclient:
+    enabled: true
+  client:
+    config:
+      default:
+        connectTimeout: 60000
+        readTimeout: 60000
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+rest:
+  config:
+    connectTimeout: 60000
+    connectionRequestTimeout: 60000
+    readTimeout: 60000
+    maxTotal: 1000
+    maxPerRoute: 1000
+    validateAfterInactivity: 30000
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          strategy: SEMAPHORE
+          thread:
+            timeoutInMilliseconds: 60000
+  shareSecurityContext: true
+ribbon:
+  ReadTimeout: 60000
+  ConnectTimeout: 60000
+mybatis-plus:
+  mapper-locations: classpath:/mapper/*Mapper.xml
+  global-config:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    banner: false
+    db-config:
+      id-type: 0
+      field-strategy: 1
+      table-underline: true
+  configuration:
+    map-underscore-to-camel-case: true
+swagger:
+  title: Swagger API
+  version: API3.0
+  license: Powered By TCE
+  licenseUrl: http://www.tce.com.cn
+  terms-of-service-url: http://www.tce.com.cn
+  contact:
+    name: tce
+    email: admin@bjtce.com
+    url: http://www.tce.com.cn
+  authorization:
+    name: TCE OAuth
+    auth-regex: "^.*$"
+    authorization-scope-list:
+    - scope: server
+      description: server all
+    token-url-list:
+    - http://smart-gateway:9990/auth/oauth/token
+  oauth:
+    client-secret: "${SMART_OAUTH_CLIENT_SECRET:}"
+security:
+  oauth2:
+    resource:
+      loadBalanced: true
+      token-info-uri: "${SMART_OAUTH_TOKEN_INFO_URI:http://smart-auth:3000/oauth/check_token}"
+  auth-code:
+    encode-key: "${SMART_AUTH_CODE_ENCODE_KEY:}"
+  default-reset-password: "${SMART_DEFAULT_RESET_PASSWORD:123456}"
+smart:
+  obs:
+    ak: "${SMART_OBS_AK:}"
+    sk: "${SMART_OBS_SK:}"
+    endpoint: "${SMART_OBS_ENDPOINT:}"
+    bucket-name: "${SMART_OBS_BUCKET_NAME:}"
+    dir-path: "${SMART_OBS_DIR_PATH:Photo/App/}"
+  smb:
+    photo:
+      domain: "${SMART_SMB_PHOTO_DOMAIN:}"
+      username: "${SMART_SMB_PHOTO_USERNAME:}"
+      password: "${SMART_SMB_PHOTO_PASSWORD:}"
+      url: "${SMART_SMB_PHOTO_URL:}"

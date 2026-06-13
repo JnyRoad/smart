@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.ehrview.core.mapper.EvwLregLeaveAllMapper">
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="BaseResultMap" type="com.tce.smart.ehrview.core.entity.EvwLregLeaveAll">
+		<result column="BADGE" property="BADGE" />
+		<result column="DEPID" property="DEPID" />
+		<result column="NAME" property="NAME" />
+		<result column="TWID" property="TWID" />
+		<result column="BeginTime" property="BeginTime" />
+		<result column="EndTime" property="EndTime" />
+		<result column="Amount" property="Amount" />
+		<result column="Unit" property="Unit" />
+		<result column="DayoffReason" property="DayoffReason" />
+		<result column="FormState" property="FormState" />
+	</resultMap>
+
+	<!-- 通用查询结果列 -->
+	<sql id="Base_Column_List">
+        BADGE, NAME, TWID, DEPID, BeginTime, EndTime,  Amount, Unit, DayoffReason, FormState
+    </sql>
+
+	<select id="list" resultMap="BaseResultMap">
+		SELECT <include refid="Base_Column_List"></include>
+		FROM evw_BIZ_LREGLEAVE_REGISTER
+		WHERE evw_BIZ_LREGLEAVE_REGISTER.BADGE = #{badge, jdbcType = VARCHAR}
+		<if test="queryMonth != null and queryMonth != ''">
+			AND CONVERT(VarChar(7), evw_BIZ_LREGLEAVE_REGISTER.BeginTime, 120) = #{ queryMonth, jdbcType = VARCHAR }
+		</if>
+		ORDER BY evw_BIZ_LREGLEAVE_REGISTER.BeginTime
+	</select>
+</mapper>

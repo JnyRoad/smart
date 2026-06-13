@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtNotStaffMapper">
+
+	<resultMap id="smtStaffMap" type="com.tce.smart.platform.core.entity.SmtNotStaff">
+		<id property="id" column="id" />
+		<result property="parkId" column="park_id" />
+		<result property="vehicleId" column="vehicle_id" />
+		<result property="name" column="name" />
+		<result property="phone" column="phone" />
+		<result property="remark" column="remark" />
+	</resultMap>
+
+	<select id="getByVehicleID" resultType="com.tce.smart.platform.core.vo.VehicleStaffVO">
+		SELECT
+			SNS. ID,
+			SNS. NAME,
+			SNS.PHONE,
+			SV.VEHICLE_ASCRIPTION,
+			SV.VEHICLE_COLOR,
+			SV.VEHICLE_TYPE,
+			SV.VEHICLE_BRAND
+		FROM
+			SMT_VEHICLE SV
+		INNER JOIN SMT_NOT_STAFF SNS ON SV. ID = SNS.VEHICLE_ID
+		AND SV. ID = #{cardNo}
+	</select>
+
+</mapper>

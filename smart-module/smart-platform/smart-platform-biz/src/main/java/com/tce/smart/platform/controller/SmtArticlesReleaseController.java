@@ -1,0 +1,182 @@
+package com.tce.smart.platform.controller;
+
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.platform.api.dto.req.*;
+import com.tce.smart.platform.api.dto.resp.ArticlesReleaseDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.ArticlesReleaseListRespDTO;
+import com.tce.smart.platform.api.dto.resp.BackFactoryConfirmListDTO;
+import com.tce.smart.platform.api.dto.resp.OaStaffInfoRespDTO;
+import com.tce.smart.platform.core.entity.SmtArticlesRelease;
+import com.tce.smart.platform.service.SmtArticlesReleaseService;
+import com.tce.smart.tool.enums.ArticlesRemarkEnum;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import lombok.AllArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ *  物品放行
+ * @Auther: guohongtai
+ * @Date: 2020-07-23 16:56
+ */
+@RestController
+@AllArgsConstructor
+@RequestMapping("/articlesrelease")
+@Api(value = "articles_release", tags = "物品放行")
+public class SmtArticlesReleaseController extends BaseController {
+	private final SmtArticlesReleaseService smtArticlesReleaseService;
+
+	@GetMapping("/page")
+	@ApiOperation(value = "公众号物品放行申请列表分页查询")
+	public Result<IPage<ArticlesReleaseListRespDTO>> getArticlesReleasePage(Page page, QueryArticlesReleaseReqDTO reqDTO) {
+		return success(smtArticlesReleaseService.getArticlesReleasePage(page, reqDTO), ArticlesReleaseListRespDTO.class);
+	}
+
+	@GetMapping("/office/approval/page")
+	@ApiOperation(value = "办公区物品放行审批列表查询")
+	public Result<IPage<ArticlesReleaseListRespDTO>> getArticlesReleasePage(Page page, OfficeZoneApproveQueryDTO queryDTO) {
+		return success(smtArticlesReleaseService.getOfficeReleasePage(page, queryDTO), ArticlesReleaseListRespDTO.class);
+	}
+
+	@GetMapping("/office/page")
+	@ApiOperation(value = "办公区物品放行列表查询")
+	public Result<IPage<ArticlesReleaseListRespDTO>> getOfficeReleasePage(Page page, QueryArticlesReleaseReqDTO reqDTO) {
+		return success(smtArticlesReleaseService.getPCOfficePage(page, reqDTO), ArticlesReleaseListRespDTO.class);
+	}
+
+	@GetMapping("/office/export")
+	@ApiOperation(value = "办公区物品放行Excel导出")
+	public ResponseEntity<byte[]> exportOfficeReleaseOARecord() {
+		return smtArticlesReleaseService.exportOfficeReleaseOARecord();
+	}
+
+	@GetMapping("/back/page")
+	@ApiOperation(value = "物品返厂确认分页查询")
+	public Result<IPage<BackFactoryConfirmListDTO>> getBackFactoryPage(Page page, ArticlesBackFactoryReqDTO reqDTO) {
+		return success(smtArticlesReleaseService.getBackFactoryPage(page, reqDTO), BackFactoryConfirmListDTO.class);
+	}
+
+	@Inner
+	@GetMapping("/detail/{id}")
+	@ApiOperation(value = "根据放行ID查询生活区物品放行详情")
+	public Result<ArticlesReleaseDetailRespDTO> getById(@PathVariable("id") Long id){
+		return success(smtArticlesReleaseService.getByReleaseId(id), ArticlesReleaseDetailRespDTO.class);
+	}
+
+	@Inner
+	@GetMapping("/detail/approveId/{id}")
+	@ApiOperation(value = "根据审批ID查询生活区物品放行详情")
+	public Result<ArticlesReleaseDetailRespDTO> getByApproveId(@PathVariable("id") String approveId){
+		return success(smtArticlesReleaseService.getByApproveId(approveId), ArticlesReleaseDetailRespDTO.class);
+	}
+
+	@Inner
+	@GetMapping("/app/status/update")
+	@ApiOperation(value = "石岩APP物品放行审批状态更新")
+	public Result<Boolean> statusForApp(@RequestParam("id") Long id, @RequestParam("approveBadge") String approveBadge, @RequestParam("status") Integer status, @RequestParam(value = "remark", required = false) String remark){
+		return success(smtArticlesReleaseService.status(id, approveBadge, status, remark));
+	}
+
+	@Inner
+	@GetMapping("/status/update")
+	@ApiOperation(value = "许昌物品放行审批状态更新")
+	public Result<Boolean> status(@RequestParam("id") Long id, @RequestParam("approveBadge") String approveBadge, @RequestParam("status") Integer status, @RequestParam(value = "remark", required = false) String remark){
+		return success(smtArticlesReleaseService.livingStatusUpdate(id, approveBadge, status, remark));
+	}
+
+	/**
+	 * 保安放行
+	 * @param reqDTO
+	 * @return
+	 */
+	@PostMapping("/status/security/update")
+	@ApiOperation(value = "保安放行")
+	public Result<Boolean> securityUpdate(@RequestBody GuardReleaseConfirmReqDTO reqDTO){
+		return success(smtArticlesReleaseService.securityUpdate(reqDTO));
+	}
+
+	@PostMapping("/back/confirm/{releaseId}")
+	@ApiOperation(value = "返厂确认")
+	public Result<Boolean> securityBackConfirm(@PathVariable("releaseId") Long releaseId) {
+		return success(smtArticlesReleaseService.securityBackConfirm(releaseId));
+	}
+
+	/**
+	 * 石岩APP生活区物品放行
+	 * @param reqDTO
+	 * @return
+	 */
+	@Inner
+	@PostMapping("/save")
+	@ApiOperation(value = "石岩APP生活区物品放行")
+	public Result<Boolean> saveLiving(@RequestBody AddArticlesReleaseReqDTO reqDTO){
+		return success(smtArticlesReleaseService.saveArticlesRelease(reqDTO));
+	}
+
+	/**
+	 * 许昌公众号生活区物品放行
+	 * @param reqDTO
+	 * @return
+	 */
+	@Inner
+	@PostMapping("/living/save")
+	@ApiOperation(value = "许昌公众号生活区物品放行")
+	public Result<Boolean> saveLivingForXC(@RequestBody AddArticlesReleaseReqDTO reqDTO){
+		return success(smtArticlesReleaseService.saveLivingArticlesRelease(reqDTO));
+	}
+
+	/**
+	 * 许昌办公区物品放行，公众号入口
+	 * @param reqDTO
+	 * @return
+	 */
+	@Inner
+	@PostMapping("/office/save")
+	@ApiOperation(value = "办公区物品放行")
+	public Result<Boolean> saveOffice(@RequestBody OfficeZoneReleaseReqDTO reqDTO) {
+		return success(smtArticlesReleaseService.saveOfficeArticlesRelease(reqDTO));
+	}
+
+	/**
+	 * 根据工号查询OA系统员工信息
+	 * @param badge
+	 * @return
+	 */
+	@GetMapping("/oa/staff/info/{badge}")
+	public Result<OaStaffInfoRespDTO> getOAInfoByBadge(@PathVariable("badge") String badge) {
+		return success(smtArticlesReleaseService.getOAStaffInfoByBadge(badge));
+	}
+
+	@Inner
+	@GetMapping("/list")
+	@ApiOperation(value = "物品放行记录列表查询")
+	public Result<IPage<ArticlesReleaseListRespDTO>> getRecord(@RequestParam("current") Long current, @RequestParam("size") Long size, @RequestParam("badge") String badge, @RequestParam(value = "status", required = false) Integer status) {
+		if(status == 0){
+			//待审核
+			return success(smtArticlesReleaseService.page(new Page<>(current, size), Wrappers.<SmtArticlesRelease>query()
+					.lambda().eq(SmtArticlesRelease::getBadge, badge).eq(SmtArticlesRelease::getStatus, 1).orderByDesc(SmtArticlesRelease::getCreateTime)), ArticlesReleaseListRespDTO.class);
+		}else if(status == 1){
+			//待审核以外状态
+			return success(smtArticlesReleaseService.page(new Page<>(current, size), Wrappers.<SmtArticlesRelease>query()
+					.lambda().eq(SmtArticlesRelease::getBadge, badge).ne(SmtArticlesRelease::getStatus, 1).orderByDesc(SmtArticlesRelease::getCreateTime)), ArticlesReleaseListRespDTO.class);
+		}else{
+			// 所有状态
+			return success(smtArticlesReleaseService.page(new Page<>(current, size), Wrappers.<SmtArticlesRelease>query()
+				.lambda().eq(SmtArticlesRelease::getBadge, badge).orderByDesc(SmtArticlesRelease::getCreateTime)), ArticlesReleaseListRespDTO.class);
+		}
+	}
+
+	@GetMapping("/enum/remark")
+	public Result<List<Map<String, Object>>> getArticlesRemark(){
+		return success(ArticlesRemarkEnum.list());
+	}
+}

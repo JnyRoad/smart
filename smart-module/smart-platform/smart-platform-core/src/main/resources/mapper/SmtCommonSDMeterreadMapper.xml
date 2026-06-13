@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtCommonSDMeterreadMapper">
+
+	<resultMap id="commonSDMeterread" type="com.tce.smart.platform.core.dto.commonsd.CommonSDMeterreadDTO">
+		<id property="id" column="id"/>
+		<result property="sdName" column="SD_NAME"/>
+		<result property="categoryId" column="CATEGORY_ID"/>
+		<result property="meterMonth" column="METER_MONTH"/>
+		<result property="curMonthNum" column="CUR_MONTH_NUM"/>
+		<result property="preMonthNum" column="PRE_MONTH_NUM"/>
+		<result property="statementStatus" column="STATUS"/>
+		<result property="revPreMonthNum" column="REV_PRE_MONTH_NUM"/>
+		<result property="isRevise" column="IS_REVISE"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="meterUser" column="METER_USER"/>
+	</resultMap>
+
+	<select id="getCommonSDMeterread" resultMap="commonSDMeterread">
+		select csd.ID,csd.SD_NAME,csd.CATEGORY_ID,csdm.METER_MONTH,csdm.CUR_MONTH_NUM,
+		csdm.PRE_MONTH_NUM,csdm.STATUS,csdm.REV_PRE_MONTH_NUM,csdm.IS_REVISE,csdm.CREATE_TIME,csdm.METER_USER
+		from SMT_COMMON_SD csd
+		left join SMT_COMMON_SD_METERREAD csdm on csd.ID=csdm.COMMON_ID
+		<where>
+			<if test="comId!=null">
+			and csd.ID=#{comId}
+			</if>
+			<if test="meterDate!=null">
+				and csdm.METER_MONTH=#{meterDate}
+			</if>
+			<if test="categoryId!=null">
+				and csd.CATEGORY_ID =#{categoryId}
+			</if>
+		</where>
+		order by csdm.ID asc
+	</select>
+</mapper>

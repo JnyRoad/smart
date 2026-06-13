@@ -1,0 +1,37 @@
+.emailmodel{
+  .content{
+    margin: 10px 0 0 0;
+    .tb-outer{
+      padding-left: 18px;
+    }
+    .ps-table{
+      margin-top: 5px;
+      width: 100%;
+      text-align: center;
+      line-height: 30px;
+      tr:first-child{
+        background: #F7F7F7;
+        height: 35px;
+      }
+      td{
+        width: 20%;
+        border-bottom: 1px solid #F4F5F8;
+      }
+    }
+    .tips{
+      color: #c0c0c0;
+      display: none;
+    }
+    .tags{
+      .el-tag{
+        margin: 0 10px 0 0;
+        cursor: pointer;
+      }
+      padding-bottom: 15px;
+    }
+  }
+  .noData{
+    display: inline-block;
+    padding: 10px 0;
+  }
+}

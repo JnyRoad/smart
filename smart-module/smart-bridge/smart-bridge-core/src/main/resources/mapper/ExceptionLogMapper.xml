@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.bridge.core.mapper.ExceptionLogMapper">
+
+	<select id="getList" resultType="com.tce.smart.bridge.core.entity.ExceptionLog">
+		SELECT
+			e.id,
+			e.event_type,
+			e.message,
+			e.create_time,
+			e.update_time
+		FROM e_exception_log e
+		WHERE e.id > #{id}
+		ORDER BY e.id
+		LIMIT #{size}
+	</select>
+</mapper>

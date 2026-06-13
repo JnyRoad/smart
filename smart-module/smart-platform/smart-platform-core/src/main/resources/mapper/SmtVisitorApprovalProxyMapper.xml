@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtVisitorApprovalProxyMapper">
+<!--	<resultMap id="pageQueryMap" type="com.tce.smart.platform.core.dto.VisitorProxyDTO">-->
+<!--		<id property="id" column="id"/>-->
+<!--		<result property="parkId" column="PARK_ID"/>-->
+<!--		<result property="parkName" column="PARK_NAME"/>-->
+<!--		<result property="interVieweeBadge" column="STAFF_BADGE"/>-->
+<!--		<result property="interVieweeName" column="NAME"/>-->
+<!--		<result property="interVieweeCompId" column="CREATE_TIME"/>-->
+<!--		<result property="interVieweeCompName" column="UPDATE_TIME"/>-->
+<!--		<result property="interVieweeDepId" column="STATUS"/>-->
+<!--		<result property="interVieweeDepName" column="LIKE_TYPE"/>-->
+<!--		<result property="interVieweeJobId" column="APPLY_REMARK"/>-->
+<!--		<result property="interVieweeJobName" column="COMP_NAME"/>-->
+<!--		<result property="proxyBadge" column="DEP_NAME"/>-->
+<!--		<result property="proxyName" column="JCHE_NAME"/>-->
+<!--		<result property="proxyCompId" column="JCHE_NAME"/>-->
+<!--		<result property="proxyCompName" column="JCHE_NAME"/>-->
+<!--		<result property="proxyDepId" column="JCHE_NAME"/>-->
+<!--		<result property="proxyDepName" column="JCHE_NAME"/>-->
+<!--		<result property="proxyJobId" column="JCHE_NAME"/>-->
+<!--		<result property="proxyJobName" column="JCHE_NAME"/>-->
+<!--		<result property="createTime" column="JCHE_NAME"/>-->
+<!--	</resultMap>-->
+	<select id="pageQuery" parameterType="com.tce.smart.platform.core.dto.VisitorProxyDTO" resultType="com.tce.smart.platform.core.dto.VisitorProxyDTO">
+		select proxy.id,proxy.PARK_ID,park.PARK_NAME,proxy.INTERVIEWEE_BADGE AS interVieweeBadge,
+		istaff.NAME AS interVieweeName,istaff.COMP_ID AS interVieweeCompId,istaff.COMP_NAME AS interVieweeCompName,
+		istaff.DEP_ID AS interVieweeDepId,istaff.DEP_NAME AS interVieweeDepName,istaff.JOB_ID AS interVieweeJobId,istaff.JOB_NAME AS interVieweeJobName,
+		proxy.PROXY_BADGE as proxyBadge,
+		pstaff.NAME AS proxyName,pstaff.COMP_ID AS proxyCompId,pstaff.COMP_NAME AS proxyCompName,
+		pstaff.DEP_ID AS proxyDepId,pstaff.DEP_NAME AS proxyDepName,pstaff.JOB_ID AS proxyJobId,pstaff.JOB_NAME AS proxyJobName,
+		proxy.CREATE_TIME
+		from SMT_VISITOR_APPROVAL_PROXY proxy
+		join SMT_STAFF pstaff on proxy.PROXY_BADGE=pstaff.BADGE
+		join SMT_STAFF istaff on proxy.INTERVIEWEE_BADGE=istaff.BADGE
+		join SMT_PARK park on proxy.PARK_ID=park.ID
+		<where>
+			<if test="query.parkId != null">
+				and proxy.PARK_ID=#{query.parkId}
+			</if>
+			<if test="query.parkIds!=null and query.parkIds.size>0">
+				and proxy.PARK_ID in
+				<foreach item="item" index="index" collection="query.parkIds" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+			</if>
+			<if test="query.proxyBadge != null and  query.proxyBadge != ''">
+				and proxy.PROXY_BADGE=#{query.proxyBadge}
+			</if>
+			<if test="query.interVieweeBadge != null and  query.interVieweeBadge != ''">
+				AND proxy.INTERVIEWEE_BADGE=#{query.interVieweeBadge}
+			</if>
+			<if test="query.proxyName != null and  query.proxyName != ''">
+				AND pstaff.name LIKE CONCAT(CONCAT('%',#{query.proxyName}),'%')
+			</if>
+			<if test="query.interVieweeName != null and  query.interVieweeName != ''">
+				AND istaff.name LIKE CONCAT(CONCAT('%',#{query.interVieweeName}),'%')
+			</if>
+		</where>
+	</select>
+</mapper>
