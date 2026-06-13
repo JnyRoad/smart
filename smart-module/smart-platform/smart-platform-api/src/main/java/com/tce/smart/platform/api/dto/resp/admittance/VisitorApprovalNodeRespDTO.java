@@ -12,6 +12,8 @@ public class VisitorApprovalNodeRespDTO implements Serializable {
 
 	private String state;
 
+	private String statusText;
+
 	private String approverName;
 
 	private String time;
