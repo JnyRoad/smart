@@ -105,7 +105,7 @@ export interface WorkApprovalItem {
 export function getWorkApprovalPage(
   params: { approvalStatus: 0 | 1; current: number; size: number } & ApprovalSearch,
 ): Promise<Envelope<PageData<WorkApprovalItem>>> {
-  return request({ module: 'platform', url: '/articlesrelease/office/page', params: { ...params } })
+  return request({ module: 'platform', url: '/articlesrelease/office/approval/page', params: { ...params } })
 }
 
 // ===== 报修审批 =====
