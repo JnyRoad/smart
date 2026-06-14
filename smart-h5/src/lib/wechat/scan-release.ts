@@ -60,7 +60,9 @@ function loadWechatSdk(): Promise<WechatJsSdk> {
     const script = existing ?? document.createElement('script')
     const rejectAndReset = (error: Error) => {
       sdkLoadPromise = null
-      if (!existing) script.remove()
+      script.onload = null
+      script.onerror = null
+      script.remove()
       reject(error)
     }
     if (!existing) {
