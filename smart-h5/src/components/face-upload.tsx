@@ -31,7 +31,7 @@ export interface FaceUploadResponse {
   /** Gateway nests the photo id as `{ photoId }`; some callers get it directly. */
   data?: string | number | { photoId?: string | number } | null
   message?: string
-  /** Server-processed photo, consumed by the lock-refresh page. */
+  /** Optional gateway variant; the usual checkFace response only returns data.photoId. */
   resultData?: { base64?: string }
 }
 
@@ -47,7 +47,7 @@ export function FaceUpload({
   mode: 'face' | 'plain'
   label?: string
   /** Raw checkFace response for callers that need more than the photo id. */
-  onUploaded?: (raw: FaceUploadResponse) => void
+  onUploaded?: (raw: FaceUploadResponse, uploadedBase64: string) => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -71,10 +71,9 @@ export function FaceUpload({
       }
       const uploaded = (await checkFace(base64)) as FaceUploadResponse
       if (uploaded.code === 0) {
-        // The response has two consumables (data.photoId = uploaded photo id,
-        // resultData = processed photo). Expose the raw response on any success
-        // so callers that only need resultData are not blocked by a missing id.
-        onUploaded?.(uploaded)
+        // Expose both the gateway response and the uploaded base64. Door-lock
+        // refresh needs base64 even when checkFace only returns data.photoId.
+        onUploaded?.(uploaded, base64)
         const photoId = extractPhotoId(uploaded.data)
         if (photoId) {
           setPreview(dataUrl)

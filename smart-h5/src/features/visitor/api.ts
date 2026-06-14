@@ -234,9 +234,8 @@ export function faceCut(imageData: string) {
 }
 
 /**
- * Uploads a photo (face or document). The response carries two consumables:
- * `data` (photo id, used by the visitor flow) and `resultData.base64`
- * (server-processed photo, used by the lock-refresh page).
+ * Uploads a photo (face or document). The usual response returns `data.photoId`;
+ * `resultData.base64` is only an optional gateway variant.
  */
 export function checkFace(visitorPhoto: string) {
   // 网关把照片 id 嵌在 data.photoId（旧版 res.data.photoId）；部分场景直接给字符串。

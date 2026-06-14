@@ -181,10 +181,10 @@ test('刷新动态码：人脸比对 → 生成 → 回门锁页', async ({ page
   await page.route('**/algorithm/out/face/cut', (route) =>
     route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } }),
   )
-  // 门锁取码只消费 resultData.base64，响应里没有 data.photoId（真实场景）。
+  // Real checkFace returns data.photoId and no resultData.base64; lock refresh must reuse uploaded base64.
   await page.route('**/app/wechat/visit/checkFace', (route) =>
     route.fulfill({
-      json: { code: 0, message: 'success', data: null, resultData: { base64: 'processed-base64' } },
+      json: { code: 0, message: 'success', data: { photoId: 'p-lock' } },
     }),
   )
   // 哨兵 value 不能被当成 photoId 去回查网关图片（坏图回归防护）。
@@ -212,7 +212,7 @@ test('刷新动态码：人脸比对 → 生成 → 回门锁页', async ({ page
   expect(brokenImg).toBe(false)
   await page.getByRole('button', { name: '生成动态码' }).click()
   await expect(page.getByText('刷新动态码成功！')).toBeVisible()
-  expect(refreshBody).toEqual({ badge: 'YT20180326', facePic: 'processed-base64' })
+  expect(refreshBody).toEqual({ badge: 'YT20180326', facePic: 'cut-base64' })
   await page.getByRole('button', { name: '确定' }).click()
   await page.waitForURL('**/dorm/lock')
   await expect(page.getByTestId('lock-code')).toHaveText('888888')
