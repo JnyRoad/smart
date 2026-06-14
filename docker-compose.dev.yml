@@ -50,40 +50,88 @@ services:
     networks:
       - smart-dev
 
+  smart-oracle:
+    image: gvenzl/oracle-xe:21-slim
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-oracle
+    profiles: ["backend", "local-db", "bridge", "bridge-isc"]
+    environment:
+      ORACLE_PASSWORD: ${SMART_ORACLE_SYS_PASSWORD:-smart_sys_123}
+      APP_USER: ${SMART_DB_USERNAME:-SMART}
+      APP_USER_PASSWORD: ${SMART_DB_PASSWORD:-smart_local_123}
+    ports:
+      - "${SMART_ORACLE_HOST_PORT:-1521}:1521"
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+    volumes:
+      - smart-oracle-data:/opt/oracle/oradata
+    networks:
+      - smart-dev
+
+  smart-mock-http:
+    image: mockserver/mockserver:5.15.0
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-mock-http
+    profiles: ["bridge", "bridge-isc", "mock"]
+    environment:
+      MOCKSERVER_LOG_LEVEL: WARN
+    ports:
+      - "${SMART_MOCK_HTTP_HOST_PORT:-1080}:1080"
+    networks:
+      - smart-dev
+
   smart-zookeeper:
-    image: bitnami/zookeeper:3.9
+    image: confluentinc/cp-zookeeper:7.7.1
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-zookeeper
+    profiles: ["backend", "bridge", "bridge-isc", "bridge-concentrator", "local-kafka"]
     environment:
-      ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_HEAP_OPTS: ${SMART_ZOOKEEPER_HEAP_OPTS:--Xms64m -Xmx256m}
     ports:
       - "${SMART_ZOOKEEPER_HOST_PORT:-2181}:2181"
     volumes:
-      - smart-zookeeper-data:/bitnami/zookeeper
+      - smart-zookeeper-data:/var/lib/zookeeper/data
+      - smart-zookeeper-log:/var/lib/zookeeper/log
     networks:
       - smart-dev
 
   smart-kafka:
-    image: bitnami/kafka:3.7
+    image: confluentinc/cp-kafka:7.7.1
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-kafka
+    profiles: ["backend", "bridge", "bridge-isc", "bridge-concentrator", "local-kafka"]
     depends_on:
       smart-zookeeper:
         condition: service_started
     environment:
-      KAFKA_ENABLE_KRAFT: "no"
       KAFKA_BROKER_ID: "1"
-      ALLOW_PLAINTEXT_LISTENER: "yes"
-      KAFKA_CFG_ZOOKEEPER_CONNECT: smart-zookeeper:2181
-      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://smart-kafka:9092
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ZOOKEEPER_CONNECT: smart-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://smart-kafka:9092,PLAINTEXT_HOST://localhost:${SMART_KAFKA_HOST_PORT:-9092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: ${SMART_KAFKA_HEAP_OPTS:--Xms128m -Xmx512m}
     ports:
-      - "${SMART_KAFKA_HOST_PORT:-9092}:9092"
+      - "${SMART_KAFKA_HOST_PORT:-9092}:29092"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/9092'"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
     volumes:
-      - smart-kafka-data:/bitnami/kafka
+      - smart-kafka-data:/var/lib/kafka/data
     networks:
       - smart-dev
 
@@ -108,6 +156,7 @@ services:
       NACOS_URL: smart-nacos
       NACOS_PORT: 8848
       NACOS_GROUP: ${NACOS_GROUP:-dev}
+      JAVA_TOOL_OPTIONS: ${SMART_JAVA_TOOL_OPTIONS:--Xms96m -Xmx384m -XX:MaxMetaspaceSize=192m}
       TZ: Asia/Shanghai
     ports:
       - "${SMART_GATEWAY_HOST_PORT:-9990}:9990"
@@ -131,6 +180,8 @@ services:
         condition: service_completed_successfully
       smart-redis:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -155,6 +206,8 @@ services:
         condition: service_completed_successfully
       smart-redis:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -179,6 +232,8 @@ services:
         condition: service_completed_successfully
       smart-redis:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -203,6 +258,8 @@ services:
         condition: service_completed_successfully
       smart-redis:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -227,6 +284,8 @@ services:
         condition: service_completed_successfully
       smart-redis:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -251,6 +310,8 @@ services:
         condition: service_completed_successfully
       smart-redis:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -275,6 +336,8 @@ services:
         condition: service_completed_successfully
       smart-platform:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -299,6 +362,8 @@ services:
         condition: service_completed_successfully
       smart-redis:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -324,6 +389,8 @@ services:
       smart-dispatcher:
         condition: service_started
       smart-kafka:
+        condition: service_healthy
+      smart-mock-http:
         condition: service_started
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
@@ -351,6 +418,8 @@ services:
       smart-dispatcher:
         condition: service_started
       smart-kafka:
+        condition: service_healthy
+      smart-mock-http:
         condition: service_started
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
@@ -374,11 +443,12 @@ services:
     profiles: ["bridge-concentrator"]
     depends_on:
       smart-kafka:
-        condition: service_started
+        condition: service_healthy
     environment:
       APP_ENV: ${APP_ENV:-local}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: ${SMART_KAFKA_BOOTSTRAP_SERVERS:-smart-kafka:9092}
       SMART_KAFKA_BRIDGE_EVENT_TOPIC: ${SMART_KAFKA_BRIDGE_EVENT_TOPIC:-smart-local-bridge-event}
+      JAVA_TOOL_OPTIONS: ${SMART_JAVA_TOOL_OPTIONS:--Xms96m -Xmx384m -XX:MaxMetaspaceSize=192m}
       TZ: Asia/Shanghai
     ports:
       - "${SMART_BRIDGE_CONCENTRATOR_HOST_PORT:-6062}:6062"
@@ -403,6 +473,8 @@ services:
         condition: service_completed_successfully
       smart-dispatcher:
         condition: service_started
+      smart-oracle:
+        condition: service_healthy
     env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
     environment: *backend-env
     ports:
@@ -458,7 +530,9 @@ volumes:
   smart-nacos-data:
   smart-nacos-logs:
   smart-redis-data:
+  smart-oracle-data:
   smart-zookeeper-data:
+  smart-zookeeper-log:
   smart-kafka-data:
   smart-bridge-db:
   smart-bridge-isc-db:
