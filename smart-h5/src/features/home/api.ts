@@ -61,6 +61,16 @@ export function getWeather(city: string): Promise<GatewayEnvelope<WeatherInfo>> 
   return request({ module: 'app', url: '/common/weather', params: { city } })
 }
 
+export interface WechatSignature {
+  timestamp: number | string
+  nonceStr: string
+  signature: string
+}
+
+export function getWechatSignature(params: { url: string }): Promise<GatewayEnvelope<WechatSignature>> {
+  return request({ module: 'app', url: '/wechat/sign', params })
+}
+
 /** Pending good-release approvals (recordType 3 = 宿舍物品放行). */
 export function getGoodReleaseApprovalCount(): Promise<GatewayEnvelope<{ total?: number }>> {
   return request({
