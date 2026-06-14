@@ -8,12 +8,13 @@ import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { refreshLockPwd } from '@/features/dorm/api'
+import { resolveLockRefreshFacePic } from '@/features/dorm/lock-refresh'
 
 /** Regenerates the door-lock code after an on-device face check. */
 export default function GetCodePage() {
   const authorized = useRequireAuth()
   const router = useRouter()
-  // facePic = checkFace 响应的 resultData.base64（与访客模块消费 data 不同）
+  // facePic = the base64 sent to checkFace; the usual checkFace response only returns data.photoId.
   const [facePic, setFacePic] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -73,8 +74,8 @@ export default function GetCodePage() {
           mode="face"
           value={facePic ? 'uploaded' : ''}
           onChange={() => {}}
-          onUploaded={(raw) => {
-            const base64 = raw.resultData?.base64
+          onUploaded={(raw, uploadedBase64) => {
+            const base64 = resolveLockRefreshFacePic(raw, uploadedBase64)
             if (base64) {
               setFacePic(base64)
             } else {
