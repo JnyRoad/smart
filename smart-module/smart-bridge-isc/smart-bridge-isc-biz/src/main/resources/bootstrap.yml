@@ -15,7 +15,7 @@ spring:
           group: ${NACOS_GROUP:dev}
           refresh: true
         shared-configs[1]:
-          data-id: smart-bridge-biz-5000021.yml
+          data-id: smart-bridge-isc-biz-5000021.yml
           group: ${NACOS_GROUP:dev}
           refresh: true
         server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}

@@ -9,7 +9,8 @@ scripts/
 ├── README.md
 ├── build-release-jars.sh          # 构建后端模块并收集可部署 Jar
 ├── release-jars.manifest          # 发布 Jar 白名单：service|jar path
-└── test-build-release-jars.sh     # build-release-jars.sh 的脚本级回归测试
+├── test-build-release-jars.sh     # build-release-jars.sh 的脚本级回归测试
+└── test-docker-compose-dev.sh     # docker-compose.dev.yml 模块覆盖回归测试
 ```
 
 ## 主要脚本
@@ -27,9 +28,11 @@ scripts/
 scripts/build-release-jars.sh
 scripts/build-release-jars.sh --skip-build
 scripts/test-build-release-jars.sh
+scripts/test-docker-compose-dev.sh
 ```
 
 ## 维护规则
 
 - 新增可部署后端服务时，先确认它会产出 Spring Boot executable jar，再加入 `release-jars.manifest`。
+- 新增 Docker Compose 服务时，同步更新 `scripts/test-docker-compose-dev.sh` 的模块映射。
 - 不要把 `release-artifacts/`、`smart-jar/` 或脚本测试临时目录提交。

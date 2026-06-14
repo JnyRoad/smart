@@ -32,7 +32,7 @@ spring:
         table-underline: true
     mapper-locations: classpath:/mapper/*Mapper.xml
 smart:
-  application-name: smart-bridge-biz
+  application-name: smart-bridge-isc-biz
   park-id: 5000021
   hik:
     host: "${SMART_HIK_HOST:}"
@@ -47,7 +47,7 @@ smart:
   bridge:
     c-process:
       url: "${SMART_BRIDGE_C_PROCESS_URL:http://host.docker.internal:7001}"
-      bridge-url: "${SMART_BRIDGE_C_PROCESS_BRIDGE_URL:http://smart-bridge-isc:6060}"
+      bridge-url: "${SMART_BRIDGE_C_PROCESS_BRIDGE_URL:http://smart-bridge-concentrator:6062}"
   kafka:
     consumer:
       event-topic: "${SMART_KAFKA_EVENT_TOPIC:smart-local-event}"

@@ -17,3 +17,4 @@ docker/nacos/
 - 新增后端服务本地配置时，在 `config/dev/` 增加对应 YAML。
 - `init-nacos.sh` 只负责本地初始化，不作为生产配置发布工具。
 - 不提交真实生产密钥、账号或导出的 Nacos 配置。
+- `smart-bridge-concentrator-biz` 当前按独立 Spring Boot 服务运行，不依赖 Nacos 注册，因此不需要在这里新增 Data ID。

@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+coverage
+test-results
+playwright-report
+.DS_Store
+*.log
+.env
+.env.*
+next-env.d.ts
+*.tsbuildinfo
+Dockerfile
