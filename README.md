@@ -83,8 +83,12 @@ pnpm run test
 
 ```bash
 cp docker/.env.local.example .env.local
-docker compose -f docker-compose.dev.yml up smart-nacos smart-nacos-init smart-redis smart-kafka
+docker compose --env-file .env.local -f docker-compose.dev.yml up smart-nacos smart-nacos-init smart-redis smart-kafka
+docker compose --env-file .env.local -f docker-compose.dev.yml --profile backend up
+docker compose --env-file .env.local -f docker-compose.dev.yml --profile backend --profile frontend up
 ```
+
+桥接服务按接入场景启用：`--profile bridge` 启动直连海康设备终端的 `smart-bridge`，`--profile bridge-isc` 启动对接海康 ISC 平台的 `smart-bridge-isc`。水电表集中器使用 `--profile bridge-concentrator` 单独启动 `smart-bridge-concentrator`。
 
 后端发布包：
 

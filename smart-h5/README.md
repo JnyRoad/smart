@@ -15,7 +15,9 @@ pnpm e2e          # Playwright（网络层 mock，dev server 端口 3100）
 pnpm build        # 生产构建（standalone）
 ```
 
-环境变量 `API_PROXY_TARGET` 可覆盖开发代理目标。
+环境变量 `API_PROXY_TARGET` 可覆盖开发代理目标。Docker 镜像构建时也会使用
+`SMART_H5_API_PROXY_TARGET` / `API_PROXY_TARGET` 写入 standalone rewrites；
+修改后需要重建镜像。
 
 ## 目录约定
 

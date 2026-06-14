@@ -1,9 +1,10 @@
 import type { NextConfig } from 'next'
 
 /**
- * Dev-only API proxy to the existing gateway (equivalent to the legacy
- * proxy.js). In production nginx routes these prefixes directly to
- * smart-gateway; the Next server never forwards API traffic.
+ * API proxy to the existing gateway. Development keeps the legacy default
+ * remote target; standalone Docker production sets API_PROXY_TARGET at build
+ * time so same-origin frontend calls still reach smart-gateway. Production
+ * deployments without API_PROXY_TARGET can keep using an external nginx route.
  */
 // NOTE: the gateway's 'visitor' module prefix is intentionally NOT proxied:
 // it collides with this app's /visitor/* pages (afterFiles rewrites run
@@ -20,8 +21,9 @@ const nextConfig: NextConfig = {
   // auto-detection would then watch the entire parent tree (extreme CPU).
   turbopack: { root: __dirname },
   async rewrites() {
-    if (process.env.NODE_ENV !== 'development') return []
-    const target = process.env.API_PROXY_TARGET ?? 'https://xuchang.szyuto.com'
+    const configuredTarget = process.env.API_PROXY_TARGET
+    if (process.env.NODE_ENV !== 'development' && !configuredTarget) return []
+    const target = configuredTarget ?? 'https://xuchang.szyuto.com'
     return GATEWAY_MODULES.map((module) => ({
       source: `/${module}/:path*`,
       destination: `${target}/${module}/:path*`,
