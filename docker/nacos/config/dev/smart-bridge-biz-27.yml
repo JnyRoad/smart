@@ -52,6 +52,8 @@ smart:
       event-group-id: "${SMART_KAFKA_EVENT_GROUP_ID:smart-local-event-group}"
       image-topic: "${SMART_KAFKA_IMAGE_TOPIC:smart-local-image}"
       image-group-id: "${SMART_KAFKA_IMAGE_GROUP_ID:smart-local-image-group}"
+      bridge-event-topic: "${SMART_KAFKA_BRIDGE_EVENT_TOPIC:smart-local-bridge-event}"
+      bridge-event-group-id: "${SMART_KAFKA_BRIDGE_EVENT_GROUP_ID:smart-local-bridge-event-group}"
 hbase:
   zookeeper:
     znode: "${SMART_HBASE_ZOOKEEPER_ZNODE:/hbase}"

@@ -93,10 +93,10 @@ services:
       dockerfile: smart-gateway/Dockerfile
       args:
         APP_ENV: ${APP_ENV:-local}
-    image: yuto-smart/smart-gateway:dev
+    image: smart/smart-gateway:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-gateway
-    profiles: ["backend"]
+    profiles: ["backend", "frontend"]
     depends_on:
       smart-nacos-init:
         condition: service_completed_successfully
@@ -122,7 +122,7 @@ services:
       dockerfile: smart-auth/Dockerfile
       args:
         APP_ENV: ${APP_ENV:-local}
-    image: yuto-smart/smart-auth:dev
+    image: smart/smart-auth:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-auth
     profiles: ["backend"]
@@ -146,7 +146,7 @@ services:
       dockerfile: smart-upms/smart-upms-biz/Dockerfile
       args:
         APP_ENV: ${APP_ENV:-local}
-    image: yuto-smart/smart-upms:dev
+    image: smart/smart-upms-biz:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-upms
     profiles: ["backend"]
@@ -170,10 +170,10 @@ services:
       dockerfile: smart-platform/smart-platform-biz/Dockerfile
       args:
         APP_ENV: ${APP_ENV:-local}
-    image: yuto-smart/smart-platform:dev
+    image: smart/smart-platform-biz:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-platform
-    profiles: ["backend"]
+    profiles: ["backend", "bridge", "bridge-isc"]
     depends_on:
       smart-nacos-init:
         condition: service_completed_successfully
@@ -194,7 +194,7 @@ services:
       dockerfile: smart-app/smart-app-biz/Dockerfile
       args:
         APP_ENV: ${APP_ENV:-local}
-    image: yuto-smart/smart-app:dev
+    image: smart/smart-app-biz:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-app
     profiles: ["backend"]
@@ -212,16 +212,64 @@ services:
     networks:
       - smart-dev
 
+  smart-algorithm:
+    build:
+      context: ./smart-module
+      dockerfile: smart-algorithm/smart-algorithm-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: smart/smart-algorithm-biz:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-algorithm
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-redis:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_ALGORITHM_HOST_PORT:-8990}:8990"
+    volumes:
+      - smart-logs:/smart-algorithm/logs
+    networks:
+      - smart-dev
+
+  smart-data:
+    build:
+      context: ./smart-module
+      dockerfile: smart-data/smart-data-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: smart/smart-data-biz:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-data
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-redis:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_DATA_HOST_PORT:-6063}:6060"
+    volumes:
+      - smart-logs:/smart-data/logs
+    networks:
+      - smart-dev
+
   smart-dispatcher:
     build:
       context: ./smart-module
       dockerfile: smart-dispatcher/smart-dispatcher-biz/Dockerfile
       args:
         APP_ENV: ${APP_ENV:-local}
-    image: yuto-smart/smart-dispatcher:dev
+    image: smart/smart-dispatcher-biz:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-dispatcher
-    profiles: ["backend"]
+    profiles: ["backend", "bridge", "bridge-isc"]
     depends_on:
       smart-nacos-init:
         condition: service_completed_successfully
@@ -236,13 +284,64 @@ services:
     networks:
       - smart-dev
 
+  smart-push:
+    build:
+      context: ./smart-module
+      dockerfile: smart-push/smart-push-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: smart/smart-push-biz:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-push
+    profiles: ["backend"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-redis:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_PUSH_HOST_PORT:-6090}:6090"
+    volumes:
+      - smart-logs:/smart-push/logs
+    networks:
+      - smart-dev
+
+  smart-bridge:
+    build:
+      context: ./smart-module
+      dockerfile: smart-bridge/smart-bridge-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: smart/smart-bridge-biz:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-bridge
+    profiles: ["bridge"]
+    depends_on:
+      smart-nacos-init:
+        condition: service_completed_successfully
+      smart-dispatcher:
+        condition: service_started
+      smart-kafka:
+        condition: service_started
+    env_file: ${SMART_DOCKER_ENV_FILE:-.env.local}
+    environment: *backend-env
+    ports:
+      - "${SMART_BRIDGE_HOST_PORT:-6061}:6060"
+    volumes:
+      - smart-logs:/smart-bridge/logs
+      - smart-bridge-db:/smart-bridge/database
+    networks:
+      - smart-dev
+
   smart-bridge-isc:
     build:
       context: ./smart-module
       dockerfile: smart-bridge-isc/smart-bridge-isc-biz/Dockerfile
       args:
         APP_ENV: ${APP_ENV:-local}
-    image: yuto-smart/smart-bridge-isc:dev
+    image: smart/smart-bridge-isc-biz:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-bridge-isc
     profiles: ["bridge-isc"]
@@ -263,13 +362,39 @@ services:
     networks:
       - smart-dev
 
+  smart-bridge-concentrator:
+    build:
+      context: ./smart-module
+      dockerfile: smart-bridge-concentrator/smart-bridge-concentrator-biz/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-local}
+    image: smart/smart-bridge-concentrator-biz:dev
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: smart-bridge-concentrator
+    profiles: ["bridge-concentrator"]
+    depends_on:
+      smart-kafka:
+        condition: service_started
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${SMART_KAFKA_BOOTSTRAP_SERVERS:-smart-kafka:9092}
+      SMART_KAFKA_BRIDGE_EVENT_TOPIC: ${SMART_KAFKA_BRIDGE_EVENT_TOPIC:-smart-local-bridge-event}
+      TZ: Asia/Shanghai
+    ports:
+      - "${SMART_BRIDGE_CONCENTRATOR_HOST_PORT:-6062}:6062"
+      - "${SMART_BRIDGE_CONCENTRATOR_NETTY_HOST_PORT:-6001}:6001"
+    volumes:
+      - smart-logs:/smart-bridge-concentrator/logs
+    networks:
+      - smart-dev
+
   smart-schedule:
     build:
       context: ./smart-module
       dockerfile: smart-schedule/Dockerfile
       args:
         APP_ENV: ${APP_ENV:-local}
-    image: yuto-smart/smart-schedule:dev
+    image: smart/smart-schedule:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-schedule
     profiles: ["backend"]
@@ -291,7 +416,11 @@ services:
     build:
       context: ./smart-ui
       dockerfile: Dockerfile
-    image: yuto-smart/smart-ui:dev
+      args:
+        VUE_APP_PLATFORM_URL: ${VUE_APP_PLATFORM_URL:-http://smart-gateway:9990}
+        VUE_APP_BASE_URL: ${VUE_APP_BASE_URL:-http://smart-gateway:9990}
+        VUE_APP_SECURITY_ENCODE_KEY: ${VUE_APP_SECURITY_ENCODE_KEY:-}
+    image: smart/smart-ui:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-ui
     profiles: ["frontend"]
@@ -307,7 +436,9 @@ services:
     build:
       context: ./smart-h5
       dockerfile: Dockerfile
-    image: yuto-smart/smart-h5:dev
+      args:
+        API_PROXY_TARGET: ${SMART_H5_API_PROXY_TARGET:-http://smart-gateway:9990}
+    image: smart/smart-h5:dev
     platform: ${DOCKER_PLATFORM:-linux/amd64}
     container_name: smart-h5
     profiles: ["frontend"]
@@ -315,7 +446,7 @@ services:
       smart-gateway:
         condition: service_started
     ports:
-      - "${SMART_H5_HOST_PORT:-8081}:80"
+      - "${SMART_H5_HOST_PORT:-8081}:3000"
     networks:
       - smart-dev
 
@@ -329,5 +460,6 @@ volumes:
   smart-redis-data:
   smart-zookeeper-data:
   smart-kafka-data:
+  smart-bridge-db:
   smart-bridge-isc-db:
   smart-logs:

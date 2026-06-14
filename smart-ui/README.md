@@ -1,6 +1,6 @@
 # smart-ui
 
-云视 · 裕同智慧园区项目（石岩、龙岗园区）前端工程。
+许昌裕同智慧园区项目前端工程。
 
 基于 Vue 2 + Element UI + Avue 的中后台单页应用，对接 `smart-gateway` 网关下的多个微服务（认证、平台、算法、调度、文件等），覆盖人员/车辆/门禁/告警/预约/宿舍/会议/工单等园区业务场景。
 
@@ -156,7 +156,7 @@ smart-ui/
 ├── .editorconfig
 ├── babel.config.js
 ├── vue.config.js              # Vue CLI 配置（代理 / 别名 / externals / Terser）
-├── Dockerfile                 # 生产镜像（nginx + dist）
+├── Dockerfile                 # 生产镜像（Node 构建阶段 + nginx 运行阶段）
 ├── nginx.conf                 # 生产 nginx 配置（反向代理至 smart-gateway）
 └── package.json
 ```
@@ -208,14 +208,13 @@ pnpm build
 ### Docker 镜像
 
 ```bash
-pnpm build
 docker build -t smart-ui:latest .
 docker run -d -p 80:80 --name smart-ui smart-ui:latest
 ```
 
 `Dockerfile` 行为：
-1. 基于官方 `nginx` 镜像
-2. 把 `dist/` 拷贝到 `/data`（与 `nginx.conf` 中 `root /data/` 对应）
+1. 在 Node 22 构建阶段执行 `pnpm install --frozen-lockfile` 和 `pnpm build`
+2. 在 nginx 运行阶段把构建出的 `dist/` 拷贝到 `/data`
 3. 用项目内 `nginx.conf` 覆盖默认配置
 
 > 部署后若需调整加密 key、后端地址等，**改 `/data/config.js` 即可，无需重建镜像**。
@@ -227,14 +226,14 @@ docker run -d -p 80:80 --name smart-ui smart-ui:latest
 `nginx.conf` 把以下前缀代理到网关 `smart-gateway:9990`：
 
 ```
-/code  /auth  /admin  /algorithm  /file  /push  /app  /platform  /schedule  /data
+/code  /auth  /admin  /algorithm  /file  /push  /app  /platform  /schedule  /data  /gen
 ```
 
 并对 `/config.js` 做了 method 白名单（仅 GET），防止运行期配置被外部写入。
 
 开发环境的代理规则定义在 `vue.config.js → devServer.proxy`，与生产前缀**不完全一致**：
 
-- dev 独有：`/gen`、`/daemon`、`/tx`、`/act`
+- dev 独有：`/daemon`、`/tx`、`/act`
 - 生产独有：`/file`、`/push`、`/app`、`/schedule`
 
 如新增前缀，需要同时维护两处。

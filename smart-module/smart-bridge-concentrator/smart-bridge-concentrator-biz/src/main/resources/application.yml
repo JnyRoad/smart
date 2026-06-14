@@ -30,3 +30,5 @@ mybatis-plus:
 smart:
   server:
     port: 6001  #Netty服务端端口号
+  kafka:
+    bridge-event-topic: "${SMART_KAFKA_BRIDGE_EVENT_TOPIC:BRIDGE_EVENT_TOPIC}"
