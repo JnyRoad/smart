@@ -79,6 +79,46 @@ test('首页：员工条/天气/公告/角标/服务宫格', async ({ page }) =>
   await expect(page.getByText('园区报修', { exact: true })).toBeVisible()
 })
 
+test('首页：扫码放行调用微信 JSSDK 并跳到二维码对应审批详情', async ({ page }) => {
+  await seedLogin(page)
+  await page.addInitScript(() => {
+    ;(window as unknown as {
+      __wxConfig?: Record<string, unknown>
+      wx?: {
+        config: (options: Record<string, unknown>) => void
+        ready: (callback: () => void) => void
+        error: (callback: (error: { errMsg: string }) => void) => void
+        checkJsApi: (options: { success: (result: { checkResult: { scanQRCode: boolean } }) => void }) => void
+        scanQRCode: (options: { success: (result: { resultStr: string }) => void }) => void
+      }
+    }).wx = {
+      config: (options) => {
+        ;(window as unknown as { __wxConfig?: Record<string, unknown> }).__wxConfig = options
+      },
+      ready: (callback) => callback(),
+      error: () => undefined,
+      checkJsApi: ({ success }) => success({ checkResult: { scanQRCode: true } }),
+      scanQRCode: ({ success }) =>
+        success({ resultStr: JSON.stringify({ id: '1451429288591634434', type: '3-5' }) }),
+    }
+  })
+  await mockHomeApis(page)
+  let signatureQuery: URLSearchParams | undefined
+  await page.route('**/app/wechat/sign*', (route) => {
+    signatureQuery = new URL(route.request().url()).searchParams
+    route.fulfill({ json: { code: 0, data: { timestamp: 1781358509, nonceStr: 'nonce', signature: 'sig' } } })
+  })
+
+  await page.goto('/home')
+  await page.getByText('扫码放行').click()
+
+  await page.waitForURL('**/backlog/release-work/detail?id=1451429288591634434&scan=1')
+  expect(signatureQuery?.get('url')).toContain('/home')
+  const wxConfig = await page.evaluate(() => (window as unknown as { __wxConfig?: Record<string, unknown> }).__wxConfig)
+  expect(wxConfig?.appId).toBe('wx5c0d26056102d41e')
+  expect(wxConfig?.jsApiList).toEqual(['scanQRCode', 'checkJsApi'])
+})
+
 test('首页：未登录跳转微信 OAuth', async ({ page }) => {
   await page.route('https://open.weixin.qq.com/**', (route) =>
     route.fulfill({ contentType: 'text/html', body: '<title>wechat-oauth-stub</title>' }),
