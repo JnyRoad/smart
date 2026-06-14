@@ -34,20 +34,38 @@ describe('releaseRouteFromScanResult', () => {
   })
 
   test('allows retrying after the WeChat SDK script fails to load', async () => {
+    let existingScriptRemoved = false
     const existingScript = document.createElement('script')
     existingScript.setAttribute('src', WECHAT_SDK_SRC)
-    vi.spyOn(document, 'querySelector').mockReturnValue(existingScript)
+    vi.spyOn(existingScript, 'remove').mockImplementation(() => {
+      existingScriptRemoved = true
+    })
+    vi.spyOn(document, 'querySelector').mockImplementation((selector) => {
+      if (selector === `script[src="${WECHAT_SDK_SRC}"]` && !existingScriptRemoved) return existingScript
+      return null
+    })
+    const appendedScripts: HTMLScriptElement[] = []
+    vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
+      appendedScripts.push(node as HTMLScriptElement)
+      return node
+    })
+
     const failedScan = scanReleaseCode({
       appId: 'wx-test',
       getSignature: () => Promise.resolve({ timestamp: 1, nonceStr: 'nonce', signature: 'sig' }),
     })
     existingScript.dispatchEvent(new Event('error'))
     await expect(failedScan).rejects.toThrow('微信配置失败')
+    expect(existingScriptRemoved).toBe(true)
 
     const successfulScan = scanReleaseCode({
       appId: 'wx-test',
       getSignature: () => Promise.resolve({ timestamp: 1, nonceStr: 'nonce', signature: 'sig' }),
     })
+    const retryScript = appendedScripts.at(-1)
+    expect(retryScript).toBeDefined()
+    expect(retryScript).not.toBe(existingScript)
+
     window.wx = {
       config: vi.fn(),
       ready: vi.fn((callback: () => void) => callback()),
@@ -55,7 +73,7 @@ describe('releaseRouteFromScanResult', () => {
       checkJsApi: vi.fn(({ success }) => success({ checkResult: { scanQRCode: true } })),
       scanQRCode: vi.fn(({ success }) => success({ resultStr: JSON.stringify({ id: '9', type: '1' }) })),
     }
-    existingScript.dispatchEvent(new Event('load'))
+    retryScript?.dispatchEvent(new Event('load'))
 
     await expect(successfulScan).resolves.toBe('/backlog/release-live/detail?id=9&sort=3&scan=1')
   })
