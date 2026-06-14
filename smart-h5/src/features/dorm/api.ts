@@ -45,7 +45,7 @@ export function updateLockPwd(data: { badge: string; newPwd: string }): Promise<
   })
 }
 
-/** Regenerates the lock code after a face check; facePic = checkFace resultData.base64. */
+/** Regenerates the lock code after a face check; facePic is the uploaded base64 image. */
 export function refreshLockPwd(data: { badge: string; facePic: string }): Promise<Envelope<unknown>> {
   return request({ module: 'platform', url: '/dormitory/staff/update/pwd', method: 'POST', data })
 }
