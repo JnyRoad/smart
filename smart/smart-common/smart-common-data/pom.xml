@@ -39,5 +39,21 @@
 			<artifactId>spring-data-redis</artifactId>
 			<version>2.5.3</version>
 		</dependency>
+		<!--
+			限流监控指标依赖（可选）。设为 optional 是为了：编译期可引用 MeterRegistry，
+			但不把 micrometer 强行传递给所有下游消费方；运行时仅当下游自带 actuator/micrometer
+			时才注入 MeterRegistry 上报指标，否则限流服务以 ObjectProvider 优雅降级为不上报。
+		-->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-core</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<!--单元测试：spring-boot-starter-test 提供 JUnit4 + Mockito + AssertJ-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 </project>
