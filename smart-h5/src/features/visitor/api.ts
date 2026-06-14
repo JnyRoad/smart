@@ -217,7 +217,7 @@ export interface ApplyDetail {
   visitorName?: string
   visitorPhone?: string
   permitFactoryTypeDesc?: string
-  areaType?: string
+  areaType?: Array<string | number> | string
   permitArea?: string
   permitOldArea?: string
   startTime?: string

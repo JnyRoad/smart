@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect } from 'react'
 import { getApplyDetail, getFactoryTypeEnum, type ApplyDetail } from '@/features/visitor/api'
+import { buildPassCodeAreaDisplay } from '@/features/visitor/pass-code-areas'
 import { getTenantConfig } from '@/lib/config/tenant'
 
 function InfoRow({ label, value }: { label: string; value?: string }) {
@@ -15,16 +16,6 @@ function InfoRow({ label, value }: { label: string; value?: string }) {
       <span className="text-right text-[13px] font-medium break-all">{value}</span>
     </div>
   )
-}
-
-/** Maps stored area codes to display names via the factory/type enums. */
-function mapAreaNames(codes: string | undefined, names: Map<string, string>): string {
-  if (!codes) return ''
-  return codes
-    .split(',')
-    .filter(Boolean)
-    .map((code) => names.get(code) ?? code)
-    .join('，')
 }
 
 function PassCodeInner() {
@@ -82,14 +73,11 @@ function PassCodeInner() {
   const delFlag = info.delFlag ?? 0
   // delFlag=0 without a QR payload is a data anomaly, not a valid pass.
   const qrValid = delFlag === 0 && Boolean(info.qrCode)
-  const newNames = new Map(
-    (newEnum.data?.data ?? []).map((item) => [String(item.code), item.desc]),
+  const { newAreas, oldAreas } = buildPassCodeAreaDisplay(
+    info,
+    newEnum.data?.data ?? [],
+    oldEnum.data?.data ?? [],
   )
-  const oldNames = new Map(
-    (oldEnum.data?.data ?? []).map((item) => [String(item.code), item.desc]),
-  )
-  const newAreas = mapAreaNames(info.permitArea, newNames)
-  const oldAreas = mapAreaNames(info.permitOldArea, oldNames)
 
   return (
     <div className="flex flex-col gap-3 px-3 pb-8">
