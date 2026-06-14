@@ -52,13 +52,14 @@ public class AppSmsServiceImpl implements AppSmsService {
 		codeMsg.setNumber(mobile);
 		codeMsg.setSmsCode(smsCode);
 		codeMsg.setTempCode(SmsTemplateEnum.SMSCODE_4001.getCode());
-		log.debug("发送短信验证码，手机号：{}, 验证码：{}", mobile, smsCode);
+		// 安全：日志只记录脱敏手机号，绝不打印验证码明文（CWE-532，避免 debug 级日志泄露验证码）
+		log.debug("发送短信验证码，手机号：{}", maskMobile(mobile));
 		// 调用feign接口发送短信验证码
 		Result result = remoteSmsManageService.sendSmsCode(codeMsg);
 		if (!result.isSuccess()) {
 			String errorMsg = result.getMsg();
 
-			log.debug("发送短信验证码失败，手机号：{},", mobile);
+			log.debug("发送短信验证码失败，手机号：{},", maskMobile(mobile));
 
 			SendSmsErrorReqDTO sendSmsErrorAo=new SendSmsErrorReqDTO();
 			sendSmsErrorAo.setPhoneNumber(mobile);
@@ -72,7 +73,8 @@ public class AppSmsServiceImpl implements AppSmsService {
 			throw new TCEException(result.getCode(), errorMsg);
 		}
 
-		log.debug("发送短信验证码成功，手机号：{}, 验证码：{}", mobile, smsCode);
+		// 安全：成功日志同样只记录脱敏手机号，不打印验证码
+		log.debug("发送短信验证码成功，手机号：{}", maskMobile(mobile));
 		return Boolean.TRUE;
 
 	}
@@ -107,13 +109,14 @@ public class AppSmsServiceImpl implements AppSmsService {
 		codeMsg.setNumber(mobile);
 		codeMsg.setSmsCode(smsCode);
 		codeMsg.setTempCode(SmsTemplateEnum.SMSCODE_4001.getCode());
-		log.debug("发送短信验证码，手机号：{}, 验证码：{}", mobile, smsCode);
+		// 安全：日志只记录脱敏手机号，绝不打印验证码明文（CWE-532，避免 debug 级日志泄露验证码）
+		log.debug("发送短信验证码，手机号：{}", maskMobile(mobile));
 		// 调用feign接口发送短信验证码
 		Result result = remoteSmsManageService.sendSmsCode(codeMsg);
 		if (!result.isSuccess()) {
 			String errorMsg = result.getMsg();
 
-			log.debug("发送短信验证码失败，手机号：{},", mobile);
+			log.debug("发送短信验证码失败，手机号：{},", maskMobile(mobile));
 
 			SendSmsErrorReqDTO sendSmsErrorAo=new SendSmsErrorReqDTO();
 			sendSmsErrorAo.setPhoneNumber(mobile);
@@ -127,9 +130,26 @@ public class AppSmsServiceImpl implements AppSmsService {
 			throw new TCEException(result.getCode(), errorMsg);
 		}
 
-		log.debug("发送短信验证码成功，手机号：{}, 验证码：{}", mobile, smsCode);
+		// 安全：成功日志同样只记录脱敏手机号，不打印验证码
+		log.debug("发送短信验证码成功，手机号：{}", maskMobile(mobile));
 		return null;
 	}
 
+	/**
+	 * 手机号脱敏：保留前 3 位和后 4 位，中间 4 位用 * 掩码（如 138****8888）。
+	 *
+	 * <p>用于日志输出，避免完整手机号落盘（个人信息保护）。仅做展示脱敏，
+	 * 不改变业务侧实际使用的 mobile 值。</p>
+	 *
+	 * @param mobile 原始手机号；为空或长度不足 7 位时按掩码常量处理，避免越界
+	 * @return 脱敏后的手机号字符串
+	 */
+	static String maskMobile(String mobile) {
+		if (mobile == null || mobile.length() < 7) {
+			// 异常/短号场景统一返回固定掩码，既不泄露也不抛错（日志路径需保证不影响主流程）
+			return "***";
+		}
+		return mobile.substring(0, 3) + "****" + mobile.substring(mobile.length() - 4);
+	}
 
 }
