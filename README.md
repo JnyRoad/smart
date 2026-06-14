@@ -9,7 +9,7 @@ smart/
 ├── AGENTS.md                 # 项目 Agent / 协作规则
 ├── README.md                 # 项目入口说明
 ├── .gitignore                # 提交忽略规则
-├── docker-compose.dev.yml    # 本地 Docker 编排：Nacos / Redis / Kafka / 后端 / 前端
+├── docker-compose.dev.yml    # 本地 Docker 编排：Nacos / Redis / Kafka / Oracle / Mock / 后端 / 前端
 ├── docker/                   # Docker 本地环境辅助配置
 ├── docs/                     # 项目级资料和跨模块文档
 ├── scripts/                  # 发布包构建和校验脚本
@@ -83,12 +83,17 @@ pnpm run test
 
 ```bash
 cp docker/.env.local.example .env.local
-docker compose --env-file .env.local -f docker-compose.dev.yml up smart-nacos smart-nacos-init smart-redis smart-kafka
+docker compose --env-file .env.local -f docker-compose.dev.yml up smart-nacos smart-nacos-init smart-redis smart-zookeeper smart-kafka
+docker compose --env-file .env.local -f docker-compose.dev.yml --profile local-db up smart-oracle
 docker compose --env-file .env.local -f docker-compose.dev.yml --profile backend up
 docker compose --env-file .env.local -f docker-compose.dev.yml --profile backend --profile frontend up
 ```
 
 桥接服务按接入场景启用：`--profile bridge` 启动直连海康设备终端的 `smart-bridge`，`--profile bridge-isc` 启动对接海康 ISC 平台的 `smart-bridge-isc`。水电表集中器使用 `--profile bridge-concentrator` 单独启动 `smart-bridge-concentrator`。
+
+本地开发测试必须使用 `docker/.env.local.example` 派生的 `.env.local`。核心系统数据库只使用本地 Oracle；OA、EHR、DHR、XCC6、BG/出差、考勤、临时人员、门禁等第三方系统不由本项目容器化部署，也不提供本地数据库替身。需要专项联调时，只在本地 env 中填写对应第三方测试环境地址。提交前可以运行 `scripts/test-docker-compose-dev.sh` 校验 Compose 覆盖、危险默认环境变量、profile 依赖和基础镜像 tag。
+
+线上测试和线上生产不要复用 `docker-compose.dev.yml`。线上环境应使用独立 runtime 编排和独立 env 文件，只注入镜像版本、域名、真实中间件地址和密钥；这些 env 文件不进入仓库。
 
 后端发布包：
 

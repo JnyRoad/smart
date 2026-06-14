@@ -9,7 +9,7 @@ security:
 spring:
   datasource:
     type: "${SMART_DATA_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
-    driver-class-name: "${SMART_DATA_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
+    driver-class-name: "${SMART_DATA_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
     username: "${SMART_DATA_DB_USERNAME:${SMART_DB_USERNAME:}}"
     password: "${SMART_DATA_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
     jdbc-url: "${SMART_DATA_DB_URL:${SMART_DB_URL:}}"

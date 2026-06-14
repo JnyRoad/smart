@@ -20,8 +20,16 @@ docker/
 
 ```bash
 cp docker/.env.local.example .env.local
-docker compose --env-file .env.local -f docker-compose.dev.yml up smart-nacos smart-nacos-init smart-redis smart-kafka
+docker compose --env-file .env.local -f docker-compose.dev.yml up smart-nacos smart-nacos-init smart-redis smart-zookeeper smart-kafka
 ```
+
+如果要让后端服务完全在本机容器内连本地核心数据库，先启用本地 Oracle：
+
+```bash
+docker compose --env-file .env.local -f docker-compose.dev.yml --profile local-db up smart-oracle
+```
+
+OA、EHR、DHR、XCC6、BG/出差、考勤、临时人员、门禁等第三方系统不由本项目容器化部署，也不提供本地数据库替身。专项联调时只在本地 env 中填写对应第三方测试环境地址。
 
 启用常规后端容器时使用 `backend` profile：
 
@@ -29,7 +37,7 @@ docker compose --env-file .env.local -f docker-compose.dev.yml up smart-nacos sm
 docker compose --env-file .env.local -f docker-compose.dev.yml --profile backend up
 ```
 
-门禁桥接按园区场景二选一：
+门禁桥接按园区场景二选一。`bridge` 和 `bridge-isc` profile 会使用本地 Oracle、Kafka 和 `smart-mock-http`。`smart-mock-http` 只是本地测试桩，不代表第三方系统，也不保存第三方数据库：
 
 ```bash
 # 直连海康设备终端
@@ -52,6 +60,23 @@ docker compose --env-file .env.local -f docker-compose.dev.yml --profile backend
 ```
 
 如果后端已经由其它环境提供，也可以只启动前端 profile；此时要确保 `smart-gateway` 能访问到对应后端服务。
+
+## 校验方式
+
+```bash
+scripts/test-docker-compose-dev.sh
+```
+
+该脚本会检查本地 Compose 服务覆盖、profile 依赖、`.env.local.example` 是否只保留自有依赖默认值、核心数据库是否为 Oracle、第三方数据源是否未被本地化部署，以及 Compose 服务镜像和 Dockerfile 基础镜像 tag 是否可拉取。
+
+## 线上测试和生产边界
+
+`docker-compose.dev.yml` 只用于本机开发测试。线上测试和线上生产应使用独立 runtime 编排：
+
+- 不启动本地 Oracle、MockServer 这类开发替身服务。
+- 不提交真实 env、密钥、证书、数据库地址和 Nacos 导出配置。
+- 镜像版本由 CI/CD 或发布清单注入，线上 env 文件由部署系统管理。
+- 线上测试和生产使用相同 runtime 模板，但使用不同 env、域名、证书、namespace、数据库和消息队列地址。
 
 ## 注意事项
 
