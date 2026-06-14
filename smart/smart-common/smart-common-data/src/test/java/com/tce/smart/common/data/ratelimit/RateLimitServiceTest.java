@@ -1,9 +1,7 @@
 package com.tce.smart.common.data.ratelimit;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.Before;
 import org.junit.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -40,9 +38,8 @@ public class RateLimitServiceTest {
 		valueOps = mock(ValueOperations.class);
 		when(redisTemplate.opsForValue()).thenReturn(valueOps);
 		properties = new RateLimitProperties();
-		// 传 null ObjectProvider 模拟“下游未引入 micrometer/actuator”的常见情况，
-		// 验证可选指标上报在缺失 MeterRegistry 时静默降级、不报错。
-		service = new RateLimitService(redisTemplate, properties, (ObjectProvider<MeterRegistry>) null);
+		// 限流服务仅依赖 Redis 与配置，观测走日志，不依赖 micrometer/actuator。
+		service = new RateLimitService(redisTemplate, properties);
 	}
 
 	/**

@@ -1,8 +1,6 @@
 package com.tce.smart.common.data.ratelimit;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.util.DigestUtils;
 
@@ -52,23 +50,13 @@ public class RateLimitService {
 	private final RateLimitProperties properties;
 
 	/**
-	 * 可选的监控指标注册表。下游未引入 micrometer 时为 null，此时静默不上报，绝不报错。
-	 */
-	private final MeterRegistry meterRegistry;
-
-	/**
 	 * @param redisTemplate 字符串 Redis 操作模板（计数/锁定都用字符串值，避免序列化开销）
 	 * @param properties    限流配置
-	 * @param meterRegistry 可选指标注册表，允许为 null
 	 */
 	public RateLimitService(StringRedisTemplate redisTemplate,
-							RateLimitProperties properties,
-							ObjectProvider<MeterRegistry> meterRegistry) {
+							RateLimitProperties properties) {
 		this.redisTemplate = redisTemplate;
 		this.properties = properties;
-		// ObjectProvider 优雅取值：下游没有 MeterRegistry bean（或整个 ObjectProvider 为 null）时
-		// 取到 null，运行期静默不上报指标，不抛异常、不强制下游引入 micrometer
-		this.meterRegistry = meterRegistry == null ? null : meterRegistry.getIfAvailable();
 	}
 
 	/**
@@ -287,7 +275,9 @@ public class RateLimitService {
 	}
 
 	/**
-	 * 统一观测：记结构化日志，并在有 MeterRegistry 时上报计数指标。
+	 * 统一观测：记结构化日志。
+	 *
+	 * <p>仅做日志观测，不依赖 micrometer/actuator；如需指标聚合，由调用方在日志侧采集。</p>
 	 *
 	 * @param ruleId  规则 ID
 	 * @param mode    操作类型（hit/failure/isLocked）
@@ -299,13 +289,6 @@ public class RateLimitService {
 		if (log.isDebugEnabled()) {
 			log.debug("rate-limit ruleId={}, mode={}, allowed={}, blocked={}, observeOnly={}",
 				ruleId, mode, allowed, blocked, observe);
-		}
-		if (meterRegistry != null) {
-			meterRegistry.counter("smart.security.rate_limit",
-				"ruleId", ruleId,
-				"mode", mode,
-				"allowed", String.valueOf(allowed),
-				"blocked", String.valueOf(blocked)).increment();
 		}
 	}
 }
