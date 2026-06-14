@@ -20,7 +20,6 @@ import {
   sendRecordSms,
   type RecordSummary,
 } from '@/features/visitor/records-api'
-import { useVisitorFlow } from '@/features/visitor/flow-store'
 import { useMounted } from '@/lib/use-mounted'
 
 const FILTERS: { label: string; status?: ApplyStatus }[] = [
@@ -111,25 +110,22 @@ function RecordsInner() {
   const bootedRef = useRef(false)
 
   async function loadWithExistingCredential() {
-    // Existing token first; otherwise try openId silent verification.
-    const openId = useVisitorFlow.getState().host.openId
+    // Backend self-query only accepts an issued queryToken or SMS verification.
     const hasSession = getQuerySession() !== null
-    if (!hasSession && !openId) {
+    if (!hasSession) {
       setPhase('verify')
       return
     }
     try {
-      const res = await fetchMyApplies(hasSession ? null : { openId })
+      const res = await fetchMyApplies(null)
       if (res.code === 0 && res.data) {
         applyResult(res.data)
       } else if (isAuthRejected(res)) {
         clearQuerySession()
         setPhase('verify')
-      } else if (hasSession) {
+      } else {
         // Transient failure with a valid token: don't burn the verification.
         setPhase('error')
-      } else {
-        setPhase('verify')
       }
     } catch (error) {
       if (isAuthRejected(error)) {
