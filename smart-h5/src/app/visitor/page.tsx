@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
 import { VisitorSteps } from '@/components/visitor-steps'
-import { getAdmittanceNotice, getVisitorOpenId, searchReceptionist } from '@/features/visitor/api'
+import { admittanceNoticeHtml, getAdmittanceNotice, getVisitorOpenId, searchReceptionist } from '@/features/visitor/api'
 import { useVisitorFlow } from '@/features/visitor/flow-store'
 import { getTenantConfig } from '@/lib/config/tenant'
 import { stripSpaces } from '@/lib/text'
@@ -41,13 +41,14 @@ function VisitorEntryInner() {
     void (async () => {
       try {
         const notice = await getAdmittanceNotice(config.parkId)
-        if (notice.code === 0 && notice.data?.isNeedNotice === 1 && notice.data.noticeContent) {
+        const html = notice.code === 0 ? admittanceNoticeHtml(notice.data) : ''
+        if (html) {
           void Dialog.alert({
             title: '温馨提示',
             content: (
               <div
                 className="max-h-[50dvh] overflow-y-auto text-sm leading-6"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(notice.data.noticeContent) }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
               />
             ),
             confirmText: '知道了',

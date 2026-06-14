@@ -16,8 +16,21 @@ export interface EnumItem {
   desc: string
 }
 
+export interface AdmittanceNotice {
+  isNeedNotice?: number
+  /** Current backend field: ConfigVisitorNoticeDTO.content. */
+  content?: string
+  /** Compatibility with existing Smart H5 mocks. */
+  noticeContent?: string
+}
+
+export function admittanceNoticeHtml(notice: AdmittanceNotice | undefined): string {
+  if (notice?.isNeedNotice !== 1) return ''
+  return (notice.content ?? notice.noticeContent ?? '').trim()
+}
+
 export function getAdmittanceNotice(parkId: number) {
-  return request<Envelope<{ isNeedNotice?: number; noticeContent?: string }>>({
+  return request<Envelope<AdmittanceNotice>>({
     module: 'platform',
     url: '/common/config/admittance/notice',
     params: { parkId },
