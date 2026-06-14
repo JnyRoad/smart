@@ -4,14 +4,16 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { exchangeWechatCode } from '@/features/auth/api'
 import { hasValidToken, saveSession } from '@/lib/auth/token'
-import { BADGE_BINDING_PATH, redirectToWechatOAuth } from '@/lib/wechat/oauth'
+import { BADGE_BINDING_PATH, consumeWechatOAuthState, redirectToWechatOAuth } from '@/lib/wechat/oauth'
 
 /** Gateway replies that require the badge-binding step before login can finish. */
 const BINDING_REQUIRED_MESSAGES = ['账号未绑定工号，请先绑定', '员工状态异常']
 
 function CallbackInner() {
   const router = useRouter()
-  const code = useSearchParams().get('code')
+  const params = useSearchParams()
+  const code = params.get('code')
+  const state = params.get('state')
   const startedRef = useRef(false)
   const [exchangeError, setExchangeError] = useState<string | null>(null)
   // Derived at render time: arriving without ?code= is a terminal error state.
@@ -31,6 +33,12 @@ function CallbackInner() {
 
     void (async () => {
       try {
+        // 换 token 前先校验 state，防御登录 CSRF（会话嫁接）。
+        // fail closed：state 不匹配 / 缺失 / sessionStorage 不可用一律拒绝，提示重新授权。
+        if (!consumeWechatOAuthState(state)) {
+          setExchangeError('登录校验失败，请重新授权')
+          return
+        }
         const res = await exchangeWechatCode(code)
         if (res.access_token) {
           saveSession({
@@ -49,7 +57,7 @@ function CallbackInner() {
         setExchangeError(err instanceof Error ? err.message : '登录失败')
       }
     })()
-  }, [code, router])
+  }, [code, state, router])
 
   if (error) {
     return (
