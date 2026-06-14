@@ -14,6 +14,7 @@ import com.tce.smart.bridge.netty.tcp.NettyClient;
 import com.tce.smart.bridge.netty.utils.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Component;
@@ -34,6 +35,9 @@ public class WaterEleHelper {
 
     @Autowired
     private KafkaProducer kafkaProducer;
+
+    @Value("${smart.kafka.bridge-event-topic:BRIDGE_EVENT_TOPIC}")
+    private String bridgeEventTopic;
 
     private final ThreadPoolExecutor threadPoolExecutor = ThreadUtil.newExecutor(2,100);
 
@@ -611,6 +615,6 @@ public class WaterEleHelper {
      * @return
      */
     private void kafka(String key, String data) {
-        kafkaProducer.sendMessage("BRIDGE_EVENT_TOPIC", key, data);
+        kafkaProducer.sendMessage(bridgeEventTopic, key, data);
     }
 }
