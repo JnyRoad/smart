@@ -67,11 +67,12 @@ describe('mock 开关', () => {
     expect(JSON.parse(init.body as string)).toEqual({ mobile: '13700001234', smsCode: '123456' })
   })
 
-  it('开关关：openId 免验形态走 POST body', async () => {
+  it('开关关：拒绝后端不支持的 openId 免验形态', async () => {
     setMockFlag(false)
-    await fetchMyApplies({ openId: 'oid-1' })
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(JSON.parse(init.body as string)).toEqual({ openId: 'oid-1' })
+    await expect(fetchMyApplies({ openId: 'oid-1' } as never)).rejects.toThrow(
+      '访客记录查询仅支持短信验证码或已有查询凭证',
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('开关关：token 刷新形态（null 入参）空体 + token 头', async () => {
