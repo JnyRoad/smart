@@ -1,11 +1,12 @@
 'use client'
 import { ImageViewer } from 'antd-mobile'
-import DOMPurify from 'dompurify'
 import { useMemo } from 'react'
+import { sanitizeRichText } from '@/lib/sanitize'
 
 /** Sanitized rich-text renderer with a fullscreen viewer for embedded images. */
 export function RichTextBody({ html }: { html: string }) {
-  const sanitized = useMemo(() => DOMPurify.sanitize(html), [html])
+  // 统一走 sanitize 白名单，避免与访客须知两处配置漂移。
+  const sanitized = useMemo(() => sanitizeRichText(html), [html])
 
   function handleClick(event: React.MouseEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement
