@@ -49,5 +49,6 @@ export function sendSmsCode(mobile: string): Promise<GatewayResult> {
   return request<GatewayResult>({
     module: 'app',
     url: `/sms/send/getCode/${mobile}`,
+    auth: 'none',
   })
 }
