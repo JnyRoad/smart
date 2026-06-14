@@ -10,9 +10,9 @@ import { MOCK_DETAILS, MOCK_IDENTITY, MOCK_LIST, MOCK_QUERY_TOKEN, mockDelay } f
  * return demo fixtures instead of hitting the network. Sending an SMS reuses
  * the visitor-application SMS endpoint and is never short-circuited by the records mock.
  *
- * Auth model: listMyApply issues a short-lived queryToken bound to the
- * verified mobile/openId; the detail endpoints require it via the
- * X-Visitor-Query-Token header (anti-IDOR, see spec §2.1).
+ * Auth model: listMyApply issues a short-lived queryToken after SMS
+ * verification; the detail endpoints require it via the X-Visitor-Query-Token
+ * header (anti-IDOR, see spec §2.1).
  */
 interface Envelope<T> {
   code: number
@@ -122,12 +122,15 @@ export interface MyAppliesResult {
 }
 
 /**
- * Verify identity and list applies. Pass `{mobile, smsCode}` or `{openId}`;
- * pass `null` to refresh with the existing queryToken header.
+ * Verify identity and list applies. Pass `{mobile, smsCode}`; pass `null`
+ * to refresh with the existing queryToken header.
  */
 export async function fetchMyApplies(
-  input: { mobile?: string; smsCode?: string; openId?: string } | null,
+  input: { mobile?: string; smsCode?: string } | null,
 ): Promise<Envelope<MyAppliesResult>> {
+  if (input && 'openId' in input) {
+    throw new Error('访客记录查询仅支持短信验证码或已有查询凭证')
+  }
   if (isMockOn()) {
     await mockDelay()
     return {
