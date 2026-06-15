@@ -213,11 +213,11 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		if ("PASSED".equals(detail.getApplyStatus())) {
 			detail.setDispatchStatus(dispatchStatus(apply));
 		}
-		detail.setReceptionistName(maskName(apply.getReceptionistName()));
+		detail.setReceptionistName(trim(apply.getReceptionistName()));
 		detail.setStartTime(format(apply.getStartTime()));
 		detail.setEndTime(format(apply.getEndTime()));
 		detail.setCause(causeDesc(apply));
-		detail.setVisitorName(maskName(apply.getVisitorName()));
+		detail.setVisitorName(trim(apply.getVisitorName()));
 		detail.setVisitorPhone(maskPhone(apply.getVisitorPhone()));
 		detail.setFellows(nonMainFellows(apply.getId()).stream().map(this::toFellow).collect(Collectors.toList()));
 		detail.setVehicles(vehicles(apply.getId()).stream().map(this::toVehicle).collect(Collectors.toList()));
@@ -228,7 +228,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 
 	private VisitorApplyFellowRespDTO toFellow(SmtAdmittanceFellow fellow) {
 		VisitorApplyFellowRespDTO response = new VisitorApplyFellowRespDTO();
-		response.setName(maskName(fellow.getFellowName()));
+		response.setName(trim(fellow.getFellowName()));
 		response.setPhone("");
 		return response;
 	}
@@ -268,7 +268,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		node.setTitle(StringUtils.hasText(trim(flow.getNodeName())) ? trim(flow.getNodeName()) : "审批节点");
 		node.setState(oaNodeState(flow));
 		node.setStatusText(trim(flow.getProcessDesc()));
-		node.setApproverName(maskName(flow.getCreateUser()));
+		node.setApproverName(trim(flow.getCreateUser()));
 		node.setTime(format(flow.getProcessDate()));
 		node.setComment(trim(flow.getRemark()));
 		return node;
@@ -311,7 +311,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		VisitorApprovalNodeRespDTO node = new VisitorApprovalNodeRespDTO();
 		node.setTitle(approvalNodeName(approve));
 		node.setState(nodeState(approveGroup));
-		node.setApproverName(maskName(approverName(approve)));
+		node.setApproverName(trim(approverName(approve)));
 		node.setTime(format(approve.getUpdateTime()));
 		node.setComment(approve.getRemark());
 		return node;

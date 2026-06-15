@@ -173,9 +173,8 @@ function RecordDetailInner({ applyId }: { applyId: string }) {
   const showRebook = info.applyStatus === 'REJECTED' || info.applyStatus === 'EXPIRED'
 
   function rebook() {
-    // The detail payload is server-masked (names/phones) and display-shaped
-    // (area names, cause text), so nothing can be prefilled reliably —
-    // rebooking starts from a clean draft.
+    // 详情载荷仍是展示形状（手机号脱敏、区域名/事由文本已格式化），
+    // 不能可靠回填为可提交草稿，重新预约从空草稿开始。
     reset()
     router.push('/visitor')
   }
