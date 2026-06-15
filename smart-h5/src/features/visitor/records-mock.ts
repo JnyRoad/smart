@@ -103,15 +103,15 @@ export const MOCK_LIST: RecordSummary[] = [
 const BASE_DETAIL: Omit<ApplyRecordDetail, 'applyId' | 'applyStatus' | 'dispatchStatus'> = {
   applyNo: 'VA20260610-0027',
   parkName: '裕同科技许昌园区',
-  receptionistName: '王**',
+  receptionistName: '王强',
   startTime: '2026-06-12 09:30',
   endTime: '2026-06-12 18:00',
   cause: '供应商打样确认，洽谈包装结构方案',
-  visitorName: '李**',
+  visitorName: '李明',
   visitorPhone: '137****1234',
   fellows: [
-    { name: '赵**', phone: '150****8821' },
-    { name: '周**', phone: '186****3307' },
+    { name: '赵六', phone: '150****8821' },
+    { name: '周燕', phone: '186****3307' },
   ],
   vehicles: [{ plate: '豫A·D88E6', type: '小型客车' }],
   areas: ['研发楼 A 座', '样品展示厅'],
@@ -121,7 +121,7 @@ const BASE_DETAIL: Omit<ApplyRecordDetail, 'applyId' | 'applyStatus' | 'dispatch
 const DONE_NODE: ApprovalNode = {
   title: '被访人审批',
   state: 'done',
-  approverName: '王**',
+  approverName: '王强',
   time: '2026-06-10 16:55',
 }
 
@@ -130,14 +130,14 @@ export const MOCK_DETAILS: Record<string, { detail: ApplyRecordDetail; nodes: Ap
     detail: { ...BASE_DETAIL, applyId: 'mock-pending', applyStatus: 'PENDING' },
     nodes: [
       DONE_NODE,
-      { title: '部门负责人审批', state: 'current', approverName: '张**' },
+      { title: '部门负责人审批', state: 'current', approverName: '张三' },
     ],
   },
   'mock-passed': {
     detail: { ...BASE_DETAIL, applyId: 'mock-passed', applyStatus: 'PASSED', dispatchStatus: 'SUCCESS' },
     nodes: [
       DONE_NODE,
-      { title: '部门负责人审批', state: 'done', approverName: '张**', time: '2026-06-11 09:20' },
+      { title: '部门负责人审批', state: 'done', approverName: '张三', time: '2026-06-11 09:20' },
     ],
   },
   'mock-passed-issuing': {
@@ -149,7 +149,7 @@ export const MOCK_DETAILS: Record<string, { detail: ApplyRecordDetail; nodes: Ap
     },
     nodes: [
       DONE_NODE,
-      { title: '部门负责人审批', state: 'done', approverName: '张**', time: '2026-06-11 09:20' },
+      { title: '部门负责人审批', state: 'done', approverName: '张三', time: '2026-06-11 09:20' },
     ],
   },
   'mock-passed-failed': {
@@ -161,7 +161,7 @@ export const MOCK_DETAILS: Record<string, { detail: ApplyRecordDetail; nodes: Ap
     },
     nodes: [
       DONE_NODE,
-      { title: '部门负责人审批', state: 'done', approverName: '张**', time: '2026-06-11 09:20' },
+      { title: '部门负责人审批', state: 'done', approverName: '张三', time: '2026-06-11 09:20' },
     ],
   },
   'mock-rejected': {
@@ -170,7 +170,7 @@ export const MOCK_DETAILS: Record<string, { detail: ApplyRecordDetail; nodes: Ap
       {
         title: '被访人审批',
         state: 'rejected',
-        approverName: '王**',
+        approverName: '王强',
         time: '2026-06-10 18:31',
         comment: '当日园区有接待安排，请改约下周',
       },
@@ -180,7 +180,7 @@ export const MOCK_DETAILS: Record<string, { detail: ApplyRecordDetail; nodes: Ap
     detail: { ...BASE_DETAIL, applyId: 'mock-expired', applyStatus: 'EXPIRED' },
     nodes: [
       { ...DONE_NODE, time: '2026-04-15 11:40' },
-      { title: '部门负责人审批', state: 'done', approverName: '张**', time: '2026-04-16 08:55' },
+      { title: '部门负责人审批', state: 'done', approverName: '张三', time: '2026-04-16 08:55' },
     ],
   },
   'mock-revoked': {

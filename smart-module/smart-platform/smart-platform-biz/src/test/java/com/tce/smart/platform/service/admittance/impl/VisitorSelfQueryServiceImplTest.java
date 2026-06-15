@@ -178,7 +178,7 @@ public class VisitorSelfQueryServiceImplTest {
 	}
 
 	@Test
-	public void getApplyDetailReturnsMaskedVisitorDetailForTokenOwner() throws Exception {
+	public void getApplyDetailReturnsFullNamesAndMaskedPhoneForTokenOwner() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
 		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
 		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
@@ -202,10 +202,11 @@ public class VisitorSelfQueryServiceImplTest {
 
 		Assert.assertEquals("1004", detail.getApplyId());
 		Assert.assertEquals("PASSED", detail.getApplyStatus());
-		Assert.assertEquals("李*", detail.getVisitorName());
+		Assert.assertEquals("王强", detail.getReceptionistName());
+		Assert.assertEquals("李明", detail.getVisitorName());
 		Assert.assertEquals("137****1234", detail.getVisitorPhone());
 		Assert.assertEquals(1, detail.getFellows().size());
-		Assert.assertEquals("赵*", detail.getFellows().get(0).getName());
+		Assert.assertEquals("赵六", detail.getFellows().get(0).getName());
 		Assert.assertEquals(Collections.singletonList("研发楼A座"), Collections.singletonList(detail.getAreas().get(0)));
 	}
 
@@ -242,13 +243,13 @@ public class VisitorSelfQueryServiceImplTest {
 		Assert.assertEquals("提交申请", progress.getNodes().get(0).getTitle());
 		Assert.assertEquals("done", progress.getNodes().get(0).getState());
 		Assert.assertEquals("提交", progress.getNodes().get(0).getStatusText());
-		Assert.assertEquals("李*", progress.getNodes().get(0).getApproverName());
+		Assert.assertEquals("李明", progress.getNodes().get(0).getApproverName());
 		Assert.assertEquals("2026-06-13 09:05", progress.getNodes().get(0).getTime());
 		Assert.assertEquals("已提交 OA", progress.getNodes().get(0).getComment());
 		Assert.assertEquals("部门经理审批", progress.getNodes().get(1).getTitle());
 		Assert.assertEquals("current", progress.getNodes().get(1).getState());
 		Assert.assertEquals("当前审批人", progress.getNodes().get(1).getStatusText());
-		Assert.assertEquals("张*", progress.getNodes().get(1).getApproverName());
+		Assert.assertEquals("张三", progress.getNodes().get(1).getApproverName());
 		Mockito.verify(outDormitoryStaffService).getOAProcessFlow(Mockito.eq("OA-9001"), Mockito.anyList());
 		Mockito.verify(approveListService, Mockito.never()).list(Mockito.any());
 	}
@@ -287,13 +288,13 @@ public class VisitorSelfQueryServiceImplTest {
 
 		Assert.assertEquals(3, progress.getNodes().size());
 		Assert.assertEquals("rejected", progress.getNodes().get(0).getState());
-		Assert.assertEquals("张*", progress.getNodes().get(0).getApproverName());
+		Assert.assertEquals("张三", progress.getNodes().get(0).getApproverName());
 		Assert.assertEquals("2026-06-13 10:15", progress.getNodes().get(0).getTime());
 		Assert.assertEquals("资料不完整", progress.getNodes().get(0).getComment());
 		Assert.assertEquals("rejected", progress.getNodes().get(1).getState());
-		Assert.assertEquals("赵*", progress.getNodes().get(1).getApproverName());
+		Assert.assertEquals("赵六", progress.getNodes().get(1).getApproverName());
 		Assert.assertEquals("rejected", progress.getNodes().get(2).getState());
-		Assert.assertEquals("王*", progress.getNodes().get(2).getApproverName());
+		Assert.assertEquals("王强", progress.getNodes().get(2).getApproverName());
 		Mockito.verify(approveListService, Mockito.never()).list(Mockito.any());
 	}
 
@@ -365,10 +366,10 @@ public class VisitorSelfQueryServiceImplTest {
 		Assert.assertEquals(2, progress.getNodes().size());
 		Assert.assertEquals("提交申请", progress.getNodes().get(0).getTitle());
 		Assert.assertEquals("done", progress.getNodes().get(0).getState());
-		Assert.assertEquals("王*", progress.getNodes().get(0).getApproverName());
+		Assert.assertEquals("王强", progress.getNodes().get(0).getApproverName());
 		Assert.assertEquals("被访人审批", progress.getNodes().get(1).getTitle());
 		Assert.assertEquals("current", progress.getNodes().get(1).getState());
-		Assert.assertEquals("张*", progress.getNodes().get(1).getApproverName());
+		Assert.assertEquals("张三", progress.getNodes().get(1).getApproverName());
 	}
 
 	@Test
@@ -441,10 +442,10 @@ public class VisitorSelfQueryServiceImplTest {
 		Assert.assertEquals(2, progress.getNodes().size());
 		Assert.assertEquals("被访人审批", progress.getNodes().get(0).getTitle());
 		Assert.assertEquals("done", progress.getNodes().get(0).getState());
-		Assert.assertEquals("王*", progress.getNodes().get(0).getApproverName());
+		Assert.assertEquals("王强", progress.getNodes().get(0).getApproverName());
 		Assert.assertEquals("门岗审批", progress.getNodes().get(1).getTitle());
 		Assert.assertEquals("wait", progress.getNodes().get(1).getState());
-		Assert.assertEquals("赵*", progress.getNodes().get(1).getApproverName());
+		Assert.assertEquals("赵六", progress.getNodes().get(1).getApproverName());
 	}
 
 	private VisitorSelfQueryServiceImpl newService(SmtAdmittanceApplyMapper mapper, RemoteAppSmsService smsService,
