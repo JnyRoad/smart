@@ -17,7 +17,9 @@ const TerserPlugin = require('terser-webpack-plugin');
 const oneMiB = 1024 * 1024;
 
 module.exports = {
-  lintOnSave: true,
+  // 生产构建不通过 eslint-loader 重放遗留 lint 基线，避免构建日志被既有 warning 淹没。
+  // 代码质量检查仍保留在独立的 `pnpm lint` 和 staged lint 流程里。
+  lintOnSave: process.env.NODE_ENV !== 'production',
   productionSourceMap: false,
   // 配置 CSS 相关选项
   css: {
