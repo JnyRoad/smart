@@ -35,12 +35,6 @@ const translate = vi.fn()
 const scale = vi.fn()
 const toDataURL = vi.fn(() => 'data:image/jpeg;base64,camera-raw-base64')
 
-function firstCallOrder(callOrder: number[]): number {
-  const order = callOrder[0]
-  expect(order).toBeDefined()
-  return order as number
-}
-
 beforeEach(() => {
   visitorApiMock.faceCut.mockResolvedValue({ code: 0, data: 'cut-face-base64' })
   visitorApiMock.checkFace.mockResolvedValue({ code: 0, data: { photoId: 'photo-1' } })
@@ -85,36 +79,36 @@ afterEach(() => {
 })
 
 describe('LockFaceCamera', () => {
-  it('shows a large portrait camera stage and keeps front-camera frames mirrored', async () => {
-    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn() }))
+  it('renders the Open Design scan template, mirrors only preview, and uploads the original frame', async () => {
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
 
     const stage = screen.getByTestId('lock-face-camera-stage')
-    expect(stage.className).toContain('w-full')
-    expect(stage.className).toContain('max-w-[390px]')
-    expect(stage.className).toContain('aspect-[3/4]')
+    expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('initial')
+    expect(stage.getAttribute('aria-label')).toBe('人脸核验区域')
+    expect(screen.getByText('请先打开前置摄像头')).toBeTruthy()
+    expect(screen.getByTestId('lock-face-camera-actions')).toBeTruthy()
 
     fireEvent.click(screen.getByTestId('lock-face-camera-start'))
 
     const video = await screen.findByTestId('lock-face-camera-video')
-    await waitFor(() => expect(video.className).toContain('scale-x-[-1]'))
+    await waitFor(() => expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('scanning'))
+    expect(video.dataset.mirrorPreview).toBe('true')
+    expect(screen.getByTestId('lock-face-camera-mask')).toBeTruthy()
+    expect(screen.getByTestId('lock-face-camera-focus-oval')).toBeTruthy()
+    expect(screen.getByText('镜像预览')).toBeTruthy()
 
     fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
 
-    await waitFor(() => expect(translate).toHaveBeenCalledWith(320, 0))
-    expect(scale).toHaveBeenCalledWith(-1, 1)
+    await waitFor(() => expect(visitorApiMock.faceCut).toHaveBeenCalledWith('camera-raw-base64'))
+    expect(translate).not.toHaveBeenCalled()
+    expect(scale).not.toHaveBeenCalled()
     expect(drawImage).toHaveBeenCalled()
-    expect(firstCallOrder(translate.mock.invocationCallOrder)).toBeLessThan(
-      firstCallOrder(scale.mock.invocationCallOrder),
-    )
-    expect(firstCallOrder(scale.mock.invocationCallOrder)).toBeLessThan(
-      firstCallOrder(drawImage.mock.invocationCallOrder),
-    )
   })
 
   it('uses front camera frames instead of a file picker for lock-code face verification', async () => {
     const onCaptured = vi.fn()
 
-    const { container } = render(React.createElement(LockFaceCamera, { onCaptured }))
+    const { container } = render(React.createElement(LockFaceCamera, { onCaptured, onGenerate: vi.fn() }))
 
     expect(screen.queryByTestId('face-upload-input')).toBeNull()
     expect(container.querySelector('input[type="file"]')).toBeNull()
@@ -138,6 +132,135 @@ describe('LockFaceCamera', () => {
     expect(stopTrack).toHaveBeenCalled()
   })
 
+  it('keeps the generate action inside the verified face template state', async () => {
+    const onGenerate = vi.fn()
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate }))
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+    fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
+
+    expect(await screen.findByText('人脸识别通过')).toBeTruthy()
+    expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('success')
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-generate'))
+
+    expect(onGenerate).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows an in-stage failure state that can return to scanning', async () => {
+    visitorApiMock.faceCut.mockResolvedValue({ code: 1, message: '未检测到人脸' })
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+    fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
+
+    expect(await screen.findByText('未检测到人脸')).toBeTruthy()
+    expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('failure')
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-retry'))
+
+    await waitFor(() => expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('scanning'))
+  })
+
+  it('reuses the active stream when opening the camera again from failure state', async () => {
+    visitorApiMock.faceCut.mockResolvedValue({ code: 1, message: '未检测到人脸' })
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1))
+    fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
+    expect(await screen.findByText('未检测到人脸')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-open-from-failure'))
+
+    await waitFor(() => expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('scanning'))
+    expect(getUserMedia).toHaveBeenCalledTimes(1)
+    expect(stopTrack).not.toHaveBeenCalled()
+  })
+
+  it('requests a fresh camera stream when the retained stream has ended', async () => {
+    const retainedTrack = { readyState: 'live', stop: stopTrack }
+    visitorApiMock.faceCut.mockResolvedValue({ code: 1, message: '未检测到人脸' })
+    getUserMedia.mockResolvedValueOnce({ active: true, getTracks: () => [retainedTrack] })
+    getUserMedia.mockResolvedValueOnce({ active: true, getTracks: () => [{ readyState: 'live', stop: vi.fn() }] })
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1))
+    fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
+    expect(await screen.findByText('未检测到人脸')).toBeTruthy()
+
+    retainedTrack.readyState = 'ended'
+    fireEvent.click(screen.getByTestId('lock-face-camera-open-from-failure'))
+
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('scanning'))
+    expect(stopTrack).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests a fresh camera stream from the primary retry action when the retained stream has ended', async () => {
+    const retainedTrack = { readyState: 'live', stop: stopTrack }
+    visitorApiMock.faceCut.mockResolvedValue({ code: 1, message: '未检测到人脸' })
+    getUserMedia.mockResolvedValueOnce({ active: true, getTracks: () => [retainedTrack] })
+    getUserMedia.mockResolvedValueOnce({ active: true, getTracks: () => [{ readyState: 'live', stop: vi.fn() }] })
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1))
+    fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
+    expect(await screen.findByText('未检测到人脸')).toBeTruthy()
+
+    retainedTrack.readyState = 'ended'
+    fireEvent.click(screen.getByTestId('lock-face-camera-retry'))
+
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('scanning'))
+    expect(stopTrack).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the camera starting action for screen readers', async () => {
+    getUserMedia.mockReturnValue(new Promise(() => {}))
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+
+    expect(screen.getByRole('button', { name: '正在打开摄像头' })).toBeTruthy()
+  })
+
+  it('hides inactive state panels from assistive technology', async () => {
+    const { container } = render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
+
+    expect(container.querySelector('[data-state="initial"]')?.getAttribute('aria-hidden')).toBe('false')
+    expect(container.querySelector('[data-state="scanning"]')?.getAttribute('aria-hidden')).toBe('true')
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+
+    await waitFor(() => expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('scanning'))
+    expect(container.querySelector('[data-state="initial"]')?.getAttribute('aria-hidden')).toBe('true')
+    expect(container.querySelector('[data-state="scanning"]')?.getAttribute('aria-hidden')).toBe('false')
+  })
+
+  it('names the checking action for screen readers', async () => {
+    let resolveCut!: (value: { code: number; message: string }) => void
+    visitorApiMock.faceCut.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCut = resolve
+      }),
+    )
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+    fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
+
+    await waitFor(() => expect(screen.getByTestId('lock-face-camera-root').dataset.currentState).toBe('checking'))
+    expect((screen.getByRole('button', { name: '正在核验人脸' }) as HTMLButtonElement).disabled).toBe(true)
+
+    await act(async () => {
+      resolveCut({ code: 1, message: '未检测到人脸' })
+      await Promise.resolve()
+    })
+  })
+
   it('stops a camera stream that resolves after the component unmounts', async () => {
     let resolveCamera!: (stream: { getTracks: () => Array<{ stop: () => void }> }) => void
     getUserMedia.mockReturnValue(
@@ -146,7 +269,7 @@ describe('LockFaceCamera', () => {
       }),
     )
 
-    const { unmount } = render(React.createElement(LockFaceCamera, { onCaptured: vi.fn() }))
+    const { unmount } = render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
 
     fireEvent.click(screen.getByTestId('lock-face-camera-start'))
     unmount()
