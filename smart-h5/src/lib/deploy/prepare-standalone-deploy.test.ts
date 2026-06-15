@@ -66,4 +66,18 @@ describe('prepareStandaloneDeploy', () => {
     )
     await expect(stat(path.join(projectRoot, '.next/standalone/public'))).rejects.toThrow()
   })
+
+  it('injects the deploy security key into the standalone runtime config', async () => {
+    const projectRoot = await createProjectRoot()
+
+    await mkdir(path.join(projectRoot, '.next/standalone/.next'), { recursive: true })
+    await writeProjectFile(projectRoot, '.next/static/chunks/app.js', 'console.log("app")')
+    await writeProjectFile(projectRoot, 'public/config.js', 'window.__SMART_CONFIG__ = {}')
+
+    await prepareStandaloneDeploy(projectRoot, { securityEncodeKey: 'escaped$key-1234' })
+
+    await expect(
+      readFile(path.join(projectRoot, '.next/standalone/public/config.js'), 'utf8'),
+    ).resolves.toContain('window.__SMART_CONFIG__.securityEncodeKey = "escaped$key-1234"')
+  })
 })
