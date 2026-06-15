@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-/** E2E runs with the mock flag OFF: serve a config.js with the flag flipped. */
+/** E2E 默认关闭 mock：拦截 config.js 并覆盖 visitorRecordsMock。 */
 async function disableMock(page: Page) {
   await page.route('**/config.js', (route) =>
     route.fulfill({
@@ -17,26 +17,26 @@ async function disableMock(page: Page) {
 
 const LIST_RESULT = {
   queryToken: 'tok-e2e',
-  maskedName: '李**',
+  maskedName: '李明',
   maskedMobile: '137****1234',
   records: [
     {
       applyId: 'a-pending',
       parkName: '裕同科技许昌园区',
       applyStatus: 'PENDING',
-      receptionistName: '王**',
+      receptionistName: '王强',
       startTime: '2026-06-12 09:30',
       endTime: '2026-06-12 18:00',
       fellowCount: 2,
       plates: ['豫A·D88E6'],
-      currentNode: '部门负责人 张** 审批中',
+      currentNode: '部门负责人 张三 审批中',
       submitTime: '2026-06-10 15:08',
     },
     {
       applyId: 'a-passed',
       parkName: '裕同科技许昌园区',
       applyStatus: 'PASSED',
-      receptionistName: '刘**',
+      receptionistName: '刘洋',
       startTime: '2026-06-05 14:00',
       endTime: '2026-06-05 17:30',
       fellowCount: 0,
@@ -48,7 +48,7 @@ const LIST_RESULT = {
       applyId: 'a-rejected',
       parkName: '裕同科技许昌园区',
       applyStatus: 'REJECTED',
-      receptionistName: '王**',
+      receptionistName: '王强',
       startTime: '2026-06-08 10:00',
       endTime: '2026-06-08 12:00',
       fellowCount: 0,
@@ -66,6 +66,15 @@ async function mockListApis(page: Page) {
   await page.route('**/platform/admittance/apply/app/listMyApply', (route) =>
     route.fulfill({ json: { code: 0, data: LIST_RESULT } }),
   )
+}
+
+async function seedQuerySession(
+  page: Page,
+  session = { queryToken: 'tok-e2e', maskedName: '李明', maskedMobile: '137****1234' },
+) {
+  await page.addInitScript((value) => {
+    localStorage.setItem('visitor-query-session', JSON.stringify({ ...value, savedAt: Date.now() }))
+  }, session)
 }
 
 /** Walks the verify phase to the record list. */
@@ -118,9 +127,9 @@ test('记录列表：验证 → 列表渲染 → 筛选 → 换个手机号', as
   expect(listBody).toEqual({ mobile: '13712341234', smsCode: '123456' })
 
   // 列表内容
-  await expect(page.getByText('李** 137****1234')).toBeVisible()
+  await expect(page.getByText('李明 137****1234')).toBeVisible()
   await expect(page.getByText('当前节点：')).toBeVisible()
-  await expect(page.getByText('部门负责人 张** 审批中')).toBeVisible()
+  await expect(page.getByText('部门负责人 张三 审批中')).toBeVisible()
   await expect(page.getByText('已下发成功')).toBeVisible()
   await expect(page.getByText('随行 2 人 · 豫A·D88E6')).toBeVisible()
 
@@ -129,7 +138,7 @@ test('记录列表：验证 → 列表渲染 → 筛选 → 换个手机号', as
   await expect(cards).toHaveCount(3)
   await page.getByRole('tab', { name: '已通过' }).click()
   await expect(cards).toHaveCount(1)
-  await expect(page.getByText('刘**')).toBeVisible()
+  await expect(page.getByText('刘洋')).toBeVisible()
   await page.getByRole('tab', { name: '已过期' }).click()
   await expectEmptyStateCentered(page, '暂无申请记录')
   await page.getByRole('tab', { name: '全部' }).click()
@@ -138,7 +147,7 @@ test('记录列表：验证 → 列表渲染 → 筛选 → 换个手机号', as
   // 换个手机号 → 回验证态并清 session
   await page.getByRole('button', { name: '换个手机号' }).click()
   await expect(page.getByText('验证身份后查看记录')).toBeVisible()
-  const session = await page.evaluate(() => sessionStorage.getItem('visitor-query-session'))
+  const session = await page.evaluate(() => localStorage.getItem('visitor-query-session'))
   expect(session).toBeNull()
 })
 
@@ -149,12 +158,7 @@ test('记录列表：重进页面用 token 头免验刷新', async ({ page }) =>
     refreshHeaders = route.request().headers()
     await route.fulfill({ json: { code: 0, data: LIST_RESULT } })
   })
-  await page.addInitScript(() => {
-    sessionStorage.setItem(
-      'visitor-query-session',
-      JSON.stringify({ queryToken: 'tok-saved', maskedName: '李**', maskedMobile: '137****1234' }),
-    )
-  })
+  await seedQuerySession(page, { queryToken: 'tok-saved', maskedName: '李明', maskedMobile: '137****1234' })
 
   await page.goto('/visitor/records')
   await expect(page.getByText('当前查询：')).toBeVisible()
@@ -166,16 +170,11 @@ test('记录列表：token 失效（403）回验证态', async ({ page }) => {
   await page.route('**/platform/admittance/apply/app/listMyApply', (route) =>
     route.fulfill({ status: 403, json: { code: 403, message: 'token expired' } }),
   )
-  await page.addInitScript(() => {
-    sessionStorage.setItem(
-      'visitor-query-session',
-      JSON.stringify({ queryToken: 'tok-dead', maskedName: '李**', maskedMobile: '137****1234' }),
-    )
-  })
+  await seedQuerySession(page, { queryToken: 'tok-dead', maskedName: '李明', maskedMobile: '137****1234' })
 
   await page.goto('/visitor/records')
   await expect(page.getByText('验证身份后查看记录')).toBeVisible()
-  const session = await page.evaluate(() => sessionStorage.getItem('visitor-query-session'))
+  const session = await page.evaluate(() => localStorage.getItem('visitor-query-session'))
   expect(session).toBeNull()
 })
 
@@ -206,6 +205,8 @@ test('mock 开关冒烟：显式开启后列表走 fixture，但短信仍真实�
   await page.getByPlaceholder('点击输入验证码').fill('888888')
   await page.getByRole('button', { name: '查看申请记录' }).click()
   await expect(page.getByText('当前查询：')).toBeVisible()
+  await expect(page.getByText('李明 137****1234')).toBeVisible()
+  await expect(page.getByText('部门负责人 张三 审批中')).toBeVisible()
   await expect(page.getByText('审批中').first()).toBeVisible()
 })
 
@@ -213,26 +214,21 @@ const DETAIL_BASE = {
   applyId: 'a-1',
   applyNo: 'VA20260610-0027',
   parkName: '裕同科技许昌园区',
-  receptionistName: '王**',
+  receptionistName: '王强',
   startTime: '2026-06-12 09:30',
   endTime: '2026-06-12 18:00',
   cause: '供应商打样确认',
-  visitorName: '李**',
+  visitorName: '李明',
   visitorPhone: '137****1234',
-  fellows: [{ name: '赵**', phone: '150****8821' }],
+  fellows: [{ name: '赵六', phone: '150****8821' }],
   vehicles: [{ plate: '豫A·D88E6', type: '小型客车' }],
   areas: ['研发楼 A 座', '样品展示厅'],
   submitTime: '2026-06-10 15:08',
 }
-const DONE = { title: '被访人审批', state: 'done', approverName: '王**', time: '2026-06-10 16:55' }
+const DONE = { title: '被访人审批', state: 'done', approverName: '王强', time: '2026-06-10 16:55' }
 
 async function seedSession(page: Page) {
-  await page.addInitScript(() => {
-    sessionStorage.setItem(
-      'visitor-query-session',
-      JSON.stringify({ queryToken: 'tok-e2e', maskedName: '李**', maskedMobile: '137****1234' }),
-    )
-  })
+  await seedQuerySession(page)
 }
 
 async function mockDetail(page: Page, detail: Record<string, unknown>, nodes: unknown[]) {
@@ -252,15 +248,15 @@ test('详情：审批中态渲染 + token 头', async ({ page }) => {
   await seedSession(page)
   const headers = await mockDetail(page, { ...DETAIL_BASE, applyStatus: 'PENDING' }, [
     DONE,
-    { title: '部门负责人审批', state: 'current', approverName: '张**' },
+    { title: '部门负责人审批', state: 'current', approverName: '张三' },
   ])
 
   await page.goto('/visitor/records/a-1')
   await expect(page.getByText('审批中', { exact: true })).toBeVisible()
-  await expect(page.getByText(/当前停留在 部门负责人审批 张\*\*/)).toBeVisible()
+  await expect(page.getByText(/当前停留在 部门负责人审批 张三/)).toBeVisible()
   await expect(page.getByText('等待其审批中')).toBeVisible()
   await expect(page.getByText('VA20260610-0027')).toBeVisible()
-  await expect(page.getByText('赵** 150****8821')).toBeVisible()
+  await expect(page.getByText('赵六 150****8821')).toBeVisible()
   await expect(page.getByRole('button', { name: '查看入园通行码' })).not.toBeVisible()
   expect(headers()?.['x-visitor-query-token']).toBe('tok-e2e')
 })
@@ -286,7 +282,7 @@ test('详情：已拒绝 → 拒绝意见 + 重新预约预填', async ({ page }
   await disableMock(page)
   await seedSession(page)
   await mockDetail(page, { ...DETAIL_BASE, applyStatus: 'REJECTED' }, [
-    { title: '被访人审批', state: 'rejected', approverName: '王**', time: '2026-06-10 18:31', comment: '当日园区有接待安排，请改约下周' },
+    { title: '被访人审批', state: 'rejected', approverName: '王强', time: '2026-06-10 18:31', comment: '当日园区有接待安排，请改约下周' },
   ])
   await page.route('https://open.weixin.qq.com/**', (route) =>
     route.fulfill({ contentType: 'text/html', body: 'stub' }),
@@ -296,7 +292,7 @@ test('详情：已拒绝 → 拒绝意见 + 重新预约预填', async ({ page }
   await expect(page.getByText('审批未通过')).toBeVisible()
   await expect(page.getByText('当日园区有接待安排，请改约下周')).toBeVisible()
   await page.getByRole('button', { name: '修改信息重新预约' }).click()
-  // detail 全是脱敏/展示值，重新预约从干净草稿开始（不预填脏数据）
+  // 详情载荷是展示值，重新预约从干净草稿开始，避免把格式化数据当成可提交草稿。
   const draft = await page.evaluate(() => {
     const raw = localStorage.getItem('visitor-flow')
     return raw ? JSON.parse(raw) : null
@@ -334,7 +330,7 @@ test('详情：403 → 清 token 回验证并带回跳参数', async ({ page }) 
   await page.goto('/visitor/records/a-1')
   await page.waitForURL('**/visitor/records?redirect=a-1')
   await expect(page.getByText('验证身份后查看记录')).toBeVisible()
-  const session = await page.evaluate(() => sessionStorage.getItem('visitor-query-session'))
+  const session = await page.evaluate(() => localStorage.getItem('visitor-query-session'))
   expect(session).toBeNull()
 })
 
@@ -345,7 +341,7 @@ test('详情：下发失败态无通行码按钮', async ({ page }) => {
 
   await page.goto('/visitor/records/a-1')
   await expect(page.getByText('审批已通过 · 权限下发失败')).toBeVisible()
-  await expect(page.getByText(/请联系被访人 王\*\*/)).toBeVisible()
+  await expect(page.getByText(/请联系被访人 王强/)).toBeVisible()
   await expect(page.getByRole('button', { name: '查看入园通行码' })).not.toBeVisible()
 })
 

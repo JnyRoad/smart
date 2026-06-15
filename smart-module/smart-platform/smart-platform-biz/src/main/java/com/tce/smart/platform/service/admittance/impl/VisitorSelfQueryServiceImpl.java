@@ -64,7 +64,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		implements VisitorSelfQueryService {
 
 	private static final String TOKEN_KEY_PREFIX = "smart:admittance:visitor-query:";
-	private static final long TOKEN_TTL_MINUTES = 30L;
+	private static final long TOKEN_TTL_DAYS = 1L;
 	private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
 	@Autowired
@@ -95,7 +95,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		VisitorSelfQueryRespDTO response = new VisitorSelfQueryRespDTO();
 		response.setQueryToken(credential.queryToken);
 		response.setMaskedMobile(maskPhone(credential.mobile));
-		response.setMaskedName(applies.isEmpty() ? "" : maskName(applies.get(0).getVisitorName()));
+		response.setMaskedName(applies.isEmpty() ? "" : trim(applies.get(0).getVisitorName()));
 		response.setRecords(applies.stream().map(this::toRecord).collect(Collectors.toList()));
 		return response;
 	}
@@ -141,7 +141,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 
 	private String issueToken(String mobile) {
 		String token = queryTokenSupplier.get();
-		stringRedisTemplate.opsForValue().set(tokenKey(token), mobile, TOKEN_TTL_MINUTES, TimeUnit.MINUTES);
+		stringRedisTemplate.opsForValue().set(tokenKey(token), mobile, TOKEN_TTL_DAYS, TimeUnit.DAYS);
 		return token;
 	}
 
@@ -186,7 +186,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		record.setApplyId(String.valueOf(apply.getId()));
 		record.setParkName(parkName(apply));
 		record.setApplyStatus(applyStatus(apply));
-		record.setReceptionistName(maskName(apply.getReceptionistName()));
+		record.setReceptionistName(trim(apply.getReceptionistName()));
 		record.setStartTime(format(apply.getStartTime()));
 		record.setEndTime(format(apply.getEndTime()));
 		record.setFellowCount(nonMainFellows(apply.getId()).size());
@@ -386,7 +386,8 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 				.findFirst()
 				.orElse(null);
 		String node = pendingApprove == null ? null : approvalNodeName(pendingApprove);
-		return StringUtils.hasText(node) ? node + " 审批中" : null;
+		String approver = pendingApprove == null ? null : approverName(pendingApprove);
+		return currentNodeText(node, approver);
 	}
 
 	private String oaCurrentNode(String processId) {
@@ -397,11 +398,22 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		if (currentFlow == null) {
 			return null;
 		}
-		String nodeName = trim(currentFlow.getNodeName());
-		if (!StringUtils.hasText(nodeName)) {
-			nodeName = maskName(currentFlow.getCreateUser());
+		return currentNodeText(currentFlow.getNodeName(), currentFlow.getCreateUser());
+	}
+
+	private String currentNodeText(String nodeName, String approverName) {
+		String node = trim(nodeName);
+		String approver = trim(approverName);
+		if (StringUtils.hasText(node) && StringUtils.hasText(approver)) {
+			return node + " " + approver + " 审批中";
 		}
-		return StringUtils.hasText(nodeName) ? nodeName + " 审批中" : null;
+		if (StringUtils.hasText(node)) {
+			return node + " 审批中";
+		}
+		if (StringUtils.hasText(approver)) {
+			return approver + " 审批中";
+		}
+		return null;
 	}
 
 	private List<ApproveList> visitorApproves(String applyId) {
@@ -497,17 +509,6 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		}
 		SmtPark park = smtParkService.getById(apply.getParkId());
 		return park == null ? "" : defaultText(park.getParkName(), "");
-	}
-
-	private String maskName(String name) {
-		String clean = trim(name);
-		if (!StringUtils.hasText(clean)) {
-			return "";
-		}
-		if (clean.length() == 1) {
-			return clean;
-		}
-		return clean.substring(0, 1) + "*";
 	}
 
 	private String maskPhone(String phone) {

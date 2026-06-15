@@ -265,7 +265,7 @@ function RecordsInner() {
             </button>
           </div>
           <p className="mt-3.5 px-1 text-xs leading-relaxed text-weak">
-            验证一次后，本次浏览期间无需重复验证；记录中的姓名与手机号将脱敏展示。
+            验证一次后，24 小时内无需重复验证；记录中的手机号将脱敏展示，姓名用于核对申请与审批进度。
           </p>
         </div>
       )}

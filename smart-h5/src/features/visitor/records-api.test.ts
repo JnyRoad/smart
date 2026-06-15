@@ -24,6 +24,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 beforeEach(() => {
   sessionStorage.clear()
+  localStorage.clear()
   fetchMock.mockReset()
   fetchMock.mockResolvedValue(jsonResponse({ code: 0, data: {} }))
   vi.stubGlobal('fetch', fetchMock)
@@ -31,6 +32,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   window.__SMART_CONFIG__ = undefined
 })
 
@@ -41,11 +43,11 @@ describe('mock 开关', () => {
     expect(fetchMock).not.toHaveBeenCalled()
     expect(res.code).toBe(0)
     expect(res.data?.queryToken).toBeTruthy()
-    expect(res.data?.maskedName).toBe('李**')
+    expect(res.data?.maskedName).toBe('李明')
     expect(res.data?.maskedMobile).toBe('137****1234')
     expect(res.data?.records.length).toBeGreaterThanOrEqual(5)
-    expect(res.data?.records[0]?.receptionistName).toBe('王**')
-    expect(res.data?.records[0]?.currentNode).toBe('部门负责人 张** 审批中')
+    expect(res.data?.records[0]?.receptionistName).toBe('王强')
+    expect(res.data?.records[0]?.currentNode).toBe('部门负责人 张三 审批中')
   })
 
   it('开关开：sendRecordSms 仍复用访客申请短信 GET', async () => {
@@ -99,7 +101,7 @@ describe('mock 开关', () => {
 
   it('开关关：token 刷新形态（null 入参）空体 + token 头', async () => {
     setMockFlag(false)
-    saveQuerySession({ queryToken: 'tok-q', maskedName: '李**', maskedMobile: '137****1234' })
+    saveQuerySession({ queryToken: 'tok-q', maskedName: '李明', maskedMobile: '137****1234' })
     await fetchMyApplies(null)
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(JSON.parse(init.body as string)).toEqual({})
@@ -108,7 +110,7 @@ describe('mock 开关', () => {
 
   it('开关关：详情请求带 X-Visitor-Query-Token 头', async () => {
     setMockFlag(false)
-    saveQuerySession({ queryToken: 'tok-q', maskedName: '李**', maskedMobile: '137****1234' })
+    saveQuerySession({ queryToken: 'tok-q', maskedName: '李明', maskedMobile: '137****1234' })
     await fetchApplyDetail('a-1')
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('/platform/admittance/apply/app/applyDetail?applyId=a-1')
@@ -117,10 +119,49 @@ describe('mock 开关', () => {
 })
 
 describe('query session', () => {
-  it('sessionStorage 存取与清除', () => {
-    saveQuerySession({ queryToken: 't', maskedName: '李**', maskedMobile: '137****1234' })
+  it('localStorage 保存 24 小时查询凭证', () => {
+    saveQuerySession({ queryToken: 't', maskedName: '李明', maskedMobile: '137****1234' })
+
     expect(getQuerySession()?.queryToken).toBe('t')
+    expect(getQuerySession()?.maskedName).toBe('李明')
+    sessionStorage.clear()
+    expect(getQuerySession()?.queryToken).toBe('t')
+  })
+
+  it('清除本地查询凭证', () => {
+    saveQuerySession({ queryToken: 't', maskedName: '李明', maskedMobile: '137****1234' })
+
     clearQuerySession()
+
     expect(getQuerySession()).toBeNull()
+  })
+
+  it('本地查询凭证超过 24 小时自动失效', () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(0)
+    saveQuerySession({ queryToken: 't', maskedName: '李明', maskedMobile: '137****1234' })
+    nowSpy.mockReturnValue(24 * 60 * 60 * 1000 + 1)
+
+    expect(getQuerySession()).toBeNull()
+    expect(localStorage.getItem('visitor-query-session')).toBeNull()
+  })
+
+  it('同一个 token 刷新列表时不重置 24 小时起点', () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(0)
+    saveQuerySession({ queryToken: 't', maskedName: '李明', maskedMobile: '137****1234' })
+    nowSpy.mockReturnValue(23 * 60 * 60 * 1000)
+    saveQuerySession({ queryToken: 't', maskedName: '李明', maskedMobile: '137****1234' })
+    nowSpy.mockReturnValue(24 * 60 * 60 * 1000 + 1)
+
+    expect(getQuerySession()).toBeNull()
+  })
+
+  it('新 token 会重新计算 24 小时起点', () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(0)
+    saveQuerySession({ queryToken: 'old-token', maskedName: '李明', maskedMobile: '137****1234' })
+    nowSpy.mockReturnValue(23 * 60 * 60 * 1000)
+    saveQuerySession({ queryToken: 'new-token', maskedName: '李明', maskedMobile: '137****1234' })
+    nowSpy.mockReturnValue(46 * 60 * 60 * 1000)
+
+    expect(getQuerySession()?.queryToken).toBe('new-token')
   })
 })
