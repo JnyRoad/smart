@@ -12,10 +12,14 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
+ARG SMART_H5_ENV=production
 ARG API_PROXY_TARGET=http://smart-gateway:9990
+ARG NEXT_PUBLIC_SECURITY_ENCODE_KEY
+ENV SMART_H5_ENV=$SMART_H5_ENV
 ENV API_PROXY_TARGET=$API_PROXY_TARGET
+ENV NEXT_PUBLIC_SECURITY_ENCODE_KEY=$NEXT_PUBLIC_SECURITY_ENCODE_KEY
 
-RUN pnpm build
+RUN pnpm exec node scripts/build.mjs "$SMART_H5_ENV"
 
 FROM node:22-alpine AS runner
 
