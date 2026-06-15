@@ -4,6 +4,7 @@ import { ErrorBlock, SpinLoading, Toast } from 'antd-mobile'
 import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect } from 'react'
+import { StatusIcon } from '@/components/app-icon'
 import { getApplyDetail, getFactoryTypeEnum, type ApplyDetail } from '@/features/visitor/api'
 import { buildPassCodeAreaDisplay } from '@/features/visitor/pass-code-areas'
 import { getTenantConfig } from '@/lib/config/tenant'
@@ -109,8 +110,8 @@ function PassCodeInner() {
           </>
         ) : (
           <>
-            <div className="grid h-48 w-48 place-items-center rounded-xl bg-surface text-5xl text-weak" aria-hidden>
-              ✕
+            <div className="grid h-48 w-48 place-items-center rounded-xl bg-surface text-weak" aria-hidden>
+              <StatusIcon name="close" className="h-14 w-14" />
             </div>
             <p className="mt-3 text-[15px] font-bold text-[#d83b36]">二维码已失效</p>
           </>

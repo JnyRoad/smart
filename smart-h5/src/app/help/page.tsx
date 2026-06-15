@@ -1,6 +1,7 @@
 'use client'
 import { ErrorBlock, InfiniteScroll, PullToRefresh, SpinLoading, Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
+import { AppTileIcon } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getHelpQuestions, type HelpQuestion } from '@/features/help/api'
@@ -38,9 +39,7 @@ export default function HelpPage() {
         {/* 头部横幅 */}
         <div className="mb-3 flex items-center justify-between rounded-2xl bg-[linear-gradient(120deg,#ec6c00,#f08a2c_60%,#f6a95c)] p-5 text-white shadow-[0_12px_28px_rgba(236,108,0,0.25)]">
           <span className="text-lg font-bold">帮助中心</span>
-          <span aria-hidden className="text-3xl">
-            💡
-          </span>
+          <AppTileIcon name="help" />
         </div>
 
         {!pager.loadedOnce ? (

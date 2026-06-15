@@ -1,6 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useState } from 'react'
+import { StatusIcon } from './app-icon'
 
 const FACE_IMAGE_BASE = '/platform/image/view'
 
@@ -10,10 +11,10 @@ export function FaceAvatar({ faceId }: { faceId?: string }) {
   if (!faceId || failed) {
     return (
       <span
-        className="grid h-[72px] w-[72px] flex-none place-items-center rounded-xl bg-accent-soft text-2xl"
+        className="grid h-[72px] w-[72px] flex-none place-items-center rounded-xl bg-accent-soft text-brand"
         aria-hidden
       >
-        👤
+        <StatusIcon name="user" className="h-8 w-8" />
       </span>
     )
   }

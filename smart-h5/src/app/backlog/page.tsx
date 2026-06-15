@@ -1,13 +1,14 @@
 'use client'
 import { useRouter } from 'next/navigation'
+import { AppTileIcon, type AppIconName } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 
 const ENTRIES = [
-  { icon: '📦', title: '物品放行（生活区）', href: '/backlog/release-live' },
-  { icon: '🏠', title: '退宿审批', href: '/backlog/dorm-exit' },
-  { icon: '🔧', title: '园区报修审批', href: '/backlog/repairs' },
-] as const
+  { iconName: 'release', title: '物品放行（生活区）', href: '/backlog/release-live' },
+  { iconName: 'exit', title: '退宿审批', href: '/backlog/dorm-exit' },
+  { iconName: 'repair', title: '园区报修审批', href: '/backlog/repairs' },
+] satisfies readonly { iconName: AppIconName; title: string; href: string }[]
 
 /** 审批侧功能入口聚合页（旧版注释禁用的访客/办公区/离职/申诉入口不做）。 */
 export default function BacklogPage() {
@@ -26,9 +27,7 @@ export default function BacklogPage() {
             onClick={() => router.push(entry.href)}
             className="flex items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-[0_16px_40px_rgba(89,87,87,0.10)] active:bg-surface"
           >
-            <span aria-hidden className="grid h-10 w-10 place-items-center rounded-xl bg-accent-soft text-xl">
-              {entry.icon}
-            </span>
+            <AppTileIcon name={entry.iconName} />
             <span className="flex-1 text-[15px] font-semibold">{entry.title}</span>
             <span aria-hidden className="text-weak">
               ›
