@@ -120,6 +120,37 @@ describe('访客申请详情审批意见', () => {
     expect(document.body.querySelector('span[style*="font-size"]')?.textContent).toBe('来自微信公众号')
   })
 
+  it('去掉审批意见开头的空白换行，不为公众号来源提示撑出空白行', async () => {
+    await renderRecordDetail()
+
+    const sourceHint = await screen.findByText('来自微信公众号')
+    const commentBox = sourceHint.closest('div')
+
+    expect(commentBox?.innerHTML).not.toMatch(/^<br\s*\/?><br\s*\/?>/i)
+    expect(commentBox?.firstElementChild?.textContent).toBe('来自微信公众号')
+  })
+
+  it('压缩空白行时保留审批意见里的合法图片', async () => {
+    recordsMock.progress.data.nodes[0]!.comment =
+      '<br><img src="https://cdn.example/a.png" alt="审批附件"><p><img src="https://cdn.example/b.png" alt="补充附件"></p>'
+
+    await renderRecordDetail()
+
+    expect(await screen.findByAltText('审批附件')).toBeTruthy()
+    expect(await screen.findByAltText('补充附件')).toBeTruthy()
+  })
+
+  it('压缩空白行时不破坏审批意见里的表格和列表结构', async () => {
+    recordsMock.progress.data.nodes[0]!.comment =
+      '<table><tbody><tr><td></td><td>说明</td></tr></tbody></table><ul><li></li><li>下一项</li></ul>'
+
+    await renderRecordDetail()
+
+    expect(await screen.findByText('说明')).toBeTruthy()
+    expect(document.body.querySelectorAll('td')).toHaveLength(2)
+    expect(document.body.querySelectorAll('li')).toHaveLength(2)
+  })
+
   it('清洗审批意见里的危险 HTML', async () => {
     recordsMock.progress.data.nodes[0]!.comment =
       '<img src="x" onerror="alert(1)"><span onclick="evil()">安全内容</span>'
