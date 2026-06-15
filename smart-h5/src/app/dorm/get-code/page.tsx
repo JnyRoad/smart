@@ -3,17 +3,17 @@ import { useQuery } from '@tanstack/react-query'
 import { Dialog, ErrorBlock } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { refreshLockPwd } from '@/features/dorm/api'
 import { LockFaceCamera } from '@/features/dorm/lock-face-camera'
+import styles from './page.module.css'
 
-/** Regenerates the door-lock code after an on-device face check. */
+/** 通过本机人脸核验后刷新宿舍门锁动态码。 */
 export default function GetCodePage() {
   const authorized = useRequireAuth()
   const router = useRouter()
-  // facePic = the base64 sent to checkFace; the usual checkFace response only returns data.photoId.
+  // facePic 是传给 checkFace 的 base64；常规 checkFace 响应只返回 data.photoId。
   const [facePic, setFacePic] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -23,6 +23,7 @@ export default function GetCodePage() {
     enabled: authorized,
   })
   const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
+  const employeeName = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeName : undefined
   const baseInfoFailed = baseInfo.isError || (baseInfo.isSuccess && baseInfo.data.code !== 0)
 
   async function handleGenerate() {
@@ -48,45 +49,59 @@ export default function GetCodePage() {
 
   if (baseInfoFailed) {
     return (
-      <PageShell title="刷新动态码">
-        <div className="py-8">
+      <div className={styles.page}>
+        <FaceScanTopbar onBack={() => router.back()} onClose={() => router.replace('/dorm/lock')} />
+        <main className={styles.errorArea}>
           <ErrorBlock status="default" title="加载失败" description="员工信息获取失败" />
-          <button
-            type="button"
-            onClick={() => void baseInfo.refetch()}
-            className="mx-auto mt-4 flex h-11 w-40 items-center justify-center rounded-[14px] bg-brand text-[15px] font-semibold text-white"
-          >
+          <button type="button" onClick={() => void baseInfo.refetch()} className={styles.retryButton}>
             重试
           </button>
-        </div>
-      </PageShell>
+        </main>
+      </div>
     )
   }
 
   return (
-    <PageShell title="刷新动态码">
-      <div className="flex flex-col items-center gap-4 pt-6">
-        <h2 className="text-[17px] font-bold">刷新动态码</h2>
-        <p className="text-[13px] text-mid">需完成人脸识别</p>
+    <div className={styles.page} data-testid="lock-face-page">
+      <FaceScanTopbar onBack={() => router.back()} onClose={() => router.replace('/dorm/lock')} />
 
-        <LockFaceCamera onCaptured={setFacePic} />
+      <section className={styles.context} aria-label="宿舍门锁信息">
+        <div className={styles.contextMain}>
+          <div>
+            <p className={styles.personName}>{employeeName ?? '当前员工'}</p>
+            <p className={styles.personMeta}>
+              <span className={styles.metaSegment}>工号 {badge ?? '--'}</span>
+              <span className={styles.metaSegment}>宿舍门锁</span>
+              <span className={styles.metaSegment}>{facePic ? '已完成核验' : '本人核验'}</span>
+            </p>
+          </div>
+          <div className={styles.lockBadge}>
+            <span>动态码刷新</span>
+            <span>需人脸核验</span>
+          </div>
+        </div>
+      </section>
 
-        {facePic ? (
-          <>
-            <p className="text-sm font-semibold text-[#16a673]">人脸对比成功</p>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => void handleGenerate()}
-              className="mt-2 flex h-12 w-2/3 items-center justify-center rounded-[14px] bg-brand text-base font-semibold text-white active:bg-[#d95f00] disabled:opacity-60"
-            >
-              {submitting ? '生成中…' : '生成动态码'}
-            </button>
-          </>
-        ) : (
-          <p className="text-xs text-weak">请拍摄正面人脸照片完成比对</p>
-        )}
-      </div>
-    </PageShell>
+      <LockFaceCamera
+        onCaptured={setFacePic}
+        onGenerate={() => void handleGenerate()}
+        generating={submitting}
+        generateDisabled={!facePic || !badge}
+      />
+    </div>
+  )
+}
+
+function FaceScanTopbar({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
+  return (
+    <header className={styles.topbar}>
+      <button className={styles.navButton} type="button" aria-label="返回" onClick={onBack}>
+        <span className={styles.backMark} aria-hidden="true" />
+      </button>
+      <h1 className={styles.topbarTitle}>刷新动态码</h1>
+      <button className={styles.navButton} type="button" aria-label="关闭" onClick={onClose}>
+        <span>关闭</span>
+      </button>
+    </header>
   )
 }
