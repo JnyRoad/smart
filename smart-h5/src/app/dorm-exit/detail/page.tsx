@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ApprovalTimeline } from '@/components/approval-timeline'
+import { StatusIcon } from '@/components/app-icon'
 import { FaceAvatar } from '@/components/face-avatar'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
@@ -70,18 +71,14 @@ function DormExitDetailInner() {
           )}
           {info?.status === 4 && (
             <div className="flex flex-col items-center rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(89,87,87,0.10)]">
-              <span aria-hidden className="text-5xl">
-                ✅
-              </span>
+              <StatusIcon name="success" className="h-12 w-12 text-[#16a673]" />
               <p className="mt-2 text-[15px] font-bold">已出厂</p>
               <p className="mt-1 text-sm text-mid">已同意出厂</p>
             </div>
           )}
           {info?.status === 5 && (
             <div className="flex flex-col items-center rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(89,87,87,0.10)]">
-              <span aria-hidden className="text-5xl">
-                🚫
-              </span>
+              <StatusIcon name="denied" className="h-12 w-12 text-[#d83b36]" />
               <p className="mt-2 text-[15px] font-bold text-[#d83b36]">已拒绝出厂</p>
             </div>
           )}

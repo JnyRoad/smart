@@ -4,6 +4,7 @@ import { DatePicker, Picker, TextArea, Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ImageListUpload } from '@/components/image-list-upload'
+import { StatusIcon } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { SegmentTabs } from '@/components/segment-tabs'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
@@ -151,9 +152,9 @@ export default function DormExitPage() {
                     type="button"
                     aria-label={`删除${room.label}`}
                     onClick={() => setSelectedRooms((prev) => prev.filter((_, i) => i !== index))}
-                    className="px-1 font-semibold text-[#d83b36]"
+                    className="grid h-6 w-6 place-items-center text-[#d83b36]"
                   >
-                    ✕
+                    <StatusIcon name="close" className="h-4 w-4" />
                   </button>
                 </div>
               ))}

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo, unbindWechat } from '@/features/employee/api'
+import { AppTileIcon, type AppIconName } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { clearSession } from '@/lib/auth/token'
 import { getTenantConfig } from '@/lib/config/tenant'
@@ -13,13 +14,11 @@ import { BADGE_BINDING_PATH, redirectToWechatOAuth } from '@/lib/wechat/oauth'
 
 function MenuItem({
   title,
-  iconBg,
-  icon,
+  iconName,
   onClick,
 }: {
   title: string
-  iconBg: string
-  icon: string
+  iconName: AppIconName
   onClick: () => void
 }) {
   return (
@@ -28,13 +27,7 @@ function MenuItem({
       onClick={onClick}
       className="flex min-h-14 w-full items-center gap-3.5 rounded-2xl bg-white p-4 text-left shadow-[0_16px_40px_rgba(89,87,87,0.10)] active:bg-surface"
     >
-      <span
-        className="grid h-[38px] w-[38px] flex-none place-items-center rounded-xl text-base"
-        style={{ background: iconBg }}
-        aria-hidden
-      >
-        {icon}
-      </span>
+      <AppTileIcon name={iconName} />
       <span className="flex-1 text-[15px] font-bold">{title}</span>
       <span aria-hidden className="text-weak">
         ›
@@ -119,7 +112,7 @@ export default function MinePage() {
                       info.employeeSex === 1 ? 'bg-[#e0578f]' : 'bg-[#2376d9]'
                     }`}
                   >
-                    {info.employeeSex === 1 ? '♀' : '♂'}
+                    {info.employeeSex === 1 ? '女' : '男'}
                   </span>
                 )}
               </span>
@@ -132,9 +125,7 @@ export default function MinePage() {
 
           {/* 园区横幅 */}
           <div className="flex items-center gap-2.5 rounded-2xl bg-[linear-gradient(120deg,#ec6c00,#f08a2c_60%,#f6a95c)] p-4 text-white shadow-[0_12px_28px_rgba(236,108,0,0.25)]">
-            <span aria-hidden className="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-white/20">
-              📍
-            </span>
+            <AppTileIcon name="location" />
             <span className="text-[15px] font-bold">{parkName}</span>
           </div>
 
@@ -157,20 +148,17 @@ export default function MinePage() {
           {/* 菜单 */}
           <MenuItem
             title="我的宿舍"
-            icon="🏠"
-            iconBg="var(--accent-soft)"
+            iconName="dorm"
             onClick={() => router.push('/dorm')}
           />
           <MenuItem
             title="帮助中心"
-            icon="❓"
-            iconBg="rgba(35,118,217,.10)"
+            iconName="help"
             onClick={() => router.push('/help')}
           />
           <MenuItem
             title="微信解绑"
-            icon="💬"
-            iconBg="rgba(22,166,115,.10)"
+            iconName="wechat"
             onClick={() => void handleUnbind()}
           />
 
