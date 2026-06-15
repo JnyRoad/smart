@@ -39,5 +39,11 @@
 			<artifactId>spring-data-redis</artifactId>
 			<version>2.5.3</version>
 		</dependency>
+		<!--单元测试：spring-boot-starter-test 提供 JUnit4 + Mockito + AssertJ-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 </project>
