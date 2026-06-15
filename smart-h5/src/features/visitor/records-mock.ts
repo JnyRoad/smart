@@ -10,7 +10,7 @@ import type { ApplyRecordDetail, ApprovalNode, RecordSummary } from './records-a
  * following "查看入园通行码" in mock mode still uses the real pass-code API.
  */
 export const MOCK_QUERY_TOKEN = 'mock-query-token'
-export const MOCK_IDENTITY = { maskedName: '李**', maskedMobile: '137****1234' }
+export const MOCK_IDENTITY = { maskedName: '李明', maskedMobile: '137****1234' }
 
 export function mockDelay(ms = 300): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -21,19 +21,19 @@ export const MOCK_LIST: RecordSummary[] = [
     applyId: 'mock-pending',
     parkName: '裕同科技许昌园区',
     applyStatus: 'PENDING',
-    receptionistName: '王**',
+    receptionistName: '王强',
     startTime: '2026-06-12 09:30',
     endTime: '2026-06-12 18:00',
     fellowCount: 2,
     plates: ['豫A·D88E6'],
-    currentNode: '部门负责人 张** 审批中',
+    currentNode: '部门负责人 张三 审批中',
     submitTime: '2026-06-10 15:08',
   },
   {
     applyId: 'mock-passed',
     parkName: '裕同科技许昌园区',
     applyStatus: 'PASSED',
-    receptionistName: '刘**',
+    receptionistName: '刘洋',
     startTime: '2026-06-05 14:00',
     endTime: '2026-06-05 17:30',
     fellowCount: 0,
@@ -45,7 +45,7 @@ export const MOCK_LIST: RecordSummary[] = [
     applyId: 'mock-passed-issuing',
     parkName: '裕同科技许昌园区',
     applyStatus: 'PASSED',
-    receptionistName: '赵**',
+    receptionistName: '赵敏',
     startTime: '2026-06-11 13:30',
     endTime: '2026-06-11 17:00',
     fellowCount: 0,
@@ -57,7 +57,7 @@ export const MOCK_LIST: RecordSummary[] = [
     applyId: 'mock-passed-failed',
     parkName: '裕同科技许昌园区',
     applyStatus: 'PASSED',
-    receptionistName: '孙**',
+    receptionistName: '孙强',
     startTime: '2026-06-09 09:00',
     endTime: '2026-06-09 11:30',
     fellowCount: 1,
@@ -69,7 +69,7 @@ export const MOCK_LIST: RecordSummary[] = [
     applyId: 'mock-rejected',
     parkName: '裕同科技许昌园区',
     applyStatus: 'REJECTED',
-    receptionistName: '王**',
+    receptionistName: '王强',
     startTime: '2026-06-08 10:00',
     endTime: '2026-06-08 12:00',
     fellowCount: 0,
@@ -80,7 +80,7 @@ export const MOCK_LIST: RecordSummary[] = [
     applyId: 'mock-expired',
     parkName: '裕同科技许昌园区',
     applyStatus: 'EXPIRED',
-    receptionistName: '张**',
+    receptionistName: '张三',
     startTime: '2026-04-17 09:00',
     endTime: '2026-04-17 18:00',
     fellowCount: 0,
@@ -91,7 +91,7 @@ export const MOCK_LIST: RecordSummary[] = [
     applyId: 'mock-revoked',
     parkName: '裕同科技许昌园区',
     applyStatus: 'REVOKED',
-    receptionistName: '周**',
+    receptionistName: '周敏',
     startTime: '2026-05-20 09:00',
     endTime: '2026-05-20 12:00',
     fellowCount: 0,

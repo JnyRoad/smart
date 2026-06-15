@@ -49,7 +49,7 @@ import java.util.function.Supplier;
 public class VisitorSelfQueryServiceImplTest {
 
 	@Test
-	public void listMyApplyVerifiesSmsStoresTokenAndReturnsMaskedRecords() throws Exception {
+	public void listMyApplyVerifiesSmsStoresOneDayTokenAndReturnsFullNames() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
 		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
 		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
@@ -76,18 +76,19 @@ public class VisitorSelfQueryServiceImplTest {
 		VisitorSelfQueryRespDTO response = service.listMyApply(request, null);
 
 		Assert.assertEquals("tok-fixed", response.getQueryToken());
-		Assert.assertEquals("李*", response.getMaskedName());
+		Assert.assertEquals("李明", response.getMaskedName());
 		Assert.assertEquals("137****1234", response.getMaskedMobile());
 		List<VisitorApplyRecordRespDTO> records = response.getRecords();
 		Assert.assertEquals(1, records.size());
 		Assert.assertEquals("1001", records.get(0).getApplyId());
 		Assert.assertEquals("PASSED", records.get(0).getApplyStatus());
+		Assert.assertEquals("王强", records.get(0).getReceptionistName());
 		Assert.assertEquals("ISSUING", records.get(0).getDispatchStatus());
 		Assert.assertEquals(Integer.valueOf(1), records.get(0).getFellowCount());
 		Assert.assertEquals(Collections.singletonList("豫A12345"), records.get(0).getPlates());
 		Mockito.verify(smsService).verifySmsCode("13712341234", "123456");
-		Mockito.verify(valueOperations).set("smart:admittance:visitor-query:tok-fixed", "13712341234", 30L,
-				TimeUnit.MINUTES);
+		Mockito.verify(valueOperations).set("smart:admittance:visitor-query:tok-fixed", "13712341234", 1L,
+				TimeUnit.DAYS);
 	}
 
 	@Test
@@ -149,9 +150,45 @@ public class VisitorSelfQueryServiceImplTest {
 
 		Assert.assertEquals(1, response.getRecords().size());
 		Assert.assertEquals("PENDING", response.getRecords().get(0).getApplyStatus());
-		Assert.assertEquals("部门经理审批 审批中", response.getRecords().get(0).getCurrentNode());
+		Assert.assertEquals("部门经理审批 张三 审批中", response.getRecords().get(0).getCurrentNode());
 		Mockito.verify(outDormitoryStaffService).getOAProcessFlow(Mockito.eq("OA-9004"), Mockito.anyList());
 		Mockito.verify(approveListService, Mockito.never()).list(Mockito.any());
+	}
+
+	@Test
+	public void listMyApplyUsesLocalCurrentNodeWithApproverName() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		ApproveListService approveListService = Mockito.mock(ApproveListService.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtApprovalNodeService approvalNodeService = Mockito.mock(SmtApprovalNodeService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		setField(service, "approveListService", approveListService);
+		setField(service, "smtStaffService", staffService);
+		setField(service, "smtApprovalNodeService", approvalNodeService);
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1011L, "李明", "13712341234", VisitorStatusEnum.Status_2.getCode());
+		Mockito.when(mapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(apply));
+		Mockito.when(fellowService.getByApplyId(1011L)).thenReturn(Collections.emptyList());
+		Mockito.when(vehicleService.getByApplyId(1011L)).thenReturn(Collections.emptyList());
+		ApproveList pending = approve("被访人审批", ApproveListStateEnum.PENDING.getCode(), 2);
+		pending.setApproveType(ApproveListTypeConstants.VISITOR);
+		pending.setApproveBadge("A002");
+		pending.setNodeId(20);
+		Mockito.when(approveListService.list(Mockito.any())).thenReturn(Collections.singletonList(pending));
+		Mockito.when(staffService.getSimpleSttaffByBadge("A002")).thenReturn(staff("张三"));
+		Mockito.when(approvalNodeService.getById(20)).thenReturn(approvalNode("被访人审批"));
+
+		VisitorSelfQueryRespDTO response = service.listMyApply(new VisitorSelfQueryReqDTO(), "tok-existing");
+
+		Assert.assertEquals("PENDING", response.getRecords().get(0).getApplyStatus());
+		Assert.assertEquals("被访人审批 张三 审批中", response.getRecords().get(0).getCurrentNode());
 	}
 
 	@Test
