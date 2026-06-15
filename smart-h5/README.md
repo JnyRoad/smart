@@ -74,6 +74,20 @@ public/config.js  运行时租户配置（window.__SMART_CONFIG__，部署期渲
 - `src/lib/react19-compat.ts`：antd-mobile v5 命令式 API 的 React 19 适配（官方 unstableSetRender 方案）。
 - 多租户：`public/config.js` 注入 `window.__SMART_CONFIG__`，部署期按租户渲染。
 
+## 构建环境
+
+- `pnpm build` / `pnpm build:prod` 读取 `.env.production.local`，缺少
+  `NEXT_PUBLIC_SECURITY_ENCODE_KEY` 或生产 `API_PROXY_TARGET` 会直接失败。
+- `pnpm build:test` 读取 `.env.test.local`，用于测试环境包。
+- `next build` 本身始终按 production optimizer 运行，日志可能仍显示
+  `.env.production.local`；实际生产/测试选择以 `scripts/build.mjs` 打印的
+  `Loaded smart-h5 ... env` 为准。
+- 提交模板为 `.env.example`、`.env.production.example`、`.env.test.example`；
+  真实 `.env.*.local` 被 git 忽略，不要提交。
+- standalone 构建会把 `NEXT_PUBLIC_SECURITY_ENCODE_KEY` 注入
+  `.next/standalone/public/config.js`，因此打 tar 上传服务器后即可被门锁动态码页读取。
+- 真实 key 必须与旧 H5 / 网关 `security.encode.key` 一致，不能重新生成。
+
 ## 后续重点
 
 - 继续补齐许昌/合肥等租户差异的配置化路径。

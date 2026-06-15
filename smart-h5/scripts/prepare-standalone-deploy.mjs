@@ -1,6 +1,8 @@
-import { cp, rm, stat } from 'node:fs/promises'
+import { cp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { loadDeployEnv } from './deploy-env.mjs'
 
 async function assertDirectoryExists(directoryPath, missingMessage) {
   try {
@@ -28,7 +30,19 @@ async function replaceDirectory(sourcePath, targetPath, missingMessage) {
   await cp(sourcePath, targetPath, { recursive: true })
 }
 
-export async function prepareStandaloneDeploy(projectRoot = process.cwd()) {
+async function injectRuntimeSecurityKey(configPath, securityEncodeKey) {
+  if (!securityEncodeKey) return
+  const config = await readFile(configPath, 'utf8')
+  const overlay = [
+    '',
+    ';window.__SMART_CONFIG__ = window.__SMART_CONFIG__ || {}',
+    `window.__SMART_CONFIG__.securityEncodeKey = ${JSON.stringify(securityEncodeKey)}`,
+    '',
+  ].join('\n')
+  await writeFile(configPath, `${config}${overlay}`)
+}
+
+export async function prepareStandaloneDeploy(projectRoot = process.cwd(), options = {}) {
   const root = path.resolve(projectRoot)
   const nextDir = path.join(root, '.next')
   const standaloneDir = path.join(nextDir, 'standalone')
@@ -58,6 +72,10 @@ export async function prepareStandaloneDeploy(projectRoot = process.cwd()) {
     path.join(standaloneDir, 'public'),
     'public does not exist. The deploy bundle must include public/config.js.',
   )
+  await injectRuntimeSecurityKey(
+    path.join(standaloneDir, 'public', 'config.js'),
+    options.securityEncodeKey,
+  )
 }
 
 function isDirectRun() {
@@ -65,8 +83,15 @@ function isDirectRun() {
 }
 
 if (isDirectRun()) {
-  prepareStandaloneDeploy().catch((error) => {
-    console.error(error instanceof Error ? error.message : error)
-    process.exit(1)
-  })
+  const deployEnv = process.argv[2] ?? process.env.SMART_H5_ENV ?? 'production'
+  loadDeployEnv(process.cwd(), deployEnv)
+    .then((deployConfig) =>
+      prepareStandaloneDeploy(process.cwd(), {
+        securityEncodeKey: deployConfig.securityEncodeKey,
+      }),
+    )
+    .catch((error) => {
+      console.error(error instanceof Error ? error.message : error)
+      process.exit(1)
+    })
 }
