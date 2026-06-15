@@ -5,14 +5,11 @@ import type { ApplyStatus, ApprovalNodeState, DispatchStatus } from './record-st
 import { MOCK_DETAILS, MOCK_IDENTITY, MOCK_LIST, MOCK_QUERY_TOKEN, mockDelay } from './records-mock'
 
 /**
- * Visitor "my applies" APIs. The contracts below mirror the gateway surface
- * for querying a visitor's own applications. With features.visitorRecordsMock on, list/detail functions
- * return demo fixtures instead of hitting the network. Sending an SMS reuses
- * the visitor-application SMS endpoint and is never short-circuited by the records mock.
+ * 访客“我的申请记录”接口：契约对齐网关侧本人申请查询能力。
+ * features.visitorRecordsMock 开启时，列表和详情返回演示 fixture；短信仍走真实访客申请短信接口。
  *
- * Auth model: listMyApply issues a short-lived queryToken after SMS
- * verification; the detail endpoints require it via the X-Visitor-Query-Token
- * header (anti-IDOR, see spec §2.1).
+ * 认证模型：listMyApply 在短信验证通过后签发 1 天 queryToken；详情接口必须带
+ * X-Visitor-Query-Token 头，避免越权查看其他申请。
  */
 interface Envelope<T> {
   code: number
@@ -68,31 +65,65 @@ export interface QuerySession {
 }
 
 const SESSION_KEY = 'visitor-query-session'
+const QUERY_SESSION_TTL_MS = 24 * 60 * 60 * 1000
 
-/** sessionStorage only: the token dies with the tab, never persisted. */
+type StoredQuerySession = QuerySession & { savedAt: number }
+
 export function saveQuerySession(session: QuerySession): void {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  const now = Date.now()
+  const savedAt = existingSavedAtForToken(session.queryToken, now) ?? now
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, savedAt }))
 }
 
 export function getQuerySession(): QuerySession | null {
-  const raw = sessionStorage.getItem(SESSION_KEY)
+  const raw = localStorage.getItem(SESSION_KEY)
   if (raw === null) return null
   try {
-    return JSON.parse(raw) as QuerySession
+    const session = JSON.parse(raw) as Partial<StoredQuerySession>
+    if (
+      typeof session.queryToken !== 'string' ||
+      typeof session.savedAt !== 'number' ||
+      Date.now() - session.savedAt > QUERY_SESSION_TTL_MS
+    ) {
+      clearQuerySession()
+      return null
+    }
+    return {
+      queryToken: session.queryToken,
+      maskedName: typeof session.maskedName === 'string' ? session.maskedName : '',
+      maskedMobile: typeof session.maskedMobile === 'string' ? session.maskedMobile : '',
+    }
   } catch {
+    clearQuerySession()
     return null
   }
 }
 
 export function clearQuerySession(): void {
-  sessionStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem(SESSION_KEY)
+}
+
+function existingSavedAtForToken(queryToken: string, now: number): number | null {
+  const raw = localStorage.getItem(SESSION_KEY)
+  if (raw === null) return null
+  try {
+    const session = JSON.parse(raw) as Partial<StoredQuerySession>
+    if (
+      session.queryToken === queryToken &&
+      typeof session.savedAt === 'number' &&
+      now - session.savedAt <= QUERY_SESSION_TTL_MS
+    ) {
+      return session.savedAt
+    }
+  } catch {
+    return null
+  }
+  return null
 }
 
 /**
- * Auth rejection comes in two shapes: the gateway's business envelope
- * (`{code: 401|403}` — http.ts returns bodies for every HTTP status) or an
- * ApiError thrown for body-less 401/403 responses. Both mean: drop the
- * queryToken and re-verify.
+ * 鉴权拒绝有两类形态：网关业务 envelope（http.ts 会返回所有 HTTP 状态的 body），
+ * 或无 body 的 401/403 抛出的 ApiError。两者都要清掉 queryToken 并重新验证。
  */
 export function isAuthRejected(value: unknown): boolean {
   if (value instanceof ApiError) return value.status === 401 || value.status === 403
@@ -121,10 +152,7 @@ export interface MyAppliesResult {
   records: RecordSummary[]
 }
 
-/**
- * Verify identity and list applies. Pass `{mobile, smsCode}`; pass `null`
- * to refresh with the existing queryToken header.
- */
+/** 校验身份并查询申请列表；传 null 时使用已有 queryToken 刷新。 */
 export async function fetchMyApplies(
   input: { mobile?: string; smsCode?: string } | null,
 ): Promise<Envelope<MyAppliesResult>> {
