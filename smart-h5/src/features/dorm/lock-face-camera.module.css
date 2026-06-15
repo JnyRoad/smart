@@ -1,0 +1,541 @@
+.root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.scanArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px 12px 10px;
+  display: grid;
+}
+
+.cameraStage {
+  position: relative;
+  min-height: 392px;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 98%), rgb(247 247 247 / 94%)),
+    #ffffff;
+  border: 1px solid rgb(229 227 227 / 92%);
+  isolation: isolate;
+}
+
+.stateView {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.stateViewActive {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.emptyCamera {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  padding: 32px 24px 22px;
+  text-align: center;
+}
+
+.cameraSymbol {
+  width: min(72%, 238px);
+  aspect-ratio: 1;
+  align-self: center;
+  justify-self: center;
+  border-radius: 50%;
+  border: 1px solid rgb(236 108 0 / 22%);
+  background:
+    radial-gradient(circle at 50% 48%, rgb(236 108 0 / 16%) 0 18%, transparent 19%),
+    radial-gradient(circle at 50% 48%, transparent 0 33%, rgb(236 108 0 / 8%) 34% 44%, transparent 45%),
+    #ffffff;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.cameraSymbol::before,
+.cameraSymbol::after {
+  content: "";
+  position: absolute;
+  border: 2px solid var(--brand-orange);
+}
+
+.cameraSymbol::before {
+  width: 72px;
+  height: 46px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 78%);
+}
+
+.cameraSymbol::after {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgb(236 108 0 / 8%);
+}
+
+.emptyCopy h2,
+.resultCopy h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  line-height: 1.18;
+  font-weight: 680;
+  letter-spacing: 0;
+  color: var(--yuto-black);
+}
+
+.emptyCopy p,
+.resultCopy p {
+  margin: 0;
+  color: var(--mid-gray);
+  font-size: 14px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.cameraVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  background:
+    radial-gradient(ellipse at 50% 35%, rgb(89 87 87 / 18%) 0 11%, transparent 12%),
+    radial-gradient(ellipse at 50% 67%, rgb(89 87 87 / 12%) 0 22%, transparent 23%),
+    linear-gradient(120deg, rgb(255 255 255 / 82%), rgb(229 227 227 / 46%) 42%, rgb(255 255 255 / 72%)),
+    #ffffff;
+}
+
+.hiddenVideo {
+  display: none;
+}
+
+.stageMask {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 37% 45% at 50% 42%,
+    transparent 0 59%,
+    rgb(89 87 87 / 42%) 60%,
+    rgb(89 87 87 / 50%) 100%
+  );
+  pointer-events: none;
+}
+
+.focusOval {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: min(72%, 272px);
+  aspect-ratio: 0.76;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgb(255 255 255 / 94%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgb(236 108 0 / 34%),
+    inset 0 0 0 1px rgb(236 108 0 / 28%);
+  overflow: hidden;
+}
+
+.focusOval::before {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  border-radius: inherit;
+  border: 1px solid rgb(236 108 0 / 38%);
+  opacity: 0;
+  animation: ringPulse 1800ms cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+.scanLine {
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 8%;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgb(236 108 0 / 0%), rgb(236 108 0 / 38%), rgb(236 108 0 / 0%));
+  border-top: 1px solid rgb(236 108 0 / 58%);
+  opacity: 0.95;
+  animation: scanSweep 1900ms cubic-bezier(0.2, 0, 0, 1) infinite;
+  will-change: transform, opacity;
+}
+
+.scanHint {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  min-height: 68px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid rgb(229 227 227 / 88%);
+  box-shadow: 0 10px 28px rgb(89 87 87 / 12%);
+}
+
+.scanStatus {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: var(--yuto-black);
+}
+
+.scanDetail {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.38;
+  color: var(--mid-gray);
+}
+
+.mirrorChip {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  height: 28px;
+  padding: 0 10px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 84%);
+  color: var(--accent-strong);
+  border: 1px solid rgb(236 108 0 / 24%);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.checkingLayer {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    radial-gradient(ellipse at 50% 36%, rgb(236 108 0 / 8%), transparent 44%),
+    #ffffff;
+  text-align: center;
+}
+
+.progressRing {
+  width: 138px;
+  height: 138px;
+  border-radius: 50%;
+  border: 2px solid rgb(236 108 0 / 16%);
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 22px;
+}
+
+.progressRing::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 4px solid transparent;
+  border-top-color: var(--brand-orange);
+  border-right-color: rgb(236 108 0 / 42%);
+  animation: spin 900ms linear infinite;
+}
+
+.progressRing::after {
+  content: "";
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 36%, rgb(89 87 87 / 18%) 0 32%, transparent 33%),
+    radial-gradient(ellipse at 50% 78%, rgb(89 87 87 / 12%) 0 42%, transparent 43%),
+    rgb(236 108 0 / 8%);
+  border: 1px solid rgb(236 108 0 / 18%);
+}
+
+.resultLayer {
+  height: 100%;
+  display: grid;
+  align-content: center;
+  padding: 32px 24px;
+  text-align: center;
+  background: #ffffff;
+}
+
+.resultMark {
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  border: 1px solid currentColor;
+}
+
+.resultMark::before,
+.resultMark::after {
+  content: "";
+  position: absolute;
+}
+
+.resultMarkSuccess {
+  color: var(--success);
+  background: rgb(22 166 115 / 8%);
+}
+
+.resultMarkSuccess::before {
+  width: 42px;
+  height: 22px;
+  border-left: 5px solid currentColor;
+  border-bottom: 5px solid currentColor;
+  transform: rotate(-45deg) translate(2px, -2px);
+  border-radius: 2px;
+}
+
+.resultMarkFailure {
+  color: var(--danger);
+  background: rgb(216 59 54 / 8%);
+}
+
+.resultMarkFailure::before,
+.resultMarkFailure::after {
+  width: 50px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.resultMarkFailure::before {
+  transform: rotate(45deg);
+}
+
+.resultMarkFailure::after {
+  transform: rotate(-45deg);
+}
+
+.resultCopy {
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.actions {
+  flex: 0 0 auto;
+  padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 1px solid rgb(229 227 227 / 92%);
+}
+
+.actionSet {
+  display: none;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  min-height: 116px;
+  align-content: center;
+}
+
+.actionSetActive {
+  display: grid;
+}
+
+.btn {
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 14px;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btnPrimary {
+  background: var(--brand-orange);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgb(236 108 0 / 20%);
+}
+
+.btnPrimary:active {
+  background: var(--accent-strong);
+}
+
+.btnGhost {
+  background: #ffffff;
+  color: var(--yuto-black);
+  border-color: var(--light-gray);
+}
+
+.btnGhost:active {
+  border-color: rgb(236 108 0 / 42%);
+  background: rgb(236 108 0 / 8%);
+}
+
+.btn:disabled {
+  cursor: wait;
+  color: var(--mid-gray);
+  background: var(--surface);
+  border-color: var(--light-gray);
+  box-shadow: none;
+  transform: none;
+}
+
+.checkingButtonContent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.assistText {
+  min-height: 18px;
+  margin: 0;
+  color: var(--mid-gray);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+@keyframes scanSweep {
+  0% {
+    transform: translateY(-18px);
+    opacity: 0;
+  }
+
+  12%,
+  82% {
+    opacity: 0.95;
+  }
+
+  100% {
+    transform: translateY(242px);
+    opacity: 0;
+  }
+}
+
+@keyframes ringPulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  30% {
+    opacity: 0.78;
+  }
+
+  100% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 380px) {
+  .cameraStage {
+    min-height: 370px;
+    border-radius: 16px;
+  }
+
+  .emptyCopy h2,
+  .resultCopy h2 {
+    font-size: 21px;
+  }
+
+  .scanHint {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+  }
+
+  .btn {
+    min-height: 46px;
+    font-size: 15px;
+    padding-inline: 10px;
+  }
+}
+
+@media (max-height: 700px) {
+  .scanArea {
+    padding-block: 8px;
+  }
+
+  .cameraStage {
+    min-height: 300px;
+  }
+
+  .emptyCamera {
+    padding: 22px 20px 18px;
+  }
+
+  .cameraSymbol {
+    width: min(58%, 178px);
+  }
+
+  .focusOval {
+    width: min(64%, 220px);
+  }
+
+  .scanHint {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    min-height: 58px;
+    padding: 10px 12px;
+  }
+
+  .actions {
+    padding-top: 8px;
+  }
+
+  .actionSet {
+    min-height: 104px;
+    gap: 8px;
+  }
+
+  .resultMark {
+    width: 92px;
+    height: 92px;
+    margin-bottom: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stateView,
+  .scanLine,
+  .focusOval::before,
+  .progressRing::before,
+  .btn {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+    transition-duration: 1ms;
+  }
+}
