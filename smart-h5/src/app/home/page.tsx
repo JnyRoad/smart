@@ -1,7 +1,6 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
 import { Dialog, SpinLoading, Toast } from 'antd-mobile'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
@@ -16,6 +15,8 @@ import {
   getWechatSignature,
   getWeather,
 } from '@/features/home/api'
+import { resolveApprovalIconName, resolveServiceIconName, type HomeIconName } from '@/features/home/home-icon-rules'
+import { HomeTileIcon, NoticeIcon } from '@/features/home/home-tile-icon'
 import { resolveModuleRoute } from '@/features/home/module-routes'
 import { clearSession } from '@/lib/auth/token'
 import { getTenantConfig } from '@/lib/config/tenant'
@@ -38,11 +39,15 @@ function ApprovalBadge({ count }: { count: number | undefined }) {
 }
 
 function GridTile({
+  iconName,
+  iconImageSrc,
   label,
   tip,
   badge,
   onClick,
 }: {
+  iconName: HomeIconName
+  iconImageSrc?: string
   label: string
   tip?: string
   badge?: number
@@ -52,15 +57,13 @@ function GridTile({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl py-2 active:bg-surface"
+      className="flex min-h-[90px] flex-col items-center justify-start gap-2 rounded-xl px-1 py-2.5 active:bg-surface"
     >
-      <span className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-brand">
+      <span className="relative">
+        <HomeTileIcon name={iconName} imageSrc={iconImageSrc} />
         <ApprovalBadge count={badge} />
-        <span aria-hidden className="text-lg">
-          ▦
-        </span>
       </span>
-      <span className="text-center text-xs leading-tight text-ink">
+      <span className="flex min-h-[32px] items-start justify-center text-center text-xs leading-[16px] text-ink">
         {label}
         {tip && <span className="block text-[10px] text-weak">{tip}</span>}
       </span>
@@ -211,9 +214,7 @@ export default function HomePage() {
           href="/home/bbs"
           className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3 shadow-[0_16px_40px_rgba(89,87,87,0.10)]"
         >
-          <span aria-hidden className="text-brand">
-            📢
-          </span>
+          <NoticeIcon />
           <span className="min-w-0 flex-1 truncate text-sm text-ink">
             {latest?.bbsTitle ?? '暂无公告'}
           </span>
@@ -223,10 +224,11 @@ export default function HomePage() {
         </Link>
 
         {/* 审批宫格（固定 3 项，带角标） */}
-        <div className="grid grid-cols-4 rounded-2xl bg-white p-2 shadow-[0_16px_40px_rgba(89,87,87,0.10)]">
+        <div className="grid grid-cols-3 rounded-2xl bg-white p-2.5 shadow-[0_16px_40px_rgba(89,87,87,0.10)]">
           {approvalEntries.map((entry) => (
             <GridTile
               key={entry.key}
+              iconName={resolveApprovalIconName(entry.key)}
               label={entry.label}
               badge={entry.badge}
               onClick={() => router.push(entry.href)}
@@ -244,14 +246,17 @@ export default function HomePage() {
               <SpinLoading color="primary" />
             </div>
           ) : (
-            <div className="mt-2 grid grid-cols-4">
+            <div className="mt-3 grid grid-cols-4 gap-y-3">
               {modules.map((m, index) => {
                 const route = resolveModuleRoute(m.moduleUrl)
                 const isScan = m.moduleName === '扫码放行'
+                const iconName = resolveServiceIconName(m.moduleUrl, m.moduleName)
                 return (
-                  <button
+                  <GridTile
                     key={`${m.moduleName}-${index}`}
-                    type="button"
+                    iconName={iconName}
+                    iconImageSrc={iconName === 'fallback' ? m.moduleIcon : undefined}
+                    label={m.moduleName ?? ''}
                     onClick={() => {
                       if (route) {
                         router.push(route)
@@ -259,28 +264,7 @@ export default function HomePage() {
                         void handleScanRelease()
                       }
                     }}
-                    className="flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl py-2 active:bg-surface"
-                  >
-                    <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-accent-soft">
-                      {m.moduleIcon ? (
-                        <Image
-                          src={m.moduleIcon}
-                          alt=""
-                          width={40}
-                          height={40}
-                          unoptimized
-                          className="h-10 w-10 object-cover"
-                        />
-                      ) : (
-                        <span aria-hidden className="text-brand">
-                          ▦
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-center text-xs leading-tight text-ink">
-                      {m.moduleName}
-                    </span>
-                  </button>
+                  />
                 )
               })}
               {modules.length === 0 && (
