@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ErrorBlock, PullToRefresh, SpinLoading } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
-import { use, useEffect } from 'react'
+import { use, useEffect, useMemo } from 'react'
 import { PageShell } from '@/components/page-shell'
 import { useVisitorFlow } from '@/features/visitor/flow-store'
 import { approvalNodeStatusText, formatVisitRange } from '@/features/visitor/record-status'
@@ -15,6 +15,7 @@ import {
   type ApplyRecordDetail,
   type ApprovalNode,
 } from '@/features/visitor/records-api'
+import { sanitizeRichText } from '@/lib/sanitize'
 import { useMounted } from '@/lib/use-mounted'
 
 function heroFor(detail: ApplyRecordDetail, nodes: ApprovalNode[]) {
@@ -79,6 +80,20 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
       <span className="flex-none text-[13px] text-mid">{label}</span>
       <span className="text-right text-[13px] font-medium break-all">{children}</span>
     </div>
+  )
+}
+
+function ApprovalComment({ html }: { html: string }) {
+  const mounted = useMounted()
+  // 审批意见可能来自 OA/公众号富文本，必须先过统一白名单再渲染，避免把脚本事件带进 H5。
+  const sanitized = useMemo(() => (mounted ? sanitizeRichText(html) : ''), [html, mounted])
+  if (!sanitized) return null
+
+  return (
+    <div
+      className="mt-1 rounded-lg bg-surface px-2.5 py-1.5 text-xs leading-relaxed break-words text-mid [&_p]:m-0 [&_span]:break-words"
+      dangerouslySetInnerHTML={{ __html: sanitized }}
+    />
   )
 }
 
@@ -249,11 +264,7 @@ function RecordDetailInner({ applyId }: { applyId: string }) {
                       )}
                       {node.state === 'wait' && approvalNodeStatusText(node)}
                     </p>
-                    {node.comment && (
-                      <p className="mt-1 rounded-lg bg-surface px-2.5 py-1.5 text-xs text-mid">
-                        {node.comment}
-                      </p>
-                    )}
+                    {node.comment && <ApprovalComment html={node.comment} />}
                   </div>
                 </div>
               ))}
