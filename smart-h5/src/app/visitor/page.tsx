@@ -1,6 +1,5 @@
 'use client'
 import { Dialog, Toast } from 'antd-mobile'
-import DOMPurify from 'dompurify'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
@@ -8,6 +7,7 @@ import { VisitorSteps } from '@/components/visitor-steps'
 import { admittanceNoticeHtml, getAdmittanceNotice, getVisitorOpenId, searchReceptionist } from '@/features/visitor/api'
 import { useVisitorFlow } from '@/features/visitor/flow-store'
 import { getTenantConfig } from '@/lib/config/tenant'
+import { sanitizeRichText } from '@/lib/sanitize'
 import { stripSpaces } from '@/lib/text'
 import { useMounted } from '@/lib/use-mounted'
 import { redirectToWechatOAuth } from '@/lib/wechat/oauth'
@@ -48,7 +48,7 @@ function VisitorEntryInner() {
             content: (
               <div
                 className="max-h-[50dvh] overflow-y-auto text-sm leading-6"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(html) }}
               />
             ),
             confirmText: '知道了',
