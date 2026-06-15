@@ -5,17 +5,18 @@ import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ApprovalTimeline } from '@/components/approval-timeline'
+import { StatusIcon, type StatusIconName } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { codePanelState, type CodePanelState } from '@/features/backlog/code-status'
 import { getReleaseDetailForCode } from '@/features/backlog/api'
 import { InfoRow, toImageSrc } from '@/features/good-release/detail-blocks'
 
-const PANEL_COPY: Record<Exclude<CodePanelState, 'qr' | 'none'>, { icon: string; text: string; danger?: boolean }> = {
-  expired: { icon: '⌛️', text: '放行码已过期', danger: true },
-  reviewing: { icon: '⏳', text: '放行码仍在审批中，请稍后' },
-  rejected: { icon: '🚫', text: '审核失败', danger: true },
-  left: { icon: '✅', text: '已出厂' },
-  denied: { icon: '🚫', text: '拒绝放行', danger: true },
+const PANEL_COPY: Record<Exclude<CodePanelState, 'qr' | 'none'>, { iconName: StatusIconName; iconClass: string; text: string; danger?: boolean }> = {
+  expired: { iconName: 'expired', iconClass: 'text-[#d83b36]', text: '放行码已过期', danger: true },
+  reviewing: { iconName: 'pending', iconClass: 'text-mid', text: '放行码仍在审批中，请稍后' },
+  rejected: { iconName: 'denied', iconClass: 'text-[#d83b36]', text: '审核失败', danger: true },
+  left: { iconName: 'success', iconClass: 'text-[#16a673]', text: '已出厂' },
+  denied: { iconName: 'denied', iconClass: 'text-[#d83b36]', text: '拒绝放行', danger: true },
 }
 
 /** 免登录放行条（门岗扫码/核验入口；query id）。 */
@@ -68,9 +69,10 @@ function CodePageInner() {
               </>
             ) : state !== 'none' ? (
               <>
-                <span aria-hidden className="text-5xl">
-                  {PANEL_COPY[state].icon}
-                </span>
+                <StatusIcon
+                  name={PANEL_COPY[state].iconName}
+                  className={`h-12 w-12 ${PANEL_COPY[state].iconClass}`}
+                />
                 <p className={`mt-2 text-[15px] font-bold ${PANEL_COPY[state].danger ? 'text-[#d83b36]' : ''}`}>
                   {PANEL_COPY[state].text}
                 </p>

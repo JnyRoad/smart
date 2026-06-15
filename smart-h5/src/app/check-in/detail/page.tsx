@@ -1,6 +1,7 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
 import { ErrorBlock, PullToRefresh, SpinLoading, Toast } from 'antd-mobile'
+import { StatusIcon } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { SegmentTabs } from '@/components/segment-tabs'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
@@ -17,7 +18,7 @@ function featureOk(code: number | undefined): boolean {
 function FeatureRow({ label, ok, desc }: { label: string; ok: boolean; desc?: string }) {
   return (
     <div className="flex items-center gap-2 text-[13px]">
-      <span aria-hidden>{ok ? '✅' : '❌'}</span>
+      <StatusIcon name={ok ? 'success' : 'failure'} className={`h-4.5 w-4.5 ${ok ? 'text-[#16a673]' : 'text-[#d83b36]'}`} />
       <span className="text-mid">{label}</span>
       <span>{desc}</span>
     </div>
