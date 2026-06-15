@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearQuerySession,
+  fetchApprovalProgress,
   fetchApplyDetail,
   fetchMyApplies,
   getQuerySession,
@@ -40,7 +41,11 @@ describe('mock 开关', () => {
     expect(fetchMock).not.toHaveBeenCalled()
     expect(res.code).toBe(0)
     expect(res.data?.queryToken).toBeTruthy()
+    expect(res.data?.maskedName).toBe('李**')
+    expect(res.data?.maskedMobile).toBe('137****1234')
     expect(res.data?.records.length).toBeGreaterThanOrEqual(5)
+    expect(res.data?.records[0]?.receptionistName).toBe('王**')
+    expect(res.data?.records[0]?.currentNode).toBe('部门负责人 张** 审批中')
   })
 
   it('开关开：sendRecordSms 仍复用访客申请短信 GET', async () => {
@@ -56,6 +61,23 @@ describe('mock 开关', () => {
     setMockFlag(true)
     const res = await fetchApplyDetail('mock-pending')
     expect(res.data?.applyStatus).toBe('PENDING')
+  })
+
+  it('开关开：详情姓名不脱敏，手机号继续脱敏', async () => {
+    setMockFlag(true)
+    const res = await fetchApplyDetail('mock-pending')
+
+    expect(res.data?.receptionistName).toBe('王强')
+    expect(res.data?.visitorName).toBe('李明')
+    expect(res.data?.visitorPhone).toBe('137****1234')
+    expect(res.data?.fellows.map((f) => f.name)).toEqual(['赵六', '周燕'])
+  })
+
+  it('开关开：审批进度姓名不脱敏', async () => {
+    setMockFlag(true)
+    const res = await fetchApprovalProgress('mock-pending')
+
+    expect(res.data?.nodes.map((node) => node.approverName)).toEqual(['王强', '张三'])
   })
 
   it('开关关：listMyApply 走真实 POST', async () => {
