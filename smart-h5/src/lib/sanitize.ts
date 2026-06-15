@@ -1,4 +1,4 @@
-import DOMPurify from 'dompurify'
+import createDOMPurify from 'dompurify'
 
 /**
  * 富文本白名单（纵深防御）。
@@ -80,17 +80,33 @@ const ALLOWED_ATTR = [
   'rowspan',
 ] as const
 
-// wangEditor 的链接固定带 target="_blank" 但不带 rel；给这类链接补上
-// rel="noopener noreferrer"，堵住反向 tabnabbing（新开页通过 window.opener 反控原页）。
-DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-  if (node instanceof Element && node.getAttribute('target') === '_blank') {
-    node.setAttribute('rel', 'noopener noreferrer')
+let browserPurifier: ReturnType<typeof createDOMPurify> | null = null
+
+function getBrowserPurifier(): ReturnType<typeof createDOMPurify> | null {
+  if (typeof window === 'undefined') return null
+
+  if (!browserPurifier) {
+    browserPurifier = createDOMPurify(window)
+
+    // wangEditor 的链接固定带 target="_blank" 但不带 rel；给这类链接补上
+    // rel="noopener noreferrer"，堵住反向 tabnabbing（新开页通过 window.opener 反控原页）。
+    browserPurifier.addHook('afterSanitizeAttributes', (node) => {
+      if (node instanceof window.Element && node.getAttribute('target') === '_blank') {
+        node.setAttribute('rel', 'noopener noreferrer')
+      }
+    })
   }
-})
+
+  return browserPurifier
+}
 
 /** 用统一白名单清洗富文本，返回安全 HTML 字符串。 */
 export function sanitizeRichText(html: string): string {
-  return DOMPurify.sanitize(html, {
+  const purifier = getBrowserPurifier()
+  // SSR / prerender 阶段没有浏览器 DOM，不能输出未清洗的 HTML；客户端挂载后再渲染清洗结果。
+  if (!purifier) return ''
+
+  return purifier.sanitize(html, {
     ALLOWED_TAGS: [...ALLOWED_TAGS],
     ALLOWED_ATTR: [...ALLOWED_ATTR],
   })

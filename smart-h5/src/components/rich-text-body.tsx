@@ -2,11 +2,13 @@
 import { ImageViewer } from 'antd-mobile'
 import { useMemo } from 'react'
 import { sanitizeRichText } from '@/lib/sanitize'
+import { useMounted } from '@/lib/use-mounted'
 
 /** Sanitized rich-text renderer with a fullscreen viewer for embedded images. */
 export function RichTextBody({ html }: { html: string }) {
+  const mounted = useMounted()
   // 统一走 sanitize 白名单，避免与访客须知两处配置漂移。
-  const sanitized = useMemo(() => sanitizeRichText(html), [html])
+  const sanitized = useMemo(() => (mounted ? sanitizeRichText(html) : ''), [html, mounted])
 
   function handleClick(event: React.MouseEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement
