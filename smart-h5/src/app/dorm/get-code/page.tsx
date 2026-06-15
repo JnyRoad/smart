@@ -1,14 +1,13 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { Dialog, ErrorBlock, Toast } from 'antd-mobile'
+import { Dialog, ErrorBlock } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { FaceUpload } from '@/components/face-upload'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { refreshLockPwd } from '@/features/dorm/api'
-import { resolveLockRefreshFacePic } from '@/features/dorm/lock-refresh'
+import { LockFaceCamera } from '@/features/dorm/lock-face-camera'
 
 /** Regenerates the door-lock code after an on-device face check. */
 export default function GetCodePage() {
@@ -70,20 +69,7 @@ export default function GetCodePage() {
         <h2 className="text-[17px] font-bold">刷新动态码</h2>
         <p className="text-[13px] text-mid">需完成人脸识别</p>
 
-        <FaceUpload
-          mode="face"
-          value={facePic ? 'uploaded' : ''}
-          onChange={() => {}}
-          onUploaded={(raw, uploadedBase64) => {
-            const base64 = resolveLockRefreshFacePic(raw, uploadedBase64)
-            if (base64) {
-              setFacePic(base64)
-            } else {
-              Toast.show('人脸比对结果异常，请重试')
-            }
-          }}
-          label="请拍照"
-        />
+        <LockFaceCamera onCaptured={setFacePic} />
 
         {facePic ? (
           <>
