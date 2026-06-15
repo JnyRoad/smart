@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { ApprovalTimeline } from '@/components/approval-timeline'
+import { StatusIcon } from '@/components/app-icon'
 import { ImageListUpload } from '@/components/image-list-upload'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
@@ -125,8 +126,8 @@ function ReleaseLiveApprovalDetailInner() {
                 {info.facePic ? (
                   <Image src={toImageSrc(info.facePic)} alt="人脸照片" fill unoptimized className="object-cover" />
                 ) : (
-                  <span className="grid h-full w-full place-items-center text-3xl" aria-hidden>
-                    👤
+                  <span className="grid h-full w-full place-items-center text-brand" aria-hidden>
+                    <StatusIcon name="user" className="h-8 w-8" />
                   </span>
                 )}
               </div>

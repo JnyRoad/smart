@@ -1,6 +1,7 @@
 'use client'
 import Image from 'next/image'
 import type { ReactNode } from 'react'
+import { StatusIcon } from '@/components/app-icon'
 import type { QrPanelState } from './release-status'
 
 export function InfoRow({ label, value }: { label: string; value?: ReactNode }) {
@@ -33,17 +34,13 @@ export function QrPanel({
     <div className="flex flex-col items-center rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(89,87,87,0.10)]">
       {state === 'expired' && (
         <>
-          <span aria-hidden className="text-5xl">
-            ⌛️
-          </span>
+          <StatusIcon name="expired" className="h-12 w-12 text-[#d83b36]" />
           <p className="mt-2 text-[15px] font-bold text-[#d83b36]">放行码已过期</p>
         </>
       )}
       {state === 'left' && (
         <>
-          <span aria-hidden className="text-5xl">
-            ✅
-          </span>
+          <StatusIcon name="success" className="h-12 w-12 text-[#16a673]" />
           <p className="mt-2 text-[15px] font-bold">已出厂</p>
         </>
       )}

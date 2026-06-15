@@ -1,6 +1,7 @@
 'use client'
 import { ErrorBlock } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
+import { StatusIcon } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { useWorkDraft } from '@/features/good-release/work-draft'
@@ -35,17 +36,17 @@ export default function WorkGoodsPage() {
                       type="button"
                       aria-label={`编辑${good.wpmc}`}
                       onClick={() => router.push(`/good-release/work/goods/edit?index=${index}`)}
-                      className="text-sm text-brand"
+                      className="grid h-7 w-7 place-items-center rounded-full text-brand"
                     >
-                      ✏️
+                      <StatusIcon name="edit" className="h-5 w-5" />
                     </button>
                     <button
                       type="button"
                       aria-label={`删除${good.wpmc}`}
                       onClick={() => removeGood(index)}
-                      className="text-sm text-[#d83b36]"
+                      className="grid h-7 w-7 place-items-center rounded-full text-[#d83b36]"
                     >
-                      🗑
+                      <StatusIcon name="delete" className="h-5 w-5" />
                     </button>
                   </span>
                 </div>

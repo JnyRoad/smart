@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ApprovalTimeline } from '@/components/approval-timeline'
+import { StatusIcon } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getReleaseDetail } from '@/features/good-release/api'
@@ -52,8 +53,8 @@ function GoodReleaseLiveDetailInner() {
                 {info.facePic ? (
                   <Image src={toImageSrc(info.facePic)} alt="人脸照片" fill unoptimized className="object-cover" />
                 ) : (
-                  <span className="grid h-full w-full place-items-center text-3xl" aria-hidden>
-                    👤
+                  <span className="grid h-full w-full place-items-center text-brand" aria-hidden>
+                    <StatusIcon name="user" className="h-8 w-8" />
                   </span>
                 )}
               </div>

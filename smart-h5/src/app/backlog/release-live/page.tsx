@@ -2,6 +2,7 @@
 import { ErrorBlock, InfiniteScroll, PullToRefresh, SpinLoading, Toast } from 'antd-mobile'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
+import { StatusIcon } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getLiveApprovalPage, type ApprovalSearch, type LiveApprovalItem } from '@/features/backlog/api'
@@ -111,7 +112,8 @@ function ReleaseLiveApprovalInner() {
             onClick={() => setSearchVisible(true)}
             className="flex h-11 w-full items-center justify-center rounded-[12px] bg-surface text-sm font-bold text-mid"
           >
-            🔍 搜 索
+            <StatusIcon name="search" className="mr-1.5 h-5 w-5" />
+            搜索
           </button>
         </div>
       )}

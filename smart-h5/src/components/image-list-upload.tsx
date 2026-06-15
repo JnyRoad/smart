@@ -2,6 +2,7 @@
 import { Dialog, ImageViewer, SpinLoading, Toast } from 'antd-mobile'
 import Image from 'next/image'
 import { useRef, useState } from 'react'
+import { StatusIcon } from './app-icon'
 // checkFace is the gateway's generic photo-upload endpoint; it lives under the
 // visitor module for historical (legacy path) reasons only.
 import { checkFace } from '@/features/visitor/api'
@@ -121,7 +122,7 @@ export function ImageListUpload({
               onClick={() => void requestRemove(index)}
               className="absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full bg-[#d83b36] text-xs text-white"
             >
-              ✕
+              <StatusIcon name="close" className="h-3.5 w-3.5" />
             </button>
           </div>
         ))}
