@@ -18,6 +18,32 @@ async function mockBaseInfo(page: Page) {
   )
 }
 
+async function mockFrontCamera(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => new MediaStream(),
+      },
+    })
+    Object.defineProperty(HTMLVideoElement.prototype, 'play', {
+      configurable: true,
+      value: async function () {
+        Object.defineProperty(this, 'videoWidth', { configurable: true, get: () => 320 })
+        Object.defineProperty(this, 'videoHeight', { configurable: true, get: () => 240 })
+      },
+    })
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      configurable: true,
+      value: () => ({ drawImage() {} }),
+    })
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
+      configurable: true,
+      value: () => 'data:image/jpeg;base64,camera-raw-base64',
+    })
+  })
+}
+
 const QUESTIONS = [
   { questionId: 1, questionTitle: '如何申请宿舍？' },
   { questionId: 2, questionTitle: '门禁卡丢失怎么办？' },
@@ -178,15 +204,20 @@ test('刷新动态码：人脸比对 → 生成 → 回门锁页', async ({ page
   await seedLogin(page)
   await injectTestKey(page)
   await mockBaseInfo(page)
-  await page.route('**/algorithm/out/face/cut', (route) =>
-    route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } }),
-  )
+  await mockFrontCamera(page)
+  let cutBody: Record<string, unknown> | undefined
+  let checkFaceBody: Record<string, unknown> | undefined
+  await page.route('**/algorithm/out/face/cut', async (route) => {
+    cutBody = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } })
+  })
   // Real checkFace returns data.photoId and no resultData.base64; lock refresh must reuse uploaded base64.
-  await page.route('**/app/wechat/visit/checkFace', (route) =>
-    route.fulfill({
+  await page.route('**/app/wechat/visit/checkFace', async (route) => {
+    checkFaceBody = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
       json: { code: 0, message: 'success', data: { photoId: 'p-lock' } },
-    }),
-  )
+    })
+  })
   // 哨兵 value 不能被当成 photoId 去回查网关图片（坏图回归防护）。
   let brokenImg = false
   await page.route('**/platform/image/view/**', (route) => {
@@ -203,12 +234,12 @@ test('刷新动态码：人脸比对 → 生成 → 回门锁页', async ({ page
   )
 
   await page.goto('/dorm/get-code')
-  await page.setInputFiles('[data-testid=face-upload-input]', {
-    name: 'face.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from('89504e470d0a1a0a', 'hex'),
-  })
+  await expect(page.locator('input[type="file"]')).toHaveCount(0)
+  await page.getByRole('button', { name: '打开摄像头' }).click()
+  await page.getByRole('button', { name: '拍照识别' }).click()
   await expect(page.getByText('人脸对比成功')).toBeVisible()
+  expect(cutBody).toEqual({ imageData: 'camera-raw-base64' })
+  expect(checkFaceBody).toEqual({ visitorPhoto: 'cut-base64' })
   expect(brokenImg).toBe(false)
   await page.getByRole('button', { name: '生成动态码' }).click()
   await expect(page.getByText('刷新动态码成功！')).toBeVisible()
