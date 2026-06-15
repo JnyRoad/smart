@@ -74,6 +74,72 @@ const NODE_DOTS = {
   rejected: 'bg-[#d83b36]',
 }
 
+const APPROVAL_COMMENT_VISIBLE_SELECTORS = 'img, table, ul, ol'
+const APPROVAL_COMMENT_STRUCTURE_SELECTORS = 'table, thead, tbody, tfoot, tr, td, th, ul, ol, li'
+
+function isWhitespaceTextNode(node: ChildNode): boolean {
+  return node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === ''
+}
+
+function isBreakNode(node: ChildNode): boolean {
+  return node instanceof HTMLBRElement
+}
+
+function isEmptyElementNode(node: ChildNode): boolean {
+  if (!(node instanceof HTMLElement)) return false
+  if (node instanceof HTMLBRElement) return true
+
+  const hasText = (node.textContent ?? '').trim().length > 0
+  const hasMedia = node.matches(APPROVAL_COMMENT_VISIBLE_SELECTORS) || node.querySelector(APPROVAL_COMMENT_VISIBLE_SELECTORS) !== null
+  return !hasText && !hasMedia
+}
+
+function isBlankLineNode(node: ChildNode): boolean {
+  return isWhitespaceTextNode(node) || isBreakNode(node) || isEmptyElementNode(node)
+}
+
+function trimBoundaryBlankLines(parent: ParentNode) {
+  while (parent.firstChild && isBlankLineNode(parent.firstChild)) {
+    parent.firstChild.remove()
+  }
+  while (parent.lastChild && isBlankLineNode(parent.lastChild)) {
+    parent.lastChild.remove()
+  }
+}
+
+function compactApprovalCommentChildren(parent: ParentNode) {
+  if (parent instanceof HTMLElement && parent.matches(APPROVAL_COMMENT_STRUCTURE_SELECTORS)) return
+
+  Array.from(parent.childNodes).forEach((child) => {
+    if (child instanceof HTMLElement) compactApprovalCommentChildren(child)
+  })
+
+  trimBoundaryBlankLines(parent)
+
+  let previousBreak = false
+  Array.from(parent.childNodes).forEach((child) => {
+    if (isWhitespaceTextNode(child)) return
+    if (isBreakNode(child)) {
+      if (previousBreak) {
+        child.remove()
+        return
+      }
+      previousBreak = true
+      return
+    }
+    previousBreak = false
+  })
+
+  trimBoundaryBlankLines(parent)
+}
+
+function compactApprovalCommentHtml(html: string): string {
+  const template = document.createElement('template')
+  template.innerHTML = html
+  compactApprovalCommentChildren(template.content)
+  return template.innerHTML
+}
+
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-4 border-b border-border-soft py-2.5 last:border-b-0">
@@ -86,7 +152,7 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 function ApprovalComment({ html }: { html: string }) {
   const mounted = useMounted()
   // 审批意见可能来自 OA/公众号富文本，必须先过统一白名单再渲染，避免把脚本事件带进 H5。
-  const sanitized = useMemo(() => (mounted ? sanitizeRichText(html) : ''), [html, mounted])
+  const sanitized = useMemo(() => (mounted ? compactApprovalCommentHtml(sanitizeRichText(html)) : ''), [html, mounted])
   if (!sanitized) return null
 
   return (
