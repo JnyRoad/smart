@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LockFaceCamera } from './lock-face-camera'
@@ -31,7 +31,15 @@ vi.mock('antd-mobile', async () => {
 const stopTrack = vi.fn()
 const getUserMedia = vi.fn()
 const drawImage = vi.fn()
+const translate = vi.fn()
+const scale = vi.fn()
 const toDataURL = vi.fn(() => 'data:image/jpeg;base64,camera-raw-base64')
+
+function firstCallOrder(callOrder: number[]): number {
+  const order = callOrder[0]
+  expect(order).toBeDefined()
+  return order as number
+}
 
 beforeEach(() => {
   visitorApiMock.faceCut.mockResolvedValue({ code: 0, data: 'cut-face-base64' })
@@ -39,6 +47,8 @@ beforeEach(() => {
   stopTrack.mockClear()
   getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: stopTrack }] })
   drawImage.mockClear()
+  translate.mockClear()
+  scale.mockClear()
   toDataURL.mockClear()
 
   Object.defineProperty(navigator, 'mediaDevices', {
@@ -59,7 +69,7 @@ beforeEach(() => {
   })
   Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
     configurable: true,
-    value: () => ({ drawImage }),
+    value: () => ({ drawImage, scale, translate }),
   })
   Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
     configurable: true,
@@ -68,12 +78,39 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  cleanup()
   visitorApiMock.faceCut.mockReset()
   visitorApiMock.checkFace.mockReset()
   getUserMedia.mockReset()
 })
 
 describe('LockFaceCamera', () => {
+  it('shows a large portrait camera stage and keeps front-camera frames mirrored', async () => {
+    render(React.createElement(LockFaceCamera, { onCaptured: vi.fn() }))
+
+    const stage = screen.getByTestId('lock-face-camera-stage')
+    expect(stage.className).toContain('w-full')
+    expect(stage.className).toContain('max-w-[390px]')
+    expect(stage.className).toContain('aspect-[3/4]')
+
+    fireEvent.click(screen.getByTestId('lock-face-camera-start'))
+
+    const video = await screen.findByTestId('lock-face-camera-video')
+    await waitFor(() => expect(video.className).toContain('scale-x-[-1]'))
+
+    fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
+
+    await waitFor(() => expect(translate).toHaveBeenCalledWith(320, 0))
+    expect(scale).toHaveBeenCalledWith(-1, 1)
+    expect(drawImage).toHaveBeenCalled()
+    expect(firstCallOrder(translate.mock.invocationCallOrder)).toBeLessThan(
+      firstCallOrder(scale.mock.invocationCallOrder),
+    )
+    expect(firstCallOrder(scale.mock.invocationCallOrder)).toBeLessThan(
+      firstCallOrder(drawImage.mock.invocationCallOrder),
+    )
+  })
+
   it('uses front camera frames instead of a file picker for lock-code face verification', async () => {
     const onCaptured = vi.fn()
 

@@ -114,6 +114,9 @@ export function LockFaceCamera({ onCaptured }: { onCaptured: (facePic: string) =
       return
     }
 
+    // 前置摄像头按用户习惯做镜像预览，上传帧也保持同向，避免拍完后左右突然翻转。
+    context.translate(width, 0)
+    context.scale(-1, 1)
     context.drawImage(video, 0, 0, width, height)
     const photoDataUrl = canvas.toDataURL('image/jpeg', 0.9)
     const rawBase64 = toRawBase64(photoDataUrl)
@@ -167,15 +170,15 @@ export function LockFaceCamera({ onCaptured }: { onCaptured: (facePic: string) =
   }
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex w-full flex-col items-center gap-4">
       <div
-        className="relative grid h-48 w-48 place-items-center overflow-hidden rounded-xl border border-dashed border-light-gray bg-surface"
-        style={{ borderColor: 'var(--light-gray)' }}
+        data-testid="lock-face-camera-stage"
+        className="relative grid aspect-[3/4] w-full max-w-[390px] place-items-center overflow-hidden rounded-[20px] border border-black/10 bg-[#111] shadow-[0_24px_70px_rgba(0,0,0,0.18)]"
       >
         <video
           ref={videoRef}
           data-testid="lock-face-camera-video"
-          className={cameraReady && !preview ? 'h-full w-full object-cover' : 'hidden'}
+          className={cameraReady && !preview ? 'h-full w-full scale-x-[-1] object-cover' : 'hidden'}
           playsInline
           muted
         />
@@ -189,8 +192,21 @@ export function LockFaceCamera({ onCaptured }: { onCaptured: (facePic: string) =
             className="object-cover"
           />
         ) : cameraReady ? null : (
-          <span className="px-4 text-center text-xs text-weak">请打开摄像头拍摄正面人脸</span>
+          <span className="px-8 text-center text-[13px] leading-relaxed text-white/78">
+            请打开摄像头，将面部置于取景框内
+          </span>
         )}
+        {cameraReady && !preview ? (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <div
+              data-testid="lock-face-camera-guide"
+              className="h-[62%] w-[72%] rounded-[50%] border-2 border-white/85 shadow-[0_0_0_999px_rgba(0,0,0,0.22)]"
+            />
+            <div className="absolute bottom-5 rounded-full bg-black/42 px-4 py-1.5 text-xs text-white/88">
+              请保持正脸在框内
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {cameraReady ? (
