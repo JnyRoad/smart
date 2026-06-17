@@ -85,20 +85,21 @@ test('回调返回未绑定：重新发起 OAuth 跳绑定页', async ({ page })
   expect(decodeURIComponent(url.searchParams.get('redirect_uri') ?? '')).toContain('/login/badge')
 })
 
-test('绑定工号成功：重新发起 OAuth 完成登录', async ({ page }) => {
+test('绑定字母工号成功：重新发起 OAuth 完成登录', async ({ page }) => {
   await stubWechatOAuth(page)
   await page.route('**/app/wechat/xc/banging/badge', async (route) => {
     expect(route.request().postDataJSON()).toEqual({
       parkId: 5000021,
       code: 'code-bind',
-      badge: '100200',
+      badge: 'YT100200',
       lastCertNum: '123456',
     })
     await route.fulfill({ json: { code: 0, message: '绑定成功' } })
   })
 
   await page.goto('/login/badge?code=code-bind')
-  await page.getByPlaceholder('输入员工号').fill('100200')
+  await expect(page.getByPlaceholder('输入员工号')).not.toHaveAttribute('inputmode', /.+/)
+  await page.getByPlaceholder('输入员工号').fill('YT100200')
   await page.getByPlaceholder('输入身份证后六位').fill('123456')
   await page.getByRole('button', { name: '绑定' }).click()
 
