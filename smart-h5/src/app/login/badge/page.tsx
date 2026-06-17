@@ -74,7 +74,6 @@ function BadgeBindingInner() {
           <input
             id="badge"
             type="text"
-            inputMode="numeric"
             placeholder="输入员工号"
             value={badge}
             onChange={(e) => setBadge(e.target.value)}
