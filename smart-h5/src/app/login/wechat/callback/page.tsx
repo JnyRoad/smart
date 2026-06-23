@@ -2,6 +2,7 @@
 import { SpinLoading } from 'antd-mobile'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { exchangeWechatCode } from '@/features/auth/api'
 import { hasValidToken, saveSession } from '@/lib/auth/token'
 import { BADGE_BINDING_PATH, consumeWechatOAuthState, redirectToWechatOAuth } from '@/lib/wechat/oauth'
@@ -54,7 +55,7 @@ function CallbackInner() {
           setExchangeError(res.message ?? '登录失败')
         }
       } catch (err) {
-        setExchangeError(err instanceof Error ? err.message : '登录失败')
+        setExchangeError(toUserMessage(err, '登录失败'))
       }
     })()
   }, [code, state, router])

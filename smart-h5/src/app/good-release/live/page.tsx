@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { DatePicker, Picker, TextArea, Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { ImageListUpload } from '@/components/image-list-upload'
 import { PageShell } from '@/components/page-shell'
 import { PlateInput } from '@/components/plate-input'
@@ -104,7 +105,7 @@ export default function GoodReleaseLivePage() {
         Toast.show(res.message ?? res.msg ?? '提交失败')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '提交失败')
+      Toast.show(toUserMessage(error, '提交失败'))
     } finally {
       setSubmitting(false)
     }
