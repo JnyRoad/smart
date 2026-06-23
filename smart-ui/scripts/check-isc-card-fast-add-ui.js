@@ -23,19 +23,24 @@ const checks = [
     message: 'staff API must expose exact badge lookup for fast card binding'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/PageToolbar.vue',
     required: /ISC卡片快速维护/,
     message: 'page title must match the dedicated ISC card fast-add function'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/PageToolbar.vue',
     required: /先选择园区和员工，再刷卡或批量粘贴卡号；确认无误后提交，系统会自动同步到ISC。/,
     message: 'page description must explain the user workflow in concise user-facing copy'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/PageToolbar.vue',
     forbidden: /保存后沿用现有人员卡片链路自动生成ISC同步任务/,
     message: 'page description must not expose implementation details to users'
+  },
+  {
+    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    required: /<page-toolbar[\s\S]*:selected-park="selectedPark"[\s\S]*:staff-loading="staffLoading"[\s\S]*:submitting="submitting"[\s\S]*:can-submit="canSubmit"[\s\S]*:submit-count-text="submitCountText"[\s\S]*@search-staff="searchStaff"[\s\S]*@reset="resetPage"[\s\S]*@open-paste="openPasteDialog"[\s\S]*@submit="submitQueue"[\s\S]*@open-tasks="goTaskPage"/,
+    message: 'page must delegate top toolbar display to PageToolbar without dropping parent actions'
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
@@ -63,8 +68,8 @@ const checks = [
     message: 'park selector must be labeled as park only'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /:disabled="!selectedPark \|\| staffLoading"[\s\S]*@click="searchStaff"/,
+    file: 'src/views/platform/basic/isc_card_fast_add/PageToolbar.vue',
+    required: /:disabled="!selectedPark \|\| staffLoading"[\s\S]*\$emit\('search-staff'\)/,
     message: 'header staff search button must be disabled until a park is selected'
   },
   {
@@ -78,8 +83,8 @@ const checks = [
     message: 'staff keyword append search button must be disabled until a park is selected'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /:disabled="!selectedPark"[\s\S]*@click="openPasteDialog"/,
+    file: 'src/views/platform/basic/isc_card_fast_add/PageToolbar.vue',
+    required: /:disabled="!selectedPark"[\s\S]*\$emit\('open-paste'\)/,
     message: 'batch paste entry must be disabled until a park is selected'
   },
   {
