@@ -39,8 +39,13 @@ const checks = [
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /待提交队列[\s\S]*批量粘贴[\s\S]*读卡器|读卡器[\s\S]*待提交队列[\s\S]*批量粘贴/,
-    message: 'page must include scanner input, queue, and batch paste workflow'
+    required: /读卡器[\s\S]*<queue-table[\s\S]*:rows="queue"[\s\S]*@submit="submitQueue"[\s\S]*<paste-dialog|<queue-table[\s\S]*:rows="queue"[\s\S]*@submit="submitQueue"[\s\S]*读卡器[\s\S]*<paste-dialog/,
+    message: 'page must mount scanner input, queue table, and batch paste workflow'
+  },
+  {
+    file: 'src/views/platform/basic/isc_card_fast_add/QueueTable.vue',
+    required: /待提交队列[\s\S]*共\{\{ rows\.length \}\}条，可提交\{\{ readyCount \}\}条，异常\{\{ invalidCount \}\}条[\s\S]*卡号 \/ 结果[\s\S]*清除成功行[\s\S]*清空队列[\s\S]*提交队列/,
+    message: 'queue table component must keep queue summary, result column, and footer actions'
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
@@ -263,13 +268,13 @@ const checks = [
     message: 'batch paste dialog styles must be global under custom dialog class because the dialog is appended to body'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /:disabled="submitting"[\s\S]*removeFinishedRows[\s\S]*:disabled="submitting"[\s\S]*clearQueue/,
+    file: 'src/views/platform/basic/isc_card_fast_add/QueueTable.vue',
+    required: /:disabled="submitting"[\s\S]*remove-finished[\s\S]*:disabled="submitting"[\s\S]*\$emit\('clear'\)/,
     message: 'queue clear actions must be disabled while submitting cards'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /:disabled="submitting \|\| scope\.row\.status === 'saving'"[\s\S]*removeQueueRow/,
+    file: 'src/views/platform/basic/isc_card_fast_add/QueueTable.vue',
+    required: /:disabled="submitting \|\| scope\.row\.status === 'saving'"[\s\S]*\$emit\('remove-row',\s*scope\.\$index\)/,
     message: 'queue row remove action must be disabled while submitting cards'
   },
   {
