@@ -108,8 +108,8 @@ const checks = [
     message: 'park dropdown must list only enabled parks without enabled/disabled status labels'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /fetchStaffList[\s\S]*fetchIscStaffCards[\s\S]*saveIscStaffCard[\s\S]*deleteIscStaffCard[\s\S]*fetchIscParkConfigs/,
+    file: 'src/views/platform/basic/isc_card_fast_add/api.js',
+    required: /(?=[\s\S]*fetchList as fetchStaffList)(?=[\s\S]*fetchIscStaffCards)(?=[\s\S]*saveIscStaffCard)(?=[\s\S]*deleteIscStaffCard)(?=[\s\S]*fetchIscParkConfigs)/,
     message: 'page must reuse existing staff search, card list, card save, card delete, and park config APIs'
   },
   {
@@ -118,8 +118,8 @@ const checks = [
     message: 'park dropdown data source must include enabled ISC parks only'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /searchExactStaffByBadge\(badge[\s\S]*badges:\s*badge[\s\S]*query\.parkId\s*=\s*this\.selectedPark\.parkId/,
+    file: 'src/views/platform/basic/isc_card_fast_add/api.js',
+    required: /createStaffSearchQuery\(fieldName,\s*keyword,\s*park\)[\s\S]*query\.parkId = park\.parkId[\s\S]*searchStaffByBadge\(badge,\s*park\)[\s\S]*createStaffSearchQuery\('badges',\s*badge,\s*park\)/,
     message: 'badge search must use exact badge-list lookup scoped to the selected park instead of fuzzy paging auto-select'
   },
   {
@@ -134,7 +134,7 @@ const checks = [
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /loadStaffCards\(staffId\)\s*\{[\s\S]*const requestStaffId = staffId[\s\S]*fetchIscStaffCards\(requestStaffId\)[\s\S]*if\s*\(!this\.selectedStaff \|\| this\.selectedStaff\.id !== requestStaffId\)\s*\{[\s\S]*return[\s\S]*this\.staffCards = response\.data\.data \|\| \[\]/,
+    required: /loadStaffCards\(staffId\)\s*\{[\s\S]*const requestStaffId = staffId[\s\S]*fetchStaffCardRecords\(requestStaffId\)[\s\S]*if\s*\(!this\.selectedStaff \|\| this\.selectedStaff\.id !== requestStaffId\)\s*\{[\s\S]*return[\s\S]*this\.staffCards = cards/,
     message: 'staff card loading must ignore stale async responses after staff or park changes'
   },
   {
@@ -174,7 +174,7 @@ const checks = [
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /removeStaffCard\(row\)[\s\S]*deleteIscStaffCard\(row\.id\)[\s\S]*loadStaffCards\(this\.selectedStaff\.id\)[\s\S]*loadTaskList\(\)/,
+    required: /removeStaffCard\(row\)[\s\S]*deleteStaffCard\(row\.id\)[\s\S]*loadStaffCards\(this\.selectedStaff\.id\)[\s\S]*loadTaskList\(\)/,
     message: 'existing staff card table must support deleting a card and refreshing cards/tasks'
   },
   {
@@ -243,8 +243,8 @@ const checks = [
     message: 'batch paste confirm must use a stable row snapshot across async staff resolving'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /fetchStaffMap\(badges\)[\s\S]*badges:\s*uniqueBadges\.join\(' '\)/,
+    file: 'src/views/platform/basic/isc_card_fast_add/api.js',
+    required: /fetchStaffMapByBadges\(badges\)[\s\S]*badges:\s*uniqueBadges\.join\(' '\)/,
     message: 'batch paste staff lookup must send whitespace-separated badges because the backend splits by blank characters'
   },
   {
@@ -317,13 +317,17 @@ checks.forEach(check => {
 
 try {
   const page = readRequired('src/views/platform/basic/isc_card_fast_add/index.vue')
+  const pageApi = readRequired('src/views/platform/basic/isc_card_fast_add/api.js')
   const loadTaskListStart = page.indexOf('loadTaskList()')
-  const loadTaskListEnd = page.indexOf('fetchIscCardTaskList(query)', loadTaskListStart)
+  const loadTaskListEnd = page.indexOf('parkOptionLabel', loadTaskListStart)
   const loadTaskListBlock = loadTaskListStart >= 0 && loadTaskListEnd >= 0 ? page.slice(loadTaskListStart, loadTaskListEnd) : ''
-  if (!loadTaskListBlock) {
+  if (!loadTaskListBlock || !/fetchRecentCardTaskRecords\(\{[\s\S]*parkId:\s*this\.searchForm\.parkId[\s\S]*badge:\s*this\.selectedStaff && this\.selectedStaff\.badge/.test(loadTaskListBlock)) {
     failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: recent task loader is missing')
   }
-  if (/action:\s*[12]/.test(loadTaskListBlock)) {
+  if (!/fetchRecentCardTaskRecords\(\{ parkId,\s*badge \} = \{\}\)[\s\S]*fetchIscCardTaskList\(query\)/.test(pageApi)) {
+    failures.push('src/views/platform/basic/isc_card_fast_add/api.js: recent task service must call the existing ISC card task API')
+  }
+  if (/action:\s*[12]/.test(loadTaskListBlock) || /action:\s*[12]/.test(pageApi)) {
     failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: recent task loader must not hard-code card task action because delete tasks should be visible too')
   }
 
