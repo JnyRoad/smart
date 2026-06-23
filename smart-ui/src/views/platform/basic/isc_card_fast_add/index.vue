@@ -199,26 +199,12 @@
           </div>
         </div>
 
-        <div class="task-block">
-          <div class="panel-title">
-            <span>最近录卡结果 / 同步任务追踪</span>
-            <div>
-              <el-button size="mini" icon="el-icon-refresh" @click="loadTaskList">刷新</el-button>
-            </div>
-          </div>
-          <el-table v-loading="taskLoading" :data="taskTableData" size="mini" border empty-text="暂无同步任务">
-            <el-table-column prop="parkName" label="园区" width="110"></el-table-column>
-            <el-table-column prop="badge" label="工号" width="100"></el-table-column>
-            <el-table-column prop="name" label="姓名" width="90"></el-table-column>
-            <el-table-column prop="cardNo" label="卡 ID" width="140"></el-table-column>
-            <el-table-column label="任务动作" width="100">
-              <template slot-scope="scope">{{ taskActionText(scope.row) }}</template>
-            </el-table-column>
-            <el-table-column prop="remark" label="执行结果" min-width="220" show-overflow-tooltip></el-table-column>
-            <el-table-column prop="createTime" label="创建时间" width="165"></el-table-column>
-            <el-table-column prop="optUser" label="操作人" width="100"></el-table-column>
-          </el-table>
-        </div>
+        <task-table
+          :loading="taskLoading"
+          :rows="taskTableData"
+          :format-action="taskActionText"
+          @refresh="loadTaskList"
+        />
       </section>
     </el-scrollbar>
 
@@ -239,6 +225,7 @@
 <script>
 import { staffStatusInit } from '@/filters/index'
 import PasteDialog from './PasteDialog.vue'
+import TaskTable from './TaskTable.vue'
 import {
   deleteStaffCard,
   fetchIscParkRecords,
@@ -268,7 +255,8 @@ import {
 export default {
   name: 'iscCardFastAdd',
   components: {
-    PasteDialog
+    PasteDialog,
+    TaskTable
   },
   data() {
     return {
@@ -1027,8 +1015,7 @@ export default {
     padding: 12px 20px;
   }
 
-  .work-panel,
-  .task-block {
+  .work-panel {
     border: 1px solid #e8e9ed;
     border-radius: 4px;
     background: #fff;
@@ -1162,10 +1149,6 @@ export default {
   .queue-note {
     color: #999;
     font-size: 12px;
-  }
-
-  .task-block {
-    margin: 0 20px 20px;
   }
 
   ::v-deep .queue-row-error td {
