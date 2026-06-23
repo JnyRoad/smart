@@ -2,6 +2,7 @@
 import { Dialog, Toast } from 'antd-mobile'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
 import { VisitorSteps } from '@/components/visitor-steps'
 import { admittanceNoticeHtml, getAdmittanceNotice, getVisitorOpenId, searchReceptionist } from '@/features/visitor/api'
@@ -67,7 +68,7 @@ function VisitorEntryInner() {
         }
       } catch (error) {
         // Missing openId surfaces later at submit; do not block the form.
-        Toast.show(error instanceof Error ? error.message : '微信授权信息获取失败')
+        Toast.show(toUserMessage(error, '微信授权信息获取失败'))
       }
     })()
   }, [code, config.parkId, patchHost])
@@ -107,7 +108,7 @@ function VisitorEntryInner() {
         Toast.show(res.message ?? '查询被访人失败')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '查询被访人失败')
+      Toast.show(toUserMessage(error, '查询被访人失败'))
     } finally {
       setSubmitting(false)
     }

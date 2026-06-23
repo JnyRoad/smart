@@ -4,6 +4,7 @@ import { Dialog, SpinLoading, Toast } from 'antd-mobile'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo, unbindWechat } from '@/features/employee/api'
 import { AppTileIcon, type AppIconName } from '@/components/app-icon'
@@ -67,7 +68,7 @@ export default function MinePage() {
         Toast.show(res.message ?? '网络错误')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '网络错误')
+      Toast.show(toUserMessage(error, '网络错误'))
     }
   }
 

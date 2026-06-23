@@ -2,6 +2,7 @@
 import { Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { SmsCodeField } from '@/components/sms-code-field'
 import { VisitorSteps } from '@/components/visitor-steps'
 import {
@@ -152,7 +153,7 @@ export default function VisitorTelPage() {
         Toast.show(res.message ?? '提交失败')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '提交失败')
+      Toast.show(toUserMessage(error, '提交失败'))
     } finally {
       setSubmitting(false)
     }
