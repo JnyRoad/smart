@@ -1,5 +1,5 @@
 import { isEmail, isMobile, isFilterPassword } from './validate'
-const { isIentity } = './isIentity'
+import isIentity from './isIentity'
 
 /**
  * 非空验证
