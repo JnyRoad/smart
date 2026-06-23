@@ -83,8 +83,8 @@ const checks = [
     message: 'park selector placeholder must ask for park only'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /parkOptionLabel\(item\)\s*\{[\s\S]*return parkName[\s\S]*\}/,
+    file: 'src/views/platform/basic/isc_card_fast_add/flow-rules.js',
+    required: /function parkOptionLabel\(item\)[\s\S]*return parkName/,
     message: 'park option label must not append ISC platform names'
   },
   {
@@ -148,7 +148,7 @@ const checks = [
     message: 'name search must not default to the first fuzzy staff result'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/flow-rules.js',
     required: /\[0-9A-Z\]\{8,20\}[\s\S]*startsWith\(['"]999['"]\)|startsWith\(['"]999['"]\)[\s\S]*\[0-9A-Z\]\{8,20\}/,
     message: 'page must enforce ISC card number format and reject 999 virtual cards'
   },
@@ -183,7 +183,7 @@ const checks = [
     message: 'existing staff card table must show card sync status'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/flow-rules.js',
     required: /cardSyncStatusText\(row\)[\s\S]*待同步[\s\S]*已同步[\s\S]*同步失败[\s\S]*本地取消[\s\S]*cardSyncStatusType\(syncStatus\)/,
     message: 'page must render all known staff card sync statuses'
   },
@@ -288,7 +288,7 @@ const checks = [
     message: 'queue save failure must show backend business error message instead of generic failure text'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/flow-rules.js',
     required: /responseMessage\(response,\s*fallback\)[\s\S]*responseData\.msg[\s\S]*responseData\.message/,
     message: 'page must parse backend response msg/message from non-throwing business errors'
   },
