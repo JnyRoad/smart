@@ -250,4 +250,32 @@ describe('isc card fast add page flow', () => {
       }
     ])
   })
+
+  it('keeps missing staff invalid rows on the paste park snapshot while resolving', async () => {
+    let resolveStaffLookup
+    fetchStaffList.mockReturnValue(new Promise(resolve => {
+      resolveStaffLookup = resolve
+    }))
+    const wrapper = createPageWrapper()
+    const expectedPark = expectedParkFields()
+    await flushPromises()
+
+    wrapper.vm.searchForm.parkId = enabledPark.parkId
+    wrapper.vm.pasteText = '10299 1024388899'
+
+    const confirmPromise = wrapper.vm.confirmPaste()
+    wrapper.vm.searchForm.parkId = ''
+    resolveStaffLookup(createResponse({ records: [] }))
+    await confirmPromise
+
+    expect(wrapper.vm.queue.map(queueSummary)).toStrictEqual([
+      {
+        badge: '10299',
+        cardNo: '1024388899',
+        ...expectedPark,
+        status: 'invalid',
+        message: '未找到该工号对应员工'
+      }
+    ])
+  })
 })
