@@ -12,6 +12,7 @@ import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { updateExitStatus } from '@/features/backlog/api'
 import { exitProcessNodes } from '@/features/backlog/exit-process'
 import { getDormExitDetail, getDormExitScanDetail } from '@/features/dorm-services/api'
+import { confirmIrreversible } from '@/lib/confirm-irreversible'
 
 function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
   if (!value) return null
@@ -66,6 +67,10 @@ function DormExitApprovalDetailInner() {
     if (submitting) return
     if (!badge) return Toast.show('获取用户信息失败！')
     if (!info?.id) return Toast.show('获取退宿单据失败')
+    // 退宿审批通过/拒绝不可撤销，执行前二次确认（3/5 为拒绝，2/4 为通过）。
+    const isReject = nextStatus === 3 || nextStatus === 5
+    const message = isReject ? '确定拒绝该退宿申请？拒绝后不可撤销' : '确定通过该退宿申请？通过后不可撤销'
+    if (!(await confirmIrreversible(message))) return
     setSubmitting(true)
     try {
       const res = await updateExitStatus({ id: info.id, status: nextStatus, approveBadge: badge, remark })

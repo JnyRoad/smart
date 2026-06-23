@@ -13,6 +13,7 @@ import { getRepairDetail } from '@/features/dorm-services/api'
 import { repairDetailPhotos } from '@/features/dorm-services/repair-detail'
 import { RepairReplyList } from '@/features/dorm-services/repair-reply-list'
 import { toImageSrc } from '@/features/good-release/detail-blocks'
+import { confirmIrreversible } from '@/lib/confirm-irreversible'
 
 function InfoRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null
@@ -62,6 +63,8 @@ function RepairApprovalDetailInner() {
   async function acceptOrDecline(nextStatus: 1 | 2) {
     if (submitting) return
     if (!badge) return Toast.show('获取用户信息失败！')
+    // 不接单（2）不可撤销，执行前二次确认；接单（1）为正向流转不拦截。
+    if (nextStatus === 2 && !(await confirmIrreversible('确定不接单？不接单后不可撤销'))) return
     setSubmitting(true)
     try {
       const res = await updateRepairStatus({ approveBadge: badge, id, status: nextStatus, remark })
@@ -81,6 +84,8 @@ function RepairApprovalDetailInner() {
   async function reply(nextStatus: 3 | 4) {
     if (submitting) return
     if (!badge) return Toast.show('获取用户信息失败！')
+    // 无法维修（4）不可撤销，执行前二次确认；已安排维修（3）为正向流转不拦截。
+    if (nextStatus === 4 && !(await confirmIrreversible('确定无法维修？提交后不可撤销'))) return
     setSubmitting(true)
     try {
       const res = await replyRepair({ approveBadge: badge, id, result: remark, status: nextStatus })
