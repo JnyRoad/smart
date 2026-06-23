@@ -1,3 +1,5 @@
+import { baseTableOption } from './_base'
+
 const cardSyncEnabledText = (row, value) => {
   const syncValue = row && typeof row === 'object' ? row.cardSyncEnabled : value
   if (syncValue === null || syncValue === undefined || syncValue === '') {
@@ -14,16 +16,8 @@ const cardSyncEnabledText = (row, value) => {
 }
 
 export const tableOption = {
-  border: true,
-  index: true,
-  indexLabel: '序号',
-  stripe: false,
-  menuAlign: 'center',
+  ...baseTableOption,
   menuWidth: 320,
-  align: 'center',
-  editBtn: false,
-  delBtn: false,
-  addBtn: false,
   column: [
     {
       label: 'ID',
