@@ -258,41 +258,7 @@
       <!-- 修改备注 -->
       <dlgEditRemark :visible="simpleRemarkVisible" :row="simpleRemarkForm" @dlgdo="val => simpleRemarkVisible = val" @refresh="refreshList" />
       <!-- 非员工入住,编辑 -->
-      <el-dialog
-        title="编辑非员工入住"
-        class="dialog_form"
-        width="550px"
-        :visible.sync="editCheckInVisible"
-      >
-        <el-form
-          ref="editCheckInForm"
-          :model="editCheckInForm"
-          label-width="80px"
-          :rules="editCheckInRules"
-        >
-          <el-form-item label="工号" prop="staffBadge">
-            <el-input v-model="editCheckInForm.staffBadge" placeholder="请输入工号" clearable></el-input>
-          </el-form-item>
-          <el-form-item label="姓名" prop="staffName">
-            <el-input v-model="editCheckInForm.staffName" placeholder="请输入姓名" clearable></el-input>
-          </el-form-item>
-          <el-form-item label="性别" prop="staffSex">
-            <el-radio v-model="editCheckInForm.staffSex" :label="0">男</el-radio>
-            <el-radio v-model="editCheckInForm.staffSex" :label="1">女</el-radio>
-          </el-form-item>
-          <el-form-item label="职务" prop="jobName">
-            <el-input v-model="editCheckInForm.jobName" placeholder="请输入职务" clearable></el-input>
-          </el-form-item>
-        </el-form>
-        <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="resetEditCheckInForm('editCheckInForm')" plain>取 消</el-button>
-          <el-button
-            type="primary"
-            @click="handleEditCheckIn('editCheckInForm')"
-            :loading="editCheckInLoading"
-          >确 定</el-button>
-        </div>
-      </el-dialog>
+      <dlgEditCheckIn :visible="editCheckInVisible" :row="editCheckInForm" @dlgdo="val => editCheckInVisible = val" @refresh="refreshList" />
       <!-- 查看家属 -->
       <dlgFamily :row="familyStaff" ref="dlgfamily" @refresh="refreshList"/>
       <dlgDormChange :visible="dlg5Visible" :row="curDlg5Obj" @dlgdo="dlg5do" @dlgdoSuccess="dlg5doSuccess"/>
@@ -322,7 +288,6 @@
 import {
   fetchList,
   allList,
-  editCheckInDormitory,
   getLeaveCount,
   updateBedName,
   isLock,
@@ -342,6 +307,7 @@ import remarkList from './components/_remark_list'
 import dlgNotePre from "./components/dlg_note_pre"
 import dlgEditTime from "./components/dlg_edit_time"
 import dlgEditRemark from "./components/dlg_edit_remark"
+import dlgEditCheckIn from "./components/dlg_edit_check_in"
 
 export default {
   name: "bed_mng",
@@ -354,7 +320,8 @@ export default {
     remarkList,
     dlgNotePre,
     dlgEditTime,
-    dlgEditRemark
+    dlgEditRemark,
+    dlgEditCheckIn
   },
   data() {
     return {
@@ -366,7 +333,6 @@ export default {
       curDlg5Obj: {},
       familyStaff: undefined,
       editCheckInVisible: false,
-      editCheckInLoading: false,
       checkInLoading: false,
       exportLoading: false,
       exportFamilyLoading: false,
@@ -406,13 +372,6 @@ export default {
       timeForm: {
         id: "",
         createTime: ""
-      },
-      editCheckInRules: {
-        staffBadge: [
-          { required: true, message: "请输入工号", trigger: "blur" }
-        ],
-        staffName: [{ required: true, message: "请输入姓名", trigger: "blur" }],
-        staffSex: [{ required: true, message: "请选择性别", trigger: "change" }]
       },
       obj: {},
       page: {
@@ -869,7 +828,7 @@ export default {
       this.$refs.checkIn && this.$refs.checkIn.open()
     },
     editCheckInInfo(row, index) {
-      this.editCheckInVisible = true;
+      // 先填映射好的行数据再开弹窗，保证子组件 watch(visible) 读到的是最新 row
       this.editCheckInForm = {
         id: row.id,
         bedId: row.bedId,
@@ -878,48 +837,8 @@ export default {
         jobName: row.dorJobName,
         staffSex: row.sex
       };
+      this.editCheckInVisible = true;
     },
-    handleEditCheckIn(formName) {
-      //非员工入住，确认
-      let _this = this;
-      this.$refs[formName].validate(valid => {
-        if (valid) {
-          this.editCheckInLoading = true;
-          editCheckInDormitory(_this.editCheckInForm)
-            .then(response => {
-              const data = response.data.data;
-              _this.editCheckInLoading = false;
-              if (data) {
-                _this.editCheckInVisible = false;
-                this.$notify({
-                  title: "成功",
-                  message: "入住成功",
-                  type: "success",
-                  duration: 2000
-                });
-                _this.getList(_this.page, _this.params);
-              }else{
-                this.$notify({
-                  title: "失败",
-                  message: response.data.message,
-                  type: "error",
-                  duration: 2000
-                });
-              }
-            })
-            .catch(err => {
-              this.editCheckInLoading = false;
-            });
-        } else {
-          return false;
-        }
-      });
-    },
-    resetEditCheckInForm(formName) {
-      this.$refs[formName].resetFields();
-      this.editCheckInVisible = false;
-    },
-
     //点击离职人数
     showLeave() {
       this.searchForm = {
