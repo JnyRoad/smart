@@ -254,24 +254,7 @@
         </div>
       </el-dialog>
       <!-- 修改入住时间 -->
-      <el-dialog title="修改入住时间" class="dialog_form" width="400px" :visible.sync="timeVisible" :close-on-click-modal="false">
-        <el-form ref="timeForm" :model="timeForm" :rules="timeRules">
-          <el-form-item label="请选择入住时间" prop="createTime">
-            <el-date-picker
-              v-model="timeForm.createTime"
-              type="date"
-              format="yyyy-MM-dd"
-              value-format="yyyy-MM-dd"
-              :picker-options="timePickerOptions"
-              clearable
-            ></el-date-picker>
-          </el-form-item>
-        </el-form>
-        <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="timeVisible = false" plain>取 消</el-button>
-          <el-button type="primary" @click="handleEditTime('timeForm')" :loading="timeLoading">确 定</el-button>
-        </div>
-      </el-dialog>
+      <dlgEditTime :visible="timeVisible" :row="timeForm" @dlgdo="val => timeVisible = val" @refresh="refreshList" />
       <!-- 修改备注 -->
       <el-dialog title="修改备注" class="dialog_form" width="400px" :visible.sync="simpleRemarkVisible" :close-on-click-modal="false">
         <el-form ref="simpleRemarkForm" :model="simpleRemarkForm" :rules="simpleRemarkRules">
@@ -350,7 +333,6 @@ import {
   fetchList,
   allList,
   editCheckInDormitory,
-  updateDormitoryStaff,
   updateSimpleRemark,
   getLeaveCount,
   updateBedName,
@@ -369,6 +351,7 @@ import checkIn from './components/_check_in'
 import checkOut from './components/_check_out'
 import remarkList from './components/_remark_list'
 import dlgNotePre from "./components/dlg_note_pre"
+import dlgEditTime from "./components/dlg_edit_time"
 
 export default {
   name: "bed_mng",
@@ -379,7 +362,8 @@ export default {
     checkIn,
     checkOut,
     remarkList,
-    dlgNotePre
+    dlgNotePre,
+    dlgEditTime
   },
   data() {
     return {
@@ -398,11 +382,6 @@ export default {
       bedNameVisible: false,
       bedNameLoading: false,
       staffStatusData: enumStaffStatus,
-      timePickerOptions: {
-        disabledDate(time) {
-          return time.getTime() > Date.now();
-        }
-      },
       editCheckInForm: {
         id: "",
         bedId: "",
@@ -439,15 +418,9 @@ export default {
         ]
       },
       timeVisible: false,
-      timeLoading: false,
       timeForm: {
         id: "",
         createTime: ""
-      },
-      timeRules: {
-        createTime: [
-          { required: true, message: "请输入入住时间", trigger: "blur" }
-        ]
       },
       editCheckInRules: {
         staffBadge: [
@@ -668,24 +641,6 @@ export default {
         this.page.currentPage = 1;
         this.getList(this.page, this.params);
       }
-    },
-    handleEditTime(formName) {
-      this.$refs[formName].validate(valid => {
-        if (valid) {
-          this.timeLoading = true;
-          updateDormitoryStaff(this.timeForm)
-            .then(response => {
-              this.timeVisible = false;
-              this.timeLoading = false;
-              this.getList(this.page, this.params);
-            })
-            .catch(err => {
-              this.timeLoading = false;
-            });
-        } else {
-          return false;
-        }
-      });
     },
     handleEditSimpleRemark(formName){
       this.$refs[formName].validate(valid => {
