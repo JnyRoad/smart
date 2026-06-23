@@ -17,10 +17,14 @@ function renderGlobalError(reset = vi.fn()) {
 }
 
 describe('根级错误边界', () => {
-  it('自带 html 与 body 包裹', () => {
+  it('自带 html 与 body 包裹（验证组件输出而非 jsdom 宿主）', () => {
     renderGlobalError()
 
-    expect(document.querySelector('html body')).toBeTruthy()
+    // jsdom 初始文档本就有 html/body，断言它们恒真、证明不了组件。
+    // 组件给 <html> 设了 lang="zh-CN"，宿主默认没有；据此证明组件确实渲染了自己的 html，
+    // 再用 body 内的「重试」按钮证明 body 被渲染。
+    expect(document.documentElement.getAttribute('lang')).toBe('zh-CN')
+    expect(document.querySelector('body button')).toBeTruthy()
   })
 
   it('展示友好的中文降级文案，且不暴露原始 message', () => {
