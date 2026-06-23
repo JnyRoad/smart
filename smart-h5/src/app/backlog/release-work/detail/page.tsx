@@ -75,8 +75,8 @@ function ReleaseWorkApprovalDetailInner() {
       Toast.show('请至少上传一张照片')
       return
     }
-    // 通过/拒绝不可撤销，执行前二次确认。
-    const message = nextStatus === 5 ? '确定拒绝该申请？拒绝后不可撤销' : '确定通过该申请？通过后不可撤销'
+    // 放行/拒绝放行不可撤销，执行前二次确认（与 release-live 保安放行文案保持一致）。
+    const message = nextStatus === 5 ? '确定拒绝放行？拒绝后不可撤销' : '确定确认放行？放行后不可撤销'
     if (!(await confirmIrreversible(message))) return
     setSubmitting(true)
     try {
