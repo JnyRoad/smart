@@ -296,7 +296,7 @@
 </template>
 
 <script>
-import { fetchList as fetchStaffList, getStaffByBadge } from '@/api/platform/basic/staff_info'
+import { fetchList as fetchStaffList } from '@/api/platform/basic/staff_info'
 import { fetchIscStaffCards, saveIscStaffCard, deleteIscStaffCard, fetchIscParkConfigs } from '@/api/platform/basic/staff_info_detail'
 import { fetchList as fetchIscCardTaskList } from '@/api/platform/records/isc_card_task'
 import { staffStatusInit } from '@/filters/index'
@@ -307,6 +307,7 @@ const emptySearchForm = () => ({
 })
 
 const trimValue = value => (value === null || value === undefined ? '' : String(value).trim())
+const isStaffBadgeKeyword = value => /^[A-Za-z0-9]+$/.test(trimValue(value))
 
 export default {
   name: 'iscCardFastAdd',
@@ -462,17 +463,21 @@ export default {
         return
       }
       this.staffLoading = true
+      if (isStaffBadgeKeyword(keyword)) {
+        return this.searchExactStaffByBadge(keyword, true)
+      }
+      return this.searchStaffByName(keyword)
+    },
+    searchStaffByName(keyword) {
       const query = {
         current: 1,
-        size: 10
+        size: 10,
+        name: keyword
       }
-      if (/^\d+$/.test(keyword)) {
-        this.searchExactStaffByBadge(keyword)
-        return
-      } else {
-        query.name = keyword
+      if (this.selectedPark && this.selectedPark.parkId) {
+        query.parkId = this.selectedPark.parkId
       }
-      fetchStaffList(query).then(response => {
+      return fetchStaffList(query).then(response => {
         const data = response.data.data || {}
         const records = data.records || []
         this.staffCandidates = records
@@ -500,10 +505,22 @@ export default {
         this.staffLoading = false
       })
     },
-    searchExactStaffByBadge(badge) {
-      getStaffByBadge(badge).then(response => {
-        const staff = response.data.data
-        if (!staff) {
+    searchExactStaffByBadge(badge, fallbackToName) {
+      const query = {
+        current: 1,
+        size: 10,
+        badges: badge
+      }
+      if (this.selectedPark && this.selectedPark.parkId) {
+        query.parkId = this.selectedPark.parkId
+      }
+      return fetchStaffList(query).then(response => {
+        const data = response.data.data || {}
+        const records = data.records || []
+        if (!records.length) {
+          if (fallbackToName) {
+            return this.searchStaffByName(badge)
+          }
           this.selectedStaff = null
           this.staffCards = []
           this.staffCandidates = []
@@ -513,8 +530,17 @@ export default {
           })
           return
         }
-        this.staffCandidates = [staff]
-        this.selectStaff(staff)
+        this.staffCandidates = records
+        if (records.length === 1) {
+          this.selectStaff(records[0])
+          return
+        }
+        this.selectedStaff = null
+        this.staffCards = []
+        this.$message({
+          message: `找到${records.length}名候选员工，请手动选择`,
+          type: 'warning'
+        })
       }).finally(() => {
         this.staffLoading = false
       })

@@ -109,8 +109,8 @@ const checks = [
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /fetchStaffList[\s\S]*getStaffByBadge[\s\S]*fetchIscStaffCards[\s\S]*saveIscStaffCard[\s\S]*deleteIscStaffCard[\s\S]*fetchIscParkConfigs/,
-    message: 'page must reuse existing staff search, exact badge, card list, card save, card delete, and park config APIs'
+    required: /fetchStaffList[\s\S]*fetchIscStaffCards[\s\S]*saveIscStaffCard[\s\S]*deleteIscStaffCard[\s\S]*fetchIscParkConfigs/,
+    message: 'page must reuse existing staff search, card list, card save, card delete, and park config APIs'
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
@@ -119,8 +119,8 @@ const checks = [
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /searchExactStaffByBadge[\s\S]*getStaffByBadge/,
-    message: 'numeric badge search must use exact badge lookup instead of fuzzy paging auto-select'
+    required: /searchExactStaffByBadge\(badge[\s\S]*badges:\s*badge[\s\S]*query\.parkId\s*=\s*this\.selectedPark\.parkId/,
+    message: 'badge search must use exact badge-list lookup scoped to the selected park instead of fuzzy paging auto-select'
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
@@ -144,7 +144,7 @@ const checks = [
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    forbidden: /selectStaff\(exact\s*\|\|\s*records\[0\]\)|selectStaff\(records\[0\]\)/,
+    forbidden: /selectStaff\(exact\s*\|\|\s*records\[0\]\)/,
     message: 'name search must not default to the first fuzzy staff result'
   },
   {
@@ -338,6 +338,16 @@ try {
   }
   if (!/prop="dispatcherParkName"\s+label="ISC平台"[\s\S]*removeStaffCard/.test(cardListTable)) {
     failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: existing card table must keep ISC platform and expose delete action')
+  }
+
+  const nameSearchStart = page.indexOf('searchStaffByName(keyword)')
+  const nameSearchEnd = page.indexOf('searchExactStaffByBadge', nameSearchStart)
+  const nameSearchBlock = nameSearchStart >= 0 && nameSearchEnd >= 0 ? page.slice(nameSearchStart, nameSearchEnd) : ''
+  if (!nameSearchBlock) {
+    failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: name staff search method is missing')
+  }
+  if (/selectStaff\(records\[0\]\)/.test(nameSearchBlock)) {
+    failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: name search must not default to the first fuzzy staff result')
   }
 } catch (error) {
   failures.push(error.message)
