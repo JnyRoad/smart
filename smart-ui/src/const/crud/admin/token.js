@@ -1,4 +1,6 @@
 
+import { baseTableOption } from '../_base'
+
 const DIC = {
   vaild: [{
     label: '否',
@@ -9,19 +11,9 @@ const DIC = {
   }]
 }
 export const tableOption = {
-  border: false,
-  index: true,
+  ...baseTableOption,
   indexLabel: '序号',
-  stripe: true,
-  menuAlign: 'center',
-  align: 'center',
-  refreshBtn: false,
-  columnBtn: false,
-  searchBtn: false,
   viewBtn: true,
-  addBtn: false,
-  editBtn: false,
-  delBtn: false,
   column: [{
     label: '用户ID',
     prop: 'user_id',

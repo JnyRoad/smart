@@ -1,19 +1,11 @@
+import { baseTableOption } from '../_base'
+
 export const tableOption = {
-  border: false,
-  index: true,
+  ...baseTableOption,
   indexLabel: '序号',
-  stripe: true,
-  menuAlign: 'center',
   menuWidth: 150,
-  align: 'center',
-  refreshBtn: false,
-  columnBtn: false,
-  searchBtn: false,
   showClomnuBtn: false,
   searchSize: 'mini',
-  addBtn: false,
-  editBtn: false,
-  delBtn: false,
   viewBtn: true,
   props: {
     label: 'label',

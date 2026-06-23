@@ -1,6 +1,7 @@
 import { getDetails } from '@/api/admin/user'
 import { validatePwd } from "@/util/password";
 import { validatenull } from '@/util/validate'
+import { baseTableOption } from '../_base'
 var validateUsername = (rule, value, callback) => {
   getDetails(value).then(response => {
     if (window.boxType === 'edit') callback()
@@ -30,18 +31,8 @@ var validatePassWord = (rule, value, callback) => {
   }
 }
 export const tableOption = {
-  border: false,
-  index: true,
+  ...baseTableOption,
   indexLabel: '序号',
-  stripe: true,
-  menuAlign: 'center',
-  refreshBtn: false,
-  columnBtn: false,
-  searchBtn: false,
-  editBtn: false,
-  delBtn: false,
-  align: 'center',
-  addBtn: false,
   column: [{
     fixed: true,
     label: 'id',

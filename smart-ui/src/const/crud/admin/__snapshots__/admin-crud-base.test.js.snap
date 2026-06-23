@@ -1,0 +1,134 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`admin crud tableOption 顶层配置契约（抽 _base 前后必须一致） > client 1`] = `
+{
+  "addBtn": false,
+  "align": "center",
+  "border": false,
+  "columnBtn": false,
+  "delBtn": false,
+  "editBtn": false,
+  "index": true,
+  "indexLabel": "序号",
+  "menuAlign": "center",
+  "refreshBtn": false,
+  "searchBtn": false,
+  "stripe": true,
+  "viewBtn": true,
+}
+`;
+
+exports[`admin crud tableOption 顶层配置契约（抽 _base 前后必须一致） > dict 1`] = `
+{
+  "addBtn": false,
+  "align": "center",
+  "border": false,
+  "columnBtn": false,
+  "delBtn": false,
+  "editBtn": false,
+  "index": true,
+  "indexLabel": "序号",
+  "menuAlign": "center",
+  "refreshBtn": false,
+  "searchBtn": false,
+  "searchSize": "mini",
+  "showClomnuBtn": false,
+  "stripe": true,
+}
+`;
+
+exports[`admin crud tableOption 顶层配置契约（抽 _base 前后必须一致） > log 1`] = `
+{
+  "addBtn": false,
+  "align": "center",
+  "border": false,
+  "columnBtn": false,
+  "delBtn": false,
+  "editBtn": false,
+  "index": true,
+  "indexLabel": "序号",
+  "menuAlign": "center",
+  "menuWidth": 150,
+  "props": {
+    "label": "label",
+    "value": "value",
+  },
+  "refreshBtn": false,
+  "searchBtn": false,
+  "searchSize": "mini",
+  "showClomnuBtn": false,
+  "stripe": true,
+  "viewBtn": true,
+}
+`;
+
+exports[`admin crud tableOption 顶层配置契约（抽 _base 前后必须一致） > role 1`] = `
+{
+  "addBtn": false,
+  "align": "center",
+  "border": false,
+  "columnBtn": false,
+  "delBtn": false,
+  "editBtn": false,
+  "index": true,
+  "indexLabel": "序号",
+  "menuAlign": "center",
+  "menuWidth": 300,
+  "refreshBtn": false,
+  "searchBtn": false,
+  "stripe": true,
+  "viewBtn": true,
+}
+`;
+
+exports[`admin crud tableOption 顶层配置契约（抽 _base 前后必须一致） > sys-social-details 1`] = `
+{
+  "addBtn": false,
+  "align": "center",
+  "border": false,
+  "columnBtn": false,
+  "delBtn": false,
+  "editBtn": false,
+  "index": true,
+  "menuAlign": "center",
+  "refreshBtn": false,
+  "searchBtn": false,
+  "stripe": true,
+  "viewBtn": true,
+}
+`;
+
+exports[`admin crud tableOption 顶层配置契约（抽 _base 前后必须一致） > token 1`] = `
+{
+  "addBtn": false,
+  "align": "center",
+  "border": false,
+  "columnBtn": false,
+  "delBtn": false,
+  "editBtn": false,
+  "index": true,
+  "indexLabel": "序号",
+  "menuAlign": "center",
+  "refreshBtn": false,
+  "searchBtn": false,
+  "stripe": true,
+  "viewBtn": true,
+}
+`;
+
+exports[`admin crud tableOption 顶层配置契约（抽 _base 前后必须一致） > user 1`] = `
+{
+  "addBtn": false,
+  "align": "center",
+  "border": false,
+  "columnBtn": false,
+  "delBtn": false,
+  "editBtn": false,
+  "index": true,
+  "indexLabel": "序号",
+  "menuAlign": "center",
+  "refreshBtn": false,
+  "searchBtn": false,
+  "stripe": true,
+}
+`;
