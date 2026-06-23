@@ -17,6 +17,7 @@ Thumbs.db
 .claude/worktrees/
 **/.claude/worktrees/
 .superpowers/
+.codebase-memory/
 
 # Node dependencies and package-manager caches
 node_modules/
