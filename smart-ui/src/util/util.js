@@ -4,6 +4,8 @@ import request from '@/router/axios'
 // 以下对象/数组/类型判断类纯函数已拆分到 ./object，统一 re-export，
 // 保证 @/util/util 对外公共面与调用方完全不变。
 export { serialize, getObjType, deepClone, diff, isObjectValueEqual, isArrayFn } from './object'
+// 数值处理类纯函数已拆分到 ./number，同样 re-export。
+export { randomLenNum, formatNumber, getProportion, floatNumMinus } from './number'
 /**
  * 设置灰度模式
  */
@@ -189,15 +191,6 @@ export const findArray = (dic, value) => {
   return -1
 }
 /**
- * 生成随机len位数字
- */
-export const randomLenNum = (len, date) => {
-  let random = ''
-  random = Math.ceil(Math.random() * 100000000000000).toString().substr(0, len || 4)
-  if (date) random = random + Date.now()
-  return random
-}
-/**
  * 打开小窗口
  */
 export const openWindow = (url, title, w, h) => {
@@ -292,33 +285,6 @@ export function getDatePreDay(){
   return `${year}-${month}-${day}`;
 }
 
-
-export function formatNumber(num) {
-  let reg = /(?=(\B)(\d{3})+$)/g;
-  return num.toString().replace(reg, ",");
-};
-
-/**
- * 获取小数后两位的百分比,不带'%'
- */
-export function getProportion(num, sum) {
-  if (sum <= 0) {
-    sum = 1;
-  }
-  return Math.round((num / sum) * 100 * 100) / 100;
-};
-
-/**
- * 浮点数相减 arg1较大数
- */
-export function floatNumMinus(arg1,arg2) {
-  var r1,r2,m,n;
-  try{r1=arg1.toString().split(".")[1].length}catch(e){r1=0}
-  try{r2=arg2.toString().split(".")[1].length}catch(e){r2=0}
-  m=Math.pow(10,Math.max(r1,r2));
-  n=(r1>=r2)?r1:r2;
-  return ((arg1*m-arg2*m)/m).toFixed(n);
-};
 
 /**
  * 根据value 获取label值
