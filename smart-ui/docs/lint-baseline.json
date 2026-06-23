@@ -93,7 +93,6 @@
   "src/util/executeOnce.js": 5,
   "src/util/formRules.js": 9,
   "src/util/isIentity.js": 3,
-  "src/util/util.contract.test.js": 1,
   "src/util/util.js": 16,
   "src/util/validate.js": 6,
   "src/views/admin/client/index.vue": 33,

@@ -82,7 +82,8 @@
 
 ## 附：质量门禁现状（事实备注）
 
-- `pnpm check:lint-baseline`：**warning ratchet**——只拦"某文件 warning 增加 / 新文件带 warning"，不负责清零历史 25881 条。
-- **已知边界**：该守卫只统计 warning，不拦新增 eslint *error*；新 error 由 pre-commit 的 lint-staged（`eslint --fix` 非零即挡）兜底。若将来要把 error 也纳入 push 门禁，再单独扩展。
-- pre-push 钩子：`pnpm test` + `pnpm check:lint-baseline`（可被 `--no-verify` 绕过，属人为风险）。
-- CI 接线尚缺（远端为内网自建 git，平台待确认），见 `refactor-phase0-plan.md` Track B。
+- `pnpm check:lint-baseline`：**warning ratchet**——只拦"某文件 warning 增加 / 新文件带 warning"，不负责清零历史 25881 条。**这是权威闸门，任何人/CI 都可直接调用，不依赖 git 钩子是否激活。**
+- **本地 git 钩子当前不可靠（重要）**：本仓库是 monorepo，`smart-ui/` 是子目录而非独立 git 仓库；实测 `core.hooksPath` 指向主仓库 `smart/.git/hooks`（只有 `*.sample`，husky 未接管）。因此 `smart-ui/.husky/pre-commit`、`pre-push` 在该环境**不会自动触发**——只是 best-effort，**不能当作可靠安全网**。本地激活需在 `smart-ui/` 跑一次 `pnpm install`（husky `prepare`）并确认 `core.hooksPath` 指向 `smart-ui/.husky`；即便激活也能被 `--no-verify` 绕过。
+- **结论：可靠的强制必须放在 CI**——流水线里跑 `pnpm test` + `pnpm check:lint-baseline`。CI 接线尚缺（远端为内网自建 git，平台待确认），见 `refactor-phase0-plan.md` Track B。**CI 接好前，这两条命令需由提交者/评审者手动执行并在 PR 里贴结果。**
+- **已知边界 1**：守卫只统计 warning，不拦新增 eslint *error*（error 由 `pnpm lint` 体现）；若将来要把 error 纳入 push 门禁，再单独扩展。
+- **已知边界 2（warning 跨文件迁移）**：Phase 1 拆分把带 warning 的代码从旧文件搬到新文件时，旧文件 warning 减少（无害），新文件 0→N 会被守卫拦下（保守误报，方向正确）。处理：**人工确认确为搬运、未劣化后**再 `node scripts/check-lint-baseline.mjs --update` 重置基线，不要无脑 `--update`，否则会把本该清的 warning 一起固化。
