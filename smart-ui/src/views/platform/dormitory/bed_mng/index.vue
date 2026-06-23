@@ -539,8 +539,9 @@ export default {
       return formatCheckInDate(val)
     },
     editTime(row) {
-      this.timeVisible = true;
+      // 先填行数据再开弹窗，保证子组件 watch(visible) 读到的是最新 row（与 updateRemark/editCheckInInfo 一致）
       this.timeForm = { id: row.id, createTime: row.createTime };
+      this.timeVisible = true;
     },
     updateBedName(row){
       this.bedNameVisible = true
