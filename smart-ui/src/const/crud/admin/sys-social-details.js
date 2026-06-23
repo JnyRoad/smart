@@ -1,16 +1,8 @@
 
+import { baseTableOption } from '../_base'
+
 export const tableOption = {
-  border: false,
-  index: true,
-  stripe: true,
-  menuAlign: 'center',
-  align: 'center',
-  refreshBtn: false,
-  columnBtn: false,
-  searchBtn: false,
-  editBtn: false,
-  delBtn: false,
-  addBtn: false,
+  ...baseTableOption,
   viewBtn: true,
   column: [{
     label: 'ID',

@@ -1,18 +1,10 @@
+import { baseTableOption } from '../_base'
+
 export const tableOption = {
-  border: false,
-  index: true,
+  ...baseTableOption,
   indexLabel: '序号',
-  stripe: true,
-  menuAlign: 'center',
   menuWidth: 300,
-  refreshBtn: false,
-  columnBtn: false,
-  searchBtn: false,
-  editBtn: false,
-  delBtn: false,
-  align: 'center',
-  addBtn: false,
-  viewBtn:true,
+  viewBtn: true,
   column: [{
     label: '角色名称',
     prop: 'roleName',
