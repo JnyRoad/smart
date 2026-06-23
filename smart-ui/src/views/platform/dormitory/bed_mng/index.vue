@@ -256,17 +256,7 @@
       <!-- 修改入住时间 -->
       <dlgEditTime :visible="timeVisible" :row="timeForm" @dlgdo="val => timeVisible = val" @refresh="refreshList" />
       <!-- 修改备注 -->
-      <el-dialog title="修改备注" class="dialog_form" width="400px" :visible.sync="simpleRemarkVisible" :close-on-click-modal="false">
-        <el-form ref="simpleRemarkForm" :model="simpleRemarkForm" :rules="simpleRemarkRules">
-          <el-form-item label="请输入备注" prop="simpleRemark">
-            <el-input v-model="simpleRemarkForm.simpleRemark" placeholder="请输入" clearable></el-input>
-          </el-form-item>
-        </el-form>
-        <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="simpleRemarkVisible = false" plain>取 消</el-button>
-          <el-button type="primary" @click="handleEditSimpleRemark('simpleRemarkForm')" :loading="simpleRemarkLoading">确 定</el-button>
-        </div>
-      </el-dialog>
+      <dlgEditRemark :visible="simpleRemarkVisible" :row="simpleRemarkForm" @dlgdo="val => simpleRemarkVisible = val" @refresh="refreshList" />
       <!-- 非员工入住,编辑 -->
       <el-dialog
         title="编辑非员工入住"
@@ -333,7 +323,6 @@ import {
   fetchList,
   allList,
   editCheckInDormitory,
-  updateSimpleRemark,
   getLeaveCount,
   updateBedName,
   isLock,
@@ -352,6 +341,7 @@ import checkOut from './components/_check_out'
 import remarkList from './components/_remark_list'
 import dlgNotePre from "./components/dlg_note_pre"
 import dlgEditTime from "./components/dlg_edit_time"
+import dlgEditRemark from "./components/dlg_edit_remark"
 
 export default {
   name: "bed_mng",
@@ -363,7 +353,8 @@ export default {
     checkOut,
     remarkList,
     dlgNotePre,
-    dlgEditTime
+    dlgEditTime,
+    dlgEditRemark
   },
   data() {
     return {
@@ -407,15 +398,9 @@ export default {
         bedEmpty: undefined
       },
       simpleRemarkVisible: false,
-      simpleRemarkLoading: false,
       simpleRemarkForm: {
         id: "",
         simpleRemark: ""
-      },
-      simpleRemarkRules: {
-        simpleRemark: [
-          { required: true, message: "请输入备注", trigger: "blur" }
-        ]
       },
       timeVisible: false,
       timeForm: {
@@ -494,9 +479,9 @@ export default {
       this.dlg2Visible = val
     },
     updateRemark(row){
+      // 先填行数据再开弹窗，保证子组件 watch(visible) 读到的是最新 row
+      this.simpleRemarkForm = { id: row.id, simpleRemark: row.simpleRemark }
       this.simpleRemarkVisible = true
-      this.simpleRemarkForm.id = row.id
-      this.simpleRemarkForm.simpleRemark = row.simpleRemark
     },
     //添加备注
     remarkList(row){
@@ -641,27 +626,6 @@ export default {
         this.page.currentPage = 1;
         this.getList(this.page, this.params);
       }
-    },
-    handleEditSimpleRemark(formName){
-      this.$refs[formName].validate(valid => {
-        if (valid) {
-          this.simpleRemarkLoading = true;
-          updateSimpleRemark({
-            id: this.simpleRemarkForm.id,
-            remark: this.simpleRemarkForm.simpleRemark
-          })
-            .then(response => {
-              this.simpleRemarkVisible = false;
-              this.simpleRemarkLoading = false;
-              this.getList(this.page, this.params);
-            })
-            .catch(err => {
-              this.simpleRemarkLoading = false;
-            });
-        } else {
-          return false;
-        }
-      });
     },
     //导出
     export2Excel() {
