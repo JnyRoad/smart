@@ -606,17 +606,17 @@ export default {
         message: validation.message
       }
     },
-    buildInvalidQueueRow(badge, cardNo, message) {
+    buildInvalidQueueRow(badge, cardNo, message, park = this.selectedPark) {
       return {
         queueId: this.nextQueueId++,
         staffId: null,
         badge,
         name: '-',
         staffStatus: null,
-        parkId: this.selectedPark && this.selectedPark.parkId,
-        parkName: this.selectedPark && this.selectedPark.parkName,
-        dispatcherParkId: this.selectedPark && this.selectedPark.dispatcherParkId,
-        dispatcherParkName: this.selectedPark && this.selectedPark.dispatcherParkName,
+        parkId: park && park.parkId,
+        parkName: park && park.parkName,
+        dispatcherParkId: park && park.dispatcherParkId,
+        dispatcherParkName: park && park.dispatcherParkName,
         cardNo: trimValue(cardNo),
         status: 'invalid',
         message
@@ -748,12 +748,12 @@ export default {
         const staffMap = await this.fetchStaffMap(rows.map(item => item.badge).filter(Boolean))
         rows.forEach(item => {
           if (item.message) {
-            this.queue.push(this.buildInvalidQueueRow(item.badge, item.cardNo, item.message))
+            this.queue.push(this.buildInvalidQueueRow(item.badge, item.cardNo, item.message, pastePark))
             return
           }
           const staff = staffMap[String(item.badge)]
           if (!staff) {
-            this.queue.push(this.buildInvalidQueueRow(item.badge, item.cardNo, '未找到该工号对应员工'))
+            this.queue.push(this.buildInvalidQueueRow(item.badge, item.cardNo, '未找到该工号对应员工', pastePark))
             return
           }
           this.queue.push(this.buildQueueRow(staff, item.cardNo, pastePark))
