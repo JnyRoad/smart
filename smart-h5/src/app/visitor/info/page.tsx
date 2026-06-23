@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { DatePicker, Picker, Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { FaceUpload } from '@/components/face-upload'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
 import { VisitorSteps } from '@/components/visitor-steps'
@@ -174,7 +175,7 @@ export default function VisitorInfoPage() {
         Toast.show(res.message ?? '验证失败')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '验证失败')
+      Toast.show(toUserMessage(error, '验证失败'))
     } finally {
       setSubmitting(false)
     }

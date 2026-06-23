@@ -4,6 +4,7 @@ import { ErrorBlock, ImageViewer, SpinLoading, Toast } from 'antd-mobile'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { ApprovalTimeline } from '@/components/approval-timeline'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
@@ -53,7 +54,7 @@ function ReturnFactoryDetailInner() {
         Toast.show(res.message || res.msg || '网络错误')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '网络错误')
+      Toast.show(toUserMessage(error, '网络错误'))
     } finally {
       setConfirming(false)
     }

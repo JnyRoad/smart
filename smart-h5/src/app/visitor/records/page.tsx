@@ -2,6 +2,7 @@
 import { ErrorBlock, PullToRefresh, SpinLoading, Toast } from 'antd-mobile'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { PageShell } from '@/components/page-shell'
 import { SmsCodeField } from '@/components/sms-code-field'
 import {
@@ -178,7 +179,7 @@ function RecordsInner() {
         Toast.show(res.message ?? '验证失败')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '验证失败')
+      Toast.show(toUserMessage(error, '验证失败'))
     } finally {
       setSubmitting(false)
     }
