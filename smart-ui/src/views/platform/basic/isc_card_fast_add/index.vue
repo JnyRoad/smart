@@ -296,10 +296,17 @@
 </template>
 
 <script>
-import { fetchList as fetchStaffList } from '@/api/platform/basic/staff_info'
-import { fetchIscStaffCards, saveIscStaffCard, deleteIscStaffCard, fetchIscParkConfigs } from '@/api/platform/basic/staff_info_detail'
-import { fetchList as fetchIscCardTaskList } from '@/api/platform/records/isc_card_task'
 import { staffStatusInit } from '@/filters/index'
+import {
+  deleteStaffCard,
+  fetchIscParkRecords,
+  fetchRecentCardTaskRecords,
+  fetchStaffCardRecords,
+  fetchStaffMapByBadges,
+  saveStaffCard,
+  searchStaffByBadge as requestStaffByBadge,
+  searchStaffByName as requestStaffByName
+} from './api'
 import {
   emptySearchForm,
   trimValue,
@@ -406,30 +413,17 @@ export default {
   },
   methods: {
     loadIscParkOptions() {
-      fetchIscParkConfigs({
-        current: 1,
-        size: 1000
-      }).then(response => {
-        const data = response.data.data || {}
-        const records = data.records || []
+      fetchIscParkRecords().then(records => {
         this.iscParkOptions = records.filter(item => this.isParkSyncEnabled(item))
       })
     },
     loadTaskList() {
       this.taskLoading = true
-      const query = {
-        current: 1,
-        size: 8
-      }
-      if (this.searchForm.parkId) {
-        query.parkId = this.searchForm.parkId
-      }
-      if (this.selectedStaff && this.selectedStaff.badge) {
-        query.badge = this.selectedStaff.badge
-      }
-      fetchIscCardTaskList(query).then(response => {
-        const data = response.data.data || {}
-        this.taskTableData = data.records || []
+      fetchRecentCardTaskRecords({
+        parkId: this.searchForm.parkId,
+        badge: this.selectedStaff && this.selectedStaff.badge
+      }).then(records => {
+        this.taskTableData = records
       }).finally(() => {
         this.taskLoading = false
       })
@@ -472,17 +466,7 @@ export default {
       return this.searchStaffByName(keyword)
     },
     searchStaffByName(keyword) {
-      const query = {
-        current: 1,
-        size: 10,
-        name: keyword
-      }
-      if (this.selectedPark && this.selectedPark.parkId) {
-        query.parkId = this.selectedPark.parkId
-      }
-      return fetchStaffList(query).then(response => {
-        const data = response.data.data || {}
-        const records = data.records || []
+      return requestStaffByName(keyword, this.selectedPark).then(records => {
         this.staffCandidates = records
         if (!records.length) {
           this.selectedStaff = null
@@ -509,17 +493,7 @@ export default {
       })
     },
     searchExactStaffByBadge(badge, fallbackToName) {
-      const query = {
-        current: 1,
-        size: 10,
-        badges: badge
-      }
-      if (this.selectedPark && this.selectedPark.parkId) {
-        query.parkId = this.selectedPark.parkId
-      }
-      return fetchStaffList(query).then(response => {
-        const data = response.data.data || {}
-        const records = data.records || []
+      return requestStaffByBadge(badge, this.selectedPark).then(records => {
         if (!records.length) {
           if (fallbackToName) {
             return this.searchStaffByName(badge)
@@ -563,11 +537,11 @@ export default {
       }
       const requestStaffId = staffId
       this.staffCardLoading = true
-      fetchIscStaffCards(requestStaffId).then(response => {
+      fetchStaffCardRecords(requestStaffId).then(cards => {
         if (!this.selectedStaff || this.selectedStaff.id !== requestStaffId) {
           return
         }
-        this.staffCards = response.data.data || []
+        this.staffCards = cards
       }).finally(() => {
         if (this.selectedStaff && this.selectedStaff.id !== requestStaffId) {
           return
@@ -588,7 +562,7 @@ export default {
       }).then(async () => {
         this.staffCardDeleting = row.id
         try {
-          const response = await deleteIscStaffCard(row.id)
+          const response = await deleteStaffCard(row.id)
           if (response.data.data) {
             this.$notify({
               title: '成功',
@@ -745,7 +719,7 @@ export default {
         row.status = 'saving'
         row.message = '正在保存并创建ISC同步任务...'
         try {
-          const response = await saveIscStaffCard({
+          const response = await saveStaffCard({
             staffId: row.staffId,
             parkId: row.parkId,
             cardNo: row.cardNo
@@ -867,21 +841,7 @@ export default {
       }
     },
     async fetchStaffMap(badges) {
-      const uniqueBadges = Array.from(new Set(badges.map(item => trimValue(item)).filter(Boolean)))
-      if (!uniqueBadges.length) {
-        return {}
-      }
-      const response = await fetchStaffList({
-        current: 1,
-        size: uniqueBadges.length,
-        badges: uniqueBadges.join(' ')
-      })
-      const data = response.data.data || {}
-      const records = data.records || []
-      return records.reduce((result, staff) => {
-        result[String(staff.badge)] = staff
-        return result
-      }, {})
+      return fetchStaffMapByBadges(badges)
     },
     resetPage() {
       if (this.$refs.searchForm) {
