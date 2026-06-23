@@ -7,6 +7,12 @@ describe('toUserMessage (只把后端业务提示透出给用户)', () => {
     expect(toUserMessage(new ApiError('该访客已登记'), '提交失败')).toBe('该访客已登记')
   })
 
+  it('ApiError 的传输层文案（如 HTTP 状态）不含敏感信息，按现状透传（已知有意）', () => {
+    expect(toUserMessage(new ApiError('请求失败：HTTP 500', 500), '提交失败')).toBe(
+      '请求失败：HTTP 500',
+    )
+  })
+
   it('普通 Error 可能是技术异常，统一返回兜底文案', () => {
     expect(toUserMessage(new Error('Cannot read properties of undefined'), '提交失败')).toBe(
       '提交失败',
