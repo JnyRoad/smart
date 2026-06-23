@@ -7,6 +7,9 @@ import { ApiError } from '@/lib/api/http'
  * 面向用户、可直接展示；其它任何异常（普通 Error、TypeError、第三方库异常、
  * 字符串、null/undefined 等）都可能携带技术细节（堆栈关键字、HTTP 细节、
  * 内部实现），一律折叠为调用方给的兜底文案，避免把技术错误暴露给用户。
+ *
+ * 注：ApiError 也用于传输层失败（http.ts 抛的「请求失败：HTTP xxx」）。这类文案
+ * 只含 HTTP 状态、不含堆栈/SQL/PII 等敏感信息，展示给用户可接受，故一并透传。
  */
 export function toUserMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message
