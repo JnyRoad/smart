@@ -3,22 +3,18 @@
   <div class="my-basic-container isc-card-fast-add">
     <el-scrollbar class="my-scrollbar" :native="false">
       <section class="my-basic-inner">
-        <div class="top-menu clear">
-          <div class="page-head">
-            <div class="page-title">
-              <span class="title-bar"></span>
-              <span>ISC卡片快速维护</span>
-            </div>
-            <div class="page-desc">先选择园区和员工，再刷卡或批量粘贴卡号；确认无误后提交，系统会自动同步到ISC。</div>
-          </div>
-          <div class="top-right">
-            <el-button type="primary" icon="el-icon-search" :disabled="!selectedPark || staffLoading" @click="searchStaff">搜索员工</el-button>
-            <el-button type="primary" icon="el-icon-delete" plain @click="resetPage">清空</el-button>
-            <el-button type="primary" icon="el-icon-document" plain :disabled="!selectedPark" @click="openPasteDialog">批量粘贴</el-button>
-            <el-button type="primary" icon="el-icon-check" :loading="submitting" :disabled="!canSubmit" @click="submitQueue">批量提交{{ submitCountText }}</el-button>
-            <el-button icon="el-icon-refresh" @click="goTaskPage">查看同步任务</el-button>
-          </div>
-        </div>
+        <page-toolbar
+          :selected-park="selectedPark"
+          :staff-loading="staffLoading"
+          :submitting="submitting"
+          :can-submit="canSubmit"
+          :submit-count-text="submitCountText"
+          @search-staff="searchStaff"
+          @reset="resetPage"
+          @open-paste="openPasteDialog"
+          @submit="submitQueue"
+          @open-tasks="goTaskPage"
+        />
 
         <el-form ref="searchForm" :inline="true" :model="searchForm" class="topForm" size="mini">
           <el-form-item label="园区" prop="parkId">
@@ -142,6 +138,7 @@
 
 <script>
 import { staffStatusInit } from '@/filters/index'
+import PageToolbar from './PageToolbar.vue'
 import PasteDialog from './PasteDialog.vue'
 import QueueTable from './QueueTable.vue'
 import StaffPanel from './StaffPanel.vue'
@@ -175,6 +172,7 @@ import {
 export default {
   name: 'iscCardFastAdd',
   components: {
+    PageToolbar,
     PasteDialog,
     QueueTable,
     StaffPanel,
@@ -764,39 +762,6 @@ export default {
 <style lang="scss" scoped>
 .isc-card-fast-add {
   min-width: 1180px;
-
-  .top-menu {
-    min-height: 64px;
-    position: relative;
-  }
-
-  .page-head {
-    padding-right: 580px;
-  }
-
-  .page-title {
-    display: flex;
-    align-items: center;
-    color: #333;
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 24px;
-  }
-
-  .title-bar {
-    width: 3px;
-    height: 16px;
-    margin-right: 8px;
-    border-radius: 2px;
-    background: #ed6d00;
-  }
-
-  .page-desc {
-    margin-top: 6px;
-    color: #999;
-    font-size: 12px;
-    line-height: 18px;
-  }
 
   .topForm {
     padding: 14px 20px 0;
