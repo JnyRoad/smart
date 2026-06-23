@@ -82,8 +82,9 @@
 
 ## 附：质量门禁现状（事实备注）
 
-- `pnpm check:lint-baseline`：**warning ratchet**——只拦"某文件 warning 增加 / 新文件带 warning"，不负责清零历史 25881 条。**这是权威闸门，任何人/CI 都可直接调用，不依赖 git 钩子是否激活。**
+- **`pnpm gate`：一键本地质量门禁（开发完跑这一条）。** 聚合执行 `vitest run` + `check:lint-baseline` + 6 个静态契约检查（admin-search / bundle / isc-card-fast-add-ui / isc-card-ui / isc-device-id-readonly / records-contracts），某步失败也跑完其余、最后汇总 ✓/✗ 清单，任一红则退出码 1。脚本见 `scripts/gate.mjs`，编排逻辑由 `scripts/gate.test.mjs` 单测兜底。
+- `pnpm check:lint-baseline`：**warning ratchet**——只拦"某文件 warning 增加 / 新文件带 warning"，不负责清零历史 25881 条。**这是权威闸门，任何人都可直接调用，不依赖 git 钩子是否激活。**
 - **本地 git 钩子当前不可靠（重要）**：本仓库是 monorepo，`smart-ui/` 是子目录而非独立 git 仓库；实测 `core.hooksPath` 指向主仓库 `smart/.git/hooks`（只有 `*.sample`，husky 未接管）。因此 `smart-ui/.husky/pre-commit`、`pre-push` 在该环境**不会自动触发**——只是 best-effort，**不能当作可靠安全网**。本地激活需在 `smart-ui/` 跑一次 `pnpm install`（husky `prepare`）并确认 `core.hooksPath` 指向 `smart-ui/.husky`；即便激活也能被 `--no-verify` 绕过。
-- **结论：可靠的强制必须放在 CI**——流水线里跑 `pnpm test` + `pnpm check:lint-baseline`。CI 接线尚缺（远端为内网自建 git，平台待确认），见 `refactor-phase0-plan.md` Track B。**CI 接好前，这两条命令需由提交者/评审者手动执行并在 PR 里贴结果。**
+- **结论：本项目刻意不上 CI**——远端为内网自建 git 无可用 runner、GitHub Actions 收费且不一定能内网访问，故**不接 CI**，改以本地手动跑 `pnpm gate` 作为提交前门禁，开发完跑一遍、在 PR 里贴结果。**诚实边界：本地门禁靠"约定执行"，非技术强制——可被遗漏或 `--no-verify` 绕过，可靠性依赖提交者自觉。** 这是在"无 CI 环境"下的务实取舍，不是等价于流水线强制。
 - **已知边界 1**：守卫只统计 warning，不拦新增 eslint *error*（error 由 `pnpm lint` 体现）；若将来要把 error 纳入 push 门禁，再单独扩展。
 - **已知边界 2（warning 跨文件迁移）**：Phase 1 拆分把带 warning 的代码从旧文件搬到新文件时，旧文件 warning 减少（无害），新文件 0→N 会被守卫拦下（保守误报，方向正确）。处理：**人工确认确为搬运、未劣化后**再 `node scripts/check-lint-baseline.mjs --update` 重置基线，不要无脑 `--update`，否则会把本该清的 warning 一起固化。
