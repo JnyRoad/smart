@@ -155,48 +155,20 @@
             </div>
           </div>
 
-          <div class="work-panel queue-panel">
-            <div class="panel-title">
-              <span>待提交队列</span>
-              <span class="panel-count">共{{ queue.length }}条，可提交{{ readyQueue.length }}条，异常{{ invalidQueue.length }}条</span>
-            </div>
-            <el-table
-              :data="queue"
-              size="mini"
-              border
-              max-height="360"
-              empty-text="暂无待提交卡片"
-              :row-class-name="queueRowClass">
-              <el-table-column label="状态" width="92">
-                <template slot-scope="scope">
-                  <el-tag size="mini" :type="queueStatusType(scope.row.status)">{{ queueStatusText(scope.row.status) }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="badge" label="工号" width="100"></el-table-column>
-              <el-table-column prop="name" label="姓名" width="90"></el-table-column>
-              <el-table-column prop="parkName" label="园区" width="110" show-overflow-tooltip></el-table-column>
-              <el-table-column prop="dispatcherParkName" label="ISC平台" width="120" show-overflow-tooltip></el-table-column>
-              <el-table-column label="卡号 / 结果" min-width="210">
-                <template slot-scope="scope">
-                  <span class="card-no">{{ scope.row.cardNo || '-' }}</span>
-                  <div v-if="scope.row.message" class="row-message">{{ scope.row.message }}</div>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="92" fixed="right">
-                <template slot-scope="scope">
-                  <el-button type="text" size="mini" :disabled="submitting || scope.row.status === 'saving'" @click="removeQueueRow(scope.$index)">移除</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-            <div class="queue-footer">
-              <div class="queue-note">保存成功后会自动创建ISC新增卡片同步任务；失败行会保留在队列中。</div>
-              <div>
-                <el-button size="mini" plain :disabled="submitting" @click="removeFinishedRows">清除成功行</el-button>
-                <el-button size="mini" plain :disabled="submitting" @click="clearQueue">清空队列</el-button>
-                <el-button type="primary" size="mini" :loading="submitting" :disabled="!canSubmit" @click="submitQueue">提交队列</el-button>
-              </div>
-            </div>
-          </div>
+          <queue-table
+            :rows="queue"
+            :ready-count="readyQueue.length"
+            :invalid-count="invalidQueue.length"
+            :submitting="submitting"
+            :can-submit="canSubmit"
+            :format-status-text="queueStatusText"
+            :format-status-type="queueStatusType"
+            :row-class-name="queueRowClass"
+            @remove-row="removeQueueRow"
+            @remove-finished="removeFinishedRows"
+            @clear="clearQueue"
+            @submit="submitQueue"
+          />
         </div>
 
         <task-table
@@ -225,6 +197,7 @@
 <script>
 import { staffStatusInit } from '@/filters/index'
 import PasteDialog from './PasteDialog.vue'
+import QueueTable from './QueueTable.vue'
 import TaskTable from './TaskTable.vue'
 import {
   deleteStaffCard,
@@ -256,6 +229,7 @@ export default {
   name: 'iscCardFastAdd',
   components: {
     PasteDialog,
+    QueueTable,
     TaskTable
   },
   data() {
@@ -1034,12 +1008,6 @@ export default {
     font-weight: 600;
   }
 
-  .panel-count {
-    color: #999;
-    font-size: 12px;
-    font-weight: 400;
-  }
-
   .staff-card {
     padding: 12px;
   }
@@ -1123,41 +1091,6 @@ export default {
     font-size: 12px;
   }
 
-  .queue-panel {
-    min-width: 0;
-  }
-
-  .card-no {
-    font-family: Consolas, Menlo, monospace;
-  }
-
-  .row-message {
-    margin-top: 3px;
-    color: #e7292e;
-    font-size: 12px;
-  }
-
-  .queue-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    border-top: 1px solid #eee;
-    background: #fafafa;
-  }
-
-  .queue-note {
-    color: #999;
-    font-size: 12px;
-  }
-
-  ::v-deep .queue-row-error td {
-    background: #fff8f8 !important;
-  }
-
-  ::v-deep .queue-row-success td {
-    background: #f4fbf8 !important;
-  }
 }
 </style>
 
