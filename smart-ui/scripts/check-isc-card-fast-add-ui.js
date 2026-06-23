@@ -43,6 +43,16 @@ const checks = [
     message: 'page must mount scanner input, queue table, and batch paste workflow'
   },
   {
+    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    required: /<staff-panel[\s\S]*:selected-staff="selectedStaff"[\s\S]*:staff-candidates="staffCandidates"[\s\S]*:staff-cards="staffCards"[\s\S]*@select-staff="selectStaff"[\s\S]*@open-detail="goStaffDetail"[\s\S]*@remove-card="removeStaffCard"/,
+    message: 'page must delegate current staff, candidate, and staff card display to StaffPanel without dropping parent actions'
+  },
+  {
+    file: 'src/views/platform/basic/isc_card_fast_add/StaffPanel.vue',
+    required: /当前录入[\s\S]*先输入工号或姓名定位员工[\s\S]*匹配人员[\s\S]*已有ISC卡片[\s\S]*ISC平台[\s\S]*\$emit\('remove-card',\s*scope\.row\)/,
+    message: 'staff panel component must keep selected staff, candidate, existing card, ISC platform, and delete action UI'
+  },
+  {
     file: 'src/views/platform/basic/isc_card_fast_add/QueueTable.vue',
     required: /待提交队列[\s\S]*共\{\{ rows\.length \}\}条，可提交\{\{ readyCount \}\}条，异常\{\{ invalidCount \}\}条[\s\S]*卡号 \/ 结果[\s\S]*清除成功行[\s\S]*清空队列[\s\S]*提交队列/,
     message: 'queue table component must keep queue summary, result column, and footer actions'
@@ -183,7 +193,7 @@ const checks = [
     message: 'existing staff card table must support deleting a card and refreshing cards/tasks'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/StaffPanel.vue',
     required: /label="同步状态"[\s\S]*cardSyncStatusType\(scope\.row\.syncStatus\)[\s\S]*cardSyncStatusText\(scope\.row\)/,
     message: 'existing staff card table must show card sync status'
   },
@@ -336,17 +346,18 @@ try {
     failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: recent task loader must not hard-code card task action because delete tasks should be visible too')
   }
 
-  const cardListStart = page.indexOf('已有ISC卡片')
-  const cardListEnd = page.indexOf('</el-table>', cardListStart)
-  const cardListTable = cardListStart >= 0 && cardListEnd >= 0 ? page.slice(cardListStart, cardListEnd) : ''
+  const staffPanel = readRequired('src/views/platform/basic/isc_card_fast_add/StaffPanel.vue')
+  const cardListStart = staffPanel.indexOf('已有ISC卡片')
+  const cardListEnd = staffPanel.indexOf('</el-table>', cardListStart)
+  const cardListTable = cardListStart >= 0 && cardListEnd >= 0 ? staffPanel.slice(cardListStart, cardListEnd) : ''
   if (!cardListTable) {
-    failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: existing card table is missing')
+    failures.push('src/views/platform/basic/isc_card_fast_add/StaffPanel.vue: existing card table is missing')
   }
   if (/prop="parkName"\s+label="园区"/.test(cardListTable)) {
-    failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: existing card table must not repeat the park column')
+    failures.push('src/views/platform/basic/isc_card_fast_add/StaffPanel.vue: existing card table must not repeat the park column')
   }
-  if (!/prop="dispatcherParkName"\s+label="ISC平台"[\s\S]*removeStaffCard/.test(cardListTable)) {
-    failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: existing card table must keep ISC platform and expose delete action')
+  if (!/prop="dispatcherParkName"\s+label="ISC平台"[\s\S]*\$emit\('remove-card',\s*scope\.row\)/.test(cardListTable)) {
+    failures.push('src/views/platform/basic/isc_card_fast_add/StaffPanel.vue: existing card table must keep ISC platform and expose delete action')
   }
 
   const nameSearchStart = page.indexOf('searchStaffByName(keyword)')
