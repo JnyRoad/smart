@@ -133,7 +133,6 @@
             </template>
             <template slot-scope="scope" slot="bedName">
               {{scope.row.bedName}}
-              <!-- <span class="ft-blue"  @click="updateBedName(scope.row)" >{{scope.row.bedName}}</span> -->
             </template>
             <template slot-scope="scope" slot="delFlag">
               <!-- 1 红色:已锁定, 0 绿色:未锁定 -->
@@ -241,18 +240,6 @@
           </avue-crud>
         </div>
       </div>
-      <!-- 修改床位编号 -->
-      <el-dialog title="修改床位编号" class="dialog_form" width="400px" :visible.sync="bedNameVisible" :close-on-click-modal="false">
-        <el-form ref="editBedNameForm" :model="editBedNameForm" :rules="editBedNameRules">
-          <el-form-item label="床位编号" prop="bedName">
-            <el-input v-model="editBedNameForm.bedName" placeholder="请输入" clearable></el-input>
-          </el-form-item>
-        </el-form>
-        <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="bedNameVisible = false" plain>取 消</el-button>
-          <el-button type="primary" @click="handleEditBedName('editBedNameForm')" :loading="bedNameLoading">确 定</el-button>
-        </div>
-      </el-dialog>
       <!-- 修改入住时间 -->
       <el-dialog title="修改入住时间" class="dialog_form" width="400px" :visible.sync="timeVisible" :close-on-click-modal="false">
         <el-form ref="timeForm" :model="timeForm" :rules="timeRules">
@@ -353,7 +340,6 @@ import {
   updateDormitoryStaff,
   updateSimpleRemark,
   getLeaveCount,
-  updateBedName,
   isLock,
   delBatch,
   exportFamily
@@ -395,8 +381,6 @@ export default {
       checkInLoading: false,
       exportLoading: false,
       exportFamilyLoading: false,
-      bedNameVisible: false,
-      bedNameLoading: false,
       staffStatusData: enumStaffStatus,
       timePickerOptions: {
         disabledDate(time) {
@@ -410,13 +394,6 @@ export default {
         staffName: "",
         jobName: "",
         staffSex: undefined
-      },
-      editBedNameForm: {
-        bedId: "",
-        bedName: ""
-      },
-      editBedNameRules: {
-        bedName: [{ required: true, message: "请输入床位编号", trigger: "blur" }]
       },
       searchForm: {
         //搜索菜单表单
@@ -628,33 +605,6 @@ export default {
     editTime(row) {
       this.timeVisible = true;
       this.timeForm = { id: row.id, createTime: row.createTime };
-    },
-    updateBedName(row){
-      this.bedNameVisible = true
-      this.editBedNameForm = { bedId: row.bedId, bedName: row.bedName };
-    },
-    handleEditBedName(formName){
-      this.$refs[formName].validate(valid => {
-        if (valid) {
-          this.bedNameLoading = true;
-          updateBedName(this.editBedNameForm)
-            .then(response => {
-              this.bedNameVisible = false;
-              this.bedNameLoading = false;
-              this.$notify({
-                title: '成功',
-                message: '修改床位编号成功',
-                type: 'success'
-              });
-              this.getList(this.page, this.params);
-            })
-            .catch(err => {
-              this.bedNameLoading = false;
-            });
-        } else {
-          return false;
-        }
-      });
     },
     /**
      * 搜索回调
