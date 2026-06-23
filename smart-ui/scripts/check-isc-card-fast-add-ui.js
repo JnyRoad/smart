@@ -203,23 +203,23 @@ const checks = [
     message: 'batch paste textarea must use a real multiline placeholder string'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /class="paste-input"[\s\S]*:disabled="pasteResolving"[\s\S]*:placeholder="pastePlaceholder"/,
+    file: 'src/views/platform/basic/isc_card_fast_add/PasteDialog.vue',
+    required: /<el-input(?=[\s\S]*class="paste-input")(?=[\s\S]*:disabled="resolving")(?=[\s\S]*:placeholder="placeholder")/,
     message: 'batch paste textarea must be locked while resolving pasted staff rows'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/PasteDialog.vue',
     required: /custom-class="isc-paste-dialog"[\s\S]*class="paste-guide"[\s\S]*class="paste-example"/,
     message: 'batch paste dialog must use a polished guide and example layout'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /:close-on-click-modal="!pasteResolving"[\s\S]*:close-on-press-escape="!pasteResolving"[\s\S]*:show-close="!pasteResolving"/,
+    file: 'src/views/platform/basic/isc_card_fast_add/PasteDialog.vue',
+    required: /:close-on-click-modal="!resolving"[\s\S]*:close-on-press-escape="!resolving"[\s\S]*:show-close="!resolving"/,
     message: 'batch paste dialog must not be closable while resolving pasted rows'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /class="paste-summary"[\s\S]*paste-status[\s\S]*pasteErrors\.length[\s\S]*格式校验通过/,
+    file: 'src/views/platform/basic/isc_card_fast_add/PasteDialog.vue',
+    required: /class="paste-summary"[\s\S]*paste-status[\s\S]*errors\.length[\s\S]*格式校验通过/,
     message: 'batch paste dialog must show a visible live validation status'
   },
   {
@@ -233,8 +233,8 @@ const checks = [
     message: 'batch paste parser must reject extra fields instead of silently dropping them'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /:disabled="!pasteRows\.length \|\| pasteRows\.length > 200 \|\| !!pasteErrors\.length"/,
+    file: 'src/views/platform/basic/isc_card_fast_add/PasteDialog.vue',
+    required: /:disabled="!canSubmit \|\| resolving"[\s\S]*canSubmit\(\)[\s\S]*this\.rows\.length > 0 && !this\.hasVisibleProblem/,
     message: 'batch paste confirm action must be disabled while format errors are visible'
   },
   {
