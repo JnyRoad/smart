@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Dialog, ErrorBlock, SpinLoading, Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { PageShell } from '@/components/page-shell'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
@@ -98,7 +99,7 @@ export default function LockPage() {
         void Dialog.alert({ title: '错误', content: res.msg ?? res.message ?? '修改失败' })
       }
     } catch (error) {
-      void Dialog.alert({ title: '错误', content: error instanceof Error ? error.message : '修改失败' })
+      void Dialog.alert({ title: '错误', content: toUserMessage(error, '修改失败') })
     } finally {
       setSubmitting(false)
     }

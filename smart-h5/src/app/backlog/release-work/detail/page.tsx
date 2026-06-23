@@ -4,6 +4,7 @@ import { ImageViewer, SpinLoading, Toast } from 'antd-mobile'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { ApprovalTimeline } from '@/components/approval-timeline'
 import { ImageListUpload } from '@/components/image-list-upload'
 import { PageShell } from '@/components/page-shell'
@@ -98,7 +99,7 @@ function ReleaseWorkApprovalDetailInner() {
         Toast.show(res.message || res.msg || '网络错误')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '网络错误')
+      Toast.show(toUserMessage(error, '网络错误'))
     } finally {
       setSubmitting(false)
     }

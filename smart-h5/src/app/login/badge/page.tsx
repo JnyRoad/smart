@@ -2,6 +2,7 @@
 import { Toast } from 'antd-mobile'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { bindEmployeeBadge } from '@/features/auth/api'
 import { BADGE_BINDING_PATH, redirectToWechatOAuth } from '@/lib/wechat/oauth'
 
@@ -41,7 +42,7 @@ function BadgeBindingInner() {
         retryTimerRef.current = setTimeout(() => redirectToWechatOAuth(BADGE_BINDING_PATH), 2000)
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '绑定失败')
+      Toast.show(toUserMessage(error, '绑定失败'))
       setSubmitting(false)
     }
   }

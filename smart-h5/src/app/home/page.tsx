@@ -4,6 +4,7 @@ import { Dialog, SpinLoading, Toast } from 'antd-mobile'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo, getEmployeeFullInfo } from '@/features/employee/api'
 import {
@@ -160,7 +161,7 @@ export default function HomePage() {
       })
       router.push(route)
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '扫码失败')
+      Toast.show(toUserMessage(error, '扫码失败'))
     }
   }
 

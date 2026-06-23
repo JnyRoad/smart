@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Picker, Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { ImageListUpload } from '@/components/image-list-upload'
 import { PageShell } from '@/components/page-shell'
 import { SegmentTabs } from '@/components/segment-tabs'
@@ -138,7 +139,7 @@ export default function GoodReleaseWorkPage() {
         Toast.show(res.message || res.msg || '提交失败')
       }
     } catch (error) {
-      Toast.show(error instanceof Error ? error.message : '提交失败')
+      Toast.show(toUserMessage(error, '提交失败'))
     } finally {
       setSubmitting(false)
     }

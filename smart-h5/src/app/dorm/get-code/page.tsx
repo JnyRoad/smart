@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Dialog, ErrorBlock } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { toUserMessage } from '@/lib/format/error-message'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
 import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { refreshLockPwd } from '@/features/dorm/api'
@@ -39,7 +40,7 @@ export default function GetCodePage() {
         void Dialog.alert({ title: '错误', content: res.msg ?? res.message ?? '刷新失败' })
       }
     } catch (error) {
-      void Dialog.alert({ title: '错误', content: error instanceof Error ? error.message : '刷新失败' })
+      void Dialog.alert({ title: '错误', content: toUserMessage(error, '刷新失败') })
     } finally {
       setSubmitting(false)
     }
