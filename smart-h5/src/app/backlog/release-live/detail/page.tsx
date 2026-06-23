@@ -14,6 +14,7 @@ import { securityUpdateRelease, updateReleaseStatus } from '@/features/backlog/a
 import { getReleaseDetail } from '@/features/good-release/api'
 import { InfoRow, toImageSrc } from '@/features/good-release/detail-blocks'
 import { getTenantConfig } from '@/lib/config/tenant'
+import { confirmIrreversible } from '@/lib/confirm-irreversible'
 
 function ReleaseLiveApprovalDetailInner() {
   const authorized = useRequireAuth()
@@ -62,6 +63,9 @@ function ReleaseLiveApprovalDetailInner() {
   async function submitApproval(nextStatus: 2 | 3) {
     if (submitting) return
     if (!badge) return Toast.show('获取用户信息失败！')
+    // 审批通过/拒绝不可撤销，执行前二次确认。
+    const message = nextStatus === 3 ? '确定拒绝该申请？拒绝后不可撤销' : '确定通过该申请？通过后不可撤销'
+    if (!(await confirmIrreversible(message))) return
     setSubmitting(true)
     try {
       const res = await updateReleaseStatus({ approveBadge: badge, id, status: nextStatus, remark })
@@ -84,6 +88,9 @@ function ReleaseLiveApprovalDetailInner() {
       Toast.show('请至少上传一张照片')
       return
     }
+    // 放行/拒绝放行不可撤销，执行前二次确认。
+    const message = nextStatus === 5 ? '确定拒绝放行？拒绝后不可撤销' : '确定确认放行？放行后不可撤销'
+    if (!(await confirmIrreversible(message))) return
     setSubmitting(true)
     try {
       const res = await securityUpdateRelease({
