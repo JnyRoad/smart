@@ -36,6 +36,25 @@ const GATEWAY_MODULES = ['auth', 'app', 'platform', 'admin', 'algorithm', 'workb
  * 阻止资源加载；故此处白名单即使有遗漏也不会影响线上功能，只会多出几条违规
  * 报告，正好用于补全白名单。
  */
+/**
+ * 内容安全策略（CSP）—— 强制模式（Content-Security-Policy）
+ *
+ * 为什么强制头只放这三条：frame-ancestors / base-uri / form-action 不约束脚本、
+ * 样式、接口、图片的加载来源，因此对 Next 注水脚本、antd-mobile 内联样式、被
+ * rewrites 同源代理的网关接口、人脸采集 data/blob 图片等统统零影响，可以立即
+ * 强制生效，从而拿到：点击劫持防护（frame-ancestors）、<base> 劫持防护
+ * （base-uri）、表单越权提交防护（form-action）。
+ *
+ * 为什么不把 script-src / style-src 放进强制头：它们一旦强制就会拦截 Next 的
+ * 内联注水脚本和 antd-mobile 的 CSS-in-JS 内联样式造成白屏，必须等 nonce / hash
+ * 改造完成后才能进强制头；在此之前继续由下方的 Report-Only 头观察。
+ */
+const CSP_ENFORCED = [
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ')
+
 const CSP_REPORT_ONLY = [
   "default-src 'self'",
   // 脚本：本应用 + 微信 JS-SDK；内联与 eval 暂时放行（见上注释）
@@ -71,12 +90,16 @@ const nextConfig: NextConfig = {
       destination: `${target}/${module}/:path*`,
     }))
   },
-  // 给所有页面挂上仅报告模式的 CSP，用于线上观察资源加载来源（不拦截）。
+  // 给所有页面同时挂上：强制 CSP（仅三条零误报指令，立即拦截点击劫持 / base
+  // 劫持 / 表单越权）+ 仅报告模式 CSP（继续观察 script/style 来源，不拦截）。
   async headers() {
     return [
       {
         source: '/:path*',
-        headers: [{ key: 'Content-Security-Policy-Report-Only', value: CSP_REPORT_ONLY }],
+        headers: [
+          { key: 'Content-Security-Policy', value: CSP_ENFORCED },
+          { key: 'Content-Security-Policy-Report-Only', value: CSP_REPORT_ONLY },
+        ],
       },
     ]
   },
