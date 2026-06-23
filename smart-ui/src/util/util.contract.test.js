@@ -32,7 +32,7 @@ describe('util.js 模块契约（拆分前钉死）', () => {
 
   it('命名导出清单与基线完全一致', async () => {
     const mod = await import('./util')
-    const actual = Object.keys(mod).filter((k) => k !== 'default').sort()
+    const actual = Object.keys(mod).filter((key) => key !== 'default').sort()
     expect(actual).toEqual(EXPECTED_EXPORTS)
   })
 })
