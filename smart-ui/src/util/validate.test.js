@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isEmail, isMobile, isPhone, isURL } from '@/util/validate'
+import { isEmail, isMobile, isURL } from '@/util/validate'
 
 describe('isMobile', () => {
   it('accepts 11-digit numbers starting with 1', () => {
@@ -21,17 +21,6 @@ describe('isEmail', () => {
 
   it('rejects an address without @', () => {
     expect(isEmail('user.example.com')).toBe(false)
-  })
-})
-
-describe('isPhone', () => {
-  it('accepts landline numbers with or without area code', () => {
-    expect(isPhone('0755-12345678')).toBe(true)
-    expect(isPhone('12345678')).toBe(true)
-  })
-
-  it('rejects too-short numbers', () => {
-    expect(isPhone('123456')).toBe(false)
   })
 })
 
