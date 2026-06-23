@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // 用一个可控的桩替换 antd-mobile 的 Dialog.confirm，断言行为而非实现细节。
 const confirmMock = vi.fn()
@@ -9,6 +9,8 @@ vi.mock('antd-mobile', () => ({
 import { confirmIrreversible } from './confirm-irreversible'
 
 describe('confirmIrreversible', () => {
+  beforeEach(() => confirmMock.mockReset())
+
   it('用户确认时返回 true', async () => {
     confirmMock.mockResolvedValueOnce(true)
     await expect(confirmIrreversible('确定拒绝该申请？拒绝后不可撤销')).resolves.toBe(true)
@@ -27,5 +29,19 @@ describe('confirmIrreversible', () => {
       confirmText: '确定',
       cancelText: '取消',
     })
+  })
+
+  it('确认框显示期间的并发调用直接返回 false，且不再弹第二个框（防双提交）', async () => {
+    // 第一个确认框挂起不 resolve，模拟它正显示在屏幕上
+    let resolveFirst: (v: boolean) => void = () => {}
+    confirmMock.mockImplementationOnce(() => new Promise<boolean>((r) => (resolveFirst = r)))
+
+    const first = confirmIrreversible('确定拒绝该申请？拒绝后不可撤销')
+    // 第一个还没结束时并发再调一次：应被守卫挡下
+    await expect(confirmIrreversible('确定拒绝该申请？拒绝后不可撤销')).resolves.toBe(false)
+    expect(confirmMock).toHaveBeenCalledTimes(1)
+
+    resolveFirst(true)
+    await expect(first).resolves.toBe(true)
   })
 })
