@@ -360,8 +360,8 @@ import {
 } from "@/api/platform/dormitory/bed_mng";
 import { tableOption } from "@/const/crud/platform/dormitory/bed_mng";
 import { enumStaffStatus } from "@/const/crud/platform/enum";
-import { dateFormat2 } from "@/util/date";
 import { staffStatusInit } from '@/filters/index'
+import { registerRowClassName, formatCheckInDate, toExportRows } from './bed-rules'
 import dlgFamily from "../new_room/compnents/dlg_family";
 import dlgDormChange from "../ks_checkIn/compnents/dlg_dorm_change";
 import componentImport from './import/index'
@@ -557,9 +557,7 @@ export default {
       }
     },
     tableRowClassName({row, index}){
-      if(row.status===-1){
-        return 'isRegister'
-      }
+      return registerRowClassName(row)
     },
     searchRegister(){
       this.searchForm.status = -1
@@ -621,9 +619,7 @@ export default {
       this.$refs.dlgfamily && this.$refs.dlgfamily.open()
     },
     dateFormat(val) {
-      if (!this.validatenull(val)) {
-        return dateFormat2(new Date(val));
-      }
+      return formatCheckInDate(val)
     },
     editTime(row) {
       this.timeVisible = true;
@@ -852,7 +848,7 @@ export default {
     },
     //导出相关
     formatJson(filterVal, jsonData) {
-      return jsonData.map(v => filterVal.map(j => v[j]));
+      return toExportRows(filterVal, jsonData)
     },
     getTree: function() {
       var page = this.page;
