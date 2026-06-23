@@ -222,81 +222,23 @@
       </section>
     </el-scrollbar>
 
-    <el-dialog
-      title="批量粘贴录卡"
+    <paste-dialog
       :visible.sync="pasteDialogVisible"
-      width="680px"
-      custom-class="isc-paste-dialog"
-      :close-on-click-modal="!pasteResolving"
-      :close-on-press-escape="!pasteResolving"
-      :show-close="!pasteResolving"
-      append-to-body>
-      <div class="paste-dialog-body">
-        <div class="paste-guide">
-          <div class="paste-guide-main">
-            <div class="paste-guide-title">
-              <i class="el-icon-document-copy"></i>
-              <span>按行粘贴工号和卡号</span>
-            </div>
-            <div class="paste-desc">每行一条，工号在前、卡号在后；支持空格、Tab、逗号分隔，最多200行。</div>
-          </div>
-          <div class="paste-example">
-            <div class="example-title">示例</div>
-            <div>10288 1024388812</div>
-            <div>10290 1024388845</div>
-          </div>
-        </div>
-        <el-input
-          v-model="pasteText"
-          class="paste-input"
-          type="textarea"
-          :rows="9"
-          resize="vertical"
-          :disabled="pasteResolving"
-          :placeholder="pastePlaceholder">
-        </el-input>
-        <div class="paste-summary" :class="{ ready: pasteRows.length && !pasteErrors.length && pasteRows.length <= 200, invalid: pasteErrors.length || pasteRows.length > 200 }">
-          <div class="paste-stat">
-            <span>已识别</span>
-            <strong>{{ pasteRows.length }}</strong>
-            <span>/ 200行</span>
-          </div>
-          <div v-if="!pasteRows.length" class="paste-status">
-            <i class="el-icon-edit-outline"></i>
-            <span>等待粘贴数据</span>
-          </div>
-          <div v-else-if="pasteRows.length > 200" class="paste-status error">
-            <i class="el-icon-warning-outline"></i>
-            <span>超出{{ pasteRows.length - 200 }}行</span>
-          </div>
-          <div v-else-if="pasteErrors.length" class="paste-status error">
-            <i class="el-icon-warning-outline"></i>
-            <span>发现{{ pasteErrors.length }}条问题</span>
-          </div>
-          <div v-else class="paste-status ok">
-            <i class="el-icon-success"></i>
-            <span>格式校验通过</span>
-          </div>
-        </div>
-        <div v-if="pasteErrors.length || pasteRows.length > 200" class="paste-errors">
-          <div class="paste-errors-title">请先处理以下问题</div>
-          <div v-if="pasteRows.length > 200">超过200行，请删除多余数据后再提交。</div>
-          <div v-for="item in pasteVisibleErrors" :key="item.line">第{{ item.line }}行：{{ item.message }}</div>
-          <div v-if="pasteErrors.length > pasteVisibleErrors.length" class="paste-errors-more">
-            还有{{ pasteErrors.length - pasteVisibleErrors.length }}条问题未显示
-          </div>
-        </div>
-      </div>
-      <span slot="footer" class="paste-footer">
-        <el-button size="mini" :disabled="pasteResolving" @click="pasteDialogVisible = false">取消</el-button>
-        <el-button type="primary" size="mini" :loading="pasteResolving" :disabled="!pasteRows.length || pasteRows.length > 200 || !!pasteErrors.length" @click="confirmPaste">校验并加入队列</el-button>
-      </span>
-    </el-dialog>
+      :resolving="pasteResolving"
+      :text="pasteText"
+      :rows="pasteRows"
+      :errors="pasteErrors"
+      :visible-errors="pasteVisibleErrors"
+      :placeholder="pastePlaceholder"
+      @update:text="pasteText = $event"
+      @confirm="confirmPaste"
+    />
   </div>
 </template>
 
 <script>
 import { staffStatusInit } from '@/filters/index'
+import PasteDialog from './PasteDialog.vue'
 import {
   deleteStaffCard,
   fetchIscParkRecords,
@@ -325,6 +267,9 @@ import {
 
 export default {
   name: 'iscCardFastAdd',
+  components: {
+    PasteDialog
+  },
   data() {
     return {
       searchForm: emptySearchForm(),
