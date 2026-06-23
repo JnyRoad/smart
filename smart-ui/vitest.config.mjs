@@ -15,7 +15,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.js'],
+    include: ['src/**/*.test.js', 'scripts/**/*.test.{js,mjs}'],
     // The webpack build (vue-cli) stays the production pipeline; vitest only runs tests.
     css: false
   }
