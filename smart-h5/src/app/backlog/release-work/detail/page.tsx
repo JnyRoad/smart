@@ -15,6 +15,7 @@ import { InfoRow, toImageSrc } from '@/features/good-release/detail-blocks'
 import { saveDetailSnapshot } from '@/features/good-release/detail-snapshot'
 import { isPersonRelease } from '@/features/good-release/dicts'
 import { getTenantConfig } from '@/lib/config/tenant'
+import { confirmIrreversible } from '@/lib/confirm-irreversible'
 
 function ReleaseWorkApprovalDetailInner() {
   const authorized = useRequireAuth()
@@ -74,6 +75,9 @@ function ReleaseWorkApprovalDetailInner() {
       Toast.show('请至少上传一张照片')
       return
     }
+    // 放行/拒绝放行不可撤销，执行前二次确认（与 release-live 保安放行文案保持一致）。
+    const message = nextStatus === 5 ? '确定拒绝放行？拒绝后不可撤销' : '确定确认放行？放行后不可撤销'
+    if (!(await confirmIrreversible(message))) return
     setSubmitting(true)
     try {
       const res = await securityUpdateRelease({

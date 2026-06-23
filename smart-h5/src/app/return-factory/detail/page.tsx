@@ -12,6 +12,7 @@ import { InfoRow, toImageSrc } from '@/features/good-release/detail-blocks'
 import { saveDetailSnapshot } from '@/features/good-release/detail-snapshot'
 import { isPersonRelease } from '@/features/good-release/dicts'
 import { showBackConfirm } from '@/features/good-release/release-status'
+import { confirmIrreversible } from '@/lib/confirm-irreversible'
 
 function ReturnFactoryDetailInner() {
   const authorized = useRequireAuth()
@@ -41,6 +42,8 @@ function ReturnFactoryDetailInner() {
 
   async function handleConfirm() {
     if (confirming) return
+    // 确认返厂不可撤销，执行前二次确认。
+    if (!(await confirmIrreversible('确定确认返厂？确认后不可撤销'))) return
     setConfirming(true)
     try {
       const res = await confirmBack(id)
