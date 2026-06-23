@@ -92,14 +92,6 @@ export function updateSimpleRemark (query) {
     params: query
   })
 }
-//修改床位编号
-export function updateBedName (query) {
-  return request({
-    url: '/platform/dormitory/bed/updatename',
-    method: 'post',
-    data: query
-  })
-}
 export function callOwanceDetails (query) {
   return request({
     url: '/platform/out/dormitory/staff/callOwanceDetails',
