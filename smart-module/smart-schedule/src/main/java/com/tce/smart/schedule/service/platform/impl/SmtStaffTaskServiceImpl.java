@@ -48,6 +48,8 @@ public class SmtStaffTaskServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaf
 
 	private static final int DEFAULT_STAFF_PHOTO_LOOKBACK_DAYS = 5;
 
+	private static final int STAFF_PHOTO_COMPENSATION_DAYS = 3;
+
 	private static final ZoneOffset STAFF_PHOTO_TIME_ZONE = ZoneOffset.of("+8");
 
 	private final SmtImageService smtImageService;
@@ -156,8 +158,9 @@ public class SmtStaffTaskServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaf
 
 	@Override
 	public void syncStaffNoPhoto(Integer type) {
-		LocalDateTime yesterday = LocalDateTime.now().plusDays(-1L);
-		// 查询超过一天之后还未有图片的在职、实习、试用员工
+		LocalDateTime endTime = currentTime();
+		LocalDateTime startTime = getStaffPhotoCompensationStartTime(endTime);
+		// SMT_STAFF当前无更新时间字段，按最近三天创建人员补偿，避免当天上传照片被补偿任务跳过。
 		// 获取图片方式，1-图库接口，2-共享目录
 		List<SmtParkBu> buList = smtParkBuService.selectList(Wrappers.<SmtParkBu>query().lambda().eq(SmtParkBu::getParkId, xcParkId));
 		List<String> bus = buList.stream().map(SmtParkBu::getCompId).collect(Collectors.toList());
@@ -169,11 +172,11 @@ public class SmtStaffTaskServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaf
 
 		if (type == 1) {
 			List<SmtStaff> noPhotoStaffList = list(Wrappers.<SmtStaff>lambdaQuery().in(SmtStaff::getStatus,
-					StaffStatusEnum.STAFF_STATUS_IN.getCode(),
-					StaffStatusEnum.STAFF_STATUS_TTRY.getCode(),
-					StaffStatusEnum.STAFF_STATUS_PRACTICE.getCode(),
-					StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode())
-					.isNull(SmtStaff::getFacePicId).lt(SmtStaff::getCreateTime, yesterday)
+							StaffStatusEnum.STAFF_STATUS_IN.getCode(),
+							StaffStatusEnum.STAFF_STATUS_TTRY.getCode(),
+							StaffStatusEnum.STAFF_STATUS_PRACTICE.getCode(),
+							StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode())
+					.isNull(SmtStaff::getFacePicId).between(SmtStaff::getCreateTime, startTime, endTime)
 					.in(SmtStaff::getCompId, bus)
 					.orderByDesc(SmtStaff::getCreateTime));
 			for (SmtStaff staff : noPhotoStaffList) {
@@ -182,17 +185,24 @@ public class SmtStaffTaskServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaf
 			}
 		} else {
 			List<SmtStaff> noPhotoStaffList = list(Wrappers.<SmtStaff>lambdaQuery().in(SmtStaff::getStatus,
-					StaffStatusEnum.STAFF_STATUS_IN.getCode(),
-					StaffStatusEnum.STAFF_STATUS_TTRY.getCode(),
-					StaffStatusEnum.STAFF_STATUS_PRACTICE.getCode(),
-					StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode())
-					.isNull(SmtStaff::getFacePicId).lt(SmtStaff::getCreateTime, yesterday)
+							StaffStatusEnum.STAFF_STATUS_IN.getCode(),
+							StaffStatusEnum.STAFF_STATUS_TTRY.getCode(),
+							StaffStatusEnum.STAFF_STATUS_PRACTICE.getCode(),
+							StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode())
+					.isNull(SmtStaff::getFacePicId).between(SmtStaff::getCreateTime, startTime, endTime)
 					.notIn(SmtStaff::getCompId, bus)
 					.orderByDesc(SmtStaff::getCreateTime));
 			for (SmtStaff staff : noPhotoStaffList) {
 				updateStaffPhotoFromShare(staff);
 			}
 		}
+	}
+
+	static LocalDateTime getStaffPhotoCompensationStartTime(LocalDateTime currentTime) {
+		if (currentTime == null) {
+			throw new IllegalArgumentException("当前时间不能为空");
+		}
+		return currentTime.minusDays(STAFF_PHOTO_COMPENSATION_DAYS);
 	}
 
 	//人脸同步任务by 工号
