@@ -1,14 +1,22 @@
 package com.tce.smart.schedule.service.platform.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
+import com.tce.smart.platform.core.entity.SmtOrganizeRelation;
+import com.tce.smart.platform.core.entity.SmtParkBu;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.mapper.SmtOrganizeRelationMapper;
 import com.tce.smart.platform.core.mapper.SmtParkBuMapper;
 import com.tce.smart.platform.core.service.SmtImageService;
 import com.tce.smart.tool.enums.DeviceTaskActionEnum;
 import com.tce.smart.tool.enums.SmtImageEnum;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -17,9 +25,18 @@ import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class SmtStaffTaskServiceImplTest {
+
+	@BeforeClass
+	public static void initMybatisPlusLambdaCache() {
+		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtStaff.class);
+		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtParkBu.class);
+		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtOrganizeRelation.class);
+	}
 
 	@Test
 	public void syncXCStaffPhotoUsesRecentFiveDayWindowInsteadOfEpochFallback() throws Exception {
@@ -55,6 +72,72 @@ public class SmtStaffTaskServiceImplTest {
 		String url = service.requestedUrls.get(0);
 		long expectedStartTime = fixedNow.minusDays(5).toInstant(ZoneOffset.of("+8")).toEpochMilli();
 		Assert.assertTrue(url, url.contains("startTime=" + expectedStartTime));
+	}
+
+	@Test
+	public void staffPhotoCompensationWindowStartsThreeDaysBeforeCurrentTime() {
+		LocalDateTime now = LocalDateTime.of(2026, 6, 24, 17, 46, 57);
+
+		LocalDateTime startTime = SmtStaffTaskServiceImpl.getStaffPhotoCompensationStartTime(now);
+
+		Assert.assertEquals(LocalDateTime.of(2026, 6, 21, 17, 46, 57), startTime);
+	}
+
+	@Test
+	public void staffPhotoCompensationWindowIncludesCurrentDayStaff() {
+		LocalDateTime now = LocalDateTime.of(2026, 6, 24, 17, 46, 57);
+		LocalDateTime todayStaffCreateTime = LocalDateTime.of(2026, 6, 24, 0, 0, 0);
+		LocalDateTime startTime = SmtStaffTaskServiceImpl.getStaffPhotoCompensationStartTime(now);
+
+		Assert.assertFalse(todayStaffCreateTime.isBefore(startTime));
+		Assert.assertFalse(todayStaffCreateTime.isAfter(now));
+	}
+
+	@Test
+	public void staffPhotoCompensationWindowExcludesStaffBeforeThreeDays() {
+		LocalDateTime now = LocalDateTime.of(2026, 6, 24, 17, 46, 57);
+		LocalDateTime oldStaffCreateTime = LocalDateTime.of(2026, 6, 20, 23, 59, 59);
+		LocalDateTime startTime = SmtStaffTaskServiceImpl.getStaffPhotoCompensationStartTime(now);
+
+		Assert.assertTrue(oldStaffCreateTime.isBefore(startTime));
+	}
+
+	@Test
+	public void syncStaffNoPhotoQueriesXcStaffCreatedWithinThreeDays() throws Exception {
+		LocalDateTime fixedNow = LocalDateTime.of(2026, 6, 24, 17, 46, 57);
+		SmtParkBuMapper parkBuMapper = Mockito.mock(SmtParkBuMapper.class);
+		SmtOrganizeRelationMapper relationMapper = Mockito.mock(SmtOrganizeRelationMapper.class);
+		Mockito.when(parkBuMapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(parkBu("BU1")));
+		Mockito.when(relationMapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(relation(123L)));
+		TestableSmtStaffTaskServiceImpl service = new TestableSmtStaffTaskServiceImpl(fixedNow,
+				Mockito.mock(SmtImageService.class), Mockito.mock(RemoteStaffService.class), parkBuMapper, relationMapper);
+		setField(service, "xcParkId", 5000021);
+
+		service.syncStaffNoPhoto(1);
+
+		Assert.assertEquals(1, service.staffListSqlSegments.size());
+		assertNoPhotoStaffWindowSql(service.staffListSqlSegments.get(0), service.staffListParamValues.get(0),
+				fixedNow.minusDays(3), fixedNow);
+		Assert.assertTrue(service.staffListSqlSegments.get(0).toLowerCase().contains("comp_id in"));
+	}
+
+	@Test
+	public void syncStaffNoPhotoQueriesNonXcStaffCreatedWithinThreeDays() throws Exception {
+		LocalDateTime fixedNow = LocalDateTime.of(2026, 6, 24, 17, 46, 57);
+		SmtParkBuMapper parkBuMapper = Mockito.mock(SmtParkBuMapper.class);
+		SmtOrganizeRelationMapper relationMapper = Mockito.mock(SmtOrganizeRelationMapper.class);
+		Mockito.when(parkBuMapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(parkBu("BU1")));
+		Mockito.when(relationMapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(relation(123L)));
+		TestableSmtStaffTaskServiceImpl service = new TestableSmtStaffTaskServiceImpl(fixedNow,
+				Mockito.mock(SmtImageService.class), Mockito.mock(RemoteStaffService.class), parkBuMapper, relationMapper);
+		setField(service, "xcParkId", 5000021);
+
+		service.syncStaffNoPhoto(2);
+
+		Assert.assertEquals(1, service.staffListSqlSegments.size());
+		assertNoPhotoStaffWindowSql(service.staffListSqlSegments.get(0), service.staffListParamValues.get(0),
+				fixedNow.minusDays(3), fixedNow);
+		Assert.assertTrue(service.staffListSqlSegments.get(0).toLowerCase().contains("comp_id not in"));
 	}
 
 	@Test
@@ -111,18 +194,54 @@ public class SmtStaffTaskServiceImplTest {
 		field.set(target, value);
 	}
 
+	private static void assertNoPhotoStaffWindowSql(String sqlSegment, Map<String, Object> paramValues,
+													LocalDateTime expectedStartTime, LocalDateTime expectedEndTime) {
+		String normalizedSql = sqlSegment.toLowerCase();
+		Assert.assertTrue(sqlSegment, normalizedSql.contains("face_pic_id is null"));
+		Assert.assertTrue(sqlSegment, normalizedSql.contains("create_time between"));
+		Assert.assertFalse(sqlSegment, normalizedSql.contains("create_time <"));
+		Assert.assertTrue(paramValues.toString(), paramValues.containsValue(expectedStartTime));
+		Assert.assertTrue(paramValues.toString(), paramValues.containsValue(expectedEndTime));
+	}
+
+	private static SmtParkBu parkBu(String compId) {
+		SmtParkBu parkBu = new SmtParkBu();
+		parkBu.setCompId(compId);
+		return parkBu;
+	}
+
+	private static SmtOrganizeRelation relation(Long id) {
+		SmtOrganizeRelation relation = new SmtOrganizeRelation();
+		relation.setId(id);
+		return relation;
+	}
+
 	private static class TestableSmtStaffTaskServiceImpl extends SmtStaffTaskServiceImpl {
 		private final LocalDateTime fixedNow;
 		private final List<String> requestedUrls = new ArrayList<>();
+		private final List<String> staffListSqlSegments = new ArrayList<>();
+		private final List<Map<String, Object>> staffListParamValues = new ArrayList<>();
 		private SmtStaff updatedStaff;
 
 		TestableSmtStaffTaskServiceImpl(LocalDateTime fixedNow,
 										SmtImageService imageService,
 										RemoteStaffService remoteStaffService) {
-			super(imageService,
+			this(fixedNow,
+					imageService,
 					remoteStaffService,
 					Mockito.mock(SmtParkBuMapper.class),
 					Mockito.mock(SmtOrganizeRelationMapper.class));
+		}
+
+		TestableSmtStaffTaskServiceImpl(LocalDateTime fixedNow,
+										SmtImageService imageService,
+										RemoteStaffService remoteStaffService,
+										SmtParkBuMapper parkBuMapper,
+										SmtOrganizeRelationMapper relationMapper) {
+			super(imageService,
+					remoteStaffService,
+					parkBuMapper,
+					relationMapper);
 			this.fixedNow = fixedNow;
 		}
 
@@ -141,6 +260,13 @@ public class SmtStaffTaskServiceImplTest {
 		public boolean updateById(SmtStaff entity) {
 			this.updatedStaff = entity;
 			return true;
+		}
+
+		@Override
+		public List<SmtStaff> list(Wrapper<SmtStaff> queryWrapper) {
+			staffListSqlSegments.add(queryWrapper.getExpression().getSqlSegment());
+			staffListParamValues.add(((AbstractWrapper<SmtStaff, ?, ?>) queryWrapper).getParamNameValuePairs());
+			return new ArrayList<>();
 		}
 	}
 
