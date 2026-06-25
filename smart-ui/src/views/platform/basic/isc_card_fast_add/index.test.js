@@ -71,6 +71,7 @@ describe('isc card fast add staff search', () => {
       selectedStaff: null,
       staffCards: [],
       staffLoading: true,
+      applyStaffSearchResult: component.methods.applyStaffSearchResult,
       selectStaff: vi.fn(),
       $message: vi.fn()
     }
@@ -107,6 +108,7 @@ describe('isc card fast add staff search', () => {
       staffLoading: false,
       searchExactStaffByBadge: component.methods.searchExactStaffByBadge,
       searchStaffByName: component.methods.searchStaffByName,
+      applyStaffSearchResult: component.methods.applyStaffSearchResult,
       selectStaff: vi.fn(),
       $message: vi.fn()
     }
