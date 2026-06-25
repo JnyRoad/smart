@@ -19,8 +19,25 @@ const checks = [
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
-    required: /@click="searchSubmit\(searchForm\)"[\s\S]*@click="resetFrom\('searchForm'\)"[\s\S]*v-if="hasData"[\s\S]*@click="export2Excel"[\s\S]*@click="handleBatchEdit\(\)"[\s\S]*@click="handleSDBatchEdit\(\)"/,
-    message: 'room list toolbar must keep search, reset, export, and batch edit entries'
+    required: /<room-search-toolbar[\s\S]*:search-form="searchForm"[\s\S]*:all-dorm-type-list="allDormTypeList"[\s\S]*:has-data="hasData"[\s\S]*:export-loading="exportLoading"[\s\S]*@update-search-field="updateSearchField"[\s\S]*@search="searchSubmit\(searchForm\)"[\s\S]*@reset="resetFrom"[\s\S]*@export="export2Excel"[\s\S]*@batch-edit="handleBatchEdit"[\s\S]*@sd-batch-edit="handleSDBatchEdit"/,
+    message: 'room list must keep search toolbar props and event wiring'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/components/RoomSearchToolbar.vue',
+    custom: (content) => [
+      /@click="\$emit\('search'\)"/,
+      /@click="\$emit\('reset'\)"/,
+      /v-if="hasData"/,
+      /@click="\$emit\('export'\)"/,
+      /@click="\$emit\('batch-edit'\)"/,
+      /@click="\$emit\('sd-batch-edit'\)"/,
+      /class="topForm"/,
+      /label="是否参与分配"/,
+      /label="是否参与计算"/,
+      /label="宿舍分类"/,
+      /label="房间属性"/
+    ].every(pattern => pattern.test(content)),
+    message: 'room search toolbar must keep search fields and action buttons'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
@@ -61,6 +78,16 @@ const checks = [
       return /fetchRoomList\(\s*buildRoomListQuery\(\s*\{[\s\S]*parkId:\s*this\.parkId[\s\S]*dormitoryId:\s*this\.dormitoryId[\s\S]*floorId:\s*this\.floorId[\s\S]*\},\s*params\s*\)/.test(block)
     },
     message: 'room list query must keep room-name ascending order and tree scope filters'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => {
+      const start = content.indexOf('resetFrom()')
+      const end = content.indexOf('getList(params)', start)
+      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
+      return /this\.getList\(\)/.test(block) && /this\.\$refs\.searchToolbar\.resetFields\(\)/.test(block)
+    },
+    message: 'room list reset must keep querying and clearing the toolbar form'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
