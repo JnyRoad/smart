@@ -11,6 +11,7 @@ const dormTypeApi = vi.fn()
 const allDormitoryType = vi.fn()
 const getBedNum = vi.fn()
 const fetchSDTempList = vi.fn()
+const toolbarResetFields = vi.fn()
 
 vi.mock('@/api/platform/dormitory/room', () => ({
   fetchRoomList,
@@ -84,7 +85,30 @@ function mountRoomList() {
       ElDropdown: { template: '<div><slot /></div>' },
       ElDropdownMenu: { template: '<div><slot /></div>' },
       ElDropdownItem: { template: '<div><slot /></div>' },
-      RoomGenderSelect: { template: '<div class="room-gender-select-stub"></div>' }
+      RoomGenderSelect: { template: '<div class="room-gender-select-stub"></div>' },
+      RoomSearchToolbar: {
+        name: 'RoomSearchToolbar',
+        props: ['searchForm', 'allDormTypeList', 'hasData', 'exportLoading'],
+        template: `
+          <section class="room-search-toolbar-stub topForm">
+            <span>房间</span>
+            <span>是否参与分配</span>
+            <span>是否参与计算</span>
+            <span>宿舍分类</span>
+            <span>房间属性</span>
+            <button>搜索</button>
+            <button>清空</button>
+            <template v-if="hasData">
+              <button>导出表格</button>
+              <button>批量设置房间类型</button>
+              <button>批量设置房间水电模板</button>
+            </template>
+          </section>
+        `,
+        methods: {
+          resetFields: toolbarResetFields
+        }
+      }
     },
     mocks: {
       $notify: vi.fn(),
@@ -114,6 +138,7 @@ describe('dormitory room list page safety net', () => {
     allDormitoryType.mockReset()
     getBedNum.mockReset()
     fetchSDTempList.mockReset()
+    toolbarResetFields.mockReset()
 
     fetchRoomList.mockResolvedValue(createResponse([]))
     floorList.mockResolvedValue(createResponse([
@@ -149,6 +174,12 @@ describe('dormitory room list page safety net', () => {
     expect(wrapper.text()).toContain('宿舍分类')
     expect(wrapper.text()).toContain('房间属性')
     expect(wrapper.text()).toContain('当前条件下暂无住宿信息（请选择具体楼层）')
+    const toolbar = wrapper.findComponent({ name: 'RoomSearchToolbar' })
+    expect(toolbar.exists()).toBe(true)
+    expect(toolbar.props('searchForm')).toBe(wrapper.vm.searchForm)
+    expect(toolbar.props('allDormTypeList')).toBe(wrapper.vm.allDormTypeList)
+    expect(toolbar.props('hasData')).toBe(false)
+    expect(toolbar.props('exportLoading')).toBe(false)
   })
 
   it('keeps room export and batch edit entries visible when a floor has rooms', async () => {
@@ -168,5 +199,44 @@ describe('dormitory room list page safety net', () => {
     expect(wrapper.text()).toContain('批量设置房间类型')
     expect(wrapper.text()).toContain('批量设置房间水电模板')
     expect(wrapper.text()).toContain('编辑房间')
+  })
+
+  it('keeps toolbar events delegated to the existing page methods', async () => {
+    const wrapper = mountRoomList()
+    await flushPromises()
+
+    await wrapper.setData({
+      parkId: 10,
+      dormitoryId: 20,
+      floorId: 30
+    })
+    const toolbar = wrapper.findComponent({ name: 'RoomSearchToolbar' })
+
+    toolbar.vm.$emit('update-search-field', { field: 'roomSex', value: '2' })
+    expect(wrapper.vm.searchForm.roomSex).toBe('2')
+
+    fetchRoomList.mockClear()
+    toolbar.vm.$emit('search')
+    await flushPromises()
+
+    expect(fetchRoomList).toHaveBeenCalledWith({
+      asc: 'room_name',
+      parkId: 10,
+      dormitoryId: 20,
+      floorId: 30,
+      roomSex: '2'
+    })
+
+    fetchRoomList.mockClear()
+    toolbar.vm.$emit('reset')
+    await flushPromises()
+
+    expect(fetchRoomList).toHaveBeenCalledWith({
+      asc: 'room_name',
+      parkId: 10,
+      dormitoryId: 20,
+      floorId: 30
+    })
+    expect(toolbarResetFields).toHaveBeenCalledTimes(1)
   })
 })
