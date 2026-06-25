@@ -282,6 +282,17 @@ import { tableOption } from '@/const/crud/platform/dormitory/room'
 import { excel } from '@/util/excel'
 import { mapGetters } from 'vuex'
 import echarts from 'echarts'
+import {
+  buildRoomListQuery,
+  formatRoomExportRows,
+  hasRoomListData,
+  isEmptyRoomBatchEditForm,
+  roomGenderClass,
+  roomSelectionState,
+  shouldShowRoomTreeNode,
+  toCheckedRoomIds,
+  toExportRows
+} from './room-rules'
 
 // import echarts from "./";
 //是否为寝室，默认0， 0-是，1-否
@@ -455,11 +466,7 @@ export default {
   mounted: function () {},
   computed: {
     hasData() {
-      if (this.parkId && this.tableData && this.tableData.length > 0) {
-        return true
-      } else {
-        return false
-      }
+      return hasRoomListData(this.parkId, this.tableData)
     }
   },
   watch: {
@@ -469,8 +476,7 @@ export default {
   },
   filters: {
     f_roomGenderClass(val) {
-      let arr = ['man', 'woman', 'mix', 'other']
-      return arr[val]
+      return roomGenderClass(val)
     }
   },
   methods: {
@@ -665,21 +671,14 @@ export default {
     //全选房间
     checkAllChange(val) {
       // this.checkedRoom = val ? this.tableData : [];
-      if (val) {
-        this.checkedRoom = []
-        this.tableData.forEach((el) => {
-          this.checkedRoom.push(el.id)
-        })
-      } else {
-        this.checkedRoom = []
-      }
+      this.checkedRoom = toCheckedRoomIds(val, this.tableData)
       this.isIndeterminate = false
     },
     //多选房间
     roomChange(value) {
-      let checkedCount = value.length
-      this.checkAll = checkedCount === this.tableData.length
-      this.isIndeterminate = checkedCount > 0 && checkedCount < this.tableData.length
+      const selectionState = roomSelectionState(value, this.tableData)
+      this.checkAll = selectionState.checkAll
+      this.isIndeterminate = selectionState.isIndeterminate
     },
     /**
      * tree节点操作
@@ -865,36 +864,14 @@ export default {
         const { export_json_to_excel } = require('@/vendor/Export2Excel')
         const tHeader = ['房间号', '是否参与分配','是否参与计算', '宿舍分类', '床位数', '实住人数', '差异人数', '房间属性', '所属园区']
         const filterVal = ['roomName', 'isDormitoryRoom','isCount', 'typeName', 'bedTotal', 'usedBed', 'freeBed', 'roomSex', 'parkName']
-        fetchRoomList(
-          Object.assign(
-            {
-              asc: 'room_name',
-              parkId: this.parkId,
-              dormitoryId: this.dormitoryId,
-              floorId: this.floorId
-            },
-            this.searchForm
-          )
-        )
+        fetchRoomList(buildRoomListQuery({
+          parkId: this.parkId,
+          dormitoryId: this.dormitoryId,
+          floorId: this.floorId
+        }, this.searchForm))
           .then((response) => {
             const list = response.data.data
-            list.forEach(function (item) {
-              if (item.isDormitoryRoom == 0) {
-                item.isDormitoryRoom = '是'
-              } else if (item.isDormitoryRoom == 1) {
-                item.isDormitoryRoom = '否'
-              }
-
-              if (item.roomSex == 0) {
-                item.roomSex = '男'
-              } else if (item.roomSex == 1) {
-                item.roomSex = '女'
-              } else if (item.roomSex == 2) {
-                item.roomSex = '夫妻/家属'
-              } else {
-                item.roomSex = '其他'
-              }
-            })
+            formatRoomExportRows(list)
             const data = this.formatJson(filterVal, list)
             export_json_to_excel(tHeader, data, '房间列表')
             this.exportLoading = false
@@ -906,7 +883,7 @@ export default {
     },
     //导出相关
     formatJson(filterVal, jsonData) {
-      return jsonData.map((v) => filterVal.map((j) => v[j]))
+      return toExportRows(filterVal, jsonData)
     },
     //跟登录账号所属园区相关的宿舍分类（可能关联多个园区）
     getAllDormType() {
@@ -968,8 +945,7 @@ export default {
       })
     },
     filterNode(value, data) {
-      if (!value) return true
-      return data.label.indexOf(value) !== -1
+      return shouldShowRoomTreeNode(value, data)
     },
     /**
      * 搜索回调
@@ -991,17 +967,11 @@ export default {
       this.checkedRoom = []
       this.isIndeterminate = false
       this.tableLoading = true
-      fetchRoomList(
-        Object.assign(
-          {
-            asc: 'room_name',
-            parkId: this.parkId,
-            dormitoryId: this.dormitoryId,
-            floorId: this.floorId
-          },
-          params
-        )
-      ).then((response) => {
+      fetchRoomList(buildRoomListQuery({
+        parkId: this.parkId,
+        dormitoryId: this.dormitoryId,
+        floorId: this.floorId
+      }, params)).then((response) => {
         this.tableData = response.data.data
       })
     },
@@ -1117,12 +1087,7 @@ export default {
               })
           } else {
 
-            if(
-                (this.batchEditForm.isDormitoryRoom===null||this.batchEditForm.isDormitoryRoom===undefined)&&
-                (this.batchEditForm.roomType===null||this.batchEditForm.roomType===undefined) &&
-                (this.batchEditForm.roomSex===null||this.batchEditForm.roomSex===undefined)&&
-                (this.batchEditForm.isCount===null||this.batchEditForm.isCount===undefined)
-              ){
+            if (isEmptyRoomBatchEditForm(this.batchEditForm)) {
               this.$message.error('请在 否参与分配、否参与计算、宿舍分类、房间属性 中至少选择一项')
               return
             }
