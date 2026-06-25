@@ -85,6 +85,35 @@ describe('storage/store module compatibility', () => {
     expect(getStore({ name: 'obj' })).toEqual({ nested: 'value' })
   })
 
+  it('读取 boolean 包装对象时不执行 content 表达式', async () => {
+    const { getStore } = await import('./storage')
+
+    window.__SMART_UI_STORAGE_EVAL_EXECUTED__ = false
+    window.localStorage.setItem('Smart-malicious-bool', JSON.stringify({
+      dataType: 'boolean',
+      content: 'window.__SMART_UI_STORAGE_EVAL_EXECUTED__ = true'
+    }))
+
+    expect(getStore({ name: 'malicious-bool' })).toBeUndefined()
+    expect(window.__SMART_UI_STORAGE_EVAL_EXECUTED__).toBe(false)
+  })
+
+  it('兼容旧包装对象里的 boolean 字符串内容', async () => {
+    const { getStore } = await import('./storage')
+
+    window.localStorage.setItem('Smart-legacy-bool-true', JSON.stringify({
+      dataType: 'boolean',
+      content: 'true'
+    }))
+    window.localStorage.setItem('Smart-legacy-bool-false', JSON.stringify({
+      dataType: 'boolean',
+      content: 'false'
+    }))
+
+    expect(getStore({ name: 'legacy-bool-true' })).toBe(true)
+    expect(getStore({ name: 'legacy-bool-false' })).toBe(false)
+  })
+
   it('保持无法 JSON.parse 时直接返回原始字符串的兼容行为', async () => {
     const { getStore } = await import('./storage')
 
