@@ -306,6 +306,13 @@ pnpm gate
 风险：低。  
 回滚：恢复旧文件内容，删除新文件。
 
+完成状态：
+
+- 已合并：PR #15 `refactor(smart-ui): rename storage utility compatibly`
+- 合并提交：`8fd2ea6661d9441a71c219420f08265af68d8873`
+- 验证摘要：`pnpm test src/util/store.contract.test.js` 通过；`pnpm test` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 边界核对：`getStore` 的 boolean 分支仍保留 `content = eval(obj.content)`，返回值兼容逻辑未改；`eval()` 安全问题继续保留在 A 类 `fix/smart-ui-storage-eval` 队列。
+
 ---
 
 ### PR 5: 删除 `lrz.all.bundle.js`
