@@ -58,7 +58,7 @@ const checks = [
       const start = content.indexOf('getList(params)')
       const end = content.indexOf('rowDel(row)', start)
       const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
-      return /fetchRoomList\(\s*Object\.assign\(\s*\{[\s\S]*asc:\s*'room_name'[\s\S]*parkId:\s*this\.parkId[\s\S]*dormitoryId:\s*this\.dormitoryId[\s\S]*floorId:\s*this\.floorId/.test(block)
+      return /fetchRoomList\(\s*buildRoomListQuery\(\s*\{[\s\S]*parkId:\s*this\.parkId[\s\S]*dormitoryId:\s*this\.dormitoryId[\s\S]*floorId:\s*this\.floorId[\s\S]*\},\s*params\s*\)/.test(block)
     },
     message: 'room list query must keep room-name ascending order and tree scope filters'
   },
