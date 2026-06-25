@@ -45,6 +45,8 @@ import java.util.*;
 @Slf4j
 @Service
 public class OAWorkflowServiceImpl implements IOAWorkflowService {
+	private static final int OA_WORKFLOW_LOG_TIMEOUT_MILLIS = 5000;
+
 	@Value("${spring.oa.process.request.log-token}")
 	private String logToken;
 	@Value("${spring.oa.process.request.log-url}")
@@ -188,7 +190,7 @@ public class OAWorkflowServiceImpl implements IOAWorkflowService {
 		param.put("requestid", requestId);
 		param.put("TokenID", logToken);
 		String newUri = UriComponentsBuilder.fromHttpUrl(logUrl).replaceQuery(HttpUtil.toParams(param)).build(true).toString();
-		HttpResponse response = HttpUtils.createGet(newUri).execute();
+		HttpResponse response = HttpUtils.createGet(newUri).timeout(OA_WORKFLOW_LOG_TIMEOUT_MILLIS).execute();
 		return HttpUtils.parse(response, WorkFlowLogDTO.class);
 	}
 }

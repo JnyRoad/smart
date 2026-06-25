@@ -3,6 +3,7 @@ package com.tce.smart.schedule.service.comm;
 import com.tce.smart.tool.enums.TimerTaskEnum;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * description: SwitchService <br>
@@ -13,6 +14,12 @@ import java.time.LocalDateTime;
 public interface ISwitchService {
 
 	Boolean process(TimerTaskEnum timerTask);
+
+	Boolean process(TimerTaskEnum timerTask, long timeout, TimeUnit timeUnit);
+
+	String acquire(TimerTaskEnum timerTask, long timeout, TimeUnit timeUnit);
+
+	void release(TimerTaskEnum timerTask, String lockToken);
 
 	LocalDateTime saveOrGetKey(String key);
 

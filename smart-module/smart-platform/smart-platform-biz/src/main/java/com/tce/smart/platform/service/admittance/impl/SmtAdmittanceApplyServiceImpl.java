@@ -64,6 +64,8 @@ import org.apache.poi.ss.formula.functions.T;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -74,6 +76,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -87,6 +91,26 @@ import java.util.stream.Collectors;
 public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceApplyMapper, SmtAdmittanceApply> implements SmtAdmittanceApplyService {
 
 	private static final Integer LEGACY_HEFEI_PARK_ID = 20381;
+	private static final long OA_STATUS_SYNC_PAGE_SIZE = 50L;
+	private static final int PHOTO_UPLOAD_TIMEOUT_MILLIS = 5000;
+	private static final long POST_APPROVAL_RETRY_LOCK_MINUTES = 5L;
+	private static final int RELEASE_LOCK_RETRY_TIMES = 2;
+	private static final long RELEASE_LOCK_RETRY_SLEEP_MILLIS = 100L;
+	private static final int OA_STATUS_RECHECK_BATCH_SIZE = 200;
+	private static final int OA_STATUS_RECHECK_ID_LIMIT = 10000;
+	private static final long SHARED_SYNC_STATE_KEEP_HOURS = 24L;
+	private static final String DEVICE_TASK_EXISTS_MESSAGE = "任务已存在";
+	private static final String ISC_VEHICLE_AUTH_UNSUPPORTED_MESSAGE = "ISC车辆权限不支持下发";
+	private static final String POST_APPROVAL_RETRY_LOCK_KEY_PREFIX = "smart:admittance:post-approval:";
+	private static final String OA_STATUS_CURSOR_KEY = "smart:admittance:oa-status:cursor";
+	private static final String OA_STATUS_RECHECK_KEY = "smart:admittance:oa-status:recheck";
+	private static final String POST_APPROVAL_RETRY_CURSOR_KEY = "smart:admittance:post-approval:cursor";
+	private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
+			"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+			Long.class);
+	private final AtomicLong oaStatusCursor = new AtomicLong();
+	private final AtomicLong postApprovalRetryCursor = new AtomicLong();
+	private final Set<Long> oaStatusRecheckIds = Collections.synchronizedSet(new LinkedHashSet<>());
 
 	@Autowired
 	private SmtAdmittanceFellowService smtAdmittanceFellowService;
@@ -110,6 +134,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	private SmtDeviceService smtDeviceService;
 	@Autowired
 	private SmtSnapVehicleService smtSnapVehicleService;
+	@Autowired
+	private StringRedisTemplate stringRedisTemplate;
 	@Autowired
 	private SmtMsgTemplateService smtMsgTemplateService;
 	@Autowired
@@ -554,14 +580,16 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	@Override
 	public void updateStatus(SmtAdmittanceApply apply) {
 		//过期审批不下发 只修改状态
-		if (LocalDateTime.now().isAfter(apply.getEndTime())) {
+		if (apply.getEndTime() != null && LocalDateTime.now().isAfter(apply.getEndTime())) {
 			apply.setStatus(VisitorStatusEnum.CAUSE_6.getCode());
 			this.updateById(apply);
 			return;
 		}
 		if (AdmittanceTypeEnum.CAR.getCode().equals(apply.getApplyType())) {
 			//设置预约成功的验证码
-			apply.setSmsCode(RandomUtil.randomNumbers(6));
+			if (StrUtil.isBlank(apply.getSmsCode())) {
+				apply.setSmsCode(RandomUtil.randomNumbers(6));
+			}
 			apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
 			this.updateById(apply);
 			return;
@@ -569,12 +597,16 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		//审批通过
 		if (VisitorStatusEnum.Status_0.getCode().equals(apply.getStatus())) {
 			//设置预约成功的验证码
-			apply.setSmsCode(RandomUtil.randomNumbers(6));
+			if (StrUtil.isBlank(apply.getSmsCode())) {
+				apply.setSmsCode(RandomUtil.randomNumbers(6));
+			}
 			apply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
 			//下发权限
 			this.addDeviceTask(apply);
 			//上传照片到远程电脑
-			this.smbPutPhoto(apply.getId());
+			if (!Boolean.TRUE.equals(this.smbPutPhoto(apply.getId()))) {
+				throw new IllegalStateException("入厂申请照片上传到远程电脑失败，id=" + apply.getId());
+			}
 		}
 		//预约通知
 		try {
@@ -704,7 +736,7 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			deviceTaskVO.setOverTime(DateUtils.toEpochMilli(apply.getEndTime()) / 1000);
 			deviceTaskVO.setApplyBadge(fellow.getCertNo());
 			deviceTaskVO.setDeviceCode(deviceId);
-			smtDeviceTaskService.saveTask(deviceTaskVO);
+			saveRequiredDeviceTask(deviceTaskVO);
 		}
 	}
 
@@ -729,7 +761,7 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			deviceTaskVO.setApplyBadge(fellow.getCertNo());
 			deviceId.forEach(id -> {
 				deviceTaskVO.setDeviceCode(id);
-				smtDeviceTaskService.saveTask(deviceTaskVO);
+				saveRequiredDeviceTask(deviceTaskVO);
 			});
 		}
 	}
@@ -752,7 +784,7 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		deviceTaskVO.setOverTime(DateUtils.toEpochMilli(apply.getEndTime()) / 1000);
 		deviceTaskVO.setApplyBadge(apply.getCertNo());
 		deviceTaskVO.setDeviceCode(deviceId);
-		smtDeviceTaskService.saveTask(deviceTaskVO);
+		saveRequiredDeviceTask(deviceTaskVO);
 	}
 
 	/**
@@ -774,8 +806,43 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		deviceTaskVO.setApplyBadge(apply.getCertNo());
 		deviceId.forEach(id -> {
 			deviceTaskVO.setDeviceCode(id);
-			smtDeviceTaskService.saveTask(deviceTaskVO);
+			saveRequiredDeviceTask(deviceTaskVO);
 		});
+	}
+
+	private void saveRequiredDeviceTask(DeviceTaskVO deviceTaskVO) {
+		String taskResult = smtDeviceTaskService.saveTask(deviceTaskVO);
+		if (DEVICE_TASK_EXISTS_MESSAGE.equals(taskResult)) {
+			log.info("入厂申请下发任务已存在，deviceCode={}，cardNo={}", deviceTaskVO.getDeviceCode(), deviceTaskVO.getCardNo());
+			return;
+		}
+		if (isUnsupportedIscVehicleTask(deviceTaskVO, taskResult)) {
+			log.info("入厂申请ISC车辆权限不支持下发，按跳过成功处理，deviceCode={}，cardNo={}",
+					deviceTaskVO.getDeviceCode(), deviceTaskVO.getCardNo());
+			return;
+		}
+		if (!isDeviceTaskId(taskResult)) {
+			throw new IllegalStateException("入厂申请下发任务创建失败，deviceCode=" + deviceTaskVO.getDeviceCode()
+					+ "，cardNo=" + deviceTaskVO.getCardNo() + "，result=" + taskResult);
+		}
+	}
+
+	private boolean isUnsupportedIscVehicleTask(DeviceTaskVO deviceTaskVO, String taskResult) {
+		return deviceTaskVO != null
+				&& DeviceTaskConstants.CAR.equals(deviceTaskVO.getDeviceType())
+				&& ISC_VEHICLE_AUTH_UNSUPPORTED_MESSAGE.equals(taskResult);
+	}
+
+	private boolean isDeviceTaskId(String taskResult) {
+		if (StrUtil.isBlank(taskResult)) {
+			return false;
+		}
+		for (int i = 0; i < taskResult.length(); i++) {
+			if (!Character.isDigit(taskResult.charAt(i))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 
@@ -1431,7 +1498,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 					String fileName = fellowVisitorVO.getFellowPhotoId().concat(".png");
 					try {
 						// 使用HttpUtil创建一个POST请求，上传照片到远程URL
-						HttpResponse response = HttpUtil.createPost(remoteUrl).form("file", fellowVisitorBytes, fileName).form("filePath", savePath.concat(fileName)).execute();
+						HttpResponse response = HttpUtil.createPost(remoteUrl).timeout(PHOTO_UPLOAD_TIMEOUT_MILLIS)
+								.form("file", fellowVisitorBytes, fileName).form("filePath", savePath.concat(fileName)).execute();
 						// 如果上传失败
 						if (!response.isOk()) {
 							// 打印日志，记录上传图片失败的信息
@@ -1444,14 +1512,14 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 					} catch (Exception e) {
 						// 打印日志，记录上传图片失败的异常信息
 						log.error("【入厂申请上传照片到远程电脑失败】{},{}", remoteUrl, e.getMessage(), e);
+						isSuccess = false;
 					}
 				}
 			}
 		} catch (Exception e) {
-			// 打印异常堆栈信息
-			e.printStackTrace();
 			// 打印日志，记录上传图片失败的异常信息
-			log.error("【入厂申请上传照片到远程电脑失败】{},{}", e.getCause().getMessage(), e.getStackTrace());
+			log.error("【入厂申请上传照片到远程电脑失败】{},{}", remoteUrl, e.getMessage(), e);
+			return false;
 		}
 		// 返回上传是否成功
 		return isSuccess;
@@ -1620,30 +1688,510 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 
 	@Override
 	public void updateOaStatusTask() {
-		List<SmtAdmittanceApply> applyList = this.list(Wrappers.<SmtAdmittanceApply>query().lambda()
-				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode()));
+		List<SmtAdmittanceApply> applyList = pendingOaStatusList();
+		if (CollUtil.isEmpty(applyList)) {
+			retryFailedPostApprovalHandling();
+		} else {
+			int changedCount = 0;
+			for (SmtAdmittanceApply apply : applyList) {
+				if (syncOaStatus(apply)) {
+					changedCount++;
+				}
+			}
+			log.info("入厂申请OA审批状态同步结束，本批数量：{}，状态变更：{}", applyList.size(), changedCount);
+			retryFailedPostApprovalHandling();
+		}
+	}
+
+	private List<SmtAdmittanceApply> pendingOaStatusList() {
+		Map<Long, SmtAdmittanceApply> applyMap = new LinkedHashMap<>();
+		for (SmtAdmittanceApply apply : pendingOaStatusPage(true).getRecords()) {
+			applyMap.put(apply.getId(), apply);
+		}
+		List<SmtAdmittanceApply> oldestPage = pendingOaStatusPage(false).getRecords();
+		for (SmtAdmittanceApply apply : oldestPage) {
+			applyMap.put(apply.getId(), apply);
+		}
+		for (SmtAdmittanceApply apply : pendingOaStatusRecheckList()) {
+			applyMap.put(apply.getId(), apply);
+		}
+		if (CollUtil.isNotEmpty(oldestPage)) {
+			List<SmtAdmittanceApply> cursorPage = pendingOaStatusCursorPage().getRecords();
+			if (CollUtil.isEmpty(cursorPage) && sharedCursor(OA_STATUS_CURSOR_KEY, oaStatusCursor) > 0) {
+				updateSharedCursor(OA_STATUS_CURSOR_KEY, oaStatusCursor, 0L);
+				cursorPage = pendingOaStatusCursorPage().getRecords();
+			}
+			advanceOaStatusCursor(cursorPage);
+			for (SmtAdmittanceApply apply : cursorPage) {
+				applyMap.put(apply.getId(), apply);
+			}
+		}
+		return new ArrayList<>(applyMap.values());
+	}
+
+	private List<SmtAdmittanceApply> pendingOaStatusRecheckList() {
+		List<Long> recheckIds = pendingOaStatusRecheckIds();
+		if (CollUtil.isEmpty(recheckIds)) {
+			return Collections.emptyList();
+		}
+		Page<SmtAdmittanceApply> page = new Page<>(1, recheckIds.size());
+		page.setSearchCount(false);
+		List<SmtAdmittanceApply> records = this.page(page, Wrappers.<SmtAdmittanceApply>query().lambda()
+				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode())
+				.isNotNull(SmtAdmittanceApply::getProcessId)
+				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now())
+				.in(SmtAdmittanceApply::getId, recheckIds)
+				.orderByAsc(SmtAdmittanceApply::getId)).getRecords();
+		removeFinishedOaStatusRecheckIds(recheckIds, records);
+		return records;
+	}
+
+	private List<Long> pendingOaStatusRecheckIds() {
+		List<Long> sharedIds = sharedRecheckIds(OA_STATUS_RECHECK_KEY, oaStatusRecheckIds);
+		if (CollUtil.isNotEmpty(sharedIds)) {
+			return sharedIds;
+		}
+		synchronized (oaStatusRecheckIds) {
+			return new ArrayList<>(oaStatusRecheckIds);
+		}
+	}
+
+	private void rememberPendingOaStatus(SmtAdmittanceApply apply) {
+		if (apply == null || apply.getId() == null) {
+			return;
+		}
+		rememberSharedRecheckId(OA_STATUS_RECHECK_KEY, oaStatusRecheckIds, apply.getId());
+	}
+
+	private void forgetPendingOaStatus(Long applyId) {
+		forgetSharedRecheckId(OA_STATUS_RECHECK_KEY, oaStatusRecheckIds, applyId);
+	}
+
+	private void removeFinishedOaStatusRecheckIds(List<Long> candidateIds, List<SmtAdmittanceApply> records) {
+		Set<Long> activeIds = CollUtil.isEmpty(records) ? Collections.emptySet() : records.stream()
+				.map(SmtAdmittanceApply::getId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		for (Long candidateId : candidateIds) {
+			if (!activeIds.contains(candidateId)) {
+				forgetPendingOaStatus(candidateId);
+			}
+		}
+	}
+
+	private IPage<SmtAdmittanceApply> pendingOaStatusPage(boolean latestFirst) {
+		Page<SmtAdmittanceApply> page = new Page<>(1, OA_STATUS_SYNC_PAGE_SIZE);
+		page.setSearchCount(false);
+		LambdaQueryWrapper<SmtAdmittanceApply> queryWrapper = Wrappers.<SmtAdmittanceApply>query().lambda()
+				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode())
+				.isNotNull(SmtAdmittanceApply::getProcessId)
+				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now());
+		if (latestFirst) {
+			queryWrapper.orderByDesc(SmtAdmittanceApply::getCreateTime)
+					.orderByDesc(SmtAdmittanceApply::getId);
+		} else {
+			queryWrapper.orderByAsc(SmtAdmittanceApply::getCreateTime)
+					.orderByAsc(SmtAdmittanceApply::getId);
+		}
+		return this.page(page, queryWrapper);
+	}
+
+	private IPage<SmtAdmittanceApply> pendingOaStatusCursorPage() {
+		Page<SmtAdmittanceApply> page = new Page<>(1, OA_STATUS_SYNC_PAGE_SIZE);
+		page.setSearchCount(false);
+		LambdaQueryWrapper<SmtAdmittanceApply> queryWrapper = Wrappers.<SmtAdmittanceApply>query().lambda()
+				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode())
+				.isNotNull(SmtAdmittanceApply::getProcessId)
+				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now());
+		long cursor = sharedCursor(OA_STATUS_CURSOR_KEY, oaStatusCursor);
+		if (cursor > 0) {
+			queryWrapper.gt(SmtAdmittanceApply::getId, cursor);
+		}
+		queryWrapper.orderByAsc(SmtAdmittanceApply::getId);
+		return this.page(page, queryWrapper);
+	}
+
+	private void advanceOaStatusCursor(List<SmtAdmittanceApply> applyList) {
 		if (CollUtil.isEmpty(applyList)) {
 			return;
 		}
-		for (SmtAdmittanceApply id : applyList) {
-			WorkFlowLogDTO workFlowLogDTO = oaWorkflowService.query(id.getProcessId());
-			if (ObjectUtil.isNull(workFlowLogDTO) && !workFlowLogDTO.success()) {
+		applyList.stream()
+				.map(SmtAdmittanceApply::getId)
+				.filter(Objects::nonNull)
+				.max(Long::compareTo)
+				.ifPresent(cursor -> updateSharedCursor(OA_STATUS_CURSOR_KEY, oaStatusCursor, cursor));
+	}
+
+	private boolean syncOaStatus(SmtAdmittanceApply apply) {
+		if (apply == null || apply.getId() == null || StrUtil.isBlank(apply.getProcessId())) {
+			return false;
+		}
+		WorkFlowLogDTO workFlowLogDTO;
+		try {
+			workFlowLogDTO = oaWorkflowService.query(apply.getProcessId());
+		} catch (Exception e) {
+			log.warn("入厂申请OA审批状态查询失败，id={}，processId={}", apply.getId(), apply.getProcessId(), e);
+			rememberPendingOaStatus(apply);
+			return false;
+		}
+		Integer finalStatus = resolveOaFinalStatus(workFlowLogDTO);
+		if (finalStatus == null) {
+			rememberPendingOaStatus(apply);
+			return false;
+		}
+		forgetPendingOaStatus(apply.getId());
+		apply.setStatus(finalStatus);
+		if (!claimOaFinalStatus(apply)) {
+			log.info("入厂申请OA审批状态已被其他任务处理，id={}，processId={}", apply.getId(), apply.getProcessId());
+			return false;
+		}
+		try {
+			this.updateStatus(apply);
+		} catch (Exception e) {
+			log.error("入厂申请OA审批通过后续处理失败，id={}，processId={}", apply.getId(), apply.getProcessId(), e);
+			markDeviceStatus(apply.getId(), DeviceDownStatusEnum.FAIL.getCode());
+		}
+		return true;
+	}
+
+	private Integer resolveOaFinalStatus(WorkFlowLogDTO workFlowLogDTO) {
+		if (ObjectUtil.isNull(workFlowLogDTO) || !workFlowLogDTO.success()) {
+			return null;
+		}
+		List<WorkFlowLogDataDTO> data = workFlowLogDTO.getResultdata();
+		if (CollUtil.isEmpty(data)) {
+			return null;
+		}
+		WorkFlowLogDataDTO dataDTO = data.get(data.size() - 1);
+		if (OaFinalStatusEnum.CAUSE_3.getCode().toString().equals(dataDTO.getCURRENTNODETYPE())) {
+			return VisitorStatusEnum.Status_0.getCode();
+		}
+		if (OaFinalStatusEnum.CAUSE_0.getCode().toString().equals(dataDTO.getCURRENTNODETYPE())) {
+			return VisitorStatusEnum.Status_1.getCode();
+		}
+		return null;
+	}
+
+	private boolean claimOaFinalStatus(SmtAdmittanceApply apply) {
+		LambdaUpdateWrapper<SmtAdmittanceApply> updateWrapper = Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+				.eq(SmtAdmittanceApply::getId, apply.getId())
+				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode());
+		if (apply.getEndTime() != null && LocalDateTime.now().isAfter(apply.getEndTime())) {
+			apply.setStatus(VisitorStatusEnum.CAUSE_6.getCode());
+			updateWrapper.set(SmtAdmittanceApply::getStatus, apply.getStatus());
+			return this.update(updateWrapper);
+		}
+		updateWrapper.set(SmtAdmittanceApply::getStatus, apply.getStatus());
+		if (VisitorStatusEnum.Status_0.getCode().equals(apply.getStatus())) {
+			if (StrUtil.isBlank(apply.getSmsCode())) {
+				apply.setSmsCode(RandomUtil.randomNumbers(6));
+			}
+			if (AdmittanceTypeEnum.CAR.getCode().equals(apply.getApplyType())) {
+				apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
+			} else {
+				apply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
+			}
+			updateWrapper.set(SmtAdmittanceApply::getSmsCode, apply.getSmsCode())
+					.set(SmtAdmittanceApply::getDeviceStatus, apply.getDeviceStatus());
+		}
+		return this.update(updateWrapper);
+	}
+
+	private void retryFailedPostApprovalHandling() {
+		List<SmtAdmittanceApply> applyList = failedPostApprovalList();
+		if (CollUtil.isEmpty(applyList)) {
+			return;
+		}
+		int successCount = 0;
+		for (SmtAdmittanceApply apply : applyList) {
+			String retryLockToken = acquirePostApprovalRetryLock(apply);
+			if (retryLockToken == null) {
 				continue;
 			}
-			List<WorkFlowLogDataDTO> data = workFlowLogDTO.getResultdata();
-			if (CollUtil.isEmpty(data)) {
-				continue;
-			}
-			WorkFlowLogDataDTO dataDTO = data.get(data.size() - 1);
-			if (OaFinalStatusEnum.CAUSE_3.getCode().toString().equals(dataDTO.getCURRENTNODETYPE())) {
-				id.setStatus(VisitorStatusEnum.Status_0.getCode());
-				this.updateStatus(id);
-			}
-			if (OaFinalStatusEnum.CAUSE_0.getCode().toString().equals(dataDTO.getCURRENTNODETYPE())) {
-				id.setStatus(VisitorStatusEnum.Status_1.getCode());
-				this.updateStatus(id);
+			try {
+				if (!claimFailedPostApprovalHandling(apply)) {
+					continue;
+				}
+				this.updateStatus(apply);
+				successCount++;
+			} catch (Exception e) {
+				log.error("入厂申请审批通过后续处理补偿失败，id={}，processId={}", apply.getId(), apply.getProcessId(), e);
+				markDeviceStatus(apply.getId(), DeviceDownStatusEnum.FAIL.getCode());
+			} finally {
+				releasePostApprovalRetryLock(apply, retryLockToken);
 			}
 		}
+		log.info("入厂申请审批通过后续处理补偿结束，本批数量：{}，成功：{}", applyList.size(), successCount);
+	}
+
+	private List<SmtAdmittanceApply> failedPostApprovalList() {
+		Map<Long, SmtAdmittanceApply> applyMap = new LinkedHashMap<>();
+		List<SmtAdmittanceApply> oldestPage = failedPostApprovalPage().getRecords();
+		for (SmtAdmittanceApply apply : oldestPage) {
+			applyMap.put(apply.getId(), apply);
+		}
+		if (CollUtil.isEmpty(oldestPage)) {
+			updateSharedCursor(POST_APPROVAL_RETRY_CURSOR_KEY, postApprovalRetryCursor, 0L);
+			return Collections.emptyList();
+		}
+		List<SmtAdmittanceApply> cursorPage = failedPostApprovalCursorPage().getRecords();
+		if (CollUtil.isEmpty(cursorPage) && sharedCursor(POST_APPROVAL_RETRY_CURSOR_KEY, postApprovalRetryCursor) > 0) {
+			updateSharedCursor(POST_APPROVAL_RETRY_CURSOR_KEY, postApprovalRetryCursor, 0L);
+			cursorPage = failedPostApprovalCursorPage().getRecords();
+		}
+		advancePostApprovalRetryCursor(cursorPage);
+		for (SmtAdmittanceApply apply : cursorPage) {
+			applyMap.put(apply.getId(), apply);
+		}
+		return new ArrayList<>(applyMap.values());
+	}
+
+	private IPage<SmtAdmittanceApply> failedPostApprovalPage() {
+		Page<SmtAdmittanceApply> page = new Page<>(1, OA_STATUS_SYNC_PAGE_SIZE);
+		page.setSearchCount(false);
+		return this.page(page, Wrappers.<SmtAdmittanceApply>query().lambda()
+				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
+				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
+				.ne(SmtAdmittanceApply::getApplyType, AdmittanceTypeEnum.CAR.getCode())
+				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now())
+				.orderByAsc(SmtAdmittanceApply::getCreateTime)
+				.orderByAsc(SmtAdmittanceApply::getId));
+	}
+
+	private IPage<SmtAdmittanceApply> failedPostApprovalCursorPage() {
+		Page<SmtAdmittanceApply> page = new Page<>(1, OA_STATUS_SYNC_PAGE_SIZE);
+		page.setSearchCount(false);
+		LambdaQueryWrapper<SmtAdmittanceApply> queryWrapper = Wrappers.<SmtAdmittanceApply>query().lambda()
+				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
+				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
+				.ne(SmtAdmittanceApply::getApplyType, AdmittanceTypeEnum.CAR.getCode())
+				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now());
+		long cursor = sharedCursor(POST_APPROVAL_RETRY_CURSOR_KEY, postApprovalRetryCursor);
+		if (cursor > 0) {
+			queryWrapper.gt(SmtAdmittanceApply::getId, cursor);
+		}
+		queryWrapper.orderByAsc(SmtAdmittanceApply::getId);
+		return this.page(page, queryWrapper);
+	}
+
+	private void advancePostApprovalRetryCursor(List<SmtAdmittanceApply> applyList) {
+		if (CollUtil.isEmpty(applyList)) {
+			return;
+		}
+		applyList.stream()
+				.map(SmtAdmittanceApply::getId)
+				.filter(Objects::nonNull)
+				.max(Long::compareTo)
+				.ifPresent(cursor -> updateSharedCursor(POST_APPROVAL_RETRY_CURSOR_KEY, postApprovalRetryCursor, cursor));
+	}
+
+	private long sharedCursor(String redisKey, AtomicLong fallbackCursor) {
+		if (stringRedisTemplate == null) {
+			return fallbackCursor.get();
+		}
+		try {
+			String cursorValue = stringRedisTemplate.opsForValue().get(redisKey);
+			if (StrUtil.isBlank(cursorValue)) {
+				return fallbackCursor.get();
+			}
+			return Long.parseLong(cursorValue);
+		} catch (Exception e) {
+			log.warn("读取入厂申请OA同步游标失败，key={}", redisKey, e);
+			return fallbackCursor.get();
+		}
+	}
+
+	private void updateSharedCursor(String redisKey, AtomicLong fallbackCursor, Long cursor) {
+		if (cursor == null) {
+			return;
+		}
+		fallbackCursor.set(cursor);
+		if (stringRedisTemplate == null) {
+			return;
+		}
+		try {
+			stringRedisTemplate.opsForValue().set(redisKey, cursor.toString(), SHARED_SYNC_STATE_KEEP_HOURS, TimeUnit.HOURS);
+		} catch (Exception e) {
+			log.warn("写入入厂申请OA同步游标失败，key={}，cursor={}", redisKey, cursor, e);
+		}
+	}
+
+	private List<Long> sharedRecheckIds(String redisKey, Set<Long> fallbackIds) {
+		if (stringRedisTemplate == null) {
+			return limitedLocalRecheckIds(fallbackIds);
+		}
+		try {
+			Set<String> idValues = stringRedisTemplate.opsForZSet().rangeByScore(redisKey, 0,
+					System.currentTimeMillis(), 0, OA_STATUS_RECHECK_BATCH_SIZE);
+			if (CollUtil.isEmpty(idValues)) {
+				return limitedLocalRecheckIds(fallbackIds);
+			}
+			List<Long> ids = idValues.stream()
+					.map(this::parseLongSilently)
+					.filter(Objects::nonNull)
+					.collect(Collectors.toList());
+			if (CollUtil.isNotEmpty(ids)) {
+				return ids;
+			}
+		} catch (Exception e) {
+			log.warn("读取入厂申请OA重查集合失败，key={}", redisKey, e);
+		}
+		return limitedLocalRecheckIds(fallbackIds);
+	}
+
+	private void rememberSharedRecheckId(String redisKey, Set<Long> fallbackIds, Long id) {
+		if (id == null) {
+			return;
+		}
+		rememberLocalRecheckId(fallbackIds, id);
+		if (stringRedisTemplate == null) {
+			return;
+		}
+		try {
+			String idValue = id.toString();
+			long now = System.currentTimeMillis();
+			stringRedisTemplate.opsForZSet().add(redisKey, idValue, now);
+			Long size = stringRedisTemplate.opsForZSet().zCard(redisKey);
+			if (size != null && size > OA_STATUS_RECHECK_ID_LIMIT) {
+				stringRedisTemplate.opsForZSet().removeRange(redisKey, OA_STATUS_RECHECK_ID_LIMIT, size - 1);
+			}
+			stringRedisTemplate.expire(redisKey, SHARED_SYNC_STATE_KEEP_HOURS, TimeUnit.HOURS);
+		} catch (Exception e) {
+			log.warn("写入入厂申请OA重查集合失败，key={}，id={}", redisKey, id, e);
+		}
+	}
+
+	private void forgetSharedRecheckId(String redisKey, Set<Long> fallbackIds, Long id) {
+		if (id == null) {
+			return;
+		}
+		synchronized (fallbackIds) {
+			fallbackIds.remove(id);
+		}
+		if (stringRedisTemplate == null) {
+			return;
+		}
+		try {
+			stringRedisTemplate.opsForZSet().remove(redisKey, id.toString());
+		} catch (Exception e) {
+			log.warn("移除入厂申请OA重查集合失败，key={}，id={}", redisKey, id, e);
+		}
+	}
+
+	private List<Long> limitedLocalRecheckIds(Set<Long> fallbackIds) {
+		synchronized (fallbackIds) {
+			return fallbackIds.stream()
+					.limit(OA_STATUS_RECHECK_BATCH_SIZE)
+					.collect(Collectors.toList());
+		}
+	}
+
+	private void rememberLocalRecheckId(Set<Long> fallbackIds, Long id) {
+		synchronized (fallbackIds) {
+			fallbackIds.add(id);
+			while (fallbackIds.size() > OA_STATUS_RECHECK_ID_LIMIT) {
+				Iterator<Long> iterator = fallbackIds.iterator();
+				if (!iterator.hasNext()) {
+					return;
+				}
+				iterator.next();
+				iterator.remove();
+			}
+		}
+	}
+
+	private Long parseLongSilently(String value) {
+		if (StrUtil.isBlank(value)) {
+			return null;
+		}
+		try {
+			return Long.parseLong(value);
+		} catch (NumberFormatException ignored) {
+			return null;
+		}
+	}
+
+	private boolean claimFailedPostApprovalHandling(SmtAdmittanceApply apply) {
+		if (apply == null || apply.getId() == null) {
+			return false;
+		}
+		boolean claimed = this.update(Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+				.eq(SmtAdmittanceApply::getId, apply.getId())
+				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
+				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
+				.set(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.IN_WORK.getCode()));
+		if (claimed) {
+			apply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
+		}
+		return claimed;
+	}
+
+	private String acquirePostApprovalRetryLock(SmtAdmittanceApply apply) {
+		if (apply == null || apply.getId() == null || stringRedisTemplate == null) {
+			return apply != null && apply.getId() != null ? StrUtil.EMPTY : null;
+		}
+		String lockKey = postApprovalRetryLockKey(apply.getId());
+		String lockToken = UUID.randomUUID().toString();
+		Boolean acquired;
+		try {
+			acquired = stringRedisTemplate.opsForValue().setIfAbsent(lockKey, lockToken,
+					POST_APPROVAL_RETRY_LOCK_MINUTES, TimeUnit.MINUTES);
+		} catch (Exception e) {
+			log.error("入厂申请审批通过后续处理补偿加锁失败，跳过本次补偿，id={}，processId={}",
+					apply.getId(), apply.getProcessId(), e);
+			return null;
+		}
+		if (!Boolean.TRUE.equals(acquired)) {
+			log.info("入厂申请审批通过后续处理补偿已被其他任务锁定，id={}，processId={}", apply.getId(), apply.getProcessId());
+			return null;
+		}
+		return lockToken;
+	}
+
+	private void releasePostApprovalRetryLock(SmtAdmittanceApply apply, String lockToken) {
+		if (apply == null || apply.getId() == null || stringRedisTemplate == null || StrUtil.isBlank(lockToken)) {
+			return;
+		}
+		String lockKey = postApprovalRetryLockKey(apply.getId());
+		for (int retry = 0; retry <= RELEASE_LOCK_RETRY_TIMES; retry++) {
+			try {
+				Long deleted = stringRedisTemplate.execute(RELEASE_LOCK_SCRIPT, Collections.singletonList(lockKey), lockToken);
+				if (!Long.valueOf(1L).equals(deleted)) {
+					log.info("入厂申请审批通过后续处理补偿锁已换主，跳过释放，id={}，processId={}", apply.getId(), apply.getProcessId());
+				}
+				return;
+			} catch (Exception e) {
+				if (retry >= RELEASE_LOCK_RETRY_TIMES) {
+					log.error("释放入厂申请审批通过后续处理补偿锁失败，等待TTL自动过期，id={}，processId={}",
+							apply.getId(), apply.getProcessId(), e);
+					return;
+				}
+				sleepBeforeReleaseRetry(apply);
+			}
+		}
+	}
+
+	private void sleepBeforeReleaseRetry(SmtAdmittanceApply apply) {
+		try {
+			TimeUnit.MILLISECONDS.sleep(RELEASE_LOCK_RETRY_SLEEP_MILLIS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			log.warn("释放入厂申请审批通过后续处理补偿锁重试被中断，id={}，processId={}",
+					apply.getId(), apply.getProcessId(), e);
+		}
+	}
+
+	private String postApprovalRetryLockKey(Long applyId) {
+		return POST_APPROVAL_RETRY_LOCK_KEY_PREFIX + applyId;
+	}
+
+	private void markDeviceStatus(Long applyId, Integer deviceStatus) {
+		if (applyId == null) {
+			return;
+		}
+		this.update(Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+				.eq(SmtAdmittanceApply::getId, applyId)
+				.set(SmtAdmittanceApply::getDeviceStatus, deviceStatus));
 	}
 
 }
