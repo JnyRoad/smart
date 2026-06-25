@@ -714,7 +714,7 @@ pnpm gate
 
 以下工作全部另开 `fix/` 分支，不能混入上述 `refactor/` PR：
 
-1. `fix/smart-ui-user-menu-error-handling`：`store/modules/user.js` `GetMenu` 无 `.catch`。
+1. ~~`fix/smart-ui-user-menu-error-handling`：`store/modules/user.js` `GetMenu` 无 `.catch`。~~ 已完成，见下方完成状态。
 2. ~~`fix/smart-ui-storage-eval`：`util/storage.js` 或旧 `store.js` 中 `eval()`。~~ 已完成，见下方完成状态。
 3. `fix/smart-ui-electric-manage-scope`：`device/electric_manage` `_this/this`。
 4. `fix/smart-ui-login-credential-config`：`api/login.js` 硬编码租户和 Basic 凭据。
@@ -737,6 +737,15 @@ A 类 DoD：
 - 验证摘要：先新增恶意 boolean 包装对象测试并确认红测；修复后 `pnpm test src/util/store.contract.test.js` 通过（9 个用例）；`pnpm test` 通过（44 个测试文件、255 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm exec eslint src/util/storage.js src/util/store.contract.test.js` 通过；`pnpm gate` 通过。
 - 独立评审：本地 Codex 子代理第一次指出未提交 diff 无法审查，按建议先提交；第二轮只读评审结论 `AGREE`。
 - 边界核对：正常 `setStore` 写入的 boolean `true` / `false` 行为不变；历史包装对象里的字符串 `'true'` / `'false'` 继续兼容；仅对此前依赖任意 JavaScript 表达式求值的异常 boolean 包装对象发生行为变化，读取结果为 `undefined` 且不执行表达式。
+
+完成状态（`fix/smart-ui-user-menu-error-handling`）：
+
+- 已合并：PR #36 `fix(smart-ui): reject failed menu loads`
+- 合并提交：`5950ab87e47fe946692351a23ca38ed96c2c80cb`
+- 实际范围：仅修改 `smart-ui/src/store/modules/user.js` 和 `smart-ui/src/store/modules/user.test.js`；`GetMenu` action 在菜单接口失败时 reject 原始错误，成功路径的菜单 `addPath` 归一化与 `SET_MENU` 提交保持不变。
+- 验证摘要：先新增失败路径测试并确认红测（旧实现 Promise 保持 pending 且产生未处理拒绝）；修复后 `pnpm test src/store/modules/user.test.js` 通过（5 个用例）；`pnpm test` 通过（44 个测试文件、257 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：第一轮本地 Codex 子代理提出测试需用 `toBe(error)` 严格断言原始错误对象，已修复；第二轮因工具卡住未产出，改用新的窄范围只读子代理，结论 `AGREE`。一次 `claude -p` 只读评审尝试 90 秒无输出后已中断，无产出。
+- 边界核对：本 PR 只让调用方收到 rejected Promise，避免菜单请求失败时无限 pending；未新增用户提示、catch 上报、路由重构或菜单渲染逻辑变更。
 
 ---
 
