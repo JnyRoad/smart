@@ -248,7 +248,7 @@ const checks = [
     message: 'batch paste dialog must cap visible inline errors to keep the dialog readable'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
+    file: 'src/views/platform/basic/isc_card_fast_add/queue-flow.js',
     required: /parts\.length !== 2[\s\S]*每行只能填写工号和卡号/,
     message: 'batch paste parser must reject extra fields instead of silently dropping them'
   },
@@ -304,7 +304,7 @@ const checks = [
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /row\.message\s*=\s*this\.responseMessage\(response,\s*'保存失败'\)/,
+    required: /queueFailedPatch\(this\.responseMessage\(response,\s*'保存失败'\)\)/,
     message: 'queue save failure must show backend business error message instead of generic failure text'
   },
   {
