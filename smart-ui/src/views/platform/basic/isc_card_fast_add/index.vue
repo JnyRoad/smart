@@ -168,6 +168,15 @@ import {
   errorMessage as formatErrorMessage,
   responseMessage as formatResponseMessage
 } from './flow-rules'
+import {
+  validateQueueCandidate as validateQueueCandidateRule,
+  buildQueueRow as createQueueRow,
+  buildInvalidQueueRow as createInvalidQueueRow,
+  parsePasteText as parsePastedQueueRows,
+  queueSavingPatch,
+  queueSuccessPatch,
+  queueFailedPatch
+} from './queue-flow'
 
 export default {
   name: 'iscCardFastAdd',
@@ -454,27 +463,7 @@ export default {
       return validateIscCardNo(cardNo)
     },
     validateQueueCandidate(staff, cardNo, park) {
-      if (!park) {
-        return { valid: false, message: '请选择园区' }
-      }
-      if (!this.isParkSyncEnabled(park)) {
-        return { valid: false, message: '当前园区未启用ISC卡片同步' }
-      }
-      if (!staff || !staff.id) {
-        return { valid: false, message: '未找到有效员工' }
-      }
-      if (Number(staff.status) === 0) {
-        return { valid: false, message: '员工已离职，不允许维护ISC卡片' }
-      }
-      const cardValidation = this.validateCardNo(cardNo)
-      if (!cardValidation.valid) {
-        return cardValidation
-      }
-      const duplicate = this.queue.find(item => item.status !== 'success' && String(item.parkId) === String(park.parkId) && item.cardNo === trimValue(cardNo))
-      if (duplicate) {
-        return { valid: false, message: '卡号已在待提交队列中' }
-      }
-      return { valid: true, message: '' }
+      return validateQueueCandidateRule(staff, cardNo, park, this.queue)
     },
     addCurrentCard() {
       if (!this.selectedPark) {
@@ -510,37 +499,22 @@ export default {
       }
     },
     buildQueueRow(staff, cardNo, park) {
-      const validation = this.validateQueueCandidate(staff, cardNo, park)
-      return {
+      return createQueueRow({
         queueId: this.nextQueueId++,
-        staffId: staff && staff.id,
-        badge: staff && staff.badge,
-        name: staff && staff.name,
-        staffStatus: staff && staff.status,
-        parkId: park && park.parkId,
-        parkName: park && park.parkName,
-        dispatcherParkId: park && park.dispatcherParkId,
-        dispatcherParkName: park && park.dispatcherParkName,
-        cardNo: trimValue(cardNo),
-        status: validation.valid ? 'ready' : 'invalid',
-        message: validation.message
-      }
+        staff,
+        cardNo,
+        park,
+        queue: this.queue
+      })
     },
     buildInvalidQueueRow(badge, cardNo, message, park = this.selectedPark) {
-      return {
+      return createInvalidQueueRow({
         queueId: this.nextQueueId++,
-        staffId: null,
         badge,
-        name: '-',
-        staffStatus: null,
-        parkId: park && park.parkId,
-        parkName: park && park.parkName,
-        dispatcherParkId: park && park.dispatcherParkId,
-        dispatcherParkName: park && park.dispatcherParkName,
-        cardNo: trimValue(cardNo),
-        status: 'invalid',
-        message
-      }
+        cardNo,
+        message,
+        park
+      })
     },
     removeQueueRow(index) {
       if (this.submitting) {
@@ -569,8 +543,7 @@ export default {
       let successCount = 0
       let failedCount = 0
       for (const row of rowsToSubmit) {
-        row.status = 'saving'
-        row.message = '正在保存并创建ISC同步任务...'
+        Object.assign(row, queueSavingPatch())
         try {
           const response = await saveStaffCard({
             staffId: row.staffId,
@@ -578,17 +551,14 @@ export default {
             cardNo: row.cardNo
           })
           if (response.data.data) {
-            row.status = 'success'
-            row.message = '保存成功，ISC同步任务已创建'
+            Object.assign(row, queueSuccessPatch())
             successCount += 1
           } else {
-            row.status = 'failed'
-            row.message = this.responseMessage(response, '保存失败')
+            Object.assign(row, queueFailedPatch(this.responseMessage(response, '保存失败')))
             failedCount += 1
           }
         } catch (error) {
-          row.status = 'failed'
-          row.message = this.errorMessage(error)
+          Object.assign(row, queueFailedPatch(this.errorMessage(error)))
           failedCount += 1
         }
       }
@@ -614,30 +584,7 @@ export default {
       this.pasteDialogVisible = true
     },
     parsePasteText(text) {
-      return (text || '').split(/\n/).map((line, index) => {
-        const normalizedLine = trimValue(line)
-        if (!normalizedLine) {
-          return null
-        }
-        const parts = normalizedLine.split(/[\s,，]+/)
-        if (parts.length !== 2) {
-          return {
-            line: index + 1,
-            badge: parts[0] || '',
-            cardNo: parts[1] || '',
-            message: parts.length < 2 ? '缺少工号或卡号' : '每行只能填写工号和卡号'
-          }
-        }
-        const badge = parts[0]
-        const cardNo = parts[1]
-        const cardValidation = this.validateCardNo(cardNo)
-        return {
-          line: index + 1,
-          badge,
-          cardNo,
-          message: cardValidation.valid ? '' : cardValidation.message
-        }
-      }).filter(Boolean)
+      return parsePastedQueueRows(text)
     },
     async confirmPaste() {
       if (!this.selectedPark) {
