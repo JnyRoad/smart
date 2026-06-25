@@ -154,12 +154,12 @@ const checks = [
   },
   {
     file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /loadStaffCards\(staffId\)\s*\{[\s\S]*const requestStaffId = staffId[\s\S]*fetchStaffCardRecords\(requestStaffId\)[\s\S]*if\s*\(!this\.selectedStaff \|\| this\.selectedStaff\.id !== requestStaffId\)\s*\{[\s\S]*return[\s\S]*this\.staffCards = cards/,
+    required: /loadStaffCards\(staffId\)\s*\{[\s\S]*const requestStaffId = staffId[\s\S]*fetchStaffCardRecords\(requestStaffId\)[\s\S]*canApplyStaffCardResult\(this\.selectedStaff,\s*requestStaffId\)[\s\S]*this\.staffCards = cards/,
     message: 'staff card loading must ignore stale async responses after staff or park changes'
   },
   {
-    file: 'src/views/platform/basic/isc_card_fast_add/index.vue',
-    required: /exactMatches\s*=\s*records\.filter[\s\S]*exactMatches\.length\s*===\s*1[\s\S]*selectStaff\(exactMatches\[0\]\)[\s\S]*selectedStaff\s*=\s*null/,
+    file: 'src/views/platform/basic/isc_card_fast_add/staff-flow.js',
+    required: /resolveNameSearchResult\(records,\s*keyword\)[\s\S]*exactMatches\s*=\s*records\.filter[\s\S]*exactMatches\.length\s*===\s*1[\s\S]*selectStaffResult\(records,\s*exactMatches\[0\]\)[\s\S]*clearStaffResult\(records,/,
     message: 'name search must auto-select only a single exact match and require manual selection for ambiguous results'
   },
   {
@@ -338,16 +338,20 @@ checks.forEach(check => {
 try {
   const page = readRequired('src/views/platform/basic/isc_card_fast_add/index.vue')
   const pageApi = readRequired('src/views/platform/basic/isc_card_fast_add/api.js')
+  const staffFlow = readRequired('src/views/platform/basic/isc_card_fast_add/staff-flow.js')
   const loadTaskListStart = page.indexOf('loadTaskList()')
   const loadTaskListEnd = page.indexOf('parkOptionLabel', loadTaskListStart)
   const loadTaskListBlock = loadTaskListStart >= 0 && loadTaskListEnd >= 0 ? page.slice(loadTaskListStart, loadTaskListEnd) : ''
-  if (!loadTaskListBlock || !/fetchRecentCardTaskRecords\(\{[\s\S]*parkId:\s*this\.searchForm\.parkId[\s\S]*badge:\s*this\.selectedStaff && this\.selectedStaff\.badge/.test(loadTaskListBlock)) {
+  if (!loadTaskListBlock || !/fetchRecentCardTaskRecords\(buildRecentTaskQuery\(\{[\s\S]*searchForm:\s*this\.searchForm[\s\S]*selectedStaff:\s*this\.selectedStaff/.test(loadTaskListBlock)) {
     failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: recent task loader is missing')
+  }
+  if (!/buildRecentTaskQuery\(\{ searchForm,\s*selectedStaff \}\)[\s\S]*parkId:\s*searchForm && searchForm\.parkId[\s\S]*badge:\s*selectedStaff \? selectedStaff\.badge : null/.test(staffFlow)) {
+    failures.push('src/views/platform/basic/isc_card_fast_add/staff-flow.js: recent task query builder must preserve park and badge filters')
   }
   if (!/fetchRecentCardTaskRecords\(\{ parkId,\s*badge \} = \{\}\)[\s\S]*fetchIscCardTaskList\(query\)/.test(pageApi)) {
     failures.push('src/views/platform/basic/isc_card_fast_add/api.js: recent task service must call the existing ISC card task API')
   }
-  if (/action:\s*[12]/.test(loadTaskListBlock) || /action:\s*[12]/.test(pageApi)) {
+  if (/action:\s*[12]/.test(loadTaskListBlock) || /action:\s*[12]/.test(staffFlow) || /action:\s*[12]/.test(pageApi)) {
     failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: recent task loader must not hard-code card task action because delete tasks should be visible too')
   }
 
@@ -365,14 +369,14 @@ try {
     failures.push('src/views/platform/basic/isc_card_fast_add/StaffPanel.vue: existing card table must keep ISC platform and expose delete action')
   }
 
-  const nameSearchStart = page.indexOf('searchStaffByName(keyword)')
-  const nameSearchEnd = page.indexOf('searchExactStaffByBadge', nameSearchStart)
-  const nameSearchBlock = nameSearchStart >= 0 && nameSearchEnd >= 0 ? page.slice(nameSearchStart, nameSearchEnd) : ''
+  const nameSearchStart = staffFlow.indexOf('resolveNameSearchResult(records, keyword)')
+  const nameSearchEnd = staffFlow.indexOf('resolveBadgeSearchResult', nameSearchStart)
+  const nameSearchBlock = nameSearchStart >= 0 && nameSearchEnd >= 0 ? staffFlow.slice(nameSearchStart, nameSearchEnd) : ''
   if (!nameSearchBlock) {
-    failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: name staff search method is missing')
+    failures.push('src/views/platform/basic/isc_card_fast_add/staff-flow.js: name staff search method is missing')
   }
-  if (/selectStaff\(records\[0\]\)/.test(nameSearchBlock)) {
-    failures.push('src/views/platform/basic/isc_card_fast_add/index.vue: name search must not default to the first fuzzy staff result')
+  if (/records\[0\]/.test(nameSearchBlock)) {
+    failures.push('src/views/platform/basic/isc_card_fast_add/staff-flow.js: name search must not default to the first fuzzy staff result')
   }
 } catch (error) {
   failures.push(error.message)
