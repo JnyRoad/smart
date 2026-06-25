@@ -82,45 +82,19 @@
       <div class="my-basic-inner">
         <div class="block1">
           <div class="box-outer">
-            <div class="top-menu">
-              房间
-              <div class="top-right">
-                <el-button type="primary" icon="el-icon-search" @click="searchSubmit(searchForm)">搜索</el-button>
-                <el-button type="primary" icon="el-icon-delete" @click="resetFrom('searchForm')" plain>清空</el-button>
-                <template v-if="hasData">
-                  <el-button type="primary" :loading="exportLoading" @click="export2Excel" icon="icon-yutong-download">导出表格</el-button>
-                  <el-button type="primary" @click="handleBatchEdit()" icon="el-icon-edit">批量设置房间类型</el-button>
-                  <el-button type="primary" @click="handleSDBatchEdit()" icon="el-icon-edit">批量设置房间水电模板</el-button>
-                </template>
-              </div>
-            </div>
-            <el-form ref="searchForm" :inline="true" :model="searchForm" class="topForm" size="mini">
-              <el-form-item label="是否参与分配" prop="isDormitoryRoom">
-                <el-select v-model="searchForm.isDormitoryRoom" clearable placeholder="是否参与分配">
-                  <el-option label="是" value="0"></el-option>
-                  <el-option label="否" value="1"></el-option>
-                </el-select>
-              </el-form-item>
-              <el-form-item label="是否参与计算" prop="isCount">
-                <el-select v-model="searchForm.isCount" clearable placeholder="是否参与计算">
-                  <el-option label="是" value="1"></el-option>
-                  <el-option label="否" value="0"></el-option>
-                </el-select>
-              </el-form-item>
-              <el-form-item label="宿舍分类" prop="roomType">
-                <el-select v-model="searchForm.roomType" clearable placeholder="请选择宿舍分类">
-                  <el-option v-for="item in allDormTypeList" :key="item.id" :label="item.typeName" :value="item.id"></el-option>
-                </el-select>
-              </el-form-item>
-              <el-form-item label="房间属性" prop="roomSex">
-                <el-select v-model="searchForm.roomSex" clearable placeholder="房间属性">
-                  <el-option label="男" value="0"></el-option>
-                  <el-option label="女" value="1"></el-option>
-                  <el-option label="夫妻/家属" value="2"></el-option>
-                  <el-option label="其他" value="3"></el-option>
-                </el-select>
-              </el-form-item>
-            </el-form>
+            <room-search-toolbar
+              ref="searchToolbar"
+              :search-form="searchForm"
+              :all-dorm-type-list="allDormTypeList"
+              :has-data="hasData"
+              :export-loading="exportLoading"
+              @update-search-field="updateSearchField"
+              @search="searchSubmit(searchForm)"
+              @reset="resetFrom"
+              @export="export2Excel"
+              @batch-edit="handleBatchEdit"
+              @sd-batch-edit="handleSDBatchEdit"
+            />
           </div>
         </div>
         <div class="block1 block2">
@@ -282,6 +256,7 @@ import { tableOption } from '@/const/crud/platform/dormitory/room'
 import { excel } from '@/util/excel'
 import { mapGetters } from 'vuex'
 import echarts from 'echarts'
+import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
 import {
   buildRoomListQuery,
   formatRoomExportRows,
@@ -306,6 +281,9 @@ const isCountOption = [
 ]
 export default {
   name: 'room',
+  components: {
+    RoomSearchToolbar
+  },
   data() {
     var validateIsNum = (rule, value, callback) => {
       let regName = /^-?\d+$/
@@ -953,13 +931,16 @@ export default {
     searchSubmit(form) {
       this.getList(form)
     },
+    updateSearchField({ field, value }) {
+      this.searchForm[field] = value
+    },
     /**
      * 清空搜索
      */
-    resetFrom(formName) {
+    resetFrom() {
       this.getList()
-      if (this.$refs[formName] != undefined) {
-        this.$refs[formName].resetFields()
+      if (this.$refs.searchToolbar != undefined) {
+        this.$refs.searchToolbar.resetFields()
       }
     },
     //查询房间列表
