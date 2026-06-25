@@ -347,6 +347,16 @@ pnpm gate
 风险：中。删除第三方 bundle 一旦存在动态引用，构建未必覆盖到。  
 回滚：单 PR revert 恢复文件。
 
+完成状态：
+
+- 已合并：PR #17 `refactor(smart-ui): remove bundled lrz copy`
+- 合并提交：`4ab4a21322eb7bbe5821300babe34e5b730b4959`
+- 实际变更：仅删除 `smart-ui/src/util/lrz.all.bundle.js`；未修改依赖、API、路由、组件或业务逻辑。
+- 验证摘要：`node scripts/check-bundle-optimization.js` 通过；`rg -n "lrz\\.all\\.bundle|src/util/lrz|@/util/lrz" src public` 无匹配；`VUE_APP_PLATFORM_URL=http://platform.example.com VUE_APP_BASE_URL=http://api.example.com pnpm build` 通过；`pnpm gate` 通过（34 个测试文件、202 个测试用例、lint baseline 与静态契约检查全绿）。
+- 冒烟边界：无可用测试后端，未做真实登录冒烟；退化验证为 `VUE_APP_PLATFORM_URL=http://platform.example.com VUE_APP_BASE_URL=http://api.example.com pnpm exec vue-cli-service serve --host 127.0.0.1 --port 8088` 启动成功，`curl -I http://127.0.0.1:8088/` 返回 HTTP 200。
+- 独立评审：Claude 纯文本只读评审结论 `AGREE`；P2 提醒 `lrz` 依赖版本为 `^4.9.40`，本 PR 不夹带依赖锁定，因为删除前运行路径已经通过 `src/util/load-lrz.js` 动态加载 npm `lrz`。
+- 边界核对：`docs/lint-baseline.json` 无 `src/util/lrz.all.bundle.js` 条目，本 PR 无需更新基线；A 类行为变更未夹带。
+
 ---
 
 ### PR 6: crud 配置去重库存与下一批 `_base.js`
