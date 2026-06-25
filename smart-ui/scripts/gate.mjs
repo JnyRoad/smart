@@ -19,6 +19,7 @@ export const STEPS = [
   { name: 'platform-router-fingerprint', cmd: ['node', 'scripts/check-platform-router-fingerprint.mjs'] },
   { name: 'admin-search', cmd: ['node', 'scripts/check-admin-search.js'] },
   { name: 'bundle', cmd: ['node', 'scripts/check-bundle-optimization.js'] },
+  { name: 'room-list-ui', cmd: ['node', 'scripts/check-room-list-ui.js'] },
   { name: 'isc-card-fast-add-ui', cmd: ['node', 'scripts/check-isc-card-fast-add-ui.js'] },
   { name: 'isc-card-ui', cmd: ['node', 'scripts/check-isc-card-ui.js'] },
   { name: 'isc-device-id-readonly', cmd: ['node', 'scripts/check-isc-device-id-readonly.js'] },
