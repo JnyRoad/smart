@@ -29,6 +29,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @Description: TODO
@@ -41,6 +42,7 @@ import java.util.List;
 @Component
 @EnableScheduling
 public class EHRViewTimerTask {
+	private static final long ADMITTANCE_UPDATE_OA_LOCK_MINUTES = 5L;
 
 	@Autowired
 	private RemoteDictService remoteDictService;
@@ -163,10 +165,20 @@ public class EHRViewTimerTask {
 	 */
 	@Scheduled(fixedDelay = 1000 * 60 * 2)
 	public void admittanceUpdateOaTask() {
-		if (taskJob.getAdmittanceUpdateOa() && iSwitchService.process(TimerTaskEnum.ADMITTANCE_UPDATE_OA)) {
+		if (!taskJob.getAdmittanceUpdateOa()) {
+			return;
+		}
+		String lockToken = iSwitchService.acquire(TimerTaskEnum.ADMITTANCE_UPDATE_OA,
+				ADMITTANCE_UPDATE_OA_LOCK_MINUTES, TimeUnit.MINUTES);
+		if (lockToken == null) {
+			return;
+		}
+		try {
 			log.info("Task admittance_update_oa_task start time:" + DateUtil.date());
 			remoteAdmittanceTaskService.updateOaStatusTask(SecurityConstants.FROM_IN);
 			log.info("Task admittance_update_oa_task end time:" + DateUtil.date());
+		} finally {
+			iSwitchService.release(TimerTaskEnum.ADMITTANCE_UPDATE_OA, lockToken);
 		}
 	}
 
