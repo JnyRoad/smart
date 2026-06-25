@@ -698,6 +698,16 @@ pnpm gate
 风险：中。  
 回滚：单 PR revert。
 
+完成状态：
+
+- 已合并：PR #32 `refactor(smart-ui): extract room search toolbar`
+- 合并提交：`bf7d988c675373d9192ce54904295862d44985e4`
+- 实际范围：新增 `RoomSearchToolbar.vue` 和 `RoomSearchToolbar.test.js`；`room/list.vue` 保留搜索、清空、导出、批量设置房间类型、批量设置房间水电模板等父级方法与 API 调用，只把查询工具栏和搜索表单渲染下沉到子组件；同步增强 `room/list.test.js` 和 `scripts/check-room-list-ui.js`，锁住 toolbar props/events、字段更新、清空 reset 链路和核心按钮字段。
+- 验证摘要：先新增 `RoomSearchToolbar.test.js` 并确认组件缺失时红测；实现后 `pnpm test src/views/platform/dormitory/room/components/RoomSearchToolbar.test.js src/views/platform/dormitory/room/list.test.js` 通过（2 个测试文件、7 个用例）；`node scripts/check-room-list-ui.js` 通过；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：本地 Codex 子代理三轮只读评审；第一轮 P2 要求补齐清空 `resetFields` 链路测试和静态守卫，第二轮 P1 要求删除无用 `resetFrom(formName)` 参数，均已修复；第三轮评审结论 `AGREE`，无 P0/P1/P2。
+- 边界核对：未改 API 实现、接口签名、路由、导出字段、批量编辑 API、弹窗流程、页面文案或任何 A 类 bug 修复；搜索表单 label 宽度样式已迁入子组件，避免 scoped CSS 迁移后的布局回归。
+- 计划偏差：原小节写“抽完父组件减少至少 80 行”，实际 `list.vue` 统计为 `+23/-42`，净减少 19 行。为保持 reset、props/events 接线和样式迁移显式可测，本 PR 未继续追求行数指标；后续拆分不能把该 80 行目标视为已达成。
+
 ---
 
 ## 4. A 类行为变更队列
