@@ -120,6 +120,59 @@ export default [{
       source: '@/views/platform/device/index'
     })
   })
+
+  it('支持相对模块具名 route 导入，保证 index 可按原始顺序重新组装交错域路由', () => {
+    const source = `
+import { deviceDetailRoute } from './device'
+import { dormitoryDetailRoute } from './dormitory'
+
+export default [
+  deviceDetailRoute,
+  dormitoryDetailRoute
+]
+`
+    const modules = {
+      'src/router/platform/device.js': `
+import Layout from '@/page/index/'
+
+export const deviceDetailRoute = {
+  path: '/platform/device',
+  component: Layout,
+  redirect: '/platform/device/detail',
+  children: [{ path: 'detail/:id', component: () => import('@/views/platform/device/detail') }]
+}
+`,
+      'src/router/platform/dormitory.js': `
+import Layout from '@/page/index/'
+
+const dormitoryDetailRoute = {
+  path: '/platform/dormitory',
+  component: Layout,
+  children: [{ path: 'detail/:id', component: () => import('@/views/platform/dormitory/detail') }]
+}
+
+export { dormitoryDetailRoute }
+`
+    }
+
+    const fingerprint = buildPlatformRouterFingerprintFromSource(source, 'src/router/platform/index.js', {
+      readModule: (relativePath) => modules[relativePath] || null
+    })
+
+    expect(fingerprint.routes.map((route) => route.path)).toEqual([
+      '/platform/device',
+      '/platform/dormitory'
+    ])
+    expect(fingerprint.routes[0].component).toEqual({
+      type: 'identifier',
+      name: 'Layout',
+      importSource: '@/page/index/'
+    })
+    expect(fingerprint.routes[1].children.routes[0].component).toEqual({
+      type: 'lazyImport',
+      source: '@/views/platform/dormitory/detail'
+    })
+  })
 })
 
 describe('diffFingerprint', () => {
