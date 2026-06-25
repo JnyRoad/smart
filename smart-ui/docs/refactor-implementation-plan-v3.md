@@ -387,6 +387,15 @@ pnpm gate
 风险：中。Avue 配置变更容易影响列展示和校验。  
 回滚：单 PR revert。
 
+完成状态：
+
+- 已合并：PR #19 `refactor(smart-ui): extract work crud base config`
+- 合并提交：`b816759c8a334799a509fcba4b14fe2b6cb0ae9f`
+- 实际范围：只处理 `platform/work` 业务域；新增 `smart-ui/src/const/crud/platform/work/_base.js` 和 `work-crud-base.test.js`，8 个 work crud 配置改为 `...baseTableOption` 后接原 `column`。
+- 验证摘要：重构前先新增 `work-crud-base.test.js` 表征现有 8 个文件非 `column` 顶层配置；重构后 `pnpm test src/const/crud/platform/work/work-crud-base.test.js` 通过（9 个用例）；AST 对比 `origin/main` 确认 8 个 work crud 的 `column` 块源码完全未变；`git diff --check` 通过；`pnpm test` 通过（35 个测试文件、211 个测试用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：Claude 纯文本只读评审结论 `AGREE`；P2 提醒 `_base.js` 导出可增加直接断言，已采纳并补入测试。`Object.freeze(baseTableOption)` 被评估为可能改变可变性语义，本 PR 不夹带。
+- 边界核对：未改 API、路由、视图、formatter、validator、业务文案或任何 A 类行为修复。
+
 ---
 
 ### PR 7: `isc_card_fast_add` 队列构造与粘贴解析收尾
