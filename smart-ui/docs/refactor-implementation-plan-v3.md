@@ -546,6 +546,15 @@ pnpm gate
 风险：中。  
 回滚：单 PR revert。
 
+完成状态：
+
+- 已合并：PR #25 `refactor(smart-ui): remove bed mng dead dialog state`
+- 合并提交：`9bcec3b47ee4d3f88c0dfa76c62d2ad9c928e657`
+- 实际范围：新增 `smart-ui/src/views/platform/dormitory/bed_mng/index-static.test.js`；删除 `index.vue` 中已确认零引用的 `checkInLoading`、父级 `obj`、`rangIDTemp` 三个残留 `data()` 字段；保留三个已拆分编辑弹窗的父级 row/visible/refresh 接线。
+- 验证摘要：先新增静态测试并确认残留字段存在时红测；删除字段后 targeted tests 通过（`index-static.test.js`、`bed-rules.test.js`、三个编辑弹窗组件测试，共 24 个用例）；`git diff --check` 通过；`pnpm test` 通过（38 个测试文件、224 个测试用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：本地 Codex 子代理三轮只读评审；前两轮 P2 分别要求放宽静态测试的标签格式耦合、改用 ESM 测试里的 `fileURLToPath(import.meta.url)` 路径写法，均已修复；最终评审结论 `AGREE`，无 P0/P1/P2。
+- 边界核对：未改 API、路由、入住、退宿、换宿、导出、备注、修改入住时间、编辑非员工入住逻辑；未夹带 `tableLoading` 等潜在行为修复或 A 类 bug 修复。
+
 ---
 
 ### PR 10: `room/list.vue` 试点安全网
