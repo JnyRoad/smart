@@ -649,6 +649,15 @@ pnpm gate
 风险：中低。  
 回滚：单 PR revert。
 
+完成状态：
+
+- 已合并：PR #30 `refactor(smart-ui): extract room list rules`
+- 合并提交：`5d5719fe502c90adda896deb74252400e6d7e777`
+- 实际范围：新增 `smart-ui/src/views/platform/dormitory/room/room-rules.js` 和 `room-rules.test.js`；`room/list.vue` 保留原方法名和模板绑定，把 `hasData`、房间属性 class、树节点过滤、列表查询参数、全选/半选状态、导出枚举格式化、批量编辑空表单判断委托给纯函数；同步更新 `scripts/check-room-list-ui.js`，让静态守卫检查新的 `buildRoomListQuery` 调用边界。
+- 验证摘要：先新增 `room-rules.test.js` 并确认缺实现时红测；实现后 `pnpm test src/views/platform/dormitory/room/room-rules.test.js src/views/platform/dormitory/room/list.test.js` 通过（2 个测试文件、11 个用例）；`node scripts/check-room-list-ui.js` 通过；`pnpm test` 通过（43 个测试文件、248 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：本地 Codex 子代理只读评审 staged diff，结论 `AGREE`，无 P0/P1/P2；确认查询参数、导出枚举原地修改、选择状态和批量编辑空表单判断保持旧行为。
+- 边界核对：未改 API 实现、接口签名、模板事件绑定、页面文案、弹窗流程、路由、导出字段或任何 A 类 bug 修复。
+
 ---
 
 ### PR 12: `room/list.vue` 第二刀：抽查询工具栏组件
