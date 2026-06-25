@@ -598,6 +598,15 @@ pnpm gate
 风险：低。  
 回滚：删除新增测试和脚本。
 
+完成状态：
+
+- 已合并：PR #27 `test(smart-ui): add room list safety net`
+- 合并提交：`5c7420f50b63db1688daf41487ec9bc913d8a2e0`
+- 实际范围：新增 `room`、`dormitory`、`floor` 三组宿舍 API 契约测试；新增 `views/platform/dormitory/room/list.test.js` 浅挂载安全网；新增 `scripts/check-room-list-ui.js` 静态守卫并接入 `scripts/gate.mjs`；未改业务代码。
+- 验证摘要：`node scripts/check-room-list-ui.js` 通过；新增 room/list 安全网专项测试通过（4 个测试文件、15 个用例）；`pnpm test scripts/gate.test.mjs src/views/platform/dormitory/room/list.test.js src/api/platform/dormitory/room.test.js src/api/platform/dormitory/dormitory.test.js src/api/platform/dormitory/floor.test.js` 通过（5 个测试文件、20 个用例）；`pnpm test` 通过（42 个测试文件、239 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：本地 Codex 子代理两轮只读评审；第一轮 P1 要求静态守卫限定 `getList(params)` 方法块、P2 要求补足 created 阶段默认状态断言，均已修复；第二轮评审结论 `AGREE`，无 P0/P1/P2。
+- 边界核对：未改 API 实现、`room/list.vue`、路由、业务逻辑、导出、批量编辑、宿舍楼、楼层或房间操作。
+
 ---
 
 ### PR 11: `room/list.vue` 第一刀：抽纯规则
