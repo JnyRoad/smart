@@ -170,7 +170,7 @@ const user = {
     GetMenu({
               commit
             }) {
-      return new Promise(resolve => {
+      return new Promise((resolve, reject) => {
         GetMenu().then((res) => {
           const data = res.data.data
           let menu = deepClone(data)
@@ -179,6 +179,8 @@ const user = {
           })
           commit('SET_MENU', menu)
           resolve(menu)
+        }).catch(error => {
+          reject(error)
         })
       })
     }
