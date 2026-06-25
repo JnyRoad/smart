@@ -20,9 +20,21 @@ vi.mock('@/util/util', () => ({
   encryption: vi.fn(({ data }) => data)
 }))
 
+import { GetMenu as requestMenu } from '@/api/admin/menu'
 import user from './user'
 
 const commit = vi.fn()
+const pendingMarker = { status: 'pending' }
+
+function getSettledStatus (promise) {
+  return Promise.race([
+    promise.then(
+      value => ({ status: 'resolved', value }),
+      reason => ({ status: 'rejected', reason })
+    ),
+    new Promise(resolve => setTimeout(() => resolve(pendingMarker), 0))
+  ])
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -38,5 +50,34 @@ describe('login actions clear a stale weak-password flag', () => {
     localStorage.setItem('isStrongPwd', 'false')
     await user.actions[action]({ commit }, payload)
     expect(localStorage.getItem('isStrongPwd')).toBe(null)
+  })
+})
+
+describe('GetMenu action', () => {
+  it('commits normalized menu data on success', async () => {
+    const menu = [{
+      path: '/platform',
+      children: [{
+        path: 'dashboard',
+        children: []
+      }]
+    }]
+    requestMenu.mockResolvedValueOnce({ data: { data: menu } })
+
+    const result = await user.actions.GetMenu({ commit })
+
+    expect(result).toBe(menu)
+    expect(menu[0].children[0].path).toBe('/platform/dashboard')
+    expect(commit).toHaveBeenCalledWith('SET_MENU', menu)
+  })
+
+  it('rejects and leaves menu state untouched when the menu request fails', async () => {
+    const error = new Error('menu request failed')
+    requestMenu.mockRejectedValueOnce(error)
+
+    const settled = await getSettledStatus(user.actions.GetMenu({ commit }))
+    expect(settled.status).toBe('rejected')
+    expect(settled.reason).toBe(error)
+    expect(commit).not.toHaveBeenCalledWith('SET_MENU', expect.anything())
   })
 })
