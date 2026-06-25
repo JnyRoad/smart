@@ -50,18 +50,34 @@ function buildImportBindings (ast) {
   for (const statement of ast.program.body) {
     if (statement.type !== 'ImportDeclaration') continue
     for (const specifier of statement.specifiers) {
-      bindings.set(specifier.local.name, statement.source.value)
+      if (specifier.type === 'ImportDefaultSpecifier') {
+        bindings.set(specifier.local.name, { source: statement.source.value, imported: 'default' })
+        continue
+      }
+      if (specifier.type === 'ImportSpecifier') {
+        bindings.set(specifier.local.name, {
+          source: statement.source.value,
+          imported: getKeyName(specifier.imported)
+        })
+        continue
+      }
+      bindings.set(specifier.local.name, { source: statement.source.value, imported: '*' })
     }
   }
   return bindings
 }
 
-function buildLocalRouteArrayBindings (ast) {
+function getImportSource (importBindings, name) {
+  const binding = importBindings.get(name)
+  return binding ? binding.source : null
+}
+
+function buildLocalRouteBindings (ast) {
   const bindings = new Map()
   for (const statement of ast.program.body) {
     if (statement.type !== 'VariableDeclaration') continue
     for (const declaration of statement.declarations) {
-      if (declaration.id.type === 'Identifier' && declaration.init && declaration.init.type === 'ArrayExpression') {
+      if (declaration.id.type === 'Identifier' && declaration.init) {
         bindings.set(declaration.id.name, declaration.init)
       }
     }
@@ -70,15 +86,15 @@ function buildLocalRouteArrayBindings (ast) {
 }
 
 function findDefaultRouteArray (context) {
-  const { ast, localRouteArrayBindings } = context
+  const { ast, localRouteBindings } = context
   const defaultExport = ast.program.body.find((statement) => statement.type === 'ExportDefaultDeclaration')
   if (!defaultExport) throw new Error('平台路由文件缺少 export default')
   if (defaultExport.declaration.type === 'ArrayExpression') return defaultExport.declaration
   if (
     defaultExport.declaration.type === 'Identifier' &&
-    localRouteArrayBindings.has(defaultExport.declaration.name)
+    localRouteBindings.has(defaultExport.declaration.name)
   ) {
-    return localRouteArrayBindings.get(defaultExport.declaration.name)
+    return localRouteBindings.get(defaultExport.declaration.name)
   }
   if (defaultExport.declaration.type !== 'ArrayExpression') {
     throw new Error('平台路由 export default 必须是数组字面量')
@@ -116,7 +132,7 @@ function readComponent (node, source, importBindings) {
     return {
       type: 'identifier',
       name: node.name,
-      importSource: importBindings.get(node.name) || null
+      importSource: getImportSource(importBindings, node.name)
     }
   }
   const lazyImportSource = readLazyImportSource(node)
@@ -142,7 +158,7 @@ function readStaticValue (node, source, importBindings) {
     return {
       type: 'identifier',
       name: node.name,
-      importSource: importBindings.get(node.name) || null
+      importSource: getImportSource(importBindings, node.name)
     }
   }
   if (node.type === 'UnaryExpression' && node.operator === '-' && node.argument.type === 'NumericLiteral') {
@@ -247,36 +263,85 @@ function createModuleContext (source, routeFile, options = {}) {
     readModule: options.readModule || readModuleFromDisk,
     moduleCache: options.moduleCache || new Map(),
     importBindings: buildImportBindings(ast),
-    localRouteArrayBindings: buildLocalRouteArrayBindings(ast)
+    localRouteBindings: buildLocalRouteBindings(ast)
   }
 }
 
-function resolveRouteArrayExpression (node, context) {
-  if (!node) return null
-  if (node.type === 'ArrayExpression') return collectRoutesFromArray(node, context)
-  if (node.type !== 'Identifier') return null
-
-  if (context.localRouteArrayBindings.has(node.name)) {
-    return collectRoutesFromArray(context.localRouteArrayBindings.get(node.name), context)
+function findNamedExportValue (context, exportedName) {
+  for (const statement of context.ast.program.body) {
+    if (statement.type === 'ExportNamedDeclaration' && statement.declaration) {
+      if (statement.declaration.type === 'VariableDeclaration') {
+        for (const declaration of statement.declaration.declarations) {
+          if (declaration.id.type === 'Identifier' && declaration.id.name === exportedName) {
+            return declaration.init
+          }
+        }
+      }
+      continue
+    }
+    if (statement.type !== 'ExportNamedDeclaration') continue
+    for (const specifier of statement.specifiers) {
+      if (getKeyName(specifier.exported) !== exportedName) continue
+      const localName = getKeyName(specifier.local)
+      return localName && context.localRouteBindings.has(localName)
+        ? context.localRouteBindings.get(localName)
+        : null
+    }
   }
+  return null
+}
 
-  const importSource = context.importBindings.get(node.name)
-  if (!importSource || !importSource.startsWith('.')) return null
+function findDefaultExportValue (context) {
+  const defaultExport = context.ast.program.body.find((statement) => statement.type === 'ExportDefaultDeclaration')
+  if (!defaultExport) return null
+  if (
+    defaultExport.declaration.type === 'Identifier' &&
+    context.localRouteBindings.has(defaultExport.declaration.name)
+  ) {
+    return context.localRouteBindings.get(defaultExport.declaration.name)
+  }
+  return defaultExport.declaration
+}
 
-  const importedRouteFile = resolveRelativeModule(context.routeFile, importSource, context.readModule)
+function resolveImportedRouteReference (binding, context) {
+  if (!binding || !binding.source.startsWith('.')) return null
+
+  const importedRouteFile = resolveRelativeModule(context.routeFile, binding.source, context.readModule)
   if (!importedRouteFile) {
-    throw new Error(`无法解析路由模块：${context.routeFile} -> ${importSource}`)
+    throw new Error(`无法解析路由模块：${context.routeFile} -> ${binding.source}`)
   }
-  if (context.moduleCache.has(importedRouteFile)) return context.moduleCache.get(importedRouteFile)
+
+  const cacheKey = `${importedRouteFile}#${binding.imported}`
+  if (context.moduleCache.has(cacheKey)) return context.moduleCache.get(cacheKey)
 
   const importedSource = context.readModule(importedRouteFile)
   const importedContext = createModuleContext(importedSource, importedRouteFile, {
     readModule: context.readModule,
     moduleCache: context.moduleCache
   })
-  const routes = collectRoutesFromArray(findDefaultRouteArray(importedContext), importedContext)
-  context.moduleCache.set(importedRouteFile, routes)
+  const importedNode = binding.imported === 'default'
+    ? findDefaultExportValue(importedContext)
+    : findNamedExportValue(importedContext, binding.imported)
+  if (!importedNode) {
+    throw new Error(`路由模块 ${importedRouteFile} 缺少导出：${binding.imported}`)
+  }
+
+  const routes = resolveRouteReference(importedNode, importedContext)
+  context.moduleCache.set(cacheKey, routes)
   return routes
+}
+
+function resolveRouteReference (node, context) {
+  if (!node) return null
+  if (node.type === 'ArrayExpression') return collectRoutesFromArray(node, context)
+  if (node.type === 'ObjectExpression') return [buildRouteFingerprint(node, context)]
+  if (node.type !== 'Identifier') return null
+
+  if (context.localRouteBindings.has(node.name)) {
+    return resolveRouteReference(context.localRouteBindings.get(node.name), context)
+  }
+
+  return resolveImportedRouteReference(context.importBindings.get(node.name), context)
 }
 
 function collectRoutesFromArray (arrayNode, context) {
@@ -284,11 +349,11 @@ function collectRoutesFromArray (arrayNode, context) {
   for (const element of arrayNode.elements) {
     if (!element) continue
     if (element.type === 'SpreadElement') {
-      const spreadRoutes = resolveRouteArrayExpression(element.argument, context)
+      const spreadRoutes = resolveRouteReference(element.argument, context)
       routes.push(...(spreadRoutes || [buildRouteFingerprint(element, context)]))
       continue
     }
-    const resolvedRoutes = resolveRouteArrayExpression(element, context)
+    const resolvedRoutes = resolveRouteReference(element, context)
     routes.push(...(resolvedRoutes || [buildRouteFingerprint(element, context)]))
   }
   return routes
