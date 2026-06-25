@@ -8,11 +8,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -24,6 +27,11 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class SwitchServiceImpl implements ISwitchService {
+	private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
+			"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+			Long.class);
+	private static final int RELEASE_LOCK_RETRY_TIMES = 2;
+	private static final long RELEASE_LOCK_RETRY_SLEEP_MILLIS = 100L;
 
 	@Autowired
 	private StringRedisTemplate redisTemplate;
@@ -33,14 +41,66 @@ public class SwitchServiceImpl implements ISwitchService {
 
 	@Override
 	public Boolean process(TimerTaskEnum timerTask) {
+		return process(timerTask, Constants.ONE, TimeUnit.MINUTES);
+	}
+
+	@Override
+	public Boolean process(TimerTaskEnum timerTask, long timeout, TimeUnit timeUnit) {
+		long lockTimeout = timeout > 0 ? timeout : Constants.ONE;
+		TimeUnit lockTimeUnit = timeUnit == null ? TimeUnit.MINUTES : timeUnit;
 		// setIfAbsent单命令原子抢占，避免hasKey+set窗口期多实例同时通过检查
 		Boolean acquired = redisTemplate.opsForValue().setIfAbsent(timerTask.getKey(), timerTask.getDesc(),
-				Constants.ONE, TimeUnit.MINUTES);
+				lockTimeout, lockTimeUnit);
 		if (Boolean.TRUE.equals(acquired)) {
 			log.info("开始执行：" + timerTask.getDesc() + " " + DateUtils.now());
 			return true;
 		}
 		return false;
+	}
+
+	@Override
+	public String acquire(TimerTaskEnum timerTask, long timeout, TimeUnit timeUnit) {
+		long lockTimeout = timeout > 0 ? timeout : Constants.ONE;
+		TimeUnit lockTimeUnit = timeUnit == null ? TimeUnit.MINUTES : timeUnit;
+		String lockToken = timerTask.getDesc() + ":" + UUID.randomUUID();
+		Boolean acquired = redisTemplate.opsForValue().setIfAbsent(timerTask.getKey(), lockToken,
+				lockTimeout, lockTimeUnit);
+		if (Boolean.TRUE.equals(acquired)) {
+			log.info("开始执行：" + timerTask.getDesc() + " " + DateUtils.now());
+			return lockToken;
+		}
+		return null;
+	}
+
+	@Override
+	public void release(TimerTaskEnum timerTask, String lockToken) {
+		if (timerTask == null || lockToken == null || lockToken.isEmpty()) {
+			return;
+		}
+		for (int retry = 0; retry <= RELEASE_LOCK_RETRY_TIMES; retry++) {
+			try {
+				Long deleted = redisTemplate.execute(RELEASE_LOCK_SCRIPT, Collections.singletonList(timerTask.getKey()), lockToken);
+				if (!Long.valueOf(1L).equals(deleted)) {
+					log.info("定时任务锁已换主，跳过释放：" + timerTask.getDesc());
+				}
+				return;
+			} catch (Exception e) {
+				if (retry >= RELEASE_LOCK_RETRY_TIMES) {
+					log.error("释放定时任务锁失败，等待TTL自动过期：{}", timerTask.getDesc(), e);
+					return;
+				}
+				sleepBeforeReleaseRetry(timerTask);
+			}
+		}
+	}
+
+	private void sleepBeforeReleaseRetry(TimerTaskEnum timerTask) {
+		try {
+			TimeUnit.MILLISECONDS.sleep(RELEASE_LOCK_RETRY_SLEEP_MILLIS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			log.warn("释放定时任务锁重试被中断：{}", timerTask.getDesc(), e);
+		}
 	}
 
 	@Override

@@ -73,6 +73,7 @@ import net.coobird.thumbnailator.Thumbnails;
 import org.apache.commons.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Base64Utils;
@@ -84,6 +85,9 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 访客表
@@ -94,10 +98,23 @@ import java.util.*;
 @Slf4j
 @Service
 public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisitor> implements SmtVisitorService {
+	private static final long OA_STATUS_SYNC_PAGE_SIZE = 50L;
+	private static final int OA_STATUS_RECHECK_BATCH_SIZE = 200;
+	private static final int OA_STATUS_RECHECK_ID_LIMIT = 10000;
+	private static final long SHARED_SYNC_STATE_KEEP_HOURS = 24L;
+	private static final String DEVICE_TASK_EXISTS_MESSAGE = "任务已存在";
+	private static final String ISC_VEHICLE_AUTH_UNSUPPORTED_MESSAGE = "ISC车辆权限不支持下发";
+	private static final String OA_STATUS_CURSOR_KEY = "smart:visitor:oa-status:cursor";
+	private static final String OA_STATUS_RECHECK_KEY = "smart:visitor:oa-status:recheck";
+	private final AtomicLong oaStatusCursor = new AtomicLong();
+	private final Set<Long> oaStatusRecheckIds = Collections.synchronizedSet(new LinkedHashSet<>());
+
 	@Autowired
 	private SmtParkService smtParkService;
 	@Autowired
 	private IOAWorkflowService oaWorkflowService;
+	@Autowired
+	private StringRedisTemplate stringRedisTemplate;
 	@Autowired
 	private SmtFellowVisitorService smtFellowVisitorService;
 	@Autowired
@@ -973,7 +990,7 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 		deviceTaskVO.setStartTime(DateUtils.offsetHour(visitor.getStartTime(), -putOffsetHour).getTime() / 1000);
 		deviceTaskVO.setOverTime(visitor.getEndTime().getTime() / 1000);
 		deviceTaskVO.setGeneral(fellowVisitorVO.getFellowName());
-		smtDeviceTaskService.saveTask(deviceTaskVO);
+		saveRequiredDeviceTask(deviceTaskVO);
 	}
 
 	/**
@@ -996,7 +1013,7 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 			deviceTaskVO.setStartTime(DateUtils.offsetHour(visitor.getStartTime(), -putOffsetHour).getTime() / 1000);
 			deviceTaskVO.setOverTime(visitor.getEndTime().getTime() / 1000);
 			deviceTaskVO.setApplyBadge(visitor.getCertNo());			//存储访客的身份证
-			smtDeviceTaskService.saveTask(deviceTaskVO);
+			saveRequiredDeviceTask(deviceTaskVO);
 		}
 	}
 
@@ -1036,7 +1053,42 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 		deviceTaskVO.setStartTime(DateUtils.offsetHour(visitor.getStartTime(), -putOffsetHour).getTime() / 1000);
 		deviceTaskVO.setOverTime(visitor.getEndTime().getTime() / 1000);
 		deviceTaskVO.setApplyBadge(visitor.getCertNo());
-		smtDeviceTaskService.saveTask(deviceTaskVO);
+		saveRequiredDeviceTask(deviceTaskVO);
+	}
+
+	private void saveRequiredDeviceTask(DeviceTaskVO deviceTaskVO) {
+		String taskResult = smtDeviceTaskService.saveTask(deviceTaskVO);
+		if (DEVICE_TASK_EXISTS_MESSAGE.equals(taskResult)) {
+			log.info("访客下发任务已存在，deviceCode={}，cardNo={}", deviceTaskVO.getDeviceCode(), deviceTaskVO.getCardNo());
+			return;
+		}
+		if (isUnsupportedIscVehicleTask(deviceTaskVO, taskResult)) {
+			log.info("访客ISC车辆权限不支持下发，按跳过成功处理，deviceCode={}，cardNo={}",
+					deviceTaskVO.getDeviceCode(), deviceTaskVO.getCardNo());
+			return;
+		}
+		if (!isDeviceTaskId(taskResult)) {
+			throw new IllegalStateException("访客下发任务创建失败，deviceCode=" + deviceTaskVO.getDeviceCode()
+					+ "，cardNo=" + deviceTaskVO.getCardNo() + "，result=" + taskResult);
+		}
+	}
+
+	private boolean isUnsupportedIscVehicleTask(DeviceTaskVO deviceTaskVO, String taskResult) {
+		return deviceTaskVO != null
+				&& DeviceTaskConstants.CAR.equals(deviceTaskVO.getDeviceType())
+				&& ISC_VEHICLE_AUTH_UNSUPPORTED_MESSAGE.equals(taskResult);
+	}
+
+	private boolean isDeviceTaskId(String taskResult) {
+		if (StrUtil.isBlank(taskResult)) {
+			return false;
+		}
+		for (int i = 0; i < taskResult.length(); i++) {
+			if (!Character.isDigit(taskResult.charAt(i))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	//添加被访人待我审批信息和审批代理人带我审核信息
@@ -2804,7 +2856,7 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 				deviceTaskVO.setDeviceType(DeviceTaskConstants.CARD);
 				deviceTaskVO.setStartTime(new Date().getTime() / 1000);                //当前时间
 				deviceTaskVO.setOverTime(visitor.getEndTime().getTime() / 1000);
-				smtDeviceTaskService.saveTask(deviceTaskVO);
+				saveRequiredDeviceTask(deviceTaskVO);
 			}
 		}
 
@@ -2829,7 +2881,7 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 					deviceTaskVO.setStartTime(new Date().getTime() / 1000);                //当前时间
 					deviceTaskVO.setOverTime(visitor.getEndTime().getTime() / 1000);
 					deviceTaskVO.setApplyBadge(visitor.getCertNo());
-					smtDeviceTaskService.saveTask(deviceTaskVO);
+					saveRequiredDeviceTask(deviceTaskVO);
 				}
 			}
 		}
@@ -3101,42 +3153,21 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 	public Boolean updateHfStatus(SmtVisitor smtVisitor) {
 		log.info("合肥访客预约状态更新：{}", smtVisitor);
 		//过期审批不下发 只修改状态
-		if (new Date().after(smtVisitor.getEndTime())) {
+		if (smtVisitor.getEndTime() != null && new Date().after(smtVisitor.getEndTime())) {
 			smtVisitor.setStatus(VisitorStatusEnum.CAUSE_6.getCode());
 			this.updateById(smtVisitor);
 			return Boolean.TRUE;
 		}
 		//判断是否为状态为0：已经通过
 		if (smtVisitor.getStatus().equals(SmtVisitorEnum.PASS_STATUS.getType())) {
-			smtVisitor.setSmsCode(RandomUtil.randomNumbers(6));
+			if (StrUtil.isBlank(smtVisitor.getSmsCode())) {
+				smtVisitor.setSmsCode(RandomUtil.randomNumbers(6));
+			}
 			this.updateById(smtVisitor);
 			//添加定时任务，下发闸机或者道闸
 			addTaskVisitor(smtVisitor);
-			//预约成功通知
-			Result<SendSmsVo> sendMessage = sendMessage(smtVisitor.getVisitorPhone(), smtVisitor.getVisitorName(),
-					SmsTemplateEnum.VISIT_1001.getCode(), smtVisitor.getReceptionistName(),
-					DateUtils.formatDateTime(smtVisitor.getStartTime()), null, null, smtVisitor.getCompany(),
-					null, null, smtVisitor.getSmsCode(), ParkNoticeTypeEnum.VISIT_APPLY_SUCCESS.getCode(),
-					smtVisitor.getParkId());
-			if (ObjectUtil.isNotNull(sendMessage) && !sendMessage.isSuccess()) {
-				//发送失败后，要发短息通知
-				sendMessageError(smtVisitor.getReceptionistPhone(), SmsTemplateEnum.SMS_12001.getCode(),
-						SmsTemplateEnum.VISIT_1001.getDesc(),
-						sendMessage.getMsg(),
-						ParkNoticeTypeEnum.SMS_SEND_FAILD.getCode(), smtVisitor.getParkId());
-			}
-			//预约成功通知被访人,调用短信发送接口
-			Result<SendSmsVo> sendMessage2 = sendMessage(smtVisitor.getReceptionistPhone(), smtVisitor.getVisitorName(),
-					SmsTemplateEnum.VISIT_1006.getCode(), smtVisitor.getReceptionistName(),
-					DateUtils.formatDateTime(smtVisitor.getStartTime()), null, null,
-					smtVisitor.getCompany(), null, null, null,
-					ParkNoticeTypeEnum.VISIT_APPLY_SUCCESS_NOTICE_HOST.getCode(), smtVisitor.getParkId());
-			if (ObjectUtil.isNotNull(sendMessage2) && !sendMessage2.isSuccess()) {
-				//发送失败后，要发短息通知
-				sendMessageError(smtVisitor.getReceptionistPhone(),
-						SmsTemplateEnum.SMS_12001.getCode(), SmsTemplateEnum.VISIT_1006.getDesc(),
-						sendMessage2.getMsg(), ParkNoticeTypeEnum.SMS_SEND_FAILD.getCode(), smtVisitor.getParkId());
-			}
+			sendVisitorPassNoticeSafely(smtVisitor);
+			sendReceptionistPassNoticeSafely(smtVisitor);
 			return Boolean.TRUE;
 		} else if (smtVisitor.getStatus().equals(SmtVisitorEnum.NOTPASS_STATUS.getType())) {
 			try {
@@ -3150,35 +3181,386 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 		return this.updateById(smtVisitor);
 	}
 
+	private void sendVisitorPassNoticeSafely(SmtVisitor smtVisitor) {
+		try {
+			Result<SendSmsVo> sendResult = sendMessage(smtVisitor.getVisitorPhone(), smtVisitor.getVisitorName(),
+					SmsTemplateEnum.VISIT_1001.getCode(), smtVisitor.getReceptionistName(),
+					DateUtils.formatDateTime(smtVisitor.getStartTime()), null, null, smtVisitor.getCompany(),
+					null, null, smtVisitor.getSmsCode(), ParkNoticeTypeEnum.VISIT_APPLY_SUCCESS.getCode(),
+					smtVisitor.getParkId());
+			if (ObjectUtil.isNotNull(sendResult) && !sendResult.isSuccess()) {
+				sendSmsFailNoticeSafely(smtVisitor, SmsTemplateEnum.VISIT_1001, sendResult.getMsg());
+			}
+		} catch (Exception e) {
+			log.error("发送访客预约成功短信异常，visitorId={}，phone={}", smtVisitor.getId(), smtVisitor.getVisitorPhone(), e);
+		}
+	}
+
+	private void sendReceptionistPassNoticeSafely(SmtVisitor smtVisitor) {
+		try {
+			Result<SendSmsVo> sendResult = sendMessage(smtVisitor.getReceptionistPhone(), smtVisitor.getVisitorName(),
+					SmsTemplateEnum.VISIT_1006.getCode(), smtVisitor.getReceptionistName(),
+					DateUtils.formatDateTime(smtVisitor.getStartTime()), null, null,
+					smtVisitor.getCompany(), null, null, null,
+					ParkNoticeTypeEnum.VISIT_APPLY_SUCCESS_NOTICE_HOST.getCode(), smtVisitor.getParkId());
+			if (ObjectUtil.isNotNull(sendResult) && !sendResult.isSuccess()) {
+				sendSmsFailNoticeSafely(smtVisitor, SmsTemplateEnum.VISIT_1006, sendResult.getMsg());
+			}
+		} catch (Exception e) {
+			log.error("发送被访人预约成功短信异常，visitorId={}，phone={}", smtVisitor.getId(), smtVisitor.getReceptionistPhone(), e);
+		}
+	}
+
+	private void sendSmsFailNoticeSafely(SmtVisitor smtVisitor, SmsTemplateEnum failedTemplate, String remark) {
+		try {
+			sendMessageError(smtVisitor.getReceptionistPhone(), SmsTemplateEnum.SMS_12001.getCode(),
+					failedTemplate.getDesc(), remark, ParkNoticeTypeEnum.SMS_SEND_FAILD.getCode(), smtVisitor.getParkId());
+		} catch (Exception e) {
+			log.error("发送访客短信失败告警异常，visitorId={}，template={}", smtVisitor.getId(), failedTemplate.getCode(), e);
+		}
+	}
+
 	@Override
 	public void updateOaStatusTask() {
-		List<SmtVisitor> applyList = this.list(Wrappers.<SmtVisitor>query().lambda()
-				.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode())
-				.isNotNull(SmtVisitor::getProcessId)
-		);
+		List<SmtVisitor> applyList = pendingOaStatusList();
 		if (CollUtil.isEmpty(applyList)) {
 			return;
 		}
-		for (SmtVisitor id : applyList) {
-			WorkFlowLogDTO workFlowLogDTO = oaWorkflowService.query(id.getProcessId());
-			if (ObjectUtil.isNull(workFlowLogDTO) && !workFlowLogDTO.success()) {
-				continue;
+		int changedCount = 0;
+		for (SmtVisitor visitor : applyList) {
+			if (syncOaStatus(visitor)) {
+				changedCount++;
 			}
-			List<WorkFlowLogDataDTO> data = workFlowLogDTO.getResultdata();
-			if (CollUtil.isEmpty(data)) {
-				continue;
+		}
+		log.info("访客OA审批状态同步结束，本批数量：{}，状态变更：{}", applyList.size(), changedCount);
+	}
+
+	private List<SmtVisitor> pendingOaStatusList() {
+		Map<Long, SmtVisitor> visitorMap = new LinkedHashMap<>();
+		for (SmtVisitor visitor : pendingOaStatusPage(true).getRecords()) {
+			visitorMap.put(visitor.getId(), visitor);
+		}
+		List<SmtVisitor> oldestPage = pendingOaStatusPage(false).getRecords();
+		for (SmtVisitor visitor : oldestPage) {
+			visitorMap.put(visitor.getId(), visitor);
+		}
+		for (SmtVisitor visitor : pendingOaStatusRecheckList()) {
+			visitorMap.put(visitor.getId(), visitor);
+		}
+		if (CollUtil.isNotEmpty(oldestPage)) {
+			List<SmtVisitor> cursorPage = pendingOaStatusCursorPage().getRecords();
+			if (CollUtil.isEmpty(cursorPage) && sharedCursor(OA_STATUS_CURSOR_KEY, oaStatusCursor) > 0) {
+				updateSharedCursor(OA_STATUS_CURSOR_KEY, oaStatusCursor, 0L);
+				cursorPage = pendingOaStatusCursorPage().getRecords();
 			}
-			WorkFlowLogDataDTO dataDTO = data.get(data.size() - 1);
-			if (OaFinalStatusEnum.CAUSE_3.getCode().toString().equals(dataDTO.getCURRENTNODETYPE())) {
-				id.setStatus(VisitorStatusEnum.Status_0.getCode());
-				this.updateHfStatus(id);
+			advanceOaStatusCursor(cursorPage);
+			for (SmtVisitor visitor : cursorPage) {
+				visitorMap.put(visitor.getId(), visitor);
 			}
-			if (OaFinalStatusEnum.CAUSE_0.getCode().toString().equals(dataDTO.getCURRENTNODETYPE())) {
-				id.setStatus(VisitorStatusEnum.Status_1.getCode());
-				this.updateHfStatus(id);
+		}
+		return new ArrayList<>(visitorMap.values());
+	}
+
+	private List<SmtVisitor> pendingOaStatusRecheckList() {
+		List<Long> recheckIds = pendingOaStatusRecheckIds();
+		if (CollUtil.isEmpty(recheckIds)) {
+			return Collections.emptyList();
+		}
+		Page<SmtVisitor> page = new Page<>(1, recheckIds.size());
+		page.setSearchCount(false);
+		List<SmtVisitor> records = this.page(page, Wrappers.<SmtVisitor>query().lambda()
+				.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode())
+				.isNotNull(SmtVisitor::getProcessId)
+				.gt(SmtVisitor::getEndTime, new Date())
+				.in(SmtVisitor::getId, recheckIds)
+				.orderByAsc(SmtVisitor::getId)).getRecords();
+		removeFinishedOaStatusRecheckIds(recheckIds, records);
+		return records;
+	}
+
+	private List<Long> pendingOaStatusRecheckIds() {
+		List<Long> sharedIds = sharedRecheckIds(OA_STATUS_RECHECK_KEY, oaStatusRecheckIds);
+		if (CollUtil.isNotEmpty(sharedIds)) {
+			return sharedIds;
+		}
+		synchronized (oaStatusRecheckIds) {
+			return new ArrayList<>(oaStatusRecheckIds);
+		}
+	}
+
+	private void rememberPendingOaStatus(SmtVisitor visitor) {
+		if (visitor == null || visitor.getId() == null) {
+			return;
+		}
+		rememberSharedRecheckId(OA_STATUS_RECHECK_KEY, oaStatusRecheckIds, visitor.getId());
+	}
+
+	private void forgetPendingOaStatus(Long visitorId) {
+		forgetSharedRecheckId(OA_STATUS_RECHECK_KEY, oaStatusRecheckIds, visitorId);
+	}
+
+	private void removeFinishedOaStatusRecheckIds(List<Long> candidateIds, List<SmtVisitor> records) {
+		Set<Long> activeIds = CollUtil.isEmpty(records) ? Collections.emptySet() : records.stream()
+				.map(SmtVisitor::getId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		for (Long candidateId : candidateIds) {
+			if (!activeIds.contains(candidateId)) {
+				forgetPendingOaStatus(candidateId);
 			}
 		}
 	}
 
+	private IPage<SmtVisitor> pendingOaStatusPage(boolean latestFirst) {
+		Page<SmtVisitor> page = new Page<>(1, OA_STATUS_SYNC_PAGE_SIZE);
+		page.setSearchCount(false);
+		LambdaQueryWrapper<SmtVisitor> queryWrapper = Wrappers.<SmtVisitor>query().lambda()
+				.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode())
+				.isNotNull(SmtVisitor::getProcessId)
+				.gt(SmtVisitor::getEndTime, new Date());
+		if (latestFirst) {
+			queryWrapper.orderByDesc(SmtVisitor::getCreateTime)
+					.orderByDesc(SmtVisitor::getId);
+		} else {
+			queryWrapper.orderByAsc(SmtVisitor::getCreateTime)
+					.orderByAsc(SmtVisitor::getId);
+		}
+		return this.page(page, queryWrapper);
+	}
+
+	private IPage<SmtVisitor> pendingOaStatusCursorPage() {
+		Page<SmtVisitor> page = new Page<>(1, OA_STATUS_SYNC_PAGE_SIZE);
+		page.setSearchCount(false);
+		LambdaQueryWrapper<SmtVisitor> queryWrapper = Wrappers.<SmtVisitor>query().lambda()
+				.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode())
+				.isNotNull(SmtVisitor::getProcessId)
+				.gt(SmtVisitor::getEndTime, new Date());
+		long cursor = sharedCursor(OA_STATUS_CURSOR_KEY, oaStatusCursor);
+		if (cursor > 0) {
+			queryWrapper.gt(SmtVisitor::getId, cursor);
+		}
+		queryWrapper.orderByAsc(SmtVisitor::getId);
+		return this.page(page, queryWrapper);
+	}
+
+	private void advanceOaStatusCursor(List<SmtVisitor> visitorList) {
+		if (CollUtil.isEmpty(visitorList)) {
+			return;
+		}
+		visitorList.stream()
+				.map(SmtVisitor::getId)
+				.filter(Objects::nonNull)
+				.max(Long::compareTo)
+				.ifPresent(cursor -> updateSharedCursor(OA_STATUS_CURSOR_KEY, oaStatusCursor, cursor));
+	}
+
+	private long sharedCursor(String redisKey, AtomicLong fallbackCursor) {
+		if (stringRedisTemplate == null) {
+			return fallbackCursor.get();
+		}
+		try {
+			String cursorValue = stringRedisTemplate.opsForValue().get(redisKey);
+			if (StrUtil.isBlank(cursorValue)) {
+				return fallbackCursor.get();
+			}
+			return Long.parseLong(cursorValue);
+		} catch (Exception e) {
+			log.warn("读取访客OA同步游标失败，key={}", redisKey, e);
+			return fallbackCursor.get();
+		}
+	}
+
+	private void updateSharedCursor(String redisKey, AtomicLong fallbackCursor, Long cursor) {
+		if (cursor == null) {
+			return;
+		}
+		fallbackCursor.set(cursor);
+		if (stringRedisTemplate == null) {
+			return;
+		}
+		try {
+			stringRedisTemplate.opsForValue().set(redisKey, cursor.toString(), SHARED_SYNC_STATE_KEEP_HOURS, TimeUnit.HOURS);
+		} catch (Exception e) {
+			log.warn("写入访客OA同步游标失败，key={}，cursor={}", redisKey, cursor, e);
+		}
+	}
+
+	private List<Long> sharedRecheckIds(String redisKey, Set<Long> fallbackIds) {
+		if (stringRedisTemplate == null) {
+			return limitedLocalRecheckIds(fallbackIds);
+		}
+		try {
+			Set<String> idValues = stringRedisTemplate.opsForZSet().rangeByScore(redisKey, 0,
+					System.currentTimeMillis(), 0, OA_STATUS_RECHECK_BATCH_SIZE);
+			if (CollUtil.isEmpty(idValues)) {
+				return limitedLocalRecheckIds(fallbackIds);
+			}
+			List<Long> ids = idValues.stream()
+					.map(this::parseLongSilently)
+					.filter(Objects::nonNull)
+					.collect(Collectors.toList());
+			if (CollUtil.isNotEmpty(ids)) {
+				return ids;
+			}
+		} catch (Exception e) {
+			log.warn("读取访客OA重查集合失败，key={}", redisKey, e);
+		}
+		return limitedLocalRecheckIds(fallbackIds);
+	}
+
+	private void rememberSharedRecheckId(String redisKey, Set<Long> fallbackIds, Long id) {
+		if (id == null) {
+			return;
+		}
+		rememberLocalRecheckId(fallbackIds, id);
+		if (stringRedisTemplate == null) {
+			return;
+		}
+		try {
+			String idValue = id.toString();
+			long now = System.currentTimeMillis();
+			stringRedisTemplate.opsForZSet().add(redisKey, idValue, now);
+			Long size = stringRedisTemplate.opsForZSet().zCard(redisKey);
+			if (size != null && size > OA_STATUS_RECHECK_ID_LIMIT) {
+				stringRedisTemplate.opsForZSet().removeRange(redisKey, OA_STATUS_RECHECK_ID_LIMIT, size - 1);
+			}
+			stringRedisTemplate.expire(redisKey, SHARED_SYNC_STATE_KEEP_HOURS, TimeUnit.HOURS);
+		} catch (Exception e) {
+			log.warn("写入访客OA重查集合失败，key={}，id={}", redisKey, id, e);
+		}
+	}
+
+	private void forgetSharedRecheckId(String redisKey, Set<Long> fallbackIds, Long id) {
+		if (id == null) {
+			return;
+		}
+		synchronized (fallbackIds) {
+			fallbackIds.remove(id);
+		}
+		if (stringRedisTemplate == null) {
+			return;
+		}
+		try {
+			stringRedisTemplate.opsForZSet().remove(redisKey, id.toString());
+		} catch (Exception e) {
+			log.warn("移除访客OA重查集合失败，key={}，id={}", redisKey, id, e);
+		}
+	}
+
+	private List<Long> limitedLocalRecheckIds(Set<Long> fallbackIds) {
+		synchronized (fallbackIds) {
+			return fallbackIds.stream()
+					.limit(OA_STATUS_RECHECK_BATCH_SIZE)
+					.collect(Collectors.toList());
+		}
+	}
+
+	private void rememberLocalRecheckId(Set<Long> fallbackIds, Long id) {
+		synchronized (fallbackIds) {
+			fallbackIds.add(id);
+			while (fallbackIds.size() > OA_STATUS_RECHECK_ID_LIMIT) {
+				Iterator<Long> iterator = fallbackIds.iterator();
+				if (!iterator.hasNext()) {
+					return;
+				}
+				iterator.next();
+				iterator.remove();
+			}
+		}
+	}
+
+	private Long parseLongSilently(String value) {
+		if (StrUtil.isBlank(value)) {
+			return null;
+		}
+		try {
+			return Long.parseLong(value);
+		} catch (NumberFormatException ignored) {
+			return null;
+		}
+	}
+
+	private boolean syncOaStatus(SmtVisitor visitor) {
+		if (visitor == null || visitor.getId() == null || StrUtil.isBlank(visitor.getProcessId())) {
+			return false;
+		}
+		WorkFlowLogDTO workFlowLogDTO;
+		try {
+			workFlowLogDTO = oaWorkflowService.query(visitor.getProcessId());
+		} catch (Exception e) {
+			log.warn("访客OA审批状态查询失败，id={}，processId={}", visitor.getId(), visitor.getProcessId(), e);
+			rememberPendingOaStatus(visitor);
+			return false;
+		}
+		Integer finalStatus = resolveOaFinalStatus(workFlowLogDTO);
+		if (finalStatus == null) {
+			rememberPendingOaStatus(visitor);
+			return false;
+		}
+		forgetPendingOaStatus(visitor.getId());
+		visitor.setStatus(finalStatus);
+		if (!claimOaFinalStatus(visitor)) {
+			log.info("访客OA审批状态已被其他任务处理，id={}，processId={}", visitor.getId(), visitor.getProcessId());
+			return false;
+		}
+		try {
+			this.updateHfStatus(visitor);
+		} catch (Exception e) {
+			log.error("访客OA审批通过后续处理失败，id={}，processId={}", visitor.getId(), visitor.getProcessId(), e);
+			restorePendingOaStatusAfterPostApprovalFailure(visitor, finalStatus);
+			rememberPendingOaStatus(visitor);
+		}
+		return true;
+	}
+
+	private Integer resolveOaFinalStatus(WorkFlowLogDTO workFlowLogDTO) {
+		if (ObjectUtil.isNull(workFlowLogDTO) || !workFlowLogDTO.success()) {
+			return null;
+		}
+		List<WorkFlowLogDataDTO> data = workFlowLogDTO.getResultdata();
+		if (CollUtil.isEmpty(data)) {
+			return null;
+		}
+		WorkFlowLogDataDTO dataDTO = data.get(data.size() - 1);
+		if (OaFinalStatusEnum.CAUSE_3.getCode().toString().equals(dataDTO.getCURRENTNODETYPE())) {
+			return VisitorStatusEnum.Status_0.getCode();
+		}
+		if (OaFinalStatusEnum.CAUSE_0.getCode().toString().equals(dataDTO.getCURRENTNODETYPE())) {
+			return VisitorStatusEnum.Status_1.getCode();
+		}
+		return null;
+	}
+
+	private boolean claimOaFinalStatus(SmtVisitor visitor) {
+		LambdaUpdateWrapper<SmtVisitor> updateWrapper = Wrappers.<SmtVisitor>lambdaUpdate()
+				.eq(SmtVisitor::getId, visitor.getId())
+				.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode());
+		if (visitor.getEndTime() != null && new Date().after(visitor.getEndTime())) {
+			visitor.setStatus(VisitorStatusEnum.CAUSE_6.getCode());
+			updateWrapper.set(SmtVisitor::getStatus, visitor.getStatus());
+			return this.update(updateWrapper);
+		}
+		updateWrapper.set(SmtVisitor::getStatus, visitor.getStatus());
+		if (VisitorStatusEnum.Status_0.getCode().equals(visitor.getStatus())) {
+			if (StrUtil.isBlank(visitor.getSmsCode())) {
+				visitor.setSmsCode(RandomUtil.randomNumbers(6));
+			}
+			updateWrapper.set(SmtVisitor::getSmsCode, visitor.getSmsCode());
+		}
+		return this.update(updateWrapper);
+	}
+
+	private void restorePendingOaStatusAfterPostApprovalFailure(SmtVisitor visitor, Integer finalStatus) {
+		if (!VisitorStatusEnum.Status_0.getCode().equals(finalStatus) || visitor == null || visitor.getId() == null) {
+			return;
+		}
+		boolean restored = this.update(Wrappers.<SmtVisitor>lambdaUpdate()
+				.eq(SmtVisitor::getId, visitor.getId())
+				.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_0.getCode())
+				.set(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode()));
+		if (restored) {
+			visitor.setStatus(VisitorStatusEnum.Status_2.getCode());
+		}
+	}
 
 }
