@@ -715,7 +715,7 @@ pnpm gate
 以下工作全部另开 `fix/` 分支，不能混入上述 `refactor/` PR：
 
 1. `fix/smart-ui-user-menu-error-handling`：`store/modules/user.js` `GetMenu` 无 `.catch`。
-2. `fix/smart-ui-storage-eval`：`util/storage.js` 或旧 `store.js` 中 `eval()`。
+2. ~~`fix/smart-ui-storage-eval`：`util/storage.js` 或旧 `store.js` 中 `eval()`。~~ 已完成，见下方完成状态。
 3. `fix/smart-ui-electric-manage-scope`：`device/electric_manage` `_this/this`。
 4. `fix/smart-ui-login-credential-config`：`api/login.js` 硬编码租户和 Basic 凭据。
 5. `fix/smart-ui-resize-timer-cleanup`：`page/` resize、`panel/bigdata.vue` timer 未解绑。
@@ -728,6 +728,15 @@ A 类 DoD：
 - 明确是否用户可见行为变化。
 - 需要产品或业务确认的，在 PR 描述写清确认结论。
 - 能灰度就加开关；不能灰度必须说明回滚方式。
+
+完成状态（`fix/smart-ui-storage-eval`）：
+
+- 已合并：PR #34 `fix(smart-ui): remove storage boolean eval`
+- 合并提交：`cb75c996e912a2eb3bd9d53a7808be6b35ef316a`
+- 实际范围：仅修改 `smart-ui/src/util/storage.js` 和 `smart-ui/src/util/store.contract.test.js`；把 boolean 反序列化从 `eval(obj.content)` 收窄为显式解析 `true` / `false`，旧 `store.js` 继续 re-export `storage.js`，未改调用方。
+- 验证摘要：先新增恶意 boolean 包装对象测试并确认红测；修复后 `pnpm test src/util/store.contract.test.js` 通过（9 个用例）；`pnpm test` 通过（44 个测试文件、255 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm exec eslint src/util/storage.js src/util/store.contract.test.js` 通过；`pnpm gate` 通过。
+- 独立评审：本地 Codex 子代理第一次指出未提交 diff 无法审查，按建议先提交；第二轮只读评审结论 `AGREE`。
+- 边界核对：正常 `setStore` 写入的 boolean `true` / `false` 行为不变；历史包装对象里的字符串 `'true'` / `'false'` 继续兼容；仅对此前依赖任意 JavaScript 表达式求值的异常 boolean 包装对象发生行为变化，读取结果为 `undefined` 且不执行表达式。
 
 ---
 
