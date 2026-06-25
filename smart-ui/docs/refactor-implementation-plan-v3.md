@@ -445,6 +445,15 @@ pnpm gate
 风险：中。该页仍是高频业务页。  
 回滚：单 PR revert。
 
+完成状态：
+
+- 已合并：PR #21 `refactor(smart-ui): extract isc card queue flow`
+- 合并提交：`61e420c543f6768cd9decac55691916bdeadf59b`
+- 实际范围：新增 `smart-ui/src/views/platform/basic/isc_card_fast_add/queue-flow.js` 和 `queue-flow.test.js`；`index.vue` 保留原页面方法名作为 wrapper，把队列行构造、粘贴解析、提交状态 patch 委托给纯函数；同步更新 `smart-ui/scripts/check-isc-card-fast-add-ui.js` 的静态守卫定位。
+- 验证摘要：先新增 `queue-flow.test.js` 并确认缺实现时红测；实现后 targeted tests 通过（`queue-flow.test.js`、`flow.test.js`、`index.test.js`，共 12 个用例）；`node scripts/check-isc-card-fast-add-ui.js` 通过；`git diff --check` 通过；`pnpm test` 通过（36 个测试文件、215 个测试用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：Claude 纯文本只读评审结论 `AGREE`，无 P0/P1；P2 关于队列响应式的担忧经核对不适用，本 PR 未把 `queue` 移出 Vue `data()`，页面流程测试仍覆盖队列更新。
+- 边界核对：未改 API、路由、业务文案、粘贴上限、园区快照、提交参数或成功/失败消息归并语义；未夹带 A 类 bug 修复。
+
 ---
 
 ### PR 8: `isc_card_fast_add` 搜人/卡片读取服务编排收尾
