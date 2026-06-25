@@ -65,6 +65,8 @@
         refreshLock: false,
         //刷新token的时间
         refreshTime: '',
+        previousOnResize: null,
+        resizeHandler: null
       }
     },
     created() {
@@ -73,6 +75,11 @@
     },
     destroyed() {
       clearInterval(this.refreshTime)
+      if (window.onresize === this.resizeHandler) {
+        window.onresize = this.previousOnResize
+      }
+      this.previousOnResize = null
+      this.resizeHandler = null
       // this.disconnect()
     },
     mounted() {
@@ -88,11 +95,13 @@
       // 屏幕检测
       init() {
         this.$store.commit('SET_SCREEN', admin.getScreen())
-        window.onresize = () => {
+        this.previousOnResize = window.onresize
+        this.resizeHandler = () => {
           setTimeout(() => {
             this.$store.commit('SET_SCREEN', admin.getScreen())
           }, 0);
         }
+        window.onresize = this.resizeHandler
       },
       // 实时检测刷新token
       refreshToken() {
