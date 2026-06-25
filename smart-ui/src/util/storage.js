@@ -4,6 +4,18 @@ import {
 import website from '@/const/website'
 
 const keyName = website.key + '-';
+const parseStoredBoolean = content => {
+  if (typeof content === 'boolean') {
+    return content
+  }
+  if (content === 'true') {
+    return true
+  }
+  if (content === 'false') {
+    return false
+  }
+}
+
 /**
  * 存储localStorage
  */
@@ -51,7 +63,7 @@ export const getStore = (params = {}) => {
   } else if (obj.dataType == 'number') {
     content = Number(obj.content);
   } else if (obj.dataType == 'boolean') {
-    content = eval(obj.content);
+    content = parseStoredBoolean(obj.content);
   } else if (obj.dataType == 'object') {
     content = obj.content;
   }
