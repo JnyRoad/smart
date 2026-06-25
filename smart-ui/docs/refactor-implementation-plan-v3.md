@@ -496,6 +496,15 @@ pnpm gate
 风险：中。  
 回滚：单 PR revert。
 
+完成状态：
+
+- 已合并：PR #23 `refactor(smart-ui): extract isc card staff flow`
+- 合并提交：`f890e0ecac37bffb941486d5aadd14d2c19b6087`
+- 实际范围：新增 `smart-ui/src/views/platform/basic/isc_card_fast_add/staff-flow.js` 和 `staff-flow.test.js`；`index.vue` 保留原页面方法名与 UI 副作用，把最近任务查询参数、姓名搜索结果判定、工号搜索 fallback 编排、员工卡片异步防陈旧判断委托给纯函数；同步更新 `smart-ui/scripts/check-isc-card-fast-add-ui.js`，让静态守卫检查新的模块边界。
+- 验证摘要：先新增 `staff-flow.test.js` 并确认缺实现时红测；又用红测锁定工号未命中后 fallback 到姓名搜索时重新读取当前园区的旧时序；实现后 targeted tests 通过（`staff-flow.test.js`、`index.test.js`、`flow.test.js`，共 15 个用例）；`node scripts/check-isc-card-fast-add-ui.js` 通过；`git diff --check` 通过；`pnpm test` 通过（37 个测试文件、222 个测试用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：向 Claude CLI 外发 staged diff 被系统按私有源码外传风险拒绝；改用本地 Codex 子代理只读评审当前 staged diff，结论 `AGREE`，无 P0/P1，确认 park fallback 时序、badge/name 选择规则、loading 与 stale guard 语义保持一致。
+- 边界核对：未改 API、路由、业务文案、员工搜索提示、员工卡片删除逻辑、队列提交逻辑或任何 A 类 bug 修复。
+
 ---
 
 ### PR 9: `bed_mng` 删除遗留死弹窗状态与补齐组件接线
