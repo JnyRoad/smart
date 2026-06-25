@@ -165,6 +165,12 @@ DoD：
 风险：低。  
 回滚：文档型 PR 可直接 revert；如果没有文件变更，则不需要 PR。
 
+完成状态：
+
+- 已合并：PR #11 `docs(smart-ui): add refactor implementation plan`
+- 合并提交：`2b13736534a7f0b506623b50ca343064fe3f944e`
+- 验证摘要：`pnpm gate` 通过；仅更新实施方案文档，不改 `src/` 业务代码。
+
 ---
 
 ### PR 2: 路由拆分前的 AST 指纹守卫
@@ -208,6 +214,12 @@ pnpm gate
 
 风险：低。  
 回滚：删除脚本和 package script 即可。
+
+完成状态：
+
+- 已合并：PR #12 `test(smart-ui): add platform router fingerprint guard`
+- 合并提交：`b4851729317c1a8f63cc0d3f624b9e997d5b28c1`
+- 验证摘要：`node scripts/check-platform-router-fingerprint.mjs` 通过；`pnpm test` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
 
 ---
 
@@ -254,6 +266,14 @@ pnpm gate
 
 风险：中高。主要风险是数组顺序变化和重复 path 覆盖。  
 回滚：单 PR revert 恢复原 897 行文件。
+
+完成状态：
+
+- 已合并：PR #13 `refactor(smart-ui): split platform router by domain`
+- 实际分支：`refactor/smart-ui-platform-router-split`
+- 合并提交：`b924d8bf58b93b45e923aff823664a2185f126e4`
+- 验证摘要：`node scripts/check-platform-router-fingerprint.mjs` 通过，锁定 90 个顶层路由和 11 组重复顶层 path；`pnpm test src/router/avue-router.contract.test.js` 通过；`pnpm test` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 手工核对：本轮未连接可用测试后端和浏览器会话，未执行 5 个高频菜单路径真实点击冒烟；PR 描述已如实记录该边界。
 
 ---
 
