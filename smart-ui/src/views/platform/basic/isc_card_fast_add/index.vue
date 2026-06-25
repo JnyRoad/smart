@@ -169,6 +169,13 @@ import {
   responseMessage as formatResponseMessage
 } from './flow-rules'
 import {
+  buildRecentTaskQuery,
+  canApplyStaffCardResult,
+  emptyStaffCardState,
+  runBadgeStaffSearch,
+  runNameStaffSearch
+} from './staff-flow'
+import {
   validateQueueCandidate as validateQueueCandidateRule,
   buildQueueRow as createQueueRow,
   buildInvalidQueueRow as createInvalidQueueRow,
@@ -281,10 +288,10 @@ export default {
     },
     loadTaskList() {
       this.taskLoading = true
-      fetchRecentCardTaskRecords({
-        parkId: this.searchForm.parkId,
-        badge: this.selectedStaff && this.selectedStaff.badge
-      }).then(records => {
+      fetchRecentCardTaskRecords(buildRecentTaskQuery({
+        searchForm: this.searchForm,
+        selectedStaff: this.selectedStaff
+      })).then(records => {
         this.taskTableData = records
       }).finally(() => {
         this.taskLoading = false
@@ -328,61 +335,41 @@ export default {
       return this.searchStaffByName(keyword)
     },
     searchStaffByName(keyword) {
-      return requestStaffByName(keyword, this.selectedPark).then(records => {
-        this.staffCandidates = records
-        if (!records.length) {
-          this.selectedStaff = null
-          this.staffCards = []
-          this.$message({
-            message: '未找到匹配员工',
-            type: 'warning'
-          })
-          return
-        }
-        const exactMatches = records.filter(item => item.name === keyword)
-        if (exactMatches.length === 1) {
-          this.selectStaff(exactMatches[0])
-          return
-        }
-        this.selectedStaff = null
-        this.staffCards = []
-        this.$message({
-          message: `找到${records.length}名候选员工，请手动选择`,
-          type: 'warning'
-        })
+      return runNameStaffSearch({
+        keyword,
+        selectedPark: this.selectedPark,
+        requestStaffByName
+      }).then(result => {
+        this.applyStaffSearchResult(result)
       }).finally(() => {
         this.staffLoading = false
       })
     },
     searchExactStaffByBadge(badge, fallbackToName) {
-      return requestStaffByBadge(badge, this.selectedPark).then(records => {
-        if (!records.length) {
-          if (fallbackToName) {
-            return this.searchStaffByName(badge)
-          }
-          this.selectedStaff = null
-          this.staffCards = []
-          this.staffCandidates = []
-          this.$message({
-            message: '未找到该工号对应员工',
-            type: 'warning'
-          })
-          return
-        }
-        this.staffCandidates = records
-        if (records.length === 1) {
-          this.selectStaff(records[0])
-          return
-        }
-        this.selectedStaff = null
-        this.staffCards = []
-        this.$message({
-          message: `找到${records.length}名候选员工，请手动选择`,
-          type: 'warning'
-        })
+      return runBadgeStaffSearch({
+        badge,
+        selectedPark: this.selectedPark,
+        fallbackToName,
+        readFallbackPark: () => this.selectedPark,
+        requestStaffByBadge,
+        requestStaffByName
+      }).then(result => {
+        this.applyStaffSearchResult(result)
       }).finally(() => {
         this.staffLoading = false
       })
+    },
+    applyStaffSearchResult(result) {
+      this.staffCandidates = result.staffCandidates
+      if (result.staffToSelect) {
+        this.selectStaff(result.staffToSelect)
+        return
+      }
+      this.selectedStaff = result.selectedStaff
+      this.staffCards = result.staffCards
+      if (result.message) {
+        this.$message(result.message)
+      }
     },
     selectStaff(row) {
       this.selectedStaff = row
@@ -393,19 +380,18 @@ export default {
     },
     loadStaffCards(staffId) {
       if (!staffId) {
-        this.staffCards = []
-        this.staffCardLoading = false
+        Object.assign(this, emptyStaffCardState())
         return
       }
       const requestStaffId = staffId
       this.staffCardLoading = true
       fetchStaffCardRecords(requestStaffId).then(cards => {
-        if (!this.selectedStaff || this.selectedStaff.id !== requestStaffId) {
+        if (!canApplyStaffCardResult(this.selectedStaff, requestStaffId)) {
           return
         }
         this.staffCards = cards
       }).finally(() => {
-        if (this.selectedStaff && this.selectedStaff.id !== requestStaffId) {
+        if (this.selectedStaff && !canApplyStaffCardResult(this.selectedStaff, requestStaffId)) {
           return
         }
         this.staffCardLoading = false
