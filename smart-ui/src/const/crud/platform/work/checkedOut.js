@@ -1,27 +1,7 @@
+import { baseTableOption } from './_base'
+
 export const tableOption = {
-    border: false,
-    index: true,
-    indexLabel: '序号',
-    indexWidth: 100,
-    indexFixed: true,
-    stripe: true,
-    menuAlign: 'center',
-    menuWidth: 150,
-    align: 'center',
-    refreshBtn: false,
-    columnBtn: false,
-    searchBtn: false,
-    showClomnuBtn: false,
-    searchSize: 'mini',
-    addBtn: false,
-    editBtn: false,
-    delBtn: false,
-    viewBtn: false,
-    selection: false,
-    props: {
-      label: 'label',
-      value: 'value'
-    },
+    ...baseTableOption,
     column: [
       {
         label: '园区',
