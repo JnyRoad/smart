@@ -16,6 +16,7 @@ const ROOT = resolve(import.meta.dirname, '..')
 export const STEPS = [
   { name: 'unit (vitest)', cmd: ['pnpm', 'exec', 'vitest', 'run'] },
   { name: 'lint-baseline', cmd: ['node', 'scripts/check-lint-baseline.mjs'] },
+  { name: 'platform-router-fingerprint', cmd: ['node', 'scripts/check-platform-router-fingerprint.mjs'] },
   { name: 'admin-search', cmd: ['node', 'scripts/check-admin-search.js'] },
   { name: 'bundle', cmd: ['node', 'scripts/check-bundle-optimization.js'] },
   { name: 'isc-card-fast-add-ui', cmd: ['node', 'scripts/check-isc-card-fast-add-ui.js'] },
