@@ -319,7 +319,6 @@ export default {
       curDlg5Obj: {},
       familyStaff: undefined,
       editCheckInVisible: false,
-      checkInLoading: false,
       exportLoading: false,
       exportFamilyLoading: false,
       staffStatusData: enumStaffStatus,
@@ -350,13 +349,11 @@ export default {
         id: "",
         createTime: ""
       },
-      obj: {},
       page: {
         total: 0, // 总页数
         currentPage: 1, // 当前页数
         pageSize: 20 // 每页显示多少条
       },
-      rangIDTemp: [],
       tableOption: tableOption,
       tableData: [],
       filterText: "",
