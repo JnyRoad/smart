@@ -61,6 +61,30 @@ export function roomTreeScopeForNode(data, node) {
   }
 }
 
+export function roomInitialTreeSelection(treeData) {
+  const selection = {
+    parkId: treeData[0].id,
+    defaultKey: treeData[0].id
+  }
+
+  if (treeData) {
+    if (selection.parkId) {
+      if (treeData[0].children && treeData[0].children.length > 0) {
+        selection.dormitoryId = treeData[0].children[0].id
+        selection.defaultKey = selection.dormitoryId
+        if (selection.dormitoryId) {
+          if (treeData[0].children[0].children[0] && treeData[0].children[0].children[0].length > 0) {
+            selection.floorId = treeData[0].children[0].children[0].id
+            selection.defaultKey = selection.floorId
+          }
+        }
+      }
+    }
+  }
+
+  return selection
+}
+
 export function buildRoomListQuery(scope, params) {
   return Object.assign(
     {
