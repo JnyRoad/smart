@@ -97,30 +97,47 @@ const checks = [
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
-    required: /<el-dialog title="编辑房间"[\s\S]*:visible\.sync="editFormVisible"[\s\S]*@click="resetEditForm\('editForm'\)"[\s\S]*@click="editSubmit\('editForm'\)"/,
-    message: 'edit room dialog must keep visible state and submit/reset handlers'
+    required: /<room-edit-dialog[\s\S]*ref="editForm"[\s\S]*:visible="editFormVisible"[\s\S]*:form="editForm"[\s\S]*:rules="editRules"[\s\S]*:is-dormitory-arr="isDormitoryArr"[\s\S]*:is-count-arr="isCountArr"[\s\S]*:park-dorm-type-list="parkDormTypeList"[\s\S]*:sd-temp-list="sdTempList"[\s\S]*:loading="editLoading"[\s\S]*@update-form-field="updateEditFormField"[\s\S]*@show-bed-num="showBedNum"[\s\S]*@get-bed-num="getBedNum"[\s\S]*@close="resetEditForm\('editForm'\)"[\s\S]*@submit="editSubmit\('editForm'\)"/,
+    message: 'room list must keep edit room dialog props, ref, and submit/reset/change wiring'
   },
   {
-    file: 'src/views/platform/dormitory/room/list.vue',
+    file: 'src/views/platform/dormitory/room/components/RoomEditDialog.vue',
     custom: (content) => {
-      const start = content.indexOf('<el-dialog title="编辑房间"')
-      const end = content.indexOf('<!--- 批量编辑弹框 --->', start)
-      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
       return [
-        /<el-form :rules="editRules" ref="editForm" :model="editForm"/,
+        /<el-dialog/,
+        /title="编辑房间"/,
+        /width="600px"/,
+        /:visible="visible"/,
+        /@close="\$emit\('close'\)"/,
+        /<el-form[\s\S]*ref="editForm"[\s\S]*:rules="rules"[\s\S]*:model="form"/,
+        /label-width="120px"/,
         /prop="roomName"/,
+        /:value="form\.roomName"/,
         /prop="isDormitoryRoom"/,
+        /@input="\$emit\('update-form-field', \{ field: 'isDormitoryRoom', value: \$event \}\)"/,
+        /@change="\$emit\('show-bed-num'\)"/,
         /prop="isCount"/,
+        /@input="\$emit\('update-form-field', \{ field: 'isCount', value: \$event \}\)"/,
         /prop="roomType"/,
+        /@input="\$emit\('update-form-field', \{ field: 'roomType', value: \$event \}\)"/,
+        /@change="\$emit\('get-bed-num'\)"/,
         /prop="bedTotal"/,
+        /:value="form\.bedTotal"/,
         /prop="roomSex"/,
+        /@input="\$emit\('update-form-field', \{ field: 'roomSex', value: \$event \}\)"/,
         /prop="sdTemplateId"/,
+        /@input="\$emit\('update-form-field', \{ field: 'sdTemplateId', value: \$event \}\)"/,
         /prop="leaveTempName"/,
-        /@change="showBedNum"/,
-        /@change="getBedNum"/
-      ].every(pattern => pattern.test(block))
+        /:value="form\.leaveTempName"/,
+        /@click="\$emit\('close'\)"/,
+        /@click="\$emit\('submit'\)"/,
+        /validate\(callback\)/,
+        /this\.\$refs\.editForm\.validate\(callback\)/,
+        /resetFields\(\)/,
+        /this\.\$refs\.editForm\.resetFields\(\)/
+      ].every(pattern => pattern.test(content))
     },
-    message: 'edit room dialog must keep form rules, model, props, and change handlers'
+    message: 'room edit dialog must keep form fields, update events, change hooks, and ref proxy methods'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
