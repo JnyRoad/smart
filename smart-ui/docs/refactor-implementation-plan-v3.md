@@ -747,6 +747,15 @@ A 类 DoD：
 - 独立评审：第一轮本地 Codex 子代理提出测试需用 `toBe(error)` 严格断言原始错误对象，已修复；第二轮因工具卡住未产出，改用新的窄范围只读子代理，结论 `AGREE`。一次 `claude -p` 只读评审尝试 90 秒无输出后已中断，无产出。
 - 边界核对：本 PR 只让调用方收到 rejected Promise，避免菜单请求失败时无限 pending；未新增用户提示、catch 上报、路由重构或菜单渲染逻辑变更。
 
+完成状态（`fix/smart-ui-resize-timer-cleanup` 子项：`page/index` resize handler）：
+
+- 已合并：PR #38 `fix(smart-ui): clean up index resize handler`
+- 合并提交：`dfdfb19091e1e33f18e7e2002161b49dc8ac9852`
+- 实际范围：仅修改 `smart-ui/src/page/index/index.vue` 和新增 `smart-ui/src/page/index/index.test.js`；页面壳在 `destroyed` 时恢复进入页面前的 `window.onresize`，且只在当前 resize handler 仍归本组件所有时恢复。
+- 验证摘要：先新增生命周期测试并确认红测（旧实现销毁后仍保留本组件 resize handler）；修复后 `pnpm test src/page/index/index.test.js` 通过（2 个用例）；`pnpm test` 通过（45 个测试文件、259 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm exec eslint src/page/index/index.test.js` 通过；`pnpm gate` 通过。
+- 独立评审：第一次本地 Codex 子代理 90 秒未返回，已关闭；第二次窄范围只读评审结论 `AGREE`。
+- 边界核对：初次 `SET_SCREEN` 和 resize 后 `SET_SCREEN` 行为不变；未修改 token 刷新、路由、菜单或 UI。`fix/smart-ui-resize-timer-cleanup` 总项仍未完成，`panel/bigdata.vue` timer 等剩余清理需另开 PR。
+
 ---
 
 ## 5. 明确不做
