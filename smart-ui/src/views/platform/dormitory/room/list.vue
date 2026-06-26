@@ -170,6 +170,12 @@ import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
 import {
   buildRoomListQuery,
+  createDormFormForPark,
+  createEmptyBatchEditForm,
+  createEmptyDormForm,
+  createEmptyFloorForm,
+  createEmptyRoomEditForm,
+  createFloorFormForDormitory,
   formatRoomExportRows,
   hasRoomListData,
   isEmptyRoomBatchEditForm,
@@ -208,12 +214,7 @@ export default {
       dormVisible: false,
       floorLoading: false,
       dormLoading: false,
-      floorForm: {
-        parkId: undefined, //所属园区
-        dormitoryId: undefined, //所属楼栋
-        startNum: undefined, //起始编号
-        floorNum: undefined //楼层数量
-      },
+      floorForm: createEmptyFloorForm(),
       floorAddRules: {
         startNum: [
           { required: true, message: '请输入起始编号', trigger: 'blur' },
@@ -231,10 +232,7 @@ export default {
         ]
       },
       hasStartNum: false, //添加楼层时标记， 起始编号是否是读出来的，默认false
-      dormForm: {
-        parkId: undefined,
-        dormitoryName: undefined
-      },
+      dormForm: createEmptyDormForm(),
       dormRules: {
         dormitoryName: [{ required: true, message: '请输入楼栋名称', trigger: 'blur' }]
       },
@@ -257,28 +255,11 @@ export default {
       },
       isDormitoryArr: isDormitoryOption,
       isCountArr: isCountOption,
-      batchEditForm: {
-        roomIds: [],
-        isDormitoryRoom: undefined, //是否为寝室
-        isCount: undefined, //是否参与计算
-        roomType: undefined, //宿舍分类
-        roomSex: undefined, //房间属性
-        sdTemplateId: undefined //水电模板ID
-      },
+      batchEditForm: createEmptyBatchEditForm(),
       batchEditRules: {
         sdTemplateId: [{ required: true, message: '请选择水电模板', trigger: 'change' }]
       },
-      editForm: {
-        roomName: undefined, //房间号
-        isDormitoryRoom: undefined, //是否为寝室
-        isCount: undefined, //是否参与计算
-        roomType: undefined, //宿舍分类
-        bedTotal: undefined, //床位数
-        roomSex: undefined, //房间属性
-        sdTemplateId: undefined, //水电模板ID
-        leaveTempName: undefined,
-        leaveTempId: undefined
-      },
+      editForm: createEmptyRoomEditForm(),
       editRules: {
         roomName: [{ required: true, message: '请输入房间号', trigger: 'blur' }],
         isDormitoryRoom: [{ required: true, message: '请选择是否参与分配', trigger: 'change' }],
@@ -548,10 +529,7 @@ export default {
             this.dormVisible = true
             this.editDorm = false
             this.dormTitle = '新增楼栋'
-            this.dormForm = {
-              parkId: this.parkId,
-              dormitoryName: undefined
-            }
+            this.dormForm = createDormFormForPark(this.parkId)
           }
           if (node.level == 2) {
             //楼栋，点击新增是新增楼层
@@ -559,12 +537,7 @@ export default {
             this.floorVisible = true
             this.editFloor = false
             this.floorTitle = '新增楼层'
-            this.floorForm = {
-              parkId: this.parkId,
-              dormitoryId: this.dormitoryId,
-              startNum: undefined,
-              floorNum: undefined
-            }
+            this.floorForm = createFloorFormForDormitory(this.parkId, this.dormitoryId)
             this.getFloorStartNum(this.dormitoryId)
           }
           if (node.level == 3) {
