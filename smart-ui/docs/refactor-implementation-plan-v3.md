@@ -1470,6 +1470,48 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，`goBedMng` 仅在基线方法自身出现，当前 `room/list.vue` 已无 `goBedMng` / `roomname: roomName` / `/platform/dormitory/bed_mng`，`room/visual.vue` 的合法跳转未受守卫影响。
 - 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
 
+### PR 30: `room/list.vue` 删除遗留 Avue `tableOption` 接线
+
+分支：`refactor/smart-ui-room-remove-table-option-wiring`
+
+目标：删除 `room/list.vue` 中已无消费点的 Avue `tableOption` import 和 `data()` 字段，并在 `check-room-list-ui.js` 中加静态守卫，防止该 unused wiring 回流。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 只删除 `room/list.vue` 中的 `tableOption` import 和 `data()` 字段。
+- 不删除或修改 `smart-ui/src/const/crud/platform/dormitory/room.js`，避免影响其他潜在调用方。
+- 静态守卫只检查 `room/list.vue`，不影响其他页面继续使用 Avue `tableOption`。
+- 不改模板、方法、API、子组件 props/events、路由、弹窗、导出、批量编辑、树、房间列表或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+node scripts/check-room-list-ui.js
+pnpm test src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/room-rules.test.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。删除的是 `room/list.vue` 内未被模板、方法或子组件消费的遗留字段；共享 crud 配置文件不动。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #76 `refactor(smart-ui): remove room table option wiring`
+- 合并提交：`733d76011f6369afad7312b567addec2b2921d9c`
+- 实际范围：删除 `room/list.vue` 中 `tableOption` import 和 `data()` 内 `tableOption: tableOption`；`check-room-list-ui.js` 新增仅针对 `room/list.vue` 的 unused Avue tableOption wiring 守卫。
+- 验证摘要：先新增静态守卫并确认删除前 `node scripts/check-room-list-ui.js` 红测失败；删除接线后 `node scripts/check-room-list-ui.js` 通过；room 相关 3 个测试文件通过（28 个用例）；`pnpm test` 通过（57 个测试文件、312 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，`list.vue` 只删除 `tableOption` import 和 data 字段，模板/方法/API/子组件 props/events 无 diff；`room/list.vue` 当前无 `tableOption`、`avue-crud`、`:option` 或 `this.tableOption` 消费点，守卫限定在 `room/list.vue`。
+- 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
