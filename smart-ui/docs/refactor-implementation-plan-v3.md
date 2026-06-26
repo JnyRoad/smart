@@ -756,6 +756,15 @@ A 类 DoD：
 - 独立评审：第一次本地 Codex 子代理 90 秒未返回，已关闭；第二次窄范围只读评审结论 `AGREE`。
 - 边界核对：初次 `SET_SCREEN` 和 resize 后 `SET_SCREEN` 行为不变；未修改 token 刷新、路由、菜单或 UI。`fix/smart-ui-resize-timer-cleanup` 总项仍未完成，`panel/bigdata.vue` timer 等剩余清理需另开 PR。
 
+完成状态（`fix/smart-ui-resize-timer-cleanup` 子项：`panel/index` clock interval）：
+
+- 已合并：PR #40 `fix(smart-ui): clean up panel clock interval`
+- 合并提交：`a75c3cba04961ad20cda410f4b2c2cc57cb8c3bd`
+- 实际范围：仅修改 `smart-ui/src/views/platform/panel/index.vue` 和新增 `smart-ui/src/views/platform/panel/index.test.js`；顶层可视化面板把 1 秒时钟 interval id 保存到组件实例，并在 `beforeDestroy` 清理后置空。
+- 验证摘要：先新增生命周期测试并确认红测（旧实现没有保留 interval id，无法销毁清理）；修复后 `pnpm test src/views/platform/panel/index.test.js` 通过（1 个用例）；`pnpm test` 通过（46 个测试文件、260 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm exec eslint src/views/platform/panel/index.test.js` 通过；`pnpm gate` 通过。
+- 独立评审：本地 Codex 窄范围只读评审结论 `AGREE`。
+- 边界核对：初次 `getTime()` 和每秒更新时间行为不变；未修改路由跳转、退出登录、子面板或 UI。`fix/smart-ui-resize-timer-cleanup` 总项仍未完成，`bigdata/accessto` 的 resize/timer 清理需继续逐项确认后另开 PR。
+
 ---
 
 ## 5. 明确不做
