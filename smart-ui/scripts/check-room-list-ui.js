@@ -35,6 +35,16 @@ const checks = [
     message: 'room list must not keep unused Avue tableOption wiring'
   },
   {
+    file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => [
+      /from '@\/util\/excel'/,
+      /from 'vuex'/,
+      /from 'echarts'/,
+      /import echarts from "\.\/";/
+    ].every(pattern => !pattern.test(content)),
+    message: 'room list must not keep unused legacy imports'
+  },
+  {
     file: 'src/views/platform/dormitory/room/components/RoomTreePanel.vue',
     custom: (content) => [
       /<el-tree/,
