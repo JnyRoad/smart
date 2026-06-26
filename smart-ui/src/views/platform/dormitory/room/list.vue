@@ -140,12 +140,11 @@ import {
   isEmptyRoomBatchEditForm,
   roomCountOptions,
   roomDormitoryOptions,
-  roomInitialTreeSelection,
   roomSelectionState,
-  roomTreeScopeForNode,
   toCheckedRoomIds,
   toExportRows
 } from './room-rules'
+import { roomInitialTreeSelection, roomTreeScopeForNode } from './room-tree-rules'
 
 // import echarts from "./";
 export default {

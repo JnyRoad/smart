@@ -68,7 +68,7 @@
 </template>
 
 <script>
-import { shouldShowRoomTreeNode } from '../room-rules'
+import { shouldShowRoomTreeNode } from '../room-tree-rules'
 
 export default {
   name: 'RoomTreePanel',
