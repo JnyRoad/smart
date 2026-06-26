@@ -141,25 +141,39 @@ const checks = [
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
-    required: /<el-dialog :title="editTitle"[\s\S]*:visible\.sync="batchEditFormVisible"[\s\S]*@click="resetBatchEditForm\('batchEditForm'\)"[\s\S]*@click="batchEditSubmit\('batchEditForm'\)"/,
-    message: 'batch edit dialog must keep visible state and submit/reset handlers'
+    required: /<room-batch-edit-dialog[\s\S]*ref="batchEditForm"[\s\S]*:title="editTitle"[\s\S]*:visible="batchEditFormVisible"[\s\S]*:form="batchEditForm"[\s\S]*:rules="batchEditRules"[\s\S]*:is-handel-s-d="isHandelSD"[\s\S]*:is-dormitory-arr="isDormitoryArr"[\s\S]*:is-count-arr="isCountArr"[\s\S]*:park-dorm-type-list="parkDormTypeList"[\s\S]*:sd-temp-list="sdTempList"[\s\S]*:loading="editLoading"[\s\S]*@update-form-field="updateBatchEditFormField"[\s\S]*@close="resetBatchEditForm\('batchEditForm'\)"[\s\S]*@submit="batchEditSubmit\('batchEditForm'\)"/,
+    message: 'room list must keep batch edit dialog props, ref, conditional mode, and submit/reset wiring'
   },
   {
-    file: 'src/views/platform/dormitory/room/list.vue',
+    file: 'src/views/platform/dormitory/room/components/RoomBatchEditDialog.vue',
     custom: (content) => {
-      const start = content.indexOf('<!--- 批量编辑弹框 --->')
-      const end = content.indexOf('<!-- 楼层添加、编辑 -->', start)
-      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
       return [
-        /<el-form :rules="batchEditRules" ref="batchEditForm" :model="batchEditForm"/,
-        /v-if="!isHandelSD" prop="isDormitoryRoom"/,
-        /v-if="!isHandelSD" prop="isCount"/,
-        /v-if="!isHandelSD" prop="roomType"/,
-        /v-if="!isHandelSD" prop="roomSex"/,
-        /v-if="isHandelSD" prop="sdTemplateId"/
-      ].every(pattern => pattern.test(block))
+        /<el-dialog/,
+        /:title="title"/,
+        /width="600px"/,
+        /:visible="visible"/,
+        /@close="\$emit\('close'\)"/,
+        /<el-form[\s\S]*ref="batchEditForm"[\s\S]*:rules="rules"[\s\S]*:model="form"/,
+        /label-width="120px"/,
+        /v-if="!isHandelSD"[\s\S]*prop="isDormitoryRoom"/,
+        /@input="\$emit\('update-form-field', \{ field: 'isDormitoryRoom', value: \$event \}\)"/,
+        /v-if="!isHandelSD"[\s\S]*prop="isCount"/,
+        /@input="\$emit\('update-form-field', \{ field: 'isCount', value: \$event \}\)"/,
+        /v-if="!isHandelSD"[\s\S]*prop="roomType"/,
+        /@input="\$emit\('update-form-field', \{ field: 'roomType', value: \$event \}\)"/,
+        /v-if="!isHandelSD"[\s\S]*prop="roomSex"/,
+        /@input="\$emit\('update-form-field', \{ field: 'roomSex', value: \$event \}\)"/,
+        /v-if="isHandelSD"[\s\S]*prop="sdTemplateId"/,
+        /@input="\$emit\('update-form-field', \{ field: 'sdTemplateId', value: \$event \}\)"/,
+        /@click="\$emit\('close'\)"/,
+        /@click="\$emit\('submit'\)"/,
+        /validate\(callback\)/,
+        /this\.\$refs\.batchEditForm\.validate\(callback\)/,
+        /resetFields\(\)/,
+        /this\.\$refs\.batchEditForm\.resetFields\(\)/
+      ].every(pattern => pattern.test(content))
     },
-    message: 'batch edit dialog must keep form rules, model, conditional fields, and sd-template field'
+    message: 'room batch edit dialog must keep conditional fields, update events, and ref proxy methods'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
