@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildRoomListQuery,
+  createRoomExportConfig,
   createDormFormForPark,
   createEmptyBatchEditForm,
   createEmptyDormForm,
@@ -135,6 +136,18 @@ describe('room selection rules', () => {
 })
 
 describe('room export rules', () => {
+  it('导出配置保留旧表头和字段顺序，并为每次导出返回新数组', () => {
+    const config = createRoomExportConfig()
+    const nextConfig = createRoomExportConfig()
+
+    expect(config).toStrictEqual({
+      headers: ['房间号', '是否参与分配', '是否参与计算', '宿舍分类', '床位数', '实住人数', '差异人数', '房间属性', '所属园区'],
+      fields: ['roomName', 'isDormitoryRoom', 'isCount', 'typeName', 'bedTotal', 'usedBed', 'freeBed', 'roomSex', 'parkName']
+    })
+    expect(config.headers).not.toBe(nextConfig.headers)
+    expect(config.fields).not.toBe(nextConfig.fields)
+  })
+
   it('按列字段顺序把对象数组映射成二维数组', () => {
     expect(toExportRows(['roomName', 'roomSex'], [
       { roomName: '301', roomSex: '男' },
