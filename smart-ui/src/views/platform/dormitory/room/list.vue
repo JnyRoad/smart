@@ -40,47 +40,22 @@
           @delete-room="rowDel"
         />
       </div>
-      <el-dialog title="编辑房间" class="dialog_form" width="600px" @close="resetEditForm('editForm')" :visible.sync="editFormVisible">
-        <el-form :rules="editRules" ref="editForm" :model="editForm" label-width="120px">
-          <el-form-item label="房间号" prop="roomName">
-            <el-input v-model="editForm.roomName" disabled></el-input>
-          </el-form-item>
-          <el-form-item label="是否参与分配" prop="isDormitoryRoom">
-            <el-select v-model="editForm.isDormitoryRoom" placeholder="请选择" @change="showBedNum">
-              <el-option v-for="item in isDormitoryArr" :key="item.value" :label="item.label" :value="item.value"></el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item label="是否参与计算" prop="isCount">
-            <el-select v-model="editForm.isCount" placeholder="请选择">
-              <el-option v-for="item in isCountArr" :key="item.value" :label="item.label" :value="item.value"></el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item label="宿舍分类" prop="roomType">
-            <el-select v-model="editForm.roomType" placeholder="请选择" @change="getBedNum">
-              <el-option v-for="item in parkDormTypeList" :key="item.id" :label="item.typeName" :value="item.id"></el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item label="床位数" prop="bedTotal">
-            <el-input v-model="editForm.bedTotal" disabled></el-input>
-          </el-form-item>
-          <!-- :disabled="editForm.usedBed>0" -->
-          <el-form-item label="房间属性" prop="roomSex">
-            <roomGenderSelect v-model="editForm.roomSex"></roomGenderSelect>
-          </el-form-item>
-          <el-form-item label="水电分摊模板" prop="sdTemplateId">
-            <el-select v-model="editForm.sdTemplateId" placeholder="请选择">
-              <el-option v-for="item in sdTempList" :key="item.id" :label="item.templateName" :value="item.id"></el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item label="离职结算模板" prop="leaveTempName">
-            <el-input v-model="editForm.leaveTempName" disabled></el-input>
-          </el-form-item>
-        </el-form>
-        <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="resetEditForm('editForm')" plain>取 消</el-button>
-          <el-button type="primary" @click="editSubmit('editForm')" :loading="editLoading">确 定</el-button>
-        </div>
-      </el-dialog>
+      <room-edit-dialog
+        ref="editForm"
+        :visible="editFormVisible"
+        :form="editForm"
+        :rules="editRules"
+        :is-dormitory-arr="isDormitoryArr"
+        :is-count-arr="isCountArr"
+        :park-dorm-type-list="parkDormTypeList"
+        :sd-temp-list="sdTempList"
+        :loading="editLoading"
+        @update-form-field="updateEditFormField"
+        @show-bed-num="showBedNum"
+        @get-bed-num="getBedNum"
+        @close="resetEditForm('editForm')"
+        @submit="editSubmit('editForm')"
+      />
       <!--- 批量编辑弹框 --->
       <el-dialog :title="editTitle" class="dialog_form" width="600px" @close="resetBatchEditForm('batchEditForm')" :visible.sync="batchEditFormVisible">
         <el-form :rules="batchEditRules" ref="batchEditForm" :model="batchEditForm" label-width="120px">
@@ -157,6 +132,7 @@ import echarts from 'echarts'
 import RoomGridPanel from './components/RoomGridPanel.vue'
 import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
+import RoomEditDialog from './components/RoomEditDialog.vue'
 import RoomFloorDialog from './components/RoomFloorDialog.vue'
 import RoomDormitoryDialog from './components/RoomDormitoryDialog.vue'
 import {
@@ -196,6 +172,7 @@ export default {
     RoomGridPanel,
     RoomTreePanel,
     RoomSearchToolbar,
+    RoomEditDialog,
     RoomFloorDialog,
     RoomDormitoryDialog
   },
@@ -729,6 +706,9 @@ export default {
     },
     updateSearchField({ field, value }) {
       this.searchForm[field] = value
+    },
+    updateEditFormField({ field, value }) {
+      this.editForm[field] = value
     },
     updateFloorFormField({ field, value }) {
       this.floorForm[field] = value
