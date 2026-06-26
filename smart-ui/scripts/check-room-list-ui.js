@@ -102,8 +102,47 @@ const checks = [
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => {
+      const start = content.indexOf('<el-dialog title="编辑房间"')
+      const end = content.indexOf('<!--- 批量编辑弹框 --->', start)
+      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
+      return [
+        /<el-form :rules="editRules" ref="editForm" :model="editForm"/,
+        /prop="roomName"/,
+        /prop="isDormitoryRoom"/,
+        /prop="isCount"/,
+        /prop="roomType"/,
+        /prop="bedTotal"/,
+        /prop="roomSex"/,
+        /prop="sdTemplateId"/,
+        /prop="leaveTempName"/,
+        /@change="showBedNum"/,
+        /@change="getBedNum"/
+      ].every(pattern => pattern.test(block))
+    },
+    message: 'edit room dialog must keep form rules, model, props, and change handlers'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/list.vue',
     required: /<el-dialog :title="editTitle"[\s\S]*:visible\.sync="batchEditFormVisible"[\s\S]*@click="resetBatchEditForm\('batchEditForm'\)"[\s\S]*@click="batchEditSubmit\('batchEditForm'\)"/,
     message: 'batch edit dialog must keep visible state and submit/reset handlers'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => {
+      const start = content.indexOf('<!--- 批量编辑弹框 --->')
+      const end = content.indexOf('<!-- 楼层添加、编辑 -->', start)
+      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
+      return [
+        /<el-form :rules="batchEditRules" ref="batchEditForm" :model="batchEditForm"/,
+        /v-if="!isHandelSD" prop="isDormitoryRoom"/,
+        /v-if="!isHandelSD" prop="isCount"/,
+        /v-if="!isHandelSD" prop="roomType"/,
+        /v-if="!isHandelSD" prop="roomSex"/,
+        /v-if="isHandelSD" prop="sdTemplateId"/
+      ].every(pattern => pattern.test(block))
+    },
+    message: 'batch edit dialog must keep form rules, model, conditional fields, and sd-template field'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
@@ -112,8 +151,41 @@ const checks = [
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => {
+      const start = content.indexOf('<!-- 楼层添加、编辑 -->')
+      const end = content.indexOf('<!-- 楼栋添加、编辑 -->', start)
+      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
+      return [
+        /<el-form :rules="editFloor \? floorEditRules : floorAddRules" ref="floorForm" :model="floorForm"/,
+        /<template v-if="editFloor">/,
+        /prop="floorName"/,
+        /prop="roomNum"/,
+        /<template v-else>/,
+        /prop="startNum"/,
+        /:disabled="hasStartNum"/,
+        /prop="floorNum"/
+      ].every(pattern => pattern.test(block))
+    },
+    message: 'floor dialog must keep add/edit rule switch and floor form fields'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/list.vue',
     required: /<el-dialog :title="dormTitle"[\s\S]*:visible\.sync="dormVisible"[\s\S]*@click="resetDormForm\('dormForm'\)"[\s\S]*@click="dormSubmit\('dormForm'\)"/,
     message: 'dormitory dialog must keep visible state and submit/reset handlers'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => {
+      const start = content.indexOf('<!-- 楼栋添加、编辑 -->')
+      const end = content.indexOf('</el-scrollbar>', start)
+      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
+      return [
+        /<el-form :rules="dormRules" ref="dormForm" :model="dormForm"/,
+        /label-position="left"/,
+        /prop="dormitoryName"/
+      ].every(pattern => pattern.test(block))
+    },
+    message: 'dormitory dialog must keep form rules, model, label position, and dormitory name field'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
