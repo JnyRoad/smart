@@ -759,6 +759,57 @@ pnpm gate
 - 手工回归边界：本轮无可用测试后端和浏览器会话，未执行真实页面点击回归；PR 描述已如实记录该边界。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
 
+### PR 14: `room/list.vue` 第四刀：抽房间卡片列表组件
+
+分支：`refactor/smart-ui-room-list-extract-grid`
+
+目标：只抽 `room/list.vue` 房间卡片列表区到独立组件，父页继续持有选择状态、编辑/删除房间方法、API 查询、导出、批量编辑和所有弹窗提交逻辑。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomGridPanel.vue`
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomGridPanel.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.test.js`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 不改 `fetchRoomList`、`putObj`、`putBatchObj`、`putSDBatchObj`、`delObj` 等 API 调用。
+- 不改 `checkAllChange`、`roomChange`、`handleEdit`、`rowDel` 的业务实现，只通过组件事件转发原参数。
+- 不改搜索工具栏、左侧树、导出、批量编辑和各弹窗流程。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/components/RoomGridPanel.test.js
+pnpm test src/views/platform/dormitory/room/components/RoomGridPanel.test.js src/views/platform/dormitory/room/components/RoomTreePanel.test.js src/views/platform/dormitory/room/components/RoomSearchToolbar.test.js src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-rules.test.js
+node scripts/check-room-list-ui.js
+pnpm gate
+```
+
+手工回归：
+
+- 空态提示。
+- 房间卡片展示、锁标记、男/女/夫妻混住颜色。
+- 全选和单选。
+- 编辑房间。
+- 删除房间。
+
+风险：中低。卡片区含 `v-model` 选择状态，已通过显式 `update-*` 事件和父页接线测试锁住。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #44 `refactor(smart-ui): extract room grid panel`
+- 合并提交：`8343159b5982eb41214660fd663001ab664afef6`
+- 实际范围：新增 `RoomGridPanel.vue` 和 `RoomGridPanel.test.js`；`list.vue` 只把房间卡片列表模板替换为 `<room-grid-panel>`，父页继续持有 `checkedRoom`、`checkAll`、`isIndeterminate`、`checkAllChange`、`roomChange`、`handleEdit`、`rowDel`、查询、导出、批量编辑和弹窗提交逻辑；`scripts/check-room-list-ui.js` 改为分别守卫父页组件接线和子组件选择/卡片/编辑删除事件。
+- 验证摘要：先新增 `RoomGridPanel.test.js` 并确认组件缺失时红测；实现后 `pnpm test src/views/platform/dormitory/room/components/RoomGridPanel.test.js` 通过（3 个用例）；room 相关 5 个测试文件通过（23 个用例）；`node scripts/check-room-list-ui.js` 通过；新组件 eslint 零 warning；`git diff --check` 通过；`pnpm test` 通过（48 个测试文件、267 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：完整 diff Claude 评审两次在超时内无输出并已中断；改用摘要型子代理独立复核，结论 `AGREE`，同时明确其未直接读源码。最终合并依据为本地源码自查、组件测试、父页接线测试、静态守卫、lint baseline 和 `pnpm gate`。
+- 手工回归边界：本轮无可用测试后端和浏览器会话，未执行真实页面点击回归；PR 描述已如实记录该边界。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
