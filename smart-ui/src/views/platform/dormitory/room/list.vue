@@ -170,21 +170,23 @@ import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
 import {
   buildRoomListQuery,
+  createBatchEditRules,
   createDormFormForPark,
+  createDormRules,
   createEmptyBatchEditForm,
   createEmptyDormForm,
   createEmptyFloorForm,
   createEmptyRoomEditForm,
+  createFloorAddRules,
   createFloorFormForDormitory,
+  createFloorEditRules,
+  createRoomEditRules,
   formatRoomExportRows,
   hasRoomListData,
   isEmptyRoomBatchEditForm,
   roomSelectionState,
   toCheckedRoomIds,
-  toExportRows,
-  validateFloorCount,
-  validateFloorStartNumber,
-  validateRoomCount
+  toExportRows
 } from './room-rules'
 
 // import echarts from "./";
@@ -215,27 +217,11 @@ export default {
       floorLoading: false,
       dormLoading: false,
       floorForm: createEmptyFloorForm(),
-      floorAddRules: {
-        startNum: [
-          { required: true, message: '请输入起始编号', trigger: 'blur' },
-          { validator: validateFloorStartNumber, trigger: 'blur' }
-        ],
-        floorNum: [
-          { required: true, message: '请输入楼层数量', trigger: 'blur' },
-          { validator: validateFloorCount, trigger: 'blur' }
-        ]
-      },
-      floorEditRules: {
-        roomNum: [
-          { required: true, message: '请输入房间数量', trigger: 'blur' },
-          { validator: validateRoomCount, trigger: 'blur' }
-        ]
-      },
+      floorAddRules: createFloorAddRules(),
+      floorEditRules: createFloorEditRules(),
       hasStartNum: false, //添加楼层时标记， 起始编号是否是读出来的，默认false
       dormForm: createEmptyDormForm(),
-      dormRules: {
-        dormitoryName: [{ required: true, message: '请输入楼栋名称', trigger: 'blur' }]
-      },
+      dormRules: createDormRules(),
 
       defaultKey: undefined, //树形，默认选中的id
       checkAll: false,
@@ -256,19 +242,9 @@ export default {
       isDormitoryArr: isDormitoryOption,
       isCountArr: isCountOption,
       batchEditForm: createEmptyBatchEditForm(),
-      batchEditRules: {
-        sdTemplateId: [{ required: true, message: '请选择水电模板', trigger: 'change' }]
-      },
+      batchEditRules: createBatchEditRules(),
       editForm: createEmptyRoomEditForm(),
-      editRules: {
-        roomName: [{ required: true, message: '请输入房间号', trigger: 'blur' }],
-        isDormitoryRoom: [{ required: true, message: '请选择是否参与分配', trigger: 'change' }],
-        isCount: [{ required: true, message: '请选择是否参与计算', trigger: 'change' }],
-        roomType: [{ required: true, message: '请选择宿舍分类', trigger: 'change' }],
-        bedTotal: [{ required: true, message: '请输入床位数', trigger: 'blur' }],
-        roomSex: [{ required: true, message: '请选择房间属性', trigger: 'change' }],
-        sdTemplateId: [{ required: true, message: '请选择水电模板', trigger: 'change' }]
-      },
+      editRules: createRoomEditRules(),
       sdTempList: [], //可选水电模板列表
       tableOption: tableOption,
       exportLoading: false,
