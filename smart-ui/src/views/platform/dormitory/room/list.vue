@@ -133,6 +133,7 @@ import {
   createFloorAddRules,
   createFloorFormForDormitory,
   createFloorEditRules,
+  createRoomExportConfig,
   createRoomEditRules,
   formatRoomExportRows,
   hasRoomListData,
@@ -594,8 +595,7 @@ export default {
       require.ensure([], () => {
         this.exportLoading = true
         const { export_json_to_excel } = require('@/vendor/Export2Excel')
-        const tHeader = ['房间号', '是否参与分配','是否参与计算', '宿舍分类', '床位数', '实住人数', '差异人数', '房间属性', '所属园区']
-        const filterVal = ['roomName', 'isDormitoryRoom','isCount', 'typeName', 'bedTotal', 'usedBed', 'freeBed', 'roomSex', 'parkName']
+        const exportConfig = createRoomExportConfig()
         fetchRoomList(buildRoomListQuery({
           parkId: this.parkId,
           dormitoryId: this.dormitoryId,
@@ -604,8 +604,8 @@ export default {
           .then((response) => {
             const list = response.data.data
             formatRoomExportRows(list)
-            const data = this.formatJson(filterVal, list)
-            export_json_to_excel(tHeader, data, '房间列表')
+            const data = this.formatJson(exportConfig.fields, list)
+            export_json_to_excel(exportConfig.headers, data, '房间列表')
             this.exportLoading = false
           })
           .catch((err) => {
