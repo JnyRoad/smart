@@ -86,6 +86,11 @@ function mountRoomList() {
       ElDropdownMenu: { template: '<div><slot /></div>' },
       ElDropdownItem: { template: '<div><slot /></div>' },
       RoomGenderSelect: { template: '<div class="room-gender-select-stub"></div>' },
+      RoomTreePanel: {
+        name: 'RoomTreePanel',
+        props: ['treeData', 'defaultProps'],
+        template: '<section class="room-tree-panel-stub my-menu-tree"><span>选择楼栋及楼层</span></section>'
+      },
       RoomSearchToolbar: {
         name: 'RoomSearchToolbar',
         props: ['searchForm', 'allDormTypeList', 'hasData', 'exportLoading'],
@@ -169,6 +174,10 @@ describe('dormitory room list page safety net', () => {
     expect(wrapper.vm.defaultKey).toBe(20)
     expect(wrapper.find('.topForm').exists()).toBe(true)
     expect(wrapper.find('.my-menu-tree').exists()).toBe(true)
+    const treePanel = wrapper.findComponent({ name: 'RoomTreePanel' })
+    expect(treePanel.exists()).toBe(true)
+    expect(treePanel.props('treeData')).toBe(wrapper.vm.treeData)
+    expect(treePanel.props('defaultProps')).toBe(wrapper.vm.defaultProps)
     expect(wrapper.text()).toContain('是否参与分配')
     expect(wrapper.text()).toContain('是否参与计算')
     expect(wrapper.text()).toContain('宿舍分类')
