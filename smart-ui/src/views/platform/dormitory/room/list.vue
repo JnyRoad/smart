@@ -575,15 +575,6 @@ export default {
         this.getList(this.searchForm)
       }
     },
-    goBedMng(roomName) {
-      const src = `/platform/dormitory/bed_mng`
-      this.$router.push({
-        path: src,
-        query: {
-          roomname: roomName
-        }
-      })
-    },
     //导出
     export2Excel() {
       require.ensure([], () => {
