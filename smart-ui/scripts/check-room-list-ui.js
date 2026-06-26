@@ -45,6 +45,14 @@ const checks = [
     message: 'room list must not keep unused legacy imports'
   },
   {
+    file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => [
+      /let _this = this/,
+      /catch\(\(err\)\s*=>/
+    ].every(pattern => !pattern.test(content)),
+    message: 'room list must not keep unused local bindings'
+  },
+  {
     file: 'src/views/platform/dormitory/room/components/RoomTreePanel.vue',
     custom: (content) => [
       /<el-tree/,
