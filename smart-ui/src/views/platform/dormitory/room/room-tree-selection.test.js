@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { roomInitialTreeSelection } from './room-rules'
+import { roomInitialTreeSelection } from './room-tree-rules'
 
 describe('room initial tree selection', () => {
   it('只有园区节点时只覆盖 parkId 和 defaultKey，不清空旧下级 id', () => {
