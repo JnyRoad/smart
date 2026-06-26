@@ -110,9 +110,6 @@
 import { fetchRoomList, floorList, delObj, putObj, putBatchObj, putSDBatchObj, dormTypeApi, allDormitoryType, getBedNum, fetchSDTempList } from '@/api/platform/dormitory/room'
 import { putDormObj, addObj, delDormObj, getDormObj } from '@/api/platform/dormitory/dormitory'
 import { delFloor, addFloor, getFloor, updateDormitoryFloor, getFloorStartNum } from '@/api/platform/dormitory/floor'
-import { excel } from '@/util/excel'
-import { mapGetters } from 'vuex'
-import echarts from 'echarts'
 import RoomGridPanel from './components/RoomGridPanel.vue'
 import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
@@ -146,7 +143,6 @@ import {
 } from './room-rules'
 import { roomInitialTreeSelection, roomTreeScopeForNode } from './room-tree-rules'
 
-// import echarts from "./";
 export default {
   name: 'room',
   components: {
