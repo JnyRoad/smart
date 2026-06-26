@@ -810,6 +810,46 @@ pnpm gate
 - 手工回归边界：本轮无可用测试后端和浏览器会话，未执行真实页面点击回归；PR 描述已如实记录该边界。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
 
+### PR 15: `room/list.vue` 第五刀：抽楼层/房间表单校验器
+
+分支：`refactor/smart-ui-room-list-extract-validators`
+
+目标：只把 `room/list.vue` 中不依赖 `this` 的楼层起始编号、楼层数量、房间数量校验器抽到 `room-rules.js`，父页继续保留所有表单、提交和 API 调用。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.test.js`
+
+边界：
+
+- 不改表单 `rules` 字段、`trigger`、required 文案或绑定字段。
+- 不修复现有 `0` 分支的双 callback 行为；这属于潜在 A 类行为变化，必须另开窗口。
+- 不改模板、API、弹窗、提交、查询、导出或批量编辑流程。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-rules.test.js
+pnpm test src/views/platform/dormitory/room/room-rules.test.js src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm gate
+```
+
+风险：低。纯函数抽离，但刻意保留了历史校验语义和 callback 次序。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #46 `refactor(smart-ui): extract room form validators`
+- 合并提交：`ca0b38bb1ee5536e6993257b0f91e2acc4ab174c`
+- 实际范围：新增导出 `validateFloorStartNumber`、`validateFloorCount`、`validateRoomCount`；`list.vue` 只把 `floorAddRules.startNum`、`floorAddRules.floorNum`、`floorEditRules.roomNum` 的 validator 引用切到新函数；新增测试锁定错误文案、正则、数字 `0`、字符串 `'0'`、负数、小数和楼层上限行为。
+- 验证摘要：先新增 validator 行为测试并确认缺导出时红测；实现后 `pnpm test src/views/platform/dormitory/room/room-rules.test.js` 通过（12 个用例）；`room-rules.test.js` + `list.test.js` 通过（16 个用例）；`node scripts/check-room-list-ui.js` 通过；`git diff --check` 通过；`pnpm test` 通过（48 个测试文件、270 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：Claude 纯文本只读 diff 评审结论 `AGREE`，确认 callback 次数、错误文案、正则、边界值、表单 rules 结构均保持旧行为，且未夹带校验语义修复。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
