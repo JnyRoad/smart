@@ -1067,6 +1067,51 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 `$refs.floorForm.validate/resetFields` 代理、`editFloor ? floorEditRules : floorAddRules`、`hasStartNum`、`floorLoading`、close/submit 事件和字段事件写回均无阻塞问题；提醒新增文件提交时不得遗漏，已纳入提交。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋增删改、楼层新增/编辑 API、导出、批量编辑、页面文案或任何 A 类 bug 修复。
 
+### PR 21: `room/list.vue` 抽编辑房间弹窗组件
+
+分支：`refactor/smart-ui-room-list-extract-edit-dialog`
+
+目标：把 `room/list.vue` 中的编辑房间弹窗抽成受控组件 `RoomEditDialog`，父页继续持有 `editForm`、`editRules`、`resetEditForm('editForm')`、`editSubmit('editForm')`、`showBedNum`、`getBedNum` 和 `putObj` 提交流程。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomEditDialog.vue`
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomEditDialog.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-dialogs.contract.test.js`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 不把 `putObj`、`handleEdit`、`editSubmit`、`resetEditForm`、`showBedNum` 或 `getBedNum` 迁入子组件。
+- 不改 `resetEditForm`、`editSubmit` 方法签名；通过组件 `ref="editForm"` 代理 `validate` / `resetFields`，保持父页 `$refs.editForm` 契约。
+- 不改弹窗 title、visible、width、rules/model、字段文案、`isDormitoryArr` / `isCountArr` / `parkDormTypeList` / `sdTempList` 选项来源、`roomGenderSelect` 绑定或 `editLoading` loading 绑定。
+- `isDormitoryRoom` 和 `roomType` 保持旧 `v-model + @change` 语义：子组件通过 `input` 写回父页字段，通过 `change` 分别触发 `showBedNum` 和 `getBedNum`。
+- 不修复任何现有编辑房间提交流程或 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/components/RoomEditDialog.test.js
+pnpm test src/views/platform/dormitory/room/components/RoomEditDialog.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm exec eslint src/views/platform/dormitory/room/components/RoomEditDialog.vue src/views/platform/dormitory/room/components/RoomEditDialog.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js
+pnpm gate
+```
+
+风险：中。编辑弹窗包含床位数联动和多个选项源；提交、重置、`showBedNum`、`getBedNum` 和 API 仍留父页，主要风险是 `input/change` 事件顺序、`$refs.editForm` 代理和字段写回，已由组件测试、父页契约测试和静态守卫覆盖。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #58 `refactor(smart-ui): extract room edit dialog`
+- 合并提交：`2b42e31f5966da03b4367b35cc43124259d9d9bd`
+- 实际范围：新增受控组件 `RoomEditDialog.vue` 和组件测试；`list.vue` 只把编辑房间弹窗模板替换为 `<room-edit-dialog>`，新增 `updateEditFormField` 写回原 `editForm` 对象；`room-dialogs.contract.test.js` 和 `check-room-list-ui.js` 从父页内联编辑弹窗检查迁移为父页组件接线 + 子组件内部契约检查。
+- 验证摘要：先新增 `RoomEditDialog.test.js` 并确认组件缺失时红测；实现后组件测试通过（5 个用例）；room 弹窗相关 3 个测试文件通过（15 个用例）；`node scripts/check-room-list-ui.js` 通过；新组件、新测试和父页契约测试 eslint 零 warning；`git diff --check` 通过；`pnpm test` 通过（53 个测试文件、299 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 `$refs.editForm.validate/resetFields` 代理、父页 `editSubmit/resetEditForm/putObj` 流程未迁移、本地安装的 Element UI 2.15.14 源码中 `input` 先于 `change`、床位数联动读取新值、选项源和 `roomGenderSelect` 绑定等价，未发现 prop mutation、字段写回遗漏或 A 类行为变化。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间编辑 API、房间删除、楼栋/楼层增删改、导出、批量编辑、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
