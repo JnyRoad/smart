@@ -2,83 +2,12 @@
 <template>
   <div class="my-basic-container mycard2 room">
     <el-scrollbar class="my-scrollbar" :native="false">
-      <div class="box-outer box-left">
-        <el-scrollbar class="my-lit-scrollbar" :native="false">
-          <div class="cont-left">
-            <span class="tiplbl">选择楼栋及楼层</span>
-            <div class="lft-block">
-              <!-- :current-node-key="defaultKey" -->
-              <!-- :default-checked-keys="[defaultKey]" -->
-              <!-- :default-expanded-keys="[26]" -->
-              <div style="margin: 10px 0">
-                <el-input placeholder="输入关键字进行过滤" clearable v-model="filterText" size="mini">
-                  <el-button type="info" slot="append" icon="el-icon-search"></el-button>
-                </el-input>
-              </div>
-              <el-tree
-                class="my-menu-tree"
-                :data="treeData"
-                highlight-current
-                node-key="id"
-                :props="defaultProps"
-                accordion
-                :filter-node-method="filterNode"
-                @node-click="handleNodeClick"
-                ref="roomtree"
-              >
-                <span class="custom-tree-node" slot-scope="{ node, data }">
-                  <span class="tree-label">{{ node.label }}{{ node.level == 3 ? 'F' : '' }} </span>
-                  <span class="tree-btn" v-if="node.parent.parent">
-                    <!-- <i class="el-icon-edit" title="编辑" @click.stop="treeNodeOption(data, 'EDI', node)"></i>
-                  <template v-if="node.level==1||node.level==2">
-                    <i class="el-icon-circle-plus-outline" @click.stop="treeNodeOption(data, 'APP', node)"></i>
-                  </template>
-                  <i class="el-icon-delete" @click.stop="treeNodeOption(data, 'DEL', node)"></i> -->
-                    <i class="btni" @click.stop="treeNodeOption(data, 'EDI', node)">编辑</i>
-                    <i class="btni" @click.stop="treeNodeOption(data, 'DEL', node)">删除</i>
-                    <template v-if="node.level == 1">
-                      <i class="btni" @click.stop="treeNodeOption(data, 'APP', node)">新增楼栋</i>
-                    </template>
-                    <template v-if="node.level == 2">
-                      <i class="btni" @click.stop="treeNodeOption(data, 'APP', node)">新增楼层</i>
-                    </template>
-                    <!-- <el-dropdown placement="bottom" class="dropdown">
-                    <span class="el-dropdown-link">
-                      <i class="el-icon-more"></i>
-                    </span>
-                    <el-dropdown-menu slot="dropdown">
-                      <el-dropdown-item @click="treeNodeOption(data, 'EDI', node)">编辑</el-dropdown-item>
-                      <el-dropdown-item @click="treeNodeOption(data, 'APP', node)">
-                        <template v-if="node.level==2">
-                          添加楼层
-                        </template>
-                        <template v-if="node.level==3">
-                          添加房间
-                        </template>
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="treeNodeOption(data, 'DEL', node)">删除</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </el-dropdown> -->
-                  </span>
-                  <span class="tree-btn" v-else>
-                    <!-- <i class="el-icon-circle-plus-outline" @click.stop="treeNodeOption(data, 'APP', node)"></i> -->
-
-                    <i class="btni" @click.stop="treeNodeOption(data, 'APP', node)">新增楼栋</i>
-                    <!-- <el-dropdown placement="bottom" class="dropdown">
-                    <span class="el-dropdown-link">
-                      <i class="el-icon-more"></i>
-                    </span>
-                    <el-dropdown-menu slot="dropdown">
-                      <el-dropdown-item @click="treeNodeOption(-1, 'APP')">添加楼栋</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </el-dropdown> -->
-                  </span>
-                </span>
-              </el-tree>
-            </div>
-          </div>
-        </el-scrollbar>
-      </div>
+      <room-tree-panel
+        :tree-data="treeData"
+        :default-props="defaultProps"
+        @node-click="handleNodeClick"
+        @node-action="treeNodeOption"
+      />
       <div class="my-basic-inner">
         <div class="block1">
           <div class="box-outer">
@@ -256,6 +185,7 @@ import { tableOption } from '@/const/crud/platform/dormitory/room'
 import { excel } from '@/util/excel'
 import { mapGetters } from 'vuex'
 import echarts from 'echarts'
+import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
 import {
   buildRoomListQuery,
@@ -264,7 +194,6 @@ import {
   isEmptyRoomBatchEditForm,
   roomGenderClass,
   roomSelectionState,
-  shouldShowRoomTreeNode,
   toCheckedRoomIds,
   toExportRows
 } from './room-rules'
@@ -282,6 +211,7 @@ const isCountOption = [
 export default {
   name: 'room',
   components: {
+    RoomTreePanel,
     RoomSearchToolbar
   },
   data() {
@@ -334,7 +264,6 @@ export default {
     return {
       floorTitle: '添加楼层',
       dormTitle: '添加楼栋',
-      filterText: "",
       editFloor: false,
       editDorm: false,
       floorVisible: false,
@@ -445,11 +374,6 @@ export default {
   computed: {
     hasData() {
       return hasRoomListData(this.parkId, this.tableData)
-    }
-  },
-  watch: {
-    filterText(val) {
-      this.$refs.roomtree.filter(val);
     }
   },
   filters: {
@@ -922,9 +846,6 @@ export default {
         this.editForm.bedTotal = response.data.data.bedTotal
       })
     },
-    filterNode(value, data) {
-      return shouldShowRoomTreeNode(value, data)
-    },
     /**
      * 搜索回调
      */
@@ -1293,39 +1214,5 @@ export default {
   .el-form-item__label {
     width: 120px;
   }
-}
-.custom-tree-node {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 14px;
-  padding-right: 8px;
-  i[class^='el-icon-'] {
-    margin: 0 2px;
-  }
-  .btni {
-    font-size: 12px;
-    font-style: normal;
-    margin-left: 8px;
-  }
-  span:nth-of-type(1) {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    word-break: break-all;
-    width: 145px;
-  }
-  span:nth-of-type(2) {
-    color: #ee6a00;
-  }
-  // span:nth-of-type(2) {
-  //   display: none;
-  // }
-  // &:hover {
-  //   span:nth-of-type(2) {
-  //     display: block;
-  //   }
-  // }
 }
 </style>
