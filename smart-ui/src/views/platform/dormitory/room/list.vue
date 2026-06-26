@@ -138,6 +138,7 @@ import {
   hasRoomListData,
   isEmptyRoomBatchEditForm,
   roomSelectionState,
+  roomTreeScopeForNode,
   toCheckedRoomIds,
   toExportRows
 } from './room-rules'
@@ -568,24 +569,14 @@ export default {
     handleNodeClick(data, node) {
       // console.log(data)
       // console.log(node)
-      var level = node.level
       // this.dormitoryId = null;
       // this.floorId = null;
       // this.parkId = null;
       this.tableData = []
-      if (level == 1) {
-        // if(node.expanded){
-        //   this.parkId = data.id;
-        // }
-        this.parkId = data.id
-      } else if (level == 2) {
-        this.parkId = node.parent.data.id
-        this.dormitoryId = data.id
-      } else if (level == 3) {
+      const selection = roomTreeScopeForNode(data, node)
+      Object.assign(this, selection.scope)
+      if (selection.shouldQueryRooms) {
         //只有选择楼层的时候进行查询
-        this.parkId = node.parent.parent.data.id
-        this.dormitoryId = node.parent.data.id
-        this.floorId = data.id
         this.getList(this.searchForm)
       }
     },
