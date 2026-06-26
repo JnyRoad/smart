@@ -110,7 +110,6 @@
 import { fetchRoomList, floorList, delObj, putObj, putBatchObj, putSDBatchObj, dormTypeApi, allDormitoryType, getBedNum, fetchSDTempList } from '@/api/platform/dormitory/room'
 import { putDormObj, addObj, delDormObj, getDormObj } from '@/api/platform/dormitory/dormitory'
 import { delFloor, addFloor, getFloor, updateDormitoryFloor, getFloorStartNum } from '@/api/platform/dormitory/floor'
-import { tableOption } from '@/const/crud/platform/dormitory/room'
 import { excel } from '@/util/excel'
 import { mapGetters } from 'vuex'
 import echarts from 'echarts'
@@ -199,7 +198,6 @@ export default {
       editForm: createEmptyRoomEditForm(),
       editRules: createRoomEditRules(),
       sdTempList: [], //可选水电模板列表
-      tableOption: tableOption,
       exportLoading: false,
       tableData: [],
       parkDormTypeList: [],

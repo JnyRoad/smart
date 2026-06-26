@@ -27,6 +27,14 @@ const checks = [
     message: 'room list must not keep dead bed management navigation wiring'
   },
   {
+    file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => [
+      /import \{ tableOption \} from '@\/const\/crud\/platform\/dormitory\/room'/,
+      /tableOption:\s*tableOption/
+    ].every(pattern => !pattern.test(content)),
+    message: 'room list must not keep unused Avue tableOption wiring'
+  },
+  {
     file: 'src/views/platform/dormitory/room/components/RoomTreePanel.vue',
     custom: (content) => [
       /<el-tree/,
