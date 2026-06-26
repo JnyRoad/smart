@@ -1597,6 +1597,48 @@ pnpm gate
 - 独立评审：只读快速评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，未改 catch/then body、loading、API、模板、路由、弹窗、导出、批量编辑、树、房间列表，未夹带 A 类行为修复；保留 `var _this = this`、`tableLoading`、`defaultKey`、`resetEditForm(formName)` 等非本 PR 范围项合理。
 - 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
 
+### PR 33: `room/list.vue` 删除空 `mounted` 钩子
+
+分支：`refactor/smart-ui-room-remove-empty-mounted`
+
+目标：删除 `room/list.vue` 中无副作用的空 `mounted: function () {}` 生命周期钩子，并在 `check-room-list-ui.js` 中加静态守卫，防止空钩子回流。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 只删除空 `mounted` 钩子。
+- 静态守卫只检查 `room/list.vue` 中的空 `mounted` 形态。
+- 不改 `created`、`computed`、`methods` 内容、API 调用、模板、路由、弹窗、导出、批量编辑、树、房间列表或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+node scripts/check-room-list-ui.js
+pnpm test src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/room-rules.test.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。删除的是无 body 的生命周期钩子；页面初始化仍由 `created()` 执行。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #82 `refactor(smart-ui): remove room empty mounted hook`
+- 合并提交：`4d92d7cafc11304ef863016333ad71423e25e31f`
+- 代码提交：`c22f41e639effb0dbff40d3c7d0f45ec98b133f2`
+- 实际范围：删除 `room/list.vue` 中空 `mounted: function () {}`；`check-room-list-ui.js` 新增仅针对 `room/list.vue` 的空 mounted hook 守卫。
+- 验证摘要：先新增静态守卫并确认删除前 `node scripts/check-room-list-ui.js` 红测失败；删除后 `node scripts/check-room-list-ui.js` 通过；room 相关 3 个测试文件通过（28 个用例）；`pnpm test` 通过（57 个测试文件、312 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读快速评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，仅删除空 `mounted` 生命周期钩子并新增对应静态守卫；未改 `created` / `computed` / `methods` 内容、API、模板、路由、弹窗、导出、批量编辑、树、房间列表，未夹带 A 类行为修复。
+- 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
