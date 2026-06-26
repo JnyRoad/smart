@@ -708,6 +708,57 @@ pnpm gate
 - 边界核对：未改 API 实现、接口签名、路由、导出字段、批量编辑 API、弹窗流程、页面文案或任何 A 类 bug 修复；搜索表单 label 宽度样式已迁入子组件，避免 scoped CSS 迁移后的布局回归。
 - 计划偏差：原小节写“抽完父组件减少至少 80 行”，实际 `list.vue` 统计为 `+23/-42`，净减少 19 行。为保持 reset、props/events 接线和样式迁移显式可测，本 PR 未继续追求行数指标；后续拆分不能把该 80 行目标视为已达成。
 
+### PR 13: `room/list.vue` 第三刀：抽左侧宿舍树组件
+
+分支：`refactor/smart-ui-room-list-extract-tree`
+
+目标：只抽 `room/list.vue` 左侧楼栋/楼层树到独立组件，父页继续保留 `handleNodeClick`、`treeNodeOption`、API 查询和所有弹窗提交逻辑。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomTreePanel.vue`
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomTreePanel.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.test.js`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 不改 `floorList`、`fetchRoomList`、楼栋/楼层/房间增删改接口调用。
+- 不改 `handleNodeClick`、`treeNodeOption` 的业务实现，只通过组件事件转发原参数。
+- 不改搜索工具栏、房间列表、导出、批量编辑和各弹窗流程。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/components/RoomTreePanel.test.js
+pnpm test src/views/platform/dormitory/room/components/RoomTreePanel.test.js src/views/platform/dormitory/room/components/RoomSearchToolbar.test.js src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-rules.test.js
+node scripts/check-room-list-ui.js
+pnpm gate
+```
+
+手工回归：
+
+- 楼栋/楼层关键字过滤。
+- 点击园区、楼栋、楼层后范围切换。
+- 编辑楼栋/楼层。
+- 删除楼栋/楼层。
+- 新增楼栋/楼层。
+
+风险：中低。树操作入口多，但父页业务方法未迁移，自动测试和静态守卫锁住了 props/events。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #42 `refactor(smart-ui): extract room tree panel`
+- 合并提交：`e295819c3b079d63594d54f34e8b48e47faf7c0e`
+- 实际范围：新增 `RoomTreePanel.vue` 和 `RoomTreePanel.test.js`；`list.vue` 只把左侧树模板替换为 `<room-tree-panel>`，父页继续持有 `handleNodeClick`、`treeNodeOption`、查询、导出、批量编辑和弹窗提交逻辑；`scripts/check-room-list-ui.js` 改为分别守卫父页组件接线和子组件树绑定/按钮事件。
+- 验证摘要：先新增 `RoomTreePanel.test.js` 并确认组件缺失时红测；实现后 `pnpm test src/views/platform/dormitory/room/components/RoomTreePanel.test.js` 通过（3 个用例）；room 相关 4 个测试文件通过（19 个用例）；`node scripts/check-room-list-ui.js` 通过；新组件 eslint 零 warning；`git diff --check` 通过；`pnpm test` 通过（47 个测试文件、263 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：Claude 纯文本只读评审结论 `AGREE`，确认树过滤、`node-click`、编辑/删除/新增事件、`node.parent.parent` 分支、scoped 样式迁移和父页业务边界无 P0/P1/P2。
+- 手工回归边界：本轮无可用测试后端和浏览器会话，未执行真实页面点击回归；PR 描述已如实记录该边界。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
