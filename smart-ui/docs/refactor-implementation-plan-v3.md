@@ -1336,6 +1336,55 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认改动只涉及目标三文件、`getTree()` 仍按 `this.floorId` 查询、下级 id 未返回时不会被清空、新测试覆盖普通楼层对象无 `length` 不选中和 `length > 0` 旧条件才选中。
 - 边界核对：未改 API 实现、接口签名、列表查询参数、导出流程、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、树节点点击、页面文案或任何 A 类 bug 修复。
 
+### PR 27: `room` 树规则拆独立模块
+
+分支：`refactor/smart-ui-room-tree-rules-module`
+
+目标：把树相关纯函数从 `room-rules.js` 拆到 `room-tree-rules.js`，降低通用规则模块行数并为后续继续抽 `room/list.vue` 留出 lint 行数空间。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/components/RoomTreePanel.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.test.js`
+- 新增：`smart-ui/src/views/platform/dormitory/room/room-tree-rules.js`
+- 新增：`smart-ui/src/views/platform/dormitory/room/room-tree-rules.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-tree-selection.test.js`
+
+边界：
+
+- 只移动 `shouldShowRoomTreeNode`、`roomTreeScopeForNode`、`roomInitialTreeSelection` 三个树相关纯函数。
+- 不改三个函数实现，保留 `roomInitialTreeSelection` 的 partial assignment 和 `children[0].length > 0` 旧条件。
+- `list.vue` 只改树 scope / 初始选择函数 import；`RoomTreePanel.vue` 只改过滤函数 import。
+- 不改 API、弹窗、导出、提交、批量编辑、树节点点击行为或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-tree-rules.test.js src/views/platform/dormitory/room/room-tree-selection.test.js
+pnpm test src/views/platform/dormitory/room/components/RoomTreePanel.test.js src/views/platform/dormitory/room/room-tree-rules.test.js src/views/platform/dormitory/room/room-tree-selection.test.js
+pnpm test src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。模块边界移动；函数内容和调用语义保持不变。全量测试曾捕获 `RoomTreePanel.vue` import 遗漏，已修复后复跑通过。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #70 `refactor(smart-ui): split room tree rules`
+- 合并提交：`fec4756b13424ada1b6bd5d9c913d9a3bf44bdc9`
+- 实际范围：新增 `room-tree-rules.js` / `room-tree-rules.test.js`；`room-rules.js` 删除树函数；`list.vue` 和 `RoomTreePanel.vue` 改从新模块导入；树初始选择测试改指向新模块。
+- 验证摘要：先把树测试指向 `room-tree-rules` 并确认模块不存在时红测；搬迁实现后树相关测试通过；第一次 `pnpm test` 捕获 `RoomTreePanel.vue` 仍从旧模块导入导致 `shouldShowRoomTreeNode is not a function`，修复 import 后 `RoomTreePanel.test.js` + 树测试通过；`node scripts/check-room-list-ui.js` 通过；`pnpm test` 通过（57 个测试文件、311 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认三个树函数迁移后实现等价，旧 partial assignment 和 `children[0].length > 0` 条件未被修复，调用点已全部改到新模块，新文件低于 `max-lines` 阈值，未夹带 API、弹窗、导出、提交、批量编辑、CI 或 A 类修复。
+- 边界核对：未改 API 实现、接口签名、列表查询参数、导出流程、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、树节点点击、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
