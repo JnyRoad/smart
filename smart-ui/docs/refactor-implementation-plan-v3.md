@@ -1290,6 +1290,52 @@ pnpm gate
 - 独立评审：第一轮只读子代理结论 `DISAGREE`，指出新增测试未跟踪、未进入 `git diff main`；修正暂存范围后第二轮只读复审结论 `AGREE`，确认两个选项数组顺序和值等价、父页仍赋给 `isDormitoryArr` / `isCountArr`，未夹带模板 props、API、弹窗、导出、提交、CI 或 A 类 bug 变更。
 - 边界核对：未改 API 实现、接口签名、列表查询参数、导出流程、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、页面文案或任何 A 类 bug 修复。
 
+### PR 26: `room/list.vue` 抽树初始选择纯函数
+
+分支：`refactor/smart-ui-room-tree-initial-selection`
+
+目标：把 `getTree()` 中初始化 `parkId` / `dormitoryId` / `floorId` / `defaultKey` 的嵌套旧逻辑抽到 `room-rules.js` 的 `roomInitialTreeSelection(treeData)`，父页继续负责调用 `floorList()`、写入 `treeData` 和按 `this.floorId` 判断是否查询房间。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 新增：`smart-ui/src/views/platform/dormitory/room/room-tree-selection.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+
+边界：
+
+- 不给 `treeData[0].id` 增加额外容错，保持旧访问时机和异常面。
+- 没有楼栋时只覆盖 `parkId` / `defaultKey`，不清空旧 `dormitoryId` / `floorId`。
+- 有楼栋时只覆盖 `dormitoryId` / `defaultKey`，不清空旧 `floorId`。
+- 普通楼层对象没有 `length` 时继续不默认选中楼层；`length > 0` 时才按旧条件选中楼层。
+- `getTree()` 仍在赋值后用 `if (this.floorId) getList()`，查询触发条件不变。
+- 不改 API、弹窗、导出、提交、批量编辑、树节点点击或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-tree-selection.test.js
+pnpm test src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：中低。抽取的是旧树初始化逻辑，已显式保留旧的 partial assignment 和楼层 `length` 条件；主要风险是误改初次查询时机，已由父页代码保留 `if (this.floorId)` 判断。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #68 `refactor(smart-ui): extract room tree initial selection`
+- 合并提交：`5a2d90bc78f3be577d78e5ed7123b7f324ba766a`
+- 实际范围：新增 `roomInitialTreeSelection(treeData)`；`getTree()` 改为 `Object.assign(this, roomInitialTreeSelection(this.treeData))`，其余 `floorList()`、`treeData` 写入和 `if (this.floorId) getList()` 查询判断留在父页。
+- 验证摘要：先新增 `room-tree-selection.test.js` 并确认缺少导出时红测；实现后 `room-tree-selection.test.js` 通过（4 个用例）；`list.test.js` 通过（4 个用例）；`node scripts/check-room-list-ui.js` 通过；`pnpm test` 通过（56 个测试文件、311 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认改动只涉及目标三文件、`getTree()` 仍按 `this.floorId` 查询、下级 id 未返回时不会被清空、新测试覆盖普通楼层对象无 `length` 不选中和 `length > 0` 旧条件才选中。
+- 边界核对：未改 API 实现、接口签名、列表查询参数、导出流程、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、树节点点击、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
