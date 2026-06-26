@@ -891,6 +891,48 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认字段和值、`roomIds` 新数组、楼栋/楼层 id 带入、`resetFields`/验证/提交/API 参数均未改变。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
 
+### PR 17: `room/list.vue` 第七刀：抽表单 rules 工厂
+
+分支：`refactor/smart-ui-room-list-extract-form-rules`
+
+目标：只把 `room/list.vue` 中重复的 Element UI 表单 rules 对象抽到 `room-rules.js` 纯工厂函数，父页继续保留原 `:rules` 绑定名、表单实例、提交、重置、弹窗和 API 调用。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 新增：`smart-ui/src/views/platform/dormitory/room/room-form-rules.test.js`
+
+边界：
+
+- 不改任何 rules 字段名、`required`、`message`、`trigger` 或 validator 引用。
+- 不改 `editRules`、`batchEditRules`、`floorAddRules`、`floorEditRules`、`dormRules` 的 data 字段名，避免影响模板绑定和 Element UI 表单行为。
+- 不改 `resetFields`、`validate`、提交方法、API 参数、弹窗流程或页面文案。
+- 不修复任何现有表单校验语义问题或 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-form-rules.test.js
+pnpm test src/views/platform/dormitory/room/room-form-rules.test.js src/views/platform/dormitory/room/room-rules.test.js src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm exec eslint src/views/platform/dormitory/room/room-form-rules.test.js
+pnpm gate
+```
+
+风险：低。只搬运 rules 字面量，测试锁定字段、文案、触发方式、validator 引用和工厂返回的新对象/新数组。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #50 `refactor(smart-ui): extract room form rule factories`
+- 合并提交：`f7eb111747b241fb1dd33f64847edbd1f9c21875`
+- 实际范围：新增导出 `createFloorAddRules`、`createFloorEditRules`、`createDormRules`、`createBatchEditRules`、`createRoomEditRules`；`list.vue` 只把旧内联 rules 对象替换为工厂调用，并保留原 data 字段名与模板绑定。
+- 验证摘要：先新增 `room-form-rules.test.js` 并确认缺导出时红测；实现后 `pnpm test src/views/platform/dormitory/room/room-form-rules.test.js` 通过（5 个用例）；room 相关 3 个测试文件通过（26 个用例）；`node scripts/check-room-list-ui.js` 通过；新测试文件 eslint 零 warning；`git diff --check` 通过；`pnpm test` 通过（49 个测试文件、280 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 5 组 rules 与旧 `list.vue` 一致，工厂每次返回新对象和新数组，未引入跨实例共享 rules 风险。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
