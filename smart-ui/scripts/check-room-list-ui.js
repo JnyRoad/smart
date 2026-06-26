@@ -65,13 +65,35 @@ const checks = [
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
-    required: /<el-checkbox\s+:indeterminate="isIndeterminate"\s+v-model="checkAll"\s+@change="checkAllChange">全选<\/el-checkbox>[\s\S]*<el-checkbox-group\s+v-model="checkedRoom"\s+@change="roomChange"\s+class="room-list">/,
-    message: 'room list must keep select-all and room multi-select wiring'
+    required: /<room-grid-panel[\s\S]*:has-data="hasData"[\s\S]*:table-data="tableData"[\s\S]*:checked-room="checkedRoom"[\s\S]*:check-all="checkAll"[\s\S]*:is-indeterminate="isIndeterminate"[\s\S]*@update-checked-room="checkedRoom = \$event"[\s\S]*@update-check-all="checkAll = \$event"[\s\S]*@check-all-change="checkAllChange"[\s\S]*@room-change="roomChange"[\s\S]*@edit-room="handleEdit"[\s\S]*@delete-room="rowDel"/,
+    message: 'room list must keep room grid props and event wiring'
   },
   {
-    file: 'src/views/platform/dormitory/room/list.vue',
-    required: /<el-dropdown-item @click\.native="handleEdit\(item\)">编辑房间<\/el-dropdown-item>[\s\S]*<el-dropdown-item @click\.native="rowDel\(item\)">删除房间<\/el-dropdown-item>/,
-    message: 'room dropdown must keep edit-room and delete-room actions'
+    file: 'src/views/platform/dormitory/room/components/RoomGridPanel.vue',
+    custom: (content) => [
+      /class="block1 block2 room-grid-panel"/,
+      /<el-checkbox[\s\S]*:indeterminate="isIndeterminate"[\s\S]*:value="checkAll"[\s\S]*@input="emitCheckAllInput"[\s\S]*@change="emitCheckAllChange"/,
+      /<el-checkbox-group[\s\S]*:value="checkedRoom"[\s\S]*class="room-list"[\s\S]*@input="emitCheckedRoomInput"[\s\S]*@change="emitRoomChange"/,
+      /v-for="\(\s*item,\s*index\s*\)\s+in\s+tableData"/,
+      /:label="item\.id"/,
+      /emitEditRoom\(item\)/,
+      /emitDeleteRoom\(item\)/
+    ].every(pattern => pattern.test(content)),
+    message: 'room grid panel must keep select-all, room multi-select, and row action wiring'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/components/RoomGridPanel.vue',
+    custom: (content) => [
+      /全选/,
+      /男宿/,
+      /女宿/,
+      /夫妻\/混住/,
+      /不参与分配/,
+      /编辑房间/,
+      /删除房间/,
+      /当前条件下暂无住宿信息（请选择具体楼层）/
+    ].every(pattern => pattern.test(content)),
+    message: 'room grid panel must keep room list legend, row action labels, and empty state'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
