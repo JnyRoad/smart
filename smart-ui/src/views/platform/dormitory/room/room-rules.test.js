@@ -8,7 +8,10 @@ import {
   roomSelectionState,
   shouldShowRoomTreeNode,
   toCheckedRoomIds,
-  toExportRows
+  toExportRows,
+  validateFloorCount,
+  validateFloorStartNumber,
+  validateRoomCount
 } from './room-rules'
 
 describe('roomGenderClass', () => {
@@ -134,5 +137,49 @@ describe('isEmptyRoomBatchEditForm', () => {
     expect(isEmptyRoomBatchEditForm({ roomType: '' })).toBe(false)
     expect(isEmptyRoomBatchEditForm({ roomSex: 0 })).toBe(false)
     expect(isEmptyRoomBatchEditForm({ isCount: 0 })).toBe(false)
+  })
+})
+
+function collectValidatorCalls(validator, value) {
+  const calls = []
+  validator({}, value, error => {
+    calls.push(error ? error.message : undefined)
+  })
+  return calls
+}
+
+describe('room form validators', () => {
+  it('保留楼层起始编号校验的旧 callback 行为和文案', () => {
+    expect(collectValidatorCalls(validateFloorStartNumber, 0)).toStrictEqual([
+      '请输入非0整数',
+      undefined
+    ])
+    expect(collectValidatorCalls(validateFloorStartNumber, '0')).toStrictEqual([undefined])
+    expect(collectValidatorCalls(validateFloorStartNumber, '-1')).toStrictEqual([undefined])
+    expect(collectValidatorCalls(validateFloorStartNumber, '1.5')).toStrictEqual(['请输入整数'])
+    expect(collectValidatorCalls(validateFloorStartNumber, 'A')).toStrictEqual(['请输入整数'])
+  })
+
+  it('保留楼层数量校验的旧 callback 行为和上限文案', () => {
+    expect(collectValidatorCalls(validateFloorCount, 0)).toStrictEqual([
+      '请输入大于0的正整数',
+      undefined
+    ])
+    expect(collectValidatorCalls(validateFloorCount, '0')).toStrictEqual([
+      '请输入大于0的正整数',
+      undefined
+    ])
+    expect(collectValidatorCalls(validateFloorCount, '15')).toStrictEqual(['楼层数量最大值为14'])
+    expect(collectValidatorCalls(validateFloorCount, '-1')).toStrictEqual(['请输入正整数'])
+    expect(collectValidatorCalls(validateFloorCount, '1.5')).toStrictEqual(['请输入正整数'])
+    expect(collectValidatorCalls(validateFloorCount, '14')).toStrictEqual([undefined])
+  })
+
+  it('保留房间数量校验允许 0 且拒绝小数和负数的旧行为', () => {
+    expect(collectValidatorCalls(validateRoomCount, 0)).toStrictEqual([undefined])
+    expect(collectValidatorCalls(validateRoomCount, '0')).toStrictEqual([undefined])
+    expect(collectValidatorCalls(validateRoomCount, '24')).toStrictEqual([undefined])
+    expect(collectValidatorCalls(validateRoomCount, '-1')).toStrictEqual(['不能输入小数和负数'])
+    expect(collectValidatorCalls(validateRoomCount, '1.5')).toStrictEqual(['不能输入小数和负数'])
   })
 })

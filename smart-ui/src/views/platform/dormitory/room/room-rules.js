@@ -80,3 +80,40 @@ export function isEmptyRoomBatchEditForm(form) {
     (form.isCount === null || form.isCount === undefined)
   )
 }
+
+export function validateFloorStartNumber(rule, value, callback) {
+  const regName = /^-?\d+$/
+  if (value === 0) {
+    callback(new Error('请输入非0整数'))
+  }
+  if (!regName.test(value)) {
+    callback(new Error('请输入整数'))
+  } else {
+    callback()
+  }
+}
+
+export function validateFloorCount(rule, value, callback) {
+  const regName = /^\d+$/
+  if (value == 0) {
+    callback(new Error('请输入大于0的正整数'))
+  }
+
+  if (!regName.test(value)) {
+    callback(new Error('请输入正整数'))
+  } else if (value > 14) {
+    callback(new Error('楼层数量最大值为14'))
+  } else {
+    callback()
+  }
+}
+
+export function validateRoomCount(rule, value, callback) {
+  const regName = /^\d+$/
+
+  if (!regName.test(value)) {
+    callback(new Error('不能输入小数和负数'))
+  } else {
+    callback()
+  }
+}
