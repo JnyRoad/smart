@@ -18,6 +18,15 @@ const checks = [
     message: 'room list must keep the dormitory tree props and event wiring'
   },
   {
+    file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => [
+      /goBedMng/,
+      /roomname:\s*roomName/,
+      /\/platform\/dormitory\/bed_mng/
+    ].every(pattern => !pattern.test(content)),
+    message: 'room list must not keep dead bed management navigation wiring'
+  },
+  {
     file: 'src/views/platform/dormitory/room/components/RoomTreePanel.vue',
     custom: (content) => [
       /<el-tree/,
