@@ -1023,6 +1023,50 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 `$refs.dormForm.validate/resetFields` 代理、旧弹窗契约、`@update-form-field` 替代旧 `v-model`、Element UI close 行为和静态守卫均无阻塞问题；提醒新增文件提交时不得遗漏，已纳入提交。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋新增/编辑 API、楼层增删改、导出、批量编辑、页面文案或任何 A 类 bug 修复。
 
+### PR 20: `room/list.vue` 抽楼层弹窗组件
+
+分支：`refactor/smart-ui-room-list-extract-floor-dialog`
+
+目标：把 `room/list.vue` 中的楼层添加/编辑弹窗抽成受控组件 `RoomFloorDialog`，父页继续持有 `floorForm`、`floorAddRules`、`floorEditRules`、`resetFloorForm('floorForm')`、`floorSubmit('floorForm')`、`getFloorStartNum` 和 API 提交流程。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomFloorDialog.vue`
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomFloorDialog.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-dialogs.contract.test.js`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 不把 `addFloor`、`updateDormitoryFloor`、`floorAdd`、`floorEdit` 或 `floorSubmit` 迁入子组件。
+- 不改 `resetFloorForm`、`floorSubmit` 方法签名；通过组件 `ref="floorForm"` 代理 `validate` / `resetFields`，保持父页 `$refs.floorForm` 契约。
+- 不改弹窗 title、visible、width、`editFloor ? floorEditRules : floorAddRules` 规则切换、`hasStartNum` 禁用逻辑、字段文案或 `floorLoading` loading 绑定。
+- 不修复任何现有楼层提交流程或 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/components/RoomFloorDialog.test.js
+pnpm test src/views/platform/dormitory/room/components/RoomFloorDialog.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm exec eslint src/views/platform/dormitory/room/components/RoomFloorDialog.vue src/views/platform/dormitory/room/components/RoomFloorDialog.test.js
+pnpm gate
+```
+
+风险：中低。弹窗内部模板已迁入子组件，但提交、重置、`getFloorStartNum` 和 API 仍留父页；主要风险是 `$refs.floorForm` 代理、规则切换和字段事件写回，已由组件测试和父页契约测试覆盖。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #56 `refactor(smart-ui): extract room floor dialog`
+- 合并提交：`69f034a731796ca87cd32667b18957bf8aa24ea5`
+- 实际范围：新增受控组件 `RoomFloorDialog.vue` 和组件测试；`list.vue` 只把楼层弹窗模板替换为 `<room-floor-dialog>`，新增 `updateFloorFormField` 写回原 `floorForm` 对象；`room-dialogs.contract.test.js` 和 `check-room-list-ui.js` 从父页内联楼层弹窗检查迁移为父页组件接线 + 子组件内部契约检查。
+- 验证摘要：先新增 `RoomFloorDialog.test.js` 并确认组件缺失时红测；实现后组件测试通过（5 个用例）；room 弹窗相关 3 个测试文件通过（14 个用例）；`node scripts/check-room-list-ui.js` 通过；新组件和新测试 eslint 零 warning；`git diff --check` 通过；`pnpm test` 通过（52 个测试文件、293 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 `$refs.floorForm.validate/resetFields` 代理、`editFloor ? floorEditRules : floorAddRules`、`hasStartNum`、`floorLoading`、close/submit 事件和字段事件写回均无阻塞问题；提醒新增文件提交时不得遗漏，已纳入提交。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋增删改、楼层新增/编辑 API、导出、批量编辑、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
