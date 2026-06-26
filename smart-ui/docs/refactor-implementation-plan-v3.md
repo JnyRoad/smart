@@ -1112,6 +1112,50 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 `$refs.editForm.validate/resetFields` 代理、父页 `editSubmit/resetEditForm/putObj` 流程未迁移、本地安装的 Element UI 2.15.14 源码中 `input` 先于 `change`、床位数联动读取新值、选项源和 `roomGenderSelect` 绑定等价，未发现 prop mutation、字段写回遗漏或 A 类行为变化。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间编辑 API、房间删除、楼栋/楼层增删改、导出、批量编辑、页面文案或任何 A 类 bug 修复。
 
+### PR 22: `room/list.vue` 抽批量编辑弹窗组件
+
+分支：`refactor/smart-ui-room-list-extract-batch-dialog`
+
+目标：把 `room/list.vue` 中的批量编辑弹窗抽成受控组件 `RoomBatchEditDialog`，父页继续持有 `batchEditForm`、`batchEditRules`、`isHandelSD`、`resetBatchEditForm('batchEditForm')`、`batchEditSubmit('batchEditForm')` 和 `putBatchObj` / `putSDBatchObj` 提交流程。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomBatchEditDialog.vue`
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomBatchEditDialog.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-dialogs.contract.test.js`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 不把 `putBatchObj`、`putSDBatchObj`、`handleBatchEdit`、`handleSDBatchEdit`、`batchEditSubmit` 或 `resetBatchEditForm` 迁入子组件。
+- 不改 `resetBatchEditForm`、`batchEditSubmit` 方法签名；通过组件 `ref="batchEditForm"` 代理 `validate` / `resetFields`，保持父页 `$refs.batchEditForm` 契约。
+- 不改弹窗 title、visible、width、rules/model、`isHandelSD` 条件字段、字段文案、`isDormitoryArr` / `isCountArr` / `parkDormTypeList` / `sdTempList` 选项来源、`roomGenderSelect` 绑定或 `editLoading` loading 绑定。
+- 不修复任何现有批量编辑提交流程或 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/components/RoomBatchEditDialog.test.js
+pnpm test src/views/platform/dormitory/room/components/RoomBatchEditDialog.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm exec eslint src/views/platform/dormitory/room/components/RoomBatchEditDialog.vue src/views/platform/dormitory/room/components/RoomBatchEditDialog.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js
+pnpm gate
+```
+
+风险：中。批量弹窗包含普通批量设置和水电模板两种条件模式；提交、重置、`putBatchObj` 和 `putSDBatchObj` 仍留父页，主要风险是 `isHandelSD` 条件字段、`$refs.batchEditForm` 代理和字段写回，已由组件测试、父页契约测试和静态守卫覆盖。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #60 `refactor(smart-ui): extract room batch edit dialog`
+- 合并提交：`5edb18d0e0392733ee85efe4dce7004aa52dca49`
+- 实际范围：新增受控组件 `RoomBatchEditDialog.vue` 和组件测试；`list.vue` 只把批量编辑弹窗模板替换为 `<room-batch-edit-dialog>`，新增 `updateBatchEditFormField` 写回原 `batchEditForm` 对象；`room-dialogs.contract.test.js` 和 `check-room-list-ui.js` 从父页内联批量弹窗检查迁移为父页组件接线 + 子组件内部契约检查。
+- 验证摘要：先新增 `RoomBatchEditDialog.test.js` 并确认组件缺失时红测；实现后组件测试通过（5 个用例）；room 弹窗相关 3 个测试文件通过（15 个用例）；`node scripts/check-room-list-ui.js` 通过；新组件、新测试和父页契约测试 eslint 零 warning；`git diff --check` 通过；`pnpm test` 通过（54 个测试文件、304 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 `$refs.batchEditForm.validate/resetFields` 代理、父页 `batchEditSubmit/resetBatchEditForm/putBatchObj/putSDBatchObj` 流程未迁移、普通批量编辑和水电模板两种模式字段等价、选项源和 `roomGenderSelect` 绑定等价，未发现 prop mutation、字段写回遗漏或 A 类行为变化。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑 API、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
