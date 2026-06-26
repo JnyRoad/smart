@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildRoomListQuery,
+  createDormFormForPark,
+  createEmptyBatchEditForm,
+  createEmptyDormForm,
+  createEmptyFloorForm,
+  createEmptyRoomEditForm,
+  createFloorFormForDormitory,
   formatRoomExportRows,
   hasRoomListData,
   isEmptyRoomBatchEditForm,
@@ -137,6 +143,70 @@ describe('isEmptyRoomBatchEditForm', () => {
     expect(isEmptyRoomBatchEditForm({ roomType: '' })).toBe(false)
     expect(isEmptyRoomBatchEditForm({ roomSex: 0 })).toBe(false)
     expect(isEmptyRoomBatchEditForm({ isCount: 0 })).toBe(false)
+  })
+})
+
+describe('room form state factories', () => {
+  it('构造空楼层新增表单时保留旧字段和值', () => {
+    expect(createEmptyFloorForm()).toStrictEqual({
+      parkId: undefined,
+      dormitoryId: undefined,
+      startNum: undefined,
+      floorNum: undefined
+    })
+    expect(createEmptyFloorForm()).not.toBe(createEmptyFloorForm())
+  })
+
+  it('构造空楼栋表单时保留旧字段和值', () => {
+    expect(createEmptyDormForm()).toStrictEqual({
+      parkId: undefined,
+      dormitoryName: undefined
+    })
+    expect(createEmptyDormForm()).not.toBe(createEmptyDormForm())
+  })
+
+  it('构造空批量编辑表单时保留旧字段和值，并为 roomIds 返回新数组', () => {
+    const firstForm = createEmptyBatchEditForm()
+    const secondForm = createEmptyBatchEditForm()
+
+    expect(firstForm).toStrictEqual({
+      roomIds: [],
+      isDormitoryRoom: undefined,
+      isCount: undefined,
+      roomType: undefined,
+      roomSex: undefined,
+      sdTemplateId: undefined
+    })
+    expect(firstForm).not.toBe(secondForm)
+    expect(firstForm.roomIds).not.toBe(secondForm.roomIds)
+  })
+
+  it('构造空房间编辑表单时保留旧字段和值', () => {
+    expect(createEmptyRoomEditForm()).toStrictEqual({
+      roomName: undefined,
+      isDormitoryRoom: undefined,
+      isCount: undefined,
+      roomType: undefined,
+      bedTotal: undefined,
+      roomSex: undefined,
+      sdTemplateId: undefined,
+      leaveTempName: undefined,
+      leaveTempId: undefined
+    })
+    expect(createEmptyRoomEditForm()).not.toBe(createEmptyRoomEditForm())
+  })
+
+  it('新增楼栋和新增楼层表单只按旧逻辑带入当前树范围 id', () => {
+    expect(createDormFormForPark(10)).toStrictEqual({
+      parkId: 10,
+      dormitoryName: undefined
+    })
+    expect(createFloorFormForDormitory(10, 20)).toStrictEqual({
+      parkId: 10,
+      dormitoryId: 20,
+      startNum: undefined,
+      floorNum: undefined
+    })
   })
 })
 
