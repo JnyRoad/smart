@@ -1201,6 +1201,51 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 level 1/2 partial scope、level 3 三字段赋值后查询、`tableData` 清空位置、level 1/2/3/未知层级测试覆盖均符合目标；未发现 API、查询、弹窗或 A 类行为夹带变化。
 - 边界核对：未改 API 实现、接口签名、列表查询参数、弹窗流程、房间增删改、楼栋/楼层增删改、导出、批量编辑、页面文案或任何 A 类 bug 修复。
 
+### PR 24: `room/list.vue` 抽导出配置
+
+分支：`refactor/smart-ui-room-export-config`
+
+目标：把 `export2Excel` 中房间列表导出的表头和字段顺序抽到 `room-rules.js` 的 `createRoomExportConfig()`，父页继续负责异步加载、查询、行格式化和导出调用。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+
+边界：
+
+- 不改 `require.ensure`、`Export2Excel` 动态加载、`exportLoading` 置位/复位时机。
+- 不改 `fetchRoomList(buildRoomListQuery(..., this.searchForm))` 查询参数。
+- 不改 `formatRoomExportRows(list)` 原地格式化、`this.formatJson(...)`、导出文件名 `房间列表`。
+- `createRoomExportConfig()` 每次返回新数组，保留旧代码每次导出新建数组的行为。
+- 不改列表、弹窗、批量编辑、树选择或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-rules.test.js
+pnpm test src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。只抽导出配置数组；导出流程、查询、格式化、文件名和异常分支仍留在父页。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #64 `refactor(smart-ui): extract room export config`
+- 合并提交：`dc8345eb8d5f78d7142596131d2343f2a3b09003`
+- 实际范围：新增 `createRoomExportConfig()`；`export2Excel` 改为读取 `exportConfig.headers` / `exportConfig.fields`，其余导出流程保持在父页。
+- 验证摘要：先新增 `createRoomExportConfig()` 测试并确认缺少实现时红测；实现后 `room-rules.test.js` 通过（19 个用例）；`list.test.js` 通过（4 个用例）；`node scripts/check-room-list-ui.js` 通过；`pnpm test` 通过（54 个测试文件、306 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认表头/字段顺序等价、`slice()` 每次返回新数组、`list.vue` 导出 loading/查询/格式化/文件名语义未变；未发现 lint 风险、过度抽象或非本 PR 内容。
+- 边界核对：未改 API 实现、接口签名、列表查询参数、导出文件名、导出枚举格式化、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
