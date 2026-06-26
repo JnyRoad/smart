@@ -212,7 +212,6 @@ export default {
     this.getTree()
     this.getAllDormType()
   },
-  mounted: function () {},
   computed: {
     hasData() {
       return hasRoomListData(this.parkId, this.tableData)
