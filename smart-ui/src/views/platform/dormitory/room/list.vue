@@ -114,30 +114,19 @@
         </div>
       </el-dialog>
       <!-- 楼层添加、编辑 -->
-      <el-dialog :title="floorTitle" class="dialog_form" width="550px" @close="resetFloorForm('floorForm')" :visible.sync="floorVisible">
-        <el-form :rules="editFloor ? floorEditRules : floorAddRules" ref="floorForm" :model="floorForm" label-width="80px">
-          <template v-if="editFloor">
-            <el-form-item label="楼层编号" prop="floorName">
-              <el-input v-model="floorForm.floorName" disabled></el-input>
-            </el-form-item>
-            <el-form-item label="房间数量" prop="roomNum">
-              <el-input v-model="floorForm.roomNum" clearable></el-input>
-            </el-form-item>
-          </template>
-          <template v-else>
-            <el-form-item label="起始编号" prop="startNum">
-              <el-input v-model="floorForm.startNum" clearable :disabled="hasStartNum"></el-input>
-            </el-form-item>
-            <el-form-item label="楼层数量" prop="floorNum">
-              <el-input v-model="floorForm.floorNum" clearable></el-input>
-            </el-form-item>
-          </template>
-        </el-form>
-        <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="resetFloorForm('floorForm')" plain>取 消</el-button>
-          <el-button type="primary" @click="floorSubmit('floorForm')" :loading="floorLoading">确 定</el-button>
-        </div>
-      </el-dialog>
+      <room-floor-dialog
+        ref="floorForm"
+        :title="floorTitle"
+        :visible="floorVisible"
+        :form="floorForm"
+        :rules="editFloor ? floorEditRules : floorAddRules"
+        :edit-floor="editFloor"
+        :has-start-num="hasStartNum"
+        :loading="floorLoading"
+        @update-form-field="updateFloorFormField"
+        @close="resetFloorForm('floorForm')"
+        @submit="floorSubmit('floorForm')"
+      />
       <!-- 楼栋添加、编辑 -->
       <room-dormitory-dialog
         ref="dormForm"
@@ -168,6 +157,7 @@ import echarts from 'echarts'
 import RoomGridPanel from './components/RoomGridPanel.vue'
 import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
+import RoomFloorDialog from './components/RoomFloorDialog.vue'
 import RoomDormitoryDialog from './components/RoomDormitoryDialog.vue'
 import {
   buildRoomListQuery,
@@ -206,6 +196,7 @@ export default {
     RoomGridPanel,
     RoomTreePanel,
     RoomSearchToolbar,
+    RoomFloorDialog,
     RoomDormitoryDialog
   },
   data() {
@@ -738,6 +729,9 @@ export default {
     },
     updateSearchField({ field, value }) {
       this.searchForm[field] = value
+    },
+    updateFloorFormField({ field, value }) {
+      this.floorForm[field] = value
     },
     updateDormFormField({ field, value }) {
       this.dormForm[field] = value
