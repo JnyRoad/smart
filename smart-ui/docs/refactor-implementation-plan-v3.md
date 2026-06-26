@@ -933,6 +933,52 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 5 组 rules 与旧 `list.vue` 一致，工厂每次返回新对象和新数组，未引入跨实例共享 rules 风险。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
 
+### PR 18: `room/list.vue` 抽弹窗前安全网
+
+分支：`test/smart-ui-room-dialog-safety-net`
+
+目标：在抽离编辑房间、批量编辑、楼层、楼栋 4 类弹窗前，先补页面级契约测试和静态守卫，不改生产代码。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/dormitory/room/room-dialogs.contract.test.js`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+安全网内容：
+
+- 页面浅挂载锁定 4 个弹窗的标题、visible、`el-form` rules/model、label width、关键字段文案和 footer reset/submit 委托。
+- 覆盖批量编辑 `isHandelSD` 条件字段和楼层 `editFloor` 条件字段。
+- 静态守卫新增每个弹窗的 form ref/model/rules、关键 `prop`、change handler 和条件字段检查，并接入既有 `pnpm gate` 的 `room-list-ui` 步骤。
+
+边界：
+
+- 不抽组件，不改 `room/list.vue` 生产代码。
+- 不改 API、提交、重置、校验、弹窗 visible、页面文案或任何 A 类 bug。
+- 后续真正抽弹窗组件时，必须同步把本 PR 的父页顺序断言和静态守卫迁移到新组件级契约。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-dialogs.contract.test.js
+pnpm test src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm exec eslint src/views/platform/dormitory/room/room-dialogs.contract.test.js
+pnpm gate
+```
+
+风险：低。仅新增测试和静态守卫；风险是测试严格度会在后续组件化时要求同步迁移断言，这正是本安全网的目的。
+回滚：单 PR revert，删除新增测试并回退静态守卫。
+
+完成状态：
+
+- 已合并：PR #52 `test(smart-ui): add room dialog safety net`
+- 合并提交：`efc291e21af841ec1d766d5c9d3724637522dd5b`
+- 实际范围：新增 `room-dialogs.contract.test.js`；增强 `scripts/check-room-list-ui.js` 的弹窗 form/ref/model/rules、字段、条件分支和 handler 守卫；未改任何生产源码。
+- 验证摘要：`pnpm test src/views/platform/dormitory/room/room-dialogs.contract.test.js` 通过（3 个用例）；`room-dialogs.contract.test.js` + `list.test.js` 通过（7 个用例）；`node scripts/check-room-list-ui.js` 通过；新测试文件 eslint 零 warning；`git diff --check` 通过；`pnpm test` 通过（50 个测试文件、283 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认新增测试 mount 真实 `list.vue` 而不是只测 stub，未夹带生产行为变化；提醒后续抽组件时要把父页顺序断言和按注释切块的静态守卫迁移到组件级契约。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
