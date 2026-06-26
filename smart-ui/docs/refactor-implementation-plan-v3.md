@@ -1156,6 +1156,51 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 `$refs.batchEditForm.validate/resetFields` 代理、父页 `batchEditSubmit/resetBatchEditForm/putBatchObj/putSDBatchObj` 流程未迁移、普通批量编辑和水电模板两种模式字段等价、选项源和 `roomGenderSelect` 绑定等价，未发现 prop mutation、字段写回遗漏或 A 类行为变化。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑 API、页面文案或任何 A 类 bug 修复。
 
+### PR 23: `room/list.vue` 抽树节点范围计算纯函数
+
+分支：`refactor/smart-ui-room-tree-scope-helper`
+
+目标：把 `handleNodeClick` 中按树节点层级计算 `parkId` / `dormitoryId` / `floorId` 的映射抽成纯函数 `roomTreeScopeForNode`，父页继续负责清空 `tableData` 和在楼层节点调用 `getList(this.searchForm)`。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+
+边界：
+
+- 不改树 API、列表查询 API、弹窗、导出、批量编辑或提交逻辑。
+- 不清空旧实现本来没有清空的下级 id：level 1 只覆盖 `parkId`，level 2 只覆盖 `parkId` / `dormitoryId`。
+- level 3 保持先覆盖 `parkId` / `dormitoryId` / `floorId`，再调用 `getList(this.searchForm)`。
+- `tableData = []` 仍留在父页 `handleNodeClick` 开头，时机不变。
+- 不修复任何现有树选择流程或 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-rules.test.js
+pnpm test src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。纯函数抽取，不改变 API 调用和查询触发；主要风险是 level 1/2 的旧 partial overwrite 行为和 level 3 查询时机，已由纯函数测试和父页测试覆盖。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #62 `refactor(smart-ui): extract room tree scope helper`
+- 合并提交：`721bd5453b128f3ff9bcacfb3bb448700842d3a6`
+- 实际范围：新增 `roomTreeScopeForNode(data, node)`；`handleNodeClick` 改为调用该纯函数并 `Object.assign(this, selection.scope)`，其余清空表格和楼层查询时机保留在父页。
+- 验证摘要：先新增 `roomTreeScopeForNode` 测试并确认缺少导出时红测；实现后 `room-rules.test.js` 通过（18 个用例）；`list.test.js` 通过（4 个用例）；`node scripts/check-room-list-ui.js` 通过；`git diff --check` 通过；`pnpm test` 通过（54 个测试文件、305 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 level 1/2 partial scope、level 3 三字段赋值后查询、`tableData` 清空位置、level 1/2/3/未知层级测试覆盖均符合目标；未发现 API、查询、弹窗或 A 类行为夹带变化。
+- 边界核对：未改 API 实现、接口签名、列表查询参数、弹窗流程、房间增删改、楼栋/楼层增删改、导出、批量编辑、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
