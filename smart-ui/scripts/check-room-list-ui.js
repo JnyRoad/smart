@@ -53,6 +53,11 @@ const checks = [
     message: 'room list must not keep unused local bindings'
   },
   {
+    file: 'src/views/platform/dormitory/room/list.vue',
+    custom: (content) => !/mounted:\s*function\s*\(\)\s*\{\}/.test(content),
+    message: 'room list must not keep an empty mounted hook'
+  },
+  {
     file: 'src/views/platform/dormitory/room/components/RoomTreePanel.vue',
     custom: (content) => [
       /<el-tree/,
