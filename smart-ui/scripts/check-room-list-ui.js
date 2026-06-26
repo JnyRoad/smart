@@ -170,22 +170,32 @@ const checks = [
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
-    required: /<el-dialog :title="dormTitle"[\s\S]*:visible\.sync="dormVisible"[\s\S]*@click="resetDormForm\('dormForm'\)"[\s\S]*@click="dormSubmit\('dormForm'\)"/,
-    message: 'dormitory dialog must keep visible state and submit/reset handlers'
+    required: /<room-dormitory-dialog[\s\S]*ref="dormForm"[\s\S]*:title="dormTitle"[\s\S]*:visible="dormVisible"[\s\S]*:form="dormForm"[\s\S]*:rules="dormRules"[\s\S]*:loading="floorLoading"[\s\S]*@update-form-field="updateDormFormField"[\s\S]*@close="resetDormForm\('dormForm'\)"[\s\S]*@submit="dormSubmit\('dormForm'\)"/,
+    message: 'room list must keep dormitory dialog props, ref, and submit/reset wiring'
   },
   {
-    file: 'src/views/platform/dormitory/room/list.vue',
+    file: 'src/views/platform/dormitory/room/components/RoomDormitoryDialog.vue',
     custom: (content) => {
-      const start = content.indexOf('<!-- 楼栋添加、编辑 -->')
-      const end = content.indexOf('</el-scrollbar>', start)
-      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
       return [
-        /<el-form :rules="dormRules" ref="dormForm" :model="dormForm"/,
+        /<el-dialog/,
+        /:title="title"/,
+        /width="550px"/,
+        /:visible="visible"/,
+        /@close="\$emit\('close'\)"/,
+        /<el-form[\s\S]*ref="dormForm"[\s\S]*:rules="rules"[\s\S]*:model="form"/,
         /label-position="left"/,
-        /prop="dormitoryName"/
-      ].every(pattern => pattern.test(block))
+        /prop="dormitoryName"/,
+        /宿舍楼名称/,
+        /@input="\$emit\('update-form-field', \{ field: 'dormitoryName', value: \$event \}\)"/,
+        /@click="\$emit\('close'\)"/,
+        /@click="\$emit\('submit'\)"/,
+        /validate\(callback\)/,
+        /this\.\$refs\.dormForm\.validate\(callback\)/,
+        /resetFields\(\)/,
+        /this\.\$refs\.dormForm\.resetFields\(\)/
+      ].every(pattern => pattern.test(content))
     },
-    message: 'dormitory dialog must keep form rules, model, label position, and dormitory name field'
+    message: 'room dormitory dialog must keep form binding, field, events, and ref proxy methods'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',

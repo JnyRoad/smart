@@ -139,17 +139,17 @@
         </div>
       </el-dialog>
       <!-- 楼栋添加、编辑 -->
-      <el-dialog :title="dormTitle" class="dialog_form" width="550px" @close="resetDormForm('dormForm')" :visible.sync="dormVisible">
-        <el-form :rules="dormRules" ref="dormForm" :model="dormForm" label-width="100px" label-position="left">
-          <el-form-item label="宿舍楼名称" prop="dormitoryName">
-            <el-input v-model="dormForm.dormitoryName" clearable></el-input>
-          </el-form-item>
-        </el-form>
-        <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="resetDormForm('dormForm')" plain>取 消</el-button>
-          <el-button type="primary" @click="dormSubmit('dormForm')" :loading="floorLoading">确 定</el-button>
-        </div>
-      </el-dialog>
+      <room-dormitory-dialog
+        ref="dormForm"
+        :title="dormTitle"
+        :visible="dormVisible"
+        :form="dormForm"
+        :rules="dormRules"
+        :loading="floorLoading"
+        @update-form-field="updateDormFormField"
+        @close="resetDormForm('dormForm')"
+        @submit="dormSubmit('dormForm')"
+      />
     </el-scrollbar>
   </div>
 </template>
@@ -168,6 +168,7 @@ import echarts from 'echarts'
 import RoomGridPanel from './components/RoomGridPanel.vue'
 import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
+import RoomDormitoryDialog from './components/RoomDormitoryDialog.vue'
 import {
   buildRoomListQuery,
   createBatchEditRules,
@@ -204,7 +205,8 @@ export default {
   components: {
     RoomGridPanel,
     RoomTreePanel,
-    RoomSearchToolbar
+    RoomSearchToolbar,
+    RoomDormitoryDialog
   },
   data() {
     return {
@@ -736,6 +738,9 @@ export default {
     },
     updateSearchField({ field, value }) {
       this.searchForm[field] = value
+    },
+    updateDormFormField({ field, value }) {
+      this.dormForm[field] = value
     },
     /**
      * 清空搜索
