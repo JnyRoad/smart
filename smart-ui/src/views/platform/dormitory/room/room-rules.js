@@ -72,6 +72,60 @@ export function formatRoomExportRows(list) {
   return list
 }
 
+export function createEmptyFloorForm() {
+  return {
+    parkId: undefined,
+    dormitoryId: undefined,
+    startNum: undefined,
+    floorNum: undefined
+  }
+}
+
+export function createFloorFormForDormitory(parkId, dormitoryId) {
+  return Object.assign(createEmptyFloorForm(), {
+    parkId,
+    dormitoryId
+  })
+}
+
+export function createEmptyDormForm() {
+  return {
+    parkId: undefined,
+    dormitoryName: undefined
+  }
+}
+
+export function createDormFormForPark(parkId) {
+  return Object.assign(createEmptyDormForm(), {
+    parkId
+  })
+}
+
+export function createEmptyBatchEditForm() {
+  return {
+    roomIds: [],
+    isDormitoryRoom: undefined,
+    isCount: undefined,
+    roomType: undefined,
+    roomSex: undefined,
+    sdTemplateId: undefined
+  }
+}
+
+export function createEmptyRoomEditForm() {
+  return {
+    roomName: undefined,
+    isDormitoryRoom: undefined,
+    isCount: undefined,
+    roomType: undefined,
+    bedTotal: undefined,
+    roomSex: undefined,
+    sdTemplateId: undefined,
+    leaveTempName: undefined,
+    leaveTempId: undefined
+  }
+}
+
 export function isEmptyRoomBatchEditForm(form) {
   return (
     (form.isDormitoryRoom === null || form.isDormitoryRoom === undefined) &&
