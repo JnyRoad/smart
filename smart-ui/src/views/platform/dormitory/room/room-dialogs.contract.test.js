@@ -78,6 +78,7 @@ function mountRoomList() {
         props: ['visible', 'form', 'rules', 'isDormitoryArr', 'isCountArr', 'parkDormTypeList', 'sdTempList', 'loading'],
         template: '<section class="room-edit-dialog-stub"><span>房间号</span><span>是否参与分配</span><span>是否参与计算</span><span>宿舍分类</span><span>床位数</span><span>房间属性</span><span>水电分摊模板</span><span>离职结算模板</span><button @click="$emit(\'close\')">取 消</button><button @click="$emit(\'submit\')">确 定</button></section>'
       },
+      RoomBatchEditDialog: { name: 'RoomBatchEditDialog', props: ['title', 'visible', 'form', 'rules', 'isHandelSD', 'isDormitoryArr', 'isCountArr', 'parkDormTypeList', 'sdTempList', 'loading'], template: '<section class="room-batch-edit-dialog-stub"><span v-if="!isHandelSD">是否参与分配</span><span v-if="!isHandelSD">是否参与计算</span><span v-if="!isHandelSD">宿舍分类</span><span v-if="!isHandelSD">房间属性</span><span v-if="isHandelSD">水电分摊模板</span><button @click="$emit(\'close\')">取 消</button><button @click="$emit(\'submit\')">确 定</button></section>' },
       RoomFloorDialog: {
         name: 'RoomFloorDialog',
         props: ['title', 'visible', 'form', 'rules', 'editFloor', 'hasStartNum', 'loading'],
@@ -130,33 +131,31 @@ describe('room dialog contracts', () => {
     const wrapper = mountRoomList()
     await flushPromises()
 
-    const dialogs = wrapper.findAllComponents({ name: 'ElDialog' })
-    const forms = wrapper.findAllComponents({ name: 'ElForm' })
-
     const editDialog = wrapper.findComponent({ name: 'RoomEditDialog' })
+    const batchEditDialog = wrapper.findComponent({ name: 'RoomBatchEditDialog' })
     const dormitoryDialog = wrapper.findComponent({ name: 'RoomDormitoryDialog' })
     const floorDialog = wrapper.findComponent({ name: 'RoomFloorDialog' })
 
-    expect(dialogs).toHaveLength(1)
-    expect(forms).toHaveLength(1)
     expect(editDialog.exists()).toBe(true)
+    expect(batchEditDialog.exists()).toBe(true)
     expect(floorDialog.exists()).toBe(true)
     expect(dormitoryDialog.exists()).toBe(true)
-    expect(dialogs.wrappers.map(dialog => dialog.props('title'))).toStrictEqual([
-      wrapper.vm.editTitle
-    ])
-    expect(dialogs.wrappers.map(dialog => dialog.props('visible'))).toStrictEqual([
-      false
-    ])
-    expect(forms.at(0).props()).toMatchObject({
-      rules: wrapper.vm.batchEditRules,
-      model: wrapper.vm.batchEditForm,
-      labelWidth: '120px'
-    })
     expect(editDialog.props()).toMatchObject({
       visible: false,
       rules: wrapper.vm.editRules,
       form: wrapper.vm.editForm,
+      isDormitoryArr: wrapper.vm.isDormitoryArr,
+      isCountArr: wrapper.vm.isCountArr,
+      parkDormTypeList: wrapper.vm.parkDormTypeList,
+      sdTempList: wrapper.vm.sdTempList,
+      loading: false
+    })
+    expect(batchEditDialog.props()).toMatchObject({
+      title: wrapper.vm.editTitle,
+      visible: false,
+      rules: wrapper.vm.batchEditRules,
+      form: wrapper.vm.batchEditForm,
+      isHandelSD: false,
       isDormitoryArr: wrapper.vm.isDormitoryArr,
       isCountArr: wrapper.vm.isCountArr,
       parkDormTypeList: wrapper.vm.parkDormTypeList,
@@ -224,10 +223,13 @@ describe('room dialog contracts', () => {
     await flushPromises()
 
     const floorDialog = wrapper.findComponent({ name: 'RoomFloorDialog' })
+    const batchEditDialog = wrapper.findComponent({ name: 'RoomBatchEditDialog' })
 
     floorDialog.vm.$emit('update-form-field', { field: 'floorNum', value: '4' })
+    batchEditDialog.vm.$emit('update-form-field', { field: 'sdTemplateId', value: 30 })
 
     expect(wrapper.vm.floorForm.floorNum).toBe('4')
+    expect(wrapper.vm.batchEditForm.sdTemplateId).toBe(30)
   })
 
   it('keeps edit room dialog field updates delegated to the existing edit form object', async () => {
@@ -274,15 +276,15 @@ describe('room dialog contracts', () => {
     const floorSubmit = vi.spyOn(wrapper.vm, 'floorSubmit').mockImplementation(() => {})
     const resetDormForm = vi.spyOn(wrapper.vm, 'resetDormForm').mockImplementation(() => {})
     const dormSubmit = vi.spyOn(wrapper.vm, 'dormSubmit').mockImplementation(() => {})
-    const dialogs = wrapper.findAllComponents({ name: 'ElDialog' })
     const editDialog = wrapper.findComponent({ name: 'RoomEditDialog' })
+    const batchEditDialog = wrapper.findComponent({ name: 'RoomBatchEditDialog' })
     const floorDialog = wrapper.findComponent({ name: 'RoomFloorDialog' })
     const dormitoryDialog = wrapper.findComponent({ name: 'RoomDormitoryDialog' })
 
     await editDialog.findAll('button').at(0).trigger('click')
     await editDialog.findAll('button').at(1).trigger('click')
-    await dialogs.at(0).findAll('button').at(0).trigger('click')
-    await dialogs.at(0).findAll('button').at(1).trigger('click')
+    await batchEditDialog.findAll('button').at(0).trigger('click')
+    await batchEditDialog.findAll('button').at(1).trigger('click')
     await floorDialog.findAll('button').at(0).trigger('click')
     await floorDialog.findAll('button').at(1).trigger('click')
     await dormitoryDialog.findAll('button').at(0).trigger('click')

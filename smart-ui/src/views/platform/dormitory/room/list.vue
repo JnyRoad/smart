@@ -57,37 +57,22 @@
         @submit="editSubmit('editForm')"
       />
       <!--- 批量编辑弹框 --->
-      <el-dialog :title="editTitle" class="dialog_form" width="600px" @close="resetBatchEditForm('batchEditForm')" :visible.sync="batchEditFormVisible">
-        <el-form :rules="batchEditRules" ref="batchEditForm" :model="batchEditForm" label-width="120px">
-          <el-form-item label="是否参与分配" v-if="!isHandelSD" prop="isDormitoryRoom">
-            <el-select v-model="batchEditForm.isDormitoryRoom" placeholder="请选择">
-              <el-option v-for="item in isDormitoryArr" :key="item.value" :label="item.label" :value="item.value"></el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item label="是否参与计算" v-if="!isHandelSD" prop="isCount">
-            <el-select v-model="batchEditForm.isCount" placeholder="请选择">
-              <el-option v-for="item in isCountArr" :key="item.value" :label="item.label" :value="item.value"></el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item label="宿舍分类" v-if="!isHandelSD" prop="roomType">
-            <el-select v-model="batchEditForm.roomType" placeholder="请选择">
-              <el-option v-for="item in parkDormTypeList" :key="item.id" :label="item.typeName" :value="item.id"></el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item label="房间属性" v-if="!isHandelSD" prop="roomSex">
-            <roomGenderSelect v-model="batchEditForm.roomSex"></roomGenderSelect>
-          </el-form-item>
-          <el-form-item label="水电分摊模板" v-if="isHandelSD" prop="sdTemplateId">
-            <el-select v-model="batchEditForm.sdTemplateId" placeholder="请选择">
-              <el-option v-for="item in sdTempList" :key="item.id" :label="item.templateName" :value="item.id"></el-option>
-            </el-select>
-          </el-form-item>
-        </el-form>
-        <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="resetBatchEditForm('batchEditForm')" plain>取 消</el-button>
-          <el-button type="primary" @click="batchEditSubmit('batchEditForm')" :loading="editLoading">确 定</el-button>
-        </div>
-      </el-dialog>
+      <room-batch-edit-dialog
+        ref="batchEditForm"
+        :title="editTitle"
+        :visible="batchEditFormVisible"
+        :form="batchEditForm"
+        :rules="batchEditRules"
+        :is-handel-s-d="isHandelSD"
+        :is-dormitory-arr="isDormitoryArr"
+        :is-count-arr="isCountArr"
+        :park-dorm-type-list="parkDormTypeList"
+        :sd-temp-list="sdTempList"
+        :loading="editLoading"
+        @update-form-field="updateBatchEditFormField"
+        @close="resetBatchEditForm('batchEditForm')"
+        @submit="batchEditSubmit('batchEditForm')"
+      />
       <!-- 楼层添加、编辑 -->
       <room-floor-dialog
         ref="floorForm"
@@ -133,6 +118,7 @@ import RoomGridPanel from './components/RoomGridPanel.vue'
 import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
 import RoomEditDialog from './components/RoomEditDialog.vue'
+import RoomBatchEditDialog from './components/RoomBatchEditDialog.vue'
 import RoomFloorDialog from './components/RoomFloorDialog.vue'
 import RoomDormitoryDialog from './components/RoomDormitoryDialog.vue'
 import {
@@ -173,6 +159,7 @@ export default {
     RoomTreePanel,
     RoomSearchToolbar,
     RoomEditDialog,
+    RoomBatchEditDialog,
     RoomFloorDialog,
     RoomDormitoryDialog
   },
@@ -709,6 +696,9 @@ export default {
     },
     updateEditFormField({ field, value }) {
       this.editForm[field] = value
+    },
+    updateBatchEditFormField({ field, value }) {
+      this.batchEditForm[field] = value
     },
     updateFloorFormField({ field, value }) {
       this.floorForm[field] = value
