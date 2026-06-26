@@ -175,7 +175,10 @@ import {
   isEmptyRoomBatchEditForm,
   roomSelectionState,
   toCheckedRoomIds,
-  toExportRows
+  toExportRows,
+  validateFloorCount,
+  validateFloorStartNumber,
+  validateRoomCount
 } from './room-rules'
 
 // import echarts from "./";
@@ -196,52 +199,6 @@ export default {
     RoomSearchToolbar
   },
   data() {
-    var validateIsNum = (rule, value, callback) => {
-      let regName = /^-?\d+$/
-      if (value === 0) {
-        callback(new Error('请输入非0整数'))
-      }
-      if (!regName.test(value)) {
-        callback(new Error('请输入整数'))
-      } else {
-        callback()
-      }
-    }
-    var validateFloorNum = (rule, value, callback) => {
-      let regName = /^\d+$/
-      if (value == 0) {
-        callback(new Error('请输入大于0的正整数'))
-      }
-
-      if (!regName.test(value)) {
-        callback(new Error('请输入正整数'))
-      } else if (value > 14) {
-        callback(new Error('楼层数量最大值为14'))
-      } else {
-        callback()
-      }
-    }
-    var validateRoomNum = (rule, value, callback) => {
-      let regName = /^\d+$/
-      // if(value==0)
-      // {
-      //    callback(new Error('请输入大于0的正整数'));
-      // }
-
-      if (!regName.test(value)) {
-        callback(new Error('不能输入小数和负数'))
-      } else {
-        callback()
-      }
-
-      // if (!regName.test(value)) {
-      //   callback(new Error("不能输入小数和负数"));
-      // } else if (value > 24) {
-      //   callback(new Error("房间数量最大值为24"));
-      // } else {
-      //   callback();
-      // }
-    }
     return {
       floorTitle: '添加楼层',
       dormTitle: '添加楼栋',
@@ -260,17 +217,17 @@ export default {
       floorAddRules: {
         startNum: [
           { required: true, message: '请输入起始编号', trigger: 'blur' },
-          { validator: validateIsNum, trigger: 'blur' }
+          { validator: validateFloorStartNumber, trigger: 'blur' }
         ],
         floorNum: [
           { required: true, message: '请输入楼层数量', trigger: 'blur' },
-          { validator: validateFloorNum, trigger: 'blur' }
+          { validator: validateFloorCount, trigger: 'blur' }
         ]
       },
       floorEditRules: {
         roomNum: [
           { required: true, message: '请输入房间数量', trigger: 'blur' },
-          { validator: validateRoomNum, trigger: 'blur' }
+          { validator: validateRoomCount, trigger: 'blur' }
         ]
       },
       hasStartNum: false, //添加楼层时标记， 起始编号是否是读出来的，默认false
