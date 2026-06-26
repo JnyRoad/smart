@@ -126,6 +126,52 @@ export function createEmptyRoomEditForm() {
   }
 }
 
+export function createFloorAddRules() {
+  return {
+    startNum: [
+      { required: true, message: '请输入起始编号', trigger: 'blur' },
+      { validator: validateFloorStartNumber, trigger: 'blur' }
+    ],
+    floorNum: [
+      { required: true, message: '请输入楼层数量', trigger: 'blur' },
+      { validator: validateFloorCount, trigger: 'blur' }
+    ]
+  }
+}
+
+export function createFloorEditRules() {
+  return {
+    roomNum: [
+      { required: true, message: '请输入房间数量', trigger: 'blur' },
+      { validator: validateRoomCount, trigger: 'blur' }
+    ]
+  }
+}
+
+export function createDormRules() {
+  return {
+    dormitoryName: [{ required: true, message: '请输入楼栋名称', trigger: 'blur' }]
+  }
+}
+
+export function createBatchEditRules() {
+  return {
+    sdTemplateId: [{ required: true, message: '请选择水电模板', trigger: 'change' }]
+  }
+}
+
+export function createRoomEditRules() {
+  return {
+    roomName: [{ required: true, message: '请输入房间号', trigger: 'blur' }],
+    isDormitoryRoom: [{ required: true, message: '请选择是否参与分配', trigger: 'change' }],
+    isCount: [{ required: true, message: '请选择是否参与计算', trigger: 'change' }],
+    roomType: [{ required: true, message: '请选择宿舍分类', trigger: 'change' }],
+    bedTotal: [{ required: true, message: '请输入床位数', trigger: 'blur' }],
+    roomSex: [{ required: true, message: '请选择房间属性', trigger: 'change' }],
+    sdTemplateId: [{ required: true, message: '请选择水电模板', trigger: 'change' }]
+  }
+}
+
 export function isEmptyRoomBatchEditForm(form) {
   return (
     (form.isDormitoryRoom === null || form.isDormitoryRoom === undefined) &&
