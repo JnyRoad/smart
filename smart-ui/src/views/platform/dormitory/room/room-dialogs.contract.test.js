@@ -90,6 +90,24 @@ function mountRoomList() {
       RoomGridPanel: { template: '<section />' },
       RoomSearchToolbar: { template: '<section />' },
       RoomTreePanel: { template: '<section />' },
+      RoomFloorDialog: {
+        name: 'RoomFloorDialog',
+        props: ['title', 'visible', 'form', 'rules', 'editFloor', 'hasStartNum', 'loading'],
+        template: `
+          <section class="room-floor-dialog-stub">
+            <template v-if="editFloor">
+              <span>楼层编号</span>
+              <span>房间数量</span>
+            </template>
+            <template v-else>
+              <span>起始编号</span>
+              <span>楼层数量</span>
+            </template>
+            <button @click="$emit('close')">取 消</button>
+            <button @click="$emit('submit')">确 定</button>
+          </section>
+        `
+      },
       RoomDormitoryDialog: {
         name: 'RoomDormitoryDialog',
         props: ['title', 'visible', 'form', 'rules', 'loading'],
@@ -147,17 +165,17 @@ describe('room dialog contracts', () => {
     const forms = wrapper.findAllComponents({ name: 'ElForm' })
 
     const dormitoryDialog = wrapper.findComponent({ name: 'RoomDormitoryDialog' })
+    const floorDialog = wrapper.findComponent({ name: 'RoomFloorDialog' })
 
-    expect(dialogs).toHaveLength(3)
-    expect(forms).toHaveLength(3)
+    expect(dialogs).toHaveLength(2)
+    expect(forms).toHaveLength(2)
+    expect(floorDialog.exists()).toBe(true)
     expect(dormitoryDialog.exists()).toBe(true)
     expect(dialogs.wrappers.map(dialog => dialog.props('title'))).toStrictEqual([
       '编辑房间',
-      wrapper.vm.editTitle,
-      wrapper.vm.floorTitle
+      wrapper.vm.editTitle
     ])
     expect(dialogs.wrappers.map(dialog => dialog.props('visible'))).toStrictEqual([
-      false,
       false,
       false
     ])
@@ -171,10 +189,14 @@ describe('room dialog contracts', () => {
       model: wrapper.vm.batchEditForm,
       labelWidth: '120px'
     })
-    expect(forms.at(2).props()).toMatchObject({
+    expect(floorDialog.props()).toMatchObject({
+      title: wrapper.vm.floorTitle,
+      visible: false,
       rules: wrapper.vm.floorAddRules,
-      model: wrapper.vm.floorForm,
-      labelWidth: '80px'
+      form: wrapper.vm.floorForm,
+      editFloor: false,
+      hasStartNum: false,
+      loading: false
     })
     expect(dormitoryDialog.props()).toMatchObject({
       title: wrapper.vm.dormTitle,
@@ -185,7 +207,8 @@ describe('room dialog contracts', () => {
     })
 
     await wrapper.setData({ editFloor: true })
-    expect(wrapper.findAllComponents({ name: 'ElForm' }).at(2).props('rules')).toBe(wrapper.vm.floorEditRules)
+    expect(wrapper.findComponent({ name: 'RoomFloorDialog' }).props('rules')).toBe(wrapper.vm.floorEditRules)
+    expect(wrapper.findComponent({ name: 'RoomFloorDialog' }).props('editFloor')).toBe(true)
   })
 
   it('keeps dialog field labels and conditional batch/floor fields visible under existing flags', async () => {
@@ -222,6 +245,17 @@ describe('room dialog contracts', () => {
     expect(wrapper.vm.dormForm.dormitoryName).toBe('B栋')
   })
 
+  it('keeps floor dialog field updates delegated to the existing floor form object', async () => {
+    const wrapper = mountRoomList()
+    await flushPromises()
+
+    const floorDialog = wrapper.findComponent({ name: 'RoomFloorDialog' })
+
+    floorDialog.vm.$emit('update-form-field', { field: 'floorNum', value: '4' })
+
+    expect(wrapper.vm.floorForm.floorNum).toBe('4')
+  })
+
   it('keeps each dialog footer delegated to the existing reset and submit methods', async () => {
     const wrapper = mountRoomList()
     await flushPromises()
@@ -235,14 +269,15 @@ describe('room dialog contracts', () => {
     const resetDormForm = vi.spyOn(wrapper.vm, 'resetDormForm').mockImplementation(() => {})
     const dormSubmit = vi.spyOn(wrapper.vm, 'dormSubmit').mockImplementation(() => {})
     const dialogs = wrapper.findAllComponents({ name: 'ElDialog' })
+    const floorDialog = wrapper.findComponent({ name: 'RoomFloorDialog' })
     const dormitoryDialog = wrapper.findComponent({ name: 'RoomDormitoryDialog' })
 
     await dialogs.at(0).findAll('button').at(0).trigger('click')
     await dialogs.at(0).findAll('button').at(1).trigger('click')
     await dialogs.at(1).findAll('button').at(0).trigger('click')
     await dialogs.at(1).findAll('button').at(1).trigger('click')
-    await dialogs.at(2).findAll('button').at(0).trigger('click')
-    await dialogs.at(2).findAll('button').at(1).trigger('click')
+    await floorDialog.findAll('button').at(0).trigger('click')
+    await floorDialog.findAll('button').at(1).trigger('click')
     await dormitoryDialog.findAll('button').at(0).trigger('click')
     await dormitoryDialog.findAll('button').at(1).trigger('click')
 
