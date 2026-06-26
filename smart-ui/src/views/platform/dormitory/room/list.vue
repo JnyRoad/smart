@@ -138,6 +138,7 @@ import {
   formatRoomExportRows,
   hasRoomListData,
   isEmptyRoomBatchEditForm,
+  prepareRoomEditSubmitForm,
   roomCountOptions,
   roomDormitoryOptions,
   roomSelectionState,
@@ -856,8 +857,7 @@ export default {
       this.$refs[formName].validate((valid) => {
         if (valid) {
           this.editLoading = true
-          this.editForm['aliasName'] = this.editForm.roomName
-          delete this.editForm.roomName
+          prepareRoomEditSubmitForm(this.editForm)
           putObj(this.editForm)
             .then((response) => {
               var msg = response.data.msg

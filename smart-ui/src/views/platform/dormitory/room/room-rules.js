@@ -196,6 +196,12 @@ export function isEmptyRoomBatchEditForm(form) {
   )
 }
 
+export function prepareRoomEditSubmitForm(form) {
+  form.aliasName = form.roomName
+  delete form.roomName
+  return form
+}
+
 export function validateFloorStartNumber(rule, value, callback) {
   const regName = /^-?\d+$/
   if (value === 0) {
