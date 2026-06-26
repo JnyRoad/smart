@@ -14,8 +14,32 @@ function readRequired(file) {
 const checks = [
   {
     file: 'src/views/platform/dormitory/room/list.vue',
-    required: /<el-tree[\s\S]*class="my-menu-tree"[\s\S]*:data="treeData"[\s\S]*:filter-node-method="filterNode"[\s\S]*@node-click="handleNodeClick"/,
-    message: 'room list must keep the dormitory tree, filter hook, and node click handler'
+    required: /<room-tree-panel[\s\S]*:tree-data="treeData"[\s\S]*:default-props="defaultProps"[\s\S]*@node-click="handleNodeClick"[\s\S]*@node-action="treeNodeOption"/,
+    message: 'room list must keep the dormitory tree props and event wiring'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/components/RoomTreePanel.vue',
+    custom: (content) => [
+      /<el-tree/,
+      /class="my-menu-tree"/,
+      /:data="treeData"/,
+      /:filter-node-method="filterNode"/,
+      /@node-click="emitNodeClick"/
+    ].every(pattern => pattern.test(content)),
+    message: 'room tree panel must keep the Element tree, filter hook, and node click handler'
+  },
+  {
+    file: 'src/views/platform/dormitory/room/components/RoomTreePanel.vue',
+    custom: (content) => [
+      /emitNodeAction\(data,\s*'EDI',\s*node\)/,
+      /emitNodeAction\(data,\s*'DEL',\s*node\)/,
+      /emitNodeAction\(data,\s*'APP',\s*node\)/,
+      /新增楼栋/,
+      /新增楼层/,
+      /选择楼栋及楼层/,
+      /输入关键字进行过滤/
+    ].every(pattern => pattern.test(content)),
+    message: 'room tree panel must keep tree action labels and emitted actions'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
