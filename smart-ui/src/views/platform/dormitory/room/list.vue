@@ -138,6 +138,8 @@ import {
   formatRoomExportRows,
   hasRoomListData,
   isEmptyRoomBatchEditForm,
+  roomCountOptions,
+  roomDormitoryOptions,
   roomSelectionState,
   roomTreeScopeForNode,
   toCheckedRoomIds,
@@ -145,15 +147,6 @@ import {
 } from './room-rules'
 
 // import echarts from "./";
-//是否为寝室，默认0， 0-是，1-否
-const isDormitoryOption = [
-  { label: '是', value: 0 },
-  { label: '否', value: 1 }
-]
-const isCountOption = [
-  { label: '是', value: 1 },
-  { label: '否', value: 0 }
-]
 export default {
   name: 'room',
   components: {
@@ -198,8 +191,8 @@ export default {
         roomType: undefined,
         roomSex: undefined
       },
-      isDormitoryArr: isDormitoryOption,
-      isCountArr: isCountOption,
+      isDormitoryArr: roomDormitoryOptions,
+      isCountArr: roomCountOptions,
       batchEditForm: createEmptyBatchEditForm(),
       batchEditRules: createBatchEditRules(),
       editForm: createEmptyRoomEditForm(),
