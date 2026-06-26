@@ -1429,6 +1429,47 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 helper 原地写入 `aliasName = form.roomName`、删除 `roomName`、返回同一引用，`list.vue` 仍处理 `this.editForm` 并调用 `putObj(this.editForm)`，测试覆盖目标行为。
 - 边界核对：未改 API 实现、接口签名、校验、loading、通知、列表刷新、导出流程、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、页面文案或任何 A 类 bug 修复。
 
+### PR 29: `room/list.vue` 删除零引用床位管理跳转方法
+
+分支：`refactor/smart-ui-room-remove-dead-bed-nav`
+
+目标：删除 `room/list.vue` 中零引用的 `goBedMng(roomName)` 方法，并在 `check-room-list-ui.js` 中加静态守卫，防止该 dead wiring 回流。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 只删除 `room/list.vue` 内未被模板或脚本调用的 `goBedMng` 方法。
+- 静态守卫只检查 `room/list.vue`，不影响 `room/visual.vue` 中仍存在且合法的 `bed_mng` 跳转。
+- 不改路由、API、弹窗、导出、批量编辑、树、房间列表、页面文案或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+node scripts/check-room-list-ui.js
+pnpm test src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/room-rules.test.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。删除的是零引用页面方法；静态守卫限定在 `room/list.vue`。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #74 `refactor(smart-ui): remove dead room bed navigation`
+- 合并提交：`06ad211e99b0536afc8ee3040a6cd96f7b6c91ba`
+- 实际范围：删除 `room/list.vue` 中 9 行 `goBedMng(roomName)`；`check-room-list-ui.js` 新增仅针对 `room/list.vue` 的 dead bed management navigation wiring 守卫。
+- 验证摘要：先新增静态守卫并确认删除前 `node scripts/check-room-list-ui.js` 红测失败；删除方法后 `node scripts/check-room-list-ui.js` 通过；room 相关 3 个测试文件通过（28 个用例）；`pnpm test` 通过（57 个测试文件、312 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，`goBedMng` 仅在基线方法自身出现，当前 `room/list.vue` 已无 `goBedMng` / `roomname: roomName` / `/platform/dormitory/bed_mng`，`room/visual.vue` 的合法跳转未受守卫影响。
+- 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
