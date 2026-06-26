@@ -1,5 +1,15 @@
 const roomGenderClasses = ['man', 'woman', 'mix', 'other']
 
+export const roomDormitoryOptions = [
+  { label: '是', value: 0 },
+  { label: '否', value: 1 }
+]
+
+export const roomCountOptions = [
+  { label: '是', value: 1 },
+  { label: '否', value: 0 }
+]
+
 export function roomGenderClass(value) {
   return roomGenderClasses[value]
 }
