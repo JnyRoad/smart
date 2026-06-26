@@ -1554,6 +1554,49 @@ pnpm gate
 - 独立评审：只读快速评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，`room/list.vue` 仅删除三条 unused import 和一行旧注释，`check-room-list-ui.js` 仅新增针对该页的 legacy imports 守卫；模板、方法、API、组件 props/events、路由、弹窗、导出、批量编辑、树、房间列表无改动；`excel.js` 顶层依赖不构成本页依赖的业务副作用，`vuex` / `echarts` 在该页无调用。
 - 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
 
+### PR 32: `room/list.vue` 删除 unused local bindings
+
+分支：`refactor/smart-ui-room-remove-unused-locals`
+
+目标：删除 `room/list.vue` 中明确未使用的局部绑定，并在 `check-room-list-ui.js` 中加静态守卫，防止这些 no-unused-vars 形态回流。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 只删除一个未使用的 `let _this = this`，并把 6 个未使用 `err` 的 `.catch((err) => { ... })` 改为 `.catch(() => { ... })`。
+- 静态守卫只检查 `room/list.vue` 中这两类 unused local binding 形态。
+- 保留仍被使用的 `var _this = this`，不碰 `tableLoading`、`defaultKey`、`resetEditForm(formName)` 等非本 PR 范围项。
+- 不改 catch body、then body、loading 赋值、API 调用、模板、路由、弹窗、导出、批量编辑、树、房间列表或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+node scripts/check-room-list-ui.js
+pnpm test src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/room-rules.test.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。只删除未使用局部绑定；catch/then 体、loading 回滚和 API 调用保持不变。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #80 `refactor(smart-ui): remove room unused local bindings`
+- 合并提交：`f67f7089dfbed13fdab6e7b77cc785836223daad`
+- 代码提交：`8813f1fa9859a80e4ea439565616cb193903f71d`
+- 实际范围：删除 `dormAdd` 内未使用的 `let _this = this`；6 个未使用 `err` 的 catch 回调改为无参回调；`check-room-list-ui.js` 新增仅针对 `room/list.vue` 的 unused local bindings 守卫。
+- 验证摘要：先新增静态守卫并确认删除前 `node scripts/check-room-list-ui.js` 红测失败；删除后 `node scripts/check-room-list-ui.js` 通过；room 相关 3 个测试文件通过（28 个用例）；专项 eslint 从 13 个 warning 降到 6 个 warning；`pnpm test` 通过（57 个测试文件、312 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读快速评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，未改 catch/then body、loading、API、模板、路由、弹窗、导出、批量编辑、树、房间列表，未夹带 A 类行为修复；保留 `var _this = this`、`tableLoading`、`defaultKey`、`resetEditForm(formName)` 等非本 PR 范围项合理。
+- 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
