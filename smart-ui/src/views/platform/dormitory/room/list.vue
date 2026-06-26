@@ -26,39 +26,19 @@
             />
           </div>
         </div>
-        <div class="block1 block2">
-          <div class="box-outer" v-if="hasData">
-            <div style="margin-bottom: 20px;">
-              <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @change="checkAllChange">全选</el-checkbox>
-              <div class="tps">
-                <span class="tp tp1"><i></i>男宿</span>
-                <span class="tp tp2"><i></i>女宿</span>
-                <span class="tp tp3"><i></i>夫妻/混住</span>
-                <span class="tp tp4"><i class="lock"></i>不参与分配</span>
-              </div>
-            </div>
-            <div style="margin: 15px 0"></div>
-            <el-checkbox-group v-model="checkedRoom" @change="roomChange" class="room-list">
-              <el-checkbox v-for="(item, index) in tableData" :label="item.id" :key="index">
-                <i class="lock" v-if="item.isDormitoryRoom===1"></i>
-                <div class="room-item" :class="item.roomSex | f_roomGenderClass">
-                  <div>{{ item.roomName }}</div>
-                  <div>{{ item.bedTotal }}人间</div>
-                </div>
-                <el-dropdown placement="bottom" class="dropdown">
-                  <span class="el-dropdown-link">
-                    <i class="el-icon-more"></i>
-                  </span>
-                  <el-dropdown-menu slot="dropdown">
-                    <el-dropdown-item @click.native="handleEdit(item)">编辑房间</el-dropdown-item>
-                    <el-dropdown-item @click.native="rowDel(item)">删除房间</el-dropdown-item>
-                  </el-dropdown-menu>
-                </el-dropdown>
-              </el-checkbox>
-            </el-checkbox-group>
-          </div>
-          <div v-else class="noData">当前条件下暂无住宿信息（请选择具体楼层）</div>
-        </div>
+        <room-grid-panel
+          :has-data="hasData"
+          :table-data="tableData"
+          :checked-room="checkedRoom"
+          :check-all="checkAll"
+          :is-indeterminate="isIndeterminate"
+          @update-checked-room="checkedRoom = $event"
+          @update-check-all="checkAll = $event"
+          @check-all-change="checkAllChange"
+          @room-change="roomChange"
+          @edit-room="handleEdit"
+          @delete-room="rowDel"
+        />
       </div>
       <el-dialog title="编辑房间" class="dialog_form" width="600px" @close="resetEditForm('editForm')" :visible.sync="editFormVisible">
         <el-form :rules="editRules" ref="editForm" :model="editForm" label-width="120px">
@@ -185,6 +165,7 @@ import { tableOption } from '@/const/crud/platform/dormitory/room'
 import { excel } from '@/util/excel'
 import { mapGetters } from 'vuex'
 import echarts from 'echarts'
+import RoomGridPanel from './components/RoomGridPanel.vue'
 import RoomTreePanel from './components/RoomTreePanel.vue'
 import RoomSearchToolbar from './components/RoomSearchToolbar.vue'
 import {
@@ -192,7 +173,6 @@ import {
   formatRoomExportRows,
   hasRoomListData,
   isEmptyRoomBatchEditForm,
-  roomGenderClass,
   roomSelectionState,
   toCheckedRoomIds,
   toExportRows
@@ -211,6 +191,7 @@ const isCountOption = [
 export default {
   name: 'room',
   components: {
+    RoomGridPanel,
     RoomTreePanel,
     RoomSearchToolbar
   },
@@ -374,11 +355,6 @@ export default {
   computed: {
     hasData() {
       return hasRoomListData(this.parkId, this.tableData)
-    }
-  },
-  filters: {
-    f_roomGenderClass(val) {
-      return roomGenderClass(val)
     }
   },
   methods: {
@@ -1080,48 +1056,11 @@ export default {
 
 <style lang="scss" scoped>
 .room ::v-deep {
-  $c_man: #70a9ff;
-  $c_woman: #ff98c4;
-  $c_mix: #c4a7ff;
   .box-left {
     width: 375px;
   }
   .my-scrollbar {
     padding: 0 0 0 380px;
-  }
-  .tps{
-    display: inline-block;
-    margin-left: 60px;
-    .tp{
-      margin-right: 20px;
-      i{
-        width: 10px;
-        height: 10px;
-        display: inline-block;
-        vertical-align: middle;
-        margin: -2px 4px 0 0;
-      }
-    }
-    .tp1{
-      i{
-        background-color: $c_man;
-      }
-    }
-    .tp2{
-      i{
-        background-color: $c_woman;
-      }
-    }
-    .tp3{
-      i{
-        background-color: $c_mix;
-      }
-    }
-  }
-  .noData {
-    color: #999;
-    text-align: center;
-    padding-top: 100px;
   }
   .my-basic-inner {
     display: flex;
@@ -1136,77 +1075,6 @@ export default {
       margin-right: 0;
       margin-left: 0;
       margin-bottom: 0;
-    }
-  }
-  .lock {
-    width: 0px;
-    height: 0px;
-    border: 7px solid red;
-    border-top-color: transparent;
-    border-left-color: transparent;
-    display: inline-block;
-    border-radius: 3px;
-  }
-  .room-list {
-    width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    .el-checkbox + .el-checkbox {
-      margin-left: 0;
-    }
-    .el-checkbox {
-      position: relative;
-      margin: 0 20px 20px 0;
-      .el-checkbox__label {
-        padding-left: 0;
-      }
-      .el-checkbox__input {
-        position: absolute;
-        left: 5px;
-        top: 5px;
-      }
-    }
-    .dropdown {
-      position: absolute;
-      top: 3px;
-      right: 6px;
-      .el-icon-more {
-        color: #fff;
-      }
-    }
-    .lock {
-      position: absolute;
-      bottom: 0.7px;
-      right: 0.5px;
-    }
-    .room-item {
-      width: 130px;
-      height: 60px;
-      border-radius: 3px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 15px;
-      background: #e0e0e0;
-      color: #fff;
-      > div {
-        margin-top: 14px;
-      }
-      .room-num {
-        text-align: left;
-      }
-      .room-type {
-        text-align: right;
-      }
-    }
-    .man {
-      background: $c_man;
-    }
-    .woman {
-      background: $c_woman;
-    }
-    .mix {
-      background: $c_mix;
     }
   }
 }
