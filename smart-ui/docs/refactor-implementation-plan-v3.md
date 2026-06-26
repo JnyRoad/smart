@@ -1512,6 +1512,48 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，`list.vue` 只删除 `tableOption` import 和 data 字段，模板/方法/API/子组件 props/events 无 diff；`room/list.vue` 当前无 `tableOption`、`avue-crud`、`:option` 或 `this.tableOption` 消费点，守卫限定在 `room/list.vue`。
 - 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
 
+### PR 31: `room/list.vue` 删除遗留 unused imports
+
+分支：`refactor/smart-ui-room-remove-unused-imports`
+
+目标：删除 `room/list.vue` 中明确未使用的 legacy imports，并在 `check-room-list-ui.js` 中加静态守卫，防止这些 imports 回流。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 只删除 `excel`、`mapGetters`、`echarts` 三条 import 和一行旧 `echarts` 注释。
+- 静态守卫只检查 `room/list.vue`。
+- 不改模板、方法、API 调用、子组件 props/events、路由、弹窗、导出、批量编辑、树、房间列表或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+node scripts/check-room-list-ui.js
+pnpm test src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/room-rules.test.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。删除的是 `room/list.vue` 内无调用的 imports；`excel.js` 顶层依赖不作为该页面业务副作用使用，`vuex` / `echarts` 在该页也无调用。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #78 `refactor(smart-ui): remove room unused imports`
+- 合并提交：`a9aa8defcd6cc89f00c32a568152e0134a249c80`
+- 代码提交：`0a44a3d1b64bc4053aac74719eac61640b85eea9`
+- 实际范围：删除 `room/list.vue` 中 `excel`、`mapGetters`、`echarts` 三条 import 和旧 `// import echarts from "./";` 注释；`check-room-list-ui.js` 新增仅针对 `room/list.vue` 的 unused legacy imports 守卫。
+- 验证摘要：先新增静态守卫并确认删除前 `node scripts/check-room-list-ui.js` 红测失败；扩展守卫覆盖旧 commented import 后再次确认红测失败；删除后 `node scripts/check-room-list-ui.js` 通过；room 相关 3 个测试文件通过（28 个用例）；`pnpm test` 通过（57 个测试文件、312 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读快速评审结论 `AGREE`，确认 diff 只涉及 2 个目标文件，`room/list.vue` 仅删除三条 unused import 和一行旧注释，`check-room-list-ui.js` 仅新增针对该页的 legacy imports 守卫；模板、方法、API、组件 props/events、路由、弹窗、导出、批量编辑、树、房间列表无改动；`excel.js` 顶层依赖不构成本页依赖的业务副作用，`vuex` / `echarts` 在该页无调用。
+- 边界核对：未改 API 实现、接口签名、路由配置、模板事件、弹窗流程、导出流程、批量编辑、树、房间列表、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
