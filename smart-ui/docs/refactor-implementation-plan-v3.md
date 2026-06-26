@@ -1246,6 +1246,50 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认表头/字段顺序等价、`slice()` 每次返回新数组、`list.vue` 导出 loading/查询/格式化/文件名语义未变；未发现 lint 风险、过度抽象或非本 PR 内容。
 - 边界核对：未改 API 实现、接口签名、列表查询参数、导出文件名、导出枚举格式化、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、页面文案或任何 A 类 bug 修复。
 
+### PR 25: `room/list.vue` 抽下拉选项配置
+
+分支：`refactor/smart-ui-room-select-options`
+
+目标：把 `room/list.vue` 顶层 `isDormitoryOption` / `isCountOption` 静态下拉选项移到 `room-rules.js`，父页继续赋给原 `isDormitoryArr` / `isCountArr` 数据字段并传给弹窗组件。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 新增：`smart-ui/src/views/platform/dormitory/room/room-options.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+
+边界：
+
+- `roomDormitoryOptions` 保持旧 `isDormitoryOption` 顺序和值：`是=0`、`否=1`。
+- `roomCountOptions` 保持旧 `isCountOption` 顺序和值：`是=1`、`否=0`。
+- 父页仍使用 `isDormitoryArr` / `isCountArr`，模板 props 和子组件接线不变。
+- 不改 API、弹窗、导出、提交、树选择、批量编辑或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-options.test.js
+pnpm test src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js
+node scripts/check-room-list-ui.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。只移动静态选项数组；父页数据字段名和弹窗 props 保持不变。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #66 `refactor(smart-ui): extract room select options`
+- 合并提交：`7a819502bbf06d1109b8eeec256a3f5af9244604`
+- 实际范围：新增 `roomDormitoryOptions` / `roomCountOptions`；新增 `room-options.test.js` 锁住选项顺序和值；`list.vue` 删除本地静态数组并从规则模块导入。
+- 验证摘要：先新增 `room-options.test.js` 并确认缺少导出时红测；实现后 `room-options.test.js` 通过（1 个用例）；`list.test.js` + `room-dialogs.contract.test.js` 通过（2 个测试文件、10 个用例）；`node scripts/check-room-list-ui.js` 通过；`pnpm test` 通过（55 个测试文件、307 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：第一轮只读子代理结论 `DISAGREE`，指出新增测试未跟踪、未进入 `git diff main`；修正暂存范围后第二轮只读复审结论 `AGREE`，确认两个选项数组顺序和值等价、父页仍赋给 `isDormitoryArr` / `isCountArr`，未夹带模板 props、API、弹窗、导出、提交、CI 或 A 类 bug 变更。
+- 边界核对：未改 API 实现、接口签名、列表查询参数、导出流程、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
