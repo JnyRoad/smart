@@ -850,6 +850,47 @@ pnpm gate
 - 独立评审：Claude 纯文本只读 diff 评审结论 `AGREE`，确认 callback 次数、错误文案、正则、边界值、表单 rules 结构均保持旧行为，且未夹带校验语义修复。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
 
+### PR 16: `room/list.vue` 第六刀：抽表单状态工厂
+
+分支：`refactor/smart-ui-room-list-extract-form-state`
+
+目标：只把 `room/list.vue` 中重复的表单初始状态对象抽到 `room-rules.js` 纯工厂函数，父页继续保留所有表单 rules、提交、重置、弹窗和 API 调用。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.test.js`
+
+边界：
+
+- 不改 `resetFields`、`validate`、`rules`、`trigger`、required 文案或绑定字段。
+- 不改新增楼栋/楼层时 `parkId`、`dormitoryId` 的来源，只把旧内联对象替换为等价工厂调用。
+- 不改模板、API、弹窗、提交、查询、导出或批量编辑流程。
+- 不修复任何现有表单语义问题或 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-rules.test.js
+pnpm test src/views/platform/dormitory/room/list.test.js src/views/platform/dormitory/room/room-rules.test.js
+node scripts/check-room-list-ui.js
+pnpm gate
+```
+
+风险：低。只把对象字面量搬到纯函数，测试锁定字段、`undefined` 默认值、对象实例隔离、`roomIds` 数组实例隔离和新增节点 id 传递。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #48 `refactor(smart-ui): extract room form state factories`
+- 合并提交：`327fc82dd96c39152848d457a7c28f595e5d818f`
+- 实际范围：新增导出 `createEmptyFloorForm`、`createFloorFormForDormitory`、`createEmptyDormForm`、`createDormFormForPark`、`createEmptyBatchEditForm`、`createEmptyRoomEditForm`；`list.vue` 只把初始 `floorForm`、`dormForm`、`batchEditForm`、`editForm` 和树节点新增楼栋/楼层时的内联对象替换为工厂调用。
+- 验证摘要：先新增表单状态工厂测试并确认缺导出时红测；实现后 `pnpm test src/views/platform/dormitory/room/room-rules.test.js` 通过（17 个用例）；`room-rules.test.js` + `list.test.js` 通过（21 个用例）；`node scripts/check-room-list-ui.js` 通过；`git diff --check` 通过；`pnpm test` 通过（48 个测试文件、275 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认字段和值、`roomIds` 新数组、楼栋/楼层 id 带入、`resetFields`/验证/提交/API 参数均未改变。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
