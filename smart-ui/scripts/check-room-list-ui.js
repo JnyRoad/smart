@@ -146,27 +146,41 @@ const checks = [
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
-    required: /<el-dialog :title="floorTitle"[\s\S]*:visible\.sync="floorVisible"[\s\S]*@click="resetFloorForm\('floorForm'\)"[\s\S]*@click="floorSubmit\('floorForm'\)"/,
-    message: 'floor dialog must keep visible state and submit/reset handlers'
+    required: /<room-floor-dialog[\s\S]*ref="floorForm"[\s\S]*:title="floorTitle"[\s\S]*:visible="floorVisible"[\s\S]*:form="floorForm"[\s\S]*:rules="editFloor \? floorEditRules : floorAddRules"[\s\S]*:edit-floor="editFloor"[\s\S]*:has-start-num="hasStartNum"[\s\S]*:loading="floorLoading"[\s\S]*@update-form-field="updateFloorFormField"[\s\S]*@close="resetFloorForm\('floorForm'\)"[\s\S]*@submit="floorSubmit\('floorForm'\)"/,
+    message: 'room list must keep floor dialog props, ref, rule switch, and submit/reset wiring'
   },
   {
-    file: 'src/views/platform/dormitory/room/list.vue',
+    file: 'src/views/platform/dormitory/room/components/RoomFloorDialog.vue',
     custom: (content) => {
-      const start = content.indexOf('<!-- 楼层添加、编辑 -->')
-      const end = content.indexOf('<!-- 楼栋添加、编辑 -->', start)
-      const block = start >= 0 && end >= 0 ? content.slice(start, end) : ''
       return [
-        /<el-form :rules="editFloor \? floorEditRules : floorAddRules" ref="floorForm" :model="floorForm"/,
+        /<el-dialog/,
+        /:title="title"/,
+        /width="550px"/,
+        /:visible="visible"/,
+        /@close="\$emit\('close'\)"/,
+        /<el-form[\s\S]*ref="floorForm"[\s\S]*:rules="rules"[\s\S]*:model="form"/,
+        /label-width="80px"/,
         /<template v-if="editFloor">/,
         /prop="floorName"/,
+        /:value="form\.floorName"/,
+        /disabled/,
         /prop="roomNum"/,
+        /@input="\$emit\('update-form-field', \{ field: 'roomNum', value: \$event \}\)"/,
         /<template v-else>/,
         /prop="startNum"/,
         /:disabled="hasStartNum"/,
-        /prop="floorNum"/
-      ].every(pattern => pattern.test(block))
+        /@input="\$emit\('update-form-field', \{ field: 'startNum', value: \$event \}\)"/,
+        /prop="floorNum"/,
+        /@input="\$emit\('update-form-field', \{ field: 'floorNum', value: \$event \}\)"/,
+        /@click="\$emit\('close'\)"/,
+        /@click="\$emit\('submit'\)"/,
+        /validate\(callback\)/,
+        /this\.\$refs\.floorForm\.validate\(callback\)/,
+        /resetFields\(\)/,
+        /this\.\$refs\.floorForm\.resetFields\(\)/
+      ].every(pattern => pattern.test(content))
     },
-    message: 'floor dialog must keep add/edit rule switch and floor form fields'
+    message: 'room floor dialog must keep add/edit fields, update events, and ref proxy methods'
   },
   {
     file: 'src/views/platform/dormitory/room/list.vue',
