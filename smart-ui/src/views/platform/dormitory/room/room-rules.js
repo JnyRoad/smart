@@ -82,6 +82,16 @@ export function roomSelectionState(value, tableData) {
   }
 }
 
+const roomExportHeaders = ['房间号', '是否参与分配', '是否参与计算', '宿舍分类', '床位数', '实住人数', '差异人数', '房间属性', '所属园区']
+const roomExportFields = ['roomName', 'isDormitoryRoom', 'isCount', 'typeName', 'bedTotal', 'usedBed', 'freeBed', 'roomSex', 'parkName']
+
+export function createRoomExportConfig() {
+  return {
+    headers: roomExportHeaders.slice(),
+    fields: roomExportFields.slice()
+  }
+}
+
 export function toExportRows(filterVal, jsonData) {
   return jsonData.map(row => filterVal.map(field => row[field]))
 }
