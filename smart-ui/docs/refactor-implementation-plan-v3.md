@@ -979,6 +979,50 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认新增测试 mount 真实 `list.vue` 而不是只测 stub，未夹带生产行为变化；提醒后续抽组件时要把父页顺序断言和按注释切块的静态守卫迁移到组件级契约。
 - 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋/楼层增删改、导出、批量编辑、弹窗流程、页面文案或任何 A 类 bug 修复。
 
+### PR 19: `room/list.vue` 抽楼栋弹窗组件
+
+分支：`refactor/smart-ui-room-list-extract-dorm-dialog`
+
+目标：把 `room/list.vue` 中最小的楼栋添加/编辑弹窗抽成受控组件 `RoomDormitoryDialog`，父页继续持有 `dormForm`、`dormRules`、`resetDormForm('dormForm')`、`dormSubmit('dormForm')` 和 API 提交流程。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomDormitoryDialog.vue`
+- 新增：`smart-ui/src/views/platform/dormitory/room/components/RoomDormitoryDialog.test.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-dialogs.contract.test.js`
+- 修改：`smart-ui/scripts/check-room-list-ui.js`
+
+边界：
+
+- 不把 `addObj`、`putDormObj`、`dormAdd`、`dormEdit` 或 `dormSubmit` 迁入子组件。
+- 不改 `resetDormForm`、`dormSubmit` 方法签名；通过组件 `ref="dormForm"` 代理 `validate` / `resetFields`，保持父页 `$refs.dormForm` 契约。
+- 不改弹窗 title、visible、width、rules/model、`label-position="left"`、`dormitoryName` 字段、按钮文案或旧 `floorLoading` loading 绑定。
+- 不修复任何现有楼栋提交流程或 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/components/RoomDormitoryDialog.test.js
+pnpm test src/views/platform/dormitory/room/components/RoomDormitoryDialog.test.js src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm exec eslint src/views/platform/dormitory/room/components/RoomDormitoryDialog.vue src/views/platform/dormitory/room/components/RoomDormitoryDialog.test.js
+pnpm gate
+```
+
+风险：中低。弹窗内部模板已迁入子组件，但提交、重置和 API 仍留父页；主要风险是 `$refs.dormForm` 代理和 `v-model` 替代路径，已由组件测试和父页契约测试覆盖。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #54 `refactor(smart-ui): extract room dormitory dialog`
+- 合并提交：`190dfb115c0fbc2eefe1ce87cb7df31ac6328c6d`
+- 实际范围：新增受控组件 `RoomDormitoryDialog.vue` 和组件测试；`list.vue` 只把楼栋弹窗模板替换为 `<room-dormitory-dialog>`，新增 `updateDormFormField` 写回原 `dormForm` 对象；`room-dialogs.contract.test.js` 和 `check-room-list-ui.js` 从父页内联弹窗检查迁移为父页组件接线 + 子组件内部契约检查。
+- 验证摘要：先新增 `RoomDormitoryDialog.test.js` 并确认组件缺失时红测；实现后组件测试通过（3 个用例）；room 弹窗相关 3 个测试文件通过（11 个用例）；`node scripts/check-room-list-ui.js` 通过；新组件和新测试 eslint 零 warning；`git diff --check` 通过；`pnpm test` 通过（51 个测试文件、287 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 `$refs.dormForm.validate/resetFields` 代理、旧弹窗契约、`@update-form-field` 替代旧 `v-model`、Element UI close 行为和静态守卫均无阻塞问题；提醒新增文件提交时不得遗漏，已纳入提交。
+- 边界核对：未改 API 实现、接口签名、列表查询、房间增删改、楼栋新增/编辑 API、楼层增删改、导出、批量编辑、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
