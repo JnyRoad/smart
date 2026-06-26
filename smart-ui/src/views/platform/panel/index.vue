@@ -28,14 +28,19 @@ export default {
   data() {
     return {
       time: "",
-      isPark: true
+      isPark: true,
+      taskInterval: null
     };
   },
   created: function() {
     this.getTime();
-    var taskInterval = setInterval(() => {
+    this.taskInterval = setInterval(() => {
       this.getTime();
     }, 1000);
+  },
+  beforeDestroy: function() {
+    clearInterval(this.taskInterval);
+    this.taskInterval = null;
   },
   mounted: function() {
     if (this.$route.path == "/platform/panel/accessto") {
