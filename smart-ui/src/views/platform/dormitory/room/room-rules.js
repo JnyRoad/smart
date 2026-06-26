@@ -16,6 +16,41 @@ export function shouldShowRoomTreeNode(value, data) {
   return data.label.indexOf(value) !== -1
 }
 
+export function roomTreeScopeForNode(data, node) {
+  if (node.level == 1) {
+    return {
+      scope: { parkId: data.id },
+      shouldQueryRooms: false
+    }
+  }
+
+  if (node.level == 2) {
+    return {
+      scope: {
+        parkId: node.parent.data.id,
+        dormitoryId: data.id
+      },
+      shouldQueryRooms: false
+    }
+  }
+
+  if (node.level == 3) {
+    return {
+      scope: {
+        parkId: node.parent.parent.data.id,
+        dormitoryId: node.parent.data.id,
+        floorId: data.id
+      },
+      shouldQueryRooms: true
+    }
+  }
+
+  return {
+    scope: {},
+    shouldQueryRooms: false
+  }
+}
+
 export function buildRoomListQuery(scope, params) {
   return Object.assign(
     {
