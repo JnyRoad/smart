@@ -11,6 +11,7 @@ import {
   formatRoomExportRows,
   hasRoomListData,
   isEmptyRoomBatchEditForm,
+  prepareRoomEditSubmitForm,
   roomGenderClass,
   roomSelectionState,
   toCheckedRoomIds,
@@ -209,6 +210,24 @@ describe('room form state factories', () => {
       dormitoryId: 20,
       startNum: undefined,
       floorNum: undefined
+    })
+  })
+})
+
+describe('prepareRoomEditSubmitForm', () => {
+  it('保留旧编辑提交行为：原地把 roomName 写入 aliasName，并删除 roomName', () => {
+    const form = {
+      id: 1,
+      roomName: '301',
+      aliasName: '旧名称',
+      bedTotal: 4
+    }
+
+    expect(prepareRoomEditSubmitForm(form)).toBe(form)
+    expect(form).toStrictEqual({
+      id: 1,
+      aliasName: '301',
+      bedTotal: 4
     })
   })
 })
