@@ -1385,6 +1385,50 @@ pnpm gate
 - 独立评审：只读子代理 diff 评审结论 `AGREE`，确认三个树函数迁移后实现等价，旧 partial assignment 和 `children[0].length > 0` 条件未被修复，调用点已全部改到新模块，新文件低于 `max-lines` 阈值，未夹带 API、弹窗、导出、提交、批量编辑、CI 或 A 类修复。
 - 边界核对：未改 API 实现、接口签名、列表查询参数、导出流程、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、树节点点击、页面文案或任何 A 类 bug 修复。
 
+### PR 28: `room/list.vue` 抽编辑提交 payload 纯函数
+
+分支：`refactor/smart-ui-room-edit-payload-helper`
+
+目标：把 `editSubmit` 中编辑房间提交前 `roomName -> aliasName` 并删除 `roomName` 的 payload 变换抽到 `room-rules.js` 的 `prepareRoomEditSubmitForm(form)`。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/dormitory/room/list.vue`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.js`
+- 修改：`smart-ui/src/views/platform/dormitory/room/room-rules.test.js`
+
+边界：
+
+- 保留旧的原地 mutation：helper 必须修改并返回同一个 `form` 对象。
+- `aliasName` 继续用 `form.roomName` 覆盖，随后删除 `form.roomName`。
+- `editSubmit` 仍然调用 `putObj(this.editForm)`，不改成 clone 或新对象。
+- 不改校验、loading、通知、`getList`、API、弹窗、导出、批量编辑或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm test src/views/platform/dormitory/room/room-rules.test.js
+pnpm test src/views/platform/dormitory/room/room-dialogs.contract.test.js src/views/platform/dormitory/room/list.test.js
+node scripts/check-room-list-ui.js
+pnpm test
+node scripts/check-lint-baseline.mjs
+git diff --check
+pnpm gate
+```
+
+风险：低。只抽提交前 payload 变换；原地修改和 `putObj(this.editForm)` 语义保持不变。
+回滚：单 PR revert。
+
+完成状态：
+
+- 已合并：PR #72 `refactor(smart-ui): extract room edit payload helper`
+- 合并提交：`e501d5b82e4020200f0fc98c7d898265a490e4db`
+- 实际范围：新增 `prepareRoomEditSubmitForm(form)`；`editSubmit` 用该 helper 代替两行内联 mutation；新增测试覆盖同引用返回、`aliasName` 覆盖和 `roomName` 删除。
+- 验证摘要：先新增 `prepareRoomEditSubmitForm` 测试并确认缺少导出时红测；实现后 `room-rules.test.js` 通过（18 个用例）；`room-dialogs.contract.test.js` + `list.test.js` 通过（2 个测试文件、10 个用例）；`node scripts/check-room-list-ui.js` 通过；`pnpm test` 通过（57 个测试文件、312 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`git diff --check` 通过；`pnpm gate` 通过。
+- 独立评审：只读子代理 diff 评审结论 `AGREE`，确认 helper 原地写入 `aliasName = form.roomName`、删除 `roomName`、返回同一引用，`list.vue` 仍处理 `this.editForm` 并调用 `putObj(this.editForm)`，测试覆盖目标行为。
+- 边界核对：未改 API 实现、接口签名、校验、loading、通知、列表刷新、导出流程、弹窗流程、房间增删改、楼栋/楼层增删改、批量编辑、页面文案或任何 A 类 bug 修复。
+
 ---
 
 ## 4. A 类行为变更队列
