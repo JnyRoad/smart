@@ -224,7 +224,6 @@ export default {
       this.$refs[formName].validate((valid) => {
         if (valid) {
           this.dormLoading = true
-          let _this = this
           addObj(this.dormForm)
             .then((response) => {
               var msg = response.data.msg
@@ -248,7 +247,7 @@ export default {
               }
               this.dormLoading = false
             })
-            .catch((err) => {
+            .catch(() => {
               this.dormLoading = false
             })
         } else {
@@ -284,7 +283,7 @@ export default {
               }
               this.dormLoading = false
             })
-            .catch((err) => {
+            .catch(() => {
               this.dormLoading = false
             })
         } else {
@@ -587,7 +586,7 @@ export default {
             export_json_to_excel(exportConfig.headers, data, '房间列表')
             this.exportLoading = false
           })
-          .catch((err) => {
+          .catch(() => {
             this.exportLoading = false
           })
       })
@@ -790,7 +789,7 @@ export default {
                   })
                 }
               })
-              .catch((err) => {
+              .catch(() => {
                 this.editLoading = false
               })
           } else {
@@ -823,7 +822,7 @@ export default {
                   })
                 }
               })
-              .catch((err) => {
+              .catch(() => {
                 this.editLoading = false
               })
           }
@@ -866,7 +865,7 @@ export default {
                 })
               }
             })
-            .catch((err) => {
+            .catch(() => {
               this.editLoading = false
             })
         } else {
