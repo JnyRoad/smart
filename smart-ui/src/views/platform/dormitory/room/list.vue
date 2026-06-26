@@ -140,6 +140,7 @@ import {
   isEmptyRoomBatchEditForm,
   roomCountOptions,
   roomDormitoryOptions,
+  roomInitialTreeSelection,
   roomSelectionState,
   roomTreeScopeForNode,
   toCheckedRoomIds,
@@ -633,22 +634,7 @@ export default {
       var _this = this
       floorList().then((response) => {
         this.treeData = response.data.data
-        this.parkId = this.treeData[0].id
-        this.defaultKey = this.parkId
-        if (this.treeData) {
-          if (this.parkId) {
-            if (this.treeData[0].children && this.treeData[0].children.length > 0) {
-              this.dormitoryId = this.treeData[0].children[0].id
-              this.defaultKey = this.dormitoryId
-              if (this.dormitoryId) {
-                if (this.treeData[0].children[0].children[0] && this.treeData[0].children[0].children[0].length > 0) {
-                  this.floorId = this.treeData[0].children[0].children[0].id
-                  this.defaultKey = this.floorId
-                }
-              }
-            }
-          }
-        }
+        Object.assign(this, roomInitialTreeSelection(this.treeData))
         if (this.floorId) {
           _this.getList()
         }
