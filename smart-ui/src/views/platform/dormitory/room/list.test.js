@@ -91,6 +91,26 @@ function mountRoomList() {
         props: ['treeData', 'defaultProps'],
         template: '<section class="room-tree-panel-stub my-menu-tree"><span>选择楼栋及楼层</span></section>'
       },
+      RoomGridPanel: {
+        name: 'RoomGridPanel',
+        props: ['hasData', 'tableData', 'checkedRoom', 'checkAll', 'isIndeterminate'],
+        template: `
+          <section class="room-grid-panel-stub">
+            <template v-if="hasData">
+              <span>全选</span>
+              <span>男宿</span>
+              <span>女宿</span>
+              <span>夫妻/混住</span>
+              <span>不参与分配</span>
+              <span>导出表格</span>
+              <span>批量设置房间类型</span>
+              <span>批量设置房间水电模板</span>
+              <span>编辑房间</span>
+            </template>
+            <span v-else>当前条件下暂无住宿信息（请选择具体楼层）</span>
+          </section>
+        `
+      },
       RoomSearchToolbar: {
         name: 'RoomSearchToolbar',
         props: ['searchForm', 'allDormTypeList', 'hasData', 'exportLoading'],
@@ -184,11 +204,18 @@ describe('dormitory room list page safety net', () => {
     expect(wrapper.text()).toContain('房间属性')
     expect(wrapper.text()).toContain('当前条件下暂无住宿信息（请选择具体楼层）')
     const toolbar = wrapper.findComponent({ name: 'RoomSearchToolbar' })
+    const gridPanel = wrapper.findComponent({ name: 'RoomGridPanel' })
     expect(toolbar.exists()).toBe(true)
     expect(toolbar.props('searchForm')).toBe(wrapper.vm.searchForm)
     expect(toolbar.props('allDormTypeList')).toBe(wrapper.vm.allDormTypeList)
     expect(toolbar.props('hasData')).toBe(false)
     expect(toolbar.props('exportLoading')).toBe(false)
+    expect(gridPanel.exists()).toBe(true)
+    expect(gridPanel.props('hasData')).toBe(false)
+    expect(gridPanel.props('tableData')).toBe(wrapper.vm.tableData)
+    expect(gridPanel.props('checkedRoom')).toBe(wrapper.vm.checkedRoom)
+    expect(gridPanel.props('checkAll')).toBe(false)
+    expect(gridPanel.props('isIndeterminate')).toBe(false)
   })
 
   it('keeps room export and batch edit entries visible when a floor has rooms', async () => {
@@ -208,6 +235,9 @@ describe('dormitory room list page safety net', () => {
     expect(wrapper.text()).toContain('批量设置房间类型')
     expect(wrapper.text()).toContain('批量设置房间水电模板')
     expect(wrapper.text()).toContain('编辑房间')
+    const gridPanel = wrapper.findComponent({ name: 'RoomGridPanel' })
+    expect(gridPanel.props('hasData')).toBe(true)
+    expect(gridPanel.props('tableData')).toBe(wrapper.vm.tableData)
   })
 
   it('keeps toolbar events delegated to the existing page methods', async () => {
@@ -247,5 +277,39 @@ describe('dormitory room list page safety net', () => {
       floorId: 30
     })
     expect(toolbarResetFields).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps room grid events delegated to the existing page methods', async () => {
+    const wrapper = mountRoomList()
+    await flushPromises()
+
+    const gridPanel = wrapper.findComponent({ name: 'RoomGridPanel' })
+    const room = { id: 1, roomName: '301', bedTotal: 4, roomSex: 0, isDormitoryRoom: 0 }
+    const handleEditSpy = vi.spyOn(wrapper.vm, 'handleEdit').mockImplementation(() => {})
+    const rowDelSpy = vi.spyOn(wrapper.vm, 'rowDel').mockImplementation(() => {})
+
+    await wrapper.setData({
+      tableData: [room]
+    })
+
+    gridPanel.vm.$emit('update-checked-room', [1])
+    expect(wrapper.vm.checkedRoom).toStrictEqual([1])
+
+    gridPanel.vm.$emit('update-check-all', true)
+    expect(wrapper.vm.checkAll).toBe(true)
+
+    gridPanel.vm.$emit('check-all-change', true)
+    expect(wrapper.vm.checkedRoom).toStrictEqual([1])
+    expect(wrapper.vm.isIndeterminate).toBe(false)
+
+    gridPanel.vm.$emit('room-change', [1])
+    expect(wrapper.vm.checkAll).toBe(true)
+    expect(wrapper.vm.isIndeterminate).toBe(false)
+
+    gridPanel.vm.$emit('edit-room', room)
+    gridPanel.vm.$emit('delete-room', room)
+
+    expect(handleEditSpy).toHaveBeenCalledWith(room)
+    expect(rowDelSpy).toHaveBeenCalledWith(room)
   })
 })
