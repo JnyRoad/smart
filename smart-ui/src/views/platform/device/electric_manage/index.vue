@@ -522,7 +522,7 @@ export default {
           })
         })
         .catch(() => {
-          _this.getList(this.page, this.searchForm)
+          _this.getList(_this.page, _this.searchForm)
         })
     },
     async meterRead(){
@@ -590,7 +590,7 @@ export default {
             })
           })
           .catch(() => {
-            _this.getList(this.page, this.searchForm)
+            _this.getList(_this.page, _this.searchForm)
           })
       } else {
         this.$message.error('请先勾选要设置的设备')
@@ -625,7 +625,7 @@ export default {
             })
           })
           .catch(() => {
-            _this.getList(this.page, this.searchForm)
+            _this.getList(_this.page, _this.searchForm)
           })
       } else {
         this.$message.error('请先勾选要删除的设备')
