@@ -5,14 +5,14 @@
  * module under test references the bare global `axios`. We install the real
  * axios package as that global before dynamically importing the module.
  */
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { Message } from 'element-ui'
 import store from '@/store'
 import router from '@/router/router'
 
 vi.mock('element-ui', () => ({ Message: vi.fn() }))
 vi.mock('@/store', () => ({
-  default: { getters: { access_token: '' }, dispatch: vi.fn(() => Promise.resolve()) }
+  default: { getters: { access_token: '' }, dispatch: vi.fn(() => Promise.resolve()), commit: vi.fn() }
 }))
 vi.mock('@/router/router', () => ({ default: { push: vi.fn() } }))
 vi.mock('nprogress', () => ({
@@ -23,6 +23,7 @@ vi.mock('@/util/store', () => ({ getStore: vi.fn(), setStore: vi.fn() }))
 
 let onResponse
 let onResponseError
+let consoleError
 
 beforeAll(async () => {
   window.axios = (await import('axios')).default
@@ -35,6 +36,11 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
+  consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+})
+
+afterEach(() => {
+  consoleError.mockRestore()
 })
 
 function makeRes(status, data) {
@@ -88,8 +94,21 @@ describe('response interceptor: 401', () => {
 })
 
 describe('response interceptor: network error', () => {
-  it('rejects with an Error', async () => {
-    await expect(onResponseError(new Error('Network Error'))).rejects.toBeInstanceOf(Error)
+  it('reports and rejects with an Error', async () => {
+    const error = new Error('Network Error')
+    await expect(onResponseError(error)).rejects.toBe(error)
+    expect(consoleError).toHaveBeenCalledWith('[axios:request]', {
+      type: 'error',
+      message: 'Network Error',
+      stack: error.stack,
+      info: 'axios:request'
+    })
+    expect(store.commit).toHaveBeenCalledWith('ADD_LOGS', {
+      type: 'error',
+      message: 'Network Error',
+      stack: error.stack,
+      info: 'axios:request'
+    })
   })
 })
 
@@ -99,6 +118,11 @@ describe('strict reject switch (SMART_UI_STRICT_REJECT)', () => {
     const res = makeRes(200, { code: 1, msg: '余额不足' })
     await expect(onResponse(res)).rejects.toThrow('余额不足')
     expect(Message).toHaveBeenCalledWith({ message: '余额不足', type: 'error' })
+    expect(store.commit).toHaveBeenCalledWith('ADD_LOGS', expect.objectContaining({
+      type: 'error',
+      message: '余额不足',
+      info: 'axios:response'
+    }))
   })
 
   it('rejects non-200 http status when the switch is on', async () => {

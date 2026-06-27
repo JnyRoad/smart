@@ -35,7 +35,12 @@ describe('unhandledrejection listener', () => {
   it('records Error reasons into the vuex logs module and console.errors them', () => {
     const reason = new Error('接口失败')
     dispatchUnhandledRejection(reason)
-    expect(consoleError).toHaveBeenCalledWith('[unhandledrejection]', reason)
+    expect(consoleError).toHaveBeenCalledWith('[unhandledrejection]', {
+      type: 'error',
+      message: '接口失败',
+      stack: reason.stack,
+      info: 'unhandledrejection'
+    })
     expect(store.commit).toHaveBeenCalledWith('ADD_LOGS', {
       type: 'error',
       message: '接口失败',
