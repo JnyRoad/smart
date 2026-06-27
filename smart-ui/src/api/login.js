@@ -1,4 +1,5 @@
 import request from '@/router/axios'
+import { createLoginHeaders } from './login-config'
 const scope = 'server'
 
 export const loginByUsername = (username, password, code, randomStr) => {
@@ -6,11 +7,7 @@ export const loginByUsername = (username, password, code, randomStr) => {
 
   return request({
     url: '/auth/oauth/token',
-    headers: {
-      isToken:false,
-      'TENANT_ID': '1',
-      'Authorization': 'Basic c21hcnQ6c21hcnQ='
-    },
+    headers: createLoginHeaders({ isToken:false }),
     method: 'post',
     params: { username, password, randomStr, code, grant_type, scope }
   })
@@ -20,11 +17,7 @@ export const refreshToken = (refresh_token) => {
   const grant_type = 'refresh_token'
   return request({
     url: '/auth/oauth/token',
-    headers: {
-      'isToken': false,
-      'TENANT_ID': '1',
-      'Authorization': 'Basic c21hcnQ6c21hcnQ=',
-    },
+    headers: createLoginHeaders({ 'isToken': false }),
     method: 'post',
     params: { refresh_token, grant_type, scope }
   })
@@ -34,10 +27,7 @@ export const loginByMobile = (mobile, code) => {
   const grant_type = 'mobile'
   return request({
     url: '/auth/mobile/token/sms',
-    headers: {
-      'TENANT_ID': '1',
-      'Authorization': 'Basic c21hcnQ6c21hcnQ='
-    },
+    headers: createLoginHeaders(),
     method: 'post',
     params: { mobile: 'SMS@' + mobile, code: code, grant_type }
   })
@@ -47,10 +37,7 @@ export const loginBySocial = (state, code) => {
   const grant_type = 'mobile'
   return request({
     url: '/auth/mobile/token/social',
-    headers: {
-      'TENANT_ID': '1',
-      'Authorization': 'Basic c21hcnQ6c21hcnQ='
-    },
+    headers: createLoginHeaders(),
     method: 'post',
     params: { mobile: state + '@' + code, grant_type }
   })
