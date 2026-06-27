@@ -329,6 +329,7 @@ import {
 import { mapGetters } from "vuex";
 import echarts from "echarts";
 import { isArrayFn } from "@/util/util";
+import { clearPanelRefresh, schedulePanelRefresh } from "./panel-refresh";
 export default {
   name: "accessto",
   data() {
@@ -356,16 +357,12 @@ export default {
     };
   },
   created: function() {
-    if (this.timeOut) {
-      clearTimeout(this.timeOut);
-      this.timeOut = undefined;
-    }
+    clearPanelRefresh(this);
     this.getData();
   },
   mounted: function() {},
   beforeDestroy: function() {
-    clearTimeout(this.timeOut);
-    this.timeOut = undefined;
+    clearPanelRefresh(this);
   },
   computed: {
     visitorAnalysisChart: function() {
@@ -404,14 +401,9 @@ export default {
       //定时任务
       // 这里是一个http的异步请求
       this.init();
-      if (this.$route.path == "/platform/panel/accessto") {
-        let _this = this;
-        this.timeOut = setTimeout(() => {
-          _this.getData();
-        }, 60000);
-      } else {
-        this.timeOut = undefined;
-      }
+      schedulePanelRefresh(this, "/platform/panel/accessto", () => {
+        this.getData();
+      });
     },
     init() {
       this.getVisitorIn(); //访客实时进厂数量
@@ -668,18 +660,6 @@ export default {
         color: this.rtColors
       };
       inRateChart.setOption(optionInRate);
-    },
-    initResize() {
-      const self = this; //因为箭头函数会改变this指向，指向windows。所以先把this保存
-      setTimeout(() => {
-        window.onresize = function() {
-          if (self.chart) {
-            self.chart = echarts.init(self.$refs.inRateChart);
-            self.chart = echarts.init(self.$refs.carAnalysisChart);
-            self.chart.resize();
-          }
-        };
-      }, 20);
     }
   }
 };
