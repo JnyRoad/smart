@@ -20,6 +20,14 @@ function getErrorStack(error) {
   return error instanceof Error && error.stack ? redactSensitiveText(error.stack) : undefined
 }
 
+export function getSafeErrorMessage(error, fallbackMessage = '') {
+  const message = getErrorMessage(error)
+  if (!message || message === 'undefined' || message === 'null') {
+    return fallbackMessage
+  }
+  return message
+}
+
 export function reportCaughtError(error, info) {
   const logEntry = {
     type: 'error',

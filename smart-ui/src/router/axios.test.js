@@ -97,6 +97,7 @@ describe('response interceptor: network error', () => {
   it('reports and rejects with an Error', async () => {
     const error = new Error('Network Error')
     await expect(onResponseError(error)).rejects.toBe(error)
+    expect(Message).toHaveBeenCalledWith({ message: 'Network Error', type: 'error' })
     expect(consoleError).toHaveBeenCalledWith('[axios:request]', {
       type: 'error',
       message: 'Network Error',
@@ -109,6 +110,17 @@ describe('response interceptor: network error', () => {
       stack: error.stack,
       info: 'axios:request'
     })
+  })
+
+  it('shows a redacted error Message for credential-shaped request failures', async () => {
+    const error = new Error('Authorization: Bearer secret-token')
+    await expect(onResponseError(error)).rejects.toBe(error)
+
+    const output = JSON.stringify(Message.mock.calls)
+    expect(output).not.toContain('secret-token')
+    expect(output).not.toMatch(/authorization/i)
+    expect(output).not.toMatch(/bearer/i)
+    expect(Message).toHaveBeenCalledWith({ message: '[REDACTED_CREDENTIAL]', type: 'error' })
   })
 })
 
