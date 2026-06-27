@@ -238,7 +238,6 @@ export default {
       if (!isImg) {
         //判断所选文件格式
         this.$message({
-          dangerouslyUseHTMLString: true,
           showClose: true,
           message: '请上传正确格式的文件',
           type: 'warning',
@@ -250,7 +249,6 @@ export default {
       const fileSize = files.size / 1024
       if (fileSize > 500) {
         this.$message({
-          dangerouslyUseHTMLString: true,
           showClose: true,
           message: '图片大小不超过500kb',
           type: 'warning',
@@ -291,7 +289,6 @@ export default {
       if (!isMp4) {
         //判断所选文件格式
         this.$message({
-          dangerouslyUseHTMLString: true,
           showClose: true,
           message: '请上传mp4格式的视频',
           type: 'warning',
@@ -303,7 +300,6 @@ export default {
       const fileSize = files.size / 1024 / 1024
       if (fileSize > 50) {
         this.$message({
-          dangerouslyUseHTMLString: true,
           showClose: true,
           message: '视频大小不超过50mb',
           type: 'warning',
@@ -324,7 +320,6 @@ export default {
       if (!isImg) {
         //判断所选文件格式
         this.$message({
-          dangerouslyUseHTMLString: true,
           showClose: true,
           message: '请上传正确的pdf文件',
           type: 'warning',
@@ -336,7 +331,6 @@ export default {
       const fileSize = files.size / 1024 / 1024
       if (fileSize > 20) {
         this.$message({
-          dangerouslyUseHTMLString: true,
           showClose: true,
           message: '文件大小不超过20mb',
           type: 'warning',
