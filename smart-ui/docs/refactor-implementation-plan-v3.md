@@ -1641,6 +1641,68 @@ pnpm gate
 
 ---
 
+## 3A. god file 推广战役队列（PR 34+）
+
+PR 1–33 已把 §1 总体路线的「先建网、拆路由、低风险搬运、删除型、isc/bed_mng 收尾、room/list 彻底重构」全部落地。但 §1 第 6 条目标「最后按风险顺序推广到其他 god file」此前没有排进具体 PR 队列：实际只有 `room/list.vue` 被彻底重构，其余 god file 结构未动。本节按既有方法论（安全网先行 → TDD 增量抽离 → 受控子组件 → 删死代码，单 PR 可回滚、A/B 类分桶）把推广拆成可执行队列。
+
+战役前先做了一轮只读评估（9 个 ≥1000 行 god file 的结构画像、安全网设计、PR 拆解、风险评级），据此定执行顺序：
+
+1. `device/electric_manage/index.vue`（1002 行，已有 `index-static.test.js` 基建，与 water_manage 同构，先行立模板）
+2. `device/water_manage/index.vue`（971 行，electric 的双胞胎，复用其模式）
+3. `recruit/applicant/index.vue`（1027 行，5 个弹窗，复用 room 弹窗受控化模式）
+4. `outsourcing/onwork/index.vue`（1582 行）
+5. `resume/info.vue`（1673 行，最大，5 子业务 + localStorage 直耦合）
+6. `basic/staff_info/index.vue`（1340 行）
+7. `basic/personnel_manage/index.vue`（1576 行，边界最不清晰）
+8. `dormitory/ks_checkIn/index.vue`（1122 行，WebSocket + localStorage + 级联）
+9. `security_area/xc_guard_apply/components/authPersonList.vue`（1094 行，状态同步最复杂，压轴）
+
+> 评估点出的 dangerouslyUseHTMLString、`_this/this` 作用域、级联判断等疑似缺陷一律视为 A 类，**禁止混入推广的 `refactor/` `test/` PR**；确需修复另开 `fix/` 分支并走 §4 流程。安全网只表征/锁定当前行为（含历史缺陷），不顺手「修正」。
+
+### PR 34: `electric_manage` 抽离前安全网
+
+分支：`test/smart-ui-electric-manage-safety-net`
+
+目标：在拆 `device/electric_manage/index.vue` 前，补 `_service.js` 请求签名契约 + 页面 UI 接线静态守卫，零生产代码改动。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/device/electric_manage/_service.test.js`
+- 新增：`smart-ui/scripts/check-electric-manage-ui.js`
+- 修改：`smart-ui/scripts/gate.mjs`
+- 修改：`smart-ui/scripts/gate.test.mjs`
+
+安全网内容：
+
+- `_service.test.js`：锁定全部 19 个导出的 `url/method/参数承载位置`，含 `putValves/meterRead/reDownload` 的大写 `'POST'` 与 `supplierImport` 的 multipart 头、`arraybuffer` 响应、5 分钟超时等历史怪癖。
+- `check-electric-manage-ui.js`：锁定顶部按钮与事件、批量操作下拉、搜索表单字段、设备卡片行内操作（含闸门开关）、分页、新增/编辑弹窗字段与提交、`BindRoom`/`setTag` 子组件接线、导入弹窗、`_service` 依赖面；接入 `pnpm gate` 的 `electric-manage-ui` 步骤，`gate.test.mjs` 锁该步骤存在。
+- 保留既有 `index-static.test.js`（PR #84 的 `_this` 作用域守卫）不动。
+
+边界：
+
+- 不抽组件、不改 `index.vue` 生产代码、不改 `_service.js`。
+- 不改 API、提交、弹窗、导出、批量操作或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+node scripts/check-electric-manage-ui.js
+pnpm exec vitest run src/views/platform/device/electric_manage/_service.test.js src/views/platform/device/electric_manage/index-static.test.js scripts/gate.test.mjs
+pnpm gate
+```
+
+风险：低。仅新增测试与静态守卫，零生产代码改动。
+回滚：单 PR revert，删除新增文件并回退 gate 接线。
+
+完成状态：
+
+- 进行中：已建分支 `test/smart-ui-electric-manage-safety-net`，代码完成，待独立评审 + 待合并（按本文档铁律，合并后再补 PR 号与合并提交）。
+- 验证摘要：`node scripts/check-electric-manage-ui.js` 通过；`_service.test.js`(19) + `index-static.test.js`(1) + `gate.test.mjs`(6) 共 26 用例通过；`pnpm gate` 通过（65 个测试文件、350 个用例、11 个门禁步骤全绿，含新增 `electric-manage-ui`）。
+- 边界核对：未改 `index.vue`、`_service.js` 生产代码、API、弹窗、导出、批量操作或任何 A 类 bug。
+
+---
+
 ## 4. A 类行为变更队列
 
 以下工作全部另开 `fix/` 分支，不能混入上述 `refactor/` PR：
