@@ -266,6 +266,7 @@
 
 <script>
 import { concentratorList, getTagList, addObj, fetchList, batchDelete, putObj,changeObj, supplierImport, flushProgress, putValve, putValves, meterRead, reDownload} from './_service'
+import { returnColor, formatJson, placeTypeDesc } from './electric-manage-rules'
 import { mapGetters } from 'vuex'
 import setTag from './components/setTag'
 import deviceTagSelect from '../components/device-tag-select'
@@ -905,7 +906,7 @@ export default {
           .then(response => {
             const list = response.data.data.records;
             list.forEach(function(item) {
-              item.placeTypeDesc = item.placeType==0?'宿舍':'厂区'
+              item.placeTypeDesc = placeTypeDesc(item.placeType)
             });
             const data = this.formatJson(filterVal, list);
             export_json_to_excel(tHeader, data, "电表信息");
@@ -916,9 +917,9 @@ export default {
           });
       });
     },
-    //导出相关
+    //导出相关：委托给抽出的纯函数（见 electric-manage-rules.js）。
     formatJson(filterVal, jsonData) {
-      return jsonData.map(v => filterVal.map(j => v[j]));
+      return formatJson(filterVal, jsonData)
     },
     /**
      * 操作记录
@@ -948,15 +949,9 @@ export default {
         }
       })
     },
+    // 委托给抽出的纯函数（见 electric-manage-rules.js）；模板绑定 returnColor(item.status) 不变。
     returnColor(s) {
-      switch (s) {
-        case '在线':
-          return 'deviceStatus2'
-          break
-        case '离线':
-          return 'deviceStatus1'
-          break
-      }
+      return returnColor(s)
     },
     /**
      * 搜索回调
