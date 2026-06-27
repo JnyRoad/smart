@@ -6,7 +6,7 @@ import router from "@/router/router"
 import { Message } from 'element-ui'
 import 'nprogress/nprogress.css'
 import store from "@/store"; // progress bar style
-import { reportCaughtError } from '@/error-reporter'
+import { getSafeErrorMessage, reportCaughtError } from '@/error-reporter'
 // 30s global timeout; endpoints that legitimately run longer (upload/download/export)
 // must set their own per-request timeout instead of inflating the global one.
 axios.defaults.timeout = 30000
@@ -76,6 +76,10 @@ axios.interceptors.response.use(res => {
   return res
 }, error => {
   NProgress.done()
+  Message({
+    message: getSafeErrorMessage(error, errorCode['default']),
+    type: 'error'
+  })
   return Promise.reject(reportCaughtError(error, 'axios:request'))
 })
 

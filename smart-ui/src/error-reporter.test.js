@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import store from './store'
-import { reportCaughtError } from './error-reporter'
+import { getSafeErrorMessage, reportCaughtError } from './error-reporter'
 
 vi.mock('./store', () => ({ default: { commit: vi.fn() } }))
 
@@ -79,5 +79,14 @@ describe('reportCaughtError', () => {
       stack: expect.stringContaining(REDACTED_CREDENTIAL),
       info: 'axios:request'
     }))
+  })
+
+  it('returns a redacted message for user-facing error prompts', () => {
+    const message = getSafeErrorMessage(new Error('Authorization: Bearer secret-token'))
+
+    expect(message).toBe(REDACTED_CREDENTIAL)
+    expect(message).not.toContain('secret-token')
+    expect(message).not.toMatch(/authorization/i)
+    expect(message).not.toMatch(/bearer/i)
   })
 })
