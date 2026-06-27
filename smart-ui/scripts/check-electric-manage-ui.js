@@ -116,6 +116,15 @@ const checks = [
     // 避免无谓地把历史排版怪癖写死，后续 eslint 格式化不会误红，但增删 API 名仍会红。
     required: /import \{\s*concentratorList,\s*getTagList,\s*addObj,\s*fetchList,\s*batchDelete,\s*putObj,\s*changeObj,\s*supplierImport,\s*flushProgress,\s*putValve,\s*putValves,\s*meterRead,\s*reDownload\s*\} from '\.\/_service'/,
     message: 'electric manage must keep the _service API dependency surface'
+  },
+  {
+    file: INDEX,
+    // 锁定纯展示/格式化函数已抽到 electric-manage-rules.js 并被委托使用，防止重构回退到内联实现。
+    custom: (content) => [
+      /import \{\s*returnColor,\s*formatJson,\s*placeTypeDesc\s*\} from '\.\/electric-manage-rules'/,
+      /item\.placeTypeDesc = placeTypeDesc\(item\.placeType\)/
+    ].every(pattern => pattern.test(content)),
+    message: 'electric manage must keep delegating display/format helpers to electric-manage-rules'
   }
 ]
 
