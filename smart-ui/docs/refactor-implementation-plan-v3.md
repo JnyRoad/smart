@@ -1647,11 +1647,11 @@ pnpm gate
 
 1. ~~`fix/smart-ui-user-menu-error-handling`：`store/modules/user.js` `GetMenu` 无 `.catch`。~~ 已完成，见下方完成状态。
 2. ~~`fix/smart-ui-storage-eval`：`util/storage.js` 或旧 `store.js` 中 `eval()`。~~ 已完成，见下方完成状态。
-3. `fix/smart-ui-electric-manage-scope`：`device/electric_manage` `_this/this`。
-4. `fix/smart-ui-login-credential-config`：`api/login.js` 硬编码租户和 Basic 凭据。
-5. `fix/smart-ui-resize-timer-cleanup`：`page/` resize、`panel/bigdata.vue` timer 未解绑。
-6. `fix/smart-ui-dangerous-html`：`dangerouslyUseHTMLString` 字符串拼接 XSS 面。
-7. `fix/smart-ui-catch-reporting`：catch 上报和用户提示补齐。
+3. ~~`fix/smart-ui-electric-manage-scope`：`device/electric_manage` `_this/this`。~~ 已完成，见下方完成状态。
+4. ~~`fix/smart-ui-login-credential-config`：`api/login.js` 硬编码租户和 Basic 凭据。~~ 已完成，见下方完成状态。
+5. ~~`fix/smart-ui-resize-timer-cleanup`：`page/` resize、`panel/bigdata.vue` timer 未解绑。~~ 已完成，见下方完成状态。
+6. ~~`fix/smart-ui-dangerous-html`：`dangerouslyUseHTMLString` 字符串拼接 XSS 面。~~ 已完成，见下方完成状态。
+7. ~~`fix/smart-ui-catch-reporting`：catch 上报和用户提示补齐。~~ 已完成，见下方完成状态。
 
 A 类 DoD：
 
@@ -1685,7 +1685,7 @@ A 类 DoD：
 - 实际范围：仅修改 `smart-ui/src/page/index/index.vue` 和新增 `smart-ui/src/page/index/index.test.js`；页面壳在 `destroyed` 时恢复进入页面前的 `window.onresize`，且只在当前 resize handler 仍归本组件所有时恢复。
 - 验证摘要：先新增生命周期测试并确认红测（旧实现销毁后仍保留本组件 resize handler）；修复后 `pnpm test src/page/index/index.test.js` 通过（2 个用例）；`pnpm test` 通过（45 个测试文件、259 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm exec eslint src/page/index/index.test.js` 通过；`pnpm gate` 通过。
 - 独立评审：第一次本地 Codex 子代理 90 秒未返回，已关闭；第二次窄范围只读评审结论 `AGREE`。
-- 边界核对：初次 `SET_SCREEN` 和 resize 后 `SET_SCREEN` 行为不变；未修改 token 刷新、路由、菜单或 UI。`fix/smart-ui-resize-timer-cleanup` 总项仍未完成，`panel/bigdata.vue` timer 等剩余清理需另开 PR。
+- 边界核对：初次 `SET_SCREEN` 和 resize 后 `SET_SCREEN` 行为不变；未修改 token 刷新、路由、菜单或 UI。后续 `panel/bigdata.vue` / `panel/accessto.vue` timer 清理已由 PR #86 完成。
 
 完成状态（`fix/smart-ui-resize-timer-cleanup` 子项：`panel/index` clock interval）：
 
@@ -1694,7 +1694,61 @@ A 类 DoD：
 - 实际范围：仅修改 `smart-ui/src/views/platform/panel/index.vue` 和新增 `smart-ui/src/views/platform/panel/index.test.js`；顶层可视化面板把 1 秒时钟 interval id 保存到组件实例，并在 `beforeDestroy` 清理后置空。
 - 验证摘要：先新增生命周期测试并确认红测（旧实现没有保留 interval id，无法销毁清理）；修复后 `pnpm test src/views/platform/panel/index.test.js` 通过（1 个用例）；`pnpm test` 通过（46 个测试文件、260 个用例）；`node scripts/check-lint-baseline.mjs` 通过；`pnpm exec eslint src/views/platform/panel/index.test.js` 通过；`pnpm gate` 通过。
 - 独立评审：本地 Codex 窄范围只读评审结论 `AGREE`。
-- 边界核对：初次 `getTime()` 和每秒更新时间行为不变；未修改路由跳转、退出登录、子面板或 UI。`fix/smart-ui-resize-timer-cleanup` 总项仍未完成，`bigdata/accessto` 的 resize/timer 清理需继续逐项确认后另开 PR。
+- 边界核对：初次 `getTime()` 和每秒更新时间行为不变；未修改路由跳转、退出登录、子面板或 UI。后续 `panel/bigdata.vue` / `panel/accessto.vue` timer 清理已由 PR #86 完成。
+
+完成状态（`fix/smart-ui-electric-manage-scope`）：
+
+- 已合并：PR #84 `fix(smart-ui): correct electric manage refresh scope`
+- 合并提交：`669a0aa9410bc7ec92d84a9baccdcbf771014939`
+- 实际范围：仅修改 `smart-ui/src/views/platform/device/electric_manage/index.vue` 并新增 `smart-ui/src/views/platform/device/electric_manage/index-static.test.js`；把批量操作回调里的 `this.page` / `this.searchForm` 改为 `_this.page` / `_this.searchForm`，确保刷新使用组件实例状态。
+- 验证摘要：先新增静态表征测试并确认红测；修复后 `pnpm test src/views/platform/device/electric_manage/index-static.test.js` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过（58 个测试文件、313 个用例）。
+- 独立评审：第一轮指出新增测试未暂存导致 diff 不完整，修正暂存范围后第二轮只读评审结论 `AGREE`。
+- 边界核对：未改 API、按钮、弹窗、列表参数结构或业务文案；只修复异步回调里的组件实例引用。
+
+完成状态（`fix/smart-ui-login-credential-config`）：
+
+- 已合并：PR #85 `fix(smart-ui): make login headers configurable`
+- 合并提交：`7935f9187d0b505f95221b75e05cc65d3550b271`
+- 实际范围：新增 `smart-ui/src/api/login-config.js`、`smart-ui/src/api/login-config.test.js`、`smart-ui/src/api/login.test.js`，修改 `smart-ui/src/api/login.js`、`smart-ui/.env.example`、`smart-ui/public/config.js`；登录请求头支持运行时配置和环境变量，未配置时保留旧 `TENANT_ID: 1` 与 `Basic c21hcnQ6c21hcnQ=` 默认值。
+- 验证摘要：先新增配置优先级与登录头测试并确认红测；修复后 `pnpm test src/api/login-config.test.js src/api/login.test.js` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过（60 个测试文件、318 个用例）。
+- 独立评审：第一轮超时关闭；第二轮只读评审结论 `AGREE`。
+- 边界核对：未改变默认登录头、接口签名、登录参数或调用方；前端 Basic 仍是可公开客户端配置，不作为真正密钥处理。
+
+完成状态（`fix/smart-ui-resize-timer-cleanup` 子项：`panel/bigdata` / `panel/accessto` refresh timer）：
+
+- 已合并：PR #86 `fix(smart-ui): clean up panel refresh timers`
+- 合并提交：`4c6fcf78413ea5af571fcd68ab633e3f881aaf6c`
+- 实际范围：新增 `smart-ui/src/views/platform/panel/panel-refresh.js`、`panel-refresh.test.js`、`panel-refresh-static.test.js`，修改 `panel/bigdata.vue` 与 `panel/accessto.vue`；统一 60 秒刷新 timer 的调度与清理，移除 `bigdata.vue` 的 Node `timers` 导入，并删除 `accessto.vue` 中未调用的 `initResize`。
+- 验证摘要：先新增 helper 缺失、Node timers 导入和 window.onresize 赋值守卫并确认红测；修复后 `pnpm test src/views/platform/panel/panel-refresh.test.js src/views/platform/panel/panel-refresh-static.test.js` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过（62 个测试文件、323 个用例）。
+- 独立评审：只读评审结论 `AGREE`。
+- 边界核对：`/platform/panel/bigdata` 与 `/platform/panel/accessto` 路由守卫、60 秒刷新间隔和销毁清理语义保持一致；未改面板 API、图表数据处理、页面文案或路由跳转。
+
+完成状态（`fix/smart-ui-dangerous-html`）：
+
+- 已合并：PR #87 `fix(smart-ui): render info upload warnings as text`
+- 合并提交：`6b8546b8f5959edaf992f3877354aba980d6d12b`
+- 实际范围：仅修改 `smart-ui/src/views/platform/info_delivery/info_mng/add.vue`、`edit.vue` 并新增 `message-safety.test.js`；移除上传校验警告中的 `dangerouslyUseHTMLString: true`，让 Element Message 按纯文本渲染。
+- 验证摘要：先新增危险 HTML Message 静态测试并确认红测；修复后 `pnpm test src/views/platform/info_delivery/info_mng/message-safety.test.js` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过（63 个测试文件、325 个用例）。
+- 独立评审：只读评审结论 `AGREE`。
+- 边界核对：未改校验条件、提示文案、`showClose`、`type`、`duration`、上传流程或 API；只改变 Message 的 HTML 渲染能力。
+
+完成状态（`fix/smart-ui-catch-reporting` 子项：脱敏上报）：
+
+- 已合并：PR #88 `fix(smart-ui): report caught request failures`
+- 合并提交：`9beb1b6ddda181efd8eb13943038b05434947e26`
+- 实际范围：新增 `smart-ui/src/error-reporter.js`、`error-reporter.test.js`，修改 `smart-ui/src/error.js`、`error.test.js`、`router/axios.js`、`router/axios.test.js`；axios transport error 和 `SMART_UI_STRICT_REJECT=true` 的业务失败会在 reject 前写入 console 与 vuex `ADD_LOGS`，并复用脱敏逻辑处理 Authorization / Bearer / Basic / token / password / secret 片段。
+- 验证摘要：先新增上报与脱敏测试并确认红测；修复后 `pnpm test src/error-reporter.test.js src/error.test.js src/router/axios.test.js` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过（64 个测试文件、328 个用例）。
+- 独立评审：前两轮分别指出原始 AxiosError 可能泄露 header、JSON quoted credential 未覆盖；修复并补测试后第三轮只读评审结论 `AGREE`。
+- 边界核对：默认业务失败仍保留旧的 Message + resolve response 行为；未新增用户提示，用户提示子项由 PR #89 完成。
+
+完成状态（`fix/smart-ui-catch-reporting` 子项：用户提示）：
+
+- 已合并：PR #89 `fix(smart-ui): show request error messages`
+- 合并提交：`633dc1c82e230523e21b676e0fb2774a03c54a06`
+- 实际范围：修改 `smart-ui/src/error-reporter.js`、`error-reporter.test.js`、`router/axios.js`、`router/axios.test.js`；导出脱敏后的用户提示文本，并在 axios transport error 分支显示 Element UI error Message 后继续 reject 原始错误。
+- 验证摘要：先新增 transport error Message 与凭据脱敏提示测试并确认红测；修复后 `pnpm test src/error-reporter.test.js src/error.test.js src/router/axios.test.js` 通过；`node scripts/check-lint-baseline.mjs` 通过；`pnpm gate` 通过（64 个测试文件、330 个用例）。
+- 独立评审：只读评审结论 `AGREE`。
+- 边界核对：只对网络、超时、传输类 response error 新增脱敏错误提示；业务响应失败不新增第二个 Message，默认 legacy swallow 行为保持不变，reject 仍返回原始 Error 对象。
 
 ---
 
