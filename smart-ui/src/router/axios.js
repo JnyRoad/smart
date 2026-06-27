@@ -6,6 +6,7 @@ import router from "@/router/router"
 import { Message } from 'element-ui'
 import 'nprogress/nprogress.css'
 import store from "@/store"; // progress bar style
+import { reportCaughtError } from '@/error-reporter'
 // 30s global timeout; endpoints that legitimately run longer (upload/download/export)
 // must set their own per-request timeout instead of inflating the global one.
 axios.defaults.timeout = 30000
@@ -67,7 +68,7 @@ axios.interceptors.response.use(res => {
     // 回滚：removeItem 或设为其他值。未捕获的 reject 由 src/error.js 的
     // unhandledrejection 监听记入 vuex logs，不弹窗。全量验证后默认行为再切为 reject。
     if (localStorage.getItem('SMART_UI_STRICT_REJECT') === 'true') {
-      return Promise.reject(new Error(message))
+      return Promise.reject(reportCaughtError(new Error(message), 'axios:response'))
     }
     return res
   }
@@ -75,7 +76,7 @@ axios.interceptors.response.use(res => {
   return res
 }, error => {
   NProgress.done()
-  return Promise.reject(new Error(error))
+  return Promise.reject(reportCaughtError(error, 'axios:request'))
 })
 
 export default axios
