@@ -324,7 +324,7 @@ import {
 import { allPark } from "@/api/platform/_publicService";
 import { mapGetters } from "vuex";
 import echarts from "echarts";
-import { setTimeout } from "timers";
+import { clearPanelRefresh, schedulePanelRefresh } from "./panel-refresh";
 
 /**
  * 利用贝塞尔曲线公式计算出曲线上某点坐标
@@ -414,15 +414,11 @@ export default {
     this.getCorrectionCount();
     this.getVehicleCount();
     this.mapEffect();
-    if (this.timeOut) {
-      clearTimeout(this.timeOut);
-      this.timeOut = undefined;
-    }
+    clearPanelRefresh(this);
     this.getData();
   },
   beforeDestroy: function() {
-    clearTimeout(this.timeOut);
-    this.timeOut = undefined;
+    clearPanelRefresh(this);
   },
   computed: {
     timeOut: {
@@ -443,15 +439,9 @@ export default {
       this.getCorrectionCount();
       this.getVehicleCount();
       this.mapEffect();
-
-      if (this.$route.path == "/platform/panel/bigdata") {
-        let _this = this;
-        this.timeOut = setTimeout(() => {
-          _this.getData();
-        }, 60000);
-      } else {
-        this.timeOut = undefined;
-      }
+      schedulePanelRefresh(this, "/platform/panel/bigdata", () => {
+        this.getData();
+      });
     },
     winClose() {
       this.$message("未实现...");
