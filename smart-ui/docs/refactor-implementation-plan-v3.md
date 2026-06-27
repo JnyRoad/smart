@@ -1697,9 +1697,55 @@ pnpm gate
 
 完成状态：
 
-- 进行中：已建分支 `test/smart-ui-electric-manage-safety-net`，代码完成，待独立评审 + 待合并（按本文档铁律，合并后再补 PR 号与合并提交）。
+- 已合并：PR #91 `test(smart-ui): add electric manage safety net`，合并提交 `a910dd05`，代码提交 `5ad9be2f`。
 - 验证摘要：`node scripts/check-electric-manage-ui.js` 通过；`_service.test.js`(19) + `index-static.test.js`(1) + `gate.test.mjs`(6) 共 26 用例通过；`pnpm gate` 通过（65 个测试文件、350 个用例、11 个门禁步骤全绿，含新增 `electric-manage-ui`）。
+- 独立评审：只读子代理实跑全部命令复核，结论 `AGREE`，无 P0/P1；确认 19 个请求签名与 `_service.js` 逐字一致、9 组守卫正则匹配当前源码、零生产代码改动。
 - 边界核对：未改 `index.vue`、`_service.js` 生产代码、API、弹窗、导出、批量操作或任何 A 类 bug。
+
+### PR 35: `electric_manage` 第一刀：抽纯展示/格式化函数
+
+分支：`refactor/smart-ui-electric-manage-extract-rules`
+
+目标：把 `index.vue` 中不依赖 `this` 的纯展示/格式化逻辑抽到新 `electric-manage-rules.js`，父页保留方法名作 wrapper 委托调用，行为零变更。
+
+文件范围：
+
+- 新增：`smart-ui/src/views/platform/device/electric_manage/electric-manage-rules.js`
+- 新增：`smart-ui/src/views/platform/device/electric_manage/electric-manage-rules.test.js`
+- 修改：`smart-ui/src/views/platform/device/electric_manage/index.vue`
+- 修改：`smart-ui/scripts/check-electric-manage-ui.js`
+
+抽离内容：
+
+- `returnColor(status)`：在线/离线 → 状态色 class，其它返回 undefined（保留原 switch 无 default）。
+- `formatJson(filterVal, jsonData)`：导出行列变换（`v/j` 改名 `row/key` 规避 id-length 新 warning，行为不变）。
+- `placeTypeDesc(placeType)`：区域类型描述，保留原宽松 `==` 语义。
+- `index.vue` 的 `returnColor`/`formatJson` 方法改为委托给导入的纯函数（模板绑定与 `this.formatJson` 调用点不变），导出里内联三元改为 `placeTypeDesc(item.placeType)`。
+
+边界：
+
+- 不抽组件、不改 API、不改 `_service.js`、不改弹窗/批量/导出流程。
+- 不抽 `validateIP`/`validatePort`：二者在 `data()` 定义但全文零引用，属死代码，留作后续独立清理 PR，不在本刀顺手删（避免夹带）。
+- 不修任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+node scripts/check-electric-manage-ui.js
+pnpm exec vitest run src/views/platform/device/electric_manage/electric-manage-rules.test.js
+node scripts/check-lint-baseline.mjs
+pnpm gate
+```
+
+风险：低。纯函数抽离 + 委托，刻意保留所有历史语义。
+回滚：单 PR revert。
+
+完成状态：
+
+- 进行中：分支 `refactor/smart-ui-electric-manage-extract-rules`，代码完成，待独立评审 + 合并（合并后补 PR 号与合并提交）。
+- 验证摘要：先写 `electric-manage-rules.test.js` 并确认缺实现时红测；实现后该测试 8 用例通过；新文件 eslint 零 warning；electric 相关 4 个测试文件通过（34 用例）；`node scripts/check-electric-manage-ui.js` 通过；`node scripts/check-lint-baseline.mjs` 无新增 warning。
+- 边界核对：未改 API、`_service.js`、弹窗、批量、导出流程或任何 A 类 bug；死代码 `validateIP`/`validatePort` 未动。
 
 ---
 
