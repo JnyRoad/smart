@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { returnColor, formatJson, placeTypeDesc } from './electric-manage-rules'
+import { returnColor, formatJson, placeTypeDesc, meterTagFields } from './electric-manage-rules'
 
 // 电表管理纯展示/格式化规则的行为表征测试。
 // 这些断言锁定从 index.vue 抽离前的真实行为（含“非在线/离线返回 undefined”“宽松 == 区域映射”
@@ -54,5 +54,28 @@ describe('placeTypeDesc', () => {
   it('其它值 → 厂区', () => {
     expect(placeTypeDesc(1)).toBe('厂区')
     expect(placeTypeDesc('1')).toBe('厂区')
+  })
+})
+
+describe('meterTagFields', () => {
+  it('tagList 为 null → 空 tagName 与空 tagIds（保留原默认）', () => {
+    expect(meterTagFields(null)).toEqual({ tagName: '', tagIds: [] })
+  })
+
+  it('tagList 为空数组 → 空 tagName 与空 tagIds', () => {
+    expect(meterTagFields([])).toEqual({ tagName: '', tagIds: [] })
+  })
+
+  it('聚合多个标签：tagName 逗号拼接、tagIds 收集 id（顺序保持）', () => {
+    expect(
+      meterTagFields([
+        { id: 1, tagName: '一楼' },
+        { id: 2, tagName: '高压' }
+      ])
+    ).toEqual({ tagName: '一楼,高压', tagIds: [1, 2] })
+  })
+
+  it('单标签：tagName 无逗号', () => {
+    expect(meterTagFields([{ id: 9, tagName: '总表' }])).toEqual({ tagName: '总表', tagIds: [9] })
   })
 })
