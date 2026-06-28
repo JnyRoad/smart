@@ -266,7 +266,7 @@
 
 <script>
 import { concentratorList, getTagList, addObj, fetchList, batchDelete, putObj,changeObj, supplierImport, flushProgress, putValve, putValves, meterRead, reDownload} from './_service'
-import { returnColor, formatJson, placeTypeDesc, meterTagFields } from './electric-manage-rules'
+import { returnColor, formatJson, placeTypeDesc, meterTagFields, buildConfirmBox } from './electric-manage-rules'
 import { mapGetters } from 'vuex'
 import setTag from './components/setTag'
 import deviceTagSelect from '../components/device-tag-select'
@@ -480,15 +480,7 @@ export default {
         str = '确认关闭该电表闸门？'
       }
       var _this = this
-      const elm = this.$createElement
-      this.$msgbox({
-        message: elm('p', { attrs: { class: 'smallp' } }, [elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''), elm('span', null, str)]),
-        showCancelButton: true,
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        customClass: 'small_dialog',
-        center: true
-      })
+      this.$msgbox(buildConfirmBox(this.$createElement, str))
         .then(function () {
           const obj = {
             status: item.valveStatus,
@@ -548,15 +540,7 @@ export default {
           str = '确认关闭电表闸门？'
         }
         var _this = this
-        const elm = this.$createElement
-        this.$msgbox({
-          message: elm('p', { attrs: { class: 'smallp' } }, [elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''), elm('span', null, str)]),
-          showCancelButton: true,
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          customClass: 'small_dialog',
-          center: true
-        })
+        this.$msgbox(buildConfirmBox(this.$createElement, str))
           .then(function () {
             const obj = {
               status: item,
@@ -584,15 +568,7 @@ export default {
       if (this.ckItem && this.ckItem.length > 0) {
         const _this = this
         const str =  '确认要删除这些设备?'
-        const elm = this.$createElement
-        this.$msgbox({
-          message: elm('p', { attrs: { class: 'smallp' } }, [elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''), elm('span', null, str)]),
-          showCancelButton: true,
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          customClass: 'small_dialog',
-          center: true
-        })
+        this.$msgbox(buildConfirmBox(this.$createElement, str))
           .then(function () {
             const obj = {
               meterIds: _this.ckItem
@@ -824,15 +800,7 @@ export default {
     },
     handleDel: function (row) {
       var _this = this
-      const elm = this.$createElement
-      this.$msgbox({
-        message: elm('p', { attrs: { class: 'smallp' } }, [elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''), elm('span', null, '确认删除该电表信息？ ')]),
-        showCancelButton: true,
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        customClass: 'small_dialog',
-        center: true
-      })
+      this.$msgbox(buildConfirmBox(this.$createElement, '确认删除该电表信息？ '))
         .then(function () {
           return batchDelete({meterIds: [row.id]})
         })
