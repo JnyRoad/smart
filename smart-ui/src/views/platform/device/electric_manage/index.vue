@@ -266,7 +266,7 @@
 
 <script>
 import { concentratorList, getTagList, addObj, fetchList, batchDelete, putObj,changeObj, supplierImport, flushProgress, putValve, putValves, meterRead, reDownload} from './_service'
-import { returnColor, formatJson, placeTypeDesc } from './electric-manage-rules'
+import { returnColor, formatJson, placeTypeDesc, meterTagFields } from './electric-manage-rules'
 import { mapGetters } from 'vuex'
 import setTag from './components/setTag'
 import deviceTagSelect from '../components/device-tag-select'
@@ -658,17 +658,11 @@ export default {
         )
       ).then((response) => {
         this.datalist = response.data.data.records
+        // 标签聚合委托给纯函数（见 electric-manage-rules.js），行为与原内联逻辑一致。
         this.datalist.forEach((el) => {
-          el.tagName = ''
-          el.tagIds = []
-          if (el.tagList !== null && el.tagList.length > 0) {
-            const arr1 = []
-            el.tagList.forEach((element) => {
-              arr1.push(element.tagName)
-              el.tagIds.push(element.id)
-            })
-            el.tagName = arr1.join(',')
-          }
+          const tagFields = meterTagFields(el.tagList)
+          el.tagName = tagFields.tagName
+          el.tagIds = tagFields.tagIds
         })
         this.page.total = response.data.data.total
         this.tableLoading = false
