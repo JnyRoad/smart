@@ -1824,9 +1824,53 @@ pnpm build
 
 完成状态：
 
-- 进行中：分支 `refactor/smart-ui-electric-manage-extract-tag-fields`，代码完成，待独立评审 + 合并（合并后补 PR 号与合并提交）。
+- 已合并：PR #94 `refactor(smart-ui): extract electric manage tag aggregation`，合并提交 `dcce214a`，代码提交 `965482ca`。
 - 验证摘要：先加 `meterTagFields` 4 用例确认红测；实现后 `electric-manage-rules.test.js` 12 用例通过；新代码 eslint 零 warning；electric 相关 3 个测试文件 32 用例通过；`node scripts/check-electric-manage-ui.js` 通过；`node scripts/check-lint-baseline.mjs` 无新增 warning；`pnpm gate` 全绿（11 步骤）；`vue-cli-service build` 成功（`Build complete`）。
+- 独立评审：只读子代理逐字核对行为等价、`undefined 仍抛`语义保留、写回等价、零额外改动，结论 `AGREE`，无 P0/P1/P2。
 - 边界核对：未改查询参数、分页、loading、API、`_service.js`、弹窗、导出、批量或任何 A 类 bug。
+
+### PR 38: `electric_manage` 统一确认弹窗配置
+
+分支：`refactor/smart-ui-electric-manage-extract-confirm-box`
+
+目标：把 `valveChange`/`handelChange`/`batchDelete`/`handleDel` 中 4 处逐字重复的 `$msgbox` 确认弹窗配置抽到 `electric-manage-rules.js` 的 `buildConfirmBox(createElement, message)`，行为零变更。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/device/electric_manage/electric-manage-rules.js`
+- 修改：`smart-ui/src/views/platform/device/electric_manage/electric-manage-rules.test.js`
+- 修改：`smart-ui/src/views/platform/device/electric_manage/index.vue`
+- 修改：`smart-ui/scripts/check-electric-manage-ui.js`
+
+抽离内容：
+
+- `buildConfirmBox(createElement, message)` → 返回与原内联逐字一致的 `$msgbox` 选项对象（`p.smallp` 含 `i.smallInfo.delInfo` + `span(文案)`，及 `showCancelButton/确定/取消/small_dialog/center` 选项）。
+- 4 处调用点改为 `this.$msgbox(buildConfirmBox(this.$createElement, <文案>))`，各自的 `.then().catch()` 业务链不变；移除随之失效的 `const elm = this.$createElement`。
+- 守卫扩展：import 含 `buildConfirmBox` 且页面用 `this.$msgbox(buildConfirmBox(this.$createElement,`。
+
+边界：
+
+- 不改各方法的提交参数（`putValve`/`putValves`/`batchDelete`）、`.then/.catch` 逻辑、通知文案、`ckItem` 校验或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+pnpm exec vitest run src/views/platform/device/electric_manage/electric-manage-rules.test.js
+node scripts/check-electric-manage-ui.js
+node scripts/check-lint-baseline.mjs
+pnpm gate
+pnpm build
+```
+
+风险：低。仅抽公共弹窗配置 + 4 处委托，业务链与文案不变。
+回滚：单 PR revert。
+
+完成状态：
+
+- 进行中：分支 `refactor/smart-ui-electric-manage-extract-confirm-box`，代码完成，待独立评审 + 合并（合并后补 PR 号与合并提交）。
+- 验证摘要：先加 `buildConfirmBox` 2 用例确认红测；实现后 `electric-manage-rules.test.js` 14 用例通过；electric 相关 3 个测试文件 34 用例通过；4 处调用点已改、零残留 `const elm`/内联 `small_dialog`；`node scripts/check-electric-manage-ui.js` 通过；`node scripts/check-lint-baseline.mjs` 无新增 warning；`pnpm gate` 全绿（11 步骤）；`vue-cli-service build` 成功（`Build complete`）。
+- 边界核对：未改提交参数、`.then/.catch` 业务链、通知文案、`ckItem` 校验、API、`_service.js`、导出或任何 A 类 bug。
 
 ---
 
