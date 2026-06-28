@@ -281,22 +281,6 @@ export default {
     BindRoom
   },
   data() {
-    var validateIP = (rule, value, callback) => {
-      var parten = /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$/
-      if (!parten.test(value)) {
-        callback(new Error('IP输入错误'))
-      } else {
-        callback()
-      }
-    }
-    var validatePort = (rule, value, callback) => {
-      var parten = /^(\d)+$/g
-      if (!(parten.test(value) && parseInt(value) <= 65535 && parseInt(value) >= 0)) {
-        callback(new Error('端口输入错误'))
-      } else {
-        callback()
-      }
-    }
     return {
       settingLoading: false,
       settingForm: {
@@ -386,7 +370,6 @@ export default {
       this.getList(this.page, this.searchForm)
     })
   },
-  mounted: function () {},
   computed: {
     ...mapGetters(['permissions']),
     hasData: function () {

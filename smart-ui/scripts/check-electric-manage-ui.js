@@ -125,6 +125,17 @@ const checks = [
       /item\.placeTypeDesc = placeTypeDesc\(item\.placeType\)/
     ].every(pattern => pattern.test(content)),
     message: 'electric manage must keep delegating display/format helpers to electric-manage-rules'
+  },
+  {
+    file: INDEX,
+    // 防止死代码回流：validateIP / validatePort 是 data() 内零引用的未用校验器（addRules 从未引用），
+    // 空 mounted 钩子无任何副作用。三者删除后用静态守卫挡住回流。
+    custom: (content) => [
+      /validateIP/,
+      /validatePort/,
+      /mounted:\s*function\s*\(\)\s*\{\}/
+    ].every(pattern => !pattern.test(content)),
+    message: 'electric manage must not reintroduce dead validators or an empty mounted hook'
   }
 ]
 
