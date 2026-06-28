@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { returnColor, formatJson, placeTypeDesc, meterTagFields } from './electric-manage-rules'
+import { returnColor, formatJson, placeTypeDesc, meterTagFields, buildConfirmBox } from './electric-manage-rules'
 
 // 电表管理纯展示/格式化规则的行为表征测试。
 // 这些断言锁定从 index.vue 抽离前的真实行为（含“非在线/离线返回 undefined”“宽松 == 区域映射”
@@ -77,5 +77,27 @@ describe('meterTagFields', () => {
 
   it('单标签：tagName 无逗号', () => {
     expect(meterTagFields([{ id: 9, tagName: '总表' }])).toEqual({ tagName: '总表', tagIds: [9] })
+  })
+})
+
+describe('buildConfirmBox', () => {
+  // 用假的 createElement 记录 vnode 结构，断言与原 4 处 $msgbox 内联配置逐字一致。
+  const fakeCreate = (tag, data, children) => ({ tag, data, children })
+
+  it('文案放进 span，外层 p.smallp 内含 i.smallInfo.delInfo + span(文案)', () => {
+    const cfg = buildConfirmBox(fakeCreate, '确认要删除这些设备?')
+    expect(cfg.message.tag).toBe('p')
+    expect(cfg.message.data).toEqual({ attrs: { class: 'smallp' } })
+    expect(cfg.message.children[0]).toEqual({ tag: 'i', data: { attrs: { class: 'smallInfo delInfo' } }, children: '' })
+    expect(cfg.message.children[1]).toEqual({ tag: 'span', data: null, children: '确认要删除这些设备?' })
+  })
+
+  it('确认框选项与原内联配置一致', () => {
+    const cfg = buildConfirmBox(fakeCreate, '确认打开该电表闸门？')
+    expect(cfg.showCancelButton).toBe(true)
+    expect(cfg.confirmButtonText).toBe('确定')
+    expect(cfg.cancelButtonText).toBe('取消')
+    expect(cfg.customClass).toBe('small_dialog')
+    expect(cfg.center).toBe(true)
   })
 })

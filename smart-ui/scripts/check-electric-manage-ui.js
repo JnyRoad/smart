@@ -121,9 +121,10 @@ const checks = [
     file: INDEX,
     // 锁定纯展示/格式化函数已抽到 electric-manage-rules.js 并被委托使用，防止重构回退到内联实现。
     custom: (content) => [
-      /import \{\s*returnColor,\s*formatJson,\s*placeTypeDesc,\s*meterTagFields\s*\} from '\.\/electric-manage-rules'/,
+      /import \{\s*returnColor,\s*formatJson,\s*placeTypeDesc,\s*meterTagFields,\s*buildConfirmBox\s*\} from '\.\/electric-manage-rules'/,
       /item\.placeTypeDesc = placeTypeDesc\(item\.placeType\)/,
-      /meterTagFields\(el\.tagList\)/
+      /meterTagFields\(el\.tagList\)/,
+      /this\.\$msgbox\(buildConfirmBox\(this\.\$createElement,/
     ].every(pattern => pattern.test(content)),
     message: 'electric manage must keep delegating display/format helpers to electric-manage-rules'
   },

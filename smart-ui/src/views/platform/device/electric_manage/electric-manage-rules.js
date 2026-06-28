@@ -38,3 +38,19 @@ export function meterTagFields(tagList) {
   }
   return { tagName: names.join(','), tagIds }
 }
+
+// 删除/操作确认弹窗的统一 $msgbox 配置（valveChange / handelChange / batchDelete / handleDel 共用，仅文案不同）。
+// 返回与原 4 处内联配置逐字一致的选项对象；createElement 传组件的 this.$createElement。
+export function buildConfirmBox(createElement, message) {
+  return {
+    message: createElement('p', { attrs: { class: 'smallp' } }, [
+      createElement('i', { attrs: { class: 'smallInfo delInfo' } }, ''),
+      createElement('span', null, message)
+    ]),
+    showCancelButton: true,
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    customClass: 'small_dialog',
+    center: true
+  }
+}
