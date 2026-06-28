@@ -23,3 +23,18 @@ export function formatJson(filterVal, jsonData) {
 export function placeTypeDesc(placeType) {
   return placeType == 0 ? '宿舍' : '厂区'
 }
+
+// 设备行的标签聚合：把 tagList 折叠成展示用 tagName（逗号拼接）与 tagIds 数组。
+// 行为与原 getList 内联逻辑逐字一致：tagList 为 null 或空 → { tagName: '', tagIds: [] }。
+// 注意：tagList 为 undefined 时与原实现一样会抛（undefined.length），调用方保证传 null 或数组。
+export function meterTagFields(tagList) {
+  const names = []
+  const tagIds = []
+  if (tagList !== null && tagList.length > 0) {
+    tagList.forEach((tag) => {
+      names.push(tag.tagName)
+      tagIds.push(tag.id)
+    })
+  }
+  return { tagName: names.join(','), tagIds }
+}
