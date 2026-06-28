@@ -1743,9 +1743,46 @@ pnpm gate
 
 完成状态：
 
-- 进行中：分支 `refactor/smart-ui-electric-manage-extract-rules`，代码完成，待独立评审 + 合并（合并后补 PR 号与合并提交）。
-- 验证摘要：先写 `electric-manage-rules.test.js` 并确认缺实现时红测；实现后该测试 8 用例通过；新文件 eslint 零 warning；electric 相关 4 个测试文件通过（34 用例）；`node scripts/check-electric-manage-ui.js` 通过；`node scripts/check-lint-baseline.mjs` 无新增 warning。
-- 边界核对：未改 API、`_service.js`、弹窗、批量、导出流程或任何 A 类 bug；死代码 `validateIP`/`validatePort` 未动。
+- 已合并：PR #92 `refactor(smart-ui): extract electric manage display rules`，合并提交 `fd4c1516`，代码提交 `be06586c`。
+- 验证摘要：先写 `electric-manage-rules.test.js` 并确认缺实现时红测；实现后该测试 8 用例通过；新文件 eslint 零 warning；electric 相关 4 个测试文件通过（34 用例）；`node scripts/check-electric-manage-ui.js` 通过；`node scripts/check-lint-baseline.mjs` 无新增 warning；`pnpm gate` 全绿（66 文件 358 用例 11 步骤）。
+- 独立评审：只读子代理实跑复现验证“委托无递归”、逐字核对三函数等价、零额外行为变更，结论 `AGREE`，无 P0/P1/P2。
+- 边界核对：未改 API、`_service.js`、弹窗、批量、导出流程或任何 A 类 bug；死代码 `validateIP`/`validatePort` 未动（留作 PR 36）。
+
+### PR 36: `electric_manage` 删死代码（未用校验器 + 空 mounted）
+
+分支：`refactor/smart-ui-electric-manage-remove-dead-code`
+
+目标：删除 `index.vue` 中 `data()` 内零引用的 `validateIP`/`validatePort` 校验器和无副作用的空 `mounted` 钩子，并加静态守卫防回流。
+
+文件范围：
+
+- 修改：`smart-ui/src/views/platform/device/electric_manage/index.vue`
+- 修改：`smart-ui/scripts/check-electric-manage-ui.js`
+
+边界：
+
+- `validateIP`/`validatePort` 在 `data()` 定义但 `addRules` 从未引用（全文 grep 仅定义处），属死代码。
+- 空 `mounted: function () {}` 无 body，删除后初始化仍由 `created()` 执行。
+- 不改 `created`/`computed`/`methods` 内容、API、模板、弹窗、导出、批量或任何 A 类 bug。
+
+DoD：
+
+```bash
+cd smart-ui
+node scripts/check-electric-manage-ui.js
+node scripts/check-lint-baseline.mjs
+pnpm gate
+pnpm build   # 生产构建确认无影响
+```
+
+风险：低。删除零引用死代码 + 无副作用空钩子。
+回滚：单 PR revert。
+
+完成状态：
+
+- 进行中：分支 `refactor/smart-ui-electric-manage-remove-dead-code`，代码完成，待独立评审 + 合并（合并后补 PR 号与合并提交）。
+- 验证摘要：先加静态守卫并确认删除前 `node scripts/check-electric-manage-ui.js` 红测失败；删除后守卫通过；electric 相关 3 个测试文件通过（28 用例）；`node scripts/check-lint-baseline.mjs` 无新增 warning；`pnpm gate` 全绿（11 步骤）；`vue-cli-service build` 成功（`Build complete`，dist 就绪）。
+- 边界核对：未改 `created`/`computed`/`methods` 业务逻辑、API、`_service.js`、模板、弹窗、导出、批量或任何 A 类 bug。
 
 ---
 
