@@ -28,7 +28,7 @@
                     </el-select>
                   </el-form-item>
                   <el-form-item label="权限性质" prop="areaType">
-                    <el-select v-model="editform.areaType" placeholder="权限性质" :disabled="areaTypeDisable">
+                    <el-select v-model="editform.areaType" placeholder="权限性质" :disabled="true">
                       <el-option label="公共区域" :value="0"></el-option>
                       <el-option label="保密区域" :value="1"></el-option>
                     </el-select>
@@ -53,19 +53,7 @@
                   <el-button type="primary" @click="resetChecked" plain>清空</el-button>
                 </el-form-item>-->
                 <el-form-item label="选择设备" prop="checkedlimits">
-                  <div class="qt-limit">
-                    <el-tree
-                      :data="treeData"
-                      ref="limitree"
-                      node-key="id"
-                      show-checkbox
-                      default-expand-all
-                      :highlight-current="true"
-                      :check-strictly="true"
-                      :default-checked-keys="editform.checkedlimits"
-                      :props="defaultProps"
-                    ></el-tree>
-                  </div>
+                  <DeviceTreePicker :tree-data="treeData" v-model="editform.checkedlimits" />
                 </el-form-item>
                 <el-form-item>
                   <el-button type="primary" @click="onSubmit('form')" :loading="setLoading">保存</el-button>
@@ -88,9 +76,11 @@
 <script>
 import { getTree, getTreePersonNew, getObj, putObj } from "@/api/platform/area/limit";
 import { mapGetters } from "vuex";
+import DeviceTreePicker from './components/DeviceTreePicker.vue'
 
 export default {
   name: "limit",
+  components: { DeviceTreePicker },
   data() {
     return {
       editform: {
@@ -128,13 +118,8 @@ export default {
           }
         ]
       },
-      areaTypeDisable: true,
       setLoading: false,
       treeData: [],
-      defaultProps: {
-        children: "children",
-        label: "label"
-      },
       isAlone: false // true: 指定是门禁或者考勤，false: 总的
     };
   },
@@ -145,11 +130,6 @@ export default {
     getObj(this.$route.params.id).then(response => {
       this.editform = response.data.data;
       this.editform.type = response.data.data.type;
-      if (this.editform.type === 3) {
-        this.areaTypeDisable = true
-      } else {
-        this.areaTypeDisable = false
-      }
       this.editform.areaType = response.data.data.areaType ? response.data.data.areaType : 0;
       this.editform.parkId = response.data.data.parkId;
       this.editform.deviceUseType = response.data.data.deviceUseType;
@@ -182,14 +162,6 @@ export default {
   methods: {
     handleChange(value) {
     },
-    resetChecked() {
-      //清空
-      this.$refs.limitree.setCheckedKeys([]);
-    },
-    setCheckedNodes() {
-      //全选
-      this.$refs.limitree.setCheckedNodes(this.treeData);
-    },
     selectDevice(type, parkId) {
       if(!this.validatenull(type)&&!this.validatenull(parkId)){
         if(type===3){
@@ -212,7 +184,6 @@ export default {
       });
     },
     onSubmit(formName) {
-      this.editform.checkedlimits = this.$refs.limitree.getCheckedKeys();
       this.$refs[formName].validate(valid => {
         if (valid) {
           this.setLoading = true
