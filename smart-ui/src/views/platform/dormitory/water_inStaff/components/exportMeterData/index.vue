@@ -28,7 +28,7 @@
       </div>
     </section>
     <div slot="footer">
-      <el-button type="primary" @click="download">导 出</el-button>
+      <el-button type="primary" :loading="exporting" @click="download">导 出</el-button>
       <el-button type="primary" plain @click="cancel">关 闭</el-button>
     </div>
   </el-dialog>
@@ -55,6 +55,7 @@ export default {
         dormitoryIds: { required: true, message: '请选择楼栋', trigger: 'change' },
       },
       currVisible: false,
+      exporting: false,
     }
   },
   props: {
@@ -96,44 +97,49 @@ export default {
         dormitoryIds: this.searchform.dormitoryIds.toString(),
         meterMonth: this.searchform.meterMonth
       }
-      require.ensure([], () => {
-        const { export_json_to_excel } = require("@/vendor/Export2Excel");
-        const tHeader = [
-          "楼栋",
-          "房间号",
-          "工号",
-          "姓名",
-          "员工状态",
-          "住房数量",
-          "BU",
-          "中心",
-          "部门",
-          "入住日期",
-          "住宿天数",
-          "标记天数",
-          "日平均金额",
-          "水电超标金额",
-          "抄表月份"
-        ];
-        const filterVal = [
-          "dormitoryName",
-          "roomName",
-          "badge",
-          "name",
-          "status",
-          "inRoomNum",
-          "compName",
-          "depAbbr",
-          "depName",
-          "inTime",
-          "inDays",
-          "remarkDays",
-          "avgFee",
-          "fee",
-          "meterMonth"
-        ];
-        exportData(obj)
-          .then(response => {
+      this.exporting = true
+      // 导出接口是全量联表查询，耗时明显长于普通接口，超时时长在 _service.js 里单独放宽，
+      // 这里等接口真正返回/失败后再关弹窗、切 loading，不要一发起请求就关闭弹窗，
+      // 否则请求失败时用户看不到任何反馈（历史 bug：只 console.error，界面上像是卡死无响应）。
+      return exportData(obj)
+        .then(response => {
+          this.close()
+          require.ensure([], () => {
+            const { export_json_to_excel } = require("@/vendor/Export2Excel");
+            const tHeader = [
+              "楼栋",
+              "房间号",
+              "工号",
+              "姓名",
+              "员工状态",
+              "住房数量",
+              "BU",
+              "中心",
+              "部门",
+              "入住日期",
+              "住宿天数",
+              "标记天数",
+              "日平均金额",
+              "水电超标金额",
+              "抄表月份"
+            ];
+            const filterVal = [
+              "dormitoryName",
+              "roomName",
+              "badge",
+              "name",
+              "status",
+              "inRoomNum",
+              "compName",
+              "depAbbr",
+              "depName",
+              "inTime",
+              "inDays",
+              "remarkDays",
+              "avgFee",
+              "fee",
+              "meterMonth"
+            ];
             const list = response.data.data
             list.forEach(el=>{
               el.inTime = this.dateFormat(el.inTime)
@@ -142,10 +148,15 @@ export default {
             })
             const data = this.formatJson(filterVal, list);
             export_json_to_excel(tHeader, data, `住宿人员水电信息&(${this.searchform.meterMonth})`);
-          })
-          .catch(err => { console.error(err) });
-      });
-      this.close()
+          });
+        })
+        .catch(err => {
+          console.error(err)
+          this.$message.error('导出失败，请稍后重试')
+        })
+        .finally(() => {
+          this.exporting = false
+        })
     },
     //导出相关
     formatJson(filterVal, jsonData) {

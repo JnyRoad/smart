@@ -22,8 +22,12 @@ import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 员工宿舍信息表
@@ -84,6 +88,29 @@ public class SmtDormitoryStaffHistoryServiceImpl extends ServiceImpl<SmtDormitor
 			return staffHistories.get(0).getStaffName();
 		}
 		return StringUtils.EMPTY;
+	}
+
+	/** Oracle 单次 IN 子句最多支持 1000 个参数，批量查询按此分批 */
+	private static final int IN_CLAUSE_BATCH_SIZE = 1000;
+
+	@Override
+	public Map<String, String> getByBadgeBatch(List<String> badges) {
+		if (CollUtil.isEmpty(badges)) {
+			return Collections.emptyMap();
+		}
+		List<String> distinctBadges = badges.stream().distinct().collect(Collectors.toList());
+		Map<String, String> result = new HashMap<>();
+		int batchCount = distinctBadges.size() / IN_CLAUSE_BATCH_SIZE + (distinctBadges.size() % IN_CLAUSE_BATCH_SIZE > 0 ? 1 : 0);
+		for (int i = 0; i < batchCount; i++) {
+			int fromIndex = i * IN_CLAUSE_BATCH_SIZE;
+			int toIndex = Math.min(fromIndex + IN_CLAUSE_BATCH_SIZE, distinctBadges.size());
+			List<SmtDormitoryStaffHistory> staffHistories = this.list(Wrappers.<SmtDormitoryStaffHistory>lambdaQuery()
+					.in(SmtDormitoryStaffHistory::getStaffBadge, distinctBadges.subList(fromIndex, toIndex)));
+			for (SmtDormitoryStaffHistory history : staffHistories) {
+				result.putIfAbsent(history.getStaffBadge(), history.getStaffName());
+			}
+		}
+		return result;
 	}
 
 	@Override

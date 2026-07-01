@@ -147,4 +147,12 @@ public interface SmtSdMeterreadService extends IService<SmtSdMeterread> {
 	 * @return
 	 */
 	Integer getInRoomNum(String badge,Date meterMonth);
+
+	/**
+	 * getInRoomNum 的批量版本：一次性查询多个工号本月的入住房间数，避免调用方按工号循环查询数据库。
+	 * @param badges 工号列表
+	 * @param meterMonth 抄表月份
+	 * @return 工号 -&gt; 入住房间数；查不到记录的工号不会出现在结果里，调用方需自行用 getOrDefault 兜底
+	 */
+	Map<String, Integer> getInRoomNumBatch(List<String> badges, Date meterMonth);
 }

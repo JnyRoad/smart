@@ -142,6 +142,46 @@ CREATE INDEX IDX_STAFF_BADGE_LOWER
 ON SMT_STAFF (LOWER(BADGE));
 ```
 
+### 宿舍水电导出 by-dor 接口卡死
+
+背景：`/platform/dormitory/staff/statementdetail/by-dor`（前端“导出表格”按钮，对应
+`SmtStaffStatementDetailServiceImpl#getSDMeterreadWithDor`）实测稳定要 45-50 秒，
+稳定超过前端 30 秒超时导致导出必现失败。根因是按结果行数循环调用
+`SmtSdMeterreadService#getInRoomNum` / `SmtDormitoryStaffHistoryService#getByBadge`
+（N+1 查询，一次导出触发上千次额外查询），代码已改成批量查询
+（`getInRoomNumBatch` / `getByBadgeBatch`），但下面两张表本身也缺索引，
+批量查询仍然会各做一次全表扫描：
+
+`SMT_DORMITORY_STAFF_HISTORY` 当前生产数据量约 261,211 行，只有主键 `ID` 索引，
+`STAFF_BADGE` 上没有索引。
+
+```sql
+CREATE INDEX IDX_DORM_STAFF_HISTORY_BADGE
+ON SMT_DORMITORY_STAFF_HISTORY (STAFF_BADGE);
+```
+
+`SMT_DORMITORY_STAFF` 当前生产数据量约 5,187 行，同样只有主键 `ID` 索引，
+是上面批量 SQL 里 `UNION ALL` 的另一半。
+
+```sql
+CREATE INDEX IDX_DORM_STAFF_BADGE
+ON SMT_DORMITORY_STAFF (STAFF_BADGE);
+```
+
+（P1，非紧急）`by-dor` 主查询联表 `SMT_DORMITORY_ROOM` 目前没有任何索引（连主键都没有），
+`SMT_STAFF_STATEMENTDETAIL` 当前生产数据量约 801,180 行、只有主键 `ID` 索引，
+EXPLAIN PLAN 显示对 `SMT_STAFF_STATEMENTDETAIL` 的全表扫描占了整条 SQL 99% 的成本。
+现在表还不够大所以全表扫描本身不慢，但这两张表会一直增长，建议一并补上防止将来
+再次变成瓶颈。
+
+```sql
+CREATE INDEX IDX_DORM_ROOM_DORMITORY_ID
+ON SMT_DORMITORY_ROOM (DORMITORY_ID);
+
+CREATE INDEX IDX_STAFF_STMT_DETAIL_ROOM_MONTH
+ON SMT_STAFF_STATEMENTDETAIL (ROOM_ID, METER_MONTH, STATEMENT_STATUS);
+```
+
 ## 统计信息
 
 索引创建完成后建议收集相关表统计信息：
@@ -157,6 +197,10 @@ BEGIN
   DBMS_STATS.GATHER_TABLE_STATS(USER, 'SMT_ATTENDANCE_SIGN', CASCADE => TRUE);
   DBMS_STATS.GATHER_TABLE_STATS(USER, 'SMT_MSG_RECORD', CASCADE => TRUE);
   DBMS_STATS.GATHER_TABLE_STATS(USER, 'SMT_STAFF', CASCADE => TRUE);
+  DBMS_STATS.GATHER_TABLE_STATS(USER, 'SMT_DORMITORY_STAFF_HISTORY', CASCADE => TRUE);
+  DBMS_STATS.GATHER_TABLE_STATS(USER, 'SMT_DORMITORY_STAFF', CASCADE => TRUE);
+  DBMS_STATS.GATHER_TABLE_STATS(USER, 'SMT_DORMITORY_ROOM', CASCADE => TRUE);
+  DBMS_STATS.GATHER_TABLE_STATS(USER, 'SMT_STAFF_STATEMENTDETAIL', CASCADE => TRUE);
 END;
 /
 ```
