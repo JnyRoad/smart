@@ -12,6 +12,7 @@ import com.tce.smart.platform.api.dto.resp.device.DeviceFTDTO;
 import com.tce.smart.platform.core.dto.DeviceDTO;
 import com.tce.smart.platform.core.entity.SmtDevice;
 import com.tce.smart.platform.core.service.SmtDeviceService;
+import com.tce.smart.platform.service.DeviceDecommissionService;
 import com.tce.smart.platform.service.IDeviceService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -41,6 +42,9 @@ public class SmtDeviceController extends BaseController {
 
 	@Resource
 	private IDeviceService bizDeviceService;
+
+	@Resource
+	private DeviceDecommissionService deviceDecommissionService;
 
 	/**
 	 * 分页查询
@@ -128,7 +132,7 @@ public class SmtDeviceController extends BaseController {
 	@SysLog("删除设备信息表")
 	@GetMapping("/delete/{id}")
 	public Result removeById(@PathVariable String id) {
-		return new Result<>(smtDeviceService.deleteDevice(id));
+		return deviceDecommissionService.decommissionDevice(id);
 	}
 
 
