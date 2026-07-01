@@ -31,6 +31,7 @@ import com.tce.smart.platform.api.dto.resp.commonsd.DormitorySDMeterreadRespDTO;
 import com.tce.smart.platform.api.dto.resp.commonsd.RoomSDMeterreadRespDTO;
 import com.tce.smart.platform.core.dto.GenerateStatementDTO;
 import com.tce.smart.platform.core.dto.SmtSdMeterreadDTO;
+import com.tce.smart.platform.core.dto.StaffInRoomNumDTO;
 import com.tce.smart.platform.core.dto.commonsd.DormitorySDMeterreadDTO;
 import com.tce.smart.platform.core.dto.commonsd.StaffSDRuleRespDTO;
 import com.tce.smart.platform.core.dto.meter.MeterReadConfigDTO;
@@ -1290,6 +1291,29 @@ public class SmtSdMeterreadServiceImpl extends ServiceImpl<SmtSdMeterreadMapper,
 		Date startime = ToolUtils.getDateMonthStartime(meterMonth);
 		Date endTime = ToolUtils.getDateMonthEndTime(meterMonth);
 		return this.baseMapper.getInRoomNum(badge, startime, endTime);
+	}
+
+	/** Oracle 单次 IN 子句最多支持 1000 个参数，批量查询按此分批 */
+	private static final int IN_CLAUSE_BATCH_SIZE = 1000;
+
+	@Override
+	public Map<String, Integer> getInRoomNumBatch(List<String> badges, Date meterMonth) {
+		if (CollectionUtil.isEmpty(badges)) {
+			return Collections.emptyMap();
+		}
+		List<String> distinctBadges = badges.stream().distinct().collect(Collectors.toList());
+		Date startime = ToolUtils.getDateMonthStartime(meterMonth);
+		Date endTime = ToolUtils.getDateMonthEndTime(meterMonth);
+
+		Map<String, Integer> result = new HashMap<>();
+		int batchCount = distinctBadges.size() / IN_CLAUSE_BATCH_SIZE + (distinctBadges.size() % IN_CLAUSE_BATCH_SIZE > 0 ? 1 : 0);
+		for (int i = 0; i < batchCount; i++) {
+			int fromIndex = i * IN_CLAUSE_BATCH_SIZE;
+			int toIndex = Math.min(fromIndex + IN_CLAUSE_BATCH_SIZE, distinctBadges.size());
+			List<StaffInRoomNumDTO> batchResult = this.baseMapper.getInRoomNumBatch(distinctBadges.subList(fromIndex, toIndex), startime, endTime);
+			batchResult.forEach(dto -> result.put(dto.getBadge(), dto.getInRoomNum()));
+		}
+		return result;
 	}
 
 	@Transactional

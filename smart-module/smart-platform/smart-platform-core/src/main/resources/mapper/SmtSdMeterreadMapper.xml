@@ -236,4 +236,27 @@
 		) t
 	</select>
 
+	<!-- getInRoomNum 的批量版本：按工号分组聚合，语义上等价于对每个工号分别调用 getInRoomNum 再收集结果，
+		 但只需一次查询，用于替换宿舍水电导出接口里按工号循环查询的 N+1 写法 -->
+	<select id="getInRoomNumBatch" resultType="com.tce.smart.platform.core.dto.StaffInRoomNumDTO">
+		select badge, sum(c) as inRoomNum from
+		(
+		select STAFF_BADGE as badge, count(*) c from SMT_DORMITORY_STAFF
+		WHERE STAFF_BADGE in
+		<foreach item="item" collection="badges" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+		group by STAFF_BADGE
+		UNION ALL
+		select STAFF_BADGE as badge, count(*) c from SMT_DORMITORY_STAFF_HISTORY
+		WHERE STAFF_BADGE in
+		<foreach item="item" collection="badges" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+		AND CREATE_TIME BETWEEN #{startTime} and #{endTime} and TYPE != 0
+		group by STAFF_BADGE, ROOM_ID
+		) t
+		group by badge
+	</select>
+
 </mapper>
