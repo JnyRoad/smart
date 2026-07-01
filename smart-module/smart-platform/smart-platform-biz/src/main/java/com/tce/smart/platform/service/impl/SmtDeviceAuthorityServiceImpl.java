@@ -15,9 +15,12 @@ import com.tce.smart.common.core.constant.enums.SmtVisitorEnum;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.security.util.SecurityUtils;
+import com.tce.smart.platform.api.dto.req.AreaTypeSwitchReqDTO;
 import com.tce.smart.platform.api.dto.req.AuthDetailQueryDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationAddReqDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationDelReqDTO;
+import com.tce.smart.platform.api.dto.resp.AreaTypeConflictDeviceVO;
+import com.tce.smart.platform.api.dto.resp.AreaTypeSwitchRespDTO;
 import com.tce.smart.platform.api.dto.resp.AuthDetailRespDTO;
 import com.tce.smart.platform.core.dto.SmtDeviceAuthorityDTO;
 import com.tce.smart.platform.core.dto.VehicleAuthDTO;
@@ -754,6 +757,49 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 	@Override
 	public Boolean checkIsUsed(Integer type, String deviceId) {
 		return this.baseMapper.countByAreaType(type, deviceId) > 0;
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public Result<AreaTypeSwitchRespDTO> switchAreaType(AreaTypeSwitchReqDTO reqDTO, List<Integer> parkIds) {
+		SmtDeviceAuthority authority = this.getById(reqDTO.getId());
+		AreaTypeSwitchRespDTO resp = new AreaTypeSwitchRespDTO();
+		if (authority == null || !parkIds.contains(authority.getParkId())) {
+			// 注意：不能写成 new Result<>(false, "...")——方法返回类型是 Result<AreaTypeSwitchRespDTO>，
+			// 泛型参数已经被返回类型固定了，构造函数第一个参数必须是 AreaTypeSwitchRespDTO 而不是 Boolean，
+			// 否则编译期泛型推断会直接报错（规划阶段已经用真实编译踩过这个坑）
+			resp.setSuccess(false);
+			resp.setConflicts(Collections.emptyList());
+			return new Result<>(resp, "权限策略不存在或不在当前用户可操作的园区范围内");
+		}
+
+		// 目标性质和当前一致：幂等短路，不查冲突也不写库
+		if (Objects.equals(authority.getAreaType(), reqDTO.getAreaType())) {
+			resp.setSuccess(true);
+			resp.setConflicts(Collections.emptyList());
+			return new Result<>(resp);
+		}
+
+		List<AreaTypeConflictDeviceVO> conflicts = smtDeviceAuthorityMapper.findAreaTypeConflicts(
+				reqDTO.getId(), reqDTO.getAreaType());
+		if (CollUtil.isNotEmpty(conflicts)) {
+			// 存在跨权限组冲突：直接拒绝，不动 area_type，也不动任何设备/员工/车辆关联数据
+			resp.setSuccess(false);
+			resp.setConflicts(conflicts);
+			return new Result<>(resp);
+		}
+
+		// 无冲突：只更新 area_type 这一个字段，不触碰设备关联关系
+		SmtDeviceAuthority update = new SmtDeviceAuthority();
+		update.setId(reqDTO.getId());
+		update.setAreaType(reqDTO.getAreaType());
+		this.updateById(update);
+
+		log.info("通关权限性质已切换: 权限ID={}, {} -> {}", reqDTO.getId(), authority.getAreaType(), reqDTO.getAreaType());
+
+		resp.setSuccess(true);
+		resp.setConflicts(Collections.emptyList());
+		return new Result<>(resp);
 	}
 
 	@Override

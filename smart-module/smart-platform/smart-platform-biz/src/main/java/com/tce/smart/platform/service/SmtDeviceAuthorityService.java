@@ -6,9 +6,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.platform.api.dto.req.AreaTypeSwitchReqDTO;
 import com.tce.smart.platform.api.dto.req.AuthDetailQueryDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationAddReqDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationDelReqDTO;
+import com.tce.smart.platform.api.dto.resp.AreaTypeSwitchRespDTO;
 import com.tce.smart.platform.api.dto.resp.AuthDetailRespDTO;
 import com.tce.smart.platform.core.dto.SmtDeviceAuthorityDTO;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthority;
@@ -94,4 +96,14 @@ public interface SmtDeviceAuthorityService extends IService<SmtDeviceAuthority> 
 	 * @param deviceId 要撤销权限的设备ID
 	 */
 	void revokeDeviceAccess(Integer authorityId, String deviceId);
+
+	/**
+	 * 变更通关权限性质（公共区域/保密区域）。
+	 * 若组内设备存在跨权限组的性质冲突，直接拒绝并返回冲突设备清单，不写库。
+	 *
+	 * @param reqDTO 目标权限组ID + 目标性质
+	 * @param parkIds 当前用户可操作的园区范围
+	 * @return 切换结果
+	 */
+	Result<AreaTypeSwitchRespDTO> switchAreaType(AreaTypeSwitchReqDTO reqDTO, List<Integer> parkIds);
 }

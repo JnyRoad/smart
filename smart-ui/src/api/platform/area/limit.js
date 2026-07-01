@@ -88,3 +88,12 @@ export function batchAdd (data) {
     data: data
   })
 }
+
+// 变更通关权限性质（公共区域/保密区域），只改 area_type 这一个字段
+export function switchAreaType (data) {
+  return request({
+    url: '/platform/device/authority/areaType/switch',
+    method: 'post',
+    data: data
+  })
+}
