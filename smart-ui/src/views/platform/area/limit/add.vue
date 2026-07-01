@@ -49,19 +49,7 @@
                   </el-form-item>
                 </div>
                 <el-form-item label="选择设备" prop="checkedlimits">
-                  <div class="qt-limit">
-                    <el-tree
-                      :data="treeData"
-                      ref="limitree"
-                      node-key="id"
-                      show-checkbox
-                      default-expand-all
-                      :highlight-current="true"
-                      :check-strictly="true"
-                      :props="defaultProps"
-                      @node-click="handleNodeClick"
-                    ></el-tree>
-                  </div>
+                  <DeviceTreePicker :tree-data="treeData" v-model="addform.checkedlimits" />
                 </el-form-item>
                 <el-form-item>
                   <el-button type="primary" @click="onSubmit('form')">保存</el-button>
@@ -84,9 +72,11 @@
 <script>
 import { getTree, getTreePersonNew, addObj } from "@/api/platform/area/limit";
 import { mapGetters } from "vuex";
+import DeviceTreePicker from "./components/DeviceTreePicker.vue";
 
 export default {
   name: "limit",
+  components: { DeviceTreePicker },
   data() {
     return {
       addform: {
@@ -126,10 +116,6 @@ export default {
       },
       areaTypeDisable: false,
       treeData: [],
-      defaultProps: {
-        children: "children",
-        label: "label"
-      },
       isAlone: false // true: 指定是门禁或者考勤，false: 总的
     };
   },
@@ -170,16 +156,6 @@ export default {
     }
   },
   methods: {
-    handleNodeClick(value) {
-    },
-    resetChecked() {
-      //清空
-      this.$refs.limitree.setCheckedKeys([]);
-    },
-    setCheckedNodes() {
-      //全选
-      this.$refs.limitree.setCheckedNodes(this.treeData);
-    },
     selectDevice(type, parkId) {
       if(!this.validatenull(type)&&!this.validatenull(parkId)){
         if(type===3){
@@ -202,7 +178,6 @@ export default {
       });
     },
     onSubmit(formName) {
-      this.addform.checkedlimits = this.$refs.limitree.getCheckedKeys();
       this.$refs[formName].validate(valid => {
         if (valid) {
           addObj(this.addform).then(response => {
