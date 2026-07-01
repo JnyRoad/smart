@@ -2,7 +2,6 @@ package com.tce.smart.common.core.model;
 
 import com.tce.smart.common.core.constant.CommonConstants;
 import com.tce.smart.common.core.constant.enums.ExceptionType;
-import com.tce.smart.common.core.constant.enums.SuccessEnum;
 import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.util.StringUtils;
 import lombok.*;
@@ -108,7 +107,9 @@ public class Result<T> implements Serializable {
 	}
 
 	public static Result fail(String message) {
-		return fail(SuccessEnum.FAIL.getCode(), message);
+		// 注意：不能用 SuccessEnum.FAIL 的编码，它与 CommonConstants.SUCCESS 撞码(都是0)，
+		// 会导致失败结果被 isSuccess() 误判为成功，这里必须用 CommonConstants.FAIL。
+		return fail(CommonConstants.FAIL, message);
 	}
 
 	@SuppressWarnings("unchecked")
