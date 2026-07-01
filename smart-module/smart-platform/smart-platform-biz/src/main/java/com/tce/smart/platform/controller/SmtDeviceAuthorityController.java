@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.util.SecurityUtils;
+import com.tce.smart.platform.api.dto.req.AreaTypeSwitchReqDTO;
 import com.tce.smart.platform.api.dto.req.AuthDetailQueryDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationAddReqDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationDelReqDTO;
+import com.tce.smart.platform.api.dto.resp.AreaTypeSwitchRespDTO;
 import com.tce.smart.platform.api.dto.resp.AuthDetailRespDTO;
 import com.tce.smart.platform.core.dto.SmtDeviceAuthorityDTO;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthority;
@@ -208,5 +210,17 @@ public class SmtDeviceAuthorityController {
 	@PostMapping("/relation/add")
 	public Result<List<String>> deviceAuthRelationAdd(@RequestBody DeviceAuthRelationAddReqDTO reqDTO) {
 		return new Result<>(smtDeviceAuthorityService.deviceAuthRelationAdd(reqDTO));
+	}
+
+	/**
+	 * 变更通关权限性质（公共区域/保密区域）
+	 * @param reqDTO 目标权限组ID + 目标性质
+	 * @return success=false 时表示存在冲突设备，未写库，data.conflicts 里是冲突明细
+	 */
+	@SysLog("变更通关权限性质")
+	@PostMapping("/areaType/switch")
+	public Result<AreaTypeSwitchRespDTO> switchAreaType(@RequestBody AreaTypeSwitchReqDTO reqDTO) {
+		List<Integer> parkIds = SecurityUtils.getUser().getParkIdList();
+		return smtDeviceAuthorityService.switchAreaType(reqDTO, parkIds);
 	}
 }
