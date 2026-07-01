@@ -330,10 +330,6 @@ public class SmtDeviceServiceImpl extends ServiceImpl<SmtDeviceMapper, SmtDevice
 			}
 			authPersonDTOS.addAll(authPersonPage.getRecords());
 		} while (page.hasNext());
-		if (CollectionUtil.isEmpty(authPersonDTOS)) {
-			log.info("授权人员数据为空");
-			throw new SmartException("授权人员数据为空");
-		}
 		log.info("授权人员数量：{}", authPersonDTOS.size());
 		return authPersonDTOS;
 	}
@@ -354,11 +350,6 @@ public class SmtDeviceServiceImpl extends ServiceImpl<SmtDeviceMapper, SmtDevice
 			}
 			authVehicleRespDTOS.addAll(authVehiclePage.getRecords());
 		} while (page.hasNext());
-
-		if (CollectionUtil.isEmpty(authVehicleRespDTOS)) {
-			log.info("授权车辆数据为空");
-			throw new SmartException("授权车辆数据为空");
-		}
 		log.info("授权车辆数量：{}", authVehicleRespDTOS.size());
 		return authVehicleRespDTOS;
 	}
