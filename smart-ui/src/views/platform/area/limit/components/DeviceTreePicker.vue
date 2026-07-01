@@ -67,7 +67,10 @@ export default {
       treeRenderKey: 0,
       elProps: {
         children: 'children',
-        label: 'label'
+        label: 'label',
+        // 分支节点(楼栋/楼层)禁用勾选框，只有叶子节点(真正的设备)能被选中，
+        // 避免用户直接点分支勾选框时把分支 id(如 building-a)混进 value
+        disabled: (data) => !!(data.children && data.children.length)
       }
     }
   },
@@ -142,7 +145,10 @@ export default {
       return anyChecked
     },
     handleCheck (data, checkedInfo) {
-      this.$emit('input', checkedInfo.checkedKeys)
+      // 双重保险：即使分支节点的勾选框意外被选中，这里也只保留 leafNameById 里
+      // 已知的叶子设备 id，保证对外 value 契约始终是“叶子设备 id 数组”
+      const leafOnlyKeys = checkedInfo.checkedKeys.filter(id => Object.prototype.hasOwnProperty.call(this.leafNameById, id))
+      this.$emit('input', leafOnlyKeys)
     },
     removeSelected (id) {
       const nextIds = (this.value || []).filter(existingId => existingId !== id)
