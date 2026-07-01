@@ -557,9 +557,9 @@ export default {
         elm("p", null, "确认删除该门禁信息？"),
       ];
       if (affected.length === 0) {
-        summaryChildren.push(elm("p", { attrs: { class: "smallInfo" } }, "该设备当前未绑定任何权限组。"));
+        summaryChildren.push(elm("p", null, "该设备当前未绑定任何权限组。"));
       } else {
-        summaryChildren.push(elm("p", { attrs: { class: "smallInfo" } }, `该设备绑定在以下 ${affected.length} 个权限组下：`));
+        summaryChildren.push(elm("p", null, `该设备绑定在以下 ${affected.length} 个权限组下：`));
         const listItems = affected.map(item => {
           const parts = [`${item.authorityName}（影响 ${item.staffCount} 名员工 / ${item.vehicleCount} 辆车）`];
           if (item.willCascadeDelete) {
@@ -569,7 +569,7 @@ export default {
           }
           return elm("li", null, parts.join(" "));
         });
-        summaryChildren.push(elm("ul", { attrs: { class: "smallInfo" } }, listItems));
+        summaryChildren.push(elm("ul", null, listItems));
       }
       this.$msgbox({
         message: elm("div", { attrs: { class: "smallp" } }, summaryChildren),
