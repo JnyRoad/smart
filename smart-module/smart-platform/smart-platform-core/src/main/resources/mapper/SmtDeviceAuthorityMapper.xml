@@ -142,4 +142,19 @@
 		WHERE SDAR.DEVICE_ID = #{deviceId}
 		  AND SDA.AREA_TYPE != #{areaType}
 	</select>
+
+	<select id="findAreaTypeConflicts" resultType="com.tce.smart.platform.api.dto.resp.AreaTypeConflictDeviceVO">
+		SELECT DISTINCT
+			SDAR.DEVICE_ID AS deviceId,
+			SD.DEVICE_NAME AS deviceName,
+			SDA2.ID AS conflictAuthorityId,
+			SDA2.AUTHORITY_NAME AS conflictAuthorityName
+		FROM SMT_DEVICE_AUTHORITY_RELATION SDAR
+				 LEFT JOIN SMT_DEVICE SD ON SD.ID = SDAR.DEVICE_ID
+				 JOIN SMT_DEVICE_AUTHORITY_RELATION SDAR2
+					  ON SDAR2.DEVICE_ID = SDAR.DEVICE_ID AND SDAR2.AUTHORITY_ID != SDAR.AUTHORITY_ID
+				 JOIN SMT_DEVICE_AUTHORITY SDA2 ON SDA2.ID = SDAR2.AUTHORITY_ID
+		WHERE SDAR.AUTHORITY_ID = #{authorityId}
+		  AND SDA2.AREA_TYPE != #{targetAreaType}
+	</select>
 </mapper>
