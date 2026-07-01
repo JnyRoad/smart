@@ -1,8 +1,10 @@
 package com.tce.smart.platform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.tce.smart.common.core.constant.CommonConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.core.entity.SmtBusinessDeviceAuth;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthority;
@@ -125,7 +127,13 @@ public class DeviceDecommissionServiceImpl implements DeviceDecommissionService 
 	}
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public Result decommissionDevice(String deviceId) {
-		throw new UnsupportedOperationException("implemented in Task 5");
+		if (StrUtil.isBlank(deviceId)) {
+			return Result.fail(CommonConstants.FAIL, "设备ID不可为空");
+		}
+		DeviceDecommissionPlan devicePlan = this.plan(deviceId);
+		this.execute(devicePlan);
+		return new Result<>(smtDeviceService.deleteDevice(deviceId));
 	}
 }
