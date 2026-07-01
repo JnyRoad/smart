@@ -591,44 +591,44 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 
 		List<String> deviceIds = relationList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
 		if (DeviceAuthTypeEnum.PERSON.getCode().equals(reqDTO.getType())) {
-			for (Integer delId : reqDTO.getDelIds()) {
+			// 批量查询待删除的权限记录，避免循环内逐条 getById（N+1）；
+			// 注意：若某个 delId 已不存在（例如并发场景下被其他请求提前删除），listByIds 会直接跳过它，
+			// 不会像原来 getById+空指针 那样让整批操作崩溃，这里记录日志便于排查“为什么这条记录没有被处理”
+			List<SmtStaffDeviceAuth> staffAuthList = new ArrayList<>(smtStaffDeviceAuthService.listByIds(reqDTO.getDelIds()));
+			if (staffAuthList.size() != reqDTO.getDelIds().size()) {
+				log.warn("批量删除人员权限时发现{}条记录已不存在，权限ID={}，请求删除ID={}，实际查到={}",
+						reqDTO.getDelIds().size() - staffAuthList.size(), reqDTO.getAuthId(), reqDTO.getDelIds(),
+						staffAuthList.stream().map(SmtStaffDeviceAuth::getId).collect(Collectors.toList()));
+			}
+			// 批量计算每个员工在其他权限下仍需保留的设备，避免循环内逐条查询（N+1）
+			Map<Long, List<String>> otherDeviceIdsByStaffId = buildOtherDeviceIdsByStaffId(staffAuthList, reqDTO.getAuthId());
+			for (SmtStaffDeviceAuth staffAuth : staffAuthList) {
 				List<String> removableDeviceIds = new ArrayList<>(deviceIds);
-				// 查询授权关系
-				SmtStaffDeviceAuth staffAuth = smtStaffDeviceAuthService.getById(delId);
-				// 查询删除人员关联的权限列表，排除待删除权限
-				List<SmtStaffDeviceAuth> otherAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery()
-						.eq(SmtStaffDeviceAuth::getStaffId, staffAuth.getStaffId())
-						.ne(SmtStaffDeviceAuth::getAuthId, reqDTO.getAuthId()));
-				if (CollUtil.isNotEmpty(otherAuthList)) {
-					List<Integer> otherAuthIds = otherAuthList.stream().map(SmtStaffDeviceAuth::getAuthId).collect(Collectors.toList());
-					log.info("删除人员{}关联其他权限列表：{}", delId, otherAuthIds);
-					// 查询其他权限关联的设备列表
-					List<SmtDeviceAuthorityRelation> otherDeviceList = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds);
-					if (CollUtil.isNotEmpty(otherDeviceList)) {
-						List<String> otherDeviceIds = otherDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
-						removableDeviceIds.removeAll(otherDeviceIds);
-					}
+				List<String> otherDeviceIds = otherDeviceIdsByStaffId.get(staffAuth.getStaffId());
+				if (CollUtil.isNotEmpty(otherDeviceIds)) {
+					log.info("删除人员{}保留其他权限关联设备：{}", staffAuth.getId(), otherDeviceIds);
+					removableDeviceIds.removeAll(otherDeviceIds);
 				}
 				smtStaffDeviceAuthService.removeAuthToDevice(staffAuth, removableDeviceIds);
 			}
 		} else {
-			for (Integer delId : reqDTO.getDelIds()) {
+			// 批量查询待删除的权限记录，避免循环内逐条 getById（N+1）；
+			// 注意：若某个 delId 已不存在（例如并发场景下被其他请求提前删除），listByIds 会直接跳过它，
+			// 不会像原来 getById+空指针 那样让整批操作崩溃，这里记录日志便于排查“为什么这条记录没有被处理”
+			List<SmtVehicleApply> vehicleApplyList = new ArrayList<>(smtVehicleApplyService.listByIds(reqDTO.getDelIds()));
+			if (vehicleApplyList.size() != reqDTO.getDelIds().size()) {
+				log.warn("批量删除车辆权限时发现{}条记录已不存在，权限ID={}，请求删除ID={}，实际查到={}",
+						reqDTO.getDelIds().size() - vehicleApplyList.size(), reqDTO.getAuthId(), reqDTO.getDelIds(),
+						vehicleApplyList.stream().map(SmtVehicleApply::getId).collect(Collectors.toList()));
+			}
+			// 批量计算每辆车在其他权限下仍需保留的设备，避免循环内逐条查询（N+1）
+			Map<Long, List<String>> otherDeviceIdsByVehicleId = buildOtherDeviceIdsByVehicleId(vehicleApplyList, reqDTO.getAuthId());
+			for (SmtVehicleApply vehicleApply : vehicleApplyList) {
 				List<String> removableDeviceIds = new ArrayList<>(deviceIds);
-				// 查询车辆授权关系
-				SmtVehicleApply vehicleApply = smtVehicleApplyService.getById(delId);
-				// 查询删除车辆关联的权限列表，排除待删除权限
-				List<SmtVehicleApply> otherAuthList = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery()
-						.eq(SmtVehicleApply::getVehicleId, vehicleApply.getVehicleId())
-						.ne(SmtVehicleApply::getAuthorityId, reqDTO.getAuthId()));
-				if (CollUtil.isNotEmpty(otherAuthList)) {
-					List<Integer> otherAuthIds = otherAuthList.stream().map(SmtVehicleApply::getAuthorityId).collect(Collectors.toList());
-					log.info("删除车辆{}关联其他权限列表：{}", delId, otherAuthIds);
-					// 查询其他权限关联的设备列表
-					List<SmtDeviceAuthorityRelation> otherDeviceList = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds);
-					if (CollUtil.isNotEmpty(otherDeviceList)) {
-						List<String> otherDeviceIds = otherDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
-						removableDeviceIds.removeAll(otherDeviceIds);
-					}
+				List<String> otherDeviceIds = otherDeviceIdsByVehicleId.get(vehicleApply.getVehicleId());
+				if (CollUtil.isNotEmpty(otherDeviceIds)) {
+					log.info("删除车辆{}保留其他权限关联设备：{}", vehicleApply.getId(), otherDeviceIds);
+					removableDeviceIds.removeAll(otherDeviceIds);
 				}
 				smtVehicleApplyService.removeAuthToDevice(vehicleApply, removableDeviceIds);
 			}
@@ -656,46 +656,99 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 
 		if (DeviceAuthTypeEnum.PERSON.getCode().equals(deviceAuthority.getType())) {
 			List<SmtStaffDeviceAuth> staffAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getAuthId, id));
+			// 批量计算每个员工在其他权限下仍需保留的设备，避免循环内逐条查询（N+1）
+			Map<Long, List<String>> otherDeviceIdsByStaffId = buildOtherDeviceIdsByStaffId(staffAuthList, id);
 			for (SmtStaffDeviceAuth auth : staffAuthList) {
 				List<String> removableDeviceIds = new ArrayList<>(deviceIds);
-				// 查询删除人员关联的权限列表，排除待删除权限
-				List<SmtStaffDeviceAuth> otherAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery()
-						.eq(SmtStaffDeviceAuth::getStaffId, auth.getStaffId())
-						.ne(SmtStaffDeviceAuth::getAuthId, id));
-				if (CollUtil.isNotEmpty(otherAuthList)) {
-					List<Integer> otherAuthIds = otherAuthList.stream().map(SmtStaffDeviceAuth::getAuthId).collect(Collectors.toList());
-					log.info("删除人员{}关联其他权限列表：{}", auth.getId(), otherAuthIds);
-					// 查询其他权限关联的设备列表
-					List<SmtDeviceAuthorityRelation> otherDeviceList = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds);
-					if (CollUtil.isNotEmpty(otherDeviceList)) {
-						List<String> otherDeviceIds = otherDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
-						removableDeviceIds.removeAll(otherDeviceIds);
-					}
+				List<String> otherDeviceIds = otherDeviceIdsByStaffId.get(auth.getStaffId());
+				if (CollUtil.isNotEmpty(otherDeviceIds)) {
+					log.info("删除人员{}保留其他权限关联设备：{}", auth.getId(), otherDeviceIds);
+					removableDeviceIds.removeAll(otherDeviceIds);
 				}
 				smtStaffDeviceAuthService.removeAuthToDevice(auth, removableDeviceIds);
 			}
 		} else {
 			List<SmtVehicleApply> vehicleApplyList = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery().eq(SmtVehicleApply::getAuthorityId, id));
+			// 批量计算每辆车在其他权限下仍需保留的设备，避免循环内逐条查询（N+1）
+			Map<Long, List<String>> otherDeviceIdsByVehicleId = buildOtherDeviceIdsByVehicleId(vehicleApplyList, id);
 			for (SmtVehicleApply delAuth : vehicleApplyList) {
 				List<String> removableDeviceIds = new ArrayList<>(deviceIds);
-				// 查询删除车辆关联的权限列表，排除待删除权限
-				List<SmtVehicleApply> otherAuthList = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery()
-						.eq(SmtVehicleApply::getVehicleId, delAuth.getVehicleId())
-						.ne(SmtVehicleApply::getAuthorityId, id));
-				if (CollUtil.isNotEmpty(otherAuthList)) {
-					List<Integer> otherAuthIds = otherAuthList.stream().map(SmtVehicleApply::getAuthorityId).collect(Collectors.toList());
-					log.info("删除车辆{}关联其他权限列表：{}", delAuth.getId(), otherAuthIds);
-					// 查询其他权限关联的设备列表
-					List<SmtDeviceAuthorityRelation> otherDeviceList = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds);
-					if (CollUtil.isNotEmpty(otherDeviceList)) {
-						List<String> otherDeviceIds = otherDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
-						removableDeviceIds.removeAll(otherDeviceIds);
-					}
+				List<String> otherDeviceIds = otherDeviceIdsByVehicleId.get(delAuth.getVehicleId());
+				if (CollUtil.isNotEmpty(otherDeviceIds)) {
+					log.info("删除车辆{}保留其他权限关联设备：{}", delAuth.getId(), otherDeviceIds);
+					removableDeviceIds.removeAll(otherDeviceIds);
 				}
 				smtVehicleApplyService.removeAuthToDevice(delAuth, removableDeviceIds);
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * 批量计算人员在【其他权限】下仍保留访问权限的设备，避免对每条待删除/清空记录单独查询。
+	 * 原实现是在循环里对每个人员各查一次"该员工的其他权限列表"、再查一次"这些权限关联的设备"，
+	 * 选中/清空的记录数越多，数据库往返次数越多（经典 N+1）。这里改为按去重后的 staffId
+	 * 批量查一次"其他权限记录"，再按去重后的 authId 批量查一次"关联设备"，
+	 * 在内存里用 Map 归并，数据库往返次数固定，与记录条数无关。
+	 *
+	 * 返回值里同一员工的设备ID列表可能含重复（同一员工的多个其他权限覆盖了同一台设备），
+	 * 这里不做去重——调用方只用它做 removeAll 剔除，重复元素不影响结果。
+	 *
+	 * @param staffAuthList 本次待删除/清空的人员权限记录
+	 * @param excludeAuthId 当前正在删除/清空的权限ID（查询"其他权限"时需要排除掉它）
+	 * @return staffId -> 该员工在其他权限下仍保留访问权限的设备ID列表
+	 */
+	private Map<Long, List<String>> buildOtherDeviceIdsByStaffId(List<SmtStaffDeviceAuth> staffAuthList, Integer excludeAuthId) {
+		if (CollUtil.isEmpty(staffAuthList)) {
+			return Collections.emptyMap();
+		}
+		List<Long> staffIds = staffAuthList.stream().map(SmtStaffDeviceAuth::getStaffId).distinct().collect(Collectors.toList());
+		List<SmtStaffDeviceAuth> otherAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery()
+				.in(SmtStaffDeviceAuth::getStaffId, staffIds)
+				.ne(SmtStaffDeviceAuth::getAuthId, excludeAuthId));
+		if (CollUtil.isEmpty(otherAuthList)) {
+			return Collections.emptyMap();
+		}
+		List<Integer> otherAuthIds = otherAuthList.stream().map(SmtStaffDeviceAuth::getAuthId).distinct().collect(Collectors.toList());
+		Map<Integer, List<String>> deviceIdsByAuthId = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds).stream()
+				.collect(Collectors.groupingBy(SmtDeviceAuthorityRelation::getAuthorityId,
+						Collectors.mapping(SmtDeviceAuthorityRelation::getDeviceId, Collectors.toList())));
+		Map<Long, List<String>> otherDeviceIdsByStaffId = new HashMap<>();
+		for (SmtStaffDeviceAuth otherAuth : otherAuthList) {
+			otherDeviceIdsByStaffId.computeIfAbsent(otherAuth.getStaffId(), k -> new ArrayList<>())
+					.addAll(deviceIdsByAuthId.getOrDefault(otherAuth.getAuthId(), Collections.emptyList()));
+		}
+		return otherDeviceIdsByStaffId;
+	}
+
+	/**
+	 * 批量计算车辆在【其他权限】下仍保留访问权限的设备，思路同 {@link #buildOtherDeviceIdsByStaffId}。
+	 *
+	 * @param vehicleApplyList 本次待删除/清空的车辆权限记录
+	 * @param excludeAuthId    当前正在删除/清空的权限ID（查询"其他权限"时需要排除掉它）
+	 * @return vehicleId -> 该车辆在其他权限下仍保留访问权限的设备ID列表
+	 */
+	private Map<Long, List<String>> buildOtherDeviceIdsByVehicleId(List<SmtVehicleApply> vehicleApplyList, Integer excludeAuthId) {
+		if (CollUtil.isEmpty(vehicleApplyList)) {
+			return Collections.emptyMap();
+		}
+		List<Long> vehicleIds = vehicleApplyList.stream().map(SmtVehicleApply::getVehicleId).distinct().collect(Collectors.toList());
+		List<SmtVehicleApply> otherAuthList = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery()
+				.in(SmtVehicleApply::getVehicleId, vehicleIds)
+				.ne(SmtVehicleApply::getAuthorityId, excludeAuthId));
+		if (CollUtil.isEmpty(otherAuthList)) {
+			return Collections.emptyMap();
+		}
+		List<Integer> otherAuthIds = otherAuthList.stream().map(SmtVehicleApply::getAuthorityId).distinct().collect(Collectors.toList());
+		Map<Integer, List<String>> deviceIdsByAuthId = smtDeviceAuthorityRelationService.getRelationByAuthId(otherAuthIds).stream()
+				.collect(Collectors.groupingBy(SmtDeviceAuthorityRelation::getAuthorityId,
+						Collectors.mapping(SmtDeviceAuthorityRelation::getDeviceId, Collectors.toList())));
+		Map<Long, List<String>> otherDeviceIdsByVehicleId = new HashMap<>();
+		for (SmtVehicleApply otherAuth : otherAuthList) {
+			otherDeviceIdsByVehicleId.computeIfAbsent(otherAuth.getVehicleId(), k -> new ArrayList<>())
+					.addAll(deviceIdsByAuthId.getOrDefault(otherAuth.getAuthorityId(), Collections.emptyList()));
+		}
+		return otherDeviceIdsByVehicleId;
 	}
 
 	@Override
