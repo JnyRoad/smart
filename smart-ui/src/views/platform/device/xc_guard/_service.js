@@ -25,5 +25,11 @@ export const xcGuardApi = {
       url:  `/platform/device/auth/repeat/${deviceId}`,
       method: 'get'
     })
+  },
+  getDecommissionPlan (deviceId) {
+    return request({
+      url: `/platform/device/${deviceId}/decommission/plan`,
+      method: 'get'
+    })
   }
 }
