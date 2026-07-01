@@ -175,4 +175,56 @@ public class DeviceDecommissionServiceImplTest {
 		staffAuth.setAuthId(authId);
 		return staffAuth;
 	}
+
+	@Test
+	public void executeRevokesDeviceAndCascadeDeletesEmptyAuthority() {
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtDeviceAuthorityService authorityService = Mockito.mock(SmtDeviceAuthorityService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtVehicleApplyService vehicleApplyService = Mockito.mock(SmtVehicleApplyService.class);
+		DeviceDecommissionServiceImpl service = newService(relationService, authorityService,
+				staffAuthService, vehicleApplyService, Mockito.mock(SmtBusinessDeviceAuthService.class));
+
+		DeviceDecommissionPlan plan = new DeviceDecommissionPlan();
+		plan.setDeviceId("device-A");
+		DeviceDecommissionPlan.AffectedAuthority affected = new DeviceDecommissionPlan.AffectedAuthority();
+		affected.setAuthorityId(100);
+		affected.setRemainingDeviceCount(0);
+		affected.setWillCascadeDelete(true);
+		plan.setAffectedAuthorities(Collections.singletonList(affected));
+
+		service.execute(plan);
+
+		Mockito.verify(authorityService).revokeDeviceAccess(100, "device-A");
+		Mockito.verify(relationService).remove(Mockito.any());
+		Mockito.verify(staffAuthService).removeByAuthId(100);
+		Mockito.verify(vehicleApplyService).removeByAuthId(100);
+		Mockito.verify(authorityService).removeById(100);
+	}
+
+	@Test
+	public void executeOnlyUnbindsDeviceWhenAuthorityStaysAlive() {
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtDeviceAuthorityService authorityService = Mockito.mock(SmtDeviceAuthorityService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtVehicleApplyService vehicleApplyService = Mockito.mock(SmtVehicleApplyService.class);
+		DeviceDecommissionServiceImpl service = newService(relationService, authorityService,
+				staffAuthService, vehicleApplyService, Mockito.mock(SmtBusinessDeviceAuthService.class));
+
+		DeviceDecommissionPlan plan = new DeviceDecommissionPlan();
+		plan.setDeviceId("device-A");
+		DeviceDecommissionPlan.AffectedAuthority affected = new DeviceDecommissionPlan.AffectedAuthority();
+		affected.setAuthorityId(100);
+		affected.setRemainingDeviceCount(1);
+		affected.setWillCascadeDelete(false);
+		plan.setAffectedAuthorities(Collections.singletonList(affected));
+
+		service.execute(plan);
+
+		Mockito.verify(authorityService).revokeDeviceAccess(100, "device-A");
+		Mockito.verify(relationService).remove(Mockito.any());
+		Mockito.verify(staffAuthService, Mockito.never()).removeByAuthId(Mockito.anyInt());
+		Mockito.verify(vehicleApplyService, Mockito.never()).removeByAuthId(Mockito.anyInt());
+		Mockito.verify(authorityService, Mockito.never()).removeById(Mockito.anyInt());
+	}
 }
