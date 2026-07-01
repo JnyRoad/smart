@@ -7,7 +7,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.collect.Lists;
-import com.tce.smart.common.core.constant.enums.SuccessEnum;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.data.api.dto.msg.req.SignMsgReqDTO;
@@ -183,7 +182,9 @@ public class SmtWageSignServiceImpl extends ServiceImpl<SmtWageSignMapper, SmtWa
 				signMsgReqDTOS.add(signMsgReqDTO);
 			});
 			Result result = remoteSmsManageService.sendWageSign(signMsgReqDTOS);
-			if(result.getCode().equals(SuccessEnum.SUCCESS.getCode())) {
+			//注意：此处必须用 isSuccess()（判断依据是 CommonConstants.SUCCESS=0）；
+			//SuccessEnum 是另一套独立编码(SUCCESS=1)，与 Result 的编码含义相反，混用会导致成功/失败判断颠倒
+			if(result.isSuccess()) {
 				List<Integer> ids = vos.stream().map(WageSignVO::getId).collect(Collectors.toList());
 				return this.updateNotice(ids);
 			}
