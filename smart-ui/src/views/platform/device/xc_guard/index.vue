@@ -88,6 +88,7 @@
                             <el-button type="primary" @click="handleClear(item)" class="perm-btn" plain round>清空</el-button>
                             <el-button type="primary" @click="handleReissue(item)" class="perm-btn" plain round >重新下发</el-button>
                             <el-button type="primary" @click="permittedList(item)" class="perm-btn" plain round >通关人员</el-button>
+                            <el-button type="primary" @click="viewAuthorities(item)" class="perm-btn" plain round >所属权限组</el-button>
                           </div>
                         </div>
                       </div>
@@ -606,6 +607,41 @@ export default {
           serialNo: item.serialNo,
           deviceType: 2
         }
+      });
+    },
+    /**
+     * 查看设备当前绑定的权限组（只读查询，不涉及任何删除/跳转副作用）
+     */
+    viewAuthorities(item) {
+      var _this = this;
+      xcGuardApi.getDecommissionPlan(item.id).then(response => {
+        const plan = response.data.data || { affectedAuthorities: [] };
+        const affected = plan.affectedAuthorities || [];
+        const elm = _this.$createElement;
+        let content;
+        if (affected.length === 0) {
+          content = elm("p", null, "该设备当前未绑定任何权限组。");
+        } else {
+          const listItems = affected.map(auth => elm("li", null,
+            `${auth.authorityName}（${auth.staffCount} 名员工 / ${auth.vehicleCount} 辆车）`));
+          // 注意：此处不能用 .smallInfo class（那是 76x76px 的图标占位框，会把文字列表裁成一个小图标框），
+          // 沿用 confirmDecommission 中已验证过的写法，传 null。
+          content = elm("ul", null, listItems);
+        }
+        _this.$msgbox({
+          title: "所属权限组",
+          message: content,
+          showCancelButton: false,
+          confirmButtonText: "关闭",
+          customClass: "small_dialog",
+          center: true
+        }).catch(reason => {
+          // 纯只读提示弹窗，用户点击关闭/遮罩层/ESC 都会走到这里，不代表业务错误，仅记录原因用于排查
+          console.error(reason);
+        });
+      }).catch(error => {
+        console.error(error);
+        _this.$message.error("查询失败，请稍后重试");
       });
     },
     /**
