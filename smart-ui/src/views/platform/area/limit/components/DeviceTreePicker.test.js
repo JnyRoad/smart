@@ -107,4 +107,27 @@ describe('DeviceTreePicker', () => {
       .find(node => node.find('.el-tree-node__label').text() === 'B栋')
     expect(buildingBNode.classes()).toContain('is-expanded')
   })
+
+  it('分支节点(楼栋/楼层)的勾选框被禁用，不会把分支 id 混进 value', async () => {
+    // 预先勾选一个叶子设备，让树自动展开到 A栋/1F，这样分支节点会渲染出来，
+    // 不需要额外模拟展开操作
+    const wrapper = mount(DeviceTreePicker, {
+      propsData: { treeData: buildTreeData(), value: ['device-a1-01'] }
+    })
+    await wrapper.vm.$nextTick()
+
+    const buildingANode = wrapper.findAll('.el-tree-node').wrappers
+      .find(node => node.find('.el-tree-node__label').text() === 'A栋')
+    const buildingACheckbox = buildingANode.find('.el-checkbox__original')
+
+    // 断言 1：分支节点的勾选框在 DOM 上就是 disabled，用户点不了
+    expect(buildingACheckbox.attributes('disabled')).toBeTruthy()
+
+    // 断言 2：即使强行触发 change 事件模拟点击，也不会有 input 事件带出 building-a 这个分支 id，
+    // 双重保险里的“过滤 checkedKeys”兜底同样生效
+    await buildingACheckbox.setChecked()
+    const emittedInputs = wrapper.emitted('input') || []
+    const anyEmitContainsBranchId = emittedInputs.some(callArgs => callArgs[0].includes('building-a'))
+    expect(anyEmitContainsBranchId).toBe(false)
+  })
 })
