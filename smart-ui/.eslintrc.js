@@ -1,10 +1,9 @@
-// Lint baseline strategy (CR-C3-001):
+// Lint strategy (CR-C3-001):
 // - Extend eslint:recommended + plugin:vue/recommended for parser/plugin setup and rule coverage.
 // - Demote every inherited rule to "warn" so the ~150k-line legacy codebase keeps building;
 //   warnings make violations visible in review without blocking lint/build.
 // - no-debugger and no-empty are hard errors (legacy empty blocks were cleaned up in the
 //   no-empty-cleanup task; intentional empty catches carry explanatory comments instead).
-// - Existing violation counts are recorded in docs/lint-baseline.md; new code must not add to them.
 
 // Walks a config "extends" chain (eslint-plugin-vue@4 uses require.resolve paths) and
 // merges rules child-over-parent, matching ESLint's own resolution order.
