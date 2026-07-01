@@ -1,6 +1,7 @@
 package com.tce.smart.platform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.core.entity.SmtBusinessDeviceAuth;
@@ -19,6 +20,7 @@ import com.tce.smart.platform.service.SmtVehicleApplyService;
 import com.tce.smart.tool.enums.DeviceAuthorityEnum;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,8 +104,24 @@ public class DeviceDecommissionServiceImpl implements DeviceDecommissionService 
 	}
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void execute(DeviceDecommissionPlan plan) {
-		throw new UnsupportedOperationException("implemented in Task 4");
+		if (plan == null || CollUtil.isEmpty(plan.getAffectedAuthorities())) {
+			return;
+		}
+		String deviceId = plan.getDeviceId();
+		for (DeviceDecommissionPlan.AffectedAuthority affected : plan.getAffectedAuthorities()) {
+			smtDeviceAuthorityService.revokeDeviceAccess(affected.getAuthorityId(), deviceId);
+			smtDeviceAuthorityRelationService.remove(
+					Wrappers.<SmtDeviceAuthorityRelation>lambdaQuery()
+							.eq(SmtDeviceAuthorityRelation::getAuthorityId, affected.getAuthorityId())
+							.eq(SmtDeviceAuthorityRelation::getDeviceId, deviceId));
+			if (affected.isWillCascadeDelete()) {
+				smtStaffDeviceAuthService.removeByAuthId(affected.getAuthorityId());
+				smtVehicleApplyService.removeByAuthId(affected.getAuthorityId());
+				smtDeviceAuthorityService.removeById(affected.getAuthorityId());
+			}
+		}
 	}
 
 	@Override
