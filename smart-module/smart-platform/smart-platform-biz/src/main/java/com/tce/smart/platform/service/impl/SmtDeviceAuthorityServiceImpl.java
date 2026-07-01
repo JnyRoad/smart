@@ -873,6 +873,20 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 		return noExist;
 	}
 
+	@Override
+	public void revokeDeviceAccess(Integer authorityId, String deviceId) {
+		SmtDeviceAuthority authority = this.getById(authorityId);
+		if (authority == null) {
+			return;
+		}
+		List<String> devicesToRemove = Collections.singletonList(deviceId);
+		if (DeviceAuthTypeEnum.PERSON.getCode().equals(authority.getType())) {
+			updateStaffFaceAuthOptimized(authorityId, devicesToRemove, Collections.emptyList());
+		} else if (DeviceAuthTypeEnum.VEHICLE.getCode().equals(authority.getType())) {
+			updateVehicleAuthOptimized(authorityId, devicesToRemove, Collections.emptyList());
+		}
+	}
+
 	/**
 	 * 批量更新设备关联关系
 	 *

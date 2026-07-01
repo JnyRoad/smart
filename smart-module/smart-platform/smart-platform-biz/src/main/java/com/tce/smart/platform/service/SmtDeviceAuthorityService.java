@@ -86,4 +86,12 @@ public interface SmtDeviceAuthorityService extends IService<SmtDeviceAuthority> 
 	Boolean checkIsUsed(Integer type, String deviceId);
 
 	List<String> deviceAuthRelationAdd(DeviceAuthRelationAddReqDTO reqDTO);
+
+	/**
+	 * 撤销某权限组下所有人员/车辆在指定设备上的访问权限，权限组绑定的其他设备不受影响。
+	 * 用于设备下线时按设备精确回收权限，不删除员工/车辆与权限组的绑定关系本身。
+	 * @param authorityId 权限组ID
+	 * @param deviceId 要撤销权限的设备ID
+	 */
+	void revokeDeviceAccess(Integer authorityId, String deviceId);
 }
