@@ -40,7 +40,9 @@ module.exports = {
     // (eslint 4 syntax: false = read-only)
     tce: false,
     axios: false,
-    CryptoJS: false
+    CryptoJS: false,
+    // globalThis 是 ES2020 标准全局对象，仅因 env 未声明 es2020 才被 no-undef 误报，非项目自定义全局
+    globalThis: false
   },
   extends: ['eslint:recommended', 'plugin:vue/recommended'],
   rules: Object.assign(inheritedRules, {

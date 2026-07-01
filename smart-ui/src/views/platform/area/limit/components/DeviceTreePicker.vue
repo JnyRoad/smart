@@ -8,34 +8,45 @@
         clearable
         class="device-tree-picker__search"
       >
-        <i slot="prefix" class="el-icon-search"></i>
+        <i
+          slot="prefix"
+          class="el-icon-search"/>
       </el-input>
       <el-tree
-        :key="treeRenderKey"
         ref="tree"
-        class="device-tree-picker__tree"
+        :key="treeRenderKey"
         :data="treeData"
-        node-key="id"
-        show-checkbox
-        check-strictly
         :props="elProps"
         :filter-node-method="filterNode"
         :default-expanded-keys="expandedKeys"
         :default-checked-keys="value"
+        class="device-tree-picker__tree"
+        node-key="id"
+        show-checkbox
+        check-strictly
         @check="handleCheck"
-      ></el-tree>
+      />
     </div>
     <div class="device-tree-picker__col device-tree-picker__col--selected">
       <div class="device-tree-picker__selected-head">
         <span>已选设备（{{ selectedList.length }}）</span>
-        <el-button type="text" size="mini" @click="clearAll">清空</el-button>
+        <el-button
+          type="text"
+          size="mini"
+          @click="clearAll">清空</el-button>
       </div>
       <ul class="device-tree-picker__selected-list">
-        <li v-for="item in selectedList" :key="item.id">
+        <li
+          v-for="item in selectedList"
+          :key="item.id">
           <span>{{ item.label }}</span>
-          <i class="el-icon-close" @click="removeSelected(item.id)"></i>
+          <i
+            class="el-icon-close"
+            @click="removeSelected(item.id)"/>
         </li>
-        <li v-if="selectedList.length === 0" class="device-tree-picker__empty">
+        <li
+          v-if="selectedList.length === 0"
+          class="device-tree-picker__empty">
           还没有选中设备，从左侧勾选或搜索添加
         </li>
       </ul>
@@ -74,6 +85,14 @@ export default {
       }
     }
   },
+  computed: {
+    selectedList () {
+      return (this.value || []).map(id => ({
+        id: id,
+        label: this.leafNameById[id] || id
+      }))
+    }
+  },
   watch: {
     treeData: {
       immediate: true,
@@ -94,14 +113,6 @@ export default {
           this.$refs.tree.filter(val)
         }
       })
-    }
-  },
-  computed: {
-    selectedList () {
-      return (this.value || []).map(id => ({
-        id: id,
-        label: this.leafNameById[id] || id
-      }))
     }
   },
   methods: {

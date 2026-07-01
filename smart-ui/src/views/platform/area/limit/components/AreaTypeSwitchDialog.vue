@@ -1,7 +1,7 @@
 <template>
   <el-dialog
-    title="变更通关权限性质"
     :visible.sync="innerVisible"
+    title="变更通关权限性质"
     width="480px"
     @closed="reset"
   >
@@ -14,10 +14,14 @@
         <span>性质变更</span>
         <strong>{{ areaTypeLabel(authority.areaType) }} → {{ areaTypeLabel(targetAreaType) }}</strong>
       </p>
-      <div v-if="conflicts.length" class="area-type-switch__conflicts">
+      <div
+        v-if="conflicts.length"
+        class="area-type-switch__conflicts">
         <p class="area-type-switch__conflicts-title">以下设备已被其他权限组占用，无法切换：</p>
         <table>
-          <tr v-for="item in conflicts" :key="item.deviceId">
+          <tr
+            v-for="item in conflicts"
+            :key="item.deviceId">
             <td>{{ item.deviceName }}</td>
             <td>{{ item.conflictAuthorityName }}</td>
           </tr>
@@ -30,10 +34,10 @@
     <div slot="footer">
       <el-button @click="innerVisible = false">取消</el-button>
       <el-button
-        type="primary"
-        class="area-type-switch__confirm"
         :loading="submitting"
         :disabled="conflicts.length > 0"
+        type="primary"
+        class="area-type-switch__confirm"
         @click="submit"
       >确定切换</el-button>
     </div>
