@@ -174,9 +174,16 @@ public class SmtStaffStatementDetailServiceImpl extends ServiceImpl<SmtStaffStat
 				.map(SmtStaffStatementDTO::getBadge).distinct().collect(Collectors.toList());
 		Map<String, Integer> inRoomNumMap = smtSdMeterreadService.getInRoomNumBatch(pageBadges, smtStaffStatementReqDTO.getMeterMonth());
 
+		// 批量查询本页涉及的宿舍楼，避免下面 forEach 里按行循环调用 getById
+		List<Integer> pageDormitoryIds = staffSDStatementDetail.getRecords().stream()
+				.map(item -> roomList.stream().filter(s -> s.getId().equals(item.getRoomId())).findFirst().get().getDormitoryId())
+				.distinct().collect(Collectors.toList());
+		Map<Integer, SmtDormitory> dormitoryMap = CollectionUtil.isEmpty(pageDormitoryIds) ? new HashMap<>()
+				: smtDormitoryService.listByIds(pageDormitoryIds).stream().collect(Collectors.toMap(SmtDormitory::getId, dormitory -> dormitory));
+
 		staffSDStatementDetail.getRecords().forEach(item -> {
 			SmtDormitoryRoom dormitoryRoom = roomList.stream().filter(s -> s.getId().equals(item.getRoomId())).findFirst().get();
-			SmtDormitory dormitory = smtDormitoryService.getById(dormitoryRoom.getDormitoryId());
+			SmtDormitory dormitory = dormitoryMap.get(dormitoryRoom.getDormitoryId());
 			if(StringUtils.isBlank(item.getName())){
 				item.setName(item.getRoomInName());
 			}

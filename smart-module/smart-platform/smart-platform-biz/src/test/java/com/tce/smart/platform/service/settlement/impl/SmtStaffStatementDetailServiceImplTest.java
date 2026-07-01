@@ -1,15 +1,23 @@
 package com.tce.smart.platform.service.settlement.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.security.service.SmartUser;
+import com.tce.smart.platform.api.dto.req.SmtStaffStatementReqDTO;
 import com.tce.smart.platform.api.dto.req.visitormanage.StaffStatementWithDorReqDTO;
 import com.tce.smart.platform.core.dto.SmtStaffStatementDTO;
+import com.tce.smart.platform.core.entity.SmtDormitory;
+import com.tce.smart.platform.core.entity.SmtDormitoryRoom;
 import com.tce.smart.platform.core.mapper.SmtStaffStatementDetailMapper;
+import com.tce.smart.platform.service.SmtDormitoryRoomService;
+import com.tce.smart.platform.service.SmtDormitoryService;
 import com.tce.smart.platform.service.SmtDormitoryStaffHistoryService;
 import com.tce.smart.platform.service.settlement.SmtSdMeterreadService;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,11 +26,14 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 覆盖 getSDMeterreadWithDor（“按楼栋查询员工水电结算记录”，对应 /by-dor 导出接口）。
@@ -126,6 +137,75 @@ public class SmtStaffStatementDetailServiceImplTest {
 		Mockito.verify(staffHistoryService, Mockito.times(1)).getByBadgeBatch(Collections.emptyList());
 	}
 
+	/**
+	 * 覆盖 getStaffSDStatementDetailNew（/platform/dormitory/staff/statementdetail/new-page 分页接口）。
+	 * <p>
+	 * 原实现在 forEach 里对每一行都同步调用一次 smtDormitoryService.getById(dormitoryId)，
+	 * 属于按行循环查询数据库的 N+1 反模式。这里锁定“listByIds 只调用一次、getById 一次都不调用”
+	 * 这一行为，防止再退化回按行循环查询。
+	 */
+	@Test
+	public void getStaffSDStatementDetailNewBatchesDormitoryLookupInsteadOfPerRowQueries() throws Exception {
+		SmtStaffStatementDetailMapper detailMapper = Mockito.mock(SmtStaffStatementDetailMapper.class);
+		SmtDormitoryRoomService dormitoryRoomService = Mockito.mock(SmtDormitoryRoomService.class);
+		SmtDormitoryService dormitoryService = Mockito.mock(SmtDormitoryService.class);
+		SmtSdMeterreadService meterreadService = Mockito.mock(SmtSdMeterreadService.class);
+		SmtStaffStatementDetailServiceImpl service = serviceForStatementDetailNew(detailMapper, dormitoryRoomService, dormitoryService);
+
+		Date meterMonth = new SimpleDateFormat("yyyy-MM-dd").parse("2026-06-01");
+
+		// 房间101/102同属宿舍楼10，房间201属于宿舍楼20 —— 同时覆盖同楼栋去重与跨楼栋两种情形
+		List<SmtDormitoryRoom> rooms = Arrays.asList(
+				room(101, 10),
+				room(102, 10),
+				room(201, 20)
+		);
+		Mockito.when(dormitoryRoomService.list(Mockito.any())).thenReturn(rooms);
+
+		List<SmtStaffStatementDTO> rows = Arrays.asList(
+				statementRow("badge-1", 101, 9999, meterMonth),
+				statementRow("badge-2", 102, 9999, meterMonth),
+				statementRow("badge-3", 201, 9999, meterMonth)
+		);
+		Page<SmtStaffStatementDTO> mapperResult = new Page<>(1, 10);
+		mapperResult.setRecords(rows);
+		mapperResult.setTotal(rows.size());
+		Mockito.when(detailMapper.getStaffSDStatementDetailNew(Mockito.any(), Mockito.any(), Mockito.anyList(), Mockito.anyList()))
+				.thenReturn(mapperResult);
+
+		Mockito.when(meterreadService.getInRoomNumBatch(Mockito.anyList(), Mockito.eq(meterMonth)))
+				.thenReturn(new HashMap<>());
+
+		Mockito.when(dormitoryService.listByIds(Mockito.anyCollection())).thenReturn(Arrays.asList(
+				dormitory(10, "宿舍A"),
+				dormitory(20, "宿舍B")
+		));
+
+		SmtStaffStatementReqDTO query = SmtStaffStatementReqDTO.builder()
+				.dormitoryId(1)
+				.parkId(9999)
+				.meterMonth(meterMonth)
+				.build();
+
+		Page page = new Page(1, 10);
+		IPage<SmtStaffStatementDTO> result = service.getStaffSDStatementDetailNew(page, query, meterreadService);
+
+		// 核心回归点：批量方法只调用一次，而不是按结果集行数循环调用 getById
+		ArgumentCaptor<Collection> idsCaptor = ArgumentCaptor.forClass(Collection.class);
+		Mockito.verify(dormitoryService, Mockito.times(1)).listByIds(idsCaptor.capture());
+		Mockito.verify(dormitoryService, Mockito.never()).getById(Mockito.any());
+		Set<Object> capturedIds = new HashSet<>(idsCaptor.getValue());
+		Assert.assertEquals(new HashSet<>(Arrays.asList(10, 20)), capturedIds);
+
+		Map<Integer, SmtStaffStatementDTO> byRoomId = new HashMap<>();
+		for (SmtStaffStatementDTO dto : result.getRecords()) {
+			byRoomId.put(dto.getRoomId(), dto);
+		}
+		Assert.assertEquals("宿舍A", byRoomId.get(101).getDormitoryName());
+		Assert.assertEquals("宿舍A", byRoomId.get(102).getDormitoryName());
+		Assert.assertEquals("宿舍B", byRoomId.get(201).getDormitoryName());
+	}
+
 	private SmtStaffStatementDTO row(String badge, String dormitoryName, String roomName, String name, Date meterMonth) {
 		return SmtStaffStatementDTO.builder()
 				.badge(badge)
@@ -144,6 +224,44 @@ public class SmtStaffStatementDetailServiceImplTest {
 		SmtStaffStatementDetailServiceImpl service = new SmtStaffStatementDetailServiceImpl();
 		setField(service, "smtStaffStatementDetailMapper", detailMapper);
 		setField(service, "smtDormitoryStaffHistoryService", staffHistoryService);
+		return service;
+	}
+
+	private SmtStaffStatementDTO statementRow(String badge, Integer roomId, Integer parkId, Date meterMonth) {
+		return SmtStaffStatementDTO.builder()
+				.badge(badge)
+				.roomId(roomId)
+				.parkId(parkId)
+				.fee(BigDecimal.TEN)
+				.inDays(10)
+				.remarkDays(0)
+				.meterMonth(meterMonth)
+				.build();
+	}
+
+	private SmtDormitoryRoom room(Integer id, Integer dormitoryId) {
+		return SmtDormitoryRoom.builder()
+				.id(id)
+				.dormitoryId(dormitoryId)
+				.roomName(id)
+				.build();
+	}
+
+	private SmtDormitory dormitory(Integer id, String dormitoryName) {
+		SmtDormitory dormitory = new SmtDormitory();
+		dormitory.setId(id);
+		dormitory.setDormitoryName(dormitoryName);
+		return dormitory;
+	}
+
+	private SmtStaffStatementDetailServiceImpl serviceForStatementDetailNew(SmtStaffStatementDetailMapper detailMapper,
+																			SmtDormitoryRoomService dormitoryRoomService,
+																			SmtDormitoryService dormitoryService) throws Exception {
+		SmtStaffStatementDetailServiceImpl service = new SmtStaffStatementDetailServiceImpl();
+		setField(service, "smtStaffStatementDetailMapper", detailMapper);
+		setField(service, "smtDormitoryRoomService", dormitoryRoomService);
+		setField(service, "smtDormitoryService", dormitoryService);
+		setField(service, "xcParkId", 0);
 		return service;
 	}
 
