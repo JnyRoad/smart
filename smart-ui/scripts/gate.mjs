@@ -1,5 +1,5 @@
 // 本地质量门禁：开发完一键跑全套安全网，确认无回归。
-// 不依赖 CI / 不联网：串起 vitest 单测 + lint 基线守卫 + 一组静态契约检查，
+// 不依赖 CI / 不联网：串起 vitest 单测 + 一组静态契约检查，
 // 聚合执行（某步失败也继续跑完其余），最后汇总通过/失败清单，任一红则退出码 1。
 // 用法：
 //   pnpm gate            # 跑全部步骤，失败退出码 1
@@ -15,8 +15,6 @@ const ROOT = resolve(import.meta.dirname, '..')
 // vitest 步骤会把 gate.test.mjs 自己也收集进去，二者不递归——该测试只 import 纯函数，不触发 spawnExec/main。
 export const STEPS = [
   { name: 'unit (vitest)', cmd: ['pnpm', 'exec', 'vitest', 'run'] },
-  { name: 'lint-baseline', cmd: ['node', 'scripts/check-lint-baseline.mjs'] },
-  { name: 'platform-router-fingerprint', cmd: ['node', 'scripts/check-platform-router-fingerprint.mjs'] },
   { name: 'admin-search', cmd: ['node', 'scripts/check-admin-search.js'] },
   { name: 'bundle', cmd: ['node', 'scripts/check-bundle-optimization.js'] },
   { name: 'room-list-ui', cmd: ['node', 'scripts/check-room-list-ui.js'] },

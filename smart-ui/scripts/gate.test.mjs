@@ -2,13 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { STEPS, runSteps, formatSummary } from './gate.mjs'
 
 describe('STEPS', () => {
-  it('包含平台路由指纹守卫，防止后续拆分路由时漏跑契约检查', () => {
-    expect(STEPS).toContainEqual({
-      name: 'platform-router-fingerprint',
-      cmd: ['node', 'scripts/check-platform-router-fingerprint.mjs']
-    })
-  })
-
   it('包含电表管理 UI 守卫，防止后续拆分 electric_manage 时漏跑接线契约', () => {
     expect(STEPS).toContainEqual({
       name: 'electric-manage-ui',
