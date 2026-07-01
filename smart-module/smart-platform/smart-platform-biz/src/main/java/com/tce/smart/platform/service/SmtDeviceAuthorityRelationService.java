@@ -30,4 +30,6 @@ public interface SmtDeviceAuthorityRelationService extends IService<SmtDeviceAut
 	List<SmtDeviceAuthorityRelation> getRelationAuth(Integer parkId, Integer businessCode, DeviceAuthorityEnum deviceAuthorityEnum);
 
 	List<SmtDeviceAuthorityRelation> getMulRelationAuth(Long staffId, List<Integer> parkIds, Integer businessCode, DeviceAuthorityEnum deviceAuthorityEnum);
+
+	List<SmtDeviceAuthorityRelation> getRelationByDeviceId(String deviceId);
 }

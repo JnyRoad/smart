@@ -76,6 +76,14 @@ public class SmtDeviceAuthorityRelationServiceImpl extends ServiceImpl<SmtDevice
 	}
 
 	@Override
+	public List<SmtDeviceAuthorityRelation> getRelationByDeviceId(String deviceId) {
+		return this.list(
+				Wrappers.<SmtDeviceAuthorityRelation>query().lambda()
+						.eq(SmtDeviceAuthorityRelation::getDeviceId, deviceId)
+		);
+	}
+
+	@Override
 	public List<SmtDeviceAuthorityRelation> getRelationAuth(Integer parkId, Integer businessCode, DeviceAuthorityEnum deviceAuthorityEnum) {
 		SmtBusinessDeviceAuth auth = smtBusinessDeviceAuthService.getDeviceAuth(parkId, businessCode);
 		if (Objects.nonNull(auth)) {
