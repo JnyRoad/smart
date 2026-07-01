@@ -88,7 +88,13 @@
                             <el-button type="primary" @click="handleClear(item)" class="perm-btn" plain round>清空</el-button>
                             <el-button type="primary" @click="handleReissue(item)" class="perm-btn" plain round >重新下发</el-button>
                             <el-button type="primary" @click="permittedList(item)" class="perm-btn" plain round >通关人员</el-button>
-                            <el-button type="primary" @click="viewAuthorities(item)" class="perm-btn" plain round >所属权限组</el-button>
+                            <el-button
+                              type="primary"
+                              class="perm-btn"
+                              plain
+                              round
+                              @click="viewAuthorities(item)"
+                            >所属权限组</el-button>
                           </div>
                         </div>
                       </div>
