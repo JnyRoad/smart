@@ -227,4 +227,39 @@ public class DeviceDecommissionServiceImplTest {
 		Mockito.verify(vehicleApplyService, Mockito.never()).removeByAuthId(Mockito.anyInt());
 		Mockito.verify(authorityService, Mockito.never()).removeById(Mockito.anyInt());
 	}
+
+	@Test
+	public void decommissionDeviceRunsPlanExecuteThenDeletesDevice() {
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		Mockito.when(relationService.getRelationByDeviceId("device-A")).thenReturn(Collections.emptyList());
+		SmtDeviceService deviceService = Mockito.mock(SmtDeviceService.class);
+		Mockito.when(deviceService.deleteDevice("device-A")).thenReturn(true);
+
+		DeviceDecommissionServiceImpl service = new DeviceDecommissionServiceImpl(relationService,
+				Mockito.mock(SmtDeviceAuthorityService.class),
+				Mockito.mock(SmtStaffDeviceAuthService.class),
+				Mockito.mock(SmtVehicleApplyService.class),
+				Mockito.mock(SmtBusinessDeviceAuthService.class),
+				deviceService);
+
+		com.tce.smart.common.core.model.Result result = service.decommissionDevice("device-A");
+
+		Assert.assertTrue(result.isSuccess());
+		Mockito.verify(relationService).getRelationByDeviceId("device-A");
+		Mockito.verify(deviceService).deleteDevice("device-A");
+	}
+
+	@Test
+	public void decommissionDeviceRejectsBlankDeviceId() {
+		DeviceDecommissionServiceImpl service = newService(
+				Mockito.mock(SmtDeviceAuthorityRelationService.class),
+				Mockito.mock(SmtDeviceAuthorityService.class),
+				Mockito.mock(SmtStaffDeviceAuthService.class),
+				Mockito.mock(SmtVehicleApplyService.class),
+				Mockito.mock(SmtBusinessDeviceAuthService.class));
+
+		com.tce.smart.common.core.model.Result result = service.decommissionDevice("  ");
+
+		Assert.assertFalse(result.isSuccess());
+	}
 }
