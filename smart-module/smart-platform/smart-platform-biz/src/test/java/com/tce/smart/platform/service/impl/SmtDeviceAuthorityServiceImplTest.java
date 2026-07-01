@@ -3,6 +3,7 @@ package com.tce.smart.platform.service.impl;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationDelReqDTO;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthority;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthorityRelation;
+import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.entity.SmtStaffDeviceAuth;
 import com.tce.smart.platform.core.entity.SmtVehicleApply;
 import com.tce.smart.platform.core.mapper.SmtDeviceAuthorityMapper;
@@ -263,6 +264,54 @@ public class SmtDeviceAuthorityServiceImplTest {
 		relation.setAuthorityId(authId);
 		relation.setDeviceId(deviceId);
 		return relation;
+	}
+
+	@Test
+	public void revokeDeviceAccessOnlyRemovesGivenDeviceForPersonAuthority() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtBatchDeviceTaskService batchDeviceTaskService = Mockito.mock(SmtBatchDeviceTaskService.class);
+		SmtDeviceAuthorityServiceImpl service = new SmtDeviceAuthorityServiceImpl(
+				Mockito.mock(SmtDeviceService.class),
+				authorityMapper,
+				relationService,
+				Mockito.mock(SmtBusinessDeviceAuthService.class),
+				staffAuthService,
+				Mockito.mock(SmtDeviceMapper.class),
+				Mockito.mock(SmtDeviceTaskService.class),
+				Mockito.mock(SmtIscDeviceTaskService.class),
+				Mockito.mock(SmtVehicleApplyService.class),
+				staffService,
+				Mockito.mock(SmtVehicleMapper.class),
+				Mockito.mock(SmtIscDeviceTaskServiceImpl.class),
+				batchDeviceTaskService);
+		setField(service, "baseMapper", authorityMapper);
+
+		SmtDeviceAuthority authority = new SmtDeviceAuthority();
+		authority.setId(100);
+		authority.setType(DeviceAuthTypeEnum.PERSON.getCode());
+		Mockito.when(authorityMapper.selectById(100)).thenReturn(authority);
+
+		SmtStaffDeviceAuth staffAuth = staffAuth(1, 1001L, 100);
+		Mockito.when(staffAuthService.list(Mockito.any())).thenReturn(Collections.singletonList(staffAuth));
+
+		SmtStaff staff = new SmtStaff();
+		staff.setId(1001L);
+		staff.setBadge("B001");
+		staff.setName("张三");
+		staff.setFacePicId("pic-1");
+		Mockito.when(staffService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
+
+		service.revokeDeviceAccess(100, "device-A");
+
+		ArgumentCaptor<List> delListCaptor = ArgumentCaptor.forClass(List.class);
+		ArgumentCaptor<List> addListCaptor = ArgumentCaptor.forClass(List.class);
+		Mockito.verify(batchDeviceTaskService).createStaffFaceAuthTasks(
+				Mockito.anyList(), delListCaptor.capture(), addListCaptor.capture());
+		Assert.assertEquals(Collections.singletonList("device-A"), delListCaptor.getValue());
+		Assert.assertTrue(addListCaptor.getValue().isEmpty());
 	}
 
 	private void setField(Object target, String name, Object value) throws Exception {
