@@ -54,6 +54,11 @@
             >删除</el-button>
             <el-button
               type="text"
+              icon="el-icon-refresh"
+              @click="handleAreaTypeSwitch(scope.row)"
+            >变更性质</el-button>
+            <el-button
+              type="text"
               icon="el-icon-info"
               v-if="scope.row.type === 1"
               @click="handlePerson(scope.row,scope.row.$index)"
@@ -66,6 +71,11 @@
             >关联内部车辆</el-button>
           </template>
         </avue-crud>
+        <AreaTypeSwitchDialog
+          :visible.sync="areaTypeSwitchVisible"
+          :authority="areaTypeSwitchTarget"
+          @success="getList(page, searchForm)"
+        ></AreaTypeSwitchDialog>
       </section>
     </el-scrollbar>
   </div>
@@ -75,9 +85,11 @@
 import { fetchList, delObj } from "@/api/platform/area/limit";
 import { tableOption } from "@/const/crud/platform/area/limit";
 import { mapGetters } from "vuex";
+import AreaTypeSwitchDialog from './components/AreaTypeSwitchDialog.vue'
 
 export default {
   name: "limit",
+  components: { AreaTypeSwitchDialog },
   data() {
     return {
       searchForm: {
@@ -92,7 +104,9 @@ export default {
         total: 0, // 总页数
         currentPage: 1, // 当前页数
         pageSize: 20 // 每页显示多少条
-      }
+      },
+      areaTypeSwitchVisible: false,
+      areaTypeSwitchTarget: {}
     };
   },
   created() {
@@ -144,6 +158,11 @@ export default {
       //删除
       //this.$refs.crud.rowDel(row, index);
       this.rowDel(row, index);
+    },
+    handleAreaTypeSwitch(row) {
+      // 打开变更性质弹窗
+      this.areaTypeSwitchTarget = row;
+      this.areaTypeSwitchVisible = true;
     },
     handlePerson(row, index) {
       const src = `/platform/area/limit/personDetail/${row.id}/${row.type}`;
