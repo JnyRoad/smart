@@ -5,7 +5,6 @@ import com.alibaba.druid.sql.ast.statement.SQLForeignKeyImpl;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.tce.smart.common.core.constant.enums.SuccessEnum;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.BeanUtils;
@@ -153,7 +152,9 @@ public class SmtEhrSetUpServiceImpl extends ServiceImpl<SmtEhrSetUpMapper, SmtEh
 				signMsgReqDTOs.add(signMsgReqDTO);
 			});
 			Result result = remoteSmsManageService.sendWageSign(signMsgReqDTOs);
-			if (result.getCode().equals(SuccessEnum.SUCCESS.getCode())) {
+			//注意：此处必须用 isSuccess()（判断依据是 CommonConstants.SUCCESS=0）；
+			//SuccessEnum 是另一套独立编码(SUCCESS=1)，与 Result 的编码含义相反，混用会导致成功/失败判断颠倒
+			if (result.isSuccess()) {
 				List<Integer> ids = vos.stream().map(WageSignVO::getId).collect(Collectors.toList());
 				smtWageSignService.updateNotice(ids);
 			}
@@ -180,7 +181,9 @@ public class SmtEhrSetUpServiceImpl extends ServiceImpl<SmtEhrSetUpMapper, SmtEh
 				signMsgReqDTOs.add(signMsgReqDTO);
 			});
 			Result result = remoteSmsManageService.sendAttendanceSign(signMsgReqDTOs);
-			if (result.getCode().equals(SuccessEnum.SUCCESS.getCode())) {
+			//注意：此处必须用 isSuccess()（判断依据是 CommonConstants.SUCCESS=0）；
+			//SuccessEnum 是另一套独立编码(SUCCESS=1)，与 Result 的编码含义相反，混用会导致成功/失败判断颠倒
+			if (result.isSuccess()) {
 				List<Long> ids = vos.stream().map(AttendanceSignVO::getId).collect(Collectors.toList());
 				smtAttendanceSignService.updateNotice(ids);
 			}
