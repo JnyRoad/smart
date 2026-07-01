@@ -75,7 +75,7 @@
           :visible.sync="areaTypeSwitchVisible"
           :authority="areaTypeSwitchTarget"
           @success="getList(page, searchForm)"
-        ></AreaTypeSwitchDialog>
+        />
       </section>
     </el-scrollbar>
   </div>

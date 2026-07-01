@@ -28,7 +28,11 @@
       </div>
     </section>
     <div slot="footer">
-      <el-button type="primary" :loading="exporting" @click="download">导 出</el-button>
+      <el-button
+        :loading="exporting"
+        type="primary"
+        @click="download"
+      >导 出</el-button>
       <el-button type="primary" plain @click="cancel">关 闭</el-button>
     </div>
   </el-dialog>
