@@ -1,6 +1,10 @@
 package com.tce.smart.platform.service.impl;
 
+import com.tce.smart.platform.api.dto.req.AreaTypeSwitchReqDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationDelReqDTO;
+import com.tce.smart.platform.api.dto.resp.AreaTypeConflictDeviceVO;
+import com.tce.smart.platform.api.dto.resp.AreaTypeSwitchRespDTO;
+import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthority;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthorityRelation;
 import com.tce.smart.platform.core.entity.SmtStaffDeviceAuth;
@@ -162,6 +166,150 @@ public class SmtDeviceAuthorityServiceImplTest {
 		Mockito.verify(vehicleApplyService, Mockito.times(1)).list(Mockito.any());
 		Mockito.verify(vehicleApplyService, Mockito.times(3))
 				.removeAuthToDevice(Mockito.any(SmtVehicleApply.class), Mockito.anyList());
+	}
+
+	@Test
+	public void switchAreaTypeUpdatesWhenNoConflictExists() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceAuthorityServiceImpl service = newService(authorityMapper, relationService, staffAuthService);
+		setField(service, "baseMapper", authorityMapper);
+
+		SmtDeviceAuthority authority = new SmtDeviceAuthority();
+		authority.setId(100);
+		authority.setParkId(1);
+		authority.setAreaType(1);
+		Mockito.when(authorityMapper.selectById(100)).thenReturn(authority);
+		Mockito.when(authorityMapper.findAreaTypeConflicts(100, 0)).thenReturn(Collections.emptyList());
+		Mockito.when(authorityMapper.updateById(Mockito.any(SmtDeviceAuthority.class))).thenReturn(1);
+
+		AreaTypeSwitchReqDTO reqDTO = new AreaTypeSwitchReqDTO();
+		reqDTO.setId(100);
+		reqDTO.setAreaType(0);
+
+		Result<AreaTypeSwitchRespDTO> result = service.switchAreaType(reqDTO, Collections.singletonList(1));
+
+		Assert.assertTrue(result.getData().isSuccess());
+		Assert.assertTrue(result.getData().getConflicts().isEmpty());
+		ArgumentCaptor<SmtDeviceAuthority> updateCaptor = ArgumentCaptor.forClass(SmtDeviceAuthority.class);
+		Mockito.verify(authorityMapper).updateById(updateCaptor.capture());
+		Assert.assertEquals(Integer.valueOf(100), updateCaptor.getValue().getId());
+		Assert.assertEquals(Integer.valueOf(0), updateCaptor.getValue().getAreaType());
+		// 核心回归点：不写库无关的下游数据，切换只应该动 area_type 这一个字段
+		// 项目里 Mockito 版本较旧（Spring Boot 2.1 默认管理的 2.x），没有 verifyNoInteractions，
+		// 用 verifyZeroInteractions 代替
+		Mockito.verifyZeroInteractions(relationService, staffAuthService);
+	}
+
+	@Test
+	public void switchAreaTypeBlocksAndListsConflictsWithoutWriting() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceAuthorityServiceImpl service = newService(authorityMapper, relationService, staffAuthService);
+		setField(service, "baseMapper", authorityMapper);
+
+		SmtDeviceAuthority authority = new SmtDeviceAuthority();
+		authority.setId(100);
+		authority.setParkId(1);
+		authority.setAreaType(1);
+		Mockito.when(authorityMapper.selectById(100)).thenReturn(authority);
+
+		AreaTypeConflictDeviceVO conflict = new AreaTypeConflictDeviceVO();
+		conflict.setDeviceId("device-A");
+		conflict.setDeviceName("1F-2区-超黑面检机-03");
+		conflict.setConflictAuthorityId(200);
+		conflict.setConflictAuthorityName("门禁_AB栋连廊");
+		Mockito.when(authorityMapper.findAreaTypeConflicts(100, 0)).thenReturn(Collections.singletonList(conflict));
+
+		AreaTypeSwitchReqDTO reqDTO = new AreaTypeSwitchReqDTO();
+		reqDTO.setId(100);
+		reqDTO.setAreaType(0);
+
+		Result<AreaTypeSwitchRespDTO> result = service.switchAreaType(reqDTO, Collections.singletonList(1));
+
+		Assert.assertFalse(result.getData().isSuccess());
+		Assert.assertEquals(1, result.getData().getConflicts().size());
+		Assert.assertEquals("device-A", result.getData().getConflicts().get(0).getDeviceId());
+		// 核心回归点：存在冲突时绝不写库
+		Mockito.verify(authorityMapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	@Test
+	public void switchAreaTypeIsIdempotentWhenTargetEqualsCurrent() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceAuthorityServiceImpl service = newService(authorityMapper, relationService, staffAuthService);
+		setField(service, "baseMapper", authorityMapper);
+
+		SmtDeviceAuthority authority = new SmtDeviceAuthority();
+		authority.setId(100);
+		authority.setParkId(1);
+		authority.setAreaType(1);
+		Mockito.when(authorityMapper.selectById(100)).thenReturn(authority);
+
+		AreaTypeSwitchReqDTO reqDTO = new AreaTypeSwitchReqDTO();
+		reqDTO.setId(100);
+		reqDTO.setAreaType(1);
+
+		Result<AreaTypeSwitchRespDTO> result = service.switchAreaType(reqDTO, Collections.singletonList(1));
+
+		Assert.assertTrue(result.getData().isSuccess());
+		// 核心回归点：目标性质和当前一致时幂等短路，既不查冲突也不写库
+		Mockito.verify(authorityMapper, Mockito.never()).findAreaTypeConflicts(Mockito.anyInt(), Mockito.anyInt());
+		Mockito.verify(authorityMapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	@Test
+	public void switchAreaTypeSucceedsWhenAuthorityHasNoDevices() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceAuthorityServiceImpl service = newService(authorityMapper, relationService, staffAuthService);
+		setField(service, "baseMapper", authorityMapper);
+
+		SmtDeviceAuthority authority = new SmtDeviceAuthority();
+		authority.setId(100);
+		authority.setParkId(1);
+		authority.setAreaType(1);
+		Mockito.when(authorityMapper.selectById(100)).thenReturn(authority);
+		Mockito.when(authorityMapper.findAreaTypeConflicts(100, 0)).thenReturn(Collections.emptyList());
+		Mockito.when(authorityMapper.updateById(Mockito.any(SmtDeviceAuthority.class))).thenReturn(1);
+
+		AreaTypeSwitchReqDTO reqDTO = new AreaTypeSwitchReqDTO();
+		reqDTO.setId(100);
+		reqDTO.setAreaType(0);
+
+		Result<AreaTypeSwitchRespDTO> result = service.switchAreaType(reqDTO, Collections.singletonList(1));
+
+		Assert.assertTrue(result.getData().isSuccess());
+		Mockito.verify(authorityMapper).updateById(Mockito.any());
+	}
+
+	@Test
+	public void switchAreaTypeFailsWhenAuthorityOutsideCallerParkScope() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceAuthorityServiceImpl service = newService(authorityMapper, relationService, staffAuthService);
+		setField(service, "baseMapper", authorityMapper);
+
+		SmtDeviceAuthority authority = new SmtDeviceAuthority();
+		authority.setId(100);
+		authority.setParkId(999);
+		authority.setAreaType(1);
+		Mockito.when(authorityMapper.selectById(100)).thenReturn(authority);
+
+		AreaTypeSwitchReqDTO reqDTO = new AreaTypeSwitchReqDTO();
+		reqDTO.setId(100);
+		reqDTO.setAreaType(0);
+
+		Result<AreaTypeSwitchRespDTO> result = service.switchAreaType(reqDTO, Collections.singletonList(1));
+
+		Assert.assertFalse(result.getData().isSuccess());
+		Mockito.verify(authorityMapper, Mockito.never()).updateById(Mockito.any());
 	}
 
 	@Test
