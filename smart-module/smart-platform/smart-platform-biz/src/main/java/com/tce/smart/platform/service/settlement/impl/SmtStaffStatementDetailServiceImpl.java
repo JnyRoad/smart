@@ -169,6 +169,11 @@ public class SmtStaffStatementDetailServiceImpl extends ServiceImpl<SmtStaffStat
 			//查询日结算表
 			staffSDStatementDetail = smtStaffStatementDetailMapper.getStaffSDStatementDetailNewDaily(page, smtStaffStatementDTO, parkIdList, roomIdList);
 		}
+		// 批量查询本页所有工号的住房数量，避免下面 forEach 里按行循环查询数据库
+		List<String> pageBadges = staffSDStatementDetail.getRecords().stream()
+				.map(SmtStaffStatementDTO::getBadge).distinct().collect(Collectors.toList());
+		Map<String, Integer> inRoomNumMap = smtSdMeterreadService.getInRoomNumBatch(pageBadges, smtStaffStatementReqDTO.getMeterMonth());
+
 		staffSDStatementDetail.getRecords().forEach(item -> {
 			SmtDormitoryRoom dormitoryRoom = roomList.stream().filter(s -> s.getId().equals(item.getRoomId())).findFirst().get();
 			SmtDormitory dormitory = smtDormitoryService.getById(dormitoryRoom.getDormitoryId());
@@ -188,8 +193,8 @@ public class SmtStaffStatementDetailServiceImpl extends ServiceImpl<SmtStaffStat
 				item.setAvgFee(BigDecimal.ZERO);
 			}
 
-			Integer inRoomNum = smtSdMeterreadService.getInRoomNum(item.getBadge(), smtStaffStatementReqDTO.getMeterMonth());
-			item.setInRoomNum(inRoomNum);
+			// 原始的按行查询在查不到任何记录时 SUM() 会返回 SQL NULL，这里用 Map#get 保留同样的“查不到就是 null”语义
+			item.setInRoomNum(inRoomNumMap.get(item.getBadge()));
 			item.setDormitoryName(dormitory.getDormitoryName());
 			if(xcParkId.equals(item.getParkId())) {
 				SmtStaffStatementDetailDaily daily = smtStaffStatementDetailDailyService.getOne(Wrappers.<SmtStaffStatementDetailDaily>query().lambda()
@@ -224,9 +229,20 @@ public class SmtStaffStatementDetailServiceImpl extends ServiceImpl<SmtStaffStat
 
 		List<SmtStaffStatementDTO> statementDetail = smtStaffStatementDetailMapper
 				.getStaffSDStatementDetailWithDor(dorIds, queryDTO.getMeterMonth(), parkIdList);
+
+		// 原实现对结果集里的每一行都同步循环查询一次住房数量/姓名，宿舍楼人数一多（生产上实测单次导出 1280 行）
+		// 就会把接口拖到 45-50 秒、稳定超过前端 30 秒超时。这里改成先批量查询，再从内存 Map 里取值。
+		List<String> badges = statementDetail.stream().map(SmtStaffStatementDTO::getBadge).distinct().collect(Collectors.toList());
+		Map<String, Integer> inRoomNumMap = smtSdMeterreadService.getInRoomNumBatch(badges, queryDTO.getMeterMonth());
+		List<String> blankNameBadges = statementDetail.stream()
+				.filter(item -> StringUtils.isBlank(item.getName()))
+				.map(SmtStaffStatementDTO::getBadge)
+				.distinct().collect(Collectors.toList());
+		Map<String, String> roomInNameMap = smtDormitoryStaffHistoryService.getByBadgeBatch(blankNameBadges);
+
 		statementDetail.forEach(item -> {
 			if (StringUtils.isBlank(item.getName())){
-				item.setName(smtDormitoryStaffHistoryService.getByBadge(item.getBadge()));
+				item.setName(roomInNameMap.getOrDefault(item.getBadge(), StringUtils.EMPTY));
 			}
 			if (Objects.nonNull(item.getInDays())) {
 				item.setCountDays(item.getInDays() + item.getRemarkDays());
@@ -237,8 +253,8 @@ public class SmtStaffStatementDetailServiceImpl extends ServiceImpl<SmtStaffStat
 			} else {
 				item.setAvgFee(BigDecimal.ZERO);
 			}
-			Integer inRoomNum = smtSdMeterreadService.getInRoomNum(item.getBadge(), queryDTO.getMeterMonth());
-			item.setInRoomNum(inRoomNum);
+			// 原始的按行查询在查不到任何记录时 SUM() 会返回 SQL NULL，这里用 Map#get 保留同样的“查不到就是 null”语义
+			item.setInRoomNum(inRoomNumMap.get(item.getBadge()));
 		});
 		statementDetail = statementDetail.stream().sorted(Comparator.comparing(SmtStaffStatementDTO::getDormitoryName)
 				.thenComparing(SmtStaffStatementDTO::getRoomName))

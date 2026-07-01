@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.platform.core.dto.GenerateStatementDTO;
 import com.tce.smart.platform.core.dto.SmtSdMeterreadDTO;
+import com.tce.smart.platform.core.dto.StaffInRoomNumDTO;
 import com.tce.smart.platform.core.dto.commonsd.DormitorySDMeterreadDTO;
 import com.tce.smart.platform.core.entity.SmtSdMeterread;
 import com.tce.smart.platform.core.vo.SmtSdMeterreadVO;
@@ -90,4 +91,13 @@ public interface SmtSdMeterreadMapper extends BaseMapper<SmtSdMeterread> {
 														 @Param("roomId")Integer roomId,@Param("date") Date meterMonth,@Param("dormitoryIds")List<Integer> dormitoryIds);
 
 	Integer getInRoomNum(@Param("badge")String badge,@Param("startTime") Date startTime,@Param("endTime") Date endTime);
+
+	/**
+	 * getInRoomNum 的批量版本，一次查询返回多个工号的住房数量，避免调用方按工号循环查询数据库。
+	 * @param badges 工号列表，单批不超过 1000 个（Oracle IN 子句上限，由调用方分批）
+	 * @param startTime 月份起始时间
+	 * @param endTime 月份结束时间
+	 * @return 每个有记录的工号对应一条结果；查不到记录的工号不会出现在结果里，调用方需自行兜底默认值
+	 */
+	List<StaffInRoomNumDTO> getInRoomNumBatch(@Param("badges") List<String> badges, @Param("startTime") Date startTime, @Param("endTime") Date endTime);
 }
