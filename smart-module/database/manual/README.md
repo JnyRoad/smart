@@ -18,6 +18,7 @@
 | `20260602_add_smt_isc_staff_card.sql` | 需要 | 创建人员海康 ISC 实体卡主表 `SMT_ISC_STAFF_CARD`。脚本可重复执行，表已存在时会补同步状态字段、卡号规则约束、中文备注和索引。 |
 | `20260602_add_smt_isc_card_task.sql` | 需要 | 创建海康 ISC 卡片同步任务表 `SMT_ISC_CARD_TASK`。脚本可重复执行，表已存在时只补中文备注和索引。 |
 | `20260610_cleanup_invalid_isc_staff_cards.sql` | 按需 | 软删除历史遗留的不符合海康 ISC 卡号规则的本地有效卡。若 `20260602_add_smt_isc_staff_card.sql` 提示存在非法有效卡，执行本脚本清理后再重跑主脚本。 |
+| `20260701_add_smt_device_authority_relation_device_id_index.sql` | 需要 | 给 `SMT_DEVICE_AUTHORITY_RELATION.DEVICE_ID` 加索引，支撑"按设备反查权限组"功能的查询性能。脚本内置索引存在性判断，可重复执行。 |
 
 建议执行顺序：
 

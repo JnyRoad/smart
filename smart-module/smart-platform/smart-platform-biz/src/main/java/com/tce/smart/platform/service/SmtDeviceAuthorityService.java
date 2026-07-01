@@ -90,6 +90,14 @@ public interface SmtDeviceAuthorityService extends IService<SmtDeviceAuthority> 
 	List<String> deviceAuthRelationAdd(DeviceAuthRelationAddReqDTO reqDTO);
 
 	/**
+	 * 撤销某权限组下所有人员/车辆在指定设备上的访问权限，权限组绑定的其他设备不受影响。
+	 * 用于设备下线时按设备精确回收权限，不删除员工/车辆与权限组的绑定关系本身。
+	 * @param authorityId 权限组ID
+	 * @param deviceId 要撤销权限的设备ID
+	 */
+	void revokeDeviceAccess(Integer authorityId, String deviceId);
+
+	/**
 	 * 变更通关权限性质（公共区域/保密区域）。
 	 * 若组内设备存在跨权限组的性质冲突，直接拒绝并返回冲突设备清单，不写库。
 	 *

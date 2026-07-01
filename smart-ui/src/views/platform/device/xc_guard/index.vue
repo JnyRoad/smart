@@ -88,6 +88,7 @@
                             <el-button type="primary" @click="handleClear(item)" class="perm-btn" plain round>清空</el-button>
                             <el-button type="primary" @click="handleReissue(item)" class="perm-btn" plain round >重新下发</el-button>
                             <el-button type="primary" @click="permittedList(item)" class="perm-btn" plain round >通关人员</el-button>
+                            <el-button type="primary" @click="viewAuthorities(item)" class="perm-btn" plain round >所属权限组</el-button>
                           </div>
                         </div>
                       </div>
@@ -537,14 +538,44 @@ export default {
     },
     handleDel: function(row) {
       var _this = this;
+      // 删除前先查询该设备的注销影响预览（关联的权限组、受影响人数/车辆数等）
+      xcGuardApi.getDecommissionPlan(row.id).then(response => {
+        const plan = response.data.data || { affectedAuthorities: [] };
+        _this.confirmDecommission(row, plan);
+      }).catch(error => {
+        console.error(error);
+        _this.$message.error("查询设备关联权限组失败，请稍后重试");
+      });
+    },
+    /**
+     * 根据注销影响预览渲染确认弹窗，确认后再真正执行删除
+     */
+    confirmDecommission(row, plan) {
+      var _this = this;
       const elm = this.$createElement;
+      const affected = plan.affectedAuthorities || [];
+      const summaryChildren = [
+        elm("p", null, "确认删除该门禁信息？"),
+      ];
+      if (affected.length === 0) {
+        summaryChildren.push(elm("p", null, "该设备当前未绑定任何权限组。"));
+      } else {
+        summaryChildren.push(elm("p", null, `该设备绑定在以下 ${affected.length} 个权限组下：`));
+        const listItems = affected.map(item => {
+          const parts = [`${item.authorityName}（影响 ${item.staffCount} 名员工 / ${item.vehicleCount} 辆车）`];
+          if (item.willCascadeDelete) {
+            parts.push("—— 权限组将因变空被自动删除");
+          } else if (item.protectedAuthority) {
+            parts.push("—— 区域默认/系统内置权限组，仅解绑设备，权限组保留为空壳，请自行检查配置");
+          }
+          return elm("li", null, parts.join(" "));
+        });
+        summaryChildren.push(elm("ul", null, listItems));
+      }
       this.$msgbox({
-        message: elm("p", { attrs: { class: "smallp" } }, [
-          elm("i", { attrs: { class: "smallInfo delInfo" } }, ""),
-          elm("span", null, "确认删除该门禁信息？ ")
-        ]),
+        message: elm("div", { attrs: { class: "smallp" } }, summaryChildren),
         showCancelButton: true,
-        confirmButtonText: "确定",
+        confirmButtonText: "确定删除",
         cancelButtonText: "取消",
         customClass: "small_dialog",
         center: true
@@ -576,6 +607,41 @@ export default {
           serialNo: item.serialNo,
           deviceType: 2
         }
+      });
+    },
+    /**
+     * 查看设备当前绑定的权限组（只读查询，不涉及任何删除/跳转副作用）
+     */
+    viewAuthorities(item) {
+      var _this = this;
+      xcGuardApi.getDecommissionPlan(item.id).then(response => {
+        const plan = response.data.data || { affectedAuthorities: [] };
+        const affected = plan.affectedAuthorities || [];
+        const elm = _this.$createElement;
+        let content;
+        if (affected.length === 0) {
+          content = elm("p", null, "该设备当前未绑定任何权限组。");
+        } else {
+          const listItems = affected.map(auth => elm("li", null,
+            `${auth.authorityName}（${auth.staffCount} 名员工 / ${auth.vehicleCount} 辆车）`));
+          // 注意：此处不能用 .smallInfo class（那是 76x76px 的图标占位框，会把文字列表裁成一个小图标框），
+          // 沿用 confirmDecommission 中已验证过的写法，传 null。
+          content = elm("ul", null, listItems);
+        }
+        _this.$msgbox({
+          title: "所属权限组",
+          message: content,
+          showCancelButton: false,
+          confirmButtonText: "关闭",
+          customClass: "small_dialog",
+          center: true
+        }).catch(reason => {
+          // 纯只读提示弹窗，用户点击关闭/遮罩层/ESC 都会走到这里，不代表业务错误，仅记录原因用于排查
+          console.error(reason);
+        });
+      }).catch(error => {
+        console.error(error);
+        _this.$message.error("查询失败，请稍后重试");
       });
     },
     /**
