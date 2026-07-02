@@ -661,6 +661,55 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		apply.setIscSubmitBatch(batchId);
 	}
 
+	/**
+	 * 重新下发协议——仅针对 ISC 人员（闸机/卡片）任务的批次化重发：
+	 * 1. 若存在旧批次（oldBatchIdToCancel 非 NULL），在同一事务内先把该批次下 apply 关联的、
+	 *    仍处于非终态（INIT/DOING）的 ISC 人员任务批量置为 CANCEL（一条 UPDATE，不逐行加载）；
+	 * 2. 生成新批次号，仅重建人员（卡片）方向的下发任务，不触碰车辆任务；
+	 * 3. 同一事务内把新批次号回写到 smt_admittance_apply.isc_submit_batch。
+	 * 取消旧批次、新建任务、回写批次号三步在同一 TransactionTemplate 事务内完成，避免中间态。
+	 * <p>
+	 * 与 submitIscBatch 的区别：submitIscBatch 用于首次审批通过下发（人员+车辆一次性打包提交，新单不存在旧批次可取消）；
+	 * 本方法专用于 repeatVisitorDeviceAuth 的人员重发路径，车辆分支沿用原有「只补建缺失任务」逻辑，本次不改动。
+	 *
+	 * @param apply              待重发的入厂申请
+	 * @param oldBatchIdToCancel 旧批次号；历史单从未提交过批次时为 NULL，此时跳过取消直接建新批次
+	 */
+	private void submitIscPersonBatch(SmtAdmittanceApply apply, Long oldBatchIdToCancel) {
+		Long batchId = IdWorker.getId();
+		transactionTemplate.execute(status -> {
+			if (oldBatchIdToCancel != null) {
+				//旧批次未终态的人员任务批量置取消：与新建任务、回写批次号同一事务，避免出现中间态
+				this.cancelIscBatchNonTerminalPersonTasks(apply.getId(), oldBatchIdToCancel);
+			}
+			//仅重建人员（卡片）方向的下发任务，车辆分支不受影响
+			this.addDeviceTaskForPerson(apply, batchId);
+			LambdaUpdateWrapper<SmtAdmittanceApply> updateWrapper = Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+					.eq(SmtAdmittanceApply::getId, apply.getId())
+					.set(SmtAdmittanceApply::getIscSubmitBatch, batchId);
+			this.update(null, updateWrapper);
+			return null;
+		});
+		apply.setIscSubmitBatch(batchId);
+	}
+
+	/**
+	 * 批量取消旧批次下仍处于非终态（INIT/DOING）的 ISC 人员任务：一条 UPDATE 完成，不逐行查询再更新。
+	 * deviceType 限定为 CARD（人员/卡片），车辆任务（deviceType=CAR）不受影响。
+	 *
+	 * @param applyId 入厂申请ID
+	 * @param batchId 旧批次号
+	 */
+	private void cancelIscBatchNonTerminalPersonTasks(Long applyId, Long batchId) {
+		LambdaUpdateWrapper<SmtIscDeviceTask> cancelWrapper = Wrappers.<SmtIscDeviceTask>lambdaUpdate()
+				.eq(SmtIscDeviceTask::getApplyId, applyId)
+				.eq(SmtIscDeviceTask::getBatchId, batchId)
+				.eq(SmtIscDeviceTask::getDeviceType, DeviceTaskConstants.CARD)
+				.in(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.INIT.getCode(), DeviceTaskStatusEnum.DOING.getCode())
+				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.CANCEL.getCode());
+		smtIscDeviceTaskService.update(null, cancelWrapper);
+	}
+
 	private Boolean sendPassMsg(SmtAdmittanceApply apply) {
 		// 判断apply的unionId是否为空
 		if (StringUtils.isEmpty(apply.getUnionId())) {
@@ -708,6 +757,21 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		List<SmtDeviceAuthorityRelation> carDeviceList = this.getDeviceList(areaTypeId, DeviceTypeEnum.DEVICE_TYPE_3.getCode(), apply.getParkId());
 		//下发闸机,下发道闸
 		addAdmittanceDevice(apply, personDeviceList, carDeviceList, batchId);
+	}
+
+	/**
+	 * 仅添加人员（闸机/卡片）方向的下发任务，车辆方向不查询也不建任务。
+	 * 供 repeatVisitorDeviceAuth 的人员重发路径复用，避免误建/重复车辆任务（车辆分支沿用原有逻辑，本次不改动）。
+	 *
+	 * @param apply   入厂申请
+	 * @param batchId 本次原子提交的批次号
+	 */
+	private void addDeviceTaskForPerson(SmtAdmittanceApply apply, Long batchId) {
+		String areaTypeId = apply.getAreaType();
+		//仅查询人员设备权限
+		List<SmtDeviceAuthorityRelation> personDeviceList = this.getDeviceList(areaTypeId, DeviceTypeEnum.DEVICE_TYPE_1.getCode(), apply.getParkId());
+		//carDeviceList 传 null：addAdmittanceDevice 内车辆分支在 CollUtil.isNotEmpty 判断下会被跳过
+		addAdmittanceDevice(apply, personDeviceList, null, batchId);
 	}
 
 	/**
@@ -1185,16 +1249,13 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				DeviceTypeEnum.DEVICE_TYPE_1.getCode(), apply.getParkId());
 		List<SmtAdmittanceFellow> fellows = smtAdmittanceFellowService.getByApplyId(applyId);
 		List<SmtAdmittanceVehicle> vehicles = smtAdmittanceVehicleService.getByApplyId(applyId);
-		if (CollUtil.isNotEmpty(visitorDeviceList)) {
-			for (SmtDeviceAuthorityRelation relation : visitorDeviceList) {
-				fellows.forEach(fellow -> {
-					//检查该设备是否已经下发成功过或者正在下发
-					Boolean record = checkDeviceTaskRecord(fellow.getId().toString(), relation.getDeviceId());
-					if (!record) {
-						addCard(apply, fellow, relation.getDeviceId());
-					}
-				});
-			}
+		//重发协议（人员/ISC 闸机任务专用）：旧批次未终态任务批量置取消 -> 建新批次任务 -> 回写 isc_submit_batch -> deviceStatus 置已下发
+		//旧「只补建缺失任务」逻辑替换为批次化重发，确保旧批次残留的在途任务不会与新批次任务并存
+		//车辆分支不属于本次改动范围，沿用下方原有「只补建缺失任务」逻辑
+		if (CollUtil.isNotEmpty(visitorDeviceList) && CollUtil.isNotEmpty(fellows)) {
+			this.submitIscPersonBatch(apply, apply.getIscSubmitBatch());
+			apply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
+			this.updateById(apply);
 		}
 		if (CollUtil.isNotEmpty(vehicles)) {
 			//查询访客车辆的的设备权限
@@ -2177,6 +2238,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				.eq(SmtAdmittanceApply::getId, apply.getId())
 				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
 				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
+				// 与两个补偿分页查询谓词对称（isc_submit_batch IS NULL），防 TOCTOU 窗口内认领已提交批次的单
+				.isNull(SmtAdmittanceApply::getIscSubmitBatch)
 				.set(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.IN_WORK.getCode()));
 		if (claimed) {
 			apply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
