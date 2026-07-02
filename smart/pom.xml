@@ -238,7 +238,6 @@
 					<target>${maven.compiler.target}</target>
 					<source>${maven.compiler.source}</source>
 					<encoding>UTF-8</encoding>
-					<skip>true</skip>
 				</configuration>
 			</plugin>
 			<plugin>
