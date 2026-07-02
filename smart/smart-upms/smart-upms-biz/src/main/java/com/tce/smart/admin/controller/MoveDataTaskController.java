@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.tce.smart.admin.api.entity.SysMoveDataTask;
 import com.tce.smart.admin.service.SysMoveDataTaskService;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.security.annotation.Inner;
 
 import lombok.AllArgsConstructor;
 
@@ -31,6 +32,9 @@ public class MoveDataTaskController {
 	 * @param moduleType 模块类型
 	 * @return
 	 */
+	// 仅供内部服务调用：唯一入口是 smart-schedule 的 RemoteMoveDataTaskService（携带 from=Y），
+	// 之前无 @Inner 且在白名单内，等于把内部数据迁移配置暴露给无 token 请求，补 @Inner 收敛为内部专用
+	@Inner
 	@SuppressWarnings("unchecked")
 	@GetMapping("/list")
 	public Result<List<SysMoveDataTask>> getTaskTableList(@RequestParam("moduleType") Integer moduleType) {
