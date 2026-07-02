@@ -132,8 +132,12 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 				// 开放应用 token：把应用绑定的园区范围写入 token claim，
 				// 资源服务据此做数据范围校验，不信任请求参数
 				Map<String, Object> info = new HashMap<>(4);
+				// client 不存在或缓存异常时此处直接抛出，由 SmartWebResponseExceptionTranslator 统一转译为 500，
+				// 快速失败：不吞错、不签发缺 claim 的 token
 				ClientDetails client = clientDetailsService.loadClientByClientId(
 						authentication.getOAuth2Request().getClientId());
+				// allowedParkIds 不做类型校验，原样透传到 token claim（app_park_ids）；
+				// 脏数据由资源服务侧 OpenApiAuthenticationAdapter 做防御性解析兜底（见开放API鉴权设计 spec）
 				Object parkIds = client.getAdditionalInformation().get("allowedParkIds");
 				if (parkIds != null) {
 					info.put("app_park_ids", parkIds);
