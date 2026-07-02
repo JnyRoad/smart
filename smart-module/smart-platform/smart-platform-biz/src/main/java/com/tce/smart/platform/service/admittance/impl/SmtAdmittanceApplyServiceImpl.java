@@ -2008,6 +2008,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
 				.ne(SmtAdmittanceApply::getApplyType, AdmittanceTypeEnum.CAR.getCode())
 				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now())
+				// 聚合产生的真失败单必有批次号，只走人工重新下发（spec §3.4 补偿边界）
+				.isNull(SmtAdmittanceApply::getIscSubmitBatch)
 				.orderByAsc(SmtAdmittanceApply::getCreateTime)
 				.orderByAsc(SmtAdmittanceApply::getId));
 	}
@@ -2019,7 +2021,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
 				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
 				.ne(SmtAdmittanceApply::getApplyType, AdmittanceTypeEnum.CAR.getCode())
-				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now());
+				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now())
+				// 聚合产生的真失败单必有批次号，只走人工重新下发（spec §3.4 补偿边界）
+				.isNull(SmtAdmittanceApply::getIscSubmitBatch);
 		long cursor = sharedCursor(POST_APPROVAL_RETRY_CURSOR_KEY, postApprovalRetryCursor);
 		if (cursor > 0) {
 			queryWrapper.gt(SmtAdmittanceApply::getId, cursor);
