@@ -485,6 +485,68 @@ public class VisitorSelfQueryServiceImplTest {
 		Assert.assertEquals("赵六", progress.getNodes().get(1).getApproverName());
 	}
 
+	@Test
+	public void deviceStatusAlready_mapsToIssuing() throws Exception {
+		// 测试设备状态 ALRAEDY(4) 映射到 ISSUING 过渡态
+		// 场景：任务已提交ISC等待确认，H5自查接口应返回ISSUING状态
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		SmtPark park = new SmtPark();
+		park.setParkName("裕同科技许昌园区");
+		Mockito.when(parkService.getById(5000021)).thenReturn(park);
+		SmtAdmittanceApply apply = apply(2001L, "李明", "13712341234", VisitorStatusEnum.Status_0.getCode());
+		apply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode()); // 状态码 4
+		apply.setEndTime(LocalDateTime.of(2026, 12, 31, 23, 59)); // 设为未来日期，避免过期判定
+		Mockito.when(mapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(apply));
+		Mockito.when(fellowService.getByApplyId(2001L)).thenReturn(Collections.emptyList());
+		Mockito.when(vehicleService.getByApplyId(2001L)).thenReturn(Collections.emptyList());
+
+		VisitorSelfQueryRespDTO response = service.listMyApply(new VisitorSelfQueryReqDTO(), "tok-existing");
+
+		Assert.assertEquals(1, response.getRecords().size());
+		Assert.assertEquals("PASSED", response.getRecords().get(0).getApplyStatus());
+		Assert.assertEquals("ISSUING", response.getRecords().get(0).getDispatchStatus());
+	}
+
+	@Test
+	public void deviceStatusSuccess_mapsToSuccess() throws Exception {
+		// 测试设备状态 SUCCESS(1) 映射到 SUCCESS（保持不变）
+		// 场景：照片已下发到设备成功，H5自查接口应返回SUCCESS状态
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		SmtPark park = new SmtPark();
+		park.setParkName("裕同科技许昌园区");
+		Mockito.when(parkService.getById(5000021)).thenReturn(park);
+		SmtAdmittanceApply apply = apply(2002L, "李明", "13712341234", VisitorStatusEnum.Status_0.getCode());
+		apply.setDeviceStatus(DeviceDownStatusEnum.SUCCESS.getCode()); // 状态码 1
+		apply.setEndTime(LocalDateTime.of(2026, 12, 31, 23, 59)); // 设为未来日期，避免过期判定
+		Mockito.when(mapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(apply));
+		Mockito.when(fellowService.getByApplyId(2002L)).thenReturn(Collections.emptyList());
+		Mockito.when(vehicleService.getByApplyId(2002L)).thenReturn(Collections.emptyList());
+
+		VisitorSelfQueryRespDTO response = service.listMyApply(new VisitorSelfQueryReqDTO(), "tok-existing");
+
+		Assert.assertEquals(1, response.getRecords().size());
+		Assert.assertEquals("PASSED", response.getRecords().get(0).getApplyStatus());
+		Assert.assertEquals("SUCCESS", response.getRecords().get(0).getDispatchStatus());
+	}
+
 	private VisitorSelfQueryServiceImpl newService(SmtAdmittanceApplyMapper mapper, RemoteAppSmsService smsService,
 			StringRedisTemplate redisTemplate, ValueOperations<String, String> valueOperations, SmtParkService parkService,
 			SmtAdmittanceFellowService fellowService, SmtAdmittanceVehicleService vehicleService) throws Exception {
