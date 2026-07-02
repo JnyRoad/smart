@@ -7,6 +7,10 @@ import com.tce.smart.common.core.util.CollectionUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
+// 必须是 Spring Security 的 AccessDeniedException（@PreAuthorize / @Inner 切面拒绝时抛出），
+// 历史上误 import java.nio.file.AccessDeniedException，导致 403 处理器永远匹配不到，
+// 授权拒绝全部落入兜底 Exception 处理器返回 HTTP 200 + code=FAIL。
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.SpringSecurityMessageSource;
 import org.springframework.validation.BindException;
@@ -14,7 +18,6 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Objects;
 
