@@ -1,0 +1,249 @@
+package com.tce.smart.schedule.service.platform.impl;
+
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
+import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceApply;
+import com.tce.smart.platform.core.mapper.SmtAdmittanceApplyMapper;
+import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
+import com.tce.smart.tool.enums.DeviceDownStatusEnum;
+import com.tce.smart.tool.enums.DeviceTaskStatusEnum;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * ISC 任务终态聚合回写器：入厂申请「状态诚实化」的最终落点。
+ *
+ * <p>背景：{@code smt_isc_device_task} 每条任务记录的是单人单设备的下发/删除结果，
+ * 而 {@code smt_admittance_apply.device_status} 需要反映整批申请（同一 {@code iscSubmitBatch}）
+ * 的真实进度。本类在任务状态被写为「终态」后，按人员维度聚合出批次级判定，
+ * 并把判定结果谨慎地（只在过渡态/在途语义下）回写到申请单，避免覆盖人工重发等新状态。</p>
+ *
+ * <p>判定规则（业务口径，非技术细节）：</p>
+ * <ul>
+ *   <li>人员维度：同一人（{@code cardNo} 对应的 fellowId）名下任一任务 SUCCESS 即该人成功；
+ *       全部任务终态且没有 SUCCESS 即该人失败；否则该人仍在途。</li>
+ *   <li>批次维度：只统计当前批次（{@code apply.iscSubmitBatch}）参与判定的人员——
+ *       批次内全部人员成功 → 整批成功；任一人员失败 → 整批失败；否则在途，不回写。</li>
+ *   <li>批次内完全没有任务、或没有任何人员参与判定，视为在途，不回写（避免误判空批次为失败）。</li>
+ * </ul>
+ */
+@Slf4j
+public class AdmittanceDispatchAggregator {
+
+	/**
+	 * 终态集合：{@link DeviceTaskStatusEnum} 中除 SUCCESS（成功终态另计）与非终态
+	 * （INIT 初始化、DOING 处理中）外的全部状态，即 FAIL/CANCEL/EXPIRED/DEVICE_OFFLINE。
+	 * 以枚举实际取值为准，避免硬编码魔法数字。
+	 */
+	private static final Set<Integer> FAILURE_TERMINAL_STATUSES = EnumSet.of(
+			DeviceTaskStatusEnum.FAIL,
+			DeviceTaskStatusEnum.CANCEL,
+			DeviceTaskStatusEnum.EXPIRED,
+			DeviceTaskStatusEnum.DEVICE_OFFLINE
+	).stream().map(DeviceTaskStatusEnum::getCode).collect(Collectors.toSet());
+
+	/** 回写失败后的重试次数（不含首次调用） */
+	private static final int WRITEBACK_RETRY_TIMES = 2;
+
+	/** 只允许覆盖的过渡态/在途语义 device_status：下发中(3)、已下发(4)。 */
+	private static final Set<Integer> OVERWRITABLE_DEVICE_STATUSES = CollUtil.newHashSet(
+			DeviceDownStatusEnum.IN_WORK.getCode(), DeviceDownStatusEnum.ALRAEDY.getCode());
+
+	private final SmtIscDeviceTaskService smtIscDeviceTaskService;
+
+	private final SmtAdmittanceApplyMapper smtAdmittanceApplyMapper;
+
+	public AdmittanceDispatchAggregator(SmtIscDeviceTaskService smtIscDeviceTaskService,
+			SmtAdmittanceApplyMapper smtAdmittanceApplyMapper) {
+		this.smtIscDeviceTaskService = smtIscDeviceTaskService;
+		this.smtAdmittanceApplyMapper = smtAdmittanceApplyMapper;
+	}
+
+	/**
+	 * 批次级判定结果。
+	 */
+	public enum BatchVerdict {
+		/** 批次内参与判定的人员全部成功 */
+		SUCCESS,
+		/** 批次内至少一名参与判定的人员判定为失败 */
+		FAIL,
+		/** 仍有人员在途（存在非终态任务），或没有任何人员参与判定 */
+		IN_PROGRESS
+	}
+
+	/**
+	 * 单人判定结果。
+	 */
+	private enum PersonVerdict {
+		SUCCESS, FAIL, IN_PROGRESS
+	}
+
+	/**
+	 * 对外主入口：按入厂申请ID聚合其当前批次（{@code apply.iscSubmitBatch}）的全部 ISC 任务，
+	 * 终态才回写 {@code device_status}（成功写1，失败写2）；在途不动。
+	 *
+	 * <p>只对 {@code task.getApplyId() != null} 的任务生效——非入厂申请来源的ISC任务不参与聚合。</p>
+	 *
+	 * @param applyId 入厂申请单ID
+	 */
+	public void aggregate(Long applyId) {
+		if (applyId == null) {
+			return;
+		}
+		SmtAdmittanceApply apply = smtAdmittanceApplyMapper.selectById(applyId);
+		if (apply == null || apply.getIscSubmitBatch() == null) {
+			// 申请单不存在，或从未成功提交过ISC批次：无批次可聚合
+			return;
+		}
+		Long batchId = apply.getIscSubmitBatch();
+
+		// 一次SQL取批次内全部ISC任务（card_no, status），apply_id为空的任务不参与（非入厂申请来源）
+		List<SmtIscDeviceTask> batchTasks = smtIscDeviceTaskService.list(
+				new LambdaQueryWrapper<SmtIscDeviceTask>()
+						.select(SmtIscDeviceTask::getCardNo, SmtIscDeviceTask::getStatus)
+						.eq(SmtIscDeviceTask::getApplyId, applyId)
+						.eq(SmtIscDeviceTask::getBatchId, batchId));
+
+		Map<Long, List<Integer>> tasksByFellow = groupTaskStatusByFellow(batchTasks);
+		BatchVerdict verdict = verdict(tasksByFellow);
+		if (verdict == BatchVerdict.IN_PROGRESS) {
+			// 仍在途或无有效批次任务：不回写，保持申请单当前device_status
+			return;
+		}
+		Integer targetDeviceStatus = verdict == BatchVerdict.SUCCESS
+				? DeviceDownStatusEnum.SUCCESS.getCode()
+				: DeviceDownStatusEnum.FAIL.getCode();
+		writebackDeviceStatus(smtAdmittanceApplyMapper, applyId, batchId, targetDeviceStatus);
+	}
+
+	/**
+	 * 把批次任务按人员（cardNo 解析为 fellowId）分组为 {fellowId -> 任务状态列表}。
+	 * cardNo 解析失败（既有约定：cardNo 存 fellowId 数字字符串）的任务跳过并 WARN，不参与聚合。
+	 */
+	private Map<Long, List<Integer>> groupTaskStatusByFellow(List<SmtIscDeviceTask> batchTasks) {
+		Map<Long, List<Integer>> tasksByFellow = new LinkedHashMap<>();
+		if (CollUtil.isEmpty(batchTasks)) {
+			return tasksByFellow;
+		}
+		for (SmtIscDeviceTask task : batchTasks) {
+			Long fellowId = parseFellowId(task.getCardNo());
+			if (fellowId == null) {
+				log.warn("ISC任务聚合：cardNo[{}]无法解析为fellowId，跳过该任务", task.getCardNo());
+				continue;
+			}
+			tasksByFellow.computeIfAbsent(fellowId, key -> new ArrayList<>()).add(task.getStatus());
+		}
+		return tasksByFellow;
+	}
+
+	private Long parseFellowId(String cardNo) {
+		if (StrUtil.isBlank(cardNo)) {
+			return null;
+		}
+		try {
+			return Long.parseLong(cardNo);
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * 判定纯函数：输入「人员 -> 任务状态列表」，输出批次级判定。
+	 *
+	 * <p>规则：</p>
+	 * <ul>
+	 *   <li>没有任何参与判定的人员（Map为空，或全部人员的任务列表都为空）→ IN_PROGRESS（不回写）。</li>
+	 *   <li>任一人员判定为 FAIL（该人全部任务终态且无SUCCESS）→ 整批 FAIL。</li>
+	 *   <li>存在人员判定为 IN_PROGRESS（该人有非终态任务）且没有人员判定为 FAIL → 整批 IN_PROGRESS。</li>
+	 *   <li>其余情况（全部参与判定的人员都判定为 SUCCESS）→ 整批 SUCCESS。</li>
+	 * </ul>
+	 *
+	 * @param tasksByFellow 人员维度的任务状态列表；value 为空 List 表示该人员在本批次没有ISC任务，不参与判定
+	 */
+	public static BatchVerdict verdict(Map<Long, List<Integer>> tasksByFellow) {
+		if (CollUtil.isEmpty(tasksByFellow)) {
+			return BatchVerdict.IN_PROGRESS;
+		}
+		boolean hasParticipant = false;
+		boolean hasInProgress = false;
+		for (List<Integer> statuses : tasksByFellow.values()) {
+			if (CollUtil.isEmpty(statuses)) {
+				// 该人员在本批次没有ISC任务，边界排除，不参与判定
+				continue;
+			}
+			hasParticipant = true;
+			PersonVerdict personVerdict = personVerdict(statuses);
+			if (personVerdict == PersonVerdict.FAIL) {
+				// 任一人员失败，整批立即判定为失败
+				return BatchVerdict.FAIL;
+			}
+			if (personVerdict == PersonVerdict.IN_PROGRESS) {
+				hasInProgress = true;
+			}
+		}
+		if (!hasParticipant) {
+			// 整批没有任何参与判定的人员（如批次内全无任务）：视为在途，不误判失败
+			return BatchVerdict.IN_PROGRESS;
+		}
+		return hasInProgress ? BatchVerdict.IN_PROGRESS : BatchVerdict.SUCCESS;
+	}
+
+	/**
+	 * 单人判定纯函数：任一任务 SUCCESS → 成功；全部任务终态且无SUCCESS → 失败；否则在途。
+	 */
+	private static PersonVerdict personVerdict(List<Integer> statuses) {
+		boolean anySuccess = false;
+		boolean allTerminal = true;
+		for (Integer status : statuses) {
+			if (DeviceTaskStatusEnum.SUCCESS.getCode().equals(status)) {
+				anySuccess = true;
+				continue;
+			}
+			if (!FAILURE_TERMINAL_STATUSES.contains(status)) {
+				// 非终态（INIT/DOING，或未知状态一律按在途处理，不冒险判定）
+				allTerminal = false;
+			}
+		}
+		if (anySuccess) {
+			return PersonVerdict.SUCCESS;
+		}
+		return allTerminal ? PersonVerdict.FAIL : PersonVerdict.IN_PROGRESS;
+	}
+
+	/**
+	 * 回写 {@code device_status}：只更新当前仍为过渡态/在途语义（下发中3 / 已下发4）的申请单，
+	 * 用 {@code WHERE id=? AND device_status IN (3,4)} 防止覆盖人工重发等已经推进的新状态。
+	 * 回写失败立即重试 {@value #WRITEBACK_RETRY_TIMES} 次，仍失败记 ERROR（含 applyId/batchId）。
+	 *
+	 * <p>包可见 + static，便于单测直接驱动"重试仍失败记ERROR"这一行为，不依赖聚合器完整装配。</p>
+	 */
+	static void writebackDeviceStatus(SmtAdmittanceApplyMapper applyMapper, Long applyId, Long batchId,
+			Integer targetDeviceStatus) {
+		int attempts = 1 + WRITEBACK_RETRY_TIMES;
+		for (int attempt = 1; attempt <= attempts; attempt++) {
+			int updated = applyMapper.update(null, new LambdaUpdateWrapper<SmtAdmittanceApply>()
+					.set(SmtAdmittanceApply::getDeviceStatus, targetDeviceStatus)
+					.eq(SmtAdmittanceApply::getId, applyId)
+					.in(SmtAdmittanceApply::getDeviceStatus, OVERWRITABLE_DEVICE_STATUSES));
+			if (updated > 0) {
+				log.info("ISC任务聚合回写device_status成功：applyId={}, batchId={}, targetDeviceStatus={}, 尝试次数={}",
+						applyId, batchId, targetDeviceStatus, attempt);
+				return;
+			}
+			log.warn("ISC任务聚合回写device_status未生效（可能已被其他操作推进）：applyId={}, batchId={}, targetDeviceStatus={}, 第{}次尝试",
+					applyId, batchId, targetDeviceStatus, attempt);
+		}
+		log.error("ISC任务聚合回写device_status彻底失败，已重试{}次：applyId={}, batchId={}, targetDeviceStatus={}",
+				WRITEBACK_RETRY_TIMES, applyId, batchId, targetDeviceStatus);
+	}
+}
