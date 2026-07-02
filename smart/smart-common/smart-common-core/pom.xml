@@ -107,6 +107,13 @@
 			<version>5.1.5.RELEASE</version>
 			<scope>compile</scope>
 		</dependency>
+
+		<!-- 仅测试用：MockMvc standalone 模式需要 spring-webmvc 来驱动 @RestControllerAdvice 的异常分发 -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-webmvc</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
