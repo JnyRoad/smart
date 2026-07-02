@@ -19,6 +19,7 @@
 | `20260602_add_smt_isc_card_task.sql` | 需要 | 创建海康 ISC 卡片同步任务表 `SMT_ISC_CARD_TASK`。脚本可重复执行，表已存在时只补中文备注和索引。 |
 | `20260610_cleanup_invalid_isc_staff_cards.sql` | 按需 | 软删除历史遗留的不符合海康 ISC 卡号规则的本地有效卡。若 `20260602_add_smt_isc_staff_card.sql` 提示存在非法有效卡，执行本脚本清理后再重跑主脚本。 |
 | `20260701_add_smt_device_authority_relation_device_id_index.sql` | 需要 | 给 `SMT_DEVICE_AUTHORITY_RELATION.DEVICE_ID` 加索引，支撑"按设备反查权限组"功能的查询性能。脚本内置索引存在性判断，可重复执行。 |
+| `2026-07-01-oauth-client-secret-prefix.sql` | 需要 | 给 `sys_oauth_client_details.client_secret` 存量明文行补 `{noop}` 编码前缀，配合 `SecurityConstants.CLIENT_FIELDS` 改为直接读取 `client_secret`（不再由 SQL 强制拼前缀），为后续新增 `{bcrypt}` 编码的 client 做铺垫。已带前缀的行不受影响，可重复执行。 |
 
 建议执行顺序：
 
@@ -34,6 +35,7 @@
 | `20260602_rollback_smt_isc_park_config.sql` | 仅回滚时执行 | 删除 `SMT_ISC_PARK_CONFIG` 及相关索引，会丢失数据。 |
 | `20260602_rollback_smt_isc_staff_card.sql` | 仅回滚时执行 | 删除 `SMT_ISC_STAFF_CARD` 及相关索引，会丢失数据。 |
 | `20260602_rollback_smt_isc_card_task.sql` | 仅回滚时执行 | 删除 `SMT_ISC_CARD_TASK` 及相关索引，会丢失数据。 |
+| `2026-07-01-oauth-client-secret-prefix-rollback.sql` | 仅回滚时执行 | 剥离 `2026-07-01-oauth-client-secret-prefix.sql` 写入的 `{noop}` 前缀；迁移后新增的 `{bcrypt}` 编码行不可逆，本脚本不处理。 |
 
 ## 注意事项
 
