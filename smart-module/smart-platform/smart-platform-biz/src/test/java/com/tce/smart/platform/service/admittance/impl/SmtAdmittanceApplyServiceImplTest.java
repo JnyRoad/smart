@@ -1044,6 +1044,35 @@ public class SmtAdmittanceApplyServiceImplTest {
 	}
 
 	@Test
+	public void compensation_skipsAppliesWithSubmittedBatch() throws Exception {
+		// 聚合产生的真失败单必有批次号，只走人工重新下发（spec §3.4 补偿边界）
+		// 本用例验证补偿分页查询显式排除已提交批次（isc_submit_batch 非空）的单据，
+		// 避免把“已提交但仍待终态确认”的单误判为需要补偿重试的失败单。
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.selectPage(Mockito.any(Page.class), Mockito.any())).thenReturn(emptyAdmittancePage());
+
+		Method failedPostApprovalPage = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("failedPostApprovalPage");
+		failedPostApprovalPage.setAccessible(true);
+		Method failedPostApprovalCursorPage = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("failedPostApprovalCursorPage");
+		failedPostApprovalCursorPage.setAccessible(true);
+
+		failedPostApprovalPage.invoke(service);
+		failedPostApprovalCursorPage.invoke(service);
+
+		ArgumentCaptor<LambdaQueryWrapper> queryCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		Mockito.verify(mapper, Mockito.times(2)).selectPage(Mockito.any(Page.class), queryCaptor.capture());
+		for (LambdaQueryWrapper queryWrapper : queryCaptor.getAllValues()) {
+			String sqlSegment = queryWrapper.getSqlSegment().toLowerCase(Locale.ROOT);
+			Assert.assertTrue("补偿分页查询必须排除已提交批次的单据（isc_submit_batch IS NULL）：" + sqlSegment,
+					sqlSegment.contains("isc_submit_batch is null"));
+		}
+	}
+
+	@Test
 	public void retryFailedPostApprovalHandlingWalksCursorWhenOldestFailedApplyKeepsFailing() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
 		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
