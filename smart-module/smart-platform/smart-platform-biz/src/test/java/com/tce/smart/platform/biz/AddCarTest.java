@@ -33,6 +33,7 @@ import java.util.*;
 @Slf4j
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = SmartPlatformApplication.class)
+@org.junit.Ignore("历史手工脚本壳：@Test 已全部注释，无可运行用例，整类忽略以避免 surefire 报 initializationError")
 public class AddCarTest {
 	@Resource
 	private SmtStaffService smtStaffService;
