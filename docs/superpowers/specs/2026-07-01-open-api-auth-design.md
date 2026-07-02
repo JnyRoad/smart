@@ -1,7 +1,7 @@
 # 开放 API 鉴权框架设计
 
 - 日期：2026-07-01
-- 状态：已定稿（三轮 Codex 独立评审，2026-07-01 双方一致；待业务方最终确认）
+- 状态：已确认，随开放 API 鉴权分支交付
 - 关联：《入厂申请照片拉取与下发状态回写设计》（同日 spec，依赖本框架）
 
 ## 1. 背景与目标
@@ -44,7 +44,7 @@
 ### 3.2 权限模型（scope）
 
 - **命名约定**：`open:<业务域>:<资源>:<动作>`，如 `open:admittance:photo:read`。所有开放 scope 必须带 `open:` 前缀，与内部用途 scope 区分。
-- **应用 token 默认拒绝（Codex 评审阻断项，deny-by-default）**：现有资源服务器全局规则仅 `anyRequest().authenticated()`，大量业务接口无方法级权限——应用 token（client_credentials）若不加拦截可直接调用普通业务接口。因此在 `smart-common-security` 增加**全局过滤器**：认证为 client-only（`OAuth2Authentication.isClientOnly()`）时，仅放行标注了 `@OpenApi` 的接口，其余一律 403。业务代码零改动，默认安全。
+- **应用 token 默认拒绝（Codex 评审阻断项，deny-by-default）**：现有资源服务器全局规则仅 `anyRequest().authenticated()`，大量业务接口无方法级权限——应用 token（client_credentials）若不加拦截可直接调用普通业务接口。因此在 `smart-common-security` 增加 **MVC 拦截器**（`HandlerInterceptor`，注册于 `SmartResourceServerAutoConfiguration`）：认证为 client-only（`OAuth2Authentication.isClientOnly()`）时，仅放行标注了 `@OpenApi` 的接口，其余一律 403。业务代码零改动，默认安全。
 - **`@OpenApi` 注解 + 切面**（新增于 `smart-common-security`，所有资源服务可用）：
   - 用法：`@OpenApi("open:admittance:photo:read")` 标注在开放接口方法上；
   - 校验当前认证满足：① `OAuth2Authentication.isClientOnly()`（应用身份判定不依赖 token 附加信息，授权服务器对 client token 不增强 claim）；② token scope 包含注解声明的 scope。任一不满足返回 403（含结构化审计日志）；
@@ -89,7 +89,7 @@
 
 ## 6. 风险
 
-- **Spring Security OAuth 停维风险（2026-07 已调研）**：官方 2022-06 停维，指定继任者 Spring Authorization Server 要求 Java 17+，与本项目 Java 8 / Boot 2.1 / Greenwich 不兼容——采用它前置条件是全栈升级（独立的平台级项目）；Keycloak 等外置 IdP 会引入新 HA 组件与双 token 校验通道，内网场景成本大于收益。**决策：本期在现栈实现，但强制「迁移缝」设计**——`@OpenApi` 注解、scope 约定、App ID/Secret 概念、应用管理均不得依赖 Spring Security OAuth 的私有类型（切面内部对 `OAuth2Authentication` 的依赖收敛到单一适配类），将来更换授权服务器时只替换 token 签发/校验层，业务接口与管理面零改动。整个平台栈（Java 8/Boot 2.1/Greenwich/Security 5.1）均已 EOL，本框架未引入新的不维护组件，安全基线与现状一致（内网隔离兜底）；全栈升级列入平台路线图，API 对公网开放前必须完成升级或外置 IdP 评估；
+- **Spring Security OAuth 停维风险（2026-07 已调研）**：官方 2022-06 停维，指定继任者 Spring Authorization Server 要求 Java 17+，与本项目 Java 8 / Boot 2.1 / Greenwich 不兼容——采用它前置条件是全栈升级（独立的平台级项目）；Keycloak 等外置 IdP 会引入新 HA 组件与双 token 校验通道，内网场景成本大于收益。**决策：本期在现栈实现，但强制「迁移缝」设计**——`@OpenApi` 注解、scope 约定、App ID/Secret 概念、应用管理均不得依赖 Spring Security OAuth 的私有类型（切面/拦截器内部对 `OAuth2Authentication` 的依赖收敛到 `OpenApiAuthenticationAdapter`（裁决）与 `OpenApiAccessTokenConverter`（纯 claim 搬运，继承 `DefaultAccessTokenConverter` 技术上无法回避）两个类），将来更换授权服务器时只替换 token 签发/校验层，业务接口与管理面零改动。整个平台栈（Java 8/Boot 2.1/Greenwich/Security 5.1）均已 EOL，本框架未引入新的不维护组件，安全基线与现状一致（内网隔离兜底）；全栈升级列入平台路线图，API 对公网开放前必须完成升级或外置 IdP 评估；
 - 无按 client 限流，恶意/失控应用可打满接口——对公网开放前必须补齐；
 - 内网 HTTP 明文传输 token 与照片（PII），与现状一致，随基础设施规划处理。
 
