@@ -30,11 +30,13 @@
 
 | 接口 | 说明 |
 |---|---|
-| `GET /platform/admittance/photo/pending?parkId=` | 返回该园区「审批通过（Status_0）、未过期（endTime > now）、非车辆类型」申请单下全部随行人员的 photoId 列表 |
+| `GET /platform/admittance/photo/pending` | 返回「审批通过（Status_0）、未过期（endTime > now）、非车辆类型」申请单下全部随行人员的 photoId 列表 |
 | `GET /platform/admittance/photo/download/{photoId}` | 返回照片二进制（复用 `smtImageService.getImageBinaryByCode`）；photoId 严格校验为 UUID 格式，防路径穿越/枚举 |
 
+- **园区范围由服务端推导（Codex 评审阻断项）**：不接受调用方传 parkId——服务端按应用凭证绑定的 `allowedParkIds`（见鉴权 spec）确定查询范围，token 泄露也拉不到其他园区数据；
+- 清单**只返回非空且图片实际存在的 photoId**（现有数据存在 photoId 为空/图片缺失的情况，直接下发会让客户端反复 404 空转）；缺图作为数据质量问题记 WARN 日志；
 - 清单接口只返回 photoId（轻量，客户端按需 diff）；photoId 本身为随机 UUID，不含个人信息；
-- download 接口对不存在的 photoId 返回 404，不回显入参。
+- download 接口对不存在的 photoId 返回 404，不回显入参；UUID 校验与现有 `saveImage` 默认生成规则一致（本接口只服务入厂申请照片，不承诺兼容外部传入的非 UUID 历史 imgCode）。
 
 ### 3.2 FileReceiver 改造（smart-module/FileReceiver）
 
@@ -45,9 +47,8 @@ file-receiver:
   pull:
     enabled: true
     server-url: http://<平台网关地址>      # 平台入口
-    client-id: file-receiver-xc           # OAuth2 客户端凭证
-    client-secret: <部署时配置>
-    park-id: <本机所属园区ID>
+    app-id: file-receiver-xc              # 应用凭证（园区范围绑定在服务端应用配置上，本地不配 parkId）
+    app-secret: <部署时配置>
     interval-seconds: 30                  # 拉取频率，可配置
   photo-dir: D:/visitor                   # 落盘目录，与打印页面硬约定一致
   cleanup:
@@ -69,6 +70,8 @@ file-receiver:
 
 **兼容**：旧 `POST /file/upload` 接口保留、标记废弃（日志 WARN + README 注明），一个版本周期后删除。
 
+**推拉并行的路径口径（Codex 评审指出的不兼容）**：平台推送现传绝对路径 `filePath=D:/visitor/{photoId}.png`，而仓库当前版 FileReceiver 拒绝绝对路径——若许昌机器部署的是新版 jar，「默认保留推送」会持续报错。统一口径：平台推送开关开启期间改传**相对文件名**（`{photoId}.png`），FileReceiver 配置 `upload-root=D:/visitor`（与拉取的 `photo-dir` 同目录）；**上线前必须核对许昌机器实际运行的 jar 版本**与其配置。
+
 ### 3.3 审批链路解耦（smart-platform）
 
 `updateStatus()` 改动：
@@ -82,7 +85,19 @@ file-receiver:
 
 ### 3.4 ISC 真实结果回写（smart-schedule）
 
-在 `ISCDeviceTaskServiceImpl` 中，每当一个入厂申请相关 ISC 任务到达**终态**（下发成功 / 重试耗尽失败 / 标记最大重试）时，按申请单聚合回写 `smt_admittance_apply.device_status`：
+**批次模型（Codex 评审阻断项，替代原「任务存在性」判别）**——数据库变更（脚本放 `smart-module/database/manual/`）：
+- `smt_isc_device_task` 新增 `apply_id`、`batch_id` 列（入厂申请来源的任务必填；其他来源任务为 NULL，不参与本聚合）；
+- `smt_admittance_apply` 新增 `isc_submit_batch` 列（最近一次成功提交的批次号，NULL=从未完成提交）。
+
+**提交协议**：`updateStatus()` 生成新批次号，在**同一事务**内插入该批次全部 ISC 任务并更新 `apply.isc_submit_batch=批次号`——事务保证「isc_submit_batch 已写 ⇔ 该批次任务集完整落库」，消除部分插入的模糊地带。
+
+**补偿边界**：「审批通过后续处理补偿」只认领 `deviceStatus IN (下发失败, 下发中)` **且 `isc_submit_batch IS NULL`** 的单（updateStatus 从未完成过）；聚合产生的真失败单必有批次号，天然隔离，不会被自动重建任务，只走人工「重新下发」。
+
+**重新下发（`repeat/auth`）**：现实现只补建缺失任务、不清旧任务——本次改为：将旧批次未终态任务置取消 → 生成新批次号重建任务集并更新 `isc_submit_batch`（同事务）→ 申请单回过渡态 `已下发(4)`。
+
+**终态全集**：任务终态以 `DeviceTaskStatusEnum` 实际取值为准——除「成功」外的所有终态（失败/重试耗尽/取消/过期/设备离线等）在聚合中一律按「该任务失败」计；非终态（待下发/下发中）按「在途」计。旧批次任务因批次过滤天然不参与聚合。
+
+**聚合触发**：`ISCDeviceTaskServiceImpl` 中每当一个入厂申请来源任务到达终态时，按 `apply.isc_submit_batch` 对应批次聚合回写 `device_status`：
 
 **聚合规则**（已与业务确认）：
 - **人员维度**：该人员在**任一设备**任务成功 → 该人员成功（门岗多台设备，坏一台不影响通行）；
@@ -91,15 +106,17 @@ file-receiver:
   - **任一人员**在其所有设备任务上均为终态失败 → `下发失败(2)`（该人员到门口过不去，必须暴露）；
   - 其余（仍有任务在途）→ 不回写，保持 `已下发(4)` 过渡态。
 
-**与补偿任务的隔离（关键约束）**：现有「审批通过后续处理补偿」靠 `deviceStatus IN (下发失败, 下发中)` 识别「updateStatus 没做完的单」并重跑全流程（会重建 ISC 任务）。聚合回写引入的 `下发失败(2)` 是「ISC 重试耗尽的真失败」，**不得进入该自动补偿**，否则会对真失败人员无限重建任务。隔离方式：补偿查询追加「该单不存在 ISC 任务记录」条件——updateStatus 没做完的单无任务，聚合失败的单必有任务，天然可区分。真失败的单只走人工「重新下发」。实施时需确认 `addDeviceTask` 的事务性，保证「任务存在 ⇔ 提交完成」不出现部分插入。
+**与补偿任务的隔离**：见上方「补偿边界」——以 `isc_submit_batch` 显式标记提交完成，不再依赖任务存在性推断（Codex 评审确认后者在无事务部分插入场景下不可靠，已废弃该方案）。
 
 **实现要点**：
-- 任务与申请单的关联沿用现有链路：task.cardNo → `SmtAdmittanceFellow.id` → `fellow.visitorId` → applyId；非入厂申请来源的任务（cardNo 解析不到 fellow）不触发回写；
+- 任务与申请单的关联使用新增 `apply_id` 列（创建任务时写入），不再运行时经 cardNo → fellow → visitorId 反查；`apply_id IS NULL` 的任务（非入厂申请来源）不触发回写；
 - 回写在任务终态处理的同一事务外做（先落任务状态，再聚合回写；回写失败立即重试 2 次，仍失败记 ERROR，同单后续任务终态会再次触发聚合）；
-- 聚合查询按 applyId 汇总该单全部 fellow 的全部任务状态，一次 SQL 完成，避免逐条查询；
-- 「重新下发」（`repeat/auth`）逻辑沿用：重发时清理旧任务、重建任务并回到过渡态，新任务终态再次驱动聚合。
+- 聚合查询按 `apply_id + batch_id` 一次 SQL 汇总当前批次全部任务状态，避免逐条查询。
 
-**兼容**：历史数据中的 `已下发(4)` 保留原义不迁移；前端两端的枚举映射已覆盖 0-4 全部取值，无需改动。
+**兼容与展示映射（Codex 评审重要项）**：
+- 历史数据中的 `已下发(4)` 保留原义不迁移；
+- H5 访客自查接口目前把 `已下发(4)` 与 `下发成功(1)` 都映射为 `SUCCESS`——语义调整后 4 是过渡态，**后端映射层（`VisitorSelfQueryServiceImpl`）改为 4 → `ISSUING`（正在下发）**，H5 前端无需改动；
+- 管理后台 `已下发` 文案维持（过渡态短暂存在，终态会被 1/2 覆盖），文案统一为可选后续优化。
 
 ### 3.5 上线顺序（防照片断供窗口）
 
@@ -122,7 +139,9 @@ file-receiver:
 ## 5. 测试
 
 - **unit**：
-  - 聚合规则矩阵：单人/多人 × 单设备/多设备 × 成功/终态失败/在途 的组合断言；
+  - 聚合规则矩阵：单人/多人 × 单设备/多设备 × 成功/各类终态失败（含取消/过期/离线）/在途 的组合断言；
+  - 批次边界：旧批次终态不污染新批次聚合；重发后旧批次未终态任务被取消；
+  - 补偿边界：`isc_submit_batch IS NULL` 才进自动补偿，聚合真失败单不进；
   - pending 清单查询过滤条件（状态/过期/车辆类型）；
   - photoId 格式校验（非法输入 400）；
   - FileReceiver 清理双条件判定、原子写（tmp→rename）；
@@ -134,6 +153,7 @@ file-receiver:
 ## 6. 风险
 
 - FileReceiver 需现场重新部署（Windows 机、人工操作），部署失败回退手段：保持 `photo-push-enabled=true` 即维持旧行为；
+- 涉及两张表加列的 DDL（`smt_isc_device_task`、`smt_admittance_apply`），需在业务低峰执行并提供回滚脚本；
 - 聚合回写增加 schedule 对 platform 库的写入频度（每任务终态一次聚合 SQL），量级为访客申请数 × 设备数，许昌规模下可忽略；如后续园区扩容出现热点，再考虑批量合并回写；
 - 照片（PII）经内网 HTTP 明文传输，与现状一致，随基础设施规划处理；
 - 「任一设备成功即人员成功」规则下，部分设备长期故障会被状态掩盖——设备健康监控是独立能力（已有 `DeviceStatusTask`），不在本 spec 范围。
