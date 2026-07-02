@@ -16,6 +16,7 @@ import org.springframework.test.context.junit4.SpringRunner;
  **/
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TransferApplication.class)
+@org.junit.Ignore("手工数据迁移脚本：会执行真实数据拷贝作业且异常被吞造成假通过，禁止自动构建执行")
 public class Test2 {
 
 	@Autowired

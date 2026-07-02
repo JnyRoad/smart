@@ -507,9 +507,11 @@ public class VisitorSelfQueryServiceImplTest {
 		apply.setVisitorPhone(mobile);
 		apply.setReceptionistName("王强");
 		apply.setStatus(status);
-		apply.setStartTime(LocalDateTime.of(2026, 6, 15, 9, 30));
-		apply.setEndTime(LocalDateTime.of(2026, 6, 15, 18, 0));
-		apply.setCreateTime(LocalDateTime.of(2026, 6, 13, 8, 0));
+		// 来访时间必须相对当前时间取未来值：服务端按 now > endTime 判定 EXPIRED，
+		// 写死日期会在日期过后变成时间炸弹（历史上 2026-06-15 的硬编码导致 4 个用例过期失败）
+		apply.setStartTime(LocalDateTime.now().plusDays(1).withHour(9).withMinute(30));
+		apply.setEndTime(LocalDateTime.now().plusDays(1).withHour(18).withMinute(0));
+		apply.setCreateTime(LocalDateTime.now().minusDays(1).withHour(8).withMinute(0));
 		apply.setCause(1);
 		return apply;
 	}

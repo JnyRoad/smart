@@ -14,6 +14,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @Slf4j
 @RunWith(SpringRunner.class)
 @SpringBootTest
+@org.junit.Ignore("手工联调脚本：需真实数据库/Nacos/微信环境加载完整应用上下文，禁止自动构建执行")
 public class WechatAuthServiceTest {
 
 	@Autowired
