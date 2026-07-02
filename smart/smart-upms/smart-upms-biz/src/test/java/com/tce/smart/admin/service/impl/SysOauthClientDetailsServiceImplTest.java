@@ -24,12 +24,14 @@ import static org.mockito.Mockito.when;
 /**
  * {@link SysOauthClientDetailsServiceImpl} 单元测试。
  *
- * <p>覆盖两条新增能力：
+ * <p>覆盖三条能力：
  * 1. 重置 client secret：返回 32 位明文，库中落地值必须以 {@link SecurityConstants#BCRYPT} 开头，
  *    且重置成功后必须调用 Feign 吊销该 clientId 下的旧 token；
  * 2. 删除应用：删除成功后必须调用 Feign 吊销该 clientId 下的旧 token，
  *    确保验收标准“删除后旧 token 立即 401/403”。
- * 两处均通过 mock {@link RemoteTokenService} 验证调用发生，不依赖真实 auth 服务。</p>
+ * 3. 新建/编辑应用时对明文 client_secret 做 BCrypt 编码（终审 F-1 修复）：
+ *    明文落库前必须补齐 {bcrypt} 前缀，已带前缀的值原样保留，避免二次编码。
+ * 均通过 mock {@link RemoteTokenService} 验证调用发生，不依赖真实 auth 服务。</p>
  */
 public class SysOauthClientDetailsServiceImplTest {
 
@@ -129,5 +131,151 @@ public class SysOauthClientDetailsServiceImplTest {
 
 		assertThat(result).isFalse();
 		verify(remoteTokenService, never()).removeTokensByClientId(anyString(), anyString());
+	}
+
+	// ---------------------------------------------------------------------
+	// F-1 修复：新建/编辑应用时明文 client_secret 必须编码后再落库，
+	// 否则 DelegatingPasswordEncoder 找不到匹配算法前缀，换 token 必然失败。
+	// ---------------------------------------------------------------------
+
+	private static final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder BCRYPT_ENCODER_FOR_TEST =
+			new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+
+	/**
+	 * save() 最终落库直接读取父类 {@code ServiceImpl} 的 protected 字段 {@code baseMapper} 后调用
+	 * {@code baseMapper.insert(entity)}（MyBatis-Plus 内部实现字节码级确认，不经过 {@code getBaseMapper()}
+	 * 这类可 spy 的方法），因此这里 mock {@link com.tce.smart.admin.mapper.SysOauthClientDetailsMapper}
+	 * 并通过反射直接替换该字段，只验证「传给 mapper.insert 的实体上 clientSecret 是否已被正确编码」，
+	 * 不依赖真实数据库。
+	 */
+	private void mockBaseMapperForSave() throws Exception {
+		com.tce.smart.admin.mapper.SysOauthClientDetailsMapper mapper =
+				mock(com.tce.smart.admin.mapper.SysOauthClientDetailsMapper.class);
+		when(mapper.insert(any(SysOauthClientDetails.class))).thenReturn(1);
+		java.lang.reflect.Field baseMapperField =
+				com.baomidou.mybatisplus.extension.service.impl.ServiceImpl.class.getDeclaredField("baseMapper");
+		baseMapperField.setAccessible(true);
+		baseMapperField.set(service, mapper);
+	}
+
+	/**
+	 * 新建应用（save）传入明文 secret：落库前必须补齐 {bcrypt} 前缀，
+	 * 且编码结果能被 BCryptPasswordEncoder.matches 验证通过。
+	 */
+	@Test
+	public void save_encodesPlainSecret_withBcryptPrefix() throws Exception {
+		mockBaseMapperForSave();
+		SysOauthClientDetails entity = new SysOauthClientDetails();
+		entity.setClientId("new-app");
+		entity.setClientSecret("plain-secret-123");
+		entity.setScope("open:test:read");
+
+		boolean result = service.save(entity);
+
+		assertThat(result).isTrue();
+		String persisted = entity.getClientSecret();
+		assertThat(persisted).startsWith(SecurityConstants.BCRYPT);
+		assertThat(BCRYPT_ENCODER_FOR_TEST.matches("plain-secret-123",
+				persisted.substring(SecurityConstants.BCRYPT.length()))).isTrue();
+	}
+
+	/**
+	 * 新建应用传入已带 {noop} 前缀的值：视为调用方已知晓自己在做什么，原样落库，不做二次编码。
+	 */
+	@Test
+	public void save_keepsAlreadyPrefixedNoopSecret_unchanged() throws Exception {
+		mockBaseMapperForSave();
+		SysOauthClientDetails entity = new SysOauthClientDetails();
+		entity.setClientId("legacy-app");
+		entity.setClientSecret("{noop}plain-secret");
+
+		service.save(entity);
+
+		assertThat(entity.getClientSecret()).isEqualTo("{noop}plain-secret");
+	}
+
+	/**
+	 * 新建应用传入已带 {bcrypt} 前缀的值（例如从别处迁移过来的密文）：原样落库，避免二次编码。
+	 */
+	@Test
+	public void save_keepsAlreadyPrefixedBcryptSecret_unchanged() throws Exception {
+		mockBaseMapperForSave();
+		SysOauthClientDetails entity = new SysOauthClientDetails();
+		entity.setClientId("migrated-app");
+		String alreadyEncoded = SecurityConstants.BCRYPT + BCRYPT_ENCODER_FOR_TEST.encode("some-secret");
+		entity.setClientSecret(alreadyEncoded);
+
+		service.save(entity);
+
+		assertThat(entity.getClientSecret()).isEqualTo(alreadyEncoded);
+	}
+
+	/**
+	 * 编辑应用（update）传入新明文 secret：落库前必须补齐 {bcrypt} 前缀。
+	 */
+	@Test
+	public void updateClientDetailsById_encodesNewPlainSecret_withBcryptPrefix() {
+		String clientId = "existing-app";
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setClientSecret("new-plain-secret");
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+
+		Boolean result = service.updateClientDetailsById(update);
+
+		assertThat(result).isTrue();
+		String persisted = update.getClientSecret();
+		assertThat(persisted).startsWith(SecurityConstants.BCRYPT);
+		assertThat(BCRYPT_ENCODER_FOR_TEST.matches("new-plain-secret",
+				persisted.substring(SecurityConstants.BCRYPT.length()))).isTrue();
+	}
+
+	/**
+	 * 编辑应用未修改 secret（前端传 null，表示“保持原值不变”）：不能把 null 当明文误编码，
+	 * 必须原样跳过，交给 MyBatis-Plus 的 updateById 按非空策略不覆盖该字段。
+	 */
+	@Test
+	public void updateClientDetailsById_doesNotTouchSecret_whenNull() {
+		String clientId = "existing-app";
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setClientSecret(null);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+
+		service.updateClientDetailsById(update);
+
+		assertThat(update.getClientSecret()).isNull();
+	}
+
+	/**
+	 * 编辑应用未修改 secret（前端传空字符串）：同上，视为“不修改”，不做编码。
+	 */
+	@Test
+	public void updateClientDetailsById_doesNotTouchSecret_whenBlank() {
+		String clientId = "existing-app";
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setClientSecret("");
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+
+		service.updateClientDetailsById(update);
+
+		assertThat(update.getClientSecret()).isEmpty();
+	}
+
+	/**
+	 * 编辑应用传入已带前缀（{bcrypt}/{noop}）的值：原样落库，避免把密文再编码一层导致校验永远失败。
+	 */
+	@Test
+	public void updateClientDetailsById_keepsAlreadyPrefixedSecret_unchanged() {
+		String clientId = "existing-app";
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setClientSecret("{bcrypt}already-encoded-hash");
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+
+		service.updateClientDetailsById(update);
+
+		assertThat(update.getClientSecret()).isEqualTo("{bcrypt}already-encoded-hash");
 	}
 }

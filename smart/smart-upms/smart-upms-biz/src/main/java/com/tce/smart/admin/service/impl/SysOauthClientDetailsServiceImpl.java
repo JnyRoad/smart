@@ -15,6 +15,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * <p>
@@ -57,7 +58,27 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 	}
 
 	/**
+	 * 新增客户端（管理页“新建应用”走此入口，继承自 {@link com.baomidou.mybatisplus.extension.service.IService#save}）。
+	 *
+	 * <p>DelegatingPasswordEncoder 要求库中 client_secret 必须带编码前缀（{noop}/{bcrypt}）才能正确匹配算法，
+	 * 否则换 token 时 Basic 认证必然失败（详见 spec §3.1）。管理页新建应用时前端只提交明文，
+	 * 这里必须在落库前补齐 {bcrypt} 前缀，与 {@link #resetSecret} 使用同一编码方式，保持行为一致。</p>
+	 *
+	 * @param entity 待新增的客户端信息
+	 * @return 是否新增成功
+	 */
+	@Override
+	public boolean save(SysOauthClientDetails entity) {
+		encodePlainSecretIfNeeded(entity);
+		return super.save(entity);
+	}
+
+	/**
 	 * 根据客户端信息
+	 *
+	 * <p>与 {@link #save} 同理：管理页“编辑应用”若填写了新的明文 secret，落库前必须补齐 {bcrypt} 前缀；
+	 * 若未改 secret（前端传 null/空，表示保持原值不变），不得误编码空值，直接跳过即可。
+	 * 已带前缀（{noop}/{bcrypt}）的值视为“调用方已知晓自己在做什么”，原样保留，避免二次编码导致密文错乱。</p>
 	 *
 	 * @param clientDetails
 	 * @return
@@ -65,7 +86,23 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 	@Override
 	@CacheEvict(value = SecurityConstants.CLIENT_DETAILS_KEY, key = "#clientDetails.clientId")
 	public Boolean updateClientDetailsById(SysOauthClientDetails clientDetails) {
+		encodePlainSecretIfNeeded(clientDetails);
 		return this.updateById(clientDetails);
+	}
+
+	/**
+	 * 若 clientSecret 非空且不带编码前缀（不以 '{' 开头），视为明文，用与 {@link #resetSecret} 相同的
+	 * BCryptPasswordEncoder 编码后覆盖为 {bcrypt} 前缀值；已带前缀（{noop}/{bcrypt} 等）或为空
+	 * （update 场景下表示“本次不修改 secret”）时原样跳过，避免二次编码把密文再套一层导致校验永远失败。
+	 *
+	 * @param clientDetails 待落库的客户端信息，方法内直接修改其 clientSecret 字段
+	 */
+	private void encodePlainSecretIfNeeded(SysOauthClientDetails clientDetails) {
+		String clientSecret = clientDetails.getClientSecret();
+		if (!StringUtils.hasText(clientSecret) || clientSecret.startsWith("{")) {
+			return;
+		}
+		clientDetails.setClientSecret(SecurityConstants.BCRYPT + BCRYPT_ENCODER.encode(clientSecret));
 	}
 
 	/**
