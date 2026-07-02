@@ -52,6 +52,23 @@
 
 ---
 
+> ## ⚠️ 部署窗口警告（迁移前必读）
+> **1. 数据库前置的迁移 SQL（尤其 1.1）与本计划 Task 1-6 的新版本代码必须在同一停机窗口内完成，
+> 不允许新旧版本与新旧库任意交叉存在：**
+> - **新代码 + 旧库**（代码已改为读取原始 `client_secret` 不再强制拼 `{noop}`，但库里还是纯明文、
+>   没有前缀）：`DelegatingPasswordEncoder` 找不到匹配前缀，**登录/换 token 全部失败**。
+> - **旧代码 + 新库**（库已跑完迁移、`client_secret` 都带上了 `{noop}`/`{bcrypt}` 前缀，但代码还是旧版本，
+>   查询语句仍在强制拼接 `{noop}` 前缀）：前缀被二次拼接成 `{noop}{noop}...` 或 `{noop}{bcrypt}...`，
+>   **同样导致登录/换 token 全部失败**。
+> - 因此正确顺序是：**先部署新代码 + 立即执行迁移 SQL + 立即清理 1.1.1 的 Redis 缓存**，三步在同一
+>   停机窗口内连续完成，中间不对外提供服务；顺序或时间上的任何分离都会造成一段时间内全量登录故障。
+>
+> **2. 运维应急指引**：迁移窗口期间或之后，若发现某个 client（尤其管理页新建/编辑过 secret 的应用）
+> 换 token 报 `invalid_client`／`Bad credentials`，**优先怀疑该 client 的 `client_secret` 编码前缀有问题**
+> （历史遗留脏数据、或本次终审 F-1 修复前的旧代码新建过明文 secret）。不需要人工改库排查前缀，
+> 直接在管理页对该应用执行一次「重置 App Secret」（`PUT /client/secret/{clientId}`）即可，
+> `resetSecret` 保证落库值必定带正确的 `{bcrypt}` 前缀，是最快的恢复手段。
+
 ## 0. 执行前准备
 
 - [ ] 确认测试环境已启动：Nacos、Redis、Oracle、`smart-gateway`、`smart-auth`、`smart-upms-biz`、
@@ -59,6 +76,8 @@
 - [ ] 确认已部署的代码版本包含本计划 Task 1-6 的全部提交（`git log --oneline` 核对包含
       `feat(auth): store client_secret with encoder prefix...` 到
       `chore(db): rename client management menu to app management` 区间的提交）。
+- [ ] 确认新版本代码与 1. 的数据库迁移 SQL 会在同一停机窗口内一并执行（见上方警告框），
+      不允许先上代码再择日跑 SQL，或先跑 SQL 再择日上代码。
 - [ ] 记录网关地址为 `<GATEWAY>`，后续命令直接替换。
 - [ ] 准备一个具备 `sys_client_edit`/`sys_client_del` 权限的管理员账号，用于登录 smart-ui 走管理页操作。
 
@@ -83,6 +102,27 @@
   再次执行预览 SQL 应返回 0 行（所有存量 `client_secret` 均已带 `{noop}` 前缀）。
 - **失败排查**：若 N 与预览行数不一致，检查是否有并发写入 `sys_oauth_client_details`；
   若报错 `ORA-00900`，说明工具把脚本当 SQL*Plus 脚本跑了，改用整段执行模式。
+
+### 1.1.1 清理 Redis 中的客户端详情缓存（迁移 SQL 执行后必做）
+
+> **背景**：`SmartClientDetailsService` 对 `sys_oauth_client_details` 的查询结果走 `CLIENT_DETAILS_KEY`
+> （`smart_oauth:client:details`）缓存。1.1 的迁移 SQL 直接改库，不会主动清缓存——如果这期间缓存里还留着
+> 迁移前的旧值（未带 `{noop}` 前缀的明文），窗口期内命中缓存的换 token 请求会一直用旧格式校验，
+> 表现为登录/换 token 间歇性失败，且现象会在缓存自然过期前持续存在，排查成本很高。
+> **执行 1.1 迁移 SQL 后必须立即清理这个缓存，不能省略。**
+
+- **前置条件**：能访问测试环境 Redis（有 `redis-cli` 或等价工具）。
+- **步骤**（任选一种，生产环境优先用 `SCAN`/`UNLINK`，避免 `KEYS`/`DEL` 在大 key 空间下阻塞 Redis）：
+  ```bash
+  # 测试环境（数据量小，KEYS + DEL 可接受）：
+  redis-cli --scan --pattern 'smart_oauth:client:details*' | xargs -r redis-cli DEL
+
+  # 生产环境（务必用 SCAN 游标迭代 + UNLINK 异步删除，禁止直接 KEYS + DEL）：
+  redis-cli --scan --pattern 'smart_oauth:client:details*' | xargs -r redis-cli UNLINK
+  ```
+- **预期结果**：再次执行 `redis-cli --scan --pattern 'smart_oauth:client:details*'` 应返回空（无匹配 key）。
+- **失败排查**：若清理后仍能查到旧格式 key，检查是否连错了 Redis 实例/DB index（`SELECT <db>`）；
+  若使用 Redis Cluster，`--scan` 需对每个分片节点分别执行，或改用支持 cluster 模式的客户端。
 
 ### 1.2 执行 `2026-07-01-register-file-receiver-app.sql`（需先替换占位符 + 重置 secret）
 
@@ -291,11 +331,16 @@ curl -i -X GET '<GATEWAY>/platform<OPEN_ENDPOINT>'
 
 ### 5.2 删除应用后，旧 token 立即失效
 
-- **前置条件**：另建一个一次性测试 client（不要用 file-receiver-xc，避免影响其它用例），
-  换出一个 client token 记为 `<DISPOSABLE_TOKEN>`。
+- **前置条件**：另建一个一次性测试 client（不要用 file-receiver-xc，避免影响其它用例）。
 - **步骤**：
-  1. 管理页删除该测试应用（对应 `POST /client/{clientId}`，`sys_client_del` 权限）。
-  2. 用 `<DISPOSABLE_TOKEN>` 调任意接口：
+  1. 管理页新建该测试应用，**保存后必须先走一次「重置 App Secret」拿到可用凭证，再用重置后的
+     secret 去换 token**（管理页新建应用时填写的明文 secret，在终审 F-1 修复后已会被自动编码，
+     理论上也可直接换 token 成功；但本清单保守起见仍要求先重置一次，确保拿到的是明确经过
+     `resetSecret` 落库路径验证过的 `{bcrypt}` 编码值，避免因环境上还跑着 F-1 修复前的旧代码
+     而误判用例失败）。
+  2. 用重置后的 secret 换出一个 client token 记为 `<DISPOSABLE_TOKEN>`。
+  3. 管理页删除该测试应用（对应 `POST /client/{clientId}`，`sys_client_del` 权限）。
+  4. 用 `<DISPOSABLE_TOKEN>` 调任意接口：
      ```bash
      curl -i -X GET '<GATEWAY>/platform<OPEN_ENDPOINT>' \
        -H 'Authorization: Bearer <DISPOSABLE_TOKEN>'
