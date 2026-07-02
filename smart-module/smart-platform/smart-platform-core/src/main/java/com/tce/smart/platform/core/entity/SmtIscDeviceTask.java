@@ -147,4 +147,14 @@ public class SmtIscDeviceTask extends Model<SmtIscDeviceTask> {
 	 * ISC人员ID
 	 */
 	private String personId;
+
+	/**
+	 * 入厂申请单ID（非入厂申请来源为NULL）
+	 */
+	private Long applyId;
+
+	/**
+	 * 下发批次号（同一次提交的任务集共享）
+	 */
+	private Long batchId;
 }

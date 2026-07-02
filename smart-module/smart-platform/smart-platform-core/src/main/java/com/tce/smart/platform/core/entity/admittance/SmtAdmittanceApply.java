@@ -147,4 +147,9 @@ private static final long serialVersionUID = 1L;
 	 * 1 人员入场申请  2 货车预约
 	 */
 	private Integer applyType;
+
+	/**
+	 * 最近一次成功提交ISC的批次号；NULL=从未完成提交（补偿边界依据）
+	 */
+	private Long iscSubmitBatch;
 }
