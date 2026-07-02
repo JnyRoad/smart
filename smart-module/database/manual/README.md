@@ -21,6 +21,7 @@
 | `20260701_add_smt_device_authority_relation_device_id_index.sql` | 需要 | 给 `SMT_DEVICE_AUTHORITY_RELATION.DEVICE_ID` 加索引，支撑"按设备反查权限组"功能的查询性能。脚本内置索引存在性判断，可重复执行。 |
 | `2026-07-01-oauth-client-secret-prefix.sql` | 需要 | 给 `sys_oauth_client_details.client_secret` 存量明文行补 `{noop}` 编码前缀，配合 `SecurityConstants.CLIENT_FIELDS` 改为直接读取 `client_secret`（不再由 SQL 强制拼前缀），为后续新增 `{bcrypt}` 编码的 client 做铺垫。已带前缀的行不受影响，可重复执行。 |
 | `2026-07-01-register-file-receiver-app.sql` | 需要 | 注册许昌 FileReceiver 开放应用（App ID: file-receiver-xc）至 `sys_oauth_client_details`。脚本内置应用存在性判断，可重复执行。部署后需立即通过管理页「重置 App Secret」生成正式凭证；占位符 `<许昌园区ID>` 需执行前从 `smt_park` 表确认填入。 |
+| `2026-07-01-rename-client-menu-to-app-management.sql` | 需要 | 将管理后台菜单 `SYS_MENU.NAME` 由 "客户端管理" 改名为 "应用管理"（开放 API 鉴权规范要求）。脚本内置菜单存在性判断，可重复执行；未找到不报错。 |
 
 建议执行顺序：
 
