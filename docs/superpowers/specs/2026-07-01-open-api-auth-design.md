@@ -89,7 +89,7 @@
 
 ## 6. 风险
 
-- Spring Security OAuth 栈已停维（随全系统版本，不在本期升级），新增代码遵循其扩展点，避免深度魔改；
+- **Spring Security OAuth 停维风险（2026-07 已调研）**：官方 2022-06 停维，指定继任者 Spring Authorization Server 要求 Java 17+，与本项目 Java 8 / Boot 2.1 / Greenwich 不兼容——采用它前置条件是全栈升级（独立的平台级项目）；Keycloak 等外置 IdP 会引入新 HA 组件与双 token 校验通道，内网场景成本大于收益。**决策：本期在现栈实现，但强制「迁移缝」设计**——`@OpenApi` 注解、scope 约定、App ID/Secret 概念、应用管理均不得依赖 Spring Security OAuth 的私有类型（切面内部对 `OAuth2Authentication` 的依赖收敛到单一适配类），将来更换授权服务器时只替换 token 签发/校验层，业务接口与管理面零改动。整个平台栈（Java 8/Boot 2.1/Greenwich/Security 5.1）均已 EOL，本框架未引入新的不维护组件，安全基线与现状一致（内网隔离兜底）；全栈升级列入平台路线图，API 对公网开放前必须完成升级或外置 IdP 评估；
 - 无按 client 限流，恶意/失控应用可打满接口——对公网开放前必须补齐；
 - 内网 HTTP 明文传输 token 与照片（PII），与现状一致，随基础设施规划处理。
 
