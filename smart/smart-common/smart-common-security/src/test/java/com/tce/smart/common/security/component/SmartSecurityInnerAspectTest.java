@@ -48,8 +48,7 @@ public class SmartSecurityInnerAspectTest {
 	@Test
 	public void enforceWithFromInHeaderProceeds() throws Throwable {
 		bindRequestWithFrom(SecurityConstants.FROM_IN);
-		Object result = aspect(InnerMode.ENFORCE).around(joinPoint, innerAnnotation());
-		Assert.assertSame(PROCEED_RESULT, result);
+		assertProceeds(InnerMode.ENFORCE);
 	}
 
 	@Test
@@ -75,22 +74,19 @@ public class SmartSecurityInnerAspectTest {
 	@Test
 	public void auditWithoutFromHeaderProceeds() throws Throwable {
 		bindRequestWithFrom(null);
-		Object result = aspect(InnerMode.AUDIT).around(joinPoint, innerAnnotation());
-		Assert.assertSame(PROCEED_RESULT, result);
+		assertProceeds(InnerMode.AUDIT);
 	}
 
 	@Test
 	public void auditWithFromInHeaderProceeds() throws Throwable {
 		bindRequestWithFrom(SecurityConstants.FROM_IN);
-		Object result = aspect(InnerMode.AUDIT).around(joinPoint, innerAnnotation());
-		Assert.assertSame(PROCEED_RESULT, result);
+		assertProceeds(InnerMode.AUDIT);
 	}
 
 	@Test
 	public void auditWithoutRequestContextProceeds() throws Throwable {
 		// 审计模式的承诺是零中断：即使无请求上下文也放行
-		Object result = aspect(InnerMode.AUDIT).around(joinPoint, innerAnnotation());
-		Assert.assertSame(PROCEED_RESULT, result);
+		assertProceeds(InnerMode.AUDIT);
 	}
 
 	// ---------- OFF：关闭模式（等价历史注释态，紧急回滚兜底） ----------
@@ -98,8 +94,7 @@ public class SmartSecurityInnerAspectTest {
 	@Test
 	public void offWithoutFromHeaderProceeds() throws Throwable {
 		bindRequestWithFrom(null);
-		Object result = aspect(InnerMode.OFF).around(joinPoint, innerAnnotation());
-		Assert.assertSame(PROCEED_RESULT, result);
+		assertProceeds(InnerMode.OFF);
 	}
 
 	// ---------- @Inner(false)：注解声明不走 AOP 校验 ----------
@@ -119,6 +114,33 @@ public class SmartSecurityInnerAspectTest {
 		Assert.assertEquals(InnerMode.AUDIT, new SmartInnerSecurityProperties().getMode());
 	}
 
+	// ---------- 配置异常兜底：任何配置问题都不能演变成拦截或 500 ----------
+
+	@Test
+	public void nullModeTreatedAsAuditAndProceeds() throws Throwable {
+		// mode 被绑定成 null（如 Nacos 配置了空值）时必须按审计处理，不能落入拦截分支
+		bindRequestWithFrom(null);
+		SmartInnerSecurityProperties properties = new SmartInnerSecurityProperties();
+		properties.setMode(null);
+		Object result = new SmartSecurityInnerAspect(properties).around(joinPoint, innerAnnotation());
+		Assert.assertSame(PROCEED_RESULT, result);
+	}
+
+	@Test
+	public void modeReadFailureFallsBackToAuditAndProceeds() throws Throwable {
+		// @RefreshScope 场景下 Nacos 配错值会导致 bean 重建失败、getMode() 抛异常；
+		// 必须回退审计放行，否则一次配置手误会让全部 @Inner 端点（含合法 Feign 调用）500
+		bindRequestWithFrom(null);
+		SmartInnerSecurityProperties broken = new SmartInnerSecurityProperties() {
+			@Override
+			public InnerMode getMode() {
+				throw new IllegalStateException("模拟配置绑定失败");
+			}
+		};
+		Object result = new SmartSecurityInnerAspect(broken).around(joinPoint, innerAnnotation());
+		Assert.assertSame(PROCEED_RESULT, result);
+	}
+
 	// ---------- 辅助方法 ----------
 
 	/** 构造指定模式的切面实例 */
@@ -135,6 +157,12 @@ public class SmartSecurityInnerAspectTest {
 			request.addHeader(SecurityConstants.FROM, from);
 		}
 		RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+	}
+
+	/** 断言指定模式下放行，且拿到目标方法的返回值 */
+	private void assertProceeds(InnerMode mode) throws Throwable {
+		Object result = aspect(mode).around(joinPoint, innerAnnotation());
+		Assert.assertSame(PROCEED_RESULT, result);
 	}
 
 	/** 断言指定模式下被拒绝，且目标方法未被执行 */
