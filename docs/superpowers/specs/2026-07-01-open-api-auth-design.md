@@ -36,7 +36,7 @@
 
 ### 3.1 凭证与令牌
 
-- **对外话术即「AppID / AppSecret」**（对标飞书开放平台模式）：`client_id` 就是 AppID，`client_secret` 就是 AppSecret，换 token 调用的流程与飞书 `tenant_access_token` 完全同构，但走标准 OAuth2 协议——MCP 规范、各语言 OAuth2 客户端库、Postman 均原生支持，无需自研 SDK。管理页面与对接文档统一用 AppID/AppSecret 术语。
+- **命名规范（硬性要求）**：所有用户可见层面——管理页面字段、对接文档、错误提示、审计日志字段——一律使用「**App ID / App Secret**」（对标飞书开放平台），**禁止出现「客户端 ID」等 OAuth2 内部术语**。底层存储仍是 `sys_oauth_client_details.client_id/client_secret`，token 端点参数名按 OAuth2 标准保持 `client_id/client_secret`（各语言标准库自动处理），对接文档中注明「App ID 对应请求参数 client_id」一处即可。换 token 调用的流程与飞书 `tenant_access_token` 完全同构，但走标准 OAuth2 协议——MCP 规范、各语言 OAuth2 客户端库、Postman 均原生支持，无需自研 SDK。
 - 开放应用在 `sys_oauth_client_details` 注册：`authorized_grant_types=client_credentials`，`scope` 填其被授权的开放 scope 列表（逗号分隔），`access_token_validity` 按应用设置（FileReceiver 建议 12h）。
 - 应用调用 `POST /oauth/token`（grant_type=client_credentials）换取 access token，调用开放接口时携带 `Authorization: Bearer <token>`。
 - **secret 存储核查**：实现时确认 `client_secret` 当前编码方式；若为明文或 `{noop}`，改为 BCrypt 存储（新建/重置走 BCrypt，存量客户端做一次性迁移脚本，放 `smart-module/database/manual/`）。
@@ -54,7 +54,7 @@
 
 ### 3.3 应用管理增强
 
-- UPMS / `admin/client` 页面补充：
+- UPMS / `admin/client` 页面补充（页面标题与字段标签改为「应用管理 / App ID / App Secret」）：
   - **scope 分配**：编辑界面支持从「已登记开放 scope 字典」多选（字典先用 Nacos 配置或常量类维护，YAGNI，不建表）；
   - **secret 重置**：生成 32 位随机 secret，明文只在重置响应中返回一次，库中存 BCrypt；
   - **停用**：本期不加状态位列——停用即删除 `sys_oauth_client_details` 记录，并同步清除 Redis 中该 client 的缓存与已签发 token（立即失效）。重新启用=重新注册。
