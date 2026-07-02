@@ -52,6 +52,7 @@ import com.tce.smart.tool.enums.OaFinalStatusEnum;
 import com.tce.smart.tool.enums.OneOrZeroEnum;
 import com.tce.smart.tool.enums.VisitorStatusEnum;
 import com.tce.smart.tool.constant.WorkFlowLogConstants;
+import com.tce.smart.tool.exception.TCEException;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -504,6 +505,78 @@ public class SmtAdmittanceApplyServiceImplTest {
 		Mockito.verify(harness.iscTaskService, Mockito.never()).update(Mockito.any(), Mockito.any());
 		// 新批次任务仍应正常生成
 		Mockito.verify(harness.taskService).saveTask(Mockito.any(DeviceTaskVO.class));
+	}
+
+	// ========== 评审 B1：repeatVisitorDeviceAuth 与自动补偿链路的锁互斥 ==========
+
+	@Test
+	public void repeatAuth_blockedWhenCompensationHoldsLock() throws Exception {
+		// 补偿链路（或另一次人工重发）已持有该 applyId 的 Redis 锁：setIfAbsent 返回 false
+		RepeatAuthHarness harness = setUpRepeatAuthHarness(null);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		setField(harness.service, "stringRedisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		Mockito.when(valueOperations.setIfAbsent(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.eq(TimeUnit.MINUTES)))
+				.thenReturn(Boolean.FALSE);
+
+		try {
+			harness.service.repeatVisitorDeviceAuth(harness.apply.getId());
+			Assert.fail("锁被占用时应抛出 TCEException");
+		} catch (TCEException e) {
+			Assert.assertEquals("该申请正在处理中，请稍后重试", e.getMessage());
+		}
+
+		// 未拿到锁：不应建新任务，也不应更新 apply（isc_submit_batch 不被覆盖）
+		Mockito.verify(harness.taskService, Mockito.never()).saveTask(Mockito.any(DeviceTaskVO.class));
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	@Test
+	public void repeatAuth_reloadsBatchInsideLock() throws Exception {
+		// 锁内重读最新 iscSubmitBatch：防止锁前读到的旧值与并发补偿的最新写入不一致（TOCTOU）
+		RepeatAuthHarness harness = setUpRepeatAuthHarness(700001L);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		setField(harness.service, "stringRedisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		Mockito.when(valueOperations.setIfAbsent(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.eq(TimeUnit.MINUTES)))
+				.thenReturn(Boolean.TRUE);
+		Mockito.when(redisTemplate.execute(Mockito.any(DefaultRedisScript.class), Mockito.anyList(), Mockito.anyString()))
+				.thenReturn(1L);
+
+		Boolean result = harness.service.repeatVisitorDeviceAuth(harness.apply.getId());
+
+		Assert.assertTrue(result);
+		// selectById 应在方法入口读一次（查记录）、拿到锁后在临界区内再读一次（重读最新批次号）
+		Mockito.verify(harness.mapper, Mockito.times(2)).selectById(harness.apply.getId());
+	}
+
+	@Test
+	public void repeatAuth_releasesLockOnException() throws Exception {
+		// 建任务过程中抛异常：锁仍必须被释放，避免死锁把该 applyId 永久卡住
+		RepeatAuthHarness harness = setUpRepeatAuthHarness(700001L);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		setField(harness.service, "stringRedisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		Mockito.when(valueOperations.setIfAbsent(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.eq(TimeUnit.MINUTES)))
+				.thenReturn(Boolean.TRUE);
+		Mockito.when(redisTemplate.execute(Mockito.any(DefaultRedisScript.class), Mockito.anyList(), Mockito.anyString()))
+				.thenReturn(1L);
+		Mockito.when(harness.taskService.saveTask(Mockito.any(DeviceTaskVO.class)))
+				.thenThrow(new RuntimeException("device task down"));
+
+		try {
+			harness.service.repeatVisitorDeviceAuth(harness.apply.getId());
+			Assert.fail("建任务失败应向上抛出异常");
+		} catch (RuntimeException e) {
+			Assert.assertEquals("device task down", e.getMessage());
+		}
+
+		// finally 块必须执行 Lua 释放脚本，锁不会因异常而残留到 TTL 过期
+		Mockito.verify(redisTemplate).execute(Mockito.any(DefaultRedisScript.class),
+				Mockito.anyList(), Mockito.anyString());
 	}
 
 	@Test
