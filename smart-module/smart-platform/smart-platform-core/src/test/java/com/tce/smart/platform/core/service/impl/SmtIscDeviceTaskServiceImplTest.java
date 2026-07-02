@@ -653,6 +653,171 @@ public class SmtIscDeviceTaskServiceImplTest {
 		Mockito.verify(deviceTaskMapper, Mockito.never()).insert(Mockito.any(SmtIscDeviceTask.class));
 	}
 
+	// ========== 批量终态方法的AndCollectApplyIds重载：UPDATE前先查受影响申请单ID ==========
+
+	@Test
+	public void expireOverdueDownloadTasksAndCollectApplyIdsSelectsDistinctApplyIdsWithSameCondition() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class));
+		SmtIscDeviceTask taskA = new SmtIscDeviceTask();
+		taskA.setApplyId(11L);
+		SmtIscDeviceTask taskB = new SmtIscDeviceTask();
+		taskB.setApplyId(11L);
+		SmtIscDeviceTask taskC = new SmtIscDeviceTask();
+		taskC.setApplyId(12L);
+		Mockito.when(deviceTaskMapper.selectList(Mockito.any())).thenReturn(java.util.Arrays.asList(taskA, taskB, taskC));
+		Mockito.when(deviceTaskMapper.update(Mockito.any(), Mockito.any())).thenReturn(3);
+
+		java.util.Set<Long> applyIds = service.expireOverdueDownloadTasksAndCollectApplyIds(DeviceTaskConstants.CARD);
+
+		// 返回去重后的受影响申请单ID
+		Assert.assertEquals(new java.util.HashSet<>(java.util.Arrays.asList(11L, 12L)), applyIds);
+		// SELECT与UPDATE共用同一份条件构造（applyExpireOverdueCondition）：SELECT额外追加APPLY_ID非空过滤
+		ArgumentCaptor<LambdaQueryWrapper> queryCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		Mockito.verify(deviceTaskMapper).selectList(queryCaptor.capture());
+		String querySql = queryCaptor.getValue().getSqlSegment().toUpperCase();
+		Assert.assertTrue(querySql.contains("APPLY_ID IS NOT NULL"));
+		Assert.assertTrue(querySql.contains("OVER_TIME"));
+		Assert.assertTrue(querySql.contains("ACTION"));
+		// SELECT之后原UPDATE照常执行，条件同源
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(deviceTaskMapper).update(Mockito.isNull(), updateCaptor.capture());
+		String updateSql = updateCaptor.getValue().getSqlSegment().toUpperCase();
+		Assert.assertTrue(updateSql.contains("OVER_TIME"));
+		Assert.assertTrue(updateSql.contains("ACTION"));
+	}
+
+	@Test
+	public void expireOverdueDownloadTasksAndCollectApplyIdsReturnsEmptyWhenNoRowsMatch() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class));
+		Mockito.when(deviceTaskMapper.selectList(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(deviceTaskMapper.update(Mockito.any(), Mockito.any())).thenReturn(0);
+
+		java.util.Set<Long> applyIds = service.expireOverdueDownloadTasksAndCollectApplyIds(DeviceTaskConstants.CARD);
+
+		Assert.assertTrue(applyIds.isEmpty());
+	}
+
+	@Test
+	public void stopExceededRetryAuthTasksAndCollectApplyIdsSelectsApplyIdsWithSameCondition() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class));
+		SmtIscDeviceTask task = new SmtIscDeviceTask();
+		task.setApplyId(21L);
+		Mockito.when(deviceTaskMapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(task));
+		Mockito.when(deviceTaskMapper.update(Mockito.any(), Mockito.any())).thenReturn(1);
+
+		java.util.Set<Long> applyIds = service.stopExceededRetryAuthTasksAndCollectApplyIds(DeviceTaskConstants.CARD,
+				DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES, "请人工介入处理");
+
+		Assert.assertEquals(Collections.singleton(21L), applyIds);
+		ArgumentCaptor<LambdaQueryWrapper> queryCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		Mockito.verify(deviceTaskMapper).selectList(queryCaptor.capture());
+		String querySql = queryCaptor.getValue().getSqlSegment().toUpperCase();
+		Assert.assertTrue(querySql.contains("APPLY_ID IS NOT NULL"));
+		Assert.assertTrue(querySql.contains("TIMES"));
+		// 条件与UPDATE同源（applyStopExceededRetryCondition）：最大重试次数参数出现在SELECT条件中
+		Assert.assertTrue(queryCaptor.getValue().getParamNameValuePairs().values().stream()
+				.anyMatch(value -> String.valueOf(DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES).equals(String.valueOf(value))));
+		Mockito.verify(deviceTaskMapper).update(Mockito.isNull(), Mockito.any(LambdaUpdateWrapper.class));
+	}
+
+	@Test
+	public void stopExceededRetryAuthTasksAndCollectApplyIdsReturnsEmptyWhenNoRowsMatch() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class));
+		Mockito.when(deviceTaskMapper.selectList(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(deviceTaskMapper.update(Mockito.any(), Mockito.any())).thenReturn(0);
+
+		java.util.Set<Long> applyIds = service.stopExceededRetryAuthTasksAndCollectApplyIds(DeviceTaskConstants.CARD,
+				DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES, "请人工介入处理");
+
+		Assert.assertTrue(applyIds.isEmpty());
+	}
+
+	@Test
+	public void markOfflineDeviceTasksAndCollectApplyIdsQueriesApplyIdsBeforeUpdate() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class));
+		Mockito.when(deviceTaskMapper.getOfflineDeviceTaskApplyIds(DeviceTaskConstants.CARD))
+				.thenReturn(new java.util.LinkedHashSet<>(java.util.Arrays.asList(31L, 32L)));
+		Mockito.when(deviceTaskMapper.markOfflineDeviceTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.any()))
+				.thenReturn(2);
+
+		java.util.Set<Long> applyIds = service.markOfflineDeviceTasksAndCollectApplyIds(DeviceTaskConstants.CARD);
+
+		Assert.assertEquals(new java.util.HashSet<>(java.util.Arrays.asList(31L, 32L)), applyIds);
+		// SELECT必须先于UPDATE（条件由XML共享片段mark_offline_device_tasks_condition保证一致）
+		org.mockito.InOrder inOrder = Mockito.inOrder(deviceTaskMapper);
+		inOrder.verify(deviceTaskMapper).getOfflineDeviceTaskApplyIds(DeviceTaskConstants.CARD);
+		inOrder.verify(deviceTaskMapper).markOfflineDeviceTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.any());
+	}
+
+	@Test
+	public void markOfflineDeviceTasksAndCollectApplyIdsReturnsEmptyWhenNoRowsMatch() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class));
+		// mapper无匹配行时可能返回null（MyBatis空结果的Set默认返回空集合，防御null也一并覆盖）
+		Mockito.when(deviceTaskMapper.getOfflineDeviceTaskApplyIds(DeviceTaskConstants.CARD)).thenReturn(null);
+		Mockito.when(deviceTaskMapper.markOfflineDeviceTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.any()))
+				.thenReturn(0);
+
+		java.util.Set<Long> applyIds = service.markOfflineDeviceTasksAndCollectApplyIds(DeviceTaskConstants.CARD);
+
+		Assert.assertTrue(applyIds.isEmpty());
+	}
+
+	@Test
+	public void cancelStaleOfflineDownloadTasksAndCollectApplyIdsCollectsOnlyUpdatedRowsWithApplyId() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class));
+		SmtIscDeviceTask taskWithApply = new SmtIscDeviceTask();
+		taskWithApply.setId(9101L);
+		taskWithApply.setApplyId(41L);
+		SmtIscDeviceTask taskWithoutApply = new SmtIscDeviceTask();
+		taskWithoutApply.setId(9102L);
+		SmtIscDeviceTask taskUpdateMissed = new SmtIscDeviceTask();
+		taskUpdateMissed.setId(9103L);
+		taskUpdateMissed.setApplyId(42L);
+		Mockito.when(deviceTaskMapper.getStaleOfflineDownloadTasks(DeviceTaskConstants.CARD, 3))
+				.thenReturn(java.util.Arrays.asList(taskWithApply, taskWithoutApply, taskUpdateMissed));
+		// 9103竞态未命中（UPDATE返回0行）：其applyId不应被收集，避免对未真正变更的申请单触发无意义聚合
+		Mockito.when(deviceTaskMapper.cancelStaleOfflineDownloadTask(Mockito.eq(9101L), Mockito.anyInt(), Mockito.anyInt(),
+				Mockito.anyInt(), Mockito.anyInt(), Mockito.anyString(), Mockito.any(), Mockito.any())).thenReturn(1);
+		Mockito.when(deviceTaskMapper.cancelStaleOfflineDownloadTask(Mockito.eq(9102L), Mockito.anyInt(), Mockito.anyInt(),
+				Mockito.anyInt(), Mockito.anyInt(), Mockito.anyString(), Mockito.any(), Mockito.any())).thenReturn(1);
+		Mockito.when(deviceTaskMapper.cancelStaleOfflineDownloadTask(Mockito.eq(9103L), Mockito.anyInt(), Mockito.anyInt(),
+				Mockito.anyInt(), Mockito.anyInt(), Mockito.anyString(), Mockito.any(), Mockito.any())).thenReturn(0);
+
+		java.util.Set<Long> applyIds = service.cancelStaleOfflineDownloadTasksAndCollectApplyIds(DeviceTaskConstants.CARD, 3);
+
+		Assert.assertEquals(Collections.singleton(41L), applyIds);
+	}
+
+	@Test
+	public void cancelStaleOfflineDownloadTasksAndCollectApplyIdsReturnsEmptyWhenNoRowsMatch() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class));
+		Mockito.when(deviceTaskMapper.getStaleOfflineDownloadTasks(DeviceTaskConstants.CARD, 3))
+				.thenReturn(Collections.emptyList());
+
+		java.util.Set<Long> applyIds = service.cancelStaleOfflineDownloadTasksAndCollectApplyIds(DeviceTaskConstants.CARD, 3);
+
+		Assert.assertTrue(applyIds.isEmpty());
+		Mockito.verify(deviceTaskMapper, Mockito.never()).cancelStaleOfflineDownloadTask(Mockito.anyLong(),
+				Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyString(),
+				Mockito.any(), Mockito.any());
+	}
+
 	private void assertQueryHasParam(LambdaQueryWrapper queryWrapper, Object expected) {
 		queryWrapper.getSqlSegment();
 		Assert.assertTrue(queryWrapper.getParamNameValuePairs().values().stream()

@@ -107,13 +107,33 @@ public class SmtIscDeviceTaskMapperXmlTest {
 	@Test
 	public void markOfflineDeviceTasksMarksPendingTasksOnOfflineDevices() throws Exception {
 		String mapper = new String(Files.readAllBytes(Paths.get("src/main/resources/mapper/SmtIscDeviceTaskMapper.xml")), StandardCharsets.UTF_8);
+		// WHERE谓词已抽为共享片段：先断言片段本身覆盖离线标记条件
+		int conditionStart = mapper.indexOf("<sql id=\"mark_offline_device_tasks_condition\"");
+		Assert.assertTrue(conditionStart >= 0);
+		int conditionEnd = mapper.indexOf("</sql>", conditionStart);
+		String conditionSql = mapper.substring(conditionStart, conditionEnd);
+		Assert.assertTrue(conditionSql.contains("SDA.STATUS = 0 OR SDA.STATUS IS NULL"));
+		Assert.assertTrue(conditionSql.contains("CONNECT_STATUS != 2"));
+		// UPDATE语句必须引用共享片段（保证与SELECT APPLY_ID同条件，防止两处谓词漂移）
 		int updateStart = mapper.indexOf("<update id=\"markOfflineDeviceTasks\"");
 		Assert.assertTrue(updateStart >= 0);
 		int updateEnd = mapper.indexOf("</update>", updateStart);
 		String updateSql = mapper.substring(updateStart, updateEnd);
 		Assert.assertTrue(updateSql.contains("SDA.STATUS = 6"));
-		Assert.assertTrue(updateSql.contains("SDA.STATUS = 0 OR SDA.STATUS IS NULL"));
-		Assert.assertTrue(updateSql.contains("CONNECT_STATUS != 2"));
+		Assert.assertTrue(updateSql.contains("<include refid=\"mark_offline_device_tasks_condition\""));
+	}
+
+	@Test
+	public void offlineDeviceTaskApplyIdsQueryReusesMarkOfflineConditionAndFiltersNullApplyId() throws Exception {
+		String mapper = new String(Files.readAllBytes(Paths.get("src/main/resources/mapper/SmtIscDeviceTaskMapper.xml")), StandardCharsets.UTF_8);
+		int selectStart = mapper.indexOf("<select id=\"getOfflineDeviceTaskApplyIds\"");
+		Assert.assertTrue(selectStart >= 0);
+		int selectEnd = mapper.indexOf("</select>", selectStart);
+		String selectSql = mapper.substring(selectStart, selectEnd);
+		// SELECT必须与UPDATE复用同一共享片段（同条件），并追加APPLY_ID非空过滤+去重
+		Assert.assertTrue(selectSql.contains("<include refid=\"mark_offline_device_tasks_condition\""));
+		Assert.assertTrue(selectSql.contains("SDA.APPLY_ID IS NOT NULL"));
+		Assert.assertTrue(selectSql.contains("SELECT DISTINCT SDA.APPLY_ID"));
 	}
 
 	@Test

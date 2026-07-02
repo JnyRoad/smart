@@ -12,6 +12,7 @@ import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 设备任务信息表
@@ -68,6 +69,12 @@ public interface SmtIscDeviceTaskMapper extends BaseMapper<SmtIscDeviceTask> {
 	 * 将离线设备上的待下发任务标记为设备离线状态（status=6），设备恢复在线后由调度查询自动恢复
 	 */
 	int markOfflineDeviceTasks(@Param("deviceType") int deviceType, @Param("updateTime") LocalDateTime updateTime);
+
+	/**
+	 * 与markOfflineDeviceTasks同条件（复用同一SQL片段mark_offline_device_tasks_condition），
+	 * 查询即将被标记为设备离线的任务所属入厂申请单ID（去重，排除NULL）
+	 */
+	Set<Long> getOfflineDeviceTaskApplyIds(@Param("deviceType") int deviceType);
 
 	int cancelStaleOfflineDownloadTask(@Param("id") Long id,
 									   @Param("deviceType") int deviceType,
