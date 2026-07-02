@@ -24,13 +24,14 @@ import static org.mockito.Mockito.when;
 /**
  * {@link SysOauthClientDetailsServiceImpl} 单元测试。
  *
- * <p>覆盖三条能力：
+ * <p>覆盖四条能力：
  * 1. 重置 client secret：返回 32 位明文，库中落地值必须以 {@link SecurityConstants#BCRYPT} 开头，
  *    且重置成功后必须调用 Feign 吊销该 clientId 下的旧 token；
  * 2. 删除应用：删除成功后必须调用 Feign 吊销该 clientId 下的旧 token，
  *    确保验收标准“删除后旧 token 立即 401/403”。
  * 3. 新建/编辑应用时对明文 client_secret 做 BCrypt 编码（终审 F-1 修复）：
  *    明文落库前必须补齐 {bcrypt} 前缀，已带前缀的值原样保留，避免二次编码。
+ * 4. 重置 secret 使用密码学安全随机源（终审 F-2 修复）：长度、字符集与原实现保持一致。
  * 均通过 mock {@link RemoteTokenService} 验证调用发生，不依赖真实 auth 服务。</p>
  */
 public class SysOauthClientDetailsServiceImplTest {
@@ -78,6 +79,34 @@ public class SysOauthClientDetailsServiceImplTest {
 		org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder =
 				new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
 		assertThat(encoder.matches(plainSecret, persisted.substring(SecurityConstants.BCRYPT.length()))).isTrue();
+	}
+
+	/**
+	 * F-2 修复：resetSecret 改用密码学安全随机源（{@code RandomUtil.getSecureRandom()}）后，
+	 * 长度与字符集必须与迁移前保持一致（32 位、仅小写字母 + 数字），否则会破坏管理页展示、
+	 * 复制粘贴等下游行为。这里连续生成多次，断言字符集始终落在约定范围内，
+	 * 顺带覆盖“不同调用产生不同明文”这一基本随机性期望。
+	 */
+	@Test
+	public void resetSecret_usesExpectedCharsetAndLength_acrossMultipleInvocations() {
+		String clientId = "smart-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setClientSecret("{bcrypt}old-hash");
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		when(remoteTokenService.removeTokensByClientId(eq(clientId), eq(SecurityConstants.FROM_IN)))
+				.thenReturn(new Result<>(1));
+
+		java.util.Set<String> generated = new java.util.HashSet<>();
+		for (int i = 0; i < 20; i++) {
+			String plainSecret = service.resetSecret(clientId);
+			assertThat(plainSecret).hasSize(32);
+			assertThat(plainSecret).matches("^[a-z0-9]{32}$");
+			generated.add(plainSecret);
+		}
+		// 20 次独立生成理论上极大概率互不相同，若出现大量重复说明随机源退化。
+		assertThat(generated.size() > 1).isTrue();
 	}
 
 	/**

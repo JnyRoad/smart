@@ -17,6 +17,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.security.SecureRandom;
+
 /**
  * <p>
  * 服务实现类
@@ -31,6 +33,13 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 	 * 重置 secret 时生成的随机明文长度，与简报约定一致。
 	 */
 	private static final int RESET_SECRET_LENGTH = 32;
+
+	/**
+	 * 随机明文 secret 使用的字符集：与 {@code cn.hutool.core.util.RandomUtil#randomString(int)}
+	 * 默认字符集保持一致（小写字母 + 数字），仅将随机源从线程本地伪随机数换成密码学安全随机数，
+	 * 避免破坏既有明文长度/字符集约定，减少下游（管理页展示、复制）意外行为。
+	 */
+	private static final String SECRET_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 	private static final BCryptPasswordEncoder BCRYPT_ENCODER = new BCryptPasswordEncoder();
 
@@ -122,7 +131,7 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 			throw new TCEException("客户端不存在：" + clientId);
 		}
 
-		String plainSecret = RandomUtil.randomString(RESET_SECRET_LENGTH);
+		String plainSecret = randomSecret(RESET_SECRET_LENGTH);
 		String encodedSecret = SecurityConstants.BCRYPT + BCRYPT_ENCODER.encode(plainSecret);
 
 		SysOauthClientDetails update = new SysOauthClientDetails();
@@ -165,5 +174,26 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 			throw new TCEException("客户端详情缓存不存在：" + SecurityConstants.CLIENT_DETAILS_KEY);
 		}
 		cache.evict(clientId);
+	}
+
+	/**
+	 * 生成指定长度的随机明文 secret，字符集与长度保持 {@code RandomUtil.randomString(int)} 原有约定不变，
+	 * 但随机源改用 {@link RandomUtil#getSecureRandom()}（底层为 {@link SecureRandom}）。
+	 *
+	 * <p>原因：resetSecret 生成的是对外长期有效的应用凭证（App Secret），不是一次性验证码或界面装饰，
+	 * 若使用 {@code RandomUtil.randomString} 底层依赖的 {@code ThreadLocalRandom}（非密码学安全的伪随机数），
+	 * 攻击者在已知部分输出或线程调度信息的情况下有理论上可预测后续输出的风险，
+	 * 长期凭证必须使用 CSPRNG（Cryptographically Secure Pseudo-Random Number Generator）。</p>
+	 *
+	 * @param length 期望生成的明文长度
+	 * @return 由小写字母与数字组成的随机明文
+	 */
+	private static String randomSecret(int length) {
+		SecureRandom secureRandom = RandomUtil.getSecureRandom();
+		StringBuilder builder = new StringBuilder(length);
+		for (int i = 0; i < length; i++) {
+			builder.append(SECRET_CHARS.charAt(secureRandom.nextInt(SECRET_CHARS.length())));
+		}
+		return builder.toString();
 	}
 }
