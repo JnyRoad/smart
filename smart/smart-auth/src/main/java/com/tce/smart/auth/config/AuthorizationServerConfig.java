@@ -18,6 +18,8 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.A
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
+import org.springframework.security.oauth2.provider.ClientDetails;
+import org.springframework.security.oauth2.provider.ClientDetailsService;
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.security.oauth2.provider.token.DefaultAuthenticationKeyGenerator;
 import org.springframework.security.oauth2.provider.token.TokenEnhancer;
@@ -47,10 +49,20 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 	@Override
 	@SneakyThrows
 	public void configure(ClientDetailsServiceConfigurer clients) {
+		clients.withClientDetails(smartClientDetailsService());
+	}
+
+	/**
+	 * client详情服务，供 configure(ClientDetailsServiceConfigurer) 和 tokenEnhancer() 复用。
+	 * 提为 Bean（而非局部 new）后，loadClientByClientId 上的 @Cacheable 才能走 Spring 代理生效。
+	 * @return SmartClientDetailsService
+	 */
+	@Bean
+	public SmartClientDetailsService smartClientDetailsService() {
 		SmartClientDetailsService clientDetailsService = new SmartClientDetailsService(dataSource);
 		clientDetailsService.setSelectClientDetailsSql(SecurityConstants.DEFAULT_SELECT_STATEMENT);
 		clientDetailsService.setFindClientDetailsSql(SecurityConstants.DEFAULT_FIND_STATEMENT);
-		clients.withClientDetails(clientDetailsService);
+		return clientDetailsService;
 	}
 
 	@Override
@@ -95,15 +107,39 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 	}
 
 	/**
-	 * token增强，客户端模式不增强。
+	 * token增强：用户密码模式写入用户信息 claim；client_credentials 模式（开放 API 应用）
+	 * 写入该应用绑定的园区范围 claim，供资源服务做数据范围校验，不信任请求参数。
 	 *
 	 * @return TokenEnhancer
 	 */
 	@Bean
 	public TokenEnhancer tokenEnhancer() {
+		// 通过 smartClientDetailsService() 自调用拿到的是 CGLIB 代理返回的同一个单例 Bean，
+		// 因此 SmartClientDetailsService#loadClientByClientId 上的 @Cacheable 依然生效
+		return buildTokenEnhancer(smartClientDetailsService());
+	}
+
+	/**
+	 * 抽出为包内可见方法，便于不启动 Spring 上下文、直接 new 配置类 + mock ClientDetailsService 做单测。
+	 *
+	 * @param clientDetailsService client 详情查询服务
+	 * @return TokenEnhancer
+	 */
+	TokenEnhancer buildTokenEnhancer(ClientDetailsService clientDetailsService) {
 		return (accessToken, authentication) -> {
 			if (SecurityConstants.CLIENT_CREDENTIALS
 					.equals(authentication.getOAuth2Request().getGrantType())) {
+				// 开放应用 token：把应用绑定的园区范围写入 token claim，
+				// 资源服务据此做数据范围校验，不信任请求参数
+				Map<String, Object> info = new HashMap<>(4);
+				ClientDetails client = clientDetailsService.loadClientByClientId(
+						authentication.getOAuth2Request().getClientId());
+				Object parkIds = client.getAdditionalInformation().get("allowedParkIds");
+				if (parkIds != null) {
+					info.put("app_park_ids", parkIds);
+				}
+				info.put("license", SecurityConstants.SMART_LICENSE);
+				((DefaultOAuth2AccessToken) accessToken).setAdditionalInformation(info);
 				return accessToken;
 			}
 
