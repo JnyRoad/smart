@@ -1253,9 +1253,23 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		//旧「只补建缺失任务」逻辑替换为批次化重发，确保旧批次残留的在途任务不会与新批次任务并存
 		//车辆分支不属于本次改动范围，沿用下方原有「只补建缺失任务」逻辑
 		if (CollUtil.isNotEmpty(visitorDeviceList) && CollUtil.isNotEmpty(fellows)) {
-			this.submitIscPersonBatch(apply, apply.getIscSubmitBatch());
-			apply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
-			this.updateById(apply);
+			//评审 B1：与自动补偿链路 retryFailedPostApprovalHandling 共用同一把按 applyId 的 Redis 分布式锁，
+			//防止 isc_submit_batch 为 NULL 且 deviceStatus∈{FAIL,IN_WORK} 的单被人工重发与自动补偿并发处理——
+			//两条链路各自读到旧批次号、各建一套任务，last-write-wins 覆盖 isc_submit_batch，另一批任务永久游离。
+			String lockToken = acquirePostApprovalRetryLock(apply);
+			if (lockToken == null) {
+				throw new TCEException("该申请正在处理中，请稍后重试");
+			}
+			try {
+				//锁内重读最新 iscSubmitBatch：防止「锁前读取旧值」与补偿链路在加锁前发生的 TOCTOU 窗口
+				SmtAdmittanceApply latest = this.getById(applyId);
+				Long latestBatch = latest == null ? apply.getIscSubmitBatch() : latest.getIscSubmitBatch();
+				this.submitIscPersonBatch(apply, latestBatch);
+				apply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
+				this.updateById(apply);
+			} finally {
+				releasePostApprovalRetryLock(apply, lockToken);
+			}
 		}
 		if (CollUtil.isNotEmpty(vehicles)) {
 			//查询访客车辆的的设备权限
