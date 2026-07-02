@@ -5,7 +5,6 @@ import org.junit.After;
 import org.junit.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,13 +17,16 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * OpenApiInterceptor 裁决矩阵单测：覆盖简报要求的 6 个用例，
  * 校验 preHandle 对 @OpenApi 标注接口 / 普通接口在客户端 token、用户 token、匿名场景下的放行 / 拒绝行为。
+ * <p>
+ * 拒绝场景断言 {@code preHandle} 返回 {@code false} 且响应状态码为 403——不再依赖抛异常，
+ * 因为本仓库的异常翻译链够不着拦截器阶段（详见 {@link OpenApiInterceptor} 类注释）。
  */
 public class OpenApiInterceptorTest {
 
@@ -83,36 +85,45 @@ public class OpenApiInterceptorTest {
 		assertTrue(result);
 	}
 
-	@Test(expected = AccessDeniedException.class)
+	@Test
 	public void clientToken_missingScope_onOpenApi_403() throws Exception {
 		Set<String> scopes = new HashSet<>();
 		scopes.add("other:scope");
 		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("open-app", scopes));
 
-		interceptor.preHandle(
-				new MockHttpServletRequest("GET", "/open/park"), new MockHttpServletResponse(), openApiHandler());
-		fail("应抛出 AccessDeniedException");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		boolean result = interceptor.preHandle(
+				new MockHttpServletRequest("GET", "/open/park"), response, openApiHandler());
+
+		assertFalse(result);
+		assertEquals(403, response.getStatus());
 	}
 
-	@Test(expected = AccessDeniedException.class)
+	@Test
 	public void userToken_onOpenApi_403() throws Exception {
 		SecurityContextHolder.getContext().setAuthentication(userAuthentication());
 
-		interceptor.preHandle(
-				new MockHttpServletRequest("GET", "/open/park"), new MockHttpServletResponse(), openApiHandler());
-		fail("应抛出 AccessDeniedException");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		boolean result = interceptor.preHandle(
+				new MockHttpServletRequest("GET", "/open/park"), response, openApiHandler());
+
+		assertFalse(result);
+		assertEquals(403, response.getStatus());
 	}
 
-	@Test(expected = AccessDeniedException.class)
+	@Test
 	public void clientToken_onPlainEndpoint_403() throws Exception {
 		// deny-by-default（Codex 阻断项回归）：client_credentials token 不允许访问未标注 @OpenApi 的普通接口
 		Set<String> scopes = new HashSet<>();
 		scopes.add("park:read");
 		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("open-app", scopes));
 
-		interceptor.preHandle(
-				new MockHttpServletRequest("GET", "/plain"), new MockHttpServletResponse(), plainHandler());
-		fail("应抛出 AccessDeniedException");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		boolean result = interceptor.preHandle(
+				new MockHttpServletRequest("GET", "/plain"), response, plainHandler());
+
+		assertFalse(result);
+		assertEquals(403, response.getStatus());
 	}
 
 	@Test
@@ -125,11 +136,14 @@ public class OpenApiInterceptorTest {
 		assertTrue(result);
 	}
 
-	@Test(expected = AccessDeniedException.class)
+	@Test
 	public void anonymous_onOpenApi_403() throws Exception {
 		// SecurityContext 未注入任何 Authentication，模拟匿名访问
-		interceptor.preHandle(
-				new MockHttpServletRequest("GET", "/open/park"), new MockHttpServletResponse(), openApiHandler());
-		fail("应抛出 AccessDeniedException");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		boolean result = interceptor.preHandle(
+				new MockHttpServletRequest("GET", "/open/park"), response, openApiHandler());
+
+		assertFalse(result);
+		assertEquals(403, response.getStatus());
 	}
 }
