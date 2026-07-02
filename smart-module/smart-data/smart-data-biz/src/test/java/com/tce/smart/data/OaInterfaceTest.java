@@ -3,6 +3,7 @@ package com.tce.smart.data;
 import com.tce.smart.data.api.dto.msg.req.*;
 import com.tce.smart.data.controller.msg.OaDataManageController;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,12 +14,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * OA 接口手工调试脚本：每个用例都会向真实 OA 系统发起流程申请
+ * （保密权限 / 入厂 / 放行条 / 回写返厂时间 / 保安审批），
+ * 且依赖真实 EHRView 数据库与本地抓包代理（127.0.0.1:8888）。
+ * 因此整类 @Ignore，仅供开发者在联调环境手动去掉注解后单独执行，
+ * 严禁纳入自动构建（会误发真实审批单）。
+ *
  * @author: Li.JiaJun
  * @since: 2021/8/5 20:06
  */
 @Slf4j
 @RunWith(SpringRunner.class)
 @SpringBootTest
+@Ignore("手工 OA 联调脚本：会真实发起 OA 审批流程，且需要真实数据库/代理环境，禁止自动执行")
 public class OaInterfaceTest {
 
 	@Autowired

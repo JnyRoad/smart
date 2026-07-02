@@ -14,6 +14,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 
+@org.junit.Ignore("手工调试脚本：从开发者本机路径读文件并写真实数据库，禁止自动构建执行")
 public class ContentTests extends BaseTests {
 
     @Autowired
