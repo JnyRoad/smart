@@ -36,6 +36,7 @@
 
 ### 3.1 凭证与令牌
 
+- **对外话术即「AppID / AppSecret」**（对标飞书开放平台模式）：`client_id` 就是 AppID，`client_secret` 就是 AppSecret，换 token 调用的流程与飞书 `tenant_access_token` 完全同构，但走标准 OAuth2 协议——MCP 规范、各语言 OAuth2 客户端库、Postman 均原生支持，无需自研 SDK。管理页面与对接文档统一用 AppID/AppSecret 术语。
 - 开放应用在 `sys_oauth_client_details` 注册：`authorized_grant_types=client_credentials`，`scope` 填其被授权的开放 scope 列表（逗号分隔），`access_token_validity` 按应用设置（FileReceiver 建议 12h）。
 - 应用调用 `POST /oauth/token`（grant_type=client_credentials）换取 access token，调用开放接口时携带 `Authorization: Bearer <token>`。
 - **secret 存储核查**：实现时确认 `client_secret` 当前编码方式；若为明文或 `{noop}`，改为 BCrypt 存储（新建/重置走 BCrypt，存量客户端做一次性迁移脚本，放 `smart-module/database/manual/`）。
