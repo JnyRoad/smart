@@ -26,7 +26,11 @@ import java.util.stream.Collectors;
  * <p>背景：{@code smt_isc_device_task} 每条任务记录的是单人单设备的下发/删除结果，
  * 而 {@code smt_admittance_apply.device_status} 需要反映整批申请（同一 {@code iscSubmitBatch}）
  * 的真实进度。本类在任务状态被写为「终态」后，按人员维度聚合出批次级判定，
- * 并把判定结果谨慎地（只在过渡态/在途语义下）回写到申请单，避免覆盖人工重发等新状态。</p>
+ * 并把判定结果谨慎地回写到申请单，避免覆盖人工重发等新状态。回写守卫按判定结果
+ * 非对称（详见 {@link #SUCCESS_OVERWRITABLE_DEVICE_STATUSES}）：FAIL 判定只能覆盖
+ * 过渡态，SUCCESS 判定额外允许覆盖 FAIL——因为 DEVICE_OFFLINE 会被调度自动重新拾取，
+ * 一次「先离线判假失败、设备恢复后又成功」的时序如果不允许 SUCCESS 覆盖 FAIL，
+ * 申请单会永久冻结在假失败状态，重试机制对这种条件性不匹配无能为力。</p>
  *
  * <p>判定规则（业务口径，非技术细节）：</p>
  * <ul>
@@ -55,9 +59,38 @@ public class AdmittanceDispatchAggregator {
 	/** 回写失败后的重试次数（不含首次调用） */
 	private static final int WRITEBACK_RETRY_TIMES = 2;
 
-	/** 只允许覆盖的过渡态/在途语义 device_status：下发中(3)、已下发(4)。 */
+	/** 过渡态/在途语义 device_status：下发中(3)、已下发(4)。两个守卫集合的公共基线。 */
 	private static final Set<Integer> OVERWRITABLE_DEVICE_STATUSES = CollUtil.newHashSet(
 			DeviceDownStatusEnum.IN_WORK.getCode(), DeviceDownStatusEnum.ALRAEDY.getCode());
+
+	/**
+	 * SUCCESS 判定的回写守卫集合：过渡态(3,4) + 失败终态(2)。
+	 *
+	 * <p>非对称设计的原因——{@code DeviceTaskStatusEnum.DEVICE_OFFLINE} 被计入
+	 * {@link #FAILURE_TERMINAL_STATUSES}（失败终态），但设备离线的任务会被调度自动
+	 * 重新拾取重试（{@code getCardDown} 把 status=6 与 status=0 同等对待，视为待下发）。
+	 * 这意味着聚合可能先因设备离线判定 FAIL 并把 device_status 写成 2，随后设备恢复、
+	 * 任务重试成功，聚合重算得到 SUCCESS——此时如果 UPDATE 守卫仍是 {@code IN (3,4)}，
+	 * 条件永远匹配不到当前值 2 的行，重试机制对这种「条件性不匹配」无能为力
+	 * （不是并发竞争，是逻辑上永久不满足），申请单会被冻结在假失败状态，只能人工重发。</p>
+	 *
+	 * <p>因此 SUCCESS 判定允许覆盖 FAIL(2)：成功是比失败更确定的终态判定——
+	 * 全部参与人员的任务都拿到了 SUCCESS，没有理由让一个可能已经过时的失败标记挡住它。
+	 * 不覆盖 SUCCESS(1) 本身，保持幂等（同一批次重复聚合出 SUCCESS 不应重复触发 UPDATE 语义）。</p>
+	 */
+	private static final Set<Integer> SUCCESS_OVERWRITABLE_DEVICE_STATUSES = CollUtil.newHashSet(
+			DeviceDownStatusEnum.FAIL.getCode(),
+			DeviceDownStatusEnum.IN_WORK.getCode(), DeviceDownStatusEnum.ALRAEDY.getCode());
+
+	/**
+	 * FAIL 判定的回写守卫集合：只允许覆盖过渡态(3,4)，维持原有保守口径。
+	 *
+	 * <p>失败判定不得推翻任何「更进一步」的状态——不覆盖 SUCCESS(1)（已经成功的不该被
+	 * 事后判失败打回去），也不覆盖 FAIL(2) 本身（保持幂等，避免重复聚合反复触发 UPDATE）。
+	 * 这与 SUCCESS 守卫的非对称正是问题修复的核心：失败推翻成功没有正当性，
+	 * 但成功推翻（可能因离线自动重拾取而过时的）失败是合理的。</p>
+	 */
+	private static final Set<Integer> FAIL_OVERWRITABLE_DEVICE_STATUSES = OVERWRITABLE_DEVICE_STATUSES;
 
 	private final SmtIscDeviceTaskService smtIscDeviceTaskService;
 
@@ -123,7 +156,7 @@ public class AdmittanceDispatchAggregator {
 		Integer targetDeviceStatus = verdict == BatchVerdict.SUCCESS
 				? DeviceDownStatusEnum.SUCCESS.getCode()
 				: DeviceDownStatusEnum.FAIL.getCode();
-		writebackDeviceStatus(smtAdmittanceApplyMapper, applyId, batchId, targetDeviceStatus);
+		writebackDeviceStatus(smtAdmittanceApplyMapper, applyId, batchId, verdict, targetDeviceStatus);
 	}
 
 	/**
@@ -221,29 +254,49 @@ public class AdmittanceDispatchAggregator {
 	}
 
 	/**
-	 * 回写 {@code device_status}：只更新当前仍为过渡态/在途语义（下发中3 / 已下发4）的申请单，
-	 * 用 {@code WHERE id=? AND device_status IN (3,4)} 防止覆盖人工重发等已经推进的新状态。
-	 * 回写失败立即重试 {@value #WRITEBACK_RETRY_TIMES} 次，仍失败记 ERROR（含 applyId/batchId）。
+	 * 回写 {@code device_status}：守卫集合按判定结果非对称（见
+	 * {@link #SUCCESS_OVERWRITABLE_DEVICE_STATUSES} / {@link #FAIL_OVERWRITABLE_DEVICE_STATUSES}
+	 * 上的注释）——SUCCESS 判定额外允许覆盖 FAIL(2)，FAIL 判定只能覆盖过渡态(3,4)。
+	 *
+	 * <p>UPDATE 返回 0 行时含义不再单一：可能是「真正的写冲突/异常」（行值仍在守卫集合内，
+	 * 但这一次 UPDATE 没生效，值得重试），也可能是「条件性不匹配」（申请单当前 device_status
+	 * 已经不在本次 verdict 的守卫集合内，例如 SUCCESS 判定却发现库里已经是 SUCCESS(1)，
+	 * 或者 FAIL 判定却发现库里已经被 SUCCESS 判定覆盖为 1）——后一种情况重试没有意义，
+	 * 因为条件不会在下一次尝试中变化，重试 3 次只是白白空转。因此 0 行时先查一次当前
+	 * device_status，按其是否仍落在守卫集合内分流：不在集合内 → 记 INFO 直接返回；
+	 * 仍在集合内却没更新成功 → 视为真正异常，继续重试。</p>
 	 *
 	 * <p>包可见 + static，便于单测直接驱动"重试仍失败记ERROR"这一行为，不依赖聚合器完整装配。</p>
 	 */
 	static void writebackDeviceStatus(SmtAdmittanceApplyMapper applyMapper, Long applyId, Long batchId,
-			Integer targetDeviceStatus) {
+			BatchVerdict verdict, Integer targetDeviceStatus) {
+		Set<Integer> guardStatuses = verdict == BatchVerdict.SUCCESS
+				? SUCCESS_OVERWRITABLE_DEVICE_STATUSES
+				: FAIL_OVERWRITABLE_DEVICE_STATUSES;
 		int attempts = 1 + WRITEBACK_RETRY_TIMES;
 		for (int attempt = 1; attempt <= attempts; attempt++) {
 			int updated = applyMapper.update(null, new LambdaUpdateWrapper<SmtAdmittanceApply>()
 					.set(SmtAdmittanceApply::getDeviceStatus, targetDeviceStatus)
 					.eq(SmtAdmittanceApply::getId, applyId)
-					.in(SmtAdmittanceApply::getDeviceStatus, OVERWRITABLE_DEVICE_STATUSES));
+					.in(SmtAdmittanceApply::getDeviceStatus, guardStatuses));
 			if (updated > 0) {
-				log.info("ISC任务聚合回写device_status成功：applyId={}, batchId={}, targetDeviceStatus={}, 尝试次数={}",
-						applyId, batchId, targetDeviceStatus, attempt);
+				log.info("ISC任务聚合回写device_status成功：applyId={}, batchId={}, verdict={}, targetDeviceStatus={}, 尝试次数={}",
+						applyId, batchId, verdict, targetDeviceStatus, attempt);
 				return;
 			}
-			log.warn("ISC任务聚合回写device_status未生效（可能已被其他操作推进）：applyId={}, batchId={}, targetDeviceStatus={}, 第{}次尝试",
-					applyId, batchId, targetDeviceStatus, attempt);
+			// 0 行：先查当前值，区分「条件性不匹配（不值得重试）」与「真正的写冲突（值得重试）」
+			SmtAdmittanceApply current = applyMapper.selectById(applyId);
+			Integer currentDeviceStatus = current == null ? null : current.getDeviceStatus();
+			if (!guardStatuses.contains(currentDeviceStatus)) {
+				log.info("ISC任务聚合回写device_status跳过（当前device_status={}已不在本次判定的守卫集合{}内，视为已被更进一步的状态推进，不重试）："
+								+ "applyId={}, batchId={}, verdict={}, targetDeviceStatus={}",
+						currentDeviceStatus, guardStatuses, applyId, batchId, verdict, targetDeviceStatus);
+				return;
+			}
+			log.warn("ISC任务聚合回写device_status未生效（当前device_status={}仍在守卫集合内，判定为写冲突，将重试）：applyId={}, batchId={}, verdict={}, targetDeviceStatus={}, 第{}次尝试",
+					currentDeviceStatus, applyId, batchId, verdict, targetDeviceStatus, attempt);
 		}
-		log.error("ISC任务聚合回写device_status彻底失败，已重试{}次：applyId={}, batchId={}, targetDeviceStatus={}",
-				WRITEBACK_RETRY_TIMES, applyId, batchId, targetDeviceStatus);
+		log.error("ISC任务聚合回写device_status彻底失败，已重试{}次：applyId={}, batchId={}, verdict={}, targetDeviceStatus={}",
+				WRITEBACK_RETRY_TIMES, applyId, batchId, verdict, targetDeviceStatus);
 	}
 }
