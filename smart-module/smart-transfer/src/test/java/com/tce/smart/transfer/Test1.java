@@ -21,6 +21,7 @@ import java.util.List;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TransferApplication.class)
+@org.junit.Ignore("手工数据迁移脚本：会执行真实员工照片搬运作业且无网络超时（曾挂起构建 40 分钟），禁止自动构建执行")
 public class Test1 {
 
 	@Autowired

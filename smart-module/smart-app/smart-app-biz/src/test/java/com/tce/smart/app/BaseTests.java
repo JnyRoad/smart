@@ -14,6 +14,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @Slf4j
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = {SmartAppApplication.class}, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-public class BaseTests {
+public abstract class BaseTests {
 
 }
