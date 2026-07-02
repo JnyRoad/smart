@@ -96,9 +96,12 @@
 	</select>
 
 	<!-- 长期离线或已删除设备的待处理下发任务，用于自动取消避免重复任务长期阻塞 -->
+	<!-- 额外选出APPLY_ID（不进base_column_list，避免影响其余13处引用它的查询）：
+	     批量取消属于纯批量终态落库路径，绕过单任务出口的聚合钩子，调用方需要APPLY_ID
+	     逐单触发AdmittanceDispatchAggregator聚合回写，否则入厂申请单会永久漏算聚合 -->
 	<select id="getStaleOfflineDownloadTasks" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
 		SELECT * FROM (
-			SELECT <include refid="base_column_list" />, device.park_id
+			SELECT <include refid="base_column_list" />, SDA.APPLY_ID, device.park_id
 			FROM SMT_ISC_DEVICE_TASK SDA
 			LEFT JOIN SMT_DEVICE device ON SDA.DEVICE_CODE = device.ID
 			WHERE (SDA.STATUS IN (0, 3, 6) OR SDA.STATUS IS NULL)
@@ -112,13 +115,10 @@
 		) WHERE ROWNUM <![CDATA[<=]]> 500
 	</select>
 
-	<!-- 设备离线时把待下发任务显式标记为设备离线状态，设备恢复在线后由调度查询自动恢复 -->
-	<update id="markOfflineDeviceTasks">
-		UPDATE SMT_ISC_DEVICE_TASK SDA
-		SET SDA.STATUS = 6,
-			SDA.REMARK = '设备离线，待设备恢复在线后自动重试',
-			SDA.UPDATE_TIME = #{updateTime}
-		WHERE (SDA.STATUS = 0 OR SDA.STATUS IS NULL)
+	<!-- markOfflineDeviceTasks的WHERE条件单独抽出为共享片段，供SELECT APPLY_ID与UPDATE复用，
+	     避免同一谓词复制两份导致后续修改漂移（SELECT-then-UPDATE模式的条件必须保持一致） -->
+	<sql id="mark_offline_device_tasks_condition">
+		(SDA.STATUS = 0 OR SDA.STATUS IS NULL)
 		  AND SDA.DEVICE_TYPE = #{deviceType}
 		  AND (SDA.CODE != 200 OR SDA.CODE IS NULL)
 		  AND EXISTS (
@@ -127,6 +127,25 @@
 			WHERE device.ID = SDA.DEVICE_CODE
 			  AND (device.CONNECT_STATUS IS NULL OR device.CONNECT_STATUS != 2)
 		  )
+	</sql>
+
+	<!-- 与markOfflineDeviceTasks同条件，UPDATE前先查出受影响任务的APPLY_ID（去重，排除空值），
+	     供调用方逐单触发入厂申请聚合回写。SELECT与UPDATE之间的间隙如有新任务插入，
+	     属于可接受的轻微不一致，下一轮调度会自愈（见ISCDeviceTaskServiceImpl.downAccess） -->
+	<select id="getOfflineDeviceTaskApplyIds" resultType="Long">
+		SELECT DISTINCT SDA.APPLY_ID
+		FROM SMT_ISC_DEVICE_TASK SDA
+		WHERE <include refid="mark_offline_device_tasks_condition" />
+		  AND SDA.APPLY_ID IS NOT NULL
+	</select>
+
+	<!-- 设备离线时把待下发任务显式标记为设备离线状态，设备恢复在线后由调度查询自动恢复 -->
+	<update id="markOfflineDeviceTasks">
+		UPDATE SMT_ISC_DEVICE_TASK SDA
+		SET SDA.STATUS = 6,
+			SDA.REMARK = '设备离线，待设备恢复在线后自动重试',
+			SDA.UPDATE_TIME = #{updateTime}
+		WHERE <include refid="mark_offline_device_tasks_condition" />
 	</update>
 
 	<update id="cancelStaleOfflineDownloadTask">
