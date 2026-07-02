@@ -25,4 +25,13 @@ public interface SysOauthClientDetailsService extends IService<SysOauthClientDet
 	 * @return
 	 */
 	Boolean updateClientDetailsById(SysOauthClientDetails sysOauthClientDetails);
+
+	/**
+	 * 重置指定客户端的 secret：生成 32 位随机明文，{bcrypt} 编码后落库，
+	 * 并吊销该客户端的旧 token + 清客户端详情缓存。
+	 *
+	 * @param clientId 客户端ID
+	 * @return 新生成的明文 secret（仅本次响应返回一次，不落日志）
+	 */
+	String resetSecret(String clientId);
 }
