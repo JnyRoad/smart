@@ -46,17 +46,4 @@
 			<artifactId>smart-common-data</artifactId>
 		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<!-- 根 pom 全局关闭了 testCompile，本模块新增了单元测试，单独放开以便测试真正被编译和执行；
-			     用属性占位而非写死 false，保留 -Dmaven.test.skip=true 的紧急跳过通道 -->
-			<plugin>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<skip>${maven.test.skip}</skip>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 </project>
