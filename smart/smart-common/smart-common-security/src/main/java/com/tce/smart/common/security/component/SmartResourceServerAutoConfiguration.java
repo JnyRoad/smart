@@ -1,5 +1,7 @@
 package com.tce.smart.common.security.component;
 
+import com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter;
+import com.tce.smart.common.security.openapi.OpenApiInterceptor;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
@@ -14,6 +16,8 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.IOException;
 
@@ -98,5 +102,23 @@ public class SmartResourceServerAutoConfiguration {
 		poolingConnectionManager.setDefaultMaxPerRoute(maxPerRoute);
 		poolingConnectionManager.setValidateAfterInactivity(validateAfterInactivity);
 		return poolingConnectionManager;
+	}
+
+	@Bean
+	public OpenApiAuthenticationAdapter openApiAuthenticationAdapter() {
+		return new OpenApiAuthenticationAdapter();
+	}
+
+	/**
+	 * 全局注册开放 API 鉴权拦截器：拦截所有请求路径，业务服务无需任何额外配置即可生效。
+	 */
+	@Bean
+	public WebMvcConfigurer openApiWebMvcConfigurer(OpenApiAuthenticationAdapter openApiAuthenticationAdapter) {
+		return new WebMvcConfigurer() {
+			@Override
+			public void addInterceptors(InterceptorRegistry registry) {
+				registry.addInterceptor(new OpenApiInterceptor(openApiAuthenticationAdapter)).addPathPatterns("/**");
+			}
+		};
 	}
 }

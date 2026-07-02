@@ -55,7 +55,10 @@ public class SmartResourceServerConfigurerAdapter extends ResourceServerConfigur
 
 	@Override
 	public void configure(ResourceServerSecurityConfigurer resources) {
-		DefaultAccessTokenConverter accessTokenConverter = new DefaultAccessTokenConverter();
+		// 用 OpenApiAccessTokenConverter 替换默认实现：在标准转换结果基础上，
+		// 额外把 app_park_ids claim 搬进 OAuth2Request 扩展，供开放 API 鉴权读取园区绑定信息；
+		// userTokenConverter 装配行为保持不变。
+		DefaultAccessTokenConverter accessTokenConverter = new OpenApiAccessTokenConverter();
 		UserAuthenticationConverter userTokenConverter = new SmartUserAuthenticationConverter();
 		accessTokenConverter.setUserTokenConverter(userTokenConverter);
 
