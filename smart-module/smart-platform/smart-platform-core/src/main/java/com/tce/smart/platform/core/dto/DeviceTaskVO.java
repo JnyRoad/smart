@@ -83,4 +83,16 @@ public class DeviceTaskVO extends Model<DeviceTaskVO> {
 	 */
 	private String applyBadge;
 
+	/**
+	 * 入厂申请单ID（非入厂申请来源为NULL）
+	 * 仅 ISC 设备任务路由分支（SmtIscDeviceTaskService.saveTask）会落库到 SmtIscDeviceTask，
+	 * 非 ISC 分支（SmtDeviceTask）无对应字段，按现状忽略
+	 */
+	private Long applyId;
+
+	/**
+	 * 下发批次号（同一次 updateStatus 原子提交的任务集共享，见 SmtIscDeviceTask.batchId）
+	 */
+	private Long batchId;
+
 }

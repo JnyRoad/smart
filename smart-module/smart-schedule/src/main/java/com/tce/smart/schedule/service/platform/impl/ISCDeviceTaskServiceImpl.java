@@ -168,6 +168,24 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	@Value("${smart.hf-park-id:0}")
 	private Integer hfParkId;
 
+	/**
+	 * ISC任务终态落库后触发入厂申请聚合回写（状态诚实化最终落点）。
+	 * 只对来源于入厂申请（{@code task.getApplyId() != null}）的任务生效；
+	 * 聚合/回写内部已自行处理重试与异常兜底（见{@link AdmittanceDispatchAggregator}），
+	 * 这里再包一层try/catch纯粹是防御性的：绝不能因为聚合失败影响ISC任务主流程。
+	 * 同一批次内多个任务同时落终态会重复触发聚合，聚合本身按当前DB状态重新计算，天然幂等。
+	 */
+	private void triggerDispatchAggregationIfApplicable(SmtIscDeviceTask task) {
+		if (task == null || task.getApplyId() == null) {
+			return;
+		}
+		try {
+			new AdmittanceDispatchAggregator(smtIscDeviceTaskService, smtAdmittanceApplyMapper).aggregate(task.getApplyId());
+		} catch (Exception e) {
+			log.error("ISC任务终态聚合回写异常，applyId={}, taskId={}", task.getApplyId(), task.getId(), e);
+		}
+	}
+
 	private boolean isTemporaryAccessTask(SmtIscDeviceTask task) {
 		return task != null
 				&& DeviceTaskConstants.CARD.equals(task.getDeviceType())
@@ -788,10 +806,35 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	}
 
 	private void stopExceededRetryAuthTasks() {
-		boolean stoppedExceededRetryTasks = smtIscDeviceTaskService.stopExceededRetryAuthTasks(
+		// 改用AndCollectApplyIds重载：该方法是纯批量UPDATE（WHERE按deviceType/action/status/times过滤，
+		// 不含apply_id），会绕过11处单任务终态出口已接入的聚合钩子（ISCDeviceTaskServiceImpl其余出口触发
+		// triggerDispatchAggregationIfApplicable），导致来源于入厂申请的任务被批量停止重试后申请单永久漏算聚合
+		Set<Long> affectedApplyIds = smtIscDeviceTaskService.stopExceededRetryAuthTasksAndCollectApplyIds(
 				DeviceTaskConstants.CARD, DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES, AUTH_CONFIG_MAX_RETRY_REMARK);
-		if (stoppedExceededRetryTasks) {
-			log.info("本轮停止达到最大重试次数的ISC权限任务，最大重试次数：{}", DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES);
+		if (CollectionUtil.isNotEmpty(affectedApplyIds)) {
+			log.info("本轮停止达到最大重试次数的ISC权限任务，最大重试次数：{}，涉及入厂申请单：{}个",
+					DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES, affectedApplyIds.size());
+		}
+		triggerDispatchAggregationForApplyIds(affectedApplyIds);
+	}
+
+	/**
+	 * 批量终态路径补聚合钩子：对SELECT-then-UPDATE批量方法返回的申请单ID逐个触发聚合回写。
+	 * 单个申请单聚合失败不影响其余申请单继续聚合，异常记ERROR后继续下一个。
+	 * @param applyIds 受批量UPDATE影响、且来源于入厂申请的申请单ID集合（可能为空）
+	 */
+	private void triggerDispatchAggregationForApplyIds(Set<Long> applyIds) {
+		if (CollectionUtil.isEmpty(applyIds)) {
+			return;
+		}
+		AdmittanceDispatchAggregator aggregator =
+				new AdmittanceDispatchAggregator(smtIscDeviceTaskService, smtAdmittanceApplyMapper);
+		for (Long applyId : applyIds) {
+			try {
+				aggregator.aggregate(applyId);
+			} catch (Exception e) {
+				log.error("批量终态任务聚合回写异常，applyId={}", applyId, e);
+			}
 		}
 	}
 
@@ -822,13 +865,24 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		long currentSeconds = DateUtil.currentSeconds();
 		stopExceededRetryAuthTasks();
 		smtIscDeviceTaskService.requeueOrphanDoingTasks(DeviceTaskConstants.CARD, ORPHAN_DOING_REQUEUE_MINUTES);
-		smtIscDeviceTaskService.expireOverdueDownloadTasks(DeviceTaskConstants.CARD);
-		smtIscDeviceTaskService.markOfflineDeviceTasks(DeviceTaskConstants.CARD);
-		int canceledStaleTasks = smtIscDeviceTaskService.cancelStaleOfflineDownloadTasks(
+
+		// 以下三个批量终态方法同样绕过单任务出口的聚合钩子，改用AndCollectApplyIds重载并逐单触发聚合
+		Set<Long> expiredApplyIds = smtIscDeviceTaskService.expireOverdueDownloadTasksAndCollectApplyIds(DeviceTaskConstants.CARD);
+		triggerDispatchAggregationForApplyIds(expiredApplyIds);
+
+		// markOfflineDeviceTasks写DEVICE_OFFLINE非任务终态，但聚合把它计入失败判定（见AdmittanceDispatchAggregator
+		// FAILURE_TERMINAL_STATUSES），离线也应及时反映到申请单，故一并补钩子
+		Set<Long> offlineApplyIds = smtIscDeviceTaskService.markOfflineDeviceTasksAndCollectApplyIds(DeviceTaskConstants.CARD);
+		triggerDispatchAggregationForApplyIds(offlineApplyIds);
+
+		// 改用AndCollectApplyIds重载（单次SELECT-then-UPDATE即可拿到取消数量与申请单ID，
+		// 避免重复调用cancelStaleOfflineDownloadTasks(int,int)导致同一批任务被处理两次）
+		Set<Long> canceledStaleApplyIds = smtIscDeviceTaskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(
 				DeviceTaskConstants.CARD, DeviceTaskConstants.OFFLINE_TASK_CANCEL_MONTHS);
-		if (canceledStaleTasks > 0) {
-			log.info("本轮自动取消长期离线ISC下发任务：{}条", canceledStaleTasks);
+		if (CollectionUtil.isNotEmpty(canceledStaleApplyIds)) {
+			log.info("本轮自动取消长期离线ISC下发任务，涉及入厂申请单：{}个", canceledStaleApplyIds.size());
 		}
+		triggerDispatchAggregationForApplyIds(canceledStaleApplyIds);
 		log.info("开始-查询ISC正常下发任务TaskList，时间戳：{} 时区：{} 当前服务器时间: {}", currentSeconds, timeZone, currentTime);
 		List<SmtIscDeviceTask> normalTaskList = new ArrayList<>();
 		normalTaskList.addAll(emptyTaskList(smtIscDeviceTaskService.getCardDown(newDeviceTaskPage(), currentSeconds,
@@ -1004,6 +1058,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 
 			task.setUpdateTime(LocalDateTime.now());
 			smtIscDeviceTaskService.updateById(task);
+			triggerDispatchAggregationIfApplicable(task);
 
 		} catch (Exception e) {
 			log.error("处理过期任务异常，任务ID：{}", task.getId(), e);
@@ -1213,6 +1268,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 					task.setStatus(DeviceTaskStatusEnum.CANCEL.getCode());
 					task.setUpdateTime(LocalDateTime.now());
 					smtIscDeviceTaskService.updateById(task);
+					triggerDispatchAggregationIfApplicable(task);
 				}
 				continue;
 			}
@@ -1325,6 +1381,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			task.setRemark(retryExceededRemark);
 			task.setIscTaskId(null);
 			task.setUpdateTime(now);
+			triggerDispatchAggregationIfApplicable(task);
 		}
 	}
 
@@ -1336,6 +1393,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		boolean updated = smtIscDeviceTaskService.updateById(task);
 		if (updated) {
 			smtIscDownRecordService.handleTaskDownRecord(task);
+			triggerDispatchAggregationIfApplicable(task);
 		}
 	}
 
@@ -1474,6 +1532,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		if (updated) {
 			// 与既有删除成功收敛保持一致：清理本地下发记录，避免本地与ISC状态背离
 			smtIscDownRecordService.handleTaskDownRecord(task);
+			triggerDispatchAggregationIfApplicable(task);
 		}
 	}
 
@@ -1820,6 +1879,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 							item.setCode(ISCDeviceTaskEnum.PERSON_HAVE_RESIGNED.getCode());
 							item.setRemark(ISCDeviceTaskEnum.PERSON_HAVE_RESIGNED.getDesc());
 							smtIscDeviceTaskService.updateById(item);
+							triggerDispatchAggregationIfApplicable(item);
 							continue;
 						}
 					}
@@ -1866,6 +1926,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 								// 更新任务状态
 								item.setUpdateTime(LocalDateTime.now());
 								smtIscDeviceTaskService.updateById(item);
+								triggerDispatchAggregationIfApplicable(item);
 								continue;
 							}
 						}
@@ -1877,6 +1938,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 						item.setRemark("临时人员权限缺少有效起止时间");
 						item.setUpdateTime(LocalDateTime.now());
 						smtIscDeviceTaskService.updateById(item);
+						triggerDispatchAggregationIfApplicable(item);
 						continue;
 					}
 
@@ -1889,6 +1951,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 							item.setRemark(ISCDeviceTaskEnum.FACE_IMG_NOT_EXIST.getDesc());
 							// 更新任务CODE
 							smtIscDeviceTaskService.updateById(item);
+							triggerDispatchAggregationIfApplicable(item);
 							continue;
 						}
 						// 判断照片是否在10KB到400KB之间
@@ -1898,6 +1961,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 							item.setRemark(ISCDeviceTaskEnum.FACE_IMG_SIZE_ERROR.getDesc());
 							// 更新任务CODE
 							smtIscDeviceTaskService.updateById(item);
+							triggerDispatchAggregationIfApplicable(item);
 							if (item.getTimes() == 1) {
 								sendWechatMsg(StrUtil.nullToEmpty(item.getGeneral()).concat("照片不合格，请更换照片"), item.getBadge());
 							}
@@ -2447,6 +2511,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				log.info("步骤三结束");
 				// 下载明细确认成功后，才维护本地下发记录；删除权限也在这里移除记录。
 				smtIscDownRecordService.handleTaskDownRecord(updateTask);
+				triggerDispatchAggregationIfApplicable(updateTask);
 				log.info("开始处理访客逻辑");
 				handelVisitor(updateTask);
 			}

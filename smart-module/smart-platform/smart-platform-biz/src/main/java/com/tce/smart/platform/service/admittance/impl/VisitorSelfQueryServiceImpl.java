@@ -449,9 +449,12 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 	}
 
 	private String dispatchStatus(SmtAdmittanceApply apply) {
-		if (Objects.equals(apply.getDeviceStatus(), DeviceDownStatusEnum.SUCCESS.getCode())
-				|| Objects.equals(apply.getDeviceStatus(), DeviceDownStatusEnum.ALRAEDY.getCode())) {
+		if (Objects.equals(apply.getDeviceStatus(), DeviceDownStatusEnum.SUCCESS.getCode())) {
 			return "SUCCESS";
+		}
+		// ALRAEDY(4)：任务已提交ISC等待确认，过渡态映射到ISSUING
+		if (Objects.equals(apply.getDeviceStatus(), DeviceDownStatusEnum.ALRAEDY.getCode())) {
+			return "ISSUING";
 		}
 		if (Objects.equals(apply.getDeviceStatus(), DeviceDownStatusEnum.FAIL.getCode())) {
 			return "FAILED";

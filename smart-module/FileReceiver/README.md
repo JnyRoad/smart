@@ -1,6 +1,10 @@
 # FileReceiver
 
-`FileReceiver` 是一个独立 Spring Boot 程序，用于接收入厂申请相关的人脸照片。现有说明表明它运行在许昌打印机 Windows 电脑上，根发布清单使用 `build/file.jar` 作为发布产物。
+`FileReceiver` 是一个独立 Spring Boot 程序，运行在许昌打印机 Windows 电脑上，用于获取入厂申请相关的人脸照片。
+根发布清单使用 `build/file.jar` 作为发布产物。
+
+自本版本起，主链路切换为 **拉取模式**：程序定时以 OAuth2 client_credentials 方式向网关换取 token，
+主动拉取待处理照片清单并下载到本地目录；旧的 `/file/upload` 推送接口保留但已废弃，将在下个版本移除。
 
 ## 目录结构
 
@@ -9,25 +13,68 @@ FileReceiver/
 ├── README.md
 ├── pom.xml
 ├── src/
-│   └── main/
-│       ├── java/com/example/demo/
-│       │   └── FileApplication.java
-│       └── resources/
+│   ├── main/
+│   │   ├── java/com/example/demo/
+│   │   │   ├── FileApplication.java              # 启动类，开启 @EnableScheduling
+│   │   │   ├── controller/FileController.java     # 旧 /file/upload 推送接口（已废弃）
+│   │   │   └── pull/                              # 拉取模式相关代码
+│   │   │       ├── PhotoPullProperties.java        # file-receiver.* 配置项
+│   │   │       ├── PhotoServerClient.java          # 服务端 HTTP 调用抽象接口
+│   │   │       ├── HutoolPhotoServerClient.java    # 基于 Hutool 的实现
+│   │   │       ├── OpenApiTokenClient.java         # token 获取与缓存
+│   │   │       ├── PhotoPullTask.java              # 定时拉取任务
+│   │   │       └── PhotoCleanupTask.java           # 每日过期清理任务
+│   │   └── resources/
+│   │       └── application.properties
+│   └── test/java/com/example/demo/pull/            # 拉取/清理任务单测
 ├── build/       # Spring Boot 可执行 Jar 输出目录，忽略提交
 └── target/      # Maven 构建目录，忽略提交
 ```
 
 ## 模块边界
 
-- 只处理照片接收程序自身的 HTTP 服务和文件接收逻辑。
+- 只处理照片接收程序自身的 HTTP 服务、拉取任务和文件接收逻辑。
 - 不属于 `smart-module` 主聚合父 POM 的常规业务服务结构，打包路径也与其他服务不同。
 - 不要把管理后台、App 或桥接业务写入本模块。
+
+## 部署与配置说明（拉取模式，主链路）
+
+程序定时执行以下流程：取 token → 拉取待处理照片清单 → 与本地目录 diff → 逐张下载（临时文件 + 原子改名落盘）。
+每日 03:00 额外执行一次过期清理：本地照片满足「超过保留天数」且「不在最新待处理清单中」两个条件才会被删除。
+
+在 `application.properties`（或对应环境变量）中配置：
+
+| 配置键 | 环境变量 | 默认值 | 说明 |
+|---|---|---|---|
+| `file-receiver.pull.enabled` | `FILE_RECEIVER_PULL_ENABLED` | `false` | 是否启用拉取任务，默认关闭 |
+| `file-receiver.pull.server-url` | `FILE_RECEIVER_PULL_SERVER_URL` | 空 | 网关地址，如 `http://gateway-host:port`；`/auth`、`/platform` 为网关路由前缀 |
+| `file-receiver.pull.app-id` | `FILE_RECEIVER_PULL_APP_ID` | 空 | OAuth2 client_credentials 的 app-id（Basic 认证用户名） |
+| `file-receiver.pull.app-secret` | `FILE_RECEIVER_PULL_APP_SECRET` | 空 | OAuth2 client_credentials 的 app-secret（Basic 认证密码，禁止出现在日志中） |
+| `file-receiver.pull.interval-seconds` | `FILE_RECEIVER_PULL_INTERVAL_SECONDS` | `30` | 拉取轮询间隔（秒） |
+| `file-receiver.photo-dir` | `FILE_RECEIVER_PHOTO_DIR` | `D:/visitor` | 本地照片存放目录（许昌打印机 Windows 机部署路径） |
+| `file-receiver.cleanup.retention-days` | `FILE_RECEIVER_CLEANUP_RETENTION_DAYS` | `7` | 本地照片保留天数，`0` 表示关闭清理任务 |
+
+接口约定：
+
+- token：`POST {server-url}/auth/oauth/token?grant_type=client_credentials`，Basic 认证（app-id / app-secret）。
+- 待处理清单：`GET {server-url}/platform/open/admittance/photo/pending`，返回 `Result` 包装的 `photoId` 数组。
+- 下载：`GET {server-url}/platform/open/admittance/photo/download/{photoId}`，200 返回 PNG 字节，404 表示缺图（跳过不重试），401/403 表示 token 失效（刷新后重试一次）。
+
+## 部署与配置说明（推送模式，已废弃）
+
+`POST /file/upload`（`file` + `filePath` 表单参数）仍然可用，但调用时会打印 WARN 日志提示废弃，
+将在下个版本移除，请尽快迁移到上面的拉取模式。
+
+| 配置键 | 环境变量 | 默认值 | 说明 |
+|---|---|---|---|
+| `file-receiver.upload-root` | `FILE_RECEIVER_UPLOAD_ROOT` | `${java.io.tmpdir}/file-receiver` | 推送模式的文件保存根目录（已废弃） |
 
 ## 常用命令
 
 在 `smart-module/FileReceiver/` 目录执行：
 
 ```bash
+mvn test               # 跑单测（拉取/清理任务的纯单测，不依赖真实网络）
 mvn clean package -DskipTests
 ```
 
