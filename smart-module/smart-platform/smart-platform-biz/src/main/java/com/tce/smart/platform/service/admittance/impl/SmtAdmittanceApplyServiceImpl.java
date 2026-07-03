@@ -180,9 +180,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	private Integer xcParkId;
 	/**
 	 * 入厂申请照片推送总开关：过渡期尽力而为行为，关闭后 updateStatus 完全跳过照片推送，
-	 * 照片由 FileReceiver 拉取兜底（见 admittance.photo-push-enabled 配置）
+	 * 照片由 FileReceiver 拉取兜底（见 spring.admittance.photo-push-enabled 配置）
 	 */
-	@Value("${admittance.photo-push-enabled:true}")
+	@Value("${spring.admittance.photo-push-enabled:true}")
 	private Boolean photoPushEnabled;
 
 

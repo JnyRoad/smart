@@ -8,8 +8,8 @@
 > 直接照抄执行。
 >
 > **前置代码事实**（写清单前已核实，避免凭空编造）：
-> - 推送开关：`admittance.photo-push-enabled`（`SmtAdmittanceApplyServiceImpl.java:185`
->   `@Value("${admittance.photo-push-enabled:true}")`，默认 `true`）；已在
+> - 推送开关：`spring.admittance.photo-push-enabled`（`SmtAdmittanceApplyServiceImpl.java:185`
+>   `@Value("${spring.admittance.photo-push-enabled:true}")`，默认 `true`）；已在
 >   `docker/nacos/config/dev/smart-platform.yml` 的 `admittance:` 节下加入
 >   `photo-push-enabled: true` 子键（dev 环境用，生产 Nacos 由运维按本清单第 2 步同步）。
 > - `spring.admittance.save-path`（同文件 `save-path: D:/visitor/`）自 Task 3 起已成死代码
@@ -33,7 +33,7 @@
 >   不可按分号逐句跑（Oracle 低版本不支持 `IF NOT EXISTS`，脚本内置存在性判断保证幂等）。
 > - 鉴权前置：`file-receiver-xc` 客户端注册脚本
 >   `smart-module/database/manual/2026-07-01-register-file-receiver-app.sql`
->   内置 `client_secret` 为占位符明文 `CHANGE-ME-ON-DEPLOY`，**不可直接用于鉴权**，
+>   内置 `client_secret` 为占位符明文 `{noop}CHANGE-ME-ON-DEPLOY`（带编码前缀的占位符），**不可直接用于鉴权**，
 >   必须在管理页「应用管理」（`/admin/client`）对 `file-receiver-xc` 走一次
 >   「重置 App Secret」拿到正式 `{bcrypt}` 编码凭证——这一步与本清单第 1 步共用同一批
 >   数据库前置动作，详细步骤见
@@ -91,19 +91,20 @@
 
 ### 2.1 Nacos 生产配置同步
 
-- **前置条件**：本次改动已把 `admittance.photo-push-enabled: true` 加入
-  `docker/nacos/config/dev/smart-platform.yml`（`admittance:` 节下）；生产 Nacos
+- **前置条件**：本次改动已把 `photo-push-enabled: true` 加入
+  `docker/nacos/config/dev/smart-platform.yml`（`spring.admittance:` 节下）；生产 Nacos
   与本仓库 dev 配置文件不是自动同步关系，需运维手工比对。
 - **步骤**：
   1. 登录生产 Nacos 控制台，定位 `smart-platform.yml` 配置（namespace/group 按实际生产环境）。
-  2. 在 `admittance:` 节下新增子键：
+  2. 在 `spring.admittance:` 节下新增子键：
      ```yaml
-     admittance:
-       photo-push-enabled: true
+     spring:
+       admittance:
+         photo-push-enabled: true
      ```
-     若生产配置里 `admittance:` 节缩进/已有键顺序与 dev 不同，以生产现有格式为准，
-     只需保证 `photo-push-enabled` 是 `admittance` 节的直接子键（对应
-     `@Value("${admittance.photo-push-enabled:true}")` 的点分路径）。
+     若生产配置里 `spring.admittance:` 节缩进/已有键顺序与 dev 不同，以生产现有格式为准，
+     只需保证 `photo-push-enabled` 是 `spring.admittance` 节的直接子键（对应
+     `@Value("${spring.admittance.photo-push-enabled:true}")` 的点分路径）。
   3. 发布配置，观察 smart-platform 服务是否收到 Nacos 配置刷新（若走
      `@RefreshScope`/`@Value` 静态注入需评估是否需要重启服务生效——
      `SmtAdmittanceApplyServiceImpl` 未见 `@RefreshScope` 注解，**保守按需要重启服务生效处理**，
@@ -248,7 +249,7 @@
 - **前置条件**：4.1 观察期未发现阻断级问题（拉取持续失败、聚合回写持续写冲突未恢复、
   打印验证失败）。
 - **步骤**：
-  1. 登录生产 Nacos，把 `smart-platform.yml` 里 `admittance.photo-push-enabled` 改为 `false`。
+  1. 登录生产 Nacos，把 `smart-platform.yml` 里 `spring.admittance.photo-push-enabled` 改为 `false`。
   2. 发布配置，视 2.1 步骤同样的刷新/重启方式使其生效。
   3. 验证：审批通过一条新的入厂申请，确认 `SmtAdmittanceApplyServiceImpl` 不再触发
      推送调用（无推送相关日志/无对许昌旧推送接口 `/file/upload` 的出站请求），
@@ -262,7 +263,7 @@
 
 - 待观察期稳定运行（建议再累计运行 1-2 周无回退）后，可考虑：
   - 从 `SmtAdmittanceApplyServiceImpl` 删除推送调用代码路径；
-  - 从 Nacos 配置删除 `admittance.photo-push-enabled`、`spring.admittance.save-path`
+  - 从 Nacos 配置删除 `spring.admittance.photo-push-enabled`、`spring.admittance.save-path`
     （即本次注释标注的死代码配置）；
   - 从 FileReceiver 删除 `/file/upload` 推送接口与 `file-receiver.upload-root` 配置。
   - 此项不在本次上线范围内，仅记录以便下个迭代跟踪，不建议在观察期未满时提前执行。
@@ -273,12 +274,12 @@
 
 | 场景 | 回退动作 |
 |---|---|
-| FileReceiver 新版本部署失败/拉取异常（第 3 步） | 保持/恢复 `admittance.photo-push-enabled=true`（若已提前关闭需改回 true 并发布），
+| FileReceiver 新版本部署失败/拉取异常（第 3 步） | 保持/恢复 `spring.admittance.photo-push-enabled=true`（若已提前关闭需改回 true 并发布），
 维持旧推送行为；许昌机器还原 3.1 备份的旧版本 `file.jar.bak-*`，重启旧进程 |
 | DDL 执行报错（第 2.2 步） | 立即整段执行 `2026-07-01-isc-batch-model-rollback.sql`，确认字段/索引已移除后再排查根因 |
 | 观察期发现聚合回写持续故障（第 4 步观察期内） | 保持 `photo-push-enabled=true` 不关闭，问题解决前不进入 4.2；必要时联系
 `AdmittanceDispatchAggregator` 相关开发排查写冲突重试为何未能自愈 |
-| 关闭推送后发现拉取模式有未预期问题（4.2 之后） | 立即把 `admittance.photo-push-enabled` 改回 `true` 并发布，
+| 关闭推送后发现拉取模式有未预期问题（4.2 之后） | 立即把 `spring.admittance.photo-push-enabled` 改回 `true` 并发布，
 恢复推送作为兜底，同时保留 FileReceiver 拉取并行运行（两者共存无害，互为幂等写同一目录） |
 | 鉴权注册/换 token 环节异常（第 1 步） | 不影响存量功能（`file-receiver-xc` 是新增客户端），
 可反复重试注册脚本（脚本幂等）与重置 secret，不构成对现网其他功能的风险 |

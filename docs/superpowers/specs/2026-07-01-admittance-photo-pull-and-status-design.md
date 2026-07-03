@@ -77,7 +77,7 @@ file-receiver:
 ### 3.3 审批链路解耦（smart-platform）
 
 `updateStatus()` 改动：
-- **照片推送与审批链路解耦（不是立即删代码）**：`smbPutPhoto` 方法保留，`updateStatus` 中的调用改为受开关 `admittance.photo-push-enabled`（Nacos，默认 `true`）控制的**尽力而为**行为——开关开时执行推送，**失败只记 ERROR 日志，不抛异常、不影响 deviceStatus**；开关关时完全不调用。废弃周期结束后随开关一起删除推送代码（与旧 `/file/upload` 同步退役）；
+- **照片推送与审批链路解耦（不是立即删代码）**：`smbPutPhoto` 方法保留，`updateStatus` 中的调用改为受开关 `spring.admittance.photo-push-enabled`（Nacos，默认 `true`）控制的**尽力而为**行为——开关开时执行推送，**失败只记 ERROR 日志，不抛异常、不影响 deviceStatus**；开关关时完全不调用。废弃周期结束后随开关一起删除推送代码（与旧 `/file/upload` 同步退役）；
 - 状态流转保持现状：认领时 `下发中(3)` → `updateStatus` 完成（ISC 任务已创建提交）→ `已下发(4)`。`已下发(4)` 的语义明确为「任务已提交 ISC，等待结果确认」，是过渡态，终态由 3.4 的聚合回写决定（1/2）。字段与前端映射均不改；
 - 车辆类型（不建 ISC 任务）：维持 `待下发(0)` 现状；
 - 顺带修正误导性日志 tag：`smbPutPhoto` 内成功日志改用【入厂申请上传照片到远程电脑】前缀（现为复制粘贴的【…失败】）。
