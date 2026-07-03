@@ -30,8 +30,10 @@
 
 | 接口 | 说明 |
 |---|---|
-| `GET /platform/admittance/photo/pending` | 返回「审批通过（Status_0）、未过期（endTime > now）、非车辆类型」申请单下全部随行人员的 photoId 列表 |
-| `GET /platform/admittance/photo/download/{photoId}` | 返回照片二进制（复用 `smtImageService.getImageBinaryByCode`）；photoId 严格校验为 UUID 格式，防路径穿越/枚举 |
+| `GET /platform/open/admittance/photo/pending` | 返回「审批通过（Status_0）、未过期（endTime > now）、非车辆类型」申请单下全部随行人员的 photoId 列表 |
+| `GET /platform/open/admittance/photo/download/{photoId}` | 返回照片二进制（复用 `smtImageService.getImageBinaryByCode`）；photoId 严格校验为标准 UUID 分组格式，防路径穿越/枚举 |
+
+> 路由前缀说明（实现期修正）：Nacos ignore-urls 存在历史条目 `/admittance/**`（H5 访客自助流程），照片接口若用 `/admittance/photo` 前缀会在 Security 过滤器层被 permitAll、只剩 MVC 拦截器单层防御，违反鉴权 spec「开放接口不进白名单」硬约束——故路由采用 `/open/admittance/photo` 前缀避开该通配。
 
 - **园区范围由服务端推导（Codex 评审阻断项）**：不接受调用方传 parkId——服务端按应用凭证绑定的 `allowedParkIds`（见鉴权 spec）确定查询范围，token 泄露也拉不到其他园区数据；
 - 清单**只返回非空且图片实际存在的 photoId**（现有数据存在 photoId 为空/图片缺失的情况，直接下发会让客户端反复 404 空转）；缺图作为数据质量问题记 WARN 日志；

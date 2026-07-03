@@ -45,7 +45,7 @@ public class AdmittancePhotoOpenControllerTest {
 	@Test
 	public void pending_delegatesWithAdapterParkIds() throws Exception {
 		when(adapter.appParkIds(any())).thenReturn(Arrays.asList(7, 8));
-		mockMvc.perform(get("/admittance/photo/pending"))
+		mockMvc.perform(get("/open/admittance/photo/pending"))
 				.andExpect(status().isOk());
 		verify(photoService).listPendingPhotoIds(Arrays.asList(7, 8));
 	}
@@ -53,7 +53,7 @@ public class AdmittancePhotoOpenControllerTest {
 	/** download：photoId 含路径穿越字符 → 400 且不触达 service */
 	@Test
 	public void download_invalidPhotoId_returns400() throws Exception {
-		mockMvc.perform(get("/admittance/photo/download/{id}", "..%2f..%2fetc-passwd-0000000000000000"))
+		mockMvc.perform(get("/open/admittance/photo/download/{id}", "..%2f..%2fetc-passwd-0000000000000000"))
 				.andExpect(status().isBadRequest());
 		verify(photoService, never()).loadPhoto(any());
 	}
@@ -61,7 +61,15 @@ public class AdmittancePhotoOpenControllerTest {
 	/** download：格式过短 → 400 */
 	@Test
 	public void download_tooShortPhotoId_returns400() throws Exception {
-		mockMvc.perform(get("/admittance/photo/download/{id}", "abc123"))
+		mockMvc.perform(get("/open/admittance/photo/download/{id}", "abc123"))
+				.andExpect(status().isBadRequest());
+		verify(photoService, never()).loadPhoto(any());
+	}
+
+	/** download：全连字符（长度合规但非 UUID 结构）→ 400（锁住严格分组正则，防回退到宽松字符集校验） */
+	@Test
+	public void download_allHyphens_returns400() throws Exception {
+		mockMvc.perform(get("/open/admittance/photo/download/{id}", "------------------------------------"))
 				.andExpect(status().isBadRequest());
 		verify(photoService, never()).loadPhoto(any());
 	}
@@ -70,7 +78,7 @@ public class AdmittancePhotoOpenControllerTest {
 	@Test
 	public void download_missingImage_returns404() throws Exception {
 		when(photoService.loadPhoto(VALID_PHOTO_ID)).thenReturn(null);
-		mockMvc.perform(get("/admittance/photo/download/{id}", VALID_PHOTO_ID))
+		mockMvc.perform(get("/open/admittance/photo/download/{id}", VALID_PHOTO_ID))
 				.andExpect(status().isNotFound());
 	}
 
@@ -79,7 +87,7 @@ public class AdmittancePhotoOpenControllerTest {
 	public void download_existingImage_returnsPngBytes() throws Exception {
 		byte[] bytes = new byte[] {9, 8, 7};
 		when(photoService.loadPhoto(VALID_PHOTO_ID)).thenReturn(bytes);
-		mockMvc.perform(get("/admittance/photo/download/{id}", VALID_PHOTO_ID))
+		mockMvc.perform(get("/open/admittance/photo/download/{id}", VALID_PHOTO_ID))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType("image/png"))
 				.andExpect(content().bytes(bytes));

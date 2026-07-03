@@ -23,15 +23,19 @@ import java.util.regex.Pattern;
  * 安全约定：
  * - 两个接口均标注 @OpenApi，只接受携带 open:admittance:photo:read scope 的应用 token；
  * - 园区数据范围只从 token 的 app_park_ids claim 推导，不接受任何请求参数指定范围；
- * - 本控制器路由不得加入 PermitAllUrlProperties 白名单（必须带 token）。
+ * - 本控制器路由不得加入 PermitAllUrlProperties 白名单（必须带 token）——因此路由前缀
+ *   使用 /open/admittance/photo 而非 /admittance/photo：Nacos ignore-urls 中存在历史条目
+ *   "/admittance/**"（H5 访客自助流程用），若落在其下会在 Security 过滤器层被 permitAll，
+ *   纵深防御只剩 MVC 拦截器一层，违反开放 API spec 硬约束。
  */
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admittance/photo")
+@RequestMapping("/open/admittance/photo")
 public class AdmittancePhotoOpenController extends BaseController {
 
-	/** photoId 只允许 UUID 形态，防路径穿越与遍历式枚举 */
-	private static final Pattern PHOTO_ID_PATTERN = Pattern.compile("^[0-9a-fA-F-]{32,36}$");
+	/** photoId 只允许标准 UUID 分组格式（8-4-4-4-12），防路径穿越与遍历式枚举；下游为参数化查询，此处为纵深防御第一层 */
+	private static final Pattern PHOTO_ID_PATTERN = Pattern
+			.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
 	private final AdmittancePhotoOpenService admittancePhotoOpenService;
 
