@@ -149,7 +149,7 @@ spring:
     # 保留仅为兼容旧配置读取路径，推送功能整体退役（见上线 checklist 第 4 步）时随之删除。
     save-path: D:/visitor/
     # 照片推送总开关：true=推送与拉取并存（当前上线阶段），false=仅拉取（推送退役后终态）。
-    # 对应 SmtAdmittanceApplyServiceImpl#photoPushEnabled（@Value("${admittance.photo-push-enabled:true}")）。
+    # 对应 SmtAdmittanceApplyServiceImpl#photoPushEnabled（@Value("${spring.admittance.photo-push-enabled:true}")）。
     photo-push-enabled: true
   park-set:
     lg-park-id: 27
