@@ -87,4 +87,20 @@ public class OauthClientDetailsController {
 	public Result update(@Valid @RequestBody SysOauthClientDetails sysOauthClientDetails) {
 		return Result.success(sysOauthClientDetailsService.updateClientDetailsById(sysOauthClientDetails));
 	}
+
+	/**
+	 * 重置指定客户端的 secret：生成新的 32 位随机明文，编码后落库，并吊销该客户端下的旧 token。
+	 *
+	 * <p>安全注意：新明文 secret 只在本次响应里返回一次，SysLog 记录的是操作动作而非明文本身，
+	 * 调用方拿到后必须自行妥善保存，服务端不会再次展示。</p>
+	 *
+	 * @param clientId 客户端ID
+	 * @return 新生成的明文 secret
+	 */
+	@SysLog("重置终端密钥")
+	@PutMapping("/secret/{clientId}")
+	@PreAuthorize("@pms.hasPermission('sys_client_edit')")
+	public Result<String> resetSecret(@PathVariable String clientId) {
+		return Result.success(sysOauthClientDetailsService.resetSecret(clientId));
+	}
 }

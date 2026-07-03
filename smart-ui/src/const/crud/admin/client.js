@@ -1,5 +1,6 @@
 
 import { baseTableOption } from '../_base'
+import { OPEN_SCOPES } from '@/const/openScopes'
 
 const DIC = {
   vaild: [{
@@ -16,17 +17,17 @@ export const tableOption = {
   viewBtn: true,
   column: [{
     width: 150,
-    label: '编号',
+    label: 'App ID',
     prop: 'clientId',
     align: 'center',
     sortable: true,
     rules: [{
       required: true,
-      message: '请输入clientId',
+      message: '请输入 App ID',
       trigger: 'blur'
     }]
   }, {
-    label: '密钥',
+    label: 'App Secret',
     prop: 'clientSecret',
     align: 'center',
     sortable: true,
@@ -34,17 +35,23 @@ export const tableOption = {
     width: 120,
     rules: [{
       required: true,
-      message: '请输入clientSecret',
+      message: '请输入 App Secret',
       trigger: 'blur'
     }]
   }, {
-    label: '域',
+    // scope 落库仍是逗号分隔字符串（后端 SysOauthClientDetails.scope 为 String），
+    // 这里用多选下拉采集，字符串<->数组的转换在 index.vue 的 before-open / 保存回调里做。
+    label: '授权域',
     prop: 'scope',
     align: 'center',
+    type: 'select',
+    multiple: true,
+    dicData: OPEN_SCOPES,
+    overHidden: true,
     rules: [{
       required: true,
-      message: '请输入scope',
-      trigger: 'blur'
+      message: '请选择授权域',
+      trigger: 'change'
     }]
   }, {
     label: '授权模式',
@@ -86,10 +93,22 @@ export const tableOption = {
     prop: 'refreshTokenValidity',
     align: 'center',
   }, {
+    // 授权园区不是数据库原生字段，落库时会被序列化进 additionalInformation 的
+    // allowedParkIds 键；列表/表单都用自定义 slot（见 index.vue 的
+    // slot="allowedParkIdsForm"）渲染多选框，这里只登记字段位置和校验。
+    label: '授权园区',
+    prop: 'allowedParkIds',
+    align: 'center',
+    hide: true,
+    formsolt: true,
+    span: 24
+  }, {
     label: '扩展信息',
     prop: 'additionalInformation',
     align: 'center',
-    hide: true
+    hide: true,
+    editDisplay: false,
+    addDisplay: false
   }, {
     label: '资源ID',
     prop: 'resourceIds',

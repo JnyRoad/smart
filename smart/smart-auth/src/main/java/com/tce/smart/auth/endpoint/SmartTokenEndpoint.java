@@ -20,8 +20,10 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
+import org.springframework.security.oauth2.common.OAuth2RefreshToken;
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.security.oauth2.provider.token.TokenStore;
+import org.springframework.security.oauth2.provider.token.store.redis.RedisTokenStore;
 import org.springframework.security.web.WebAttributes;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
@@ -92,6 +94,38 @@ public class SmartTokenEndpoint {
 		OAuth2AccessToken oAuth2AccessToken = tokenStore.readAccessToken(token);
 		tokenStore.removeAccessToken(oAuth2AccessToken);
 		return new Result<>();
+	}
+
+	/**
+	 * 按 clientId 批量吊销该客户端签发的所有 token（access token + refresh token）。
+	 * 用于 upms 重置 client secret 或删除 client 后，让旧 token 立即失效（返回 401/403）。
+	 *
+	 * <p>快速失败：tokenStore 非 RedisTokenStore（不支持 findTokensByClientId）时直接抛出，
+	 * 不允许静默跳过吊销、制造“已吊销”的假象。</p>
+	 *
+	 * @param clientId 客户端ID
+	 * @return 吊销的 token 数量
+	 */
+	@Inner
+	@DeleteMapping("/client/{clientId}")
+	public Result<Integer> revokeTokensByClientId(@PathVariable("clientId") String clientId) {
+		if (!(tokenStore instanceof RedisTokenStore)) {
+			// TokenStore 实现被替换为非 Redis 方案时，findTokensByClientId 能力不存在，
+			// 必须显式报错让调用方（upms）感知吊销失败，而不是悄悄返回 0 造成“看起来成功”的假象。
+			throw new IllegalStateException("当前 TokenStore 不支持按 clientId 批量吊销：" + tokenStore.getClass().getName());
+		}
+		RedisTokenStore redisTokenStore = (RedisTokenStore) tokenStore;
+		Collection<OAuth2AccessToken> accessTokens = redisTokenStore.findTokensByClientId(clientId);
+		int revokedCount = 0;
+		for (OAuth2AccessToken accessToken : accessTokens) {
+			OAuth2RefreshToken refreshToken = accessToken.getRefreshToken();
+			if (refreshToken != null) {
+				redisTokenStore.removeRefreshToken(refreshToken);
+			}
+			redisTokenStore.removeAccessToken(accessToken);
+			revokedCount++;
+		}
+		return new Result<>(revokedCount);
 	}
 
 	/**
