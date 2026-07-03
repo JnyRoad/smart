@@ -34,6 +34,8 @@ public class FileController {
 
     @PostMapping("/upload")
     public String upload(@RequestParam("file") MultipartFile file, @RequestParam("filePath") String filePath) throws IOException {
+        // 【已废弃】/file/upload 推送接口将在下个版本移除，请迁移到拉取模式（file-receiver.pull.*）
+        log.warn("【已废弃】/file/upload 推送接口将在下个版本移除，请迁移到拉取模式");
         Path target = resolveTargetPath(filePath);
         log.info("保存文件: {}", target);
         Files.createDirectories(target.getParent());
