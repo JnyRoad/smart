@@ -95,4 +95,27 @@ public class PhotoCleanupTaskTest {
         // retention=0 关闭清理时不应该去调用清单接口
         verifyZeroInteractions(serverClient);
     }
+
+    @Test
+    public void cleanupTask_removesStaleOrphanTmpFiles() throws IOException {
+        // 超期 tmp 文件（>1天）应被删除
+        Path staleTmpFile = photoDir.resolve("stale-tmp.png.tmp");
+        Files.write(staleTmpFile, "x".getBytes());
+        FileTime staleMtime = FileTime.from(Instant.now().minusSeconds(2 * 24L * 3600L));
+        Files.setLastModifiedTime(staleTmpFile, staleMtime);
+
+        // 新鲜 tmp 文件（<1天）应保留
+        Path freshTmpFile = photoDir.resolve("fresh-tmp.png.tmp");
+        Files.write(freshTmpFile, "x".getBytes());
+        FileTime freshMtime = FileTime.from(Instant.now().minusSeconds(12 * 3600L));
+        Files.setLastModifiedTime(freshTmpFile, freshMtime);
+
+        when(serverClient.fetchPendingPhotoIds("token-1"))
+                .thenReturn(Collections.emptyList());
+
+        task.runOnce();
+
+        assertThat(staleTmpFile).doesNotExist();
+        assertThat(freshTmpFile).exists();
+    }
 }

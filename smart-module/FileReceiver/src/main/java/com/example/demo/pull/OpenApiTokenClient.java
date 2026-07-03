@@ -8,6 +8,11 @@ import org.springframework.stereotype.Component;
  * OAuth2 client_credentials 模式的 token 客户端。
  * <p>
  * 内存缓存 token，提前 60s 视为过期以规避临界点请求刚好用到失效 token。
+ * <p>
+ * 【并发假设】getToken/refresh 使用 volatile 无锁双重检查。
+ * 依赖 Spring @Scheduled 默认单线程调度池（本工程未配置 spring.task.scheduling.pool.size），
+ * 拉取与清理任务串行执行故无并发竞争。若未来调大调度线程池，必须给 getToken/refresh 加同步或改用锁，
+ * 否则并发过期判定会重复请求 token（幂等但浪费）。
  */
 @Slf4j
 @Component

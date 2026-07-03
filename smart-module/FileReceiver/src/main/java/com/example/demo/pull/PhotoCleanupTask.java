@@ -75,6 +75,9 @@ public class PhotoCleanupTask {
         for (Path file : candidates) {
             deleteIfStaleAndNotPending(file, staleBefore, pendingPhotoIds);
         }
+
+        // 清理孤儿 tmp 文件
+        cleanupStaleTmpFiles(photoDir);
     }
 
     private void deleteIfStaleAndNotPending(Path file, Instant staleBefore, Set<String> pendingPhotoIds) {
@@ -108,5 +111,37 @@ public class PhotoCleanupTask {
             log.error("遍历照片目录失败：{}", photoDir, e);
         }
         return result;
+    }
+
+    /**
+     * 清理孤儿 tmp 文件。
+     * <p>
+     * PhotoPullTask.writeAtomically 写盘中途失败会残留 {photoId}.png.tmp，
+     * 本方法删除 photo-dir 下 mtime 超过 1 天的 *.png.tmp 文件。
+     * 不查 pending 清单，因为 tmp 本来就是中间产物；1 天余量防止删到正在写的文件。
+     */
+    private void cleanupStaleTmpFiles(Path photoDir) {
+        Instant staleBefore = Instant.now().minusSeconds(1 * 24L * 3600L);
+        List<Path> tmpFiles = new java.util.ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(photoDir, "*" + PHOTO_SUFFIX + ".tmp")) {
+            for (Path path : stream) {
+                tmpFiles.add(path);
+            }
+        } catch (IOException e) {
+            log.error("遍历 tmp 文件目录失败：{}", photoDir, e);
+            return;
+        }
+
+        for (Path tmpFile : tmpFiles) {
+            try {
+                FileTime mtime = Files.getLastModifiedTime(tmpFile);
+                if (mtime.toInstant().isBefore(staleBefore)) {
+                    Files.delete(tmpFile);
+                    log.info("已清理过期孤儿 tmp 文件：{}", tmpFile);
+                }
+            } catch (IOException e) {
+                log.error("清理 tmp 文件失败：{}", tmpFile, e);
+            }
+        }
     }
 }
