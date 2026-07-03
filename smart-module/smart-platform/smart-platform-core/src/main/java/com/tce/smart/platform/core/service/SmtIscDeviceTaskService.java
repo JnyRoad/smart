@@ -8,6 +8,7 @@ import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 设备任务信息表
@@ -113,6 +114,16 @@ public interface SmtIscDeviceTaskService extends IService<SmtIscDeviceTask> {
 	int cancelStaleOfflineDownloadTasks(int deviceType, int staleMonths);
 
 	/**
+	 * 取消长期离线或已删除设备的待处理下发任务，并返回受影响（来源于入厂申请）的申请单ID集合，
+	 * 供调用方对这些申请单逐单触发 {@code AdmittanceDispatchAggregator} 聚合回写——
+	 * 纯批量落终态的任务会绕过单任务出口的聚合钩子，必须由调用方补触发。
+	 * @param deviceType 设备类型
+	 * @param staleMonths 超过多少个月未处理
+	 * @return 受影响的入厂申请单ID集合（不含 apply_id 为空的任务，可能为空集合）
+	 */
+	Set<Long> cancelStaleOfflineDownloadTasksAndCollectApplyIds(int deviceType, int staleMonths);
+
+	/**
 	 * 停止已达到最大重试次数的待处理权限任务
 	 * @param deviceType 设备类型
 	 * @param maxRetryTimes 最大重试次数
@@ -134,11 +145,33 @@ public interface SmtIscDeviceTaskService extends IService<SmtIscDeviceTask> {
 	int markOfflineDeviceTasks(int deviceType);
 
 	/**
+	 * 将离线设备上的待下发任务标记为设备离线状态，并返回受影响（来源于入厂申请）的申请单ID集合，
+	 * 供调用方逐单触发聚合回写——DEVICE_OFFLINE 虽非终态，但聚合把它计入失败判定
+	 * （见 {@code AdmittanceDispatchAggregator.FAILURE_TERMINAL_STATUSES}），需要及时反映到申请单。
+	 * @return 受影响的入厂申请单ID集合（可能为空集合）
+	 */
+	Set<Long> markOfflineDeviceTasksAndCollectApplyIds(int deviceType);
+
+	/**
 	 * 将OVER_TIME已过、仍处于待下发/设备离线状态的下发类任务收敛为已过期（删除类任务不受影响）
 	 * @return 标记任务数量
 	 */
 	int expireOverdueDownloadTasks(int deviceType);
 
+	/**
+	 * 将OVER_TIME已过的下发类任务收敛为已过期，并返回受影响（来源于入厂申请）的申请单ID集合，
+	 * 供调用方逐单触发聚合回写。
+	 * @return 受影响的入厂申请单ID集合（可能为空集合）
+	 */
+	Set<Long> expireOverdueDownloadTasksAndCollectApplyIds(int deviceType);
+
 	boolean stopExceededRetryAuthTasks(int deviceType, int maxRetryTimes, String remark);
+
+	/**
+	 * 停止已达到最大重试次数的待处理权限任务，并返回受影响（来源于入厂申请）的申请单ID集合，
+	 * 供调用方逐单触发聚合回写。
+	 * @return 受影响的入厂申请单ID集合（可能为空集合）
+	 */
+	Set<Long> stopExceededRetryAuthTasksAndCollectApplyIds(int deviceType, int maxRetryTimes, String remark);
 
 }

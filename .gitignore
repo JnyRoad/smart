@@ -131,3 +131,7 @@ Servers
 .metadata
 upload
 gen_code
+
+# 评审/调试过程反编译产物，禁止入库
+/org/
+*.class

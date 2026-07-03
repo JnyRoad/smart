@@ -3,6 +3,7 @@ package com.tce.smart.platform.core.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.date.DateUtil;
+import com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -41,8 +42,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 设备任务信息表
@@ -630,19 +635,48 @@ public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMap
 
 	@Override
 	public int cancelStaleOfflineDownloadTasks(int deviceType, int staleMonths) {
+		return cancelStaleOfflineDownloadTasksInternal(deviceType, staleMonths).canceledCount;
+	}
+
+	/**
+	 * 取消长期离线/已删除设备的待处理下发任务，并额外返回受影响入厂申请单ID集合。
+	 * 复用与{@link #cancelStaleOfflineDownloadTasks}相同的内部实现，SELECT取到的任务行本身
+	 * 已带APPLY_ID（见{@code getStaleOfflineDownloadTasks}的XML SELECT），逐行UPDATE与逐行收集
+	 * APPLY_ID共用同一份取数结果，天然不存在条件漂移问题。
+	 */
+	@Override
+	public Set<Long> cancelStaleOfflineDownloadTasksAndCollectApplyIds(int deviceType, int staleMonths) {
+		return cancelStaleOfflineDownloadTasksInternal(deviceType, staleMonths).applyIds;
+	}
+
+	/** {@code cancelStaleOfflineDownloadTasks}系列方法的返回值：取消数量 + 受影响申请单ID集合。 */
+	private static final class CancelStaleOfflineResult {
+		private final int canceledCount;
+		private final Set<Long> applyIds;
+
+		private CancelStaleOfflineResult(int canceledCount, Set<Long> applyIds) {
+			this.canceledCount = canceledCount;
+			this.applyIds = applyIds;
+		}
+	}
+
+	private CancelStaleOfflineResult cancelStaleOfflineDownloadTasksInternal(int deviceType, int staleMonths) {
 		if (staleMonths <= 0) {
 			log.warn("长期离线ISC下发任务自动取消阈值配置无效：{}个月", staleMonths);
-			return 0;
+			return new CancelStaleOfflineResult(0, Collections.emptySet());
 		}
 		List<SmtIscDeviceTask> staleTasks = this.baseMapper.getStaleOfflineDownloadTasks(deviceType, staleMonths);
 		if (CollectionUtil.isEmpty(staleTasks)) {
-			return 0;
+			return new CancelStaleOfflineResult(0, Collections.emptySet());
 		}
 		LocalDateTime now = LocalDateTime.now();
 		int canceledCount = 0;
+		// 用LinkedHashSet保序去重：批量UPDATE前查出的任务行本身带APPLY_ID，逐行UPDATE成功后收集，
+		// 与UPDATE共用同一次SELECT结果，不存在"条件复制两份"的漂移风险
+		Set<Long> applyIds = new LinkedHashSet<>();
 		for (SmtIscDeviceTask task : staleTasks) {
 			setOpsUser(task);
-			canceledCount += this.baseMapper.cancelStaleOfflineDownloadTask(
+			int rowsUpdated = this.baseMapper.cancelStaleOfflineDownloadTask(
 					task.getId(),
 					deviceType,
 					staleMonths,
@@ -652,9 +686,14 @@ public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMap
 					now,
 					task.getOptUser()
 			);
+			canceledCount += rowsUpdated;
+			if (rowsUpdated > 0 && task.getApplyId() != null) {
+				applyIds.add(task.getApplyId());
+			}
 		}
-		log.info("已自动取消长期离线或已删除设备待处理ISC下发任务：{}条，查询命中：{}条，阈值：{}个月", canceledCount, staleTasks.size(), staleMonths);
-		return canceledCount;
+		log.info("已自动取消长期离线或已删除设备待处理ISC下发任务：{}条，查询命中：{}条，阈值：{}个月，涉及入厂申请单：{}个",
+				canceledCount, staleTasks.size(), staleMonths, applyIds.size());
+		return new CancelStaleOfflineResult(canceledCount, applyIds);
 	}
 
 	@Override
@@ -684,32 +723,69 @@ public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMap
 		return requeued;
 	}
 
-	@Override
-	public int expireOverdueDownloadTasks(int deviceType) {
-		// 待下发/设备离线状态且OVER_TIME已过的下发类任务不会再被任何调度查询选中，显式收敛为已过期；
-		// 删除类任务（action 2/12）以OVER_TIME作为执行时间，不在过期范围
-		int expired = this.baseMapper.update(null, Wrappers.<SmtIscDeviceTask>lambdaUpdate()
-				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.EXPIRED.getCode())
-				.set(SmtIscDeviceTask::getRemark, "权限有效期已过，任务自动标记为已过期")
-				.set(SmtIscDeviceTask::getUpdateTime, LocalDateTime.now())
-				.eq(SmtIscDeviceTask::getDeviceType, deviceType)
+	/**
+	 * {@code expireOverdueDownloadTasks}的WHERE谓词构造，供UPDATE与"UPDATE前先查APPLY_ID"共用同一份条件，
+	 * 禁止复制两份谓词（防止后续修改只改一处导致SELECT与UPDATE范围漂移）。
+	 * 泛型{@code W}覆盖{@link LambdaQueryWrapper}与{@link com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper}，
+	 * 两者共同祖先为{@link AbstractLambdaWrapper}，故可复用同一构造方法。
+	 */
+	private <W extends AbstractLambdaWrapper<SmtIscDeviceTask, W>> W applyExpireOverdueCondition(
+			W wrapper, int deviceType, long currentSeconds) {
+		wrapper.eq(SmtIscDeviceTask::getDeviceType, deviceType)
 				.in(SmtIscDeviceTask::getAction,
 						DeviceTaskActionEnum.DOWN.getCode(),
 						DeviceTaskActionEnum.UPDATE.getCode(),
 						DeviceTaskActionEnum.DELAY_DOWN.getCode(),
 						DeviceTaskActionEnum.DELAY_UPDATE.getCode())
 				.isNotNull(SmtIscDeviceTask::getOverTime)
-				.le(SmtIscDeviceTask::getOverTime, DateUtil.currentSeconds())
-				.and(wrapper -> wrapper.in(SmtIscDeviceTask::getStatus,
+				.le(SmtIscDeviceTask::getOverTime, currentSeconds)
+				.and(w -> w.in(SmtIscDeviceTask::getStatus,
 								DeviceTaskStatusEnum.INIT.getCode(),
 								DeviceTaskStatusEnum.DEVICE_OFFLINE.getCode())
 						.or().isNull(SmtIscDeviceTask::getStatus))
-				.and(wrapper -> wrapper.ne(SmtIscDeviceTask::getCode, ISCDeviceTaskEnum.DEVICE_OK.getCode())
-						.or().isNull(SmtIscDeviceTask::getCode)));
+				.and(w -> w.ne(SmtIscDeviceTask::getCode, ISCDeviceTaskEnum.DEVICE_OK.getCode())
+						.or().isNull(SmtIscDeviceTask::getCode));
+		return wrapper;
+	}
+
+	@Override
+	public int expireOverdueDownloadTasks(int deviceType) {
+		return expireOverdueDownloadTasks(deviceType, DateUtil.currentSeconds());
+	}
+
+	private int expireOverdueDownloadTasks(int deviceType, long currentSeconds) {
+		// 待下发/设备离线状态且OVER_TIME已过的下发类任务不会再被任何调度查询选中，显式收敛为已过期；
+		// 删除类任务（action 2/12）以OVER_TIME作为执行时间，不在过期范围
+		int expired = this.baseMapper.update(null,
+				applyExpireOverdueCondition(Wrappers.<SmtIscDeviceTask>lambdaUpdate(), deviceType, currentSeconds)
+				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.EXPIRED.getCode())
+				.set(SmtIscDeviceTask::getRemark, "权限有效期已过，任务自动标记为已过期")
+				.set(SmtIscDeviceTask::getUpdateTime, LocalDateTime.now()));
 		if (expired > 0) {
 			log.info("已将有效期已过的待下发ISC任务标记为过期：{}条，设备类型：{}", expired, deviceType);
 		}
 		return expired;
+	}
+
+	/**
+	 * 与{@link #expireOverdueDownloadTasks}同条件（复用{@link #applyExpireOverdueCondition}），
+	 * UPDATE前先SELECT DISTINCT受影响任务的APPLY_ID（追加"apply_id不为空"过滤），
+	 * 再执行原UPDATE；返回受影响申请单ID集合供调用方逐单触发聚合回写。
+	 *
+	 * <p>SELECT与UPDATE必须共用同一个currentSeconds时间戳：若各自取当前时间，
+	 * OVER_TIME恰落在两次取时间间隙内的任务会被UPDATE置EXPIRED（终态）但SELECT未收集，
+	 * 且下一轮SELECT因状态已变不再命中，对应申请单将永久漏算聚合。</p>
+	 *
+	 * <p>SELECT与UPDATE之间的间隙如有新任务插入或状态变化，属于可接受的轻微不一致，
+	 * 下一轮调度（{@code ISCDeviceTaskServiceImpl.downAccess}每轮都会重新触发）会自愈。</p>
+	 */
+	@Override
+	public Set<Long> expireOverdueDownloadTasksAndCollectApplyIds(int deviceType) {
+		long currentSeconds = DateUtil.currentSeconds();
+		Set<Long> applyIds = queryDistinctApplyIds(
+				applyExpireOverdueCondition(Wrappers.<SmtIscDeviceTask>lambdaQuery(), deviceType, currentSeconds));
+		expireOverdueDownloadTasks(deviceType, currentSeconds);
+		return applyIds;
 	}
 
 	@Override
@@ -721,19 +797,26 @@ public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMap
 		return marked;
 	}
 
+	/**
+	 * 与{@link #markOfflineDeviceTasks}同条件（XML中mark_offline_device_tasks_condition片段复用），
+	 * UPDATE前先SELECT DISTINCT受影响任务的APPLY_ID，再执行原UPDATE。
+	 * DEVICE_OFFLINE非任务终态，但{@code AdmittanceDispatchAggregator}把它计入失败判定，
+	 * 需要及时反映到申请单，因此也纳入本次补钩子范围。
+	 */
 	@Override
-	public boolean stopExceededRetryAuthTasks(int deviceType, int maxRetryTimes, String remark) {
-		if (maxRetryTimes <= 0) {
-			log.warn("ISC权限任务最大重试次数配置无效：{}", maxRetryTimes);
-			return false;
-		}
-		boolean updated = this.update(Wrappers.<SmtIscDeviceTask>lambdaUpdate()
-				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.FAIL.getCode())
-				.set(SmtIscDeviceTask::getCode, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL.getCode())
-				.set(SmtIscDeviceTask::getRemark, remark)
-				.set(SmtIscDeviceTask::getIscTaskId, null)
-				.set(SmtIscDeviceTask::getUpdateTime, LocalDateTime.now())
-				.eq(SmtIscDeviceTask::getDeviceType, deviceType)
+	public Set<Long> markOfflineDeviceTasksAndCollectApplyIds(int deviceType) {
+		Set<Long> applyIds = this.baseMapper.getOfflineDeviceTaskApplyIds(deviceType);
+		markOfflineDeviceTasks(deviceType);
+		return applyIds == null ? Collections.emptySet() : applyIds;
+	}
+
+	/**
+	 * {@code stopExceededRetryAuthTasks}的WHERE谓词构造，供UPDATE与"UPDATE前先查APPLY_ID"共用，
+	 * 理由同{@link #applyExpireOverdueCondition}。
+	 */
+	private <W extends AbstractLambdaWrapper<SmtIscDeviceTask, W>> W applyStopExceededRetryCondition(
+			W wrapper, int deviceType, int maxRetryTimes) {
+		wrapper.eq(SmtIscDeviceTask::getDeviceType, deviceType)
 				.in(SmtIscDeviceTask::getAction,
 						DeviceTaskActionEnum.DOWN.getCode(),
 						DeviceTaskActionEnum.UPDATE.getCode(),
@@ -741,15 +824,59 @@ public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMap
 						DeviceTaskActionEnum.DELAY_UPDATE.getCode(),
 						DeviceTaskActionEnum.DEL.getCode(),
 						DeviceTaskActionEnum.DELAY_DEL.getCode())
-				.and(wrapper -> wrapper.eq(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.INIT.getCode())
+				.and(w -> w.eq(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.INIT.getCode())
 						.or().eq(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.DEVICE_OFFLINE.getCode())
 						.or().isNull(SmtIscDeviceTask::getStatus))
-				.and(wrapper -> wrapper.ne(SmtIscDeviceTask::getCode, ISCDeviceTaskEnum.DEVICE_OK.getCode())
+				.and(w -> w.ne(SmtIscDeviceTask::getCode, ISCDeviceTaskEnum.DEVICE_OK.getCode())
 						.or().isNull(SmtIscDeviceTask::getCode))
-				.ge(SmtIscDeviceTask::getTimes, maxRetryTimes));
+				.ge(SmtIscDeviceTask::getTimes, maxRetryTimes);
+		return wrapper;
+	}
+
+	@Override
+	public boolean stopExceededRetryAuthTasks(int deviceType, int maxRetryTimes, String remark) {
+		if (maxRetryTimes <= 0) {
+			log.warn("ISC权限任务最大重试次数配置无效：{}", maxRetryTimes);
+			return false;
+		}
+		boolean updated = this.update(applyStopExceededRetryCondition(Wrappers.<SmtIscDeviceTask>lambdaUpdate(), deviceType, maxRetryTimes)
+				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.FAIL.getCode())
+				.set(SmtIscDeviceTask::getCode, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL.getCode())
+				.set(SmtIscDeviceTask::getRemark, remark)
+				.set(SmtIscDeviceTask::getIscTaskId, null)
+				.set(SmtIscDeviceTask::getUpdateTime, LocalDateTime.now()));
 		if (updated) {
 			log.info("已停止达到最大重试次数的ISC权限任务，设备类型：{}，最大重试次数：{}", deviceType, maxRetryTimes);
 		}
 		return updated;
+	}
+
+	/**
+	 * 与{@link #stopExceededRetryAuthTasks}同条件（复用{@link #applyStopExceededRetryCondition}），
+	 * UPDATE前先SELECT DISTINCT受影响任务的APPLY_ID，再执行原UPDATE，返回申请单ID集合。
+	 */
+	@Override
+	public Set<Long> stopExceededRetryAuthTasksAndCollectApplyIds(int deviceType, int maxRetryTimes, String remark) {
+		if (maxRetryTimes <= 0) {
+			log.warn("ISC权限任务最大重试次数配置无效：{}", maxRetryTimes);
+			return Collections.emptySet();
+		}
+		Set<Long> applyIds = queryDistinctApplyIds(
+				applyStopExceededRetryCondition(Wrappers.<SmtIscDeviceTask>lambdaQuery(), deviceType, maxRetryTimes));
+		stopExceededRetryAuthTasks(deviceType, maxRetryTimes, remark);
+		return applyIds;
+	}
+
+	/**
+	 * 在给定条件（已限定deviceType等过滤）基础上追加"apply_id不为空"，
+	 * 查询DISTINCT的APPLY_ID集合，仅select该列以减少数据传输量。
+	 */
+	private Set<Long> queryDistinctApplyIds(LambdaQueryWrapper<SmtIscDeviceTask> condition) {
+		condition.select(SmtIscDeviceTask::getApplyId).isNotNull(SmtIscDeviceTask::getApplyId);
+		List<SmtIscDeviceTask> tasks = this.list(condition);
+		if (CollectionUtil.isEmpty(tasks)) {
+			return Collections.emptySet();
+		}
+		return tasks.stream().map(SmtIscDeviceTask::getApplyId).collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 }

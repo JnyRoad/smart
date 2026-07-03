@@ -933,7 +933,7 @@ public class ISCDeviceTaskServiceImplTest {
 		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
 		SmtImageService imageService = Mockito.mock(SmtImageService.class);
 		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService, imageService);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.emptyList());
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -941,13 +941,108 @@ public class ISCDeviceTaskServiceImplTest {
 
 		service.downAccess();
 
+		// 停止超限重试与取消长期离线均已切换到AndCollectApplyIds重载（批量终态补聚合钩子），执行顺序不变
 		org.mockito.InOrder inOrder = Mockito.inOrder(taskService);
-		inOrder.verify(taskService).stopExceededRetryAuthTasks(
+		inOrder.verify(taskService).stopExceededRetryAuthTasksAndCollectApplyIds(
 				Mockito.eq(DeviceTaskConstants.CARD),
 				Mockito.eq(DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES),
 				Mockito.contains("请人工介入"));
-		inOrder.verify(taskService).cancelStaleOfflineDownloadTasks(
+		inOrder.verify(taskService).cancelStaleOfflineDownloadTasksAndCollectApplyIds(
 				Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt());
+	}
+
+	@Test
+	public void downAccessTriggersAggregationPerApplyIdForEachBulkTerminalUpdate() {
+		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
+		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
+		SmtAdmittanceApplyMapper admittanceApplyMapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService,
+				Mockito.mock(SmtImageService.class), admittanceApplyMapper);
+		// 四个批量终态方法各返回一个受影响申请单：验证每个批量出口都逐单触发聚合
+		Mockito.when(taskService.stopExceededRetryAuthTasksAndCollectApplyIds(
+				Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt(), Mockito.anyString()))
+				.thenReturn(Collections.singleton(101L));
+		Mockito.when(taskService.expireOverdueDownloadTasksAndCollectApplyIds(DeviceTaskConstants.CARD))
+				.thenReturn(Collections.singleton(102L));
+		Mockito.when(taskService.markOfflineDeviceTasksAndCollectApplyIds(DeviceTaskConstants.CARD))
+				.thenReturn(Collections.singleton(103L));
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(
+				Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt()))
+				.thenReturn(Collections.singleton(104L));
+		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(Collections.emptyList());
+		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+		// 聚合器的第一步是selectById查申请单：返回null让aggregate提前返回，仅验证"被触发"这一行为
+		Mockito.when(admittanceApplyMapper.selectById(Mockito.anyLong())).thenReturn(null);
+
+		service.downAccess();
+
+		Mockito.verify(admittanceApplyMapper).selectById(101L);
+		Mockito.verify(admittanceApplyMapper).selectById(102L);
+		Mockito.verify(admittanceApplyMapper).selectById(103L);
+		Mockito.verify(admittanceApplyMapper).selectById(104L);
+	}
+
+	@Test
+	public void downAccessSkipsAggregationWhenBulkTerminalUpdatesAffectNoApply() {
+		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
+		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
+		SmtAdmittanceApplyMapper admittanceApplyMapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService,
+				Mockito.mock(SmtImageService.class), admittanceApplyMapper);
+		// 无匹配行：四个批量终态方法均返回空集，不得触发任何聚合查询
+		Mockito.when(taskService.stopExceededRetryAuthTasksAndCollectApplyIds(
+				Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt(), Mockito.anyString()))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.expireOverdueDownloadTasksAndCollectApplyIds(DeviceTaskConstants.CARD))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.markOfflineDeviceTasksAndCollectApplyIds(DeviceTaskConstants.CARD))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(
+				Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt()))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(Collections.emptyList());
+		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+
+		service.downAccess();
+
+		Mockito.verifyZeroInteractions(admittanceApplyMapper);
+	}
+
+	@Test
+	public void downAccessContinuesAggregationWhenSingleApplyAggregationFails() {
+		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
+		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
+		SmtAdmittanceApplyMapper admittanceApplyMapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService,
+				Mockito.mock(SmtImageService.class), admittanceApplyMapper);
+		// LinkedHashSet保证迭代顺序：201先聚合（抛异常），202在其后仍必须被聚合（per-apply try/catch隔离）
+		java.util.Set<Long> applyIds = new java.util.LinkedHashSet<>(Arrays.asList(201L, 202L));
+		Mockito.when(taskService.stopExceededRetryAuthTasksAndCollectApplyIds(
+				Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt(), Mockito.anyString()))
+				.thenReturn(applyIds);
+		Mockito.when(taskService.expireOverdueDownloadTasksAndCollectApplyIds(DeviceTaskConstants.CARD))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.markOfflineDeviceTasksAndCollectApplyIds(DeviceTaskConstants.CARD))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(
+				Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt()))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(Collections.emptyList());
+		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+		Mockito.when(admittanceApplyMapper.selectById(201L)).thenThrow(new RuntimeException("模拟聚合查询异常"));
+		Mockito.when(admittanceApplyMapper.selectById(202L)).thenReturn(null);
+
+		service.downAccess();
+
+		// 201聚合异常被捕获记ERROR后，202仍被逐单触发
+		Mockito.verify(admittanceApplyMapper).selectById(201L);
+		Mockito.verify(admittanceApplyMapper).selectById(202L);
 	}
 
 	@Test
@@ -958,7 +1053,7 @@ public class ISCDeviceTaskServiceImplTest {
 		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService, imageService);
 		SmtIscDeviceTask firstVisitor = visitorTaskWithoutLocalCard(1L, "cert-1");
 		SmtIscDeviceTask secondVisitor = visitorTaskWithoutLocalCard(2L, "cert-2");
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Arrays.asList(firstVisitor, secondVisitor));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -986,7 +1081,7 @@ public class ISCDeviceTaskServiceImplTest {
 		SmtImageService imageService = Mockito.mock(SmtImageService.class);
 		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService, imageService);
 		SmtIscDeviceTask visitor = visitorTaskWithoutLocalCard(1L, "cert-1");
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.singletonList(visitor));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1012,7 +1107,7 @@ public class ISCDeviceTaskServiceImplTest {
 		SmtImageService imageService = Mockito.mock(SmtImageService.class);
 		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService, imageService);
 		SmtIscDeviceTask visitor = visitorTask(3L, "9990000003", "cert-999");
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.singletonList(visitor));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1044,7 +1139,7 @@ public class ISCDeviceTaskServiceImplTest {
 		SmtImageService imageService = Mockito.mock(SmtImageService.class);
 		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService, imageService);
 		setOptionalField(service, "iscVehicleAuthEnabled", true);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.emptyList());
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1082,7 +1177,7 @@ public class ISCDeviceTaskServiceImplTest {
 		staff.setBadge("JA26086");
 		SmtImage image = new SmtImage();
 		image.setImage(new byte[20 * 1024]);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.singletonList(staffTask));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1122,7 +1217,7 @@ public class ISCDeviceTaskServiceImplTest {
 		staff.setBadge("JA26086");
 		SmtImage image = new SmtImage();
 		image.setImage(new byte[20 * 1024]);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Arrays.asList(xcTask, hfTask));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1222,7 +1317,7 @@ public class ISCDeviceTaskServiceImplTest {
 		staff.setBadge("JA26086");
 		SmtImage image = new SmtImage();
 		image.setImage(new byte[20 * 1024]);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Arrays.asList(xcTask, hfTask));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1309,7 +1404,7 @@ public class ISCDeviceTaskServiceImplTest {
 		admittanceTask.setGeneral("admittance visitor");
 		SmtImage image = new SmtImage();
 		image.setImage(new byte[20 * 1024]);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.singletonList(admittanceTask));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1360,7 +1455,7 @@ public class ISCDeviceTaskServiceImplTest {
 		admittanceTask.setGeneral("熊俊");
 		SmtImage image = new SmtImage();
 		image.setImage(new byte[20 * 1024]);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.singletonList(admittanceTask));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1405,7 +1500,7 @@ public class ISCDeviceTaskServiceImplTest {
 		admittanceTask.setGeneral("熊俊");
 		SmtImage image = new SmtImage();
 		image.setImage(new byte[20 * 1024]);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.singletonList(admittanceTask));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1453,7 +1548,7 @@ public class ISCDeviceTaskServiceImplTest {
 		SmtImage image = new SmtImage();
 		image.setImage(new byte[20 * 1024]);
 		final int[] personGetCalls = {0};
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.singletonList(staffTask));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -1514,7 +1609,7 @@ public class ISCDeviceTaskServiceImplTest {
 		SmtStaff staff = staff("2059164347547275265", "JA26079", StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode());
 		SmtImage image = new SmtImage();
 		image.setImage(new byte[20 * 1024]);
-		Mockito.when(taskService.cancelStaleOfflineDownloadTasks(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(0);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt())).thenReturn(Collections.emptySet());
 		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(Collections.singletonList(staffTask));
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
@@ -2231,6 +2326,33 @@ public class ISCDeviceTaskServiceImplTest {
 														SmtImageService imageService) {
 		return service(dispatcherService, taskService, imageService, Mockito.mock(SmtDeviceService.class),
 				Mockito.mock(SmtIscDownRecordService.class));
+	}
+
+	/**
+	 * 批量终态补聚合钩子测试专用：注入可验证的SmtAdmittanceApplyMapper，
+	 * 通过selectById(applyId)调用断言聚合被逐单触发（aggregate的第一步就是查申请单）。
+	 */
+	private ISCDeviceTaskServiceImpl serviceForDownAccess(RemoteDispatcherService dispatcherService,
+														SmtIscDeviceTaskService taskService,
+														SmtImageService imageService,
+														SmtAdmittanceApplyMapper admittanceApplyMapper) {
+		return new ISCDeviceTaskServiceImpl(
+				Mockito.mock(RemoteStaffService.class),
+				dispatcherService,
+				imageService,
+				taskService,
+				admittanceApplyMapper,
+				Mockito.mock(SmtAdmittanceFellowMapper.class),
+				Mockito.mock(SmtDeviceService.class),
+				Mockito.mock(SmtIscDownRecordService.class),
+				Mockito.mock(RemoteParkService.class),
+				Mockito.mock(SmtVisitorService.class),
+				Mockito.mock(SmtFellowVisitorMapper.class),
+				Mockito.mock(SmtAdmittanceFellowMapper.class),
+				Mockito.mock(RemoteSnapPersonService.class),
+				Mockito.mock(SmtMsgTempService.class),
+				Mockito.mock(SmtStaffOtherService.class),
+				Mockito.mock(StringRedisTemplate.class));
 	}
 
 	private ISCDeviceTaskServiceImpl serviceForDownAccess(RemoteDispatcherService dispatcherService,

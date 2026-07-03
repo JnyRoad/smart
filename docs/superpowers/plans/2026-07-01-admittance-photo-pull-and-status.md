@@ -76,7 +76,7 @@ ALTER TABLE smt_admittance_apply DROP COLUMN isc_submit_batch;
 
 **Interfaces:**
 - Consumes: Task 2 字段。
-- Produces: `updateStatus` 新协议——非车辆审批通过时：生成 `batchId = IdWorker.getId()` → **同一事务**内创建该批次全部 ISC 任务（每个任务写 `applyId/batchId`）并 `UPDATE smt_admittance_apply SET isc_submit_batch=#{batchId}` → 置 `deviceStatus=已下发(4)`；照片推送在事务外、受 `admittance.photo-push-enabled`（`@Value`，默认 true）控制且**失败只记 ERROR 不抛异常不改状态**。
+- Produces: `updateStatus` 新协议——非车辆审批通过时：生成 `batchId = IdWorker.getId()` → **同一事务**内创建该批次全部 ISC 任务（每个任务写 `applyId/batchId`）并 `UPDATE smt_admittance_apply SET isc_submit_batch=#{batchId}` → 置 `deviceStatus=已下发(4)`；照片推送在事务外、受 `spring.admittance.photo-push-enabled`（`@Value`，默认 true）控制且**失败只记 ERROR 不抛异常不改状态**。
 
 - [ ] **Step 1: 写失败单测**：
 
@@ -242,7 +242,7 @@ if (photoPushEnabled) {
 ### Task 10: Nacos 配置与上线材料
 
 **Files:**
-- Modify: `docker/nacos/config/dev/smart-platform.yml`（`admittance.photo-push-enabled: true`；`spring.admittance.save-path` 改相对目录口径与 Task 3 对齐）
+- Modify: `docker/nacos/config/dev/smart-platform.yml`（`spring.admittance.photo-push-enabled: true`；`spring.admittance.save-path` 改相对目录口径与 Task 3 对齐）
 - Create: `docs/superpowers/plans/2026-07-01-photo-pull-rollout-checklist.md`
 
 - [ ] **Step 1: 配置项落 dev 配置**（生产 Nacos 由运维按 checklist 同步）。

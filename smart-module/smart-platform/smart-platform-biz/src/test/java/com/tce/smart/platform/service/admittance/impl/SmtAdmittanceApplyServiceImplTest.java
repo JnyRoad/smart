@@ -32,6 +32,7 @@ import com.tce.smart.platform.core.service.SmtIscDownRecordService;
 import com.tce.smart.platform.core.service.SmtImageService;
 import com.tce.smart.platform.core.service.SmtTaskDownRecordService;
 import com.tce.smart.platform.core.vo.SearchSmtVisitorVO;
+import com.tce.smart.platform.core.service.SmtMsgTemplateService;
 import com.tce.smart.platform.service.ImageService;
 import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.SmtStaffService;
@@ -51,11 +52,13 @@ import com.tce.smart.tool.enums.OaFinalStatusEnum;
 import com.tce.smart.tool.enums.OneOrZeroEnum;
 import com.tce.smart.tool.enums.VisitorStatusEnum;
 import com.tce.smart.tool.constant.WorkFlowLogConstants;
+import com.tce.smart.tool.exception.TCEException;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -63,6 +66,9 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -175,9 +181,9 @@ public class SmtAdmittanceApplyServiceImplTest {
 		vehicle.setPlate("粤B12345");
 
 		Method addCarCard = SmtAdmittanceApplyServiceImpl.class.getDeclaredMethod("addCarCard",
-				SmtAdmittanceApply.class, SmtAdmittanceVehicle.class, List.class);
+				SmtAdmittanceApply.class, SmtAdmittanceVehicle.class, List.class, Long.class);
 		addCarCard.setAccessible(true);
-		addCarCard.invoke(service, apply, vehicle, Collections.singletonList("car-device-1"));
+		addCarCard.invoke(service, apply, vehicle, Collections.singletonList("car-device-1"), 8001L);
 
 		ArgumentCaptor<DeviceTaskVO> captor = ArgumentCaptor.forClass(DeviceTaskVO.class);
 		Mockito.verify(taskService).saveTask(captor.capture());
@@ -242,6 +248,357 @@ public class SmtAdmittanceApplyServiceImplTest {
 		} finally {
 			executorService.shutdownNow();
 		}
+	}
+
+	// ========== Task 3: updateStatus 解耦 + 批次提交协议 ==========
+
+	/**
+	 * 搭建 updateStatus 审批通过分支的最小依赖：
+	 * 一名访客、一条闸机设备权限，驱动 addDeviceTask -> submitIscBatch 产生恰好一个下发任务。
+	 */
+	private UpdateStatusHarness setUpUpdateStatusHarness() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		SmtAdmittanceAreaTypeAuthService areaTypeAuthService = Mockito.mock(SmtAdmittanceAreaTypeAuthService.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtDeviceTaskService taskService = Mockito.mock(SmtDeviceTaskService.class);
+		SmtMsgTemplateService msgTemplateService = Mockito.mock(SmtMsgTemplateService.class);
+
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		setField(service, "smtAdmittanceFellowService", fellowService);
+		setField(service, "smtAdmittanceVehicleService", vehicleService);
+		setField(service, "smtAdmittanceAreaTypeAuthService", areaTypeAuthService);
+		setField(service, "smtDeviceAuthorityRelationService", relationService);
+		setField(service, "smtDeviceTaskService", taskService);
+		setField(service, "smtMsgTemplateService", msgTemplateService);
+		setField(service, "putOffsetHour", 0);
+		setField(service, "transactionTemplate", newTransactionTemplate());
+		setField(service, "photoPushEnabled", Boolean.TRUE);
+
+		SmtAdmittanceApply apply = pendingPersonAdmittanceApply(3001L, "oa-photo-decouple");
+		apply.setStatus(VisitorStatusEnum.Status_0.getCode());
+		apply.setUnionId("");
+
+		SmtAdmittanceFellow fellow = new SmtAdmittanceFellow();
+		fellow.setId(9001L);
+		fellow.setFellowName("张三");
+		fellow.setFellowPhotoId("photo-9001");
+		fellow.setCertNo("cert-9001");
+		Mockito.when(fellowService.getByApplyId(apply.getId())).thenReturn(Collections.singletonList(fellow));
+		Mockito.when(vehicleService.getByApplyId(apply.getId())).thenReturn(Collections.emptyList());
+
+		SmtAdmittanceAreaTypeAuth auth = SmtAdmittanceAreaTypeAuth.builder().authId(9101).build();
+		Mockito.when(areaTypeAuthService.getAuthByType(apply.getAreaType(), DeviceTypeEnum.DEVICE_TYPE_1.getCode(), apply.getParkId()))
+				.thenReturn(Collections.singletonList(auth));
+		Mockito.when(areaTypeAuthService.getAuthByType(apply.getAreaType(), DeviceTypeEnum.DEVICE_TYPE_3.getCode(), apply.getParkId()))
+				.thenReturn(Collections.emptyList());
+		SmtDeviceAuthorityRelation relation = new SmtDeviceAuthorityRelation();
+		relation.setDeviceId("isc-device-1");
+		Mockito.when(relationService.getRelationByAuthId(Mockito.anyList())).thenReturn(Collections.singletonList(relation));
+
+		Mockito.when(taskService.saveTask(Mockito.any(DeviceTaskVO.class))).thenReturn("500001");
+		Mockito.when(mapper.updateById(Mockito.any())).thenReturn(1);
+		Mockito.when(mapper.update(Mockito.any(), Mockito.any())).thenReturn(1);
+
+		UpdateStatusHarness harness = new UpdateStatusHarness();
+		harness.service = service;
+		harness.mapper = mapper;
+		harness.taskService = taskService;
+		harness.apply = apply;
+		return harness;
+	}
+
+	private static final class UpdateStatusHarness {
+		SmtAdmittanceApplyServiceImpl service;
+		SmtAdmittanceApplyMapper mapper;
+		SmtDeviceTaskService taskService;
+		SmtAdmittanceApply apply;
+	}
+
+	@Test
+	public void updateStatus_photoPushFailure_doesNotFailApply() throws Exception {
+		UpdateStatusHarness harness = setUpUpdateStatusHarness();
+		// smbPutPhoto 返回 false：模拟远程照片推送失败
+		Mockito.doReturn(Boolean.FALSE).when(harness.service).smbPutPhoto(harness.apply.getId());
+
+		harness.service.updateStatus(harness.apply);
+
+		// 推送失败不影响下发状态，仍应置为已下发(4)，且不抛异常
+		Assert.assertEquals(DeviceDownStatusEnum.ALRAEDY.getCode(), harness.apply.getDeviceStatus());
+	}
+
+	@Test
+	public void updateStatus_writesSubmitBatchAtomicallyWithTasks() throws Exception {
+		UpdateStatusHarness harness = setUpUpdateStatusHarness();
+		Mockito.doReturn(Boolean.TRUE).when(harness.service).smbPutPhoto(harness.apply.getId());
+
+		harness.service.updateStatus(harness.apply);
+
+		// 断言任务创建与 isc_submit_batch 更新使用同一批次号，且顺序为：先建任务，后写批次号
+		ArgumentCaptor<DeviceTaskVO> taskCaptor = ArgumentCaptor.forClass(DeviceTaskVO.class);
+		Mockito.verify(harness.taskService).saveTask(taskCaptor.capture());
+		Long batchIdOnTask = taskCaptor.getValue().getBatchId();
+		Assert.assertNotNull("批次内任务应写入 batchId", batchIdOnTask);
+		Assert.assertEquals(harness.apply.getId(), taskCaptor.getValue().getApplyId());
+
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(harness.mapper).update(Mockito.isNull(), updateCaptor.capture());
+		updateCaptor.getValue().getSqlSegment();
+		Assert.assertTrue("isc_submit_batch 更新应写入与任务一致的批次号",
+				updateCaptor.getValue().getParamNameValuePairs().values().stream()
+						.anyMatch(value -> batchIdOnTask.equals(value)));
+
+		InOrder inOrder = Mockito.inOrder(harness.taskService, harness.mapper);
+		inOrder.verify(harness.taskService).saveTask(Mockito.any(DeviceTaskVO.class));
+		inOrder.verify(harness.mapper).update(Mockito.isNull(), Mockito.any());
+	}
+
+	@Test
+	public void updateStatus_pushDisabled_skipsPhotoPush() throws Exception {
+		UpdateStatusHarness harness = setUpUpdateStatusHarness();
+		setField(harness.service, "photoPushEnabled", Boolean.FALSE);
+
+		harness.service.updateStatus(harness.apply);
+
+		// 开关关闭时不应调用照片推送
+		Mockito.verify(harness.service, Mockito.never()).smbPutPhoto(Mockito.anyLong());
+	}
+
+	@Test
+	public void updateStatus_taskCreationFailure_throwsAndLeavesSubmitBatchNull() throws Exception {
+		UpdateStatusHarness harness = setUpUpdateStatusHarness();
+		// 任务创建失败：saveTask 返回非法结果，saveRequiredDeviceTask 应抛出异常
+		Mockito.when(harness.taskService.saveTask(Mockito.any(DeviceTaskVO.class))).thenReturn("设备isc-device-1不存在");
+
+		try {
+			harness.service.updateStatus(harness.apply);
+			Assert.fail("Expected device task creation failure to propagate");
+		} catch (IllegalStateException expected) {
+			// 期望异常
+		}
+
+		// 批次未提交成功，isc_submit_batch 不应被写入
+		Mockito.verify(harness.mapper, Mockito.never()).update(Mockito.isNull(), Mockito.any());
+	}
+
+	// ========== Task 5: 重新下发批次化 ==========
+
+	private static final class RepeatAuthHarness {
+		SmtAdmittanceApplyServiceImpl service;
+		SmtAdmittanceApplyMapper mapper;
+		SmtDeviceTaskService taskService;
+		SmtIscDeviceTaskService iscTaskService;
+		SmtAdmittanceApply apply;
+	}
+
+	/**
+	 * 搭建 repeatVisitorDeviceAuth 人员分支的最小依赖：
+	 * 一名访客、一条闸机设备权限、旧批次号 iscSubmitBatch=OLD_BATCH_ID，
+	 * 不构造任何车辆权限/车辆记录，确保车辆分支不参与断言（其逻辑本次不改动）。
+	 */
+	private RepeatAuthHarness setUpRepeatAuthHarness(Long oldBatchId) throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		SmtAdmittanceAreaTypeAuthService areaTypeAuthService = Mockito.mock(SmtAdmittanceAreaTypeAuthService.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtDeviceTaskService taskService = Mockito.mock(SmtDeviceTaskService.class);
+		SmtIscDeviceTaskService iscTaskService = Mockito.mock(SmtIscDeviceTaskService.class);
+
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		setField(service, "smtAdmittanceFellowService", fellowService);
+		setField(service, "smtAdmittanceVehicleService", vehicleService);
+		setField(service, "smtAdmittanceAreaTypeAuthService", areaTypeAuthService);
+		setField(service, "smtDeviceAuthorityRelationService", relationService);
+		setField(service, "smtDeviceTaskService", taskService);
+		setField(service, "smtIscDeviceTaskService", iscTaskService);
+		setField(service, "putOffsetHour", 0);
+		setField(service, "transactionTemplate", newTransactionTemplate());
+
+		SmtAdmittanceApply apply = pendingPersonAdmittanceApply(5001L, "oa-repeat-auth");
+		apply.setStatus(VisitorStatusEnum.Status_0.getCode());
+		apply.setIscSubmitBatch(oldBatchId);
+		Mockito.when(mapper.selectById(apply.getId())).thenReturn(apply);
+
+		SmtAdmittanceFellow fellow = new SmtAdmittanceFellow();
+		fellow.setId(9501L);
+		fellow.setFellowName("李四");
+		fellow.setFellowPhotoId("photo-9501");
+		fellow.setCertNo("cert-9501");
+		Mockito.when(fellowService.getByApplyId(apply.getId())).thenReturn(Collections.singletonList(fellow));
+		// 车辆分支不改动：本用例不构造车辆记录，车辆分支应因 vehicles 为空直接跳过
+		Mockito.when(vehicleService.getByApplyId(apply.getId())).thenReturn(Collections.emptyList());
+
+		SmtAdmittanceAreaTypeAuth auth = SmtAdmittanceAreaTypeAuth.builder().authId(9501).build();
+		Mockito.when(areaTypeAuthService.getAuthByType(apply.getAreaType(), DeviceTypeEnum.DEVICE_TYPE_1.getCode(), apply.getParkId()))
+				.thenReturn(Collections.singletonList(auth));
+		Mockito.when(areaTypeAuthService.getAuthByType(apply.getAreaType(), DeviceTypeEnum.DEVICE_TYPE_3.getCode(), apply.getParkId()))
+				.thenReturn(Collections.emptyList());
+		SmtDeviceAuthorityRelation relation = new SmtDeviceAuthorityRelation();
+		relation.setDeviceId("isc-device-repeat-1");
+		Mockito.when(relationService.getRelationByAuthId(Mockito.anyList())).thenReturn(Collections.singletonList(relation));
+
+		Mockito.when(taskService.saveTask(Mockito.any(DeviceTaskVO.class))).thenReturn("600001");
+		Mockito.when(mapper.updateById(Mockito.any())).thenReturn(1);
+		Mockito.when(mapper.update(Mockito.any(), Mockito.any())).thenReturn(1);
+		Mockito.when(iscTaskService.update(Mockito.any(), Mockito.any())).thenReturn(true);
+
+		RepeatAuthHarness harness = new RepeatAuthHarness();
+		harness.service = service;
+		harness.mapper = mapper;
+		harness.taskService = taskService;
+		harness.iscTaskService = iscTaskService;
+		harness.apply = apply;
+		return harness;
+	}
+
+	@Test
+	public void repeatAuth_cancelsOldBatchAndCreatesNew() throws Exception {
+		Long oldBatchId = 700001L;
+		RepeatAuthHarness harness = setUpRepeatAuthHarness(oldBatchId);
+
+		Boolean result = harness.service.repeatVisitorDeviceAuth(harness.apply.getId());
+
+		Assert.assertTrue(result);
+		// 旧批次非终态任务应被批量置为 CANCEL：一条 UPDATE，条件覆盖 applyId+batchId+非终态
+		ArgumentCaptor<LambdaUpdateWrapper> cancelCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(harness.iscTaskService).update(Mockito.isNull(), cancelCaptor.capture());
+		String cancelSql = cancelCaptor.getValue().getSqlSegment().toLowerCase(Locale.ROOT);
+		Assert.assertTrue("取消旧批次应限定 apply_id", cancelSql.contains("apply_id"));
+		Assert.assertTrue("取消旧批次应限定 batch_id", cancelSql.contains("batch_id"));
+		Assert.assertTrue("取消旧批次应限定非终态（排除成功/失败/取消）",
+				cancelSql.contains("status") && (cancelSql.contains("in (") || cancelSql.contains("<>") || cancelSql.contains("!=")));
+		Assert.assertTrue("取消旧批次应限定 deviceType=CARD，不影响车辆任务", cancelSql.contains("device_type"));
+		Assert.assertTrue(cancelCaptor.getValue().getParamNameValuePairs().values().stream()
+				.anyMatch(oldBatchId::equals));
+
+		// 新批次任务生成：saveTask 被调用且带新的 batchId
+		ArgumentCaptor<DeviceTaskVO> taskCaptor = ArgumentCaptor.forClass(DeviceTaskVO.class);
+		Mockito.verify(harness.taskService).saveTask(taskCaptor.capture());
+		Long newBatchId = taskCaptor.getValue().getBatchId();
+		Assert.assertNotNull("重发应写入新批次号", newBatchId);
+		Assert.assertNotEquals("新批次号不应与旧批次号相同", oldBatchId, newBatchId);
+		Assert.assertEquals(harness.apply.getId(), taskCaptor.getValue().getApplyId());
+
+		// isc_submit_batch 应更新为新批次号
+		ArgumentCaptor<LambdaUpdateWrapper> submitCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(harness.mapper).update(Mockito.isNull(), submitCaptor.capture());
+		Assert.assertTrue("isc_submit_batch 更新应写入新批次号",
+				submitCaptor.getValue().getParamNameValuePairs().values().stream()
+						.anyMatch(newBatchId::equals));
+
+		Assert.assertEquals("重发后应回到已下发(4)", DeviceDownStatusEnum.ALRAEDY.getCode(), harness.apply.getDeviceStatus());
+	}
+
+	@Test
+	public void repeatAuth_oldTerminalTasksUntouched() throws Exception {
+		// 旧批次为 NULL（历史单从未有批次）：跳过取消，直接建新批次
+		RepeatAuthHarness harness = setUpRepeatAuthHarness(null);
+
+		Boolean result = harness.service.repeatVisitorDeviceAuth(harness.apply.getId());
+
+		Assert.assertTrue(result);
+		// 无旧批次可取消，不应对 SmtIscDeviceTask 发起任何 UPDATE
+		Mockito.verify(harness.iscTaskService, Mockito.never()).update(Mockito.any(), Mockito.any());
+		// 新批次任务仍应正常生成
+		Mockito.verify(harness.taskService).saveTask(Mockito.any(DeviceTaskVO.class));
+	}
+
+	// ========== 评审 B1：repeatVisitorDeviceAuth 与自动补偿链路的锁互斥 ==========
+
+	@Test
+	public void repeatAuth_blockedWhenCompensationHoldsLock() throws Exception {
+		// 补偿链路（或另一次人工重发）已持有该 applyId 的 Redis 锁：setIfAbsent 返回 false
+		RepeatAuthHarness harness = setUpRepeatAuthHarness(null);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		setField(harness.service, "stringRedisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		Mockito.when(valueOperations.setIfAbsent(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.eq(TimeUnit.MINUTES)))
+				.thenReturn(Boolean.FALSE);
+
+		try {
+			harness.service.repeatVisitorDeviceAuth(harness.apply.getId());
+			Assert.fail("锁被占用时应抛出 TCEException");
+		} catch (TCEException e) {
+			Assert.assertEquals("该申请正在处理中，请稍后重试", e.getMessage());
+		}
+
+		// 未拿到锁：不应建新任务，也不应更新 apply（isc_submit_batch 不被覆盖）
+		Mockito.verify(harness.taskService, Mockito.never()).saveTask(Mockito.any(DeviceTaskVO.class));
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	@Test
+	public void repeatAuth_reloadsBatchInsideLock() throws Exception {
+		// 锁内重读最新 iscSubmitBatch：防止锁前读到的旧值与并发补偿的最新写入不一致（TOCTOU）
+		RepeatAuthHarness harness = setUpRepeatAuthHarness(700001L);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		setField(harness.service, "stringRedisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		Mockito.when(valueOperations.setIfAbsent(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.eq(TimeUnit.MINUTES)))
+				.thenReturn(Boolean.TRUE);
+		Mockito.when(redisTemplate.execute(Mockito.any(DefaultRedisScript.class), Mockito.anyList(), Mockito.anyString()))
+				.thenReturn(1L);
+
+		Boolean result = harness.service.repeatVisitorDeviceAuth(harness.apply.getId());
+
+		Assert.assertTrue(result);
+		// selectById 应在方法入口读一次（查记录）、拿到锁后在临界区内再读一次（重读最新批次号）
+		Mockito.verify(harness.mapper, Mockito.times(2)).selectById(harness.apply.getId());
+	}
+
+	@Test
+	public void repeatAuth_releasesLockOnException() throws Exception {
+		// 建任务过程中抛异常：锁仍必须被释放，避免死锁把该 applyId 永久卡住
+		RepeatAuthHarness harness = setUpRepeatAuthHarness(700001L);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		setField(harness.service, "stringRedisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		Mockito.when(valueOperations.setIfAbsent(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.eq(TimeUnit.MINUTES)))
+				.thenReturn(Boolean.TRUE);
+		Mockito.when(redisTemplate.execute(Mockito.any(DefaultRedisScript.class), Mockito.anyList(), Mockito.anyString()))
+				.thenReturn(1L);
+		Mockito.when(harness.taskService.saveTask(Mockito.any(DeviceTaskVO.class)))
+				.thenThrow(new RuntimeException("device task down"));
+
+		try {
+			harness.service.repeatVisitorDeviceAuth(harness.apply.getId());
+			Assert.fail("建任务失败应向上抛出异常");
+		} catch (RuntimeException e) {
+			Assert.assertEquals("device task down", e.getMessage());
+		}
+
+		// finally 块必须执行 Lua 释放脚本，锁不会因异常而残留到 TTL 过期
+		Mockito.verify(redisTemplate).execute(Mockito.any(DefaultRedisScript.class),
+				Mockito.anyList(), Mockito.anyString());
+	}
+
+	@Test
+	public void claimFailedPostApprovalHandling_excludesAppliesWithSubmittedBatch() throws Exception {
+		// 加固（Task 4 评审遗留）：乐观锁 UpdateWrapper 需与两个补偿分页查询谓词对称，
+		// 追加 isc_submit_batch IS NULL，防止 TOCTOU 窗口内认领到已提交批次的单
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = new SmtAdmittanceApplyServiceImpl();
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.update(Mockito.any(), Mockito.any())).thenReturn(1);
+		SmtAdmittanceApply apply = failedPostApprovalAdmittanceApply(2500L);
+
+		Method claimFailedPostApprovalHandling = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("claimFailedPostApprovalHandling", SmtAdmittanceApply.class);
+		claimFailedPostApprovalHandling.setAccessible(true);
+		claimFailedPostApprovalHandling.invoke(service, apply);
+
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(mapper).update(Mockito.any(), updateCaptor.capture());
+		String sqlSegment = updateCaptor.getValue().getSqlSegment().toLowerCase(Locale.ROOT);
+		Assert.assertTrue("乐观锁认领条件应与补偿分页查询对称，排除已提交批次的单：" + sqlSegment,
+				sqlSegment.contains("isc_submit_batch is null"));
 	}
 
 	@Test
@@ -906,6 +1263,35 @@ public class SmtAdmittanceApplyServiceImplTest {
 	}
 
 	@Test
+	public void compensation_skipsAppliesWithSubmittedBatch() throws Exception {
+		// 聚合产生的真失败单必有批次号，只走人工重新下发（spec §3.4 补偿边界）
+		// 本用例验证补偿分页查询显式排除已提交批次（isc_submit_batch 非空）的单据，
+		// 避免把“已提交但仍待终态确认”的单误判为需要补偿重试的失败单。
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.selectPage(Mockito.any(Page.class), Mockito.any())).thenReturn(emptyAdmittancePage());
+
+		Method failedPostApprovalPage = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("failedPostApprovalPage");
+		failedPostApprovalPage.setAccessible(true);
+		Method failedPostApprovalCursorPage = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("failedPostApprovalCursorPage");
+		failedPostApprovalCursorPage.setAccessible(true);
+
+		failedPostApprovalPage.invoke(service);
+		failedPostApprovalCursorPage.invoke(service);
+
+		ArgumentCaptor<LambdaQueryWrapper> queryCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		Mockito.verify(mapper, Mockito.times(2)).selectPage(Mockito.any(Page.class), queryCaptor.capture());
+		for (LambdaQueryWrapper queryWrapper : queryCaptor.getAllValues()) {
+			String sqlSegment = queryWrapper.getSqlSegment().toLowerCase(Locale.ROOT);
+			Assert.assertTrue("补偿分页查询必须排除已提交批次的单据（isc_submit_batch IS NULL）：" + sqlSegment,
+					sqlSegment.contains("isc_submit_batch is null"));
+		}
+	}
+
+	@Test
 	public void retryFailedPostApprovalHandlingWalksCursorWhenOldestFailedApplyKeepsFailing() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
 		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
@@ -1151,6 +1537,7 @@ public class SmtAdmittanceApplyServiceImplTest {
 		setField(service, "smtDeviceAuthorityRelationService", relationService);
 		setField(service, "smtAdmittanceFellowService", fellowService);
 		setField(service, "putOffsetHour", 0);
+		setField(service, "transactionTemplate", newTransactionTemplate());
 		SmtAdmittanceApply approvedApply = pendingPersonAdmittanceApply(2009L, "oa-device-task-error");
 		Page<SmtAdmittanceApply> page = new Page<>(1, 50);
 		page.setRecords(Collections.singletonList(approvedApply));
@@ -1182,7 +1569,8 @@ public class SmtAdmittanceApplyServiceImplTest {
 	}
 
 	@Test
-	public void updateOaStatusTaskMarksFailedWhenPhotoUploadReturnsFalse() throws Exception {
+	public void updateOaStatusTaskDoesNotMarkFailedWhenPhotoUploadReturnsFalse() throws Exception {
+		// Task 3 解耦后：照片推送失败属于过渡期尽力而为行为，不再触发 syncOaStatus 的兜底 FAIL 标记
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
 		IOAWorkflowService oaWorkflowService = Mockito.mock(IOAWorkflowService.class);
 		SmtAdmittanceAreaTypeAuthService areaTypeAuthService = Mockito.mock(SmtAdmittanceAreaTypeAuthService.class);
@@ -1191,6 +1579,8 @@ public class SmtAdmittanceApplyServiceImplTest {
 		setField(service, "oaWorkflowService", oaWorkflowService);
 		setField(service, "smtAdmittanceAreaTypeAuthService", areaTypeAuthService);
 		setField(service, "putOffsetHour", 0);
+		setField(service, "transactionTemplate", newTransactionTemplate());
+		setField(service, "photoPushEnabled", Boolean.TRUE);
 		SmtAdmittanceApply approvedApply = pendingPersonAdmittanceApply(2010L, "oa-photo-error");
 		Page<SmtAdmittanceApply> page = new Page<>(1, 50);
 		page.setRecords(Collections.singletonList(approvedApply));
@@ -1205,7 +1595,12 @@ public class SmtAdmittanceApplyServiceImplTest {
 
 		service.updateOaStatusTask();
 
-		Assert.assertTrue(hasUpdateParam(mapper, DeviceDownStatusEnum.FAIL.getCode()));
+		Assert.assertFalse(hasUpdateParam(mapper, DeviceDownStatusEnum.FAIL.getCode()));
+		ArgumentCaptor<SmtAdmittanceApply> updateByIdCaptor = ArgumentCaptor.forClass(SmtAdmittanceApply.class);
+		Mockito.verify(mapper, Mockito.atLeastOnce()).updateById(updateByIdCaptor.capture());
+		Assert.assertTrue("推送失败不影响下发状态，应仍为已下发(4)",
+				updateByIdCaptor.getAllValues().stream()
+						.anyMatch(a -> DeviceDownStatusEnum.ALRAEDY.getCode().equals(a.getDeviceStatus())));
 	}
 
 	private boolean hasUpdateParam(SmtAdmittanceApplyMapper mapper, Object expected) {
@@ -1336,6 +1731,18 @@ public class SmtAdmittanceApplyServiceImplTest {
 		});
 		Mockito.when(redisTemplate.expire(Mockito.anyString(), Mockito.anyLong(), Mockito.any(TimeUnit.class))).thenReturn(Boolean.TRUE);
 		return redisTemplate;
+	}
+
+	/**
+	 * 构造以 mock PlatformTransactionManager 为底的 TransactionTemplate：
+	 * submitIscBatch 用编程式事务包裹建任务 + 写批次号，单测无真实 DataSource，
+	 * 用 mock 事务管理器令 execute 直接同步执行回调（不做真实提交/回滚）。
+	 */
+	private TransactionTemplate newTransactionTemplate() {
+		PlatformTransactionManager transactionManager = Mockito.mock(PlatformTransactionManager.class);
+		TransactionStatus transactionStatus = Mockito.mock(TransactionStatus.class);
+		Mockito.when(transactionManager.getTransaction(Mockito.any())).thenReturn(transactionStatus);
+		return new TransactionTemplate(transactionManager);
 	}
 
 	private void setField(Object target, String name, Object value) throws Exception {

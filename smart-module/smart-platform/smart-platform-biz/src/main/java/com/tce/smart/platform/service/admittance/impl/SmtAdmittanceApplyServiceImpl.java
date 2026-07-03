@@ -13,6 +13,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -68,6 +69,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.io.*;
@@ -156,6 +158,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	private IOAWorkflowService oaWorkflowService;
 	@Autowired
 	private SmtVisitorProcessRecordService smtVisitorProcessRecordService;
+	@Autowired
+	private TransactionTemplate transactionTemplate;
 	@Value("${spring.visitor.put-offset-hour:2}")
 	private Integer putOffsetHour;
 	@Value("${spring.admittance.sms-url}")
@@ -174,6 +178,12 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	private String savePath;
 	@Value("${smart.xc-park-id:0}")
 	private Integer xcParkId;
+	/**
+	 * 入厂申请照片推送总开关：过渡期尽力而为行为，关闭后 updateStatus 完全跳过照片推送，
+	 * 照片由 FileReceiver 拉取兜底（见 spring.admittance.photo-push-enabled 配置）
+	 */
+	@Value("${spring.admittance.photo-push-enabled:true}")
+	private Boolean photoPushEnabled;
 
 
 	/**
@@ -601,11 +611,17 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				apply.setSmsCode(RandomUtil.randomNumbers(6));
 			}
 			apply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
-			//下发权限
-			this.addDeviceTask(apply);
-			//上传照片到远程电脑
-			if (!Boolean.TRUE.equals(this.smbPutPhoto(apply.getId()))) {
-				throw new IllegalStateException("入厂申请照片上传到远程电脑失败，id=" + apply.getId());
+			//原子提交本次批次的全部下发任务（同一事务内建任务 + 回写 isc_submit_batch），任一环节失败整体回滚
+			this.submitIscBatch(apply);
+			//照片推送为过渡期尽力而为行为：与权限下发解耦，事务外执行，失败不影响已下发状态（照片由 FileReceiver 拉取兜底）
+			if (Boolean.TRUE.equals(photoPushEnabled)) {
+				try {
+					if (!Boolean.TRUE.equals(this.smbPutPhoto(apply.getId()))) {
+						log.error("【入厂申请照片推送】推送失败（不影响下发状态，等待客户端拉取），id={}", apply.getId());
+					}
+				} catch (Exception e) {
+					log.error("【入厂申请照片推送】推送异常（不影响下发状态，等待客户端拉取），id={}", apply.getId(), e);
+				}
 			}
 		}
 		//预约通知
@@ -615,6 +631,83 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			log.error("【入厂申请微信消息推送失败】{},{}", e.getMessage(), e.getStackTrace());
 		}
 		this.updateById(apply);
+	}
+
+	/**
+	 * 原子提交一次 ISC 权限下发批次：
+	 * 1. 生成批次号 batchId（MyBatis-Plus IdWorker）；
+	 * 2. 在同一事务内创建该批次全部下发任务（任务落库时写入 applyId/batchId）；
+	 * 3. 同一事务内把 batchId 回写到 smt_admittance_apply.isc_submit_batch。
+	 * 任一环节失败整体回滚，isc_submit_batch 保持上一次成功批次（或 NULL），不会出现"任务已建但批次未记账"的半提交态。
+	 * <p>
+	 * 使用 TransactionTemplate 编程式事务而非 @Transactional：updateStatus 内部 this.submitIscBatch(apply) 属于同类自调用，
+	 * Spring AOP 代理对自调用不生效，@Transactional 会被静默忽略。
+	 *
+	 * @param apply 已判定为审批通过的入厂申请
+	 */
+	private void submitIscBatch(SmtAdmittanceApply apply) {
+		Long batchId = IdWorker.getId();
+		//Spring 5.1 无 executeWithoutResult，用 execute(callback) 并返回 null 承载"无返回值"语义
+		transactionTemplate.execute(status -> {
+			//下发权限：建任务集时把 applyId/batchId 写入 DeviceTaskVO，最终经 ISC 路由分支落库到 SmtIscDeviceTask
+			this.addDeviceTask(apply, batchId);
+			//记录本次成功提交的批次号，作为后续补偿任务的判定依据
+			LambdaUpdateWrapper<SmtAdmittanceApply> updateWrapper = Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+					.eq(SmtAdmittanceApply::getId, apply.getId())
+					.set(SmtAdmittanceApply::getIscSubmitBatch, batchId);
+			this.update(null, updateWrapper);
+			return null;
+		});
+		apply.setIscSubmitBatch(batchId);
+	}
+
+	/**
+	 * 重新下发协议——仅针对 ISC 人员（闸机/卡片）任务的批次化重发：
+	 * 1. 若存在旧批次（oldBatchIdToCancel 非 NULL），在同一事务内先把该批次下 apply 关联的、
+	 *    仍处于非终态（INIT/DOING）的 ISC 人员任务批量置为 CANCEL（一条 UPDATE，不逐行加载）；
+	 * 2. 生成新批次号，仅重建人员（卡片）方向的下发任务，不触碰车辆任务；
+	 * 3. 同一事务内把新批次号回写到 smt_admittance_apply.isc_submit_batch。
+	 * 取消旧批次、新建任务、回写批次号三步在同一 TransactionTemplate 事务内完成，避免中间态。
+	 * <p>
+	 * 与 submitIscBatch 的区别：submitIscBatch 用于首次审批通过下发（人员+车辆一次性打包提交，新单不存在旧批次可取消）；
+	 * 本方法专用于 repeatVisitorDeviceAuth 的人员重发路径，车辆分支沿用原有「只补建缺失任务」逻辑，本次不改动。
+	 *
+	 * @param apply              待重发的入厂申请
+	 * @param oldBatchIdToCancel 旧批次号；历史单从未提交过批次时为 NULL，此时跳过取消直接建新批次
+	 */
+	private void submitIscPersonBatch(SmtAdmittanceApply apply, Long oldBatchIdToCancel) {
+		Long batchId = IdWorker.getId();
+		transactionTemplate.execute(status -> {
+			if (oldBatchIdToCancel != null) {
+				//旧批次未终态的人员任务批量置取消：与新建任务、回写批次号同一事务，避免出现中间态
+				this.cancelIscBatchNonTerminalPersonTasks(apply.getId(), oldBatchIdToCancel);
+			}
+			//仅重建人员（卡片）方向的下发任务，车辆分支不受影响
+			this.addDeviceTaskForPerson(apply, batchId);
+			LambdaUpdateWrapper<SmtAdmittanceApply> updateWrapper = Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+					.eq(SmtAdmittanceApply::getId, apply.getId())
+					.set(SmtAdmittanceApply::getIscSubmitBatch, batchId);
+			this.update(null, updateWrapper);
+			return null;
+		});
+		apply.setIscSubmitBatch(batchId);
+	}
+
+	/**
+	 * 批量取消旧批次下仍处于非终态（INIT/DOING）的 ISC 人员任务：一条 UPDATE 完成，不逐行查询再更新。
+	 * deviceType 限定为 CARD（人员/卡片），车辆任务（deviceType=CAR）不受影响。
+	 *
+	 * @param applyId 入厂申请ID
+	 * @param batchId 旧批次号
+	 */
+	private void cancelIscBatchNonTerminalPersonTasks(Long applyId, Long batchId) {
+		LambdaUpdateWrapper<SmtIscDeviceTask> cancelWrapper = Wrappers.<SmtIscDeviceTask>lambdaUpdate()
+				.eq(SmtIscDeviceTask::getApplyId, applyId)
+				.eq(SmtIscDeviceTask::getBatchId, batchId)
+				.eq(SmtIscDeviceTask::getDeviceType, DeviceTaskConstants.CARD)
+				.in(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.INIT.getCode(), DeviceTaskStatusEnum.DOING.getCode())
+				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.CANCEL.getCode());
+		smtIscDeviceTaskService.update(null, cancelWrapper);
 	}
 
 	private Boolean sendPassMsg(SmtAdmittanceApply apply) {
@@ -653,16 +746,32 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	/**
 	 * 添加下发任务
 	 *
-	 * @param apply
+	 * @param apply   入厂申请
+	 * @param batchId 本次原子提交的批次号，写入每个任务的 DeviceTaskVO.batchId（ISC 路由分支落库到 SmtIscDeviceTask）
 	 */
-	private void addDeviceTask(SmtAdmittanceApply apply) {
+	private void addDeviceTask(SmtAdmittanceApply apply, Long batchId) {
 		String areaTypeId = apply.getAreaType();
 		//查询人员设备权限
 		List<SmtDeviceAuthorityRelation> personDeviceList = this.getDeviceList(areaTypeId, DeviceTypeEnum.DEVICE_TYPE_1.getCode(), apply.getParkId());
 		//查询车辆的的设备权限
 		List<SmtDeviceAuthorityRelation> carDeviceList = this.getDeviceList(areaTypeId, DeviceTypeEnum.DEVICE_TYPE_3.getCode(), apply.getParkId());
 		//下发闸机,下发道闸
-		addAdmittanceDevice(apply, personDeviceList, carDeviceList);
+		addAdmittanceDevice(apply, personDeviceList, carDeviceList, batchId);
+	}
+
+	/**
+	 * 仅添加人员（闸机/卡片）方向的下发任务，车辆方向不查询也不建任务。
+	 * 供 repeatVisitorDeviceAuth 的人员重发路径复用，避免误建/重复车辆任务（车辆分支沿用原有逻辑，本次不改动）。
+	 *
+	 * @param apply   入厂申请
+	 * @param batchId 本次原子提交的批次号
+	 */
+	private void addDeviceTaskForPerson(SmtAdmittanceApply apply, Long batchId) {
+		String areaTypeId = apply.getAreaType();
+		//仅查询人员设备权限
+		List<SmtDeviceAuthorityRelation> personDeviceList = this.getDeviceList(areaTypeId, DeviceTypeEnum.DEVICE_TYPE_1.getCode(), apply.getParkId());
+		//carDeviceList 传 null：addAdmittanceDevice 内车辆分支在 CollUtil.isNotEmpty 判断下会被跳过
+		addAdmittanceDevice(apply, personDeviceList, null, batchId);
 	}
 
 	/**
@@ -693,14 +802,16 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	 * @param apply            入厂申请
 	 * @param personDeviceList 人员下发设备
 	 * @param carDeviceList    车辆下发设备
+	 * @param batchId          本次原子提交的批次号
 	 */
-	private void addAdmittanceDevice(SmtAdmittanceApply apply, List<SmtDeviceAuthorityRelation> personDeviceList, List<SmtDeviceAuthorityRelation> carDeviceList) {
+	private void addAdmittanceDevice(SmtAdmittanceApply apply, List<SmtDeviceAuthorityRelation> personDeviceList, List<SmtDeviceAuthorityRelation> carDeviceList, Long batchId) {
 		//添加访客设备权限
 		if (CollUtil.isNotEmpty(personDeviceList)) {
 			List<SmtAdmittanceFellow> fellowList = smtAdmittanceFellowService.getByApplyId(apply.getId());
 			fellowList.forEach(f -> {
 				addCard(apply, f,
-						personDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList()));
+						personDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList()),
+						batchId);
 			});
 		}
 		//添加车辆设备权限
@@ -711,7 +822,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			}
 			vehicleList.forEach(v -> {
 				addCarCard(apply, v,
-						carDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList()));
+						carDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList()),
+						batchId);
 			});
 		}
 	}
@@ -745,8 +857,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	 *
 	 * @param fellow
 	 * @param deviceId
+	 * @param batchId  本次原子提交的批次号，写入 DeviceTaskVO 供 ISC 路由分支落库
 	 */
-	private void addCard(SmtAdmittanceApply apply, SmtAdmittanceFellow fellow, List<String> deviceId) {
+	private void addCard(SmtAdmittanceApply apply, SmtAdmittanceFellow fellow, List<String> deviceId, Long batchId) {
 		if (StrUtil.isNotBlank(fellow.getFellowPhotoId())) {
 			DeviceTaskVO deviceTaskVO = new DeviceTaskVO();
 			deviceTaskVO.setAction(DeviceTaskConstants.DOWN);
@@ -759,6 +872,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			deviceTaskVO.setStartTime(DateUtils.toEpochMilli(apply.getStartTime().plusHours(-putOffsetHour)) / 1000);
 			deviceTaskVO.setOverTime(DateUtils.toEpochMilli(apply.getEndTime()) / 1000);
 			deviceTaskVO.setApplyBadge(fellow.getCertNo());
+			deviceTaskVO.setApplyId(apply.getId());
+			deviceTaskVO.setBatchId(batchId);
 			deviceId.forEach(id -> {
 				deviceTaskVO.setDeviceCode(id);
 				saveRequiredDeviceTask(deviceTaskVO);
@@ -792,8 +907,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	 *
 	 * @param apply
 	 * @param vehicle
+	 * @param batchId 本次原子提交的批次号，写入 DeviceTaskVO 供 ISC 路由分支落库
 	 */
-	private void addCarCard(SmtAdmittanceApply apply, SmtAdmittanceVehicle vehicle, List<String> deviceId) {
+	private void addCarCard(SmtAdmittanceApply apply, SmtAdmittanceVehicle vehicle, List<String> deviceId, Long batchId) {
 		DeviceTaskVO deviceTaskVO = new DeviceTaskVO();
 		deviceTaskVO.setAction(DeviceTaskConstants.DOWN);
 		deviceTaskVO.setServiceType(DeviceTaskConstants.CAT_ADMITTANCE);
@@ -804,6 +920,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		deviceTaskVO.setStartTime(DateUtils.toEpochMilli(apply.getStartTime().plusHours(-putOffsetHour)) / 1000);
 		deviceTaskVO.setOverTime(DateUtils.toEpochMilli(apply.getEndTime()) / 1000);
 		deviceTaskVO.setApplyBadge(apply.getCertNo());
+		deviceTaskVO.setApplyId(apply.getId());
+		deviceTaskVO.setBatchId(batchId);
 		deviceId.forEach(id -> {
 			deviceTaskVO.setDeviceCode(id);
 			saveRequiredDeviceTask(deviceTaskVO);
@@ -1131,15 +1249,26 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				DeviceTypeEnum.DEVICE_TYPE_1.getCode(), apply.getParkId());
 		List<SmtAdmittanceFellow> fellows = smtAdmittanceFellowService.getByApplyId(applyId);
 		List<SmtAdmittanceVehicle> vehicles = smtAdmittanceVehicleService.getByApplyId(applyId);
-		if (CollUtil.isNotEmpty(visitorDeviceList)) {
-			for (SmtDeviceAuthorityRelation relation : visitorDeviceList) {
-				fellows.forEach(fellow -> {
-					//检查该设备是否已经下发成功过或者正在下发
-					Boolean record = checkDeviceTaskRecord(fellow.getId().toString(), relation.getDeviceId());
-					if (!record) {
-						addCard(apply, fellow, relation.getDeviceId());
-					}
-				});
+		//重发协议（人员/ISC 闸机任务专用）：旧批次未终态任务批量置取消 -> 建新批次任务 -> 回写 isc_submit_batch -> deviceStatus 置已下发
+		//旧「只补建缺失任务」逻辑替换为批次化重发，确保旧批次残留的在途任务不会与新批次任务并存
+		//车辆分支不属于本次改动范围，沿用下方原有「只补建缺失任务」逻辑
+		if (CollUtil.isNotEmpty(visitorDeviceList) && CollUtil.isNotEmpty(fellows)) {
+			//评审 B1：与自动补偿链路 retryFailedPostApprovalHandling 共用同一把按 applyId 的 Redis 分布式锁，
+			//防止 isc_submit_batch 为 NULL 且 deviceStatus∈{FAIL,IN_WORK} 的单被人工重发与自动补偿并发处理——
+			//两条链路各自读到旧批次号、各建一套任务，last-write-wins 覆盖 isc_submit_batch，另一批任务永久游离。
+			String lockToken = acquirePostApprovalRetryLock(apply);
+			if (lockToken == null) {
+				throw new TCEException("该申请正在处理中，请稍后重试");
+			}
+			try {
+				//锁内重读最新 iscSubmitBatch：防止「锁前读取旧值」与补偿链路在加锁前发生的 TOCTOU 窗口
+				SmtAdmittanceApply latest = this.getById(applyId);
+				Long latestBatch = latest == null ? apply.getIscSubmitBatch() : latest.getIscSubmitBatch();
+				this.submitIscPersonBatch(apply, latestBatch);
+				apply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
+				this.updateById(apply);
+			} finally {
+				releasePostApprovalRetryLock(apply, lockToken);
 			}
 		}
 		if (CollUtil.isNotEmpty(vehicles)) {
@@ -1497,9 +1626,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 					// 定义文件名
 					String fileName = fellowVisitorVO.getFellowPhotoId().concat(".png");
 					try {
-						// 使用HttpUtil创建一个POST请求，上传照片到远程URL
+						// 使用HttpUtil创建一个POST请求，上传照片到远程URL；filePath 改传相对文件名（配合 FileReceiver 的 upload-root 拼接，与拉取口径对齐）
 						HttpResponse response = HttpUtil.createPost(remoteUrl).timeout(PHOTO_UPLOAD_TIMEOUT_MILLIS)
-								.form("file", fellowVisitorBytes, fileName).form("filePath", savePath.concat(fileName)).execute();
+								.form("file", fellowVisitorBytes, fileName).form("filePath", fileName).execute();
 						// 如果上传失败
 						if (!response.isOk()) {
 							// 打印日志，记录上传图片失败的信息
@@ -1508,7 +1637,7 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 							return false;
 						}
 						// 打印日志，记录上传图片成功的信息
-						log.info("【入厂申请上传照片到远程电脑失败】上传图片成功: fileName={}", fileName);
+						log.info("【入厂申请照片推送】上传图片成功: fileName={}", fileName);
 					} catch (Exception e) {
 						// 打印日志，记录上传图片失败的异常信息
 						log.error("【入厂申请上传照片到远程电脑失败】{},{}", remoteUrl, e.getMessage(), e);
@@ -1954,6 +2083,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
 				.ne(SmtAdmittanceApply::getApplyType, AdmittanceTypeEnum.CAR.getCode())
 				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now())
+				// 聚合产生的真失败单必有批次号，只走人工重新下发（spec §3.4 补偿边界）
+				.isNull(SmtAdmittanceApply::getIscSubmitBatch)
 				.orderByAsc(SmtAdmittanceApply::getCreateTime)
 				.orderByAsc(SmtAdmittanceApply::getId));
 	}
@@ -1965,7 +2096,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
 				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
 				.ne(SmtAdmittanceApply::getApplyType, AdmittanceTypeEnum.CAR.getCode())
-				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now());
+				.gt(SmtAdmittanceApply::getEndTime, LocalDateTime.now())
+				// 聚合产生的真失败单必有批次号，只走人工重新下发（spec §3.4 补偿边界）
+				.isNull(SmtAdmittanceApply::getIscSubmitBatch);
 		long cursor = sharedCursor(POST_APPROVAL_RETRY_CURSOR_KEY, postApprovalRetryCursor);
 		if (cursor > 0) {
 			queryWrapper.gt(SmtAdmittanceApply::getId, cursor);
@@ -2119,6 +2252,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				.eq(SmtAdmittanceApply::getId, apply.getId())
 				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
 				.in(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.FAIL.getCode(), DeviceDownStatusEnum.IN_WORK.getCode())
+				// 与两个补偿分页查询谓词对称（isc_submit_batch IS NULL），防 TOCTOU 窗口内认领已提交批次的单
+				.isNull(SmtAdmittanceApply::getIscSubmitBatch)
 				.set(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.IN_WORK.getCode()));
 		if (claimed) {
 			apply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
