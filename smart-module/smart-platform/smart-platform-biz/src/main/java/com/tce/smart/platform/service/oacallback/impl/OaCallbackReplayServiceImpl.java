@@ -92,6 +92,7 @@ public class OaCallbackReplayServiceImpl implements OaCallbackReplayService {
 					.set(OaCallbackLog::getRetryCount, logEntity.getRetryCount() + 1)
 					.set(OaCallbackLog::getSucceededHandlers, String.join(",", succeeded))
 					.set(OaCallbackLog::getFailedHandlers, allOk ? null : String.join(",", failed))
+					// 全部成功后 lastError 随之清空（有意为之：终态记录不保留过期错误信息）
 					.set(OaCallbackLog::getLastError, lastError)
 					.set(OaCallbackLog::getStatus, allOk ? OaCallbackLog.STATUS_SUCCESS : OaCallbackLog.STATUS_PARTIAL_FAIL)
 					.set(OaCallbackLog::getResolved, allOk ? OaCallbackLog.RESOLVED_YES : OaCallbackLog.RESOLVED_NO));
