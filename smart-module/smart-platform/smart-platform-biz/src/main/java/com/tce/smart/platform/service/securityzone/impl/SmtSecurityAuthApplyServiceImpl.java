@@ -106,14 +106,35 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	}
 
 	@Override
+	public boolean claimOaFinalStatus(Long applyId, Integer finalOaStatus) {
+		// CAS 抢占终态：回调 handler 与对账任务共用，只有抢到 PENDING 的一方可触发下发（spec §3.1.1）
+		return this.update(Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
+				.eq(SmtSecurityAuthApply::getId, applyId)
+				.eq(SmtSecurityAuthApply::getOaStatus, ApproveListStateEnum.PENDING.getCode())
+				.set(SmtSecurityAuthApply::getOaStatus, finalOaStatus));
+	}
+
+	@Override
+	public boolean triggerDownDevice(SmtSecurityAuthApply authApply) {
+		try {
+			smtSecurityTaskDetailsService.downDevice(authApply.getId(), authApply.getApplyBadge());
+			// 下发未抛异常才推进主表"已触发下发"状态（修 D4，spec §3.1.3）
+			this.update(Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
+					.eq(SmtSecurityAuthApply::getId, authApply.getId())
+					.eq(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode())
+					.set(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.ALRAEDY.getCode()));
+			return true;
+		} catch (Exception e) {
+			// 带堆栈，保持主表 device_status 现值，由对账任务场景 2 重试（spec §3.1.3）
+			log.error("保密区申请权限下发失败：applyId={}", authApply.getId(), e);
+			return false;
+		}
+	}
+
+	@Override
 	public void updateStatus(SmtSecurityAuthApply authApply) {
 		if (ApproveListStateEnum.AGREE.getCode().equals(authApply.getOaStatus())) {
-			try {
-				smtSecurityTaskDetailsService.downDevice(authApply.getId(), authApply.getApplyBadge());
-				authApply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
-			} catch (Exception e) {
-				log.error("保密区申请权限下发失败");
-			}
+			this.triggerDownDevice(authApply);
 		}
 		this.updateById(authApply);
 	}

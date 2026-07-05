@@ -45,6 +45,22 @@ public interface SmtSecurityAuthApplyService extends IService<SmtSecurityAuthApp
 	 */
 	void updateStatus(SmtSecurityAuthApply authApply);
 
+	/**
+	 * CAS 抢占 OA 终态：回调 handler 与对账任务共用同一入口，只有把 oa_status 从
+	 * PENDING(0) 抢先置为终态（AGREE/REFUSE）的一方才允许触发后续下发，避免并发重复下发（spec §3.1.1）。
+	 * @param applyId 申请单ID
+	 * @param finalOaStatus 终态（ApproveListStateEnum.AGREE/REFUSE）
+	 * @return 是否抢到（true=本次调用方是唯一推进终态的一方）
+	 */
+	boolean claimOaFinalStatus(Long applyId, Integer finalOaStatus);
+
+	/**
+	 * 触发设备下发：委托明细服务下发，仅当下发过程未抛异常才把主表 device_status
+	 * 由 WAIT(0) CAS 置为 ALRAEDY(4)；下发异常时保持主表现值，由对账任务重试（修 D4，spec §3.1.3）。
+	 * @param authApply 申请单（需已带最新 oaStatus）
+	 * @return 是否成功触发并推进主表下发状态
+	 */
+	boolean triggerDownDevice(SmtSecurityAuthApply authApply);
 
 	/**
 	 * 手动下发
