@@ -73,4 +73,12 @@ public interface SmtSecurityAuthApplyService extends IService<SmtSecurityAuthApp
 	 * 发送权限下发提示短信
 	 */
 	void sendMessage();
+
+	/**
+	 * 保密门禁 OA 对账任务（PR2 核心补偿逻辑）：
+	 * 场景1——回调丢失：扫描 oa_status=PENDING 且已有 processId 的申请单，主动向 OA 查询终态并补齐；
+	 * 场景2——审批已过但下发未执行（含 D4 中间态与场景1下发失败的重试）：直接重新触发下发。
+	 * 详见 spec §3.1.3/§3.1.4。
+	 */
+	void updateOaStatusTask();
 }
