@@ -250,4 +250,22 @@ public class SecurityAuthManualDownTest {
 		verify(ioaWorkflowService, never()).query(any());
 		verify(applyService, never()).triggerDownDevice(any(SmtSecurityAuthApply.class));
 	}
+
+	// ========== 分支9：未知状态值拒绝（纵深防御守卫） ==========
+
+	@Test
+	public void downDevice_unknownOaStatus_rejected() {
+		// 构造 oa_status=3（CLOSE）的申请单
+		SmtSecurityAuthApply authApply = apply(8L, "P-8", 3);
+		doReturn(authApply).when(applyService).getById(8L);
+
+		try {
+			applyService.downDevice(8L);
+			fail("应抛出SmartException");
+		} catch (SmartException e) {
+			assertEquals("申请单状态异常，禁止下发", e.getMessage());
+		}
+		// 断言 triggerDownDevice never 被调用
+		verify(applyService, never()).triggerDownDevice(any(SmtSecurityAuthApply.class));
+	}
 }

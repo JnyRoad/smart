@@ -212,6 +212,11 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 			}
 			authApply.setOaStatus(finalStatus);
 		}
+		// 纵深防御：仅 AGREE 终态允许下发；未知状态值（如 CLOSE/WAITING/null）一律拒绝，
+		// 拒绝已知坏值+放行其余的写法在状态枚举扩展时会开口子
+		if (!ApproveListStateEnum.AGREE.getCode().equals(authApply.getOaStatus())) {
+			throw new SmartException("申请单状态异常，禁止下发");
+		}
 		// 此时 oa_status=1：触发下发（明细级抢占保证幂等，可安全重试）
 		return this.triggerDownDevice(authApply);
 	}
