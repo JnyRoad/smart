@@ -44,6 +44,7 @@ public class OaFinalStatusResolver {
 
 	/**
 	 * 拼接可字典序比较的时间串；缺失时间的记录排最前（视为最旧）
+	 * 前提：OA 返回固定宽度 yyyy-MM-dd / HH:mm:ss（零填充），字典序比较即时间序；该前提与生产中入厂对账的既有用法一致
 	 */
 	private String operateDateTime(WorkFlowLogDataDTO d) {
 		String date = StrUtil.nullToEmpty(d.getOPERATEDATE());
