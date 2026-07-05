@@ -80,4 +80,19 @@ public class OaFinalStatusResolverTest {
 		assertNull(resolver.resolve(dto));
 		assertNull(resolver.resolve(null));
 	}
+
+	@Test
+	public void sameTimestamp_stableOrderLastWins() {
+		// 两条记录时间戳完全相同，稳定排序下保持原顺序后取最后一条
+		// 情形 1：第一条审批中（"1"）、第二条归档（"3"），取第二条返回 1（AGREE）
+		assertEquals(Integer.valueOf(1), resolver.resolve(dto(
+				rec("1", "2026-07-02", "09:57:36"),
+				rec("3", "2026-07-02", "09:57:36"))));
+
+		// 情形 2：反向验证 - 第一条归档（"3"）、第二条审批中（"1"），取第二条返回 null（非终态）
+		// 这个案例验证 reduce((a,b)->b) 确实取的是列表中靠后那条
+		assertNull(resolver.resolve(dto(
+				rec("3", "2026-07-02", "09:57:36"),
+				rec("1", "2026-07-02", "09:57:36"))));
+	}
 }
