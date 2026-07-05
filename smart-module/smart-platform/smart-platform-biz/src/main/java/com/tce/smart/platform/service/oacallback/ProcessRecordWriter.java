@@ -7,15 +7,13 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.platform.core.entity.SmtProcessRecord;
 import com.tce.smart.platform.service.SmtProcessRecordService;
 import com.tce.smart.tool.enums.NodeStatusEnum;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.springframework.stereotype.Component;
 
 /**
- * smt_process_record 判重写入组件：收敛 LeaveApplicationListener/LeaveApplicationServiceImpl 等 6 处重复（spec §3.2.4）。
+ * 统一 smt_process_record 判重写入逻辑（原 LeaveApplicationListener.processRecord 的等价抽取；其余历史重复调用点的替换见后续任务）。
  * 逻辑与原 LeaveApplicationListener.processRecord 逐行等价，不做行为变更。
  */
-@Slf4j
 @Component
 public class ProcessRecordWriter {
 

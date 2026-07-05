@@ -36,6 +36,7 @@ public class OaCallbackDispatcher {
 	/** 由于OA系统回调地址只能配置一个，所有回调消息同步转发大岭山一份（原监听器 92 行迁移） */
 	private static final String FORWARD_URL = "http://smartapp.szyuto.com:8080/platform/oa/workflow/over";
 
+	// 设计不变量：各 handler 相互独立、按 processId 自行命中，执行顺序无关——新增 handler 不得引入顺序依赖
 	private final List<OaWorkflowCallbackHandler> handlers;
 	private final RedisMutexLock mutexLock;
 	private final OaCallbackLogService logService;
@@ -103,11 +104,14 @@ public class OaCallbackDispatcher {
 			if (token != null) {
 				return token;
 			}
-			try {
-				Thread.sleep(LOCK_RETRY_SLEEP_MS);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				return null;
+			// 末次迭代不再 sleep：反正即将失败返回，多等一次只会白白拖慢向 OA 返回 500 的时间
+			if (i < LOCK_RETRY_TIMES - 1) {
+				try {
+					Thread.sleep(LOCK_RETRY_SLEEP_MS);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return null;
+				}
 			}
 		}
 		return null;
@@ -140,6 +144,7 @@ public class OaCallbackDispatcher {
 			update.setResolved(OaCallbackLog.RESOLVED_YES);
 			logService.updateById(update);
 		} catch (Exception e) {
+			// 关闭失败时若本次结果为 partial，写入将被函数唯一索引 ux_oa_cb_unresolved 拦截并降级为已解决快照（writeResult 兜底），不变量不破坏
 			log.error("关闭历史partial回调日志失败：logId={}", oldPartial.getId(), e);
 		}
 	}
