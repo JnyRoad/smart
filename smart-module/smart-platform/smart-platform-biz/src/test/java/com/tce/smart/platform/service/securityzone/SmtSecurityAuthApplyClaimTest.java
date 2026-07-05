@@ -191,6 +191,65 @@ public class SmtSecurityAuthApplyClaimTest {
 		verify(spyService).updateById(apply);
 	}
 
+	/**
+	 * Critical 回归用例：不 stub triggerDownDevice/updateById，走真实方法路径，
+	 * 只 mock 最底层依赖（downDevice 成功、applyMapper.update CAS 返回 true），
+	 * 断言最终 updateById 落盘时拿到的实体 deviceStatus 已被同步为 ALRAEDY(4)，
+	 * 而不是调用方传入时的旧值 WAIT(0)——否则 MyBatis-Plus 的 NOT_NULL 策略会用
+	 * 内存里过期的 0 把 CAS 刚写入 DB 的 4 覆盖回去（Task 21 评审确认的 Critical）。
+	 * 注意：主表 device_status（本用例断言的 4=ALRAEDY）与明细表
+	 * SmtSecurityTaskDetails.status（1=SUCCESS）是两套码表，勿混淆。
+	 */
+	@Test
+	public void updateStatus_agree_persistedDeviceStatusIsAlready() {
+		SmtSecurityAuthApplyServiceImpl spyService = spy(applyService);
+		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
+		apply.setId(3003L);
+		apply.setApplyBadge("badge-3");
+		apply.setOaStatus(ApproveListStateEnum.AGREE.getCode());
+		apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
+
+		// 底层设备下发成功
+		when(taskDetailsService.downDevice(3003L, "badge-3")).thenReturn(Boolean.TRUE);
+		// 主表 CAS update（device_status 0->4）返回命中
+		when(applyMapper.update(any(), any())).thenReturn(1);
+		// updateById 最终落到 baseMapper.updateById，直接 stub 掉底层调用，只关心传入实体的字段
+		doReturn(true).when(spyService).updateById(any(SmtSecurityAuthApply.class));
+
+		spyService.updateStatus(apply);
+
+		ArgumentCaptor<SmtSecurityAuthApply> captor = ArgumentCaptor.forClass(SmtSecurityAuthApply.class);
+		verify(spyService).updateById(captor.capture());
+		assertEquals("updateById 收到的实体 deviceStatus 应已同步为 ALRAEDY，防止覆盖 CAS 结果",
+				DeviceDownStatusEnum.ALRAEDY.getCode(), captor.getValue().getDeviceStatus());
+	}
+
+	/**
+	 * 反向用例：downDevice 抛异常时不得误推进内存状态，updateById 收到的实体
+	 * deviceStatus 应保持调用方传入时的原值（这里是 WAIT），交由对账任务重试。
+	 */
+	@Test
+	public void updateStatus_agree_downDeviceThrows_deviceStatusStaysWait() {
+		SmtSecurityAuthApplyServiceImpl spyService = spy(applyService);
+		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
+		apply.setId(3004L);
+		apply.setApplyBadge("badge-4");
+		apply.setOaStatus(ApproveListStateEnum.AGREE.getCode());
+		apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
+
+		doThrow(new RuntimeException("device offline")).when(taskDetailsService).downDevice(3004L, "badge-4");
+		doReturn(true).when(spyService).updateById(any(SmtSecurityAuthApply.class));
+
+		spyService.updateStatus(apply);
+
+		ArgumentCaptor<SmtSecurityAuthApply> captor = ArgumentCaptor.forClass(SmtSecurityAuthApply.class);
+		verify(spyService).updateById(captor.capture());
+		assertEquals("下发异常时不应误推进 deviceStatus，应保持原值由对账任务重试",
+				DeviceDownStatusEnum.WAIT.getCode(), captor.getValue().getDeviceStatus());
+		// 异常路径不应触碰主表 CAS
+		verify(applyMapper, never()).update(any(), any());
+	}
+
 	// ========== down() 明细级 CAS 抢占（SmtSecurityTaskDetailsServiceImpl）==========
 
 	@Test
