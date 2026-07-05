@@ -140,4 +140,17 @@ public class OaCallbackDispatcherTest {
 		assertTrue(OaCallbackDispatcher.LOCK_TTL_SECONDS >
 				OaCallbackDispatcher.HANDLER_COUNT * OaCallbackDispatcher.MAX_HANDLER_SECONDS);
 	}
+
+	@Test
+	public void lockExhausted_writesLastErrorToLog() {
+		// 锁获取失败后，writeLockFailure 将错误信息写入日志记录（spec §3.2.2）
+		when(lock.acquire(anyString(), anyLong())).thenReturn(null);
+		DispatchResult r = dispatcher.dispatch(ao());
+		assertFalse(r.isAllSuccess());
+		ArgumentCaptor<OaCallbackLog> c = ArgumentCaptor.forClass(OaCallbackLog.class);
+		verify(logService).updateById(c.capture());
+		OaCallbackLog capturedLog = c.getValue();
+		assertEquals(Long.valueOf(100L), capturedLog.getId());
+		assertEquals("acquire request_id lock timeout", capturedLog.getLastError());
+	}
 }
