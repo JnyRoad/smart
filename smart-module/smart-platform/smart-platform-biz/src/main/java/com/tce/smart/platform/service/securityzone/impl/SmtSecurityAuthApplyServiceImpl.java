@@ -152,9 +152,10 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 					.eq(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode())
 					.set(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.ALRAEDY.getCode()));
 			// Critical 修复：CAS 只更新了 DB，未同步内存中的 authApply.deviceStatus。
-			// updateStatus() 里 triggerDownDevice 成功后紧接着会调用 updateById(authApply)，
-			// MyBatis-Plus 默认按 NOT_NULL 策略回写所有非空字段——若内存字段仍是调用方传入时的
-			// 旧值 0（WAIT），就会把上面 CAS 刚写入的 4 覆盖回 0，导致"下发成功但主表仍显示待下发"。
+			// 调用方（callback handler / 对账任务 / 手动下发 downDevice）后续若基于该实体
+			// 再做 MyBatis-Plus 的 updateById，默认按 NOT_NULL 策略回写所有非空字段——若内存
+			// 字段仍是调用方传入时的旧值 0（WAIT），就会把上面 CAS 刚写入的 4 覆盖回 0，
+			// 导致"下发成功但主表仍显示待下发"。
 			// 因此只要 downDevice 未抛异常（走到这里），无论上面的 CAS 是否命中（返回 true/false），
 			// 都必须把内存字段同步为 ALRAEDY：
 			// - CAS 命中：DB 已从 0→4，内存需跟上，否则被后续 updateById 覆盖回 0；
@@ -172,19 +173,47 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	}
 
 	@Override
-	public void updateStatus(SmtSecurityAuthApply authApply) {
-		if (ApproveListStateEnum.AGREE.getCode().equals(authApply.getOaStatus())) {
-			this.triggerDownDevice(authApply);
-		}
-		this.updateById(authApply);
-	}
-
-	@Override
 	public Boolean downDevice(Long applyId) {
 		SmtSecurityAuthApply authApply = this.getById(applyId);
-		smtSecurityTaskDetailsService.downDevice(applyId, authApply.getApplyBadge());
-		authApply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
-		return this.updateById(authApply);
+		// 输入与状态边界校验（spec §3.4，修 D5：原实现记录不存在直接 NPE 且未审批可下发）
+		if (Objects.isNull(authApply)) {
+			throw new SmartException("申请单不存在");
+		}
+		if (StrUtil.isBlank(authApply.getProcessId())) {
+			throw new SmartException("申请单缺少OA流程编号，无法下发");
+		}
+		Integer oaStatus = authApply.getOaStatus();
+		if (ApproveListStateEnum.REFUSE.getCode().equals(oaStatus)) {
+			throw new SmartException("该申请已被OA退回，禁止下发");
+		}
+		if (ApproveListStateEnum.PENDING.getCode().equals(oaStatus)) {
+			// 待审批：实时查 OA 判终态，与回调/对账共用同一套 claim 流程（spec §3.4）
+			WorkFlowLogDTO logDTO;
+			try {
+				logDTO = ioaWorkflowService.query(authApply.getProcessId());
+			} catch (Exception e) {
+				log.error("手动下发查询OA状态失败：applyId={}", applyId, e);
+				throw new SmartException("OA状态查询失败，请稍后重试");
+			}
+			Integer finalStatus = oaFinalStatusResolver.resolve(logDTO);
+			if (Objects.isNull(finalStatus)) {
+				throw new SmartException("OA审批未完成，禁止下发");
+			}
+			if (!claimOaFinalStatus(applyId, finalStatus)) {
+				throw new SmartException("状态已被其他任务更新，请刷新后重试");
+			}
+			if (ApproveListStateEnum.REFUSE.getCode().equals(finalStatus)) {
+				throw new SmartException("该申请已被OA退回，禁止下发");
+			}
+			// 补写过程记录，详情页本地留痕（spec §3.1.3）
+			if (logDTO.getResultdata() != null) {
+				logDTO.getResultdata().forEach(d ->
+						processRecordWriter.write(authApply.getProcessId(), ProcessRecordItem.fromOaLog(d)));
+			}
+			authApply.setOaStatus(finalStatus);
+		}
+		// 此时 oa_status=1：触发下发（明细级抢占保证幂等，可安全重试）
+		return this.triggerDownDevice(authApply);
 	}
 
 	@Override

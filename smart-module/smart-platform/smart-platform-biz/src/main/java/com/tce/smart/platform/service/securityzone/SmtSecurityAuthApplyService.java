@@ -39,13 +39,6 @@ public interface SmtSecurityAuthApplyService extends IService<SmtSecurityAuthApp
 	IPage<SecurityAuthApplyPageRespDTO> getPage(Page page, SecurityAuthApplyPageQueryReqDTO query);
 
 	/**
-	 * OA状态更改
-	 * @param authApply
-	 * @return
-	 */
-	void updateStatus(SmtSecurityAuthApply authApply);
-
-	/**
 	 * CAS 抢占 OA 终态：回调 handler 与对账任务共用同一入口，只有把 oa_status 从
 	 * PENDING(0) 抢先置为终态（AGREE/REFUSE）的一方才允许触发后续下发，避免并发重复下发（spec §3.1.1）。
 	 * @param applyId 申请单ID

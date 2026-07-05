@@ -67,7 +67,6 @@ public class SecurityAuthApplyCallbackHandlerTest {
 
 		verify(smtSecurityAuthApplyService).claimOaFinalStatus(1001L, ApproveListStateEnum.AGREE.getCode());
 		verify(smtSecurityAuthApplyService).triggerDownDevice(authApply);
-		verify(smtSecurityAuthApplyService, never()).updateStatus(any(SmtSecurityAuthApply.class));
 	}
 
 	/**
@@ -123,6 +122,5 @@ public class SecurityAuthApplyCallbackHandlerTest {
 		verifyZeroInteractions(flowRecordSupport);
 		verify(smtSecurityAuthApplyService, never()).claimOaFinalStatus(any(Long.class), any(Integer.class));
 		verify(smtSecurityAuthApplyService, never()).triggerDownDevice(any(SmtSecurityAuthApply.class));
-		verify(smtSecurityAuthApplyService, never()).updateStatus(any(SmtSecurityAuthApply.class));
 	}
 }
