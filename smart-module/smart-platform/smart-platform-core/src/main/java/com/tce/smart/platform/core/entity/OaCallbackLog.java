@@ -1,5 +1,7 @@
 package com.tce.smart.platform.core.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.activerecord.Model;
 import lombok.Data;
@@ -26,6 +28,8 @@ public class OaCallbackLog extends Model<OaCallbackLog> {
 	/** 已解决 */
 	public static final int RESOLVED_YES = 1;
 
+	/** 主键：MyBatis-Plus 雪花 ID（Oracle 无自增） */
+	@TableId(value = "id", type = IdType.ID_WORKER)
 	private Long id;
 	/** OA requestid */
 	private String requestId;
