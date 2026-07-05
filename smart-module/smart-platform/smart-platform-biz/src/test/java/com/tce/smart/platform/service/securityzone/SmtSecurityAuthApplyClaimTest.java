@@ -32,7 +32,8 @@ import static org.mockito.Mockito.*;
 
 /**
  * Task 21 单测：claim 抢占 + 明细级原子抢占 + 下发触发修正（spec §3.1.1 / §3.1.3）。
- * 覆盖 claimOaFinalStatus / triggerDownDevice / updateStatus 重写、down() 明细级 CAS 抢占。
+ * 覆盖 claimOaFinalStatus / triggerDownDevice（含内存状态同步回归）、down() 明细级 CAS 抢占。
+ * 注：旧 updateStatus(SmtSecurityAuthApply) 已随 Task 25 删除，相关用例已改为直接测 triggerDownDevice。
  */
 @SuppressWarnings("unchecked")
 public class SmtSecurityAuthApplyClaimTest {
@@ -159,50 +160,22 @@ public class SmtSecurityAuthApplyClaimTest {
 				params.get(boundParamFor(sqlSet, "device_status")));
 	}
 
-	// ========== updateStatus ==========
-
-	@Test
-	public void updateStatus_oaStatusAgree_triggersDownDeviceAndUpdatesById() {
-		SmtSecurityAuthApplyServiceImpl spyService = spy(applyService);
-		doReturn(Boolean.TRUE).when(spyService).triggerDownDevice(any(SmtSecurityAuthApply.class));
-		doReturn(Boolean.TRUE).when(spyService).updateById(any(SmtSecurityAuthApply.class));
-		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
-		apply.setId(3001L);
-		apply.setOaStatus(ApproveListStateEnum.AGREE.getCode());
-
-		spyService.updateStatus(apply);
-
-		verify(spyService).triggerDownDevice(apply);
-		// 回调 handler 现仍依赖 updateById 落盘 processId/oaStatus 等字段，Task 22 才改
-		verify(spyService).updateById(apply);
-	}
-
-	@Test
-	public void updateStatus_oaStatusRefuse_doesNotTriggerDownDeviceButStillUpdatesById() {
-		SmtSecurityAuthApplyServiceImpl spyService = spy(applyService);
-		doReturn(Boolean.TRUE).when(spyService).updateById(any(SmtSecurityAuthApply.class));
-		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
-		apply.setId(3002L);
-		apply.setOaStatus(ApproveListStateEnum.REFUSE.getCode());
-
-		spyService.updateStatus(apply);
-
-		verify(spyService, never()).triggerDownDevice(any(SmtSecurityAuthApply.class));
-		verify(spyService).updateById(apply);
-	}
+	// ========== triggerDownDevice 内存状态同步回归用例 ==========
+	// 注：旧 updateStatus(SmtSecurityAuthApply) 已随 Task 25 删除（Task 22 起生产侧
+	// 无调用方，callback handler 已改走 claim 流程），以下用例改为直接调用
+	// triggerDownDevice 验证同等的 Critical 回归点：内存字段与 CAS 结果的一致性。
 
 	/**
-	 * Critical 回归用例：不 stub triggerDownDevice/updateById，走真实方法路径，
+	 * Critical 回归用例：不 stub triggerDownDevice 内部逻辑，走真实方法路径，
 	 * 只 mock 最底层依赖（downDevice 成功、applyMapper.update CAS 返回 true），
-	 * 断言最终 updateById 落盘时拿到的实体 deviceStatus 已被同步为 ALRAEDY(4)，
-	 * 而不是调用方传入时的旧值 WAIT(0)——否则 MyBatis-Plus 的 NOT_NULL 策略会用
+	 * 断言调用后传入实体的 deviceStatus 已被同步为 ALRAEDY(4)，
+	 * 而不是调用前的旧值 WAIT(0)——否则后续任何基于该实体的 updateById 都会用
 	 * 内存里过期的 0 把 CAS 刚写入 DB 的 4 覆盖回去（Task 21 评审确认的 Critical）。
 	 * 注意：主表 device_status（本用例断言的 4=ALRAEDY）与明细表
 	 * SmtSecurityTaskDetails.status（1=SUCCESS）是两套码表，勿混淆。
 	 */
 	@Test
-	public void updateStatus_agree_persistedDeviceStatusIsAlready() {
-		SmtSecurityAuthApplyServiceImpl spyService = spy(applyService);
+	public void triggerDownDevice_success_syncsInMemoryDeviceStatusToAlready() {
 		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
 		apply.setId(3003L);
 		apply.setApplyBadge("badge-3");
@@ -213,24 +186,20 @@ public class SmtSecurityAuthApplyClaimTest {
 		when(taskDetailsService.downDevice(3003L, "badge-3")).thenReturn(Boolean.TRUE);
 		// 主表 CAS update（device_status 0->4）返回命中
 		when(applyMapper.update(any(), any())).thenReturn(1);
-		// updateById 最终落到 baseMapper.updateById，直接 stub 掉底层调用，只关心传入实体的字段
-		doReturn(true).when(spyService).updateById(any(SmtSecurityAuthApply.class));
 
-		spyService.updateStatus(apply);
+		boolean result = applyService.triggerDownDevice(apply);
 
-		ArgumentCaptor<SmtSecurityAuthApply> captor = ArgumentCaptor.forClass(SmtSecurityAuthApply.class);
-		verify(spyService).updateById(captor.capture());
-		assertEquals("updateById 收到的实体 deviceStatus 应已同步为 ALRAEDY，防止覆盖 CAS 结果",
-				DeviceDownStatusEnum.ALRAEDY.getCode(), captor.getValue().getDeviceStatus());
+		assertTrue(result);
+		assertEquals("triggerDownDevice 成功后应把内存字段同步为 ALRAEDY，防止后续误用旧值覆盖 CAS 结果",
+				DeviceDownStatusEnum.ALRAEDY.getCode(), apply.getDeviceStatus());
 	}
 
 	/**
-	 * 反向用例：downDevice 抛异常时不得误推进内存状态，updateById 收到的实体
-	 * deviceStatus 应保持调用方传入时的原值（这里是 WAIT），交由对账任务重试。
+	 * 反向用例：downDevice 抛异常时不得误推进内存状态，调用后实体
+	 * deviceStatus 应保持调用前的原值（这里是 WAIT），交由对账任务重试。
 	 */
 	@Test
-	public void updateStatus_agree_downDeviceThrows_deviceStatusStaysWait() {
-		SmtSecurityAuthApplyServiceImpl spyService = spy(applyService);
+	public void triggerDownDevice_downloadThrows_deviceStatusStaysWait() {
 		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
 		apply.setId(3004L);
 		apply.setApplyBadge("badge-4");
@@ -238,14 +207,12 @@ public class SmtSecurityAuthApplyClaimTest {
 		apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
 
 		doThrow(new RuntimeException("device offline")).when(taskDetailsService).downDevice(3004L, "badge-4");
-		doReturn(true).when(spyService).updateById(any(SmtSecurityAuthApply.class));
 
-		spyService.updateStatus(apply);
+		boolean result = applyService.triggerDownDevice(apply);
 
-		ArgumentCaptor<SmtSecurityAuthApply> captor = ArgumentCaptor.forClass(SmtSecurityAuthApply.class);
-		verify(spyService).updateById(captor.capture());
+		assertFalse(result);
 		assertEquals("下发异常时不应误推进 deviceStatus，应保持原值由对账任务重试",
-				DeviceDownStatusEnum.WAIT.getCode(), captor.getValue().getDeviceStatus());
+				DeviceDownStatusEnum.WAIT.getCode(), apply.getDeviceStatus());
 		// 异常路径不应触碰主表 CAS
 		verify(applyMapper, never()).update(any(), any());
 	}
