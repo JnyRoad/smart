@@ -5,7 +5,6 @@ import com.tce.smart.platform.core.mapper.OaCallbackLogMapper;
 import com.tce.smart.platform.service.oacallback.impl.OaCallbackLogServiceImpl;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
