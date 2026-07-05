@@ -26,13 +26,19 @@ import com.tce.smart.platform.core.entity.SmtMsgTemplate;
 import com.tce.smart.platform.core.entity.SmtPark;
 import com.tce.smart.platform.core.entity.SmtSecurityArea;
 import com.tce.smart.platform.core.entity.SmtStaff;
+import com.tce.smart.platform.core.dto.WorkFlowLogDTO;
+import com.tce.smart.platform.core.dto.WorkFlowLogDataDTO;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
 import com.tce.smart.platform.core.mapper.SmtSecurityAuthApplyMapper;
 import com.tce.smart.platform.core.service.SmtMsgTemplateService;
 import com.tce.smart.platform.core.service.SmtSecurityAreaService;
+import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.SmtParkService;
 import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.platform.service.admittance.SmtOaAreaTypeService;
+import com.tce.smart.platform.service.oacallback.OaFinalStatusResolver;
+import com.tce.smart.platform.service.oacallback.ProcessRecordItem;
+import com.tce.smart.platform.service.oacallback.ProcessRecordWriter;
 import com.tce.smart.platform.service.securityzone.SmtOaAreaRelationService;
 import com.tce.smart.platform.service.securityzone.SmtSecurityAuthApplyService;
 import com.tce.smart.platform.service.securityzone.SmtSecurityTaskDetailsService;
@@ -41,6 +47,7 @@ import com.tce.smart.tool.enums.*;
 import com.tce.smart.tool.util.WeChatMsgUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +63,17 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuthApplyMapper, SmtSecurityAuthApply> implements SmtSecurityAuthApplyService {
+
+	/** OA 对账窗口：只扫描最近 90 天内创建的申请单，避免全表扫描（spec §3.1.3） */
+	private static final int RECONCILE_WINDOW_DAYS = 90;
+	/** 最小静默期：刚创建不足 5 分钟的申请单大概率回调还在路上，跳过避免与正常回调抢跑 */
+	private static final int RECONCILE_MIN_AGE_MINUTES = 5;
+	/** 每轮对账单批次大小，控制单次扫描与下发的开销 */
+	private static final int RECONCILE_BATCH_SIZE = 200;
+	/** 超过该时长仍处于 PENDING 视为异常滞留，需要告警提醒人工关注（spec §5.3） */
+	private static final int PENDING_ALARM_HOURS = 24;
+	/** 场景1（回调丢失扫描）游标的 Redis key，单游标即可满足需求（简化自入厂对账的三段式游标） */
+	private static final String OA_RECONCILE_CURSOR_KEY = "oa:security:auth:cursor";
 
 	@Autowired
 	private RemoteOaWorkFlowService remoteOaWorkFlowService;
@@ -75,6 +93,14 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	private SmtMsgTemplateService smtMsgTemplateService;
 	@Autowired
 	private SmtSecurityAreaService smtSecurityAreaService;
+	@Autowired
+	private IOAWorkflowService ioaWorkflowService;
+	@Autowired
+	private OaFinalStatusResolver oaFinalStatusResolver;
+	@Autowired
+	private ProcessRecordWriter processRecordWriter;
+	@Autowired(required = false)
+	private StringRedisTemplate stringRedisTemplate;
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
@@ -430,6 +456,147 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 				apply.setIsMsg(OneOrZeroEnum.ONE.getCode());
 			}
 			this.updateById(apply);
+		}
+	}
+
+	@Override
+	public void updateOaStatusTask() {
+		// 计数器：贯穿场景1/2，收尾统一打点，便于运营监控对账效果（spec §5.3）
+		int scanned = 0;
+		int agreed = 0;
+		int refused = 0;
+		int inProgress = 0;
+		int queryFailed = 0;
+		int downFailed = 0;
+
+		// ========== 场景1：回调丢失——扫描 PENDING 且已有 processId 的申请单，主动向 OA 查询终态 ==========
+		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime windowStart = now.minusDays(RECONCILE_WINDOW_DAYS);
+		LocalDateTime windowEnd = now.minusMinutes(RECONCILE_MIN_AGE_MINUTES);
+		long cursor = readCursor();
+		List<SmtSecurityAuthApply> batch = pendingOaStatusBatch(windowStart, windowEnd, cursor);
+		if (CollUtil.isEmpty(batch) && cursor > 0) {
+			// 本轮扫到头且游标非零：归零后下一轮从头重扫，避免游标之前漏掉的单永远扫不到
+			updateCursor(0L);
+		} else {
+			advanceCursor(batch);
+		}
+		for (SmtSecurityAuthApply apply : batch) {
+			scanned++;
+			if (apply.getCreateTime() != null && apply.getCreateTime().isBefore(now.minusHours(PENDING_ALARM_HOURS))) {
+				log.warn("保密门禁申请超24小时未收到OA终态：processId={}", apply.getProcessId());
+			}
+			WorkFlowLogDTO dto;
+			try {
+				dto = ioaWorkflowService.query(apply.getProcessId());
+			} catch (Exception e) {
+				// 查询异常不中断本轮其余单，下一轮游标归零后天然重扫该单
+				log.warn("保密门禁OA对账查询失败：processId={}", apply.getProcessId(), e);
+				queryFailed++;
+				continue;
+			}
+			Integer finalStatus = oaFinalStatusResolver.resolve(dto);
+			if (finalStatus == null) {
+				// 审批中/查询无有效结果，本轮不动，等下一轮再查
+				inProgress++;
+				continue;
+			}
+			if (!this.claimOaFinalStatus(apply.getId(), finalStatus)) {
+				// CAS 未抢到：说明回调已先一步处理，正常并发场景，跳过
+				continue;
+			}
+			if (ApproveListStateEnum.AGREE.getCode().equals(finalStatus)) {
+				agreed++;
+				writeProcessRecords(apply.getProcessId(), dto);
+				// 内存同步终态，供下面 triggerDownDevice 使用最新状态
+				apply.setOaStatus(finalStatus);
+				if (!this.triggerDownDevice(apply)) {
+					downFailed++;
+				}
+			} else {
+				refused++;
+			}
+		}
+
+		// ========== 场景2：审批已过但下发未执行（D4 中间态 + 场景1下发失败的重试）==========
+		List<SmtSecurityAuthApply> pendingDownList = pendingDownDeviceBatch(windowStart);
+		for (SmtSecurityAuthApply apply : pendingDownList) {
+			if (!this.triggerDownDevice(apply)) {
+				downFailed++;
+			}
+		}
+
+		log.info("保密门禁OA对账完成：扫描={}, 通过={}, 退回={}, 审批中={}, 查询失败={}, 触发失败={}",
+				scanned, agreed, refused, inProgress, queryFailed, downFailed);
+	}
+
+	/** 场景1候选：oa_status=PENDING 且已有 processId，创建时间落在对账窗口内，游标翻页取最旧的一批 */
+	private List<SmtSecurityAuthApply> pendingOaStatusBatch(LocalDateTime windowStart, LocalDateTime windowEnd, long cursor) {
+		Page<SmtSecurityAuthApply> page = new Page<>(1, RECONCILE_BATCH_SIZE);
+		page.setSearchCount(false);
+		return this.page(page, Wrappers.<SmtSecurityAuthApply>query().lambda()
+				.eq(SmtSecurityAuthApply::getOaStatus, ApproveListStateEnum.PENDING.getCode())
+				.isNotNull(SmtSecurityAuthApply::getProcessId)
+				.between(SmtSecurityAuthApply::getCreateTime, windowStart, windowEnd)
+				.gt(SmtSecurityAuthApply::getId, cursor)
+				.orderByAsc(SmtSecurityAuthApply::getId)).getRecords();
+	}
+
+	/** 场景2候选：oa_status=AGREE 但 device_status=WAIT（审批已过但未下发），量小无需游标 */
+	private List<SmtSecurityAuthApply> pendingDownDeviceBatch(LocalDateTime windowStart) {
+		Page<SmtSecurityAuthApply> page = new Page<>(1, RECONCILE_BATCH_SIZE);
+		page.setSearchCount(false);
+		return this.page(page, Wrappers.<SmtSecurityAuthApply>query().lambda()
+				.eq(SmtSecurityAuthApply::getOaStatus, ApproveListStateEnum.AGREE.getCode())
+				.eq(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode())
+				.ge(SmtSecurityAuthApply::getCreateTime, windowStart)
+				.orderByAsc(SmtSecurityAuthApply::getId)).getRecords();
+	}
+
+	/** 补写过程记录：query 到的流转记录逐条落库，写失败仅记 warn，不阻断后续下发（spec §3.1.3） */
+	private void writeProcessRecords(String processId, WorkFlowLogDTO dto) {
+		List<WorkFlowLogDataDTO> records = dto.getResultdata();
+		if (CollUtil.isEmpty(records)) {
+			return;
+		}
+		for (WorkFlowLogDataDTO record : records) {
+			try {
+				processRecordWriter.write(processId, ProcessRecordItem.fromOaLog(record));
+			} catch (Exception e) {
+				log.warn("保密门禁OA对账补写过程记录失败：processId={}", processId, e);
+			}
+		}
+	}
+
+	/** 读取场景1游标；Redis 不可用或无值时视为 0（从头扫） */
+	private long readCursor() {
+		if (stringRedisTemplate == null) {
+			return 0L;
+		}
+		try {
+			String value = stringRedisTemplate.opsForValue().get(OA_RECONCILE_CURSOR_KEY);
+			return StrUtil.isBlank(value) ? 0L : Long.parseLong(value);
+		} catch (Exception e) {
+			log.warn("读取保密门禁OA对账游标失败", e);
+			return 0L;
+		}
+	}
+
+	/** 按本批最大 id 推进游标 */
+	private void advanceCursor(List<SmtSecurityAuthApply> batch) {
+		batch.stream().map(SmtSecurityAuthApply::getId).filter(Objects::nonNull)
+				.max(Long::compareTo).ifPresent(this::updateCursor);
+	}
+
+	/** 写入游标；Redis 不可用时静默跳过（下一轮 readCursor 会退回 0，等价于持续从头扫） */
+	private void updateCursor(long cursor) {
+		if (stringRedisTemplate == null) {
+			return;
+		}
+		try {
+			stringRedisTemplate.opsForValue().set(OA_RECONCILE_CURSOR_KEY, String.valueOf(cursor));
+		} catch (Exception e) {
+			log.warn("写入保密门禁OA对账游标失败：cursor={}", cursor, e);
 		}
 	}
 }
