@@ -3,6 +3,7 @@ package com.tce.smart.platform.controller;
 import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.oacallback.DispatchResult;
 import com.tce.smart.platform.service.oacallback.OaCallbackDispatcher;
+import com.tce.smart.platform.service.oacallback.OaCallbackReplayService;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,7 +26,8 @@ public class OAWorkflowControllerTest {
 	@Before
 	public void setUp() {
 		dispatcher = mock(OaCallbackDispatcher.class);
-		OAWorkflowController controller = new OAWorkflowController(dispatcher, mock(IOAWorkflowService.class));
+		OAWorkflowController controller = new OAWorkflowController(dispatcher, mock(IOAWorkflowService.class),
+				mock(OaCallbackReplayService.class));
 		mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
 	}
 
