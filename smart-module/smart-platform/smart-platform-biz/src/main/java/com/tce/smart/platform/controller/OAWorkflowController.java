@@ -2,10 +2,12 @@ package com.tce.smart.platform.controller;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.platform.core.ao.WorkFlowAO;
 import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.oacallback.DispatchResult;
 import com.tce.smart.platform.service.oacallback.OaCallbackDispatcher;
+import com.tce.smart.platform.service.oacallback.OaCallbackReplayService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,10 +21,13 @@ public class OAWorkflowController extends BaseController {
 
 	private final OaCallbackDispatcher dispatcher;
 	private final IOAWorkflowService iOAWorkflowService;
+	private final OaCallbackReplayService replayService;
 
-	public OAWorkflowController(OaCallbackDispatcher dispatcher, IOAWorkflowService iOAWorkflowService) {
+	public OAWorkflowController(OaCallbackDispatcher dispatcher, IOAWorkflowService iOAWorkflowService,
+			OaCallbackReplayService replayService) {
 		this.dispatcher = dispatcher;
 		this.iOAWorkflowService = iOAWorkflowService;
+		this.replayService = replayService;
 	}
 
 	/**
@@ -44,5 +49,12 @@ public class OAWorkflowController extends BaseController {
 	@GetMapping("/query")
 	public Result query(@RequestParam("requestId") String requestId) {
 		return success(iOAWorkflowService.query(requestId));
+	}
+
+	/** 按日志 id 重放失败的回调处理（仅内部调用，spec §3.3） */
+	@Inner
+	@PostMapping("/replay/{logId}")
+	public Result replay(@PathVariable("logId") Long logId) {
+		return replayService.replay(logId);
 	}
 }
