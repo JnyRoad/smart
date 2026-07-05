@@ -1,7 +1,6 @@
 package com.tce.smart.platform.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.tce.smart.platform.core.ao.WorkFlowAO;
 import com.tce.smart.platform.core.entity.SmtProcessRecord;
 
 /**
@@ -11,9 +10,6 @@ import com.tce.smart.platform.core.entity.SmtProcessRecord;
  * @date 2019-05-15 11:34:54
  */
 public interface SmtProcessRecordService extends IService<SmtProcessRecord> {
-
-    void saveProcessRecord(WorkFlowAO workFlowAO);
-
 
     boolean getHandoverRecord(String processId,String staffBadge);
 

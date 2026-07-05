@@ -2,20 +2,14 @@ package com.tce.smart.platform.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.tce.smart.common.core.event.SmartEventPublisher;
-/*import com.tce.smart.common.core.event.SmartEventPublisher;*/
-import com.tce.smart.platform.core.ao.WorkFlowAO;
 import com.tce.smart.platform.core.entity.SmtProcessRecord;
 import com.tce.smart.platform.core.mapper.SmtProcessRecordMapper;
 import com.tce.smart.platform.service.SmtProcessRecordService;
 
 import cn.hutool.core.collection.CollectionUtil;
 import com.tce.smart.tool.enums.ApplicationEnum;
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -28,18 +22,6 @@ import java.util.List;
 @Slf4j
 @Service
 public class SmtProcessRecordServiceImpl extends ServiceImpl<SmtProcessRecordMapper, SmtProcessRecord> implements SmtProcessRecordService {
-    @Autowired
-    private SmartEventPublisher smartEventPublisher;
-    @Override
-    @Transactional
-    public void saveProcessRecord(WorkFlowAO workFlowAO) {
-//        final String processId = workFlowAO.getRequestid();
-//        List<WorkFlowRecordAO> flowRecords = workFlowAO.getFlowRecord();
-//        if(CollectionUtils.isNotEmpty(flowRecords)){
-//            flowRecords.forEach(flowRecord->processRecord(processId, flowRecord));
-//        }
-        smartEventPublisher.publish(workFlowAO);
-    }
 //    private void processRecord(String processId, WorkFlowRecordAO process){
 //    	if(!process.getLogtype().equals(NodeStatusEnum.INTERVENTION.getCode())) {
 //    		//1、判重
