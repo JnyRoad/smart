@@ -17,6 +17,9 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -51,6 +54,19 @@ public class OaCallbackReplayServiceTest {
 		when(lock.acquire(anyString(), anyLong())).thenReturn("token");
 	}
 
+	/**
+	 * 从 LambdaUpdateWrapper#getSqlSet() 里为指定列解析出其绑定的占位符名（如 MPGENVAL3），
+	 * 再从 paramNameValuePairs 里按该占位符名精确取值。
+	 * 三审缺口修复：避免用 boundValues.contains(xxx) 做整体断言——多个 set 列的绑定值
+	 * 恰好都是同一个值（如 1）时，contains() 断言会互相掩护，改错某一列实现也测不出来。
+	 */
+	private String boundParamFor(String sqlSet, String column) {
+		Pattern pattern = Pattern.compile(Pattern.quote(column) + "=#\\{ew\\.paramNameValuePairs\\.(MPGENVAL\\d+)\\}");
+		Matcher matcher = pattern.matcher(sqlSet);
+		assertTrue("sqlSet 中未找到列 " + column + " 对应的绑定占位符：" + sqlSet, matcher.find());
+		return matcher.group(1);
+	}
+
 	private OaCallbackLog partialLog() {
 		OaCallbackLog log = new OaCallbackLog();
 		log.setId(100L);
@@ -83,18 +99,20 @@ public class OaCallbackReplayServiceTest {
 		verify(logService).update(isNull(), wrapperCaptor.capture());
 		LambdaUpdateWrapper<OaCallbackLog> wrapper = (LambdaUpdateWrapper<OaCallbackLog>) wrapperCaptor.getValue();
 		String sqlSet = wrapper.getSqlSet();
-		Collection<Object> boundValues = wrapper.getParamNameValuePairs().values();
+		Map<String, Object> params = wrapper.getParamNameValuePairs();
+		// 三审缺口修复：按列名精确定位各自的绑定占位符再断言，
+		// 避免多列断言共用同一集合 contains() 造成互相掩护（评审者已用变异测试实证）。
 		// retry_count 由原 retryCount=0 自增为 1
-		assertTrue("sqlSet 应包含 retry_count", sqlSet.contains("retry_count"));
-		assertTrue("绑定值应包含自增后的 retryCount=1", boundValues.contains(1));
+		assertEquals("retry_count 绑定值应为自增后的 1", Integer.valueOf(1),
+				params.get(boundParamFor(sqlSet, "retry_count")));
 		// succeeded_handlers 合并为 h1,h2（h1 原本已成功，h2 本次重放成功）
-		assertTrue("sqlSet 应包含 succeeded_handlers", sqlSet.contains("succeeded_handlers"));
-		assertTrue("绑定值应包含合并后的 h1,h2", boundValues.contains("h1,h2"));
+		assertEquals("succeeded_handlers 绑定值应为合并后的 h1,h2", "h1,h2",
+				params.get(boundParamFor(sqlSet, "succeeded_handlers")));
 		// 全部成功：status 置为 1（STATUS_SUCCESS），resolved 置为 1（RESOLVED_YES）
-		assertTrue("sqlSet 应包含 status", sqlSet.contains("status"));
-		assertTrue("绑定值应包含 STATUS_SUCCESS=1", boundValues.contains(OaCallbackLog.STATUS_SUCCESS));
-		assertTrue("sqlSet 应包含 resolved", sqlSet.contains("resolved"));
-		assertTrue("绑定值应包含 RESOLVED_YES=1", boundValues.contains(OaCallbackLog.RESOLVED_YES));
+		assertEquals("status 绑定值应为 STATUS_SUCCESS", Integer.valueOf(OaCallbackLog.STATUS_SUCCESS),
+				params.get(boundParamFor(sqlSet, "status")));
+		assertEquals("resolved 绑定值应为 RESOLVED_YES", Integer.valueOf(OaCallbackLog.RESOLVED_YES),
+				params.get(boundParamFor(sqlSet, "resolved")));
 	}
 
 	@Test
