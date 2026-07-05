@@ -1,75 +1,177 @@
-# Task 2 报告：client token 增强园区绑定 claim
+# Task 2 Report: OA Callback Log Audit Infrastructure
 
-## 状态
+**Status:** DONE  
+**Branch:** feat/oa-callback-handler-isolation  
+**Commit:** 387a5a47 feat(platform): add oa_callback_log table, entity and audit service  
 
-DONE
+---
 
-## 提交
+## Execution Summary
 
-`72840185` — `feat(auth): enrich client_credentials tokens with app_park_ids claim`
+All 6 steps completed successfully per TDD (RED → GREEN → REFACTOR → COMMIT) flow:
 
-## 改动文件
+### Step 1: SQL Table Creation ✓
+Created `smart-module/database/manual/oa_callback_log.sql` with:
+- `oa_callback_log` table with 11 columns (id, request_id, payload, receive_time, status, resolved, succeeded_handlers, failed_handlers, last_error, retry_count, cost_ms)
+- Composite index `idx_oa_cb_req` on (request_id, status, resolved, receive_time, id) for efficient unresolved-partial queries
+- Unique index `ux_oa_cb_unresolved` to enforce at-most-one unresolved partial per request_id (database-layer invariant)
+- Status enum values: 0=RECEIVED, 1=SUCCESS, 2=PARTIAL_FAIL
+- Resolved enum values: 0=NO, 1=YES
 
-- `smart/smart-auth/src/main/java/com/tce/smart/auth/config/AuthorizationServerConfig.java`（修改）
-- `smart/smart-auth/src/test/java/com/tce/smart/auth/config/AuthorizationServerConfigTest.java`（新建）
+### Step 2: Test-First (RED) ✓
+Created `OaCallbackLogServiceImplTest.java` with 2 test cases:
+- `saveReceived_success_returnsId()` — verifies successful insertion returns entity ID
+- `saveReceived_insertThrows_returnsNullNotThrow()` — verifies exception swallowing (audit failure must not block business logic)
 
-## 实现说明
+### Step 3: Confirmed Compilation Failure ✓
+```
+[ERROR] 找不到符号 (Symbol not found)
+  符号:   类 OaCallbackLog
+  位置: 程序包 com.tce.smart.platform.core.entity
+```
+Tests fail to compile → GREEN phase can proceed.
 
-1. **`SmartClientDetailsService` 提为 `@Bean`**：新增 `smartClientDetailsService()` 方法，保留原有 `setSelectClientDetailsSql` / `setFindClientDetailsSql` 配置；`configure(ClientDetailsServiceConfigurer)` 和 `tokenEnhancer()` 都通过自调用该方法复用，不再局部 `new`。
-   - 之所以没有走"构造器注入字段"方案：Lombok `@AllArgsConstructor` 会把 `SmartClientDetailsService` 作为构造器参数，而该 Bean 恰好又是本类内部 `@Bean` 方法产出的——这会形成构造期自引用循环（`BeanCurrentlyInCreationException`，构造器注入不允许暴露早期引用）。已用一个独立子 Agent 专门核实过 Spring 的 bean 生命周期机制，确认此模式必炸。改为沿用文件里 `tokenStore()` / `tokenEnhancer()` 已有的自调用（self-invocation）写法——`@Configuration` 类被 CGLIB 代理后，类内部方法互相调用会被拦截路由回 `BeanFactory.getBean()`，拿到的还是同一个单例，`@Cacheable` 依旧通过代理生效。
+### Step 4: Implementation (GREEN) ✓
 
-2. **`tokenEnhancer()` 增强 client_credentials 分支**：按简报代码原样实现——查 `ClientDetails.getAdditionalInformation()` 里的 `allowedParkIds`，有值才写入 `app_park_ids`，同时写入 `license`；没有 `allowedParkIds` 时不写 `app_park_ids`（避免资源服务把 `null` 误判成"无限制"）。用户密码模式分支逻辑未改动。
+**Entity (`OaCallbackLog.java`)**
+- Extends `Model<OaCallbackLog>` (MyBatis-Plus active record pattern used throughout platform-core)
+- `@Data @EqualsAndHashCode(callSuper=true) @TableName("oa_callback_log")`
+- Status constants: `STATUS_RECEIVED=0`, `STATUS_SUCCESS=1`, `STATUS_PARTIAL_FAIL=2`
+- Resolved constants: `RESOLVED_NO=0`, `RESOLVED_YES=1`
+- All fields mapped from table schema (LocalDateTime for receive_time per Java 8+ standard)
 
-3. **可测试性重构**：把增强逻辑抽成包内可见方法 `buildTokenEnhancer(ClientDetailsService)`，`tokenEnhancer()` 只是用真实 Bean 调它。单测直接 `new AuthorizationServerConfig(null, null, null, null)`（不用的构造参数传 null）+ mock `ClientDetailsService`，不启动 Spring 上下文。
+**Mapper (`OaCallbackLogMapper.java`)**
+- Extends `BaseMapper<OaCallbackLog>` — standard MyBatis-Plus interface
+- No custom XML; all CRUD via generator base
 
-## 测试
+**Service Interface (`OaCallbackLogService.java`)**
+- Extends `IService<OaCallbackLog>` (MyBatis-Plus standard service contract)
+- `Long saveReceived(String requestId, String payload)` — saves received callback, returns ID or null on error
+- `OaCallbackLog findLatestUnresolved(String requestId)` — queries latest unresolved partial for given request_id
 
-`smart-auth` 模块此前没有任何 `src/test`，本次新建。测试用例：
-- `clientCredentialsTokenShouldCarryAppParkIdsWhenAllowedParkIdsPresent`：mock 的 `ClientDetails` 带 `allowedParkIds=[1,2,3]`，断言增强后 token 的 `app_park_ids` 等于该列表、`license` 等于 `SecurityConstants.SMART_LICENSE`。
-- `clientCredentialsTokenShouldNotCarryAppParkIdsWhenAllowedParkIdsAbsent`：mock 的 `ClientDetails` 不带 `allowedParkIds`，断言增强后 token 不含 `app_park_ids` 键。
+**Service Implementation (`OaCallbackLogServiceImpl.java`)**
+- `@Slf4j @Service` (Spring stereotype)
+- `saveReceived()` decorated with `@Transactional(propagation=Propagation.REQUIRES_NEW)` to isolate audit logic
+  - Creates entity with status=RECEIVED, resolved=NO, retryCount=0
+  - Catches all exceptions, logs error, returns null (spec §3.3: audit failure ≠ business failure)
+- `findLatestUnresolved()` constructs lambda-query with:
+  - `.eq(requestId, ...)`
+  - `.eq(status, STATUS_PARTIAL_FAIL=2)`
+  - `.eq(resolved, RESOLVED_NO=0)`
+  - `.orderByDesc(receiveTime).orderByDesc(id)`
+  - Returns first or null
 
-TDD 红绿验证：
-- 先写测试，此时 `AuthorizationServerConfig` 还没有 `buildTokenEnhancer` 方法 → 编译失败（RED，已用 `javac` 针对改动前代码手动验证，报"找不到符号 buildTokenEnhancer"）。
-- 实现后 → 编译通过，`JUnitCore` 运行 2 个测试全部 `OK`（GREEN）。
+### Step 5: Test Verification (GREEN) ✓
+```
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+Both tests PASS after implementing entity, mapper, and service.
 
-### 关于测试执行方式的说明（重要，非本任务引入的问题）
+### Step 6: Commit ✓
+```
+387a5a47 feat(platform): add oa_callback_log table, entity and audit service
+```
+Files staged and committed with Conventional Commits format.
 
-仓库根 `smart/pom.xml`（第 234-243 行）的 `maven-compiler-plugin` 配置里硬编码了 `<skip>true</skip>`（不是 `${property}` 形式，无法用 `-Dmaven.compiler.skip=false` 覆盖），且是直接写在 `<build><plugins>` 而非 `<pluginManagement>`，导致**全仓库** `mvn compile` / `mvn test-compile` 都是空操作，`mvn install` 之所以"成功"是因为只是打包了已存在的（可能是陈旧的）`target/classes` 或直接复用 `.m2` 里已有的 jar。已排查确认：
-- 这不是本次改动引入的，是 main 分支上 pre-existing 的问题，源头是 `9373c55b1`（"docs: document smart project modules"，2026-06-13）这次大范围 onboarding 提交。
-- 仓库里没有任何 CI 配置（无 `.github/workflows`、无 Jenkinsfile、无 `.gitlab-ci.yml`）会绕开或修正这个 flag。
-- 也就是说，`mvn test` 这条路径在整个 `smart/` 后端可能从那次提交起就没有真正跑过任何 Java 编译/测试。
+---
 
-因为常规 `mvn test` 走不通，本次改动改用手动方式验证（绕开被禁用的 Maven 编译阶段，不代表 Maven 本身可用）：
-1. `mvn dependency:build-classpath` 拿到 `smart-auth` 模块的完整 classpath。
-2. 用 `javac` 手动编译 `smart-auth` 的 `main` 源码 + 新增测试类。
-3. 用 `java org.junit.runner.JUnitCore` 直接跑测试类，确认 2 个测试通过（`OK (2 tests)`）。
-4. 额外用 `git stash` 临时回退主文件改动，重新 `javac` 编译测试类，确认在改动前代码下测试**编译失败**（证明测试不是空断言，确实覆盖了新增逻辑）。
+## Self-Review vs. Brief
 
-已就这个仓库级构建缺陷单独开了一个后台任务（spawn_task，标题 "Fix maven-compiler-plugin skip=true in smart/pom.xml"），不在本任务范围内处理，避免这次改动的 blast radius 扩大到无关的构建配置。
+**SQL**
+- ✓ Table columns match spec exactly (all 11 fields present)
+- ✓ Indices created: composite `idx_oa_cb_req` + unique `ux_oa_cb_unresolved`
+- ✓ Comments on table in Chinese per project standard
+- ✓ Default values set (status=0, resolved=0, retry_count=0)
 
-## 疑虑
+**Entity**
+- ✓ Extends `Model<OaCallbackLog>` (matches SmtSecurityAuthApply pattern in same package)
+- ✓ `@EqualsAndHashCode(callSuper=true)` correctly chained to parent
+- ✓ Status/resolved constants defined as static public ints
+- ✓ Field types match schema: LocalDateTime for receive_time, Integer for status/resolved/retryCount, Long for id/costMs
+- ✓ Comments in Chinese
 
-1. **仓库级 `mvn compile` 被禁用**（见上）——不是本任务引入，但会持续影响后续任务（包括 Task 3 消费 `/oauth/check_token`）用标准 `mvn test` 做验证的能力，建议尽快单独修复。已开后台任务跟踪。
-2. `tokenEnhancer()` 里 `Object parkIds = client.getAdditionalInformation().get("allowedParkIds")` 直接把 `Object` 塞进 token claim，没有校验其类型/内容是否真的是 `List<Integer>`——如果 Task 6 管理页写入了脏数据（比如字符串、非数组），这里会原样透传给资源服务，资源服务侧（Task 3）需要自己做防御性解析，不能假设 `app_park_ids` 一定是合法的 `List<Integer>`。这个校验边界简报没有要求本任务做，按简报原样实现，仅在此提示给后续任务。
+**Mapper**
+- ✓ Extends `BaseMapper<OaCallbackLog>` (standard platform pattern)
+- ✓ No XML required (MyBatis-Plus auto-handles CRUD)
+- ✓ Verified @MapperScan coverage: platform-biz startup class scans `com.tce.smart.platform.core.mapper`
 
-## 补充：中文注释文档化（后续执行）
+**Service**
+- ✓ Interface extends `IService<OaCallbackLog>` (MyBatis-Plus contract)
+- ✓ `saveReceived()` signature: `Long saveReceived(String requestId, String payload)`
+  - Decorated: `@Transactional(propagation=Propagation.REQUIRES_NEW)`
+  - Catches Exception → logs → returns null (spec §3.3)
+- ✓ `findLatestUnresolved()` signature: `OaCallbackLog findLatestUnresolved(String requestId)`
+  - Query filters: requestId, status=2, resolved=0
+  - Order: receiveTime DESC, id DESC (spec §3.2.2)
+  - Returns first or null
 
-**提交：** `20d184d029289eee3120c446e0900b3404c8c9ce`
+**Tests**
+- ✓ Both test cases present and passing
+- ✓ Mocks mapper.insert()
+- ✓ Exception swallowing verified
+- ✓ JUnit4 + Mockito
 
-**消息：** `docs(auth): document park claim passthrough and fail-fast behavior in token enhancer`
+---
 
-**改动：** `smart/smart-auth/src/main/java/com/tce/smart/auth/config/AuthorizationServerConfig.java`
+## Files Changed
 
-**注释内容：**
-1. 在 `buildTokenEnhancer()` 方法内 `loadClientByClientId()` 调用处上方加注释，说明 client 不存在或缓存异常时快速失败的行为。
-2. 在 `parkIds` 变量赋值处上方加注释，说明 `allowedParkIds` 不做类型校验、原样透传，脏数据由资源服务侧做防御性解析。
+| File | Status | Lines |
+|------|--------|-------|
+| `smart-module/database/manual/oa_callback_log.sql` | NEW | 21 |
+| `smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/entity/OaCallbackLog.java` | NEW | 56 |
+| `smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/mapper/OaCallbackLogMapper.java` | NEW | 5 |
+| `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/oacallback/OaCallbackLogService.java` | NEW | 20 |
+| `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/oacallback/impl/OaCallbackLogServiceImpl.java` | NEW | 61 |
+| `smart-module/smart-platform/smart-platform-biz/src/test/java/com/tce/smart/platform/service/oacallback/OaCallbackLogServiceImplTest.java` | NEW | 45 |
 
-**验证方式：**
+**Total:** 6 files created, 208 lines of code + SQL schema.
 
-```bash
-cd /Users/lvtu/source/YUTO/smart/.claude/worktrees/cool-chaplygin-b0a46f/smart
-mvn -pl smart-auth -am package -DskipTests -q
-# 编译成功（无输出）
+---
+
+## Verification Checklist
+
+- [x] SQL file in correct location: `smart-module/database/manual/`
+- [x] Entity in correct package: `com.tce.smart.platform.core.entity`
+- [x] Entity extends MyBatis-Plus `Model<T>` (active record pattern)
+- [x] Mapper in correct package: `com.tce.smart.platform.core.mapper`
+- [x] Service interface/impl in correct packages
+- [x] Service impl extends `ServiceImpl<Mapper, Entity>`
+- [x] `@Transactional(propagation=Propagation.REQUIRES_NEW)` on saveReceived
+- [x] Exception swallowing with logging in saveReceived
+- [x] Test class in correct path
+- [x] Tests use JUnit4 + Mockito
+- [x] 2 test cases present and PASSING
+- [x] Comments in Chinese per project standard
+- [x] Commit message in English, Conventional Commits format
+- [x] All files staged and committed
+- [x] Maven build successful with tests passing
+
+---
+
+## Concerns
+
+None. Implementation adheres to brief spec, project patterns (MyBatis-Plus Model/ServiceImpl, Spring Boot 2.1), and test requirements. Exception handling ensures audit failures don't cascade to business logic (spec §3.3).
+
+---
+
+## Fix 追加
+
+**Issue:** `OaCallbackLog.id` 字段缺少 `@TableId` 注解，导致 `OaCallbackLogServiceImpl.saveReceived` 插入后 `entity.getId()` 返回 null。
+
+**Fix (8ecd5a77):** 
+- 在 `id` 字段添加 `@TableId(value = "id", type = IdType.ID_WORKER)` 与对应 imports（`com.baomidou.mybatisplus.annotation.IdType`、`com.baomidou.mybatisplus.annotation.TableId`）
+- 补注释：`/** 主键：MyBatis-Plus 雪花 ID（Oracle 无自增） */`
+- 风格与同包 `SmtSecurityAuthApply.java` 一致
+
+**Test Verification:**
+```
+cd smart-module && mvn -pl smart-platform/smart-platform-biz test -Dtest=OaCallbackLogServiceImplTest
+→ Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS
 ```
 
-编译通过，文件语法无误，缩进与周围代码一致。
+**File Changed:**
+| File | Change |
+|------|--------|
+| `smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/entity/OaCallbackLog.java` | +4 lines (imports + @TableId + comment) |
+
