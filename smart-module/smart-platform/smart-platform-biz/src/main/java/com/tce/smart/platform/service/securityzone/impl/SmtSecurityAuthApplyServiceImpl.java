@@ -119,10 +119,24 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 		try {
 			smtSecurityTaskDetailsService.downDevice(authApply.getId(), authApply.getApplyBadge());
 			// 下发未抛异常才推进主表"已触发下发"状态（修 D4，spec §3.1.3）
+			// 注意：主表 device_status 与明细表 SmtSecurityTaskDetails.status 是两套码表，
+			// 主表 4=ALRAEDY 表示"已触发下发"，明细表 1=SUCCESS 表示"单台设备下发成功"，切勿混淆。
 			this.update(Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
 					.eq(SmtSecurityAuthApply::getId, authApply.getId())
 					.eq(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode())
 					.set(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.ALRAEDY.getCode()));
+			// Critical 修复：CAS 只更新了 DB，未同步内存中的 authApply.deviceStatus。
+			// updateStatus() 里 triggerDownDevice 成功后紧接着会调用 updateById(authApply)，
+			// MyBatis-Plus 默认按 NOT_NULL 策略回写所有非空字段——若内存字段仍是调用方传入时的
+			// 旧值 0（WAIT），就会把上面 CAS 刚写入的 4 覆盖回 0，导致"下发成功但主表仍显示待下发"。
+			// 因此只要 downDevice 未抛异常（走到这里），无论上面的 CAS 是否命中（返回 true/false），
+			// 都必须把内存字段同步为 ALRAEDY：
+			// - CAS 命中：DB 已从 0→4，内存需跟上，否则被后续 updateById 覆盖回 0；
+			// - CAS 未命中（说明 DB 已非 0，大概率已是并发场景下别的调用者写成了 4）：
+			//   内存置 4 同样安全且必要，避免 updateById 用过期的 0 覆盖 DB 现有的 4。
+			// 失败路径（downDevice 抛异常，进入 catch）不会执行到这里，内存字段保持不变，
+			// 交由对账任务按现值重试，不允许在异常路径误推进状态。
+			authApply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
 			return true;
 		} catch (Exception e) {
 			// 带堆栈，保持主表 device_status 现值，由对账任务场景 2 重试（spec §3.1.3）
