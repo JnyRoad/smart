@@ -75,6 +75,10 @@ curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" \
 
 修改方式：Nacos 控制台找到 `smart-schedule` 对应 dataId，把该配置项改为 `true`/`false`，无需重启，配置中心动态刷新生效。
 
+### 单轮耗时观察项
+
+定时任务分布式锁 TTL 为 5 分钟，按"OA 查询正常毫秒级、5 秒为超时上界"的假设留有裕度。若生产观察到对账日志中单轮耗时超过 5 分钟（两条"保密门禁OA对账完成"日志间隔异常拉长、或出现跨实例并行迹象），需下调批量（`RECONCILE_BATCH_SIZE`）或上调锁 TTL；即使锁过期导致并行，claim CAS 与明细级 CAS 会兜底幂等，不会重复下发。
+
 ### 定时任务锁
 
 - 任务方法：`PlatformTimerTask.securityAuthUpdateOaTask()`（`smart-module/smart-schedule`）
