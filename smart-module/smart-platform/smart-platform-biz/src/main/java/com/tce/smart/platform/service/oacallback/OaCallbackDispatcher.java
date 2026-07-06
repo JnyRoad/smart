@@ -52,7 +52,7 @@ public class OaCallbackDispatcher {
 	public DispatchResult dispatch(WorkFlowAO ao) {
 		String requestId = ao.getRequestid();
 		String payload = JSONUtil.toJsonStr(ao);
-		log.info("收到OA审批消息：{}", payload);
+		log.info("收到OA审批消息：requestId={}, payloadLength={}", requestId, payload.length());
 		// 转发大岭山：加超时、失败仅告警，不影响本地处理与响应码（修 D6，锁外执行不占锁时长）
 		forwardToDls(payload);
 		// 入口先落库（独立事务，失败不阻断，spec §3.3）
