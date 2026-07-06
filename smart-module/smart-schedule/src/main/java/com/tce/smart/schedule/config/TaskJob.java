@@ -26,6 +26,8 @@ public class TaskJob {
 	private Boolean visitorType;
 	private Boolean admittanceRemind;
 	private Boolean admittanceUpdateOa;
+	/** 保密门禁申请OA审批状态对账开关（spec §3.1.6，PR2 补偿定时任务，Nacos 默认关） */
+	private Boolean securityAuthUpdateOa;
 	private Boolean admittanceComeOntime;
 	private Boolean admittanceOvertime;
 	private Boolean visitorNoLeave;

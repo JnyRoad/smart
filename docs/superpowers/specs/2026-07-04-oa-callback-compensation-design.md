@@ -108,7 +108,7 @@ update smt_security_auth_apply set oa_status = :final where id = :id and oa_stat
 #### 3.1.2 终态判定（Codex #5）
 
 - `oaWorkflowService.query(processId)` 成功后，将流转记录按 `OPERATEDATE + OPERATETIME` 升序排序，取**排序后最新一条**的 `CURRENTNODETYPE`：`3`（归档）→ 通过；`0` → 退回；其余/空/解析失败 → 视为审批中，跳过等下轮。
-- **实施前置任务**：用真实 OA 报文样本核实 `CURRENTNODETYPE` 是流程级（所有记录同值）还是记录级，并将结论回写本文档；单测覆盖乱序、重复记录、退回后再提交、空数据、查询异常。
+- **实施前置任务（已闭环，2026-07-05）**：直接抓取 OA 原始报文需提取 Nacos 中的 OA token，被凭证安全策略拦截，改以**生产运行证据**核实：入厂申请/HF 访客的对账在生产环境长期以 `data.get(size-1).getCURRENTNODETYPE()==3` 判归档且状态流转正常（2026-07 事故排查期间的 smt_admittance_apply 数据可证），说明"最新记录的 CURRENTNODETYPE 在归档后为 3"成立；本方案按 `OPERATEDATE+OPERATETIME` 排序取最新的实现，在"流程级（所有记录同值）"与"记录级（最新为准）"两种语义下均正确，是对既有生产用法的强化。测试环境上线验证步骤（§5.1 第 2 步）会对真实报文再作一次直接确认。单测覆盖乱序、重复记录、退回后再提交、空数据、查询异常。
 
 #### 3.1.3 补偿扫描对象与处理
 

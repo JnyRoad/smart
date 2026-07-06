@@ -8,6 +8,7 @@ import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyPageQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.securityzone.SecurityAuthApplyDetailRespDTO;
+import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.platform.core.service.SmtSecurityAreaService;
 import com.tce.smart.platform.service.securityzone.SmtSecurityAuthApplyService;
 import io.swagger.annotations.Api;
@@ -110,6 +111,18 @@ public class SmtSecurityAuthApplyController extends BaseController {
         smtSecurityAuthApplyService.sendMessage();
     }
 
+
+    /**
+     * 保密门禁申请 OA 审批状态对账任务（内部调用，供 smart-schedule 定时触发，spec §3.1.3/§3.1.4）
+     *
+     * @return Result
+     */
+    @Inner
+    @GetMapping("/oa/status/task")
+    public Result updateOaStatusTask() {
+        smtSecurityAuthApplyService.updateOaStatusTask();
+        return success();
+    }
 
     @ApiOperation("OA人员证件类型枚举")
     @GetMapping("/enum/factory/type")

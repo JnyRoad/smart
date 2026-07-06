@@ -168,6 +168,14 @@ public class SmtSecurityTaskDetailsServiceImpl extends ServiceImpl<SmtSecurityTa
 	 * @param badge 工号
 	 */
 	private void down(SmtSecurityTaskDetails detail, String badge) {
+		// 明细级原子抢占：status WAIT(0)->IN_WORK(3)，抢不到说明并发方（重复下发/对账任务）已处理，直接跳过（spec §3.1.1）
+		boolean claimed = this.update(Wrappers.<SmtSecurityTaskDetails>lambdaUpdate()
+				.eq(SmtSecurityTaskDetails::getId, detail.getId())
+				.eq(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.WAIT.getCode())
+				.set(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.IN_WORK.getCode()));
+		if (!claimed) {
+			return;
+		}
 		//根据员工编号获取员工信息
 		SmtStaff staff = smtStaffService.getById(detail.getStaffId());
 		//根据权限编号和员工id，检查员工权限
@@ -186,15 +194,13 @@ public class SmtSecurityTaskDetailsServiceImpl extends ServiceImpl<SmtSecurityTa
 		String imgBase64 = smtImageService.getImageBase64ByCode(staff.getFacePicId());
 		// 下发或更新权限
 		String remark = smtStaffService.updatePersonCard(staff, imgBase64, staff.getFacePicId(), staffAuthList, null, badge);
-		//更新任务状态
-		detail.setStatus(DeviceDownStatusEnum.IN_WORK.getCode());
-		//错误信息处理
+		// 任务状态已由开头的 CAS 抢占置为 IN_WORK，此处仅需在失败时覆盖为 FAIL 并记录原因
 		if (StringUtils.isNotEmpty(remark)) {
 			detail.setStatus(DeviceDownStatusEnum.FAIL.getCode());
 			detail.setRemark(remark);
+			//更新任务详情（失败场景需要落库覆盖状态与备注）
+			this.updateById(detail);
 		}
-		//更新任务详情
-		this.updateById(detail);
 	}
 
 	/**
