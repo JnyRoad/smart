@@ -20,12 +20,13 @@ BEGIN
 	IF V_EXISTING_COUNT > 0 THEN
 		DBMS_OUTPUT.PUT_LINE('应用 file-receiver-xc 已存在，跳过注册');
 	ELSE
+		-- tenant_id 为 NOT NULL 且无默认值（漏填会 ORA-01400）；取 1 与存量客户端一致（单租户）
 		INSERT INTO sys_oauth_client_details
 		  (client_id, client_secret, scope, authorized_grant_types,
-		   access_token_validity, additional_information)
+		   access_token_validity, additional_information, tenant_id)
 		VALUES
 		  ('file-receiver-xc', '{noop}CHANGE-ME-ON-DEPLOY', 'open:admittance:photo:read',
-		   'client_credentials', 43200, V_ADDITIONAL_INFO);
+		   'client_credentials', 43200, V_ADDITIONAL_INFO, 1);
 
 		DBMS_OUTPUT.PUT_LINE('应用 file-receiver-xc 注册成功');
 	END IF;
