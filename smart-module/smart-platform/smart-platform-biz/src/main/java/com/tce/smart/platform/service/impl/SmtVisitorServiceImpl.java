@@ -3498,6 +3498,16 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 			return false;
 		}
 		forgetPendingOaStatus(visitor.getId());
+		return claimAndApplyHfOaFinalStatus(visitor, finalStatus);
+	}
+
+	/**
+	 * claim 式落 OA 终态（回调链路与拉取对账 syncOaStatus 共用入口）：
+	 * CAS 抢占失败说明已被另一链路处理，直接返回 false；
+	 * 抢占成功后执行后置处理，失败回滚为待审核并登记重查，交拉取对账重试。
+	 */
+	@Override
+	public boolean claimAndApplyHfOaFinalStatus(SmtVisitor visitor, Integer finalStatus) {
 		visitor.setStatus(finalStatus);
 		if (!claimOaFinalStatus(visitor)) {
 			log.info("访客OA审批状态已被其他任务处理，id={}，processId={}", visitor.getId(), visitor.getProcessId());

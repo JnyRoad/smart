@@ -430,6 +430,63 @@ public class SmtVisitorServiceImplTest {
 				.anyMatch(value -> String.valueOf(expected).equals(String.valueOf(value)));
 	}
 
+	// ========== claim 式落 OA 终态入口（回调链路与拉取对账共用，见 claimAndApplyHfOaFinalStatus） ==========
+
+	@Test
+	public void claimAndApplyHfOaFinalStatus_claimLost_returnsFalse_andSkipsPostProcessing() throws Exception {
+		SmtVisitorMapper mapper = Mockito.mock(SmtVisitorMapper.class);
+		SmtVisitorServiceImpl service = Mockito.spy(new SmtVisitorServiceImpl());
+		setField(service, "baseMapper", mapper);
+		//CAS 条件更新未命中：该行已被拉取对账（或另一次回调）先行落终态
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(0);
+		Mockito.doReturn(Boolean.TRUE).when(service).updateHfStatus(Mockito.any(SmtVisitor.class));
+
+		boolean claimed = service.claimAndApplyHfOaFinalStatus(
+				pendingVisitor(3101L, "oa-cb-claim-lost"), VisitorStatusEnum.Status_0.getCode());
+
+		Assert.assertFalse(claimed);
+		Mockito.verify(service, Mockito.never()).updateHfStatus(Mockito.any(SmtVisitor.class));
+	}
+
+	@Test
+	public void claimAndApplyHfOaFinalStatus_claimWon_runsPostProcessing_andFillsSmsCode() throws Exception {
+		SmtVisitorMapper mapper = Mockito.mock(SmtVisitorMapper.class);
+		SmtVisitorServiceImpl service = Mockito.spy(new SmtVisitorServiceImpl());
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.doReturn(Boolean.TRUE).when(service).updateHfStatus(Mockito.any(SmtVisitor.class));
+		SmtVisitor visitor = pendingVisitor(3102L, "oa-cb-claim-won");
+
+		boolean claimed = service.claimAndApplyHfOaFinalStatus(visitor, VisitorStatusEnum.Status_0.getCode());
+
+		Assert.assertTrue(claimed);
+		ArgumentCaptor<SmtVisitor> visitorCaptor = ArgumentCaptor.forClass(SmtVisitor.class);
+		Mockito.verify(service).updateHfStatus(visitorCaptor.capture());
+		Assert.assertEquals(Long.valueOf(3102L), visitorCaptor.getValue().getId());
+		Assert.assertEquals(VisitorStatusEnum.Status_0.getCode(), visitorCaptor.getValue().getStatus());
+		//审批通过路径必须在 claim 阶段生成短信验证码（与拉取对账行为一致）
+		Assert.assertFalse(StrUtil.isBlank(visitorCaptor.getValue().getSmsCode()));
+	}
+
+	@Test
+	public void claimAndApplyHfOaFinalStatus_postProcessingFails_restoresPendingStatus_andReturnsTrue() throws Exception {
+		SmtVisitorMapper mapper = Mockito.mock(SmtVisitorMapper.class);
+		SmtVisitorServiceImpl service = Mockito.spy(new SmtVisitorServiceImpl());
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.doThrow(new RuntimeException("post approval failed"))
+				.when(service).updateHfStatus(Mockito.any(SmtVisitor.class));
+		SmtVisitor visitor = pendingVisitor(3103L, "oa-cb-post-fail");
+
+		boolean claimed = service.claimAndApplyHfOaFinalStatus(visitor, VisitorStatusEnum.Status_0.getCode());
+
+		//claim 已成功返回 true；后置失败回滚为待审核，交拉取对账重试（与 syncOaStatus 失败补偿一致）
+		Assert.assertTrue(claimed);
+		Assert.assertEquals(VisitorStatusEnum.Status_2.getCode(), visitor.getStatus());
+		//mapper.update 两次：claim CAS 一次 + 状态回滚一次
+		Mockito.verify(mapper, Mockito.times(2)).update(Mockito.isNull(), Mockito.any());
+	}
+
 	private SmtVisitor pendingVisitor(Long id, String processId) {
 		SmtVisitor visitor = new SmtVisitor();
 		visitor.setId(id);
