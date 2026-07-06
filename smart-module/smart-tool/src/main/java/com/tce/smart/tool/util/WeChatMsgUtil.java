@@ -27,7 +27,7 @@ public class WeChatMsgUtil {
 	private static final String API_KEY = "insertTemplateMsg";
 	/**
 	 * 默认公众号模板名：历史上全系统所有业务推送都借用「访客出入园提醒」模板壳。
-	 * 旧 sendMsg 签名继续用它以保持 17 个存量调用点行为不变；
+	 * 旧 sendMsg 签名继续用它以保持 18 个存量调用点行为不变；
 	 * 新业务请走 sendTemplateMsg 显式传模板名（可用模板清单需运维确认）。
 	 */
 	public static final String DEFAULT_TEMPLATE_NAME = "访客出入园提醒";
@@ -70,7 +70,7 @@ public class WeChatMsgUtil {
 	 * @param loginName 路由工号（中转服务据此查 openId，可空）
 	 * @param openId 微信OpenId（与 loginName 二选一，可空）
 	 * @param url 跳转链接
-	 * @return 发送结果（失败/异常一律返回 false，不抛出——17 个存量调用点依赖此契约）
+	 * @return 发送结果（失败/异常一律返回 false，不抛出——18 个存量调用点依赖此契约）
 	 */
 	public static Boolean sendTemplateMsg(String templateName, String displayName,
 			String body, String loginName, String openId, String url) {
@@ -93,7 +93,7 @@ public class WeChatMsgUtil {
 			return parseResponse(result);
 
 		} catch (Exception e) {
-			log.error("微信消息发送异常: loginName={}, error={}", loginName, e.getMessage(), e);
+			log.error("微信消息发送异常: templateName={}, loginName={}, error={}", templateName, loginName, e.getMessage(), e);
 			return Boolean.FALSE;
 		}
 	}

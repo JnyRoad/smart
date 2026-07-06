@@ -2,6 +2,7 @@ package com.tce.smart.platform.service.securityzone.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -478,21 +479,48 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 				}
 				boolean sent = trySendSecurityMsg(apply);
 				if (sent) {
-					apply.setIsMsg(OneOrZeroEnum.ONE.getCode());
+					// 成功路径改条件化更新（CAS：is_msg 0→1），杜绝 updateById 全字段回写。
+					// 定时轮与 @Inner 手动触发（或 Feign 超时导致的轮次重叠）并发时，若沿用
+					// last-writer-wins 的 updateById，一轮旧快照会把另一轮刚写入的 is_msg=1
+					// 回退成 0 造成重复推送。这里只允许把仍处 0（未发送）的单推进到 1。
+					boolean claimed = this.update(Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
+							.set(SmtSecurityAuthApply::getIsMsg, OneOrZeroEnum.ONE.getCode())
+							.eq(SmtSecurityAuthApply::getId, apply.getId())
+							.eq(SmtSecurityAuthApply::getIsMsg, OneOrZeroEnum.ZERO.getCode()));
+					if (!claimed) {
+						// 并发轮已推进该单状态，本轮结果放弃（宁可少记一次成功，不可回退已发送态）
+						log.warn("保密权限微信推送状态推进未命中（并发轮已处理）：processId={}", apply.getProcessId());
+					}
 				} else {
 					// 失败计数 +1；历史存量行加列前为 null，按 0 起算
-					int retryCount = (apply.getMsgRetryCount() == null ? 0 : apply.getMsgRetryCount()) + 1;
-					apply.setMsgRetryCount(retryCount);
+					Integer oldRetry = apply.getMsgRetryCount();
+					int retryCount = (oldRetry == null ? 0 : oldRetry) + 1;
+					// 计数同样条件化：条件带上旧值（null 走 isNull 分支），避免并发轮互相覆盖
+					// 突破重试上限；同时仍限定 is_msg=0，已被推进/放弃的单不再累加计数。
+					LambdaUpdateWrapper<SmtSecurityAuthApply> uw = Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
+							.set(SmtSecurityAuthApply::getMsgRetryCount, retryCount)
+							.eq(SmtSecurityAuthApply::getId, apply.getId())
+							.eq(SmtSecurityAuthApply::getIsMsg, OneOrZeroEnum.ZERO.getCode());
+					if (oldRetry == null) {
+						uw.isNull(SmtSecurityAuthApply::getMsgRetryCount);
+					} else {
+						uw.eq(SmtSecurityAuthApply::getMsgRetryCount, oldRetry);
+					}
 					if (retryCount >= MAX_MSG_RETRY) {
-						// 达上限置终态放弃，封死无限重发；告警日志留人工排查线索
-						apply.setIsMsg(MSG_SEND_ABANDONED);
+						// 达上限同一条 CAS 内置终态放弃，封死无限重发；告警日志留人工排查线索
+						uw.set(SmtSecurityAuthApply::getIsMsg, MSG_SEND_ABANDONED);
 						log.warn("保密权限微信推送连续失败达上限，放弃重试：processId={}, applyBadge={}, retryCount={}",
 								apply.getProcessId(), apply.getApplyBadge(), retryCount);
 					}
+					boolean claimed = this.update(uw);
+					if (!claimed) {
+						log.warn("保密权限微信推送失败计数未命中（并发轮已处理）：processId={}", apply.getProcessId());
+					}
 				}
-				this.updateById(apply);
 			} catch (Exception e) {
-				// 异常单不计失败次数（与「明确发送失败」区分），下一轮重扫自然重试
+				// 本 catch 只覆盖状态同步/明细统计/DB 更新等本地异常；推送链路的 HTTP 超时与
+				// 响应异常已在 WeChatMsgUtil 内部转为 false、按明确失败计数（可能造成有界重复推送）。
+				// 落到这里的异常单不计失败次数（与「明确发送失败」区分），下一轮重扫自然重试。
 				log.error("保密权限微信推送处理异常：processId={}, applyBadge={}",
 						apply.getProcessId(), apply.getApplyBadge(), e);
 			}
@@ -520,11 +548,15 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 			return false;
 		}
 		Integer failNum = smtSecurityTaskDetailsService.getCount(apply.getId(), DeviceDownStatusEnum.FAIL.getCode());
-		int totalNum = apply.getTotalNum() == null ? 0 : apply.getTotalNum();
-		int successNum = Math.max(0, totalNum - (failNum == null ? 0 : failNum));
+		Integer successNum = smtSecurityTaskDetailsService.getCount(apply.getId(), DeviceDownStatusEnum.SUCCESS.getCode());
+		// 口径说明：成功/总数均按下发明细行（人×区域权限）统计，与管理端列表页 successNum/failNum 口径一致；
+		// 主表 totalNum 是申请人数，与明细数不同单位，不能混用相减（评审确认的单位错配）
+		int success = successNum == null ? 0 : successNum;
+		int fail = failNum == null ? 0 : failNum;
+		int total = success + fail;   // 进入此分支时 IN_WORK==0，明细已全部定型
 		String body = template.getTempContent()
-				.replace("{成功数量}", String.valueOf(successNum))
-				.replace("{总数量}", String.valueOf(totalNum));
+				.replace("{成功数量}", String.valueOf(success))
+				.replace("{总数量}", String.valueOf(total));
 		return Boolean.TRUE.equals(pushWeChatMsg(staff.getName(), body, apply.getApplyBadge()));
 	}
 
