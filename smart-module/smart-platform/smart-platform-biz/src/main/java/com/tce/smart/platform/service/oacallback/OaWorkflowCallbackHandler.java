@@ -8,7 +8,7 @@ import com.tce.smart.platform.core.ao.WorkFlowAO;
  */
 public interface OaWorkflowCallbackHandler {
 
-	/** handler 唯一名，写入 oa_callback_log 的 succeeded/failed_handlers */
+	/** handler 唯一名，写入 smt_oa_callback_log 的 succeeded/failed_handlers */
 	String name();
 
 	/** 处理一次 OA 回调；未命中本业务时应快速返回 */

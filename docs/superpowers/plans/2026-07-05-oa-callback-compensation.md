@@ -4,7 +4,7 @@
 
 **Goal:** 按已定稿 spec（`docs/superpowers/specs/2026-07-04-oa-callback-compensation-design.md` v6）实现：OA 回调 Handler 化隔离 + 回调报文落库/重放（PR1），保密门禁申请 OA 拉取对账 + 手动下发加固（PR2）。
 
-**Architecture:** PR1 把 `LeaveApplicationListener` 的 12 个业务分支原样搬迁为独立 `OaWorkflowCallbackHandler`，由 `OaCallbackDispatcher` 在 request_id 级 Redis 锁内循环调用（独立 try/catch、独立事务），报文落 `oa_callback_log`，部分失败向 OA 返回显式 HTTP 500 并支持按 logId 重放。PR2 为保密门禁申请增加每 2 分钟的 OA 拉取对账（`CURRENTNODETYPE` 判终态 + CAS 抢占 + 明细级原子抢占），并重写手动下发。
+**Architecture:** PR1 把 `LeaveApplicationListener` 的 12 个业务分支原样搬迁为独立 `OaWorkflowCallbackHandler`，由 `OaCallbackDispatcher` 在 request_id 级 Redis 锁内循环调用（独立 try/catch、独立事务），报文落 `smt_oa_callback_log`，部分失败向 OA 返回显式 HTTP 500 并支持按 logId 重放。PR2 为保密门禁申请增加每 2 分钟的 OA 拉取对账（`CURRENTNODETYPE` 判终态 + CAS 抢占 + 明细级原子抢占），并重写手动下发。
 
 **Tech Stack:** Java 8、Spring Boot 2.1、MyBatis-Plus、Oracle、Redis（StringRedisTemplate）、OpenFeign、JUnit4 + Mockito、hutool。
 
@@ -49,7 +49,7 @@ smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platf
 smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/
 ├── entity/OaCallbackLog.java
 └── mapper/OaCallbackLogMapper.java
-smart-module/database/manual/oa_callback_log.sql         # 建表 + 索引 + 函数唯一索引
+smart-module/database/manual/smt_oa_callback_log.sql         # 建表 + 索引 + 函数唯一索引
 ```
 
 **PR2 新增/修改：**
@@ -220,10 +220,10 @@ git commit -m "feat(platform): add raw-key redis mutex lock with token release"
 
 ---
 
-### Task 2: oa_callback_log 表 + 实体 + Mapper + Service
+### Task 2: smt_oa_callback_log 表 + 实体 + Mapper + Service
 
 **Files:**
-- Create: `smart-module/database/manual/oa_callback_log.sql`
+- Create: `smart-module/database/manual/smt_oa_callback_log.sql`
 - Create: `smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/entity/OaCallbackLog.java`
 - Create: `smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/mapper/OaCallbackLogMapper.java`
 - Create: `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/oacallback/OaCallbackLogService.java`
@@ -238,7 +238,7 @@ git commit -m "feat(platform): add raw-key redis mutex lock with token release"
 
 ```sql
 -- OA 回调报文审计表：每次 /oa/workflow/over 回调先落库再分发（spec §3.3）
-create table oa_callback_log (
+create table smt_oa_callback_log (
     id                 number(19)     primary key,
     request_id         varchar2(64)   not null,           -- OA requestid
     payload            clob,                              -- 完整回调报文 JSON
@@ -252,14 +252,14 @@ create table oa_callback_log (
     cost_ms            number(10)                         -- 分发耗时毫秒
 );
 
-comment on table oa_callback_log is 'OA工作流回调审计与重放日志';
+comment on table smt_oa_callback_log is 'OA工作流回调审计与重放日志';
 
 -- 未解决 partial 查询 + 排序支撑索引（spec §3.3）
-create index idx_oa_cb_req on oa_callback_log (request_id, status, resolved, receive_time, id);
+create index idx_oa_cb_req on smt_oa_callback_log (request_id, status, resolved, receive_time, id);
 
 -- 不变量兜底：任一 request_id 至多一条未解决 partial（仅兜底日志层不变量，不防副作用重复，spec §3.2.2）
 create unique index ux_oa_cb_unresolved
-    on oa_callback_log (case when status = 2 and resolved = 0 then request_id end);
+    on smt_oa_callback_log (case when status = 2 and resolved = 0 then request_id end);
 ```
 
 - [ ] **Step 2: 写失败测试（saveReceived 吞异常 + findLatestUnresolved 查询条件）**
@@ -337,7 +337,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("oa_callback_log")
+@TableName("smt_oa_callback_log")
 public class OaCallbackLog extends Model<OaCallbackLog> {
 
 	/** 处理状态：已接收 */
@@ -474,12 +474,12 @@ Expected: 2 个测试 PASS。
 - [ ] **Step 6: Commit**
 
 ```bash
-git add smart-module/database/manual/oa_callback_log.sql \
+git add smart-module/database/manual/smt_oa_callback_log.sql \
         smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/entity/OaCallbackLog.java \
         smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/mapper/OaCallbackLogMapper.java \
         smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/oacallback/ \
         smart-module/smart-platform/smart-platform-biz/src/test/java/com/tce/smart/platform/service/oacallback/
-git commit -m "feat(platform): add oa_callback_log table, entity and audit service"
+git commit -m "feat(platform): add smt_oa_callback_log table, entity and audit service"
 ```
 
 ---
@@ -954,7 +954,7 @@ import com.tce.smart.platform.core.ao.WorkFlowAO;
  */
 public interface OaWorkflowCallbackHandler {
 
-	/** handler 唯一名，写入 oa_callback_log 的 succeeded/failed_handlers */
+	/** handler 唯一名，写入 smt_oa_callback_log 的 succeeded/failed_handlers */
 	String name();
 
 	/** 处理一次 OA 回调；未命中本业务时应快速返回 */
@@ -978,7 +978,7 @@ import java.util.List;
 public class DispatchResult {
 	/** 全部 handler 成功（含跳过） */
 	private boolean allSuccess;
-	/** 本次 oa_callback_log 记录 id（落库失败为 null） */
+	/** 本次 smt_oa_callback_log 记录 id（落库失败为 null） */
 	private Long logId;
 	/** 失败 handler 名列表 */
 	private List<String> failedHandlers;
@@ -2090,10 +2090,10 @@ public class OaFinalStatusResolver {
 - Create: `docs/superpowers/runbooks/oa-callback-runbook.md`
 
 - [ ] Step 1: 编写 runbook，内容必须包含：
-  1. **巡检 SQL**（照 spec 附录 B 四条，`oa_callback_log` 条件为 `status=2 and resolved=0`）。
-  2. **重放操作**：`curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" -H "from: Y"`（`from` 头的值以 `SecurityConstants.FROM_IN` 实际值为准），附"先查 `select id,request_id,failed_handlers,last_error from oa_callback_log where status=2 and resolved=0` 定位 logId"。
+  1. **巡检 SQL**（照 spec 附录 B 四条，`smt_oa_callback_log` 条件为 `status=2 and resolved=0`）。
+  2. **重放操作**：`curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" -H "from: Y"`（`from` 头的值以 `SecurityConstants.FROM_IN` 实际值为准），附"先查 `select id,request_id,failed_handlers,last_error from smt_oa_callback_log where status=2 and resolved=0` 定位 logId"。
   3. **Nacos 开关**：`taskJob.securityAuthUpdateOa=true` 灰度开启对账；关闭即回滚到纯回调模式。
-  4. **上线 SOP**（照 spec §5.1 顺序）：建表（`oa_callback_log.sql`）→ 发 platform → 发 schedule（开关关）→ 测试环境验证 → 生产灰度 → 观察 28753680 自动补齐（`select oa_status, device_status from smt_security_auth_apply where process_id='28753680'` 预期变为 `1/4`）；28760183 先在 OA 侧确认已归档。
+  4. **上线 SOP**（照 spec §5.1 顺序）：建表（`smt_oa_callback_log.sql`）→ 发 platform → 发 schedule（开关关）→ 测试环境验证 → 生产灰度 → 观察 28753680 自动补齐（`select oa_status, device_status from smt_security_auth_apply where process_id='28753680'` 预期变为 `1/4`）；28760183 先在 OA 侧确认已归档。
   5. **对账任务日志关键字**：`保密门禁OA对账完成`、`保密门禁申请超24小时未收到OA终态`。
 - [ ] Step 2: `mvn clean package -DskipTests`（smart-module/ 全模块）+ `mvn -pl smart-platform/smart-platform-biz -am test` 全量 PASS。
 - [ ] Step 3: Commit `docs(runbooks): add oa callback reconciliation runbook` → 推分支，创建 PR2（title: `feat(platform): oa status reconciliation and hardened dispatch for security auth apply`，body Risks 注明"手动下发行为变化：未审批单从可下发变为拒绝，属安全修复预期行为"）。

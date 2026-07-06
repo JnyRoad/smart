@@ -13,7 +13,7 @@
 | 3 | 采纳 | 分发器全量执行、汇总失败后向 OA 返回非 200，保留 OA 重试语义（§3.2） |
 | 4 | 采纳 | 保密门禁独立设计扫描窗口/游标/索引，不照搬入厂（§3.1.4） |
 | 5 | 采纳 | 终态解析按操作时间排序 + 实施前用真实报文核实字段语义（§3.1.2） |
-| 6 | 采纳 | oa_callback_log 增加结构化状态列与重放定义（§3.3） |
+| 6 | 采纳 | smt_oa_callback_log 增加结构化状态列与重放定义（§3.3） |
 | 7 | 采纳 | 结构化计数日志 + 巡检 SQL 清单 + 超龄告警日志（§5.3） |
 | 8 | 采纳 | 过程记录归一化 DTO，收敛 6+ 处重复（§3.2.4） |
 | 9 | 采纳 | 手动下发补输入/状态校验，复用同一 claim 流程（§3.4） |
@@ -23,7 +23,7 @@ v3 增补（Codex 复审新问题）：
 
 | Codex # | 处理 | 摘要 |
 |---|---|---|
-| N1 | 采纳 | 部分成功后 OA 重试跳过已成功 handler：oa_callback_log 增 `succeeded_handlers` 列 + 分发器跳过逻辑（§3.2.2） |
+| N1 | 采纳 | 部分成功后 OA 重试跳过已成功 handler：smt_oa_callback_log 增 `succeeded_handlers` 列 + 分发器跳过逻辑（§3.2.2） |
 | N2 | 采纳 | 重放改为按 log id 的内部接口，retry_count 回写原记录，不再重新 POST 网关入口（§3.3） |
 
 Codex 复审同时确认：#2 分歧（不重做主表 device_status 状态机）被接受，前提是守住不变量——主表 `4` 仅表示"已触发下发"，最终成败以明细表为准（§3.1.5 已如此定义）。
@@ -85,7 +85,7 @@ v6 增补（Codex 终审）：
 |---|---|
 | 对账覆盖范围 | 本次只做保密门禁申请；其他业务列入后续扩展清单，框架可复用 |
 | 监听器改造方式 | 拆成独立 Handler（业务逻辑原样搬迁不改写） |
-| 回调报文落库 | 做（oa_callback_log 表，含结构化状态列） |
+| 回调报文落库 | 做（smt_oa_callback_log 表，含结构化状态列） |
 | 事故单 28753680 处置 | 不手工改数据，等对账任务上线自动补齐 |
 | Handler 失败对 OA 的响应 | 全量执行、汇总失败后返回非 200（保留 OA 重试语义） |
 | 主表 device_status 状态机 | 本期不改语义，仅显式文档化 + 补偿覆盖两类中间态（分歧说明见 §6） |
@@ -147,12 +147,12 @@ update smt_security_auth_apply set oa_status = :final where id = :id and oa_stat
 
 - **request_id 级互斥（四审 High-a/b）**：分发器处理回调前，先按 `request_id` 获取 Redis 互斥锁（在 `smart-common`/`smart-tool` 新增公共 raw-key 锁 helper，沿用 `ISwitchService` 的 token + `setIfAbsent` + Lua 原子释放模式——`ISwitchService` 本身位于 smart-schedule 且 API 绑定 `TimerTaskEnum`，不直接复用；key 形如 `oa:callback:lock:{requestId}`），**查跳过集合 → 执行 handlers → 落库/回写/关闭旧 partial 全程在锁内**。拿不到锁：短暂重试（3 次 × 2 秒）后仍失败 → 落库 status=0 备查并返回 HTTP 500（交给 OA 重试）。同 request_id 的自然回调、OA 重推、重放接口全部串行化，"至多一条未解决 partial"不变量在处理层得到保证。
 - **锁 TTL 约束（终审 High）**：TTL 必须**大于分发全程耗时上界**并留安全余量。上界可推导：handler 数（12）× 单 handler 最坏耗时——handler 内外部调用均有显式超时（大岭山转发 5s、OA query 超时、Feign 全局超时），实施时以实际超时配置累加核定；**初始值定 10 分钟**，并在实现中断言"任一 handler 无未设超时的外部调用"。不采用续租方案（复杂度高，且处理上界可静态推导）。
-- **不变量兜底（表述限定）**：Oracle 函数唯一索引 `unique index ux_oa_cb_unresolved on oa_callback_log (case when status=2 and resolved=0 then request_id end)`——它**只兜底"日志层至多一条未解决 partial"这一不变量**（第二条写入报错、记 ERROR 并落为 resolved=1 失败快照），**不能防止锁过期窗口内 handler 副作用被重复执行**；副作用重复的防线是上一条的 TTL 上界约束 + handler 自身幂等（过程记录判重、保密门禁 CAS claim）。
+- **不变量兜底（表述限定）**：Oracle 函数唯一索引 `unique index ux_oa_cb_unresolved on smt_oa_callback_log (case when status=2 and resolved=0 then request_id end)`——它**只兜底"日志层至多一条未解决 partial"这一不变量**（第二条写入报错、记 ERROR 并落为 resolved=1 失败快照），**不能防止锁过期窗口内 handler 副作用被重复执行**；副作用重复的防线是上一条的 TTL 上界约束 + handler 自身幂等（过程记录判重、保密门禁 CAS claim）。
 - 分发器循环执行**全部** handler，逐个 try/catch；单个失败不阻断其他 handler。
-- 全部执行完后若存在失败：回写 oa_callback_log（status=部分失败 + failed_handlers + succeeded_handlers + 异常摘要），**并向 OA 返回 HTTP 500**。
+- 全部执行完后若存在失败：回写 smt_oa_callback_log（status=部分失败 + failed_handlers + succeeded_handlers + 异常摘要），**并向 OA 返回 HTTP 500**。
 - **HTTP 状态码实现约束（四审 Medium）**：项目 `Result.fail()` 与 `GlobalExceptionHandlerResolver` 均返回 HTTP 200（仅业务码非 0），**不能**靠返回 `Result.fail` 或抛异常实现"非 200"；回调 controller 必须显式返回 `ResponseEntity.status(500)`。测试用 MockMvc 断言真实 HTTP status（见 §4）。
 - 全部成功：回写成功状态（含 succeeded_handlers），返回 HTTP 200。
-- **重试跳过已成功 handler（N1）**：分发器处理任一回调前，先查 `oa_callback_log` 中同 `request_id` 的**未解决 partial 记录**（`status=2 and resolved=0`，`order by receive_time desc, id desc` 取第一条；`receive_time` 相同用 `id desc` 兜底）：
+- **重试跳过已成功 handler（N1）**：分发器处理任一回调前，先查 `smt_oa_callback_log` 中同 `request_id` 的**未解决 partial 记录**（`status=2 and resolved=0`，`order by receive_time desc, id desc` 取第一条；`receive_time` 相同用 `id desc` 兜底）：
   - 存在 → 该记录的 `succeeded_handlers` 作为跳过集合，本次只执行未成功的 handler（防止 OA 因非 200 重推时，已成功 handler 重复产生副作用，如重复 App/微信通知）；
   - 不存在（首次回调，或历史 partial 均已解决）→ 全量执行。此时 OA 的再次推送视为流程新事件，幂等由过程记录判重与保密门禁 CAS claim 兜底——与今天 OA 重推的现状行为一致，无回归。
 - **历史 partial 记录关闭规则（三审缺口 1）**：本次回调处理完成后，**无条件**将命中的旧 partial 记录置 `resolved=1`（同一处理流内回写）——无论本次全成功还是仍有失败。本次结果照常落新 log，其 `succeeded_handlers` = 本次实际成功 + 跳过集合（合并值）；若本次仍有失败，新 log 即成为唯一未解决 partial（status=2, resolved=0）。不变量：**任一 request_id 至多存在一条未解决 partial**。巡检与告警只看 `status=2 and resolved=0`。
@@ -168,7 +168,7 @@ update smt_security_auth_apply set oa_status = :final where id = :id and oa_stat
 - 回退 flag 判断、`htmlHandle` 一并抽入共享组件。
 - 转发大岭山（D6）：挪入分发器，5 秒超时，异常记 WARN；转发失败不影响本地处理、不影响对 OA 的响应码。修 D7 占位符。
 
-### 3.3 回调报文落库（oa_callback_log，Codex #6）
+### 3.3 回调报文落库（smt_oa_callback_log，Codex #6）
 
 - 新表（Oracle，脚本入 `smart-module/database/manual/`）：
 
@@ -211,16 +211,16 @@ update smt_security_auth_apply set oa_status = :final where id = :id and oa_stat
 - **unit（三审缺口 4 增补）**：同 request_id 多条日志时按 `receive_time desc, id desc` 选中正确 partial；partial 后自然重试全成功 → 旧记录 `resolved=1` 且后续回调全量执行（不再被旧 partial 影响）；partial 后重试仍有失败 → 旧记录关闭、新 log 成为唯一未解决 partial（succeeded_handlers 为合并值）；两个并发 replay 同一 logId 仅一个执行、另一个收到"正在重放"。
 - **unit/integration（四审增补）**：两条同 request_id 回调并发到达 → 锁串行化、处理后至多一条未解决 partial（不变量保持）；replay 执行中自然回调到达 → 被锁挡住不并发重跑失败 handler；锁获取重试耗尽 → 落库 status=0 且返回 HTTP 500；MockMvc 断言部分失败时真实 HTTP status=500、全成功时 200（不被全局异常处理器"吞"成 200）。
 - **unit（终审增补，超 TTL 场景）**：用短 TTL 模拟锁过期——处理耗时超过 TTL 后第二请求获锁进入，断言唯一索引拦下第二条未解决 partial（记 ERROR + resolved=1 失败快照）、且 handler 幂等机制（过程记录判重/CAS claim）挡住关键副作用；同时校验默认 TTL 大于按超时配置推导的处理上界。
-- **integration**：mock OA query 跑对账全链路（两类扫描对象 + 游标翻页 + 失败重查集合）；回调分发器全 handler 冒烟；oa_callback_log 落库/回写/重放幂等。
+- **integration**：mock OA query 跑对账全链路（两类扫描对象 + 游标翻页 + 失败重查集合）；回调分发器全 handler 冒烟；smt_oa_callback_log 落库/回写/重放幂等。
 - 参考 `SmtAdmittanceApplyServiceImplTest` 既有写法。
 
 ## 5. 上线与运维
 
 ### 5.1 上线顺序
 
-1. 建表（oa_callback_log）→ 发 platform → 发 schedule（Nacos 开关默认关）。
+1. 建表（smt_oa_callback_log）→ 发 platform → 发 schedule（Nacos 开关默认关）。
 2. 测试环境构造"无回调"场景验证对账自动补齐；用真实 OA 报文核实 §3.1.2 前置任务。
-3. 生产灰度开开关，观察对账计数日志与 oa_callback_log。
+3. 生产灰度开开关，观察对账计数日志与 smt_oa_callback_log。
 4. 预期 28753680 被自动补齐；28760183 先在 OA 侧确认已归档再观察。
 
 ### 5.2 回滚
@@ -232,7 +232,7 @@ update smt_security_auth_apply set oa_status = :final where id = :id and oa_stat
 
 - 对账任务每轮输出结构化计数日志：`扫描数/补偿成功/退回/仍在审批/OA查询失败/下发触发失败`。
 - 发现 `oa_status=0` 超 24 小时的单：log.warn 单独打点（含 processId），便于日志告警系统抓取。
-- 巡检 SQL 清单（附录 B）：超龄待审批数、`oa_status=1&&device_status=0` 数、oa_callback_log `status=2` 数、明细 FAIL 数。
+- 巡检 SQL 清单（附录 B）：超龄待审批数、`oa_status=1&&device_status=0` 数、smt_oa_callback_log `status=2` 数、明细 FAIL 数。
 - 正式指标/告警系统接入列为后续项。
 
 ## 6. 分歧说明与风险
@@ -264,7 +264,7 @@ select count(*) from smt_security_auth_apply
  where oa_status = 1 and device_status = 0;
 
 -- 回调处理部分失败（仅未解决的）
-select count(*) from oa_callback_log where status = 2 and resolved = 0;
+select count(*) from smt_oa_callback_log where status = 2 and resolved = 0;
 
 -- 明细下发失败
 select count(*) from smt_security_task_details where status = 2;

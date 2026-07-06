@@ -1,5 +1,5 @@
 -- OA 回调报文审计表：每次 /oa/workflow/over 回调先落库再分发（spec §3.3）
-create table oa_callback_log (
+create table smt_oa_callback_log (
     id                 number(19)     primary key,
     request_id         varchar2(64)   not null,           -- OA requestid
     payload            clob,                              -- 完整回调报文 JSON
@@ -13,11 +13,11 @@ create table oa_callback_log (
     cost_ms            number(10)                         -- 分发耗时毫秒
 );
 
-comment on table oa_callback_log is 'OA工作流回调审计与重放日志';
+comment on table smt_oa_callback_log is 'OA工作流回调审计与重放日志';
 
 -- 未解决 partial 查询 + 排序支撑索引（spec §3.3）
-create index idx_oa_cb_req on oa_callback_log (request_id, status, resolved, receive_time, id);
+create index idx_oa_cb_req on smt_oa_callback_log (request_id, status, resolved, receive_time, id);
 
 -- 不变量兜底：任一 request_id 至多一条未解决 partial（仅兜底日志层不变量，不防副作用重复，spec §3.2.2）
 create unique index ux_oa_cb_unresolved
-    on oa_callback_log (case when status = 2 and resolved = 0 then request_id end);
+    on smt_oa_callback_log (case when status = 2 and resolved = 0 then request_id end);
