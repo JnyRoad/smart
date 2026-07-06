@@ -41,6 +41,7 @@ task:
     admittance-remind: false              # 来访前提示任务
     admittance-update-oa: false           # 入厂申请OA审批状态更新
     security-auth-update-oa: false        # 保密门禁申请OA审批状态对账（PR2补偿任务）
+    oa-callback-log-clean: false          # OA回调日志90天过期清理任务（payload 含 PII，见 oa-callback-runbook）
     admittance-come-ontime: false         # 入厂申请来访后删除权限
     admittance-overtime: false            # 入厂申请访客超时
     visitor-no-leave: false               # 访客超时未离开

@@ -1,6 +1,7 @@
 package com.tce.smart.schedule.task;
 
 import com.tce.smart.common.core.constant.SecurityConstants;
+import com.tce.smart.platform.api.feign.RemoteOaCallbackLogService;
 import com.tce.smart.platform.api.feign.admittance.RemoteOaAreaTypeSyncService;
 import com.tce.smart.platform.api.feign.securityzone.RemoteSecurityAuthService;
 import com.tce.smart.platform.core.service.SmtDeviceTaskService;
@@ -47,6 +48,8 @@ public class PlatformTimerTask {
 	private RemoteSecurityAuthService remoteSecurityAuthService;
 	@Autowired
 	private SupplierNotifyService supplierNotifyService;
+	@Autowired
+	private RemoteOaCallbackLogService remoteOaCallbackLogService;
 	@Autowired
 	private ISwitchService switchService;
 	@Autowired
@@ -185,6 +188,21 @@ public class PlatformTimerTask {
 			remoteSecurityAuthService.updateOaStatusTask(SecurityConstants.FROM_IN);
 		} finally {
 			switchService.release(TimerTaskEnum.SECURITY_AUTH_UPDATE_OA, lockToken);
+		}
+	}
+
+	/**
+	 * OA回调日志过期清理 每天03:30执行一次（90 天整行删除，payload 含 PII，spec 2026-07-05 §3.2）
+	 */
+	@Scheduled(cron = "0 30 3 * * ?")
+	public void oaCallbackLogClean() {
+		if (taskJob.getOaCallbackLogClean() != null && taskJob.getOaCallbackLogClean()
+				&& switchService.process(TimerTaskEnum.OA_CALLBACK_LOG_CLEAN)) {
+			try {
+				remoteOaCallbackLogService.cleanTask(SecurityConstants.FROM_IN);
+			} catch (Exception e) {
+				log.error("OA回调日志过期清理任务异常", e);
+			}
 		}
 	}
 
