@@ -132,6 +132,7 @@ curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" \
 - 执行方式：smart-schedule 每天 03:30 触发（Nacos 开关 `task.job.oaCallbackLogClean`，默认关，上线后需手动开启），经 Feign 调 platform 的 `@Inner` 端点 `GET /oa/workflow/callback/log/clean`。
 - 被删行中若含未解决 partial（status=2 且 resolved=0），任务记 WARN（含数量与最多前 10 个 request_id）——90 天无人重放视为放弃重放，属有意取舍；巡检 SQL（见上文）保证 90 天内可见。
 - 首次开启注意：会一次性删除全部存量超期数据，属预期行为。
+- 上线检查：核实生产 Nacos 网关白名单（`security.oauth2.client.ignore-urls`）中 OA 回调项为精确路径 `/oa/workflow/over`，不得是 `/oa/workflow/**` 通配——否则 @Inner 切面 AUDIT 灰度期间 clean/replay 端点存在无 token 可达窗口（对齐 PR #114 白名单收敛方向）。
 
 ### payload 访问途径（最小化清单）
 
