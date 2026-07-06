@@ -81,9 +81,10 @@ ALTER TABLE smt_security_auth_apply
   ADD COLUMN msg_retry_count INT NOT NULL DEFAULT 0 COMMENT '微信推送失败次数，达上限后 is_msg 置 2 放弃';
 
 -- 脚本 2：更新模板内容，必须与新代码同窗口生效（占位符集合随代码一起变）
+-- 注意 temp_code 的数据库值是 '11101'（SmsTemplateEnum.WECHAT_SECURITY_11101.getCode()），不是枚举常量名
 UPDATE smt_msg_template
   SET temp_content = '保密权限下发完成 成功{成功数量}/共{总数量}'
-  WHERE temp_code = 'WECHAT_SECURITY_11101';
+  WHERE temp_code = '11101';
 ```
 
 **存量数据行为**：线上现存 `isMsg = 0` 的历史失败单，上线后带着 `retry_count = 0`
