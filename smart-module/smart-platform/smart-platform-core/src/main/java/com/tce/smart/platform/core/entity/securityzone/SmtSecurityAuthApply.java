@@ -75,9 +75,16 @@ private static final long serialVersionUID = 1L;
     private String applyBadge;
 
 	/**
-	 * 是否发送短信
+	 * 微信推送状态：0-未发送，1-已发送，2-连续失败达上限已放弃（不再入扫）
 	 */
     private Integer isMsg;
+
+	/**
+	 * 微信推送失败次数；达到上限（SmtSecurityAuthApplyServiceImpl.MAX_MSG_RETRY）后
+	 * is_msg 置 2（失败放弃）不再重试。列由 manual 脚本
+	 * 2026-07-06-security-msg-retry.sql 添加，DEFAULT 0。
+	 */
+	private Integer msgRetryCount;
 
 	/**
 	 * 授权进入区域选项
