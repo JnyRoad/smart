@@ -79,6 +79,12 @@ security:
       - "/common/config/visitor/notice"
       - "/common/config/admittance/notice"
       - "/oa/workflow/over"
+      # 内部定时任务端点（schedule 经 Feign FROM_IN 调用，均已 @Inner 标注；生产曾因白名单缺失 401 逾一月，2026-07-06 排查补齐）
+      - "/security/auth/apply/oa/status/task"
+      - "/security/auth/apply/msg"
+      - "/security/auth/delete/task"
+      - "/news/terminal/check"
+      - "/oa/workflow/callback/log/clean"
       - "/wechat/banding/info/**"
       - "/wechat/banding/save"
       - "/visitor/enum/carry/type"
