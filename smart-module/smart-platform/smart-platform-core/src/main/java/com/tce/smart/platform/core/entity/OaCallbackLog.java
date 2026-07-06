@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("oa_callback_log")
+@TableName("smt_oa_callback_log")
 public class OaCallbackLog extends Model<OaCallbackLog> {
 
 	/** 处理状态：已接收 */
