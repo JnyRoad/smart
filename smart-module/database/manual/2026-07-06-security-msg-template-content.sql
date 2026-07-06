@@ -17,6 +17,12 @@ BEGIN
 		DBMS_OUTPUT.PUT_LINE('未找到 TEMP_CODE=11101（保密区门禁权限申请结果通知）的模板，请人工核实后再执行');
 		RETURN;
 	END IF;
+	-- 多行防呆：该 code 理论唯一，出现多行说明有脏数据，人工核实前拒绝执行
+	-- （否则下方 SELECT INTO 会抛 ORA-01422 中断，报错信息易被误判为环境问题）
+	IF V_COUNT > 1 THEN
+		DBMS_OUTPUT.PUT_LINE('TEMP_CODE=11101 存在 ' || V_COUNT || ' 行，疑似脏数据，请人工核实后再执行');
+		RETURN;
+	END IF;
 
 	-- 先打印旧内容供回滚记录
 	SELECT TEMP_CONTENT INTO V_OLD_CONTENT
