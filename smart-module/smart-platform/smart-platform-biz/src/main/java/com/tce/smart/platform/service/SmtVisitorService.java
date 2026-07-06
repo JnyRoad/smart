@@ -145,6 +145,17 @@ public interface SmtVisitorService extends IService<SmtVisitor> {
 
 	Boolean updateHfStatus(SmtVisitor smtVisitor);
 
+	/**
+	 * claim 式落 OA 终态：以 CAS（status=待审核 → finalStatus）抢占本条访客预约的终态处理权，
+	 * 抢占成功后执行审批后置处理（下发/短信等，即 updateHfStatus），后置失败回滚为待审核并登记重查，交拉取对账重试。
+	 * OA 回调链路与拉取对账（updateOaStatusTask）共用该入口，保证同一预约只有一方执行后置副作用。
+	 *
+	 * @param smtVisitor  仍处于待审核态的访客预约（需含 id/processId/endTime）
+	 * @param finalStatus OA 终态（Status_0 通过 / Status_1 拒绝）
+	 * @return true=本次抢占成功并已执行（或已补偿登记）后置处理；false=已被其他链路处理，调用方应跳过
+	 */
+	boolean claimAndApplyHfOaFinalStatus(SmtVisitor smtVisitor, Integer finalStatus);
+
 	SmtVisitor saveHfVisitor(SaveSmtVisitor saveSmtVisitor);
 
 	/**

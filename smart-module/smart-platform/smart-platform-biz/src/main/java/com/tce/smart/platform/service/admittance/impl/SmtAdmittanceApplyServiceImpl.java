@@ -1969,6 +1969,16 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			return false;
 		}
 		forgetPendingOaStatus(apply.getId());
+		return claimAndApplyOaFinalStatus(apply, finalStatus);
+	}
+
+	/**
+	 * claim 式落 OA 终态（回调链路与拉取对账 syncOaStatus 共用入口）：
+	 * CAS 抢占失败说明已被另一链路处理，直接返回 false；
+	 * 抢占成功后执行后置处理，失败标记 deviceStatus=FAIL 交 retryFailedPostApprovalHandling 补偿。
+	 */
+	@Override
+	public boolean claimAndApplyOaFinalStatus(SmtAdmittanceApply apply, Integer finalStatus) {
 		apply.setStatus(finalStatus);
 		if (!claimOaFinalStatus(apply)) {
 			log.info("入厂申请OA审批状态已被其他任务处理，id={}，processId={}", apply.getId(), apply.getProcessId());

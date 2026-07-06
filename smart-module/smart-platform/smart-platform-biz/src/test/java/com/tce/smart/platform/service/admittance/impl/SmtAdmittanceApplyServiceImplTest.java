@@ -1639,6 +1639,62 @@ public class SmtAdmittanceApplyServiceImplTest {
 		return String.valueOf(expected).equals(String.valueOf(value));
 	}
 
+	// ========== claim 式落 OA 终态入口（回调链路与拉取对账共用，见 claimAndApplyOaFinalStatus） ==========
+
+	@Test
+	public void claimAndApplyOaFinalStatus_claimLost_returnsFalse_andSkipsPostProcessing() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		//CAS 条件更新未命中：该行已被拉取对账（或另一次回调）先行落终态
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(0);
+		Mockito.doNothing().when(service).updateStatus(Mockito.any(SmtAdmittanceApply.class));
+
+		boolean claimed = service.claimAndApplyOaFinalStatus(
+				pendingAdmittanceApply(2101L, "oa-cb-claim-lost"), VisitorStatusEnum.Status_0.getCode());
+
+		Assert.assertFalse(claimed);
+		Mockito.verify(service, Mockito.never()).updateStatus(Mockito.any(SmtAdmittanceApply.class));
+	}
+
+	@Test
+	public void claimAndApplyOaFinalStatus_claimWon_runsPostProcessing_andFillsSmsCode() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.doNothing().when(service).updateStatus(Mockito.any(SmtAdmittanceApply.class));
+		SmtAdmittanceApply apply = pendingAdmittanceApply(2102L, "oa-cb-claim-won");
+
+		boolean claimed = service.claimAndApplyOaFinalStatus(apply, VisitorStatusEnum.Status_0.getCode());
+
+		Assert.assertTrue(claimed);
+		ArgumentCaptor<SmtAdmittanceApply> applyCaptor = ArgumentCaptor.forClass(SmtAdmittanceApply.class);
+		Mockito.verify(service).updateStatus(applyCaptor.capture());
+		Assert.assertEquals(Long.valueOf(2102L), applyCaptor.getValue().getId());
+		Assert.assertEquals(VisitorStatusEnum.Status_0.getCode(), applyCaptor.getValue().getStatus());
+		//审批通过路径必须在 claim 阶段生成短信验证码（与拉取对账行为一致）
+		Assert.assertFalse(StrUtil.isBlank(applyCaptor.getValue().getSmsCode()));
+	}
+
+	@Test
+	public void claimAndApplyOaFinalStatus_postProcessingFails_marksDeviceFail_andReturnsTrue() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.doThrow(new RuntimeException("device task failed"))
+				.when(service).updateStatus(Mockito.any(SmtAdmittanceApply.class));
+
+		boolean claimed = service.claimAndApplyOaFinalStatus(
+				pendingAdmittanceApply(2103L, "oa-cb-post-fail"), VisitorStatusEnum.Status_0.getCode());
+
+		//claim 已成功，终态已写入，返回 true；后置失败仅标记 deviceStatus=FAIL 交补偿任务重试
+		Assert.assertTrue(claimed);
+		//mapper.update 两次：claim CAS 一次 + markDeviceStatus(FAIL) 一次
+		Mockito.verify(mapper, Mockito.times(2)).update(Mockito.isNull(), Mockito.any());
+	}
+
 	private SmtAdmittanceApply pendingAdmittanceApply(Long id, String processId) {
 		SmtAdmittanceApply apply = new SmtAdmittanceApply();
 		apply.setId(id);

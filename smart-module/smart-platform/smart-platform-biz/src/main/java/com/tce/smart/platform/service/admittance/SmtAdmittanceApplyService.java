@@ -61,6 +61,17 @@ public interface SmtAdmittanceApplyService extends IService<SmtAdmittanceApply> 
 	void updateStatus(SmtAdmittanceApply admittanceApply);
 
 	/**
+	 * claim 式落 OA 终态：以 CAS（status=待审核 → finalStatus）抢占本条申请的终态处理权，
+	 * 抢占成功后执行审批后置处理（权限下发/短信等，即 updateStatus），后置失败仅标记 deviceStatus=FAIL 交补偿任务重试。
+	 * OA 回调链路与拉取对账（updateOaStatusTask）共用该入口，保证同一申请只有一方执行后置副作用。
+	 *
+	 * @param admittanceApply 仍处于待审核态的申请（需含 id/processId/endTime）
+	 * @param finalStatus     OA 终态（Status_0 通过 / Status_1 拒绝）
+	 * @return true=本次抢占成功并已执行（或已补偿登记）后置处理；false=已被其他链路处理，调用方应跳过
+	 */
+	boolean claimAndApplyOaFinalStatus(SmtAdmittanceApply admittanceApply, Integer finalStatus);
+
+	/**
 	 * 抓拍车辆如果是访客的则补全车辆记录信息，否则不处理
 	 * @param entity 抓拍车辆信息
 	 * @return
