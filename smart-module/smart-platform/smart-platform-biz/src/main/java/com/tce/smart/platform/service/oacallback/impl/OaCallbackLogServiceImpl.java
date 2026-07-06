@@ -70,13 +70,10 @@ public class OaCallbackLogServiceImpl extends ServiceImpl<OaCallbackLogMapper, O
 					expiredUnresolved.size(), WARN_SAMPLE_SIZE, sampleRequestIds);
 		}
 		// 90 天整行删除（payload 含 PII，到期物理删除，spec 2026-07-05 §2）
-		int total = this.count(Wrappers.<OaCallbackLog>query().lambda()
+		// 直接取 delete 的受影响行数作为返回值（count 旁证在并发下可能与真实删除数不符）
+		int deleted = this.getBaseMapper().delete(Wrappers.<OaCallbackLog>query().lambda()
 				.lt(OaCallbackLog::getReceiveTime, cutoff));
-		if (total > 0) {
-			this.remove(Wrappers.<OaCallbackLog>query().lambda()
-					.lt(OaCallbackLog::getReceiveTime, cutoff));
-		}
-		log.info("OA回调日志过期清理完成：deleted={}, cutoff={}", total, cutoff);
-		return total;
+		log.info("OA回调日志过期清理完成：deleted={}, cutoff={}", deleted, cutoff);
+		return deleted;
 	}
 }
