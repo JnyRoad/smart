@@ -9,7 +9,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.BeanUtils;
-import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.data.api.dto.msg.req.SecurityAuthApplyDetailAreaReqDTO;
@@ -74,6 +73,10 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	private static final int PENDING_ALARM_HOURS = 24;
 	/** 场景1（回调丢失扫描）游标的 Redis key，单游标即可满足需求（简化自入厂对账的三段式游标） */
 	private static final String OA_RECONCILE_CURSOR_KEY = "oa:security:auth:cursor";
+	/** 微信推送失败重试上限：定时任务 20 分钟一轮即天然重试间隔，3 次后放弃（spec §3） */
+	private static final int MAX_MSG_RETRY = 3;
+	/** isMsg 终态：连续失败达上限后放弃，不再入扫（0=未发送，1=已发送，2=失败放弃） */
+	private static final int MSG_SEND_ABANDONED = 2;
 
 	@Autowired
 	private RemoteOaWorkFlowService remoteOaWorkFlowService;
@@ -456,41 +459,82 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 
 	@Override
 	public void sendMessage() {
-		//获得已下发且未发送短信数据
+		// 获得已下发且未推送微信的数据（isMsg=2 失败放弃的终态单天然不入扫）
 		List<SmtSecurityAuthApply> applyList = this.list(Wrappers.<SmtSecurityAuthApply>query().lambda()
 				.eq(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.ALRAEDY.getCode())
 				.eq(SmtSecurityAuthApply::getIsMsg, OneOrZeroEnum.ZERO.getCode()));
-		//刷新下发状态
 		if (CollUtil.isEmpty(applyList)) {
 			return;
 		}
 		for (SmtSecurityAuthApply apply : applyList) {
-			smtSecurityTaskDetailsService.syncTaskStatus(apply.getId());
-			Integer initNum = smtSecurityTaskDetailsService.getCount(apply.getId(), DeviceDownStatusEnum.IN_WORK.getCode());
-			if (initNum > 0) {
-				continue;
-			}
-			SmtStaff staffName = smtStaffService.getSimpleSttaffByBadge(apply.getApplyBadge());
-			String name = staffName.getName();
-			Integer failNum = smtSecurityTaskDetailsService.getCount(apply.getId(), DeviceDownStatusEnum.FAIL.getCode());
-			SmtMsgTemplate template = smtMsgTemplateService.selectByTempCode(SmsTemplateEnum.WECHAT_SECURITY_11101.getCode());
-			String workFlowName = "XCAJ02-许昌裕同保密权限申请表-" + name + '-' +
-                    DateUtils.convert("yyyy/MM/dd", apply.getCreateTime());
-			String msg = template.getTempContent().replace("{申请人}", name)
-					.replace("{OA单标题}", workFlowName)
-					.replace("{失败数量}", failNum.toString())
-					.replace("{总数量}", apply.getTotalNum().toString());
-			Boolean result = Boolean.FALSE;
+			// 单条 try 包住全流程：任何一单异常不得中断整轮
+			// （修复原实现 getSimpleSttaffByBadge 返回 null 时 NPE 卡死其后所有单的 bug）
 			try {
-				result = WeChatMsgUtil.sendMsg(apply.getApplyBadge(), msg, null, null);
+				smtSecurityTaskDetailsService.syncTaskStatus(apply.getId());
+				Integer initNum = smtSecurityTaskDetailsService.getCount(apply.getId(), DeviceDownStatusEnum.IN_WORK.getCode());
+				if (initNum > 0) {
+					// 还有下发中的明细，结果未定型：本轮跳过，不推送也不计失败
+					continue;
+				}
+				boolean sent = trySendSecurityMsg(apply);
+				if (sent) {
+					apply.setIsMsg(OneOrZeroEnum.ONE.getCode());
+				} else {
+					// 失败计数 +1；历史存量行加列前为 null，按 0 起算
+					int retryCount = (apply.getMsgRetryCount() == null ? 0 : apply.getMsgRetryCount()) + 1;
+					apply.setMsgRetryCount(retryCount);
+					if (retryCount >= MAX_MSG_RETRY) {
+						// 达上限置终态放弃，封死无限重发；告警日志留人工排查线索
+						apply.setIsMsg(MSG_SEND_ABANDONED);
+						log.warn("保密权限微信推送连续失败达上限，放弃重试：processId={}, applyBadge={}, retryCount={}",
+								apply.getProcessId(), apply.getApplyBadge(), retryCount);
+					}
+				}
+				this.updateById(apply);
 			} catch (Exception e) {
-				log.error("保密区微信推送失败：{}", e.getMessage());
+				// 异常单不计失败次数（与「明确发送失败」区分），下一轮重扫自然重试
+				log.error("保密权限微信推送处理异常：processId={}, applyBadge={}",
+						apply.getProcessId(), apply.getApplyBadge(), e);
 			}
-			if (result) {
-				apply.setIsMsg(OneOrZeroEnum.ONE.getCode());
-			}
-			this.updateById(apply);
 		}
+	}
+
+	/**
+	 * 尝试推送单条保密权限下发结果。
+	 * 正文用 smt_msg_template 的 WECHAT_SECURITY_11101 渲染（20 字内，spec §3）：
+	 * 「保密权限下发完成 成功{成功数量}/共{总数量}」，thing18 显示申请人姓名。
+	 *
+	 * @return true=中转服务确认发送成功；false=员工/模板缺失或发送失败（计入失败次数）
+	 */
+	private boolean trySendSecurityMsg(SmtSecurityAuthApply apply) {
+		SmtStaff staff = smtStaffService.getSimpleSttaffByBadge(apply.getApplyBadge());
+		if (staff == null) {
+			log.warn("保密权限微信推送查不到员工，按一次失败计数：applyBadge={}, processId={}",
+					apply.getApplyBadge(), apply.getProcessId());
+			return false;
+		}
+		SmtMsgTemplate template = smtMsgTemplateService.selectByTempCode(SmsTemplateEnum.WECHAT_SECURITY_11101.getCode());
+		if (template == null || StrUtil.isEmpty(template.getTempContent())) {
+			log.warn("保密权限微信推送模板缺失或内容为空，按一次失败计数：tempCode={}",
+					SmsTemplateEnum.WECHAT_SECURITY_11101.getCode());
+			return false;
+		}
+		Integer failNum = smtSecurityTaskDetailsService.getCount(apply.getId(), DeviceDownStatusEnum.FAIL.getCode());
+		int totalNum = apply.getTotalNum() == null ? 0 : apply.getTotalNum();
+		int successNum = Math.max(0, totalNum - (failNum == null ? 0 : failNum));
+		String body = template.getTempContent()
+				.replace("{成功数量}", String.valueOf(successNum))
+				.replace("{总数量}", String.valueOf(totalNum));
+		return Boolean.TRUE.equals(pushWeChatMsg(staff.getName(), body, apply.getApplyBadge()));
+	}
+
+	/**
+	 * 微信推送 seam：静态调用收敛于此，protected 以便单测子类覆写隔离
+	 * （Mockito 2.x 无 mockStatic）。本轮仍走默认模板壳，运维确认可用模板清单后
+	 * 换模板只改这里的第一个入参。
+	 */
+	protected Boolean pushWeChatMsg(String displayName, String body, String badge) {
+		return WeChatMsgUtil.sendTemplateMsg(WeChatMsgUtil.DEFAULT_TEMPLATE_NAME, displayName, body, badge, null, null);
 	}
 
 	@Override
