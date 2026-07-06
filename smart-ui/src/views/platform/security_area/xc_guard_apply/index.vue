@@ -63,8 +63,8 @@
         >
           <template slot-scope="scope" slot="menu">
             <el-button type="text" icon="el-icon-view" @click="handleDetail(scope.row,scope.$index)" >详情</el-button>
-            <!--oaStatus oa状态 已通过 才可以手动下发 -->
-            <el-button type="text" @click="handleSend(scope.row, scope.$index)" :disabled="scope.row.oaStatus!==1">手动下发</el-button>
+            <!--oaStatus oa状态 已通过 才可以手动下发；按钮权限码需在菜单管理配置并绑定角色（见 runbook） -->
+            <el-button type="text" v-if="permissions['platform_security_auth_down']" @click="handleSend(scope.row, scope.$index)" :disabled="scope.row.oaStatus!==1">手动下发</el-button>
           </template>
         </avue-crud>
       </section>
@@ -75,6 +75,7 @@
 
 <script>
 import { xcGuardApplyApi } from "./_service"
+import { mapGetters } from 'vuex'
 
 export default {
   mixins: [tce.mixins.list],
@@ -85,6 +86,10 @@ export default {
       tableData: [],
       listOption: listOption(),
     };
+  },
+  computed: {
+    // 按钮权限：platform_security_auth_down 由菜单管理配置、登录时随用户权限下发
+    ...mapGetters(['permissions'])
   },
   created() {
     this.refresh()
