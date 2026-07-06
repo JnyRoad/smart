@@ -15,6 +15,8 @@ public class OaCallbackLogServiceImplTest {
 
 	private OaCallbackLogServiceImpl service;
 	private OaCallbackLogMapper mapper;
+	/** cleanExpiredLogs 桩数据：list() 返回的未解决 partial */
+	private java.util.List<OaCallbackLog> stubUnresolvedExpired = new java.util.ArrayList<>();
 
 	@Before
 	public void setUp() {
@@ -25,6 +27,17 @@ public class OaCallbackLogServiceImplTest {
 			public boolean save(OaCallbackLog entity) {
 				entity.setId(9L);
 				return mapper.insert(entity) > 0;
+			}
+
+			// cleanExpiredLogs 依赖的 MP 查询方法全部覆写为桩，隔离数据库
+			@Override
+			public java.util.List<OaCallbackLog> list(com.baomidou.mybatisplus.core.conditions.Wrapper<OaCallbackLog> wrapper) {
+				return stubUnresolvedExpired;
+			}
+
+			@Override
+			public OaCallbackLogMapper getBaseMapper() {
+				return mapper;
 			}
 		};
 	}
@@ -41,5 +54,32 @@ public class OaCallbackLogServiceImplTest {
 		// 落库失败仅记日志不阻断分发（spec §3.3）
 		when(mapper.insert(any())).thenThrow(new RuntimeException("db down"));
 		assertNull(service.saveReceived("28753680", "{}"));
+	}
+
+	@Test
+	public void cleanExpiredLogs_deletesAndReturnsCount() {
+		// 返回值必须来自 mapper.delete 的真实受影响行数，而非旁证的 count
+		when(mapper.delete(any())).thenReturn(5);
+		int deleted = service.cleanExpiredLogs();
+		assertEquals(5, deleted);
+		verify(mapper).delete(any());
+	}
+
+	@Test
+	public void cleanExpiredLogs_noExpired_returnsZero() {
+		when(mapper.delete(any())).thenReturn(0);
+		int deleted = service.cleanExpiredLogs();
+		assertEquals(0, deleted);
+	}
+
+	@Test
+	public void cleanExpiredLogs_withUnresolvedPartial_stillDeletes() {
+		// 90 天未重放的 partial 一并删除（留存承诺优先，WARN 日志兜底可见性）
+		OaCallbackLog partial = new OaCallbackLog();
+		partial.setRequestId("28753680");
+		stubUnresolvedExpired.add(partial);
+		when(mapper.delete(any())).thenReturn(3);
+		int deleted = service.cleanExpiredLogs();
+		assertEquals(3, deleted);
 	}
 }

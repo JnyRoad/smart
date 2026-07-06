@@ -58,6 +58,7 @@ public enum TimerTaskEnum {
 	ADMITTANCE_REMIND("timer_admittance_remind","timer_admittance_remind","来访前提示"),
 	ADMITTANCE_UPDATE_OA("timer_admittance_update_oa","timer_admittance_update_oa","入厂申请OA审批状态更新"),
 	SECURITY_AUTH_UPDATE_OA("timer_security_auth_update_oa","timer_security_auth_update_oa","保密门禁OA状态对账"),
+	OA_CALLBACK_LOG_CLEAN("timer_oa_callback_log_clean","timer_oa_callback_log_clean","OA回调日志过期清理任务"),
 
 	NEWS_TERMINAL_CHECK("timer_news_terminal_check", "timer_news_terminal_check", "终端消息发布检查"),
 

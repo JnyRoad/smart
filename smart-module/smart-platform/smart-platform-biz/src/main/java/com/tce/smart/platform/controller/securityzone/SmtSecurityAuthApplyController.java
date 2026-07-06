@@ -14,6 +14,7 @@ import com.tce.smart.platform.service.securityzone.SmtSecurityAuthApplyService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -88,11 +89,12 @@ public class SmtSecurityAuthApplyController extends BaseController {
     }
 
     /**
-     * 手动下发
+     * 手动下发（管理端操作，需菜单按钮权限码，PR #118/#119 评审安全后续项）
      *
      * @param id
      * @return
      */
+    @PreAuthorize("@pms.hasPermission('platform_security_auth_down')")
     @GetMapping("/down/{id}")
     @ApiOperation("手动下发")
     public Result downDevice(@PathVariable("id") String id) {
@@ -100,11 +102,12 @@ public class SmtSecurityAuthApplyController extends BaseController {
     }
 
     /**
-     * 提示信息推送
+     * 提示信息推送（仅供 smart-schedule 定时任务 Feign 调用，对齐 /oa/status/task 的 @Inner）
      *
      * @param
      * @return
      */
+    @Inner
     @GetMapping("/msg")
     @ApiOperation("下发提示信息推送")
     public void sendMessage() {

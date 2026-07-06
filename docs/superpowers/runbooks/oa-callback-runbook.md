@@ -122,6 +122,37 @@ curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" \
 
    另一单 `28760183` 需要**先在 OA 侧确认已归档**，再观察对账任务是否将其补齐；如 OA 侧尚未归档（仍在审批中），对账任务本轮会判定"审批中"并跳过，属预期行为，不代表功能异常。
 
+## 数据留存与访问控制
+
+### payload 留存策略（90 天整行删除）
+
+`smt_oa_callback_log.payload` 明文存储 OA 回调全报文，含姓名、工号等 PII。留存策略：
+
+- **保留 90 天，到期整行物理删除**（含 payload），与保密门禁对账回溯窗口（90 天）对齐。
+- 执行方式：smart-schedule 每天 03:30 触发（Nacos 开关 `task.job.oaCallbackLogClean`，默认关，上线后需手动开启），经 Feign 调 platform 的 `@Inner` 端点 `GET /oa/workflow/callback/log/clean`。
+- 被删行中若含未解决 partial（status=2 且 resolved=0），任务记 WARN（含数量与最多前 10 个 request_id）——90 天无人重放视为放弃重放，属有意取舍；巡检 SQL（见上文）保证 90 天内可见。
+- 首次开启注意：会一次性删除全部存量超期数据，属预期行为。
+- 上线检查：核实生产 Nacos 网关白名单（`security.oauth2.client.ignore-urls`）中 OA 回调项为精确路径 `/oa/workflow/over`，不得是 `/oa/workflow/**` 通配——否则 @Inner 切面 AUDIT 灰度期间 clean/replay 端点存在无 token 可达窗口（对齐 PR #114 白名单收敛方向）。
+
+### payload 访问途径（最小化清单）
+
+| 途径 | 访问控制 | 说明 |
+|---|---|---|
+| 数据库直查 | DBA / 运维数据库账号 | 唯一的全文查看途径，按数据库权限管理 |
+| 重放接口 `POST /oa/workflow/replay/{logId}` | `@Inner`，仅内部调用 | 使用 payload 但不返回 payload 内容 |
+| 管理后台 / 前端 | 无 | 该表无任何 UI 暴露 |
+| 应用日志 | 已脱敏 | 分发器只打 requestId + 报文长度，不打全量报文 |
+
+### 手动下发按钮权限码上线顺序（platform_security_auth_down）
+
+`/security/auth/apply/down/{id}`（保密区权限手动下发）已加 `@PreAuthorize("@pms.hasPermission('platform_security_auth_down')")`，发版顺序**必须**：
+
+1. 管理后台「权限管理 → 菜单管理」在保密门禁申请页面下新增按钮型菜单，权限标识填 `platform_security_auth_down`；
+2. 「角色管理」把该按钮权限授予需要手动下发的管理角色，相关用户重新登录生效；
+3. 再发布 smart-platform 与 smart-ui 版本。
+
+顺序反了的后果：所有人调用 `/down/{id}` 一律 403（前端按钮同时被权限码隐藏）。回退手段：给角色补绑权限码即可，无需回滚版本。
+
 ## 应急回滚
 
 - **优先手段**：关闭 Nacos 开关 `task.job.securityAuthUpdateOa` → 回到纯回调模式，对账任务不再扫描/触发下发，风险面收缩到最小。此操作不需要重新发布，配置中心动态生效。
@@ -137,6 +168,8 @@ curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" \
 | 对账定时任务分布式锁 | `timer_security_auth_update_oa` | 防止多实例并发跑同一轮对账；`TimerTaskEnum.SECURITY_AUTH_UPDATE_OA` |
 | 对账每轮完成计数日志 | `保密门禁OA对账完成：` | 含扫描/通过/退回/审批中/查询失败/触发失败六项计数，正常每轮都应出现 |
 | 超龄待审批告警日志 | `保密门禁申请超24小时未收到OA终态` | 含 `processId`，建议接入日志告警系统 |
+| 回调日志清理任务分布式锁 | `timer_oa_callback_log_clean` | 防止多实例并发清理；`TimerTaskEnum.OA_CALLBACK_LOG_CLEAN` |
+| 清理完成计数日志 | `OA回调日志过期清理完成：` | 含 deleted 与 cutoff；WARN `OA回调日志清理将删除未解决partial` 需人工关注 |
 
 ## 相关代码位置（供进一步排查）
 

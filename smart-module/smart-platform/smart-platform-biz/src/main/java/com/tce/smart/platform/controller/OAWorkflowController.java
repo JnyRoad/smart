@@ -7,6 +7,7 @@ import com.tce.smart.platform.core.ao.WorkFlowAO;
 import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.oacallback.DispatchResult;
 import com.tce.smart.platform.service.oacallback.OaCallbackDispatcher;
+import com.tce.smart.platform.service.oacallback.OaCallbackLogService;
 import com.tce.smart.platform.service.oacallback.OaCallbackReplayService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,12 +23,14 @@ public class OAWorkflowController extends BaseController {
 	private final OaCallbackDispatcher dispatcher;
 	private final IOAWorkflowService iOAWorkflowService;
 	private final OaCallbackReplayService replayService;
+	private final OaCallbackLogService logService;
 
 	public OAWorkflowController(OaCallbackDispatcher dispatcher, IOAWorkflowService iOAWorkflowService,
-			OaCallbackReplayService replayService) {
+			OaCallbackReplayService replayService, OaCallbackLogService logService) {
 		this.dispatcher = dispatcher;
 		this.iOAWorkflowService = iOAWorkflowService;
 		this.replayService = replayService;
+		this.logService = logService;
 	}
 
 	/**
@@ -56,5 +59,12 @@ public class OAWorkflowController extends BaseController {
 	@PostMapping("/replay/{logId}")
 	public Result replay(@PathVariable("logId") Long logId) {
 		return replayService.replay(logId);
+	}
+
+	/** 过期回调日志清理（90 天整行删，仅供 smart-schedule 定时任务调用，spec 2026-07-05 §3.2） */
+	@Inner
+	@GetMapping("/callback/log/clean")
+	public Result cleanExpiredLogs() {
+		return success(logService.cleanExpiredLogs());
 	}
 }
