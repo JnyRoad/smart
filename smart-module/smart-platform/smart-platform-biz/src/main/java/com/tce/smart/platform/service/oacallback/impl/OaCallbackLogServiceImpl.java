@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /** OA 回调日志服务实现 */
 @Slf4j
@@ -47,5 +48,35 @@ public class OaCallbackLogServiceImpl extends ServiceImpl<OaCallbackLogMapper, O
 				.orderByDesc(OaCallbackLog::getReceiveTime)
 				.orderByDesc(OaCallbackLog::getId));
 		return list.isEmpty() ? null : list.get(0);
+	}
+
+	/** WARN 日志采样的 request_id 上限，防单条日志过长 */
+	private static final int WARN_SAMPLE_SIZE = 10;
+
+	@Override
+	public int cleanExpiredLogs() {
+		LocalDateTime cutoff = LocalDateTime.now().minusDays(RETENTION_DAYS);
+		// 先统计将被删除的未解决 partial：90 天无人重放视为放弃，删除即丧失重放能力，必须 WARN 留痕
+		List<OaCallbackLog> expiredUnresolved = this.list(Wrappers.<OaCallbackLog>query().lambda()
+				.eq(OaCallbackLog::getStatus, OaCallbackLog.STATUS_PARTIAL_FAIL)
+				.eq(OaCallbackLog::getResolved, OaCallbackLog.RESOLVED_NO)
+				.lt(OaCallbackLog::getReceiveTime, cutoff));
+		if (!expiredUnresolved.isEmpty()) {
+			List<String> sampleRequestIds = expiredUnresolved.stream()
+					.map(OaCallbackLog::getRequestId)
+					.limit(WARN_SAMPLE_SIZE)
+					.collect(Collectors.toList());
+			log.warn("OA回调日志清理将删除未解决partial：count={}, requestIds(最多{}个)={}",
+					expiredUnresolved.size(), WARN_SAMPLE_SIZE, sampleRequestIds);
+		}
+		// 90 天整行删除（payload 含 PII，到期物理删除，spec 2026-07-05 §2）
+		int total = this.count(Wrappers.<OaCallbackLog>query().lambda()
+				.lt(OaCallbackLog::getReceiveTime, cutoff));
+		if (total > 0) {
+			this.remove(Wrappers.<OaCallbackLog>query().lambda()
+					.lt(OaCallbackLog::getReceiveTime, cutoff));
+		}
+		log.info("OA回调日志过期清理完成：deleted={}, cutoff={}", total, cutoff);
+		return total;
 	}
 }
