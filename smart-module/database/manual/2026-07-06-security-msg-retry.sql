@@ -1,6 +1,8 @@
 -- 手工数据库变更：保密权限微信推送失败重试计数（spec 2026-07-06-security-auth-wechat-msg-redesign §4）。
 -- 目标模式：tech_platform（smt_* 业务表统一归属，用错账号列会加到错误模式）。
 -- 本脚本可先于代码发布执行：DEFAULT 0，旧代码不感知新列，无兼容风险。
+-- 注意（反向依赖）：新代码（实体含 msg_retry_count）上线前本脚本必须已执行，
+-- 否则 sendMessage 的 update 会因缺列抛 ORA-00904，导致整轮推送失败。
 -- Oracle 低版本不支持 ADD COLUMN IF NOT EXISTS，使用 PL/SQL 匿名块做存在性判断。
 -- 执行时请整段执行本文件，不要按分号逐句执行。
 
