@@ -18,7 +18,7 @@ select count(*) from smt_security_auth_apply
  where oa_status = 1 and device_status = 0;
 
 -- 3. 回调处理部分失败（仅看未解决的，已重放成功的 resolved=1 不算）
-select count(*) from oa_callback_log where status = 2 and resolved = 0;
+select count(*) from smt_oa_callback_log where status = 2 and resolved = 0;
 
 -- 4. 明细下发失败（页面"更换照片"/手动下发通道处理，不在本对账范围内）
 select count(*) from smt_security_task_details where status = 2;
@@ -34,7 +34,7 @@ select count(*) from smt_security_task_details where status = 2;
 
 ```sql
 select id, request_id, failed_handlers, last_error
-  from oa_callback_log
+  from smt_oa_callback_log
  where status = 2 and resolved = 0;
 ```
 
@@ -107,11 +107,11 @@ curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" \
 
 按以下顺序执行，任一步异常立即停止并回滚上一步：
 
-1. **建表**：执行 `smart-module/database/manual/oa_callback_log.sql`（若 PR1 已在目标环境上线过此表，跳过本步）。
+1. **建表**：执行 `smart-module/database/manual/smt_oa_callback_log.sql`（若 PR1 已在目标环境上线过此表，跳过本步）。
 2. **发布 smart-platform**：包含回调分发器、落库、重放接口。此时对账开关仍为默认 **关**，不改变现有回调行为。
 3. **发布 smart-schedule**：包含对账定时任务代码，开关默认关，任务注册但不实际执行扫描。
 4. **测试环境验证**：构造"无回调"场景（例如手工把某测试单的 `oa_status` 置回 0 并保留 `process_id`），打开测试环境开关，观察对账任务是否在下一轮（2 分钟）自动补齐该单状态；同时用真实 OA 报文核实 §3.1.2 终态判定前置任务（`CURRENTNODETYPE` 语义）。
-5. **生产灰度开开关**：确认测试环境验证通过后，在生产 Nacos 把 `task.job.securityAuthUpdateOa` 改为 `true`，观察对账计数日志与 `oa_callback_log` 是否符合预期（无异常报错、计数合理）。
+5. **生产灰度开开关**：确认测试环境验证通过后，在生产 Nacos 把 `task.job.securityAuthUpdateOa` 改为 `true`，观察对账计数日志与 `smt_oa_callback_log` 是否符合预期（无异常报错、计数合理）。
 6. **观察事故单自动补齐**：
 
    ```sql
@@ -126,7 +126,7 @@ curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" \
 
 - **优先手段**：关闭 Nacos 开关 `task.job.securityAuthUpdateOa` → 回到纯回调模式，对账任务不再扫描/触发下发，风险面收缩到最小。此操作不需要重新发布，配置中心动态生效。
 - **次选手段**：若怀疑是本次监听器 Handler 化拆分本身引入的回归（而非对账逻辑问题），可直接回滚 smart-platform 部署版本——除保密门禁 handler 改走 CAS claim 流程外，其余 11 个业务 handler 均为行为等价重构（原样搬迁），回滚风险低。
-- 回滚后不需要额外清理数据：`oa_callback_log` 只是审计记录，`claimOaFinalStatus`/明细级抢占均为幂等 CAS 操作，重新开启开关可安全恢复。
+- 回滚后不需要额外清理数据：`smt_oa_callback_log` 只是审计记录，`claimOaFinalStatus`/明细级抢占均为幂等 CAS 操作，重新开启开关可安全恢复。
 
 ## 相关 Redis key 与日志关键字
 
@@ -146,4 +146,4 @@ curl -X POST "http://<gateway>/platform/oa/workflow/replay/{logId}" \
 - 对账主逻辑：`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/securityzone/impl/SmtSecurityAuthApplyServiceImpl.java`
 - 对账定时任务：`smart-module/smart-schedule/src/main/java/com/tce/smart/schedule/task/PlatformTimerTask.java`
 - Nacos 开关绑定：`smart-module/smart-schedule/src/main/java/com/tce/smart/schedule/config/TaskJob.java`
-- 建表脚本：`smart-module/database/manual/oa_callback_log.sql`
+- 建表脚本：`smart-module/database/manual/smt_oa_callback_log.sql`
