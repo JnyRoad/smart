@@ -28,6 +28,8 @@ public class TaskJob {
 	private Boolean admittanceUpdateOa;
 	/** 保密门禁申请OA审批状态对账开关（spec §3.1.6，PR2 补偿定时任务，Nacos 默认关） */
 	private Boolean securityAuthUpdateOa;
+	/** OA回调日志90天过期清理开关（spec 2026-07-05 §3.2，Nacos 默认关） */
+	private Boolean oaCallbackLogClean;
 	private Boolean admittanceComeOntime;
 	private Boolean admittanceOvertime;
 	private Boolean visitorNoLeave;
