@@ -487,6 +487,51 @@ public class SmtVisitorServiceImplTest {
 		Mockito.verify(mapper, Mockito.times(2)).update(Mockito.isNull(), Mockito.any());
 	}
 
+	@Test
+	public void claimAndApplyHfOaFinalStatus_rejectPostProcessingFails_restoresPendingStatus_andReturnsTrue() throws Exception {
+		SmtVisitorMapper mapper = Mockito.mock(SmtVisitorMapper.class);
+		SmtVisitorServiceImpl service = Mockito.spy(new SmtVisitorServiceImpl());
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.doThrow(new RuntimeException("post rejection failed"))
+				.when(service).updateHfStatus(Mockito.any(SmtVisitor.class));
+		SmtVisitor visitor = pendingVisitor(3104L, "oa-cb-reject-post-fail");
+
+		boolean claimed = service.claimAndApplyHfOaFinalStatus(visitor, VisitorStatusEnum.Status_1.getCode());
+
+		//拒绝路径后置失败（拒绝短信等）也必须回滚为待审核，否则行停在 Status_1，对账只查 Status_2 永不重试
+		Assert.assertTrue(claimed);
+		Assert.assertEquals(VisitorStatusEnum.Status_2.getCode(), visitor.getStatus());
+		//mapper.update 两次：claim CAS 一次 + 状态回滚一次
+		Mockito.verify(mapper, Mockito.times(2)).update(Mockito.isNull(), Mockito.any());
+	}
+
+	@Test
+	public void updateOaStatusTaskRestoresRejectedVisitorToPendingWhenPostRejectionHandlingFails() throws Exception {
+		SmtVisitorMapper mapper = Mockito.mock(SmtVisitorMapper.class);
+		IOAWorkflowService oaWorkflowService = Mockito.mock(IOAWorkflowService.class);
+		SmtVisitorServiceImpl service = Mockito.spy(new SmtVisitorServiceImpl());
+		setField(service, "baseMapper", mapper);
+		setField(service, "oaWorkflowService", oaWorkflowService);
+		SmtVisitor rejectedVisitor = pendingVisitor(3017L, "oa-rejected-restore");
+		Page<SmtVisitor> page = new Page<>(1, 50);
+		page.setRecords(Collections.singletonList(rejectedVisitor));
+		Mockito.when(mapper.selectPage(Mockito.any(Page.class), Mockito.any())).thenReturn(page, emptyVisitorPage());
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		//OA 终态为拒绝（CAUSE_0 → Status_1）
+		Mockito.when(oaWorkflowService.query("oa-rejected-restore")).thenReturn(workflowLog(OaFinalStatusEnum.CAUSE_0));
+		Mockito.doThrow(new RuntimeException("reject sms failed"))
+				.when(service).updateHfStatus(Mockito.any(SmtVisitor.class));
+
+		service.updateOaStatusTask();
+
+		//两次 update：claim 落 Status_1 一次 + 回滚 Status_2 一次，行重新回到对账可见范围
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(mapper, Mockito.times(2)).update(Mockito.isNull(), updateCaptor.capture());
+		Assert.assertTrue(updateHasParam(updateCaptor.getAllValues().get(0), VisitorStatusEnum.Status_1.getCode()));
+		Assert.assertTrue(updateHasParam(updateCaptor.getAllValues().get(1), VisitorStatusEnum.Status_2.getCode()));
+	}
+
 	private SmtVisitor pendingVisitor(Long id, String processId) {
 		SmtVisitor visitor = new SmtVisitor();
 		visitor.setId(id);
