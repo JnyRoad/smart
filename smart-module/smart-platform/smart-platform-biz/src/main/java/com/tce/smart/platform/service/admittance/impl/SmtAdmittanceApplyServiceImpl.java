@@ -1975,7 +1975,11 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	/**
 	 * claim 式落 OA 终态（回调链路与拉取对账 syncOaStatus 共用入口）：
 	 * CAS 抢占失败说明已被另一链路处理，直接返回 false；
-	 * 抢占成功后执行后置处理，失败标记 deviceStatus=FAIL 交 retryFailedPostApprovalHandling 补偿。
+	 * 抢占成功后执行后置处理，失败时按终态分流补偿：
+	 * 通过（Status_0）标 deviceStatus=FAIL 交 retryFailedPostApprovalHandling——不能回滚状态，
+	 * 否则重新 claim 会重随 smsCode 覆盖已发验证码、submitIscBatch 部分成功后会重复建批次；
+	 * 拒绝（Status_1）回滚为待审核（Status_2）交拉取对账重试——deviceStatus 补偿通道只认 Status_0，
+	 * 且拒绝行本无下发语义，标 FAIL 会永不重试并在管理端误导为"下发失败"。
 	 */
 	@Override
 	public boolean claimAndApplyOaFinalStatus(SmtAdmittanceApply apply, Integer finalStatus) {
@@ -1987,10 +1991,35 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		try {
 			this.updateStatus(apply);
 		} catch (Exception e) {
-			log.error("入厂申请OA审批通过后续处理失败，id={}，processId={}", apply.getId(), apply.getProcessId(), e);
-			markDeviceStatus(apply.getId(), DeviceDownStatusEnum.FAIL.getCode());
+			log.error("入厂申请OA审批终态后置处理失败，id={}，processId={}，finalStatus={}",
+					apply.getId(), apply.getProcessId(), finalStatus, e);
+			if (VisitorStatusEnum.Status_1.getCode().equals(finalStatus)) {
+				restorePendingStatusAfterPostRejectionFailure(apply);
+			} else {
+				markDeviceStatus(apply.getId(), DeviceDownStatusEnum.FAIL.getCode());
+			}
 		}
 		return true;
+	}
+
+	/**
+	 * 拒绝路径 claim 成功但后置处理失败时，把已落库的 Status_1 CAS 回滚为待审核（Status_2），
+	 * 让拉取对账（只扫 Status_2 的行）重新拾取重试拒绝通知；
+	 * claim 阶段因过期改写为 CAUSE_6 的行 CAS 不会命中，天然不回滚、不重试。
+	 * 回滚成功后加入重查集合，加速下一轮对账重试。
+	 */
+	private void restorePendingStatusAfterPostRejectionFailure(SmtAdmittanceApply apply) {
+		if (apply == null || apply.getId() == null) {
+			return;
+		}
+		boolean restored = this.update(Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+				.eq(SmtAdmittanceApply::getId, apply.getId())
+				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_1.getCode())
+				.set(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode()));
+		if (restored) {
+			apply.setStatus(VisitorStatusEnum.Status_2.getCode());
+			rememberPendingOaStatus(apply);
+		}
 	}
 
 	private Integer resolveOaFinalStatus(WorkFlowLogDTO workFlowLogDTO) {
