@@ -17,10 +17,6 @@ public class OaCallbackLogServiceImplTest {
 	private OaCallbackLogMapper mapper;
 	/** cleanExpiredLogs 桩数据：list() 返回的未解决 partial */
 	private java.util.List<OaCallbackLog> stubUnresolvedExpired = new java.util.ArrayList<>();
-	/** cleanExpiredLogs 桩数据：count() 返回的过期总行数 */
-	private int stubExpiredCount = 0;
-	/** 记录 remove 是否被调用 */
-	private boolean removeCalled = false;
 
 	@Before
 	public void setUp() {
@@ -40,14 +36,8 @@ public class OaCallbackLogServiceImplTest {
 			}
 
 			@Override
-			public int count(com.baomidou.mybatisplus.core.conditions.Wrapper<OaCallbackLog> wrapper) {
-				return stubExpiredCount;
-			}
-
-			@Override
-			public boolean remove(com.baomidou.mybatisplus.core.conditions.Wrapper<OaCallbackLog> wrapper) {
-				removeCalled = true;
-				return true;
+			public OaCallbackLogMapper getBaseMapper() {
+				return mapper;
 			}
 		};
 	}
@@ -68,29 +58,28 @@ public class OaCallbackLogServiceImplTest {
 
 	@Test
 	public void cleanExpiredLogs_deletesAndReturnsCount() {
-		stubExpiredCount = 5;
+		// 返回值必须来自 mapper.delete 的真实受影响行数，而非旁证的 count
+		when(mapper.delete(any())).thenReturn(5);
 		int deleted = service.cleanExpiredLogs();
 		assertEquals(5, deleted);
-		assertTrue("有过期数据必须执行删除", removeCalled);
+		verify(mapper).delete(any());
 	}
 
 	@Test
-	public void cleanExpiredLogs_noExpired_skipsDelete() {
-		stubExpiredCount = 0;
+	public void cleanExpiredLogs_noExpired_returnsZero() {
+		when(mapper.delete(any())).thenReturn(0);
 		int deleted = service.cleanExpiredLogs();
 		assertEquals(0, deleted);
-		assertFalse("无过期数据不应执行删除", removeCalled);
 	}
 
 	@Test
 	public void cleanExpiredLogs_withUnresolvedPartial_stillDeletes() {
 		// 90 天未重放的 partial 一并删除（留存承诺优先，WARN 日志兜底可见性）
-		stubExpiredCount = 3;
 		OaCallbackLog partial = new OaCallbackLog();
 		partial.setRequestId("28753680");
 		stubUnresolvedExpired.add(partial);
+		when(mapper.delete(any())).thenReturn(3);
 		int deleted = service.cleanExpiredLogs();
 		assertEquals(3, deleted);
-		assertTrue(removeCalled);
 	}
 }
