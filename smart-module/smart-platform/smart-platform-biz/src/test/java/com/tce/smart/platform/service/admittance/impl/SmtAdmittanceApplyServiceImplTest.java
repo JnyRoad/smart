@@ -1695,6 +1695,94 @@ public class SmtAdmittanceApplyServiceImplTest {
 		Mockito.verify(mapper, Mockito.times(2)).update(Mockito.isNull(), Mockito.any());
 	}
 
+	@Test
+	public void claimAndApplyOaFinalStatus_rejectPostProcessingFails_restoresPendingStatus_andReturnsTrue() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.doThrow(new RuntimeException("post rejection failed"))
+				.when(service).updateStatus(Mockito.any(SmtAdmittanceApply.class));
+		SmtAdmittanceApply apply = pendingAdmittanceApply(2104L, "oa-cb-reject-post-fail");
+
+		boolean claimed = service.claimAndApplyOaFinalStatus(apply, VisitorStatusEnum.Status_1.getCode());
+
+		//拒绝路径后置失败必须回滚为待审核（Status_2）交拉取对账重试：
+		//deviceStatus 补偿通道（failedPostApprovalPage/claimFailedPostApprovalHandling）只认 Status_0，拒绝行标 FAIL 会永不重试
+		Assert.assertTrue(claimed);
+		Assert.assertEquals(VisitorStatusEnum.Status_2.getCode(), apply.getStatus());
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(mapper, Mockito.times(2)).update(Mockito.isNull(), updateCaptor.capture());
+		//第一次 update 是 claim CAS（set status=Status_1）
+		LambdaUpdateWrapper claimWrapper = updateCaptor.getAllValues().get(0);
+		claimWrapper.getSqlSet();
+		Assert.assertTrue(claimWrapper.getParamNameValuePairs().values().stream()
+				.anyMatch(value -> String.valueOf(VisitorStatusEnum.Status_1.getCode()).equals(String.valueOf(value))));
+		//第二次 update 必须是 status 回滚而非 markDeviceStatus：
+		//DeviceDownStatusEnum.FAIL(2) 与 Status_2(2) 同值，参数无法区分，必须按列名断言
+		LambdaUpdateWrapper restoreWrapper = updateCaptor.getAllValues().get(1);
+		String restoreSqlSet = restoreWrapper.getSqlSet().toLowerCase(Locale.ROOT);
+		Assert.assertFalse("拒绝行不得标记 device_status=FAIL", restoreSqlSet.contains("device_status"));
+		Assert.assertTrue(restoreSqlSet.contains("status"));
+		//回滚成功后须进入重查集合，加速下一轮对账重试
+		Assert.assertTrue(localOaStatusRecheckIds(service).contains(2104L));
+	}
+
+	@Test
+	public void claimAndApplyOaFinalStatus_rejectRestoreCasMissed_keepsClaimedStatus_andSkipsRecheck() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		//claim CAS 命中，回滚 CAS 未命中（行已被 claim 阶段转 CAUSE_6 或被并发改动）
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1, 0);
+		Mockito.doThrow(new RuntimeException("post rejection failed"))
+				.when(service).updateStatus(Mockito.any(SmtAdmittanceApply.class));
+		SmtAdmittanceApply apply = pendingAdmittanceApply(2105L, "oa-cb-reject-restore-miss");
+
+		boolean claimed = service.claimAndApplyOaFinalStatus(apply, VisitorStatusEnum.Status_1.getCode());
+
+		//CAS 未命中说明行不再是 Status_1（过期转 CAUSE_6 等），不得改写内存状态、不得进入重查集合
+		Assert.assertTrue(claimed);
+		Assert.assertEquals(VisitorStatusEnum.Status_1.getCode(), apply.getStatus());
+		Assert.assertFalse(localOaStatusRecheckIds(service).contains(2105L));
+	}
+
+	private Set<?> localOaStatusRecheckIds(SmtAdmittanceApplyServiceImpl service) throws Exception {
+		Field field = SmtAdmittanceApplyServiceImpl.class.getDeclaredField("oaStatusRecheckIds");
+		field.setAccessible(true);
+		return (Set<?>) field.get(service);
+	}
+
+	@Test
+	public void updateOaStatusTaskRestoresRejectedApplyToPendingWhenPostRejectionHandlingFails() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		IOAWorkflowService oaWorkflowService = Mockito.mock(IOAWorkflowService.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		setField(service, "oaWorkflowService", oaWorkflowService);
+		SmtAdmittanceApply rejectedApply = pendingAdmittanceApply(2106L, "oa-rejected-restore");
+		Page<SmtAdmittanceApply> page = new Page<>(1, 50);
+		page.setRecords(Collections.singletonList(rejectedApply));
+		Mockito.when(mapper.selectPage(Mockito.any(Page.class), Mockito.any()))
+				.thenReturn(page, emptyAdmittancePage(), emptyAdmittancePage());
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		//OA 终态为拒绝（CAUSE_0 → Status_1）
+		Mockito.when(oaWorkflowService.query("oa-rejected-restore")).thenReturn(workflowLog(OaFinalStatusEnum.CAUSE_0));
+		Mockito.doThrow(new RuntimeException("post rejection failed"))
+				.when(service).updateStatus(Mockito.any(SmtAdmittanceApply.class));
+
+		service.updateOaStatusTask();
+
+		//两次 update：claim 落 Status_1 一次 + 回滚 Status_2 一次，行重新回到对账可见范围
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(mapper, Mockito.times(2)).update(Mockito.isNull(), updateCaptor.capture());
+		LambdaUpdateWrapper restoreWrapper = updateCaptor.getAllValues().get(1);
+		String restoreSqlSet = restoreWrapper.getSqlSet().toLowerCase(Locale.ROOT);
+		Assert.assertFalse("拒绝行不得标记 device_status=FAIL", restoreSqlSet.contains("device_status"));
+		Assert.assertTrue(restoreSqlSet.contains("status"));
+		Assert.assertEquals(VisitorStatusEnum.Status_2.getCode(), rejectedApply.getStatus());
+	}
+
 	private SmtAdmittanceApply pendingAdmittanceApply(Long id, String processId) {
 		SmtAdmittanceApply apply = new SmtAdmittanceApply();
 		apply.setId(id);
