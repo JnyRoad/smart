@@ -3516,7 +3516,8 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 		try {
 			this.updateHfStatus(visitor);
 		} catch (Exception e) {
-			log.error("访客OA审批通过后续处理失败，id={}，processId={}", visitor.getId(), visitor.getProcessId(), e);
+			log.error("访客OA审批终态后置处理失败，id={}，processId={}，finalStatus={}",
+					visitor.getId(), visitor.getProcessId(), finalStatus, e);
 			restorePendingOaStatusAfterPostApprovalFailure(visitor, finalStatus);
 			rememberPendingOaStatus(visitor);
 		}
@@ -3560,13 +3561,23 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 		return this.update(updateWrapper);
 	}
 
+	/**
+	 * claim 成功但后置处理失败时，把已落库的终态回滚为待审核（Status_2），
+	 * 让拉取对账重新拾取（对账与重查通道都只扫 Status_2 的行）：
+	 * 通过（Status_0，闸机下发/短信）与拒绝（Status_1，拒绝短信）都需要回滚重试；
+	 * claim 阶段改写为 CAUSE_6（预约已过期）的行 CAS 不会命中，天然不回滚、不重试。
+	 */
 	private void restorePendingOaStatusAfterPostApprovalFailure(SmtVisitor visitor, Integer finalStatus) {
-		if (!VisitorStatusEnum.Status_0.getCode().equals(finalStatus) || visitor == null || visitor.getId() == null) {
+		if (visitor == null || visitor.getId() == null) {
+			return;
+		}
+		if (!VisitorStatusEnum.Status_0.getCode().equals(finalStatus)
+				&& !VisitorStatusEnum.Status_1.getCode().equals(finalStatus)) {
 			return;
 		}
 		boolean restored = this.update(Wrappers.<SmtVisitor>lambdaUpdate()
 				.eq(SmtVisitor::getId, visitor.getId())
-				.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_0.getCode())
+				.eq(SmtVisitor::getStatus, finalStatus)
 				.set(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode()));
 		if (restored) {
 			visitor.setStatus(VisitorStatusEnum.Status_2.getCode());
