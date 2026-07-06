@@ -10,6 +10,14 @@
 - 如果数据库工具只支持普通 SQL、不支持 PL/SQL 匿名块，就无法在一个 SQL 文件内可靠实现“存在才建表 / 存在才建索引”，需要改用 SQL Developer、DBeaver、DataGrip 这类支持 PL/SQL 匿名块整段执行的模式，或由运维工具先查对象再执行 DDL。
 - 不要使用 SQL*Plus / SQLcl 的脚本执行方式直接跑当前文件；这类工具通常需要 `/` 结束匿名块，而当前脚本为了兼容 JDBC 工具已去掉 `/`。
 
+## 执行账号（schema）必须对号入座
+
+生产库按服务分模式，脚本里的 `USER_TABLES` / `USER_TAB_COLUMNS` 都是**当前登录用户**视角——用错账号执行，对象会建到错误模式，应用照样报 `ORA-00904` / `ORA-00942`，等于没执行（2026-07-06 生产升级曾因此踩坑）。
+
+- `tech_platform`：所有 `smt_*` 业务表脚本（建表、加列、加索引，如 isc 系列、smt_oa_callback_log、isc-batch-model、设备权限索引）。
+- `tech_smart`：auth / upms 的 `sys_*` 表脚本（oauth 客户端注册、client_secret 前缀迁移、菜单改名）。
+- 新增脚本时，在文件头注释写明目标模式。
+
 ## 正向脚本
 
 | 脚本 | 是否执行 | 说明 |
