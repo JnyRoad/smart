@@ -1,5 +1,7 @@
 # OS / editor
 **/.DS_Store
+__MACOSX/
+*.stackdump
 Thumbs.db
 .idea/
 .vscode/
