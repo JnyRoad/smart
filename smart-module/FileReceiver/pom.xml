@@ -137,6 +137,25 @@
                         <nonFilteredFileExtension>xlsx</nonFilteredFileExtension>
                     </nonFilteredFileExtensions>
                 </configuration>
+                <executions>
+                    <!-- 打包时把 deploy/ 下的部署配置模板一并复制到发布目录 build/，与 file.jar 同级发布 -->
+                    <execution>
+                        <id>copy-deploy-config</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.basedir}/build</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>deploy</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
         <resources>

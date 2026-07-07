@@ -27,7 +27,8 @@ FileReceiver/
 │   │   └── resources/
 │   │       └── application.properties
 │   └── test/java/com/example/demo/pull/            # 拉取/清理任务单测
-├── build/       # Spring Boot 可执行 Jar 输出目录，忽略提交
+├── deploy/      # 部署配置模板（打包时随 Jar 复制到 build/）
+├── build/       # 发布目录（file.jar + application.properties），忽略提交
 └── target/      # Maven 构建目录，忽略提交
 ```
 
@@ -104,8 +105,17 @@ mvn test               # 跑单测（拉取/清理任务的纯单测，不依赖
 mvn clean package -DskipTests
 ```
 
-发布脚本读取的可部署产物：
+发布脚本读取的可部署产物（`mvn clean package` 时自动生成到 `build/`）：
 
 ```text
-build/file.jar
+build/file.jar                  # 可执行 Jar
+build/application.properties    # 部署配置模板（来自 deploy/，与 jar 同目录放置）
 ```
+
+部署配置模板使用说明：
+
+- 模板中 `server-url`、`app-secret` 留空，**部署时必须填入**（secret 来自 smart-ui
+  「应用管理」重置 App Secret 的弹窗明文）；不填则启动自检直接失败并点名缺失键。
+- 外置 `application.properties` 只在**进程工作目录**下才会被 Spring Boot 加载，
+  启动命令必须先 `cd` 到 jar 所在目录再执行 `java -jar file.jar`。
+- 密钥只存在部署机的该文件里，禁止提交代码库或明文传递。
