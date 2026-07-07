@@ -44,17 +44,20 @@
 </template>
 
 <script>
+	// 环境配置：薪资查询外链地址统一来源（见 config/env.js）
+	import env from '@/config/env.js'
 	export default {
 		data() {
 			return {
-				
+
 			}
 		},
 		methods: {
 			toSalarySeach() {
 				let url = uni.getStorageSync('USER_NAME')
 				console.log(url)
-				let link = encodeURIComponent(`http://gz.szyuto.com/XinZiChaXun/salary-query.aspx?GongHao=${url}`)
+				// 薪资查询为 gz 独立系统的页面，工号按对方要求拼在 query 上
+				let link = encodeURIComponent(`${env.SALARY_QUERY_URL}?GongHao=${url}`)
 				uni.navigateTo({
 					url: `../../home/news/web-link?title=工资查询&link=${link}&fuck=1`
 				});
