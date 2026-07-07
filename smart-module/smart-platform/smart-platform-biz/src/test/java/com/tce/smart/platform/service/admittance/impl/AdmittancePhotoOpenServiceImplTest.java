@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -76,6 +77,30 @@ public class AdmittancePhotoOpenServiceImplTest {
 		assertTrue("应包含园区 IN 过滤", sql.contains("park_id") && sql.contains("IN"));
 		// 无符合条件申请时不应再查随行人员
 		verify(fellowService, never()).list(any());
+	}
+
+	/**
+	 * Oracle 方言回归（生产踩坑实录）：Oracle 中空串即 NULL，查询条件带 {@code <> ''} 对所有行
+	 * 恒不成立，会把整个 pending 清单过滤成空。随行人员查询只允许 IS NOT NULL，
+	 * 禁止向查询参数绑定空串；空串/空白的过滤由内存层完成（方言无关）。
+	 */
+	@Test
+	public void listPendingPhotoIds_fellowQueryMustNotBindEmptyString() {
+		SmtAdmittanceApply apply = new SmtAdmittanceApply();
+		apply.setId(100L);
+		when(applyService.list(any())).thenReturn(Collections.singletonList(apply));
+		when(fellowService.list(any())).thenReturn(Collections.emptyList());
+
+		service.listPendingPhotoIds(Collections.singletonList(1));
+
+		@SuppressWarnings("rawtypes")
+		ArgumentCaptor<LambdaQueryWrapper> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		verify(fellowService).list(captor.capture());
+		String sql = captor.getValue().getSqlSegment();
+		assertTrue("应保留照片ID非空过滤", sql.contains("IS NOT NULL"));
+		for (Object bound : captor.getValue().getParamNameValuePairs().values()) {
+			assertFalse("查询参数绑定了空串：Oracle 下 <> '' 恒不成立，pending 会永远为空", "".equals(bound));
+		}
 	}
 
 	/** photoId 为空/空串的随行人员被过滤，重复 photoId 去重 */
