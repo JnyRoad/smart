@@ -1,0 +1,16 @@
+# 系统 / IDE 垃圾文件
+.DS_Store
+.vs/
+# HBuilderX 本地工程配置（打开工程后自动生成）
+.hbuilderx/
+
+# HBuilderX 编译产物：dist/debug/release/cache 均为构建输出，不入库；
+# unpackage/res/ 是 HBuilderX「自动生成图标」和启动图的落盘目录，被 manifest.json 引用，必须入库
+unpackage/dist/
+unpackage/debug/
+unpackage/release/
+unpackage/cache/
+
+# App 签名文件，严禁入库
+*.keystore
+*.jks

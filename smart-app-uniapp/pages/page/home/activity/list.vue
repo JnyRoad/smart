@@ -1,0 +1,122 @@
+<template>
+	<view class="mw pl30 pr30 pt30">
+		<block v-for="(item, index) in list" :key="index">
+			<view @click="toDetail(item)" class="hlc item mw pr30 pl30 pt20 pb20 bgf mb20 rad10">
+				<view class="img mr30">
+					<image class="mw mh" :src="item.titleImage" mode=""></image>
+				</view>
+				<view class="f1 mh vlb">
+					<view class="text3 f30pc">{{ item.activityTitle }}</view>
+					<view class="hrc mw f28pc4">{{item.dateDesc}}</view>
+				</view>
+			</view>
+		</block>
+		<yt-null v-if="isNull" notice="暂未数据"></yt-null>
+		<yt-loading></yt-loading>
+	</view>
+</template>
+
+<script>
+import indexInfo from '@/api/api-index-info.js';
+import { storage } from '@/tools/storage.js';
+import { dateUtils } from '@/common/js/util.js'
+export default {
+	data() {
+		return {
+			list: [],
+			page: {
+				current: 1,
+				size: 10
+			},
+			parkId: '',
+			hasMore: true,
+			isNull: false
+		};
+	},
+	onLoad() {
+		this.parkId = storage.getSync(storage.PARK_ID);
+		this.activityList();
+	},
+	onPullDownRefresh() {
+		this.page.current = 1;
+		this.hasMore = true;
+		this.activityList();
+	},
+	onReachBottom() {
+		if (!this.hasMore) {
+			this.$ytHint.toast({
+				title: '没有更多数据了！'
+			});
+			return;
+		}
+		this.page.current++;
+		this.activityList();
+	},
+	methods: {
+		async activityList() {
+			try {
+				const res = await indexInfo.activityList(this.page, this.parkId);
+				uni.stopPullDownRefresh();
+				if (this.page.current === 1) {
+					if(!res.data.data.records.length) {
+						this.isNull = true
+						return
+					}
+					res.data.data.records.forEach(el => {
+						if (el.date) {
+							el.dateDesc = dateUtils.format(el.date)
+						}
+					})
+					this.list = res.data.data.records;
+				} else {
+					if (!res.data.data.records.length) {
+						this.hasMore = false;
+						this.$ytHint.toast({
+							title: '没有更多数据了！'
+						});
+						return;
+					}
+					res.data.data.records.forEach(el => {
+						if (el.date) {
+							el.dateDesc = dateUtils.format(el.date)
+						}
+					})
+					this.list.push(...res.data.data.records);
+				}
+			} catch (e) {
+				console.log(e);
+				throw e
+			}
+		},
+		toDetail(item) {
+			if (item.contentLinkType == 1) {
+				const link = encodeURIComponent(item.activityUrl)
+				uni.navigateTo({
+					url: `./detail?link=${link}`
+				})
+			} else if (item.contentLinkType == 2) {
+				uni.navigateTo({
+					url: `./detail?activityId=${item.activityId}`
+				})
+			}
+			// if (item.contentLinkType == 4) {
+			// 	uni.navigateTo({
+			// 		url: `./detail1?activityId=${item.activityId}`
+			// 	})
+			// }
+			
+		}
+	}
+};
+</script>
+
+<style scoped>
+	.img {
+		width: 240upx;
+		height: 100%;
+	}
+	.item {
+		height: 272upx;
+		box-shadow: 0px 5upx 10upx 0px rgb(185, 185, 185, 0.9);
+	}
+</style>
