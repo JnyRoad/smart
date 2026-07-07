@@ -4,9 +4,19 @@
 		storage
 	} from '@/tools/storage.js';
 	import loginAccount from '@/api/api-account.js' // 刷新token
+	import { IS_FORCED } from '@/config/env.js' // 环境强制覆盖标记（防呆提示用）
 	export default {
 		onLaunch: function() {
 			console.log('App onLaunch');
+			// 防呆：FORCE_ENV 强制指向测试环境却用「发行」打包时，启动即阻断式提醒，
+			// 防止连测试环境的包被误发到生产（发版检查单见 config/env.js 头部注释）
+			if (IS_FORCED && process.env.NODE_ENV === 'production') {
+				uni.showModal({
+					title: '测试环境包',
+					content: '当前包强制连接测试环境（FORCE_ENV 已开启）。若这是生产发布，请立即停止分发并回收。',
+					showCancel: false
+				})
+			}
 			plus.screen.lockOrientation("portrait-primary");
 			const that = this
 			const isFirstEnter = storage.getSync(ISFIRSTENTER) // 不是第一次 为 'false'

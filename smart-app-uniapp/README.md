@@ -43,9 +43,21 @@ smart-app-uniapp/
 2. 首次需 `npm install` 安装依赖；
 3. 通过 HBuilderX 菜单"运行"到真机/模拟器调试，"发行"做云打包生成 APK / IPA。
 
+## 环境配置与发版检查单
+
+服务器地址统一收口在 `config/env.js`，业务代码禁止写死域名：
+
+- 自动层：HBuilderX「运行」= development（测试地址）、「发行」= production（生产地址）。
+- 覆盖层：需要打「连测试环境的发行包」时，把 `config/env.js` 的 `FORCE_ENV` 改为 `'development'` 再打包。
+
+发生产包前必须逐条确认：
+
+1. `config/env.js` 中 `FORCE_ENV = null`（忘记还原时 App 启动会弹阻断式「测试环境包」提示，见 App.vue onLaunch）；
+2. 测试环境目前与生产共用同一地址，测试网关独立部署后只需修改 `env.js` 的 development 段。
+
 ## 约定与注意事项
 
 - `unpackage/` 下只有 `res/` 入库（图标与启动图，manifest.json 引用了 33 处，且是 HBuilderX"自动生成图标"功能的固定落盘目录）；`dist/`、`debug/`、`release/`、`cache/` 均为编译产物，已在本目录 `.gitignore` 中忽略。不要把 `unpackage/` 整体加入忽略，会丢启动图。
 - App 签名文件（`*.keystore` / `*.jks`）严禁入库。
 - 仓库根 `.gitignore` 全局忽略 `package-lock.json`，因此本工程依赖不锁版本；依赖仅 4 个且处于维护态，可接受。
-- 接口端点集中在 `config/apis.js`，环境地址等配置在 `tools/request.js`，无独立 env 文件。
+- 接口端点路径集中在 `config/apis.js`，服务器地址集中在 `config/env.js`（用法见上方「环境配置与发版检查单」），无 .env 文件体系。
