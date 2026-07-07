@@ -1,6 +1,6 @@
 # smart
 
-`smart` 是裕同智慧园区项目代码目录，包含后端基础平台、业务微服务、管理端前端、微信 H5、历史 Vue2 H5 参考工程、本地 Docker 环境、发布脚本和项目文档。
+`smart` 是裕同智慧园区项目代码目录，包含后端基础平台、业务微服务、管理端前端、微信 H5、「裕慧家园」移动 App、历史 Vue2 H5 参考工程、本地 Docker 环境、发布脚本和项目文档。
 
 ## 目录结构
 
@@ -17,7 +17,8 @@ smart/
 ├── smart-module/             # 业务微服务后端：App、平台、桥接、数据、调度等
 ├── smart-ui/                 # 管理后台前端：Vue 2 + Element UI + Avue
 ├── smart-h5/                 # 当前维护的微信 H5：Next.js + React + antd-mobile
-└── smart-h5-vue2/            # 历史 Vue2 微信 H5，仅作功能参考
+├── smart-h5-vue2/            # 历史 Vue2 微信 H5，仅作功能参考
+└── smart-app-uniapp/         # 「裕慧家园」移动 App：uni-app + Vue 2，HBuilderX 打包
 ```
 
 ## 模块说明
@@ -29,6 +30,7 @@ smart/
 | `smart-ui/` | 管理端中后台 SPA，对接 `smart-gateway` 后的认证、UPMS 和园区业务 API。 | Vue 2.7、Element UI、Avue、Vue CLI、pnpm |
 | `smart-h5/` | 当前维护的微信内嵌移动 H5，覆盖登录、首页、访客、宿舍、放行、待办等移动端流程；后续 H5 功能更新统一在这里开发。 | Next.js 16、React 19、TypeScript、antd-mobile、Tailwind CSS |
 | `smart-h5-vue2/` | 历史 Vue2 微信公众号版 H5，仅用于查阅旧页面、旧交互和接口调用方式；不再维护、不再用于新功能开发或发布。 | Vue 2、Vue CLI、Vue Router、Vuex、cube-ui |
+| `smart-app-uniapp/` | 「裕慧家园」移动 App 客户端（Android / iOS），与 `smart-h5` 并行使用：App 场景用它、公众号场景用 H5；对接网关后的认证和 `smart-module/smart-app` 业务 API。 | uni-app（HBuilderX 工程）、Vue 2、Vuex、UniPush |
 | `docker/` | 本地 Docker Compose 的 Nacos 配置初始化脚本和配置文件。 | Docker Compose、Nacos、shell |
 | `scripts/` | 后端发布 Jar 汇总脚本、脚本测试和发布清单。 | Bash、Maven、zip/sha256 |
 | `docs/` | 项目级文档和跨模块资料，目前包含管理端页面功能清单。 | Markdown |
@@ -79,6 +81,8 @@ pnpm run test
 
 `smart-h5-vue2/` 仅作为旧版本页面参考。新需求、缺陷修复和发布验证应落在 `smart-h5/`，不要把新业务继续加回历史 Vue2 工程。
 
+「裕慧家园」移动 App：`smart-app-uniapp/` 是 HBuilderX 可视化工程，无命令行构建脚本；用 HBuilderX 打开目录，`npm install` 安装依赖后，通过 IDE 菜单运行到真机 / 模拟器或云打包生成 APK / IPA。详见 `smart-app-uniapp/README.md`。
+
 本地 Docker 环境：
 
 ```bash
@@ -107,6 +111,7 @@ scripts/build-release-jars.sh
 
 - macOS / IDE / Agent 工作树本地文件。
 - Node 依赖、缓存、构建产物、测试报告，包括旧 Vue2 H5 的 `dist-h5/` 和 `node_modules/`。
+- uni-app App 工程的 `unpackage/` 编译产物（`dist/` / `debug/` / `release/` / `cache/`）；但 `unpackage/res/` 是 manifest.json 引用的图标和启动图，必须入库，不要把 `unpackage/` 整体忽略。
 - Maven / Gradle `target/`、`.flattened-pom.xml`、压缩包、发布产物。
 - 真实 `.env` / `.env.local` / `.env.*.local`，但保留 `.env.example` 和 `.env.local.example`。
 - 本地数据库、日志、临时文件、release-artifacts。
