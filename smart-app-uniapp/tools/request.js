@@ -7,10 +7,11 @@ import {
 const that = new Vue() // 此定义完全是为了调用全局的自定义动画
 // 导入大佬封装好的请求插件 详情请查看 node_modules 的参数
 import axios from 'uni-request'
+// 环境配置：服务器地址统一来源，禁止在此写死域名（切换环境见 config/env.js）
+import env from '@/config/env.js'
 // 定义请求的全局api路径
-axios.defaults.baseURL = 'http://smartapp.szyuto.com:8090/'
-Vue.prototype.$url = 'http://smartapp.szyuto.com:8090/'
-axios.defaults.headers['Content-Type'] = 'application/json'	
+axios.defaults.baseURL = env.API_BASE_URL
+axios.defaults.headers['Content-Type'] = 'application/json'
 // 请求超时
 axios.defaults.timeout = 30000
 // 定义请求次数
@@ -20,9 +21,8 @@ axios.interceptors.request.use(request => {
 	requestUrl = request.url
 	that.$loading(true)
 	// 判断判断是否有登录信息
+	// 注意：此处严禁打印 token，登录令牌不能进设备日志
 	let token = uni.getStorageSync(USER_TOKEN)
-	console.log(requestUrl);
-	console.log(token);
 	if (requestUrl.indexOf('/auth/oauth/token') !== -1 || requestUrl.indexOf('/auth/ocr/token/face') !== -1) {
 		request.headers.common['Authorization'] = 'Basic c21hcnQ6c21hcnQ='
 		request.headers.common['TENANT_ID'] = '1'
