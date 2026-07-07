@@ -6,9 +6,17 @@ import router from './router/router'
 import store from '@/store'
 import {getStore} from '@/util/store'
 import {validatenull} from '@/util/validate'
+import {reportCaughtError} from '@/error-reporter'
 import NProgress from 'nprogress' // progress bar
 import 'nprogress/nprogress.css' // progress bar style
 NProgress.configure({showSpinner: false})
+
+// 导航失败（守卫抛错、异步组件/chunk 加载失败等）时 afterEach 不会触发，
+// 必须在这里收尾进度条并上报，否则页面表现为无限加载且无任何痕迹
+router.onError(error => {
+  NProgress.done()
+  reportCaughtError(error, '路由导航失败')
+})
 const lockPage = store.getters.website.lockPage // 锁屏页
 router.beforeEach((to, from, next) => {
   // 缓冲设置
