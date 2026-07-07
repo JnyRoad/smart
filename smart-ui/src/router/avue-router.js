@@ -2,11 +2,19 @@ import PlatformRouter from './platform/'
 
 const loadPage = () => import(/* webpackChunkName: "layout-main" */ '../page/index')
 const loadPageLayout = () => import(/* webpackChunkName: "layout-nested" */ '../page/index/layout')
-const loadMenuComponent = component => () => import(
+// 菜单组件按 sys_menu.component 动态加载；数据库里存在指向本工程不存在组件的历史菜单
+// （如 views/app/* 属老前端 smart-app-ui），import 失败若不兜底，导航会静默中止、
+// NProgress 永不结束（无限加载）。这里快速失败：上报后落到 404 错误页。
+export const loadMenuComponent = component => () => import(
   /* webpackChunkName: "view-[request]" */
   /* webpackMode: "lazy" */
   `../${component}.vue`
-)
+).catch(async error => {
+  // error-reporter 会引入 store 依赖链，只在失败路径懒加载，避免把重依赖挂到路由插件模块图上
+  const { reportCaughtError } = await import('../error-reporter')
+  reportCaughtError(error, `菜单组件加载失败: ${component}`)
+  return import(/* webpackChunkName: "view-404" */ '../components/error-page/404.vue')
+})
 
 let RouterPlugin = function () {
   this.$router = null
