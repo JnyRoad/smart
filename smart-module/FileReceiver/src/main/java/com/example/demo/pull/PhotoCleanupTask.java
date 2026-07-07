@@ -29,6 +29,11 @@ public class PhotoCleanupTask {
 
     private static final String PHOTO_SUFFIX = ".png";
 
+    /**
+     * 孤儿 tmp 文件的过期余量：1 天，防止删到正在写的文件。
+     */
+    private static final long TMP_STALE_AGE_SECONDS = 24L * 3600L;
+
     private final PhotoServerClient serverClient;
     private final OpenApiTokenClient tokenClient;
     private final PhotoPullProperties properties;
@@ -42,7 +47,12 @@ public class PhotoCleanupTask {
 
     @Scheduled(cron = "0 0 3 * * ?")
     public void run() {
-        runOnce();
+        try {
+            runOnce();
+        } catch (Exception e) {
+            // 兜底：单轮清理失败只记 ERROR，等次日重试，不让异常打断调度
+            log.error("本轮照片清理失败", e);
+        }
     }
 
     /**
@@ -52,6 +62,7 @@ public class PhotoCleanupTask {
         int retentionDays = properties.getCleanup().getRetentionDays();
         if (retentionDays <= 0) {
             // retention-days=0 表示关闭清理任务
+            log.info("照片过期清理未启用（retention-days={}），跳过本轮", retentionDays);
             return;
         }
 
@@ -67,32 +78,45 @@ public class PhotoCleanupTask {
 
         Path photoDir = Paths.get(properties.getPhotoDir());
         if (!Files.isDirectory(photoDir)) {
+            log.warn("照片目录不存在，跳过本轮清理：{}", photoDir);
             return;
         }
 
+        log.info("开始照片过期清理：保留 {} 天，pending 保护 {} 张", retentionDays, pendingPhotoIds.size());
         Instant staleBefore = Instant.now().minusSeconds(retentionDays * 24L * 3600L);
         List<Path> candidates = listPngFiles(photoDir);
+        int deletedCount = 0;
         for (Path file : candidates) {
-            deleteIfStaleAndNotPending(file, staleBefore, pendingPhotoIds);
+            if (deleteIfStaleAndNotPending(file, staleBefore, pendingPhotoIds)) {
+                deletedCount++;
+            }
         }
 
         // 清理孤儿 tmp 文件
-        cleanupStaleTmpFiles(photoDir);
+        int tmpDeletedCount = cleanupStaleTmpFiles(photoDir);
+        log.info("清理轮完成：扫描 {} 张照片，删除过期 {} 张，另清理孤儿 tmp {} 个",
+                candidates.size(), deletedCount, tmpDeletedCount);
     }
 
-    private void deleteIfStaleAndNotPending(Path file, Instant staleBefore, Set<String> pendingPhotoIds) {
+    /**
+     * @return 该文件本轮是否被删除
+     */
+    private boolean deleteIfStaleAndNotPending(Path file, Instant staleBefore, Set<String> pendingPhotoIds) {
         try {
             String photoId = toPhotoId(file);
             if (pendingPhotoIds.contains(photoId)) {
-                return;
+                return false;
             }
             FileTime mtime = Files.getLastModifiedTime(file);
             if (mtime.toInstant().isBefore(staleBefore)) {
                 Files.delete(file);
                 log.info("已清理过期照片：{}", file);
+                return true;
             }
+            return false;
         } catch (IOException e) {
             log.error("清理照片失败：{}", file, e);
+            return false;
         }
     }
 
@@ -119,9 +143,11 @@ public class PhotoCleanupTask {
      * PhotoPullTask.writeAtomically 写盘中途失败会残留 {photoId}.png.tmp，
      * 本方法删除 photo-dir 下 mtime 超过 1 天的 *.png.tmp 文件。
      * 不查 pending 清单，因为 tmp 本来就是中间产物；1 天余量防止删到正在写的文件。
+     *
+     * @return 本轮删除的 tmp 文件数
      */
-    private void cleanupStaleTmpFiles(Path photoDir) {
-        Instant staleBefore = Instant.now().minusSeconds(1 * 24L * 3600L);
+    private int cleanupStaleTmpFiles(Path photoDir) {
+        Instant staleBefore = Instant.now().minusSeconds(TMP_STALE_AGE_SECONDS);
         List<Path> tmpFiles = new java.util.ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(photoDir, "*" + PHOTO_SUFFIX + ".tmp")) {
             for (Path path : stream) {
@@ -129,19 +155,22 @@ public class PhotoCleanupTask {
             }
         } catch (IOException e) {
             log.error("遍历 tmp 文件目录失败：{}", photoDir, e);
-            return;
+            return 0;
         }
 
+        int deletedCount = 0;
         for (Path tmpFile : tmpFiles) {
             try {
                 FileTime mtime = Files.getLastModifiedTime(tmpFile);
                 if (mtime.toInstant().isBefore(staleBefore)) {
                     Files.delete(tmpFile);
                     log.info("已清理过期孤儿 tmp 文件：{}", tmpFile);
+                    deletedCount++;
                 }
             } catch (IOException e) {
                 log.error("清理 tmp 文件失败：{}", tmpFile, e);
             }
         }
+        return deletedCount;
     }
 }

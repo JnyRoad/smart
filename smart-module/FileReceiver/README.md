@@ -60,6 +60,32 @@ FileReceiver/
 - 待处理清单：`GET {server-url}/platform/open/admittance/photo/pending`，返回 `Result` 包装的 `photoId` 数组。
 - 下载：`GET {server-url}/platform/open/admittance/photo/download/{photoId}`，200 返回 PNG 字节，404 表示缺图（跳过不重试），401/403 表示 token 失效（刷新后重试一次）。
 
+启动自检（快速失败）：
+
+- `pull.enabled=true` 但 `server-url` / `app-id` / `app-secret` 任一缺失时，**启动直接失败**，
+  报错一次性点名全部缺失的配置键（写入日志文件），避免部署后任务静默空转。
+- `pull.enabled=false` 时正常启动，但日志会打 WARN 提示「不会主动下载任何照片」。
+
+## 日志
+
+日志同时输出到控制台和文件；文件日志按天轮转，**每天一个文件**：
+
+- 位置：默认在**软件目录**（`file.jar` 所在目录）下的 `Logs/` 子目录，文件名 `file-receiver.yyyy-MM-dd.log`。
+- 覆盖方式：环境变量 `FILE_RECEIVER_LOG_DIR` 或启动参数 `java -DLOG_DIR=<目录> -jar file.jar`。
+- 保留策略：30 天，总量封顶 1GB（防止占满打印机电脑磁盘）；文件编码 UTF-8。
+
+排查故障时的关键日志（均在 `Logs/` 当天文件中）：
+
+| 日志 | 级别 | 含义 |
+|---|---|---|
+| `拉取模式已启用：server-url=...` / `拉取模式未启用` | INFO / WARN | 启动配置摘要（app-secret 永不打印） |
+| `拉取轮完成：待处理 N 张，...` | INFO | 每轮心跳，30s 一条；长时间没有该行说明任务没在跑 |
+| `照片下载成功：photoId=...` | INFO | 单张成功，含大小与耗时 |
+| `下载照片失败，photoId=...` | ERROR | 单张失败，带堆栈，不影响本轮其余照片 |
+| `本轮照片拉取失败（token 或清单环节异常...）` | ERROR | 整轮失败（换 token、拉清单出错），下一轮自动重试 |
+| `已刷新 access token` | INFO | token 获取/刷新成功 |
+| `开始照片过期清理` / `清理轮完成` | INFO | 每日 03:00 清理任务 |
+
 ## 部署与配置说明（推送模式，已废弃）
 
 `POST /file/upload`（`file` + `filePath` 表单参数）仍然可用，但调用时会打印 WARN 日志提示废弃，
