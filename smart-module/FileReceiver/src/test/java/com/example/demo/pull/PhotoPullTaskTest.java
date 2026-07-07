@@ -121,6 +121,38 @@ public class PhotoPullTaskTest {
     }
 
     @Test
+    public void runOnce_returnsRoundSummaryCounts() throws IOException {
+        // 四种结局各一张：本地已有 / 下载成功 / 服务端缺图(404) / 下载异常
+        Files.write(photoDir.resolve("photo-exists.png"), "existing".getBytes());
+        when(serverClient.fetchPendingPhotoIds("token-1"))
+                .thenReturn(Arrays.asList("photo-exists", "photo-ok", "photo-404", "photo-fail"));
+        when(serverClient.downloadPhoto("token-1", "photo-ok"))
+                .thenReturn(PhotoServerClient.DownloadResult.found("bytes-ok".getBytes()));
+        when(serverClient.downloadPhoto("token-1", "photo-404"))
+                .thenReturn(PhotoServerClient.DownloadResult.notFound());
+        when(serverClient.downloadPhoto("token-1", "photo-fail"))
+                .thenThrow(new RuntimeException("模拟下载异常"));
+
+        PhotoPullTask.RoundSummary summary = task.runOnce();
+
+        assertThat(summary.getPendingCount()).isEqualTo(4);
+        assertThat(summary.getAlreadyExistsCount()).isEqualTo(1);
+        assertThat(summary.getDownloadedCount()).isEqualTo(1);
+        assertThat(summary.getMissingOnServerCount()).isEqualTo(1);
+        assertThat(summary.getFailedCount()).isEqualTo(1);
+    }
+
+    @Test
+    public void run_swallowsRoundFailureToKeepScheduling() {
+        // 整轮失败（如清单接口不可达）只记 ERROR 日志不抛出，避免打断后续调度轮
+        properties.getPull().setEnabled(true);
+        when(serverClient.fetchPendingPhotoIds("token-1"))
+                .thenThrow(new RuntimeException("模拟清单接口不可达"));
+
+        task.run();
+    }
+
+    @Test
     public void tokenClient_refreshesOn401Once() {
         // 首次拉清单遇 401，刷新 token 后重试一次即成功
         when(serverClient.fetchPendingPhotoIds("token-1"))

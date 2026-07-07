@@ -43,9 +43,10 @@
 >   - FileReceiver 拉取失败：`PhotoPullTask.java` `log.error("下载照片失败，photoId={}", photoId, e)`；
 >     单张缺图跳过：`log.warn("照片不存在，跳过：photoId={}", photoId)`；
 >     清单拉取整体失败：`PhotoCleanupTask.java` `log.warn("拉取待处理清单失败，跳过本轮照片清理", e)`。
->   - **已知观察盲点**：`PhotoPullTask` 每轮成功时**没有** INFO 级"成功"日志（只有失败/缺图才打日志），
->     因此"拉取轮成功"无法直接搜日志关键字确认，只能用「本节第 4 步验证方法」里给出的替代方案
->     （数落盘文件数 + 确认无 ERROR/WARN 密集刷屏）间接判断，见下方第 4 步。
+>   - ~~**已知观察盲点**：`PhotoPullTask` 每轮成功时**没有** INFO 级"成功"日志~~
+>     （已修复：现在每轮固定输出一行 `拉取轮完成：待处理 N 张，...` INFO 心跳，每张下载成功输出
+>     `照片下载成功：photoId=...`；文件日志默认写在软件目录 `Logs/file-receiver.yyyy-MM-dd.log`，
+>     按天轮转，详见 FileReceiver README「日志」一节——观察期可直接搜这些关键字确认拉取轮工作正常）。
 >   - smart-schedule 聚合回写：`AdmittanceDispatchAggregator.java`
 >     `log.warn("ISC任务聚合：cardNo[{}]无法解析为fellowId，跳过该任务", ...)`（数据质量问题，非阻断）；
 >     `log.warn("ISC任务聚合回写device_status未生效...判定为写冲突，将重试）"`（写冲突重试，
