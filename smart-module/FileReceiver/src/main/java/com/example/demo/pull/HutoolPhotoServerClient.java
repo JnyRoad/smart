@@ -1,5 +1,6 @@
 package com.example.demo.pull;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
@@ -38,6 +39,11 @@ public class HutoolPhotoServerClient implements PhotoServerClient {
      */
     private static final int TOKEN_READ_TIMEOUT_MILLIS = 5_000;
 
+    /**
+     * 报错信息里响应体片段的最大长度，防止超长 HTML 错误页刷爆日志。
+     */
+    private static final int BODY_SNIPPET_MAX_CHARS = 200;
+
     @Value("${file-receiver.pull.server-url:}")
     private String serverUrl;
 
@@ -50,10 +56,11 @@ public class HutoolPhotoServerClient implements PhotoServerClient {
                 .setReadTimeout(TOKEN_READ_TIMEOUT_MILLIS)
                 .execute();
         if (!response.isOk()) {
-            // 注意：不能把 appSecret 打进日志，这里只记录状态码
-            throw new UnauthorizedException("获取 token 失败，HTTP " + response.getStatus());
+            // 注意：不能把 appSecret 打进日志；错误响应体（如 invalid_client）截断后带入报错，便于区分密钥错/网关错
+            throw new UnauthorizedException("获取 token 失败，HTTP " + response.getStatus()
+                    + "，响应：" + bodySnippet(response));
         }
-        JSONObject json = JSONUtil.parseObj(response.body());
+        JSONObject json = parseJsonBody(response, "token 接口");
         String accessToken = json.getStr("access_token");
         long expiresIn = json.getLong("expires_in", 0L);
         return new TokenResult(accessToken, expiresIn);
@@ -68,10 +75,11 @@ public class HutoolPhotoServerClient implements PhotoServerClient {
                 .setReadTimeout(READ_TIMEOUT_MILLIS)
                 .execute();
         assertAuthorized(response);
-        JSONObject json = JSONUtil.parseObj(response.body());
+        JSONObject json = parseJsonBody(response, "待处理清单接口");
         int code = json.getInt("code", -1);
         if (code != 0) {
-            throw new IllegalStateException("拉取待处理清单失败，业务码：" + code);
+            throw new IllegalStateException("拉取待处理清单失败，业务码：" + code
+                    + "，msg：" + json.getStr("msg", "(无)"));
         }
         JSONArray data = json.getJSONArray("data");
         List<String> photoIds = new ArrayList<>();
@@ -96,7 +104,8 @@ public class HutoolPhotoServerClient implements PhotoServerClient {
         }
         assertAuthorized(response);
         if (!response.isOk()) {
-            throw new IllegalStateException("下载照片失败，HTTP " + response.getStatus());
+            throw new IllegalStateException("下载照片失败，HTTP " + response.getStatus()
+                    + "，响应：" + bodySnippet(response));
         }
         return DownloadResult.found(response.bodyBytes());
     }
@@ -106,5 +115,31 @@ public class HutoolPhotoServerClient implements PhotoServerClient {
         if (status == HttpStatus.UNAUTHORIZED.value() || status == HttpStatus.FORBIDDEN.value()) {
             throw new UnauthorizedException("token 无效，HTTP " + status);
         }
+    }
+
+    /**
+     * 把响应体解析为 JSON；解析失败（如网关误路由返回 HTML 错误页）时带上响应片段抛出，便于定位。
+     */
+    private JSONObject parseJsonBody(HttpResponse response, String apiName) {
+        try {
+            return JSONUtil.parseObj(response.body());
+        } catch (Exception e) {
+            throw new IllegalStateException(apiName + "响应不是合法 JSON，HTTP " + response.getStatus()
+                    + "，响应：" + bodySnippet(response), e);
+        }
+    }
+
+    /**
+     * 截断响应体用于报错信息：压掉换行、最多 {@link #BODY_SNIPPET_MAX_CHARS} 字符。
+     */
+    private String bodySnippet(HttpResponse response) {
+        String body = response.body();
+        if (StrUtil.isBlank(body)) {
+            return "(空响应体)";
+        }
+        String oneLine = body.replaceAll("\\s+", " ").trim();
+        return oneLine.length() <= BODY_SNIPPET_MAX_CHARS
+                ? oneLine
+                : oneLine.substring(0, BODY_SNIPPET_MAX_CHARS) + "...";
     }
 }

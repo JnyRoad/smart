@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  日志配置：控制台 + 按天轮转的文件日志。
+  LOG_DIR 由 FileApplication.main 在日志系统初始化前写入系统属性，
+  默认为软件目录（file.jar 所在目录）下的 Logs 子目录；
+  可用 -DLOG_DIR=... 或环境变量 FILE_RECEIVER_LOG_DIR 覆盖。
+-->
+<configuration>
+    <!-- 兜底默认值：LOG_DIR 未注入时落到进程工作目录下的 Logs -->
+    <property name="LOG_DIR" value="${LOG_DIR:-Logs}"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+
+    <!-- 控制台输出：前台调试运行时可见；后台/服务方式运行时以文件日志为准 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 文件输出：按天轮转，当天日志直接写入带日期的文件，每天一个文件 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/file-receiver.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <!-- 保留 30 天，总量封顶 1GB，防止打印机电脑磁盘被日志占满 -->
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <!-- 固定 UTF-8：中文日志在 Windows 上不乱码（用支持 UTF-8 的编辑器查看） -->
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
