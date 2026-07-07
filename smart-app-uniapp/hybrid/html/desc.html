@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta http-equiv="pragma" content="no-cache">
+		<meta http-equiv="cache-control" content="no-cache">
+		<meta http-equiv="expires" content="0">
+		<title>须知</title>
+		<link rel="stylesheet" type="text/css" href="./css/salary-detail.css"/>
+		<script src="js/rem.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/vue-min.js" type="text/javascript" charset="utf-8"></script>
+		<style type="text/css">
+			body {
+				background-color: #fff;
+				background-size:contain;
+				font-size: 0.15rem;
+			}
+		</style>
+		
+	</head>
+	<body>
+		<div id="app" v-html="message"></div>
+	</body>
+	<script type="text/javascript" charset="utf-8">
+		new Vue({
+			el:'#app',
+			data: {
+				message:''
+			},
+			mounted() {
+				const that = this
+				function plusReady(){
+					that.getLocalStorageContent()
+				}
+				document.addEventListener("plusready",plusReady,false);
+			},
+			methods: {
+				getLocalStorageContent() {
+					const that = this
+					let status = false
+					plus.nativeUI.showWaiting('数据获取中，请稍后...')
+					setTimeout(function() {
+						that.message = plus.storage.getItem('UPARSE')
+						
+						const div = document.createElement('div');
+						div.innerHTML = that.message
+						document.body.appendChild(div);
+						document.forms[0].submit();
+
+						if (that.message) {
+							plus.nativeUI.closeWaiting()
+							status = true
+						} else {
+							plus.nativeUI.toast('数据获取失败，请重试')
+							plus.nativeUI.closeWaiting()
+						}
+					},1000)
+				}
+			}
+		})
+	</script>
+</html>

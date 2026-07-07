@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>薪资明细</title>
+		<script type="text/javascript" charset="utf-8">
+			setNowFontSize();
+
+			function setNowFontSize() {
+				var StandardWidth = 375;
+				var StandardFontSize = 100;
+				var nowWidth = document.documentElement.offsetWidth;
+				var nowFontSize = nowWidth / StandardWidth * StandardFontSize;
+				document.documentElement.style.fontSize = nowFontSize + 'px';
+			}
+			window.addEventListener('resize', setNowFontSize);
+    
+    </script>
+    <script
+    src="https://code.jquery.com/jquery-3.4.1.js"
+    integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU="
+    crossorigin="anonymous"></script>
+    <style type="text/css">
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			.wrapper {
+				width: 100%;
+				background-color: #fff;
+			}
+
+			.top-head {
+				position: relative;
+				width: 100%;
+				height: 2rem;
+				background-color: #508BFF;
+			}
+
+			.top-head .user {
+				position: absolute;
+				bottom: 0;
+				width: 100%;
+				height: 0.45rem;
+				padding: 0 0.15rem;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				background-color: rgba(0, 0, 0, 0.2);
+			}
+
+			.top-head .user span {
+				color: #fff;
+				font-size: 0.16rem;
+			}
+
+			.top-head .money-count {
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+				width: 100%;
+				height: 100%;
+			}
+
+			.top-head .money-count .salary-fs {
+				font-size: 0.3rem
+			}
+
+			.top-head .money-count span {
+				color: #fff;
+				font-size: 0.14rem;
+			}
+
+			.salary-detail {
+				width: 100%;
+			}
+
+			.salary-detail .title {
+				width: 100%;
+				padding: 0.1rem 0.15rem;
+				border-bottom: 0.01rem solid #ddd;
+				font-size: 0.16rem;
+				color: #508BFF;
+				margin: 0;
+			}
+
+			.salary-detail .content {
+				width: 100%;
+				padding: 0.1rem 0.15rem;
+				border-bottom: 0.01rem solid #ddd;
+			}
+
+			.salary-detail .content .item {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				height: 0.3rem;
+				width: 100%;
+			}
+
+			.salary-detail .content .item .item-title {
+				color: #666666;
+				font-size: 0.16rem;
+			}
+
+			.salary-detail .content .item .item-money {
+				font-size: 0.16rem;
+				color: #508BFF;
+			}
+
+			.btn {
+				width: 1.6rem;
+				height: 0.45rem;
+				text-align: center;
+				line-height: 0.45rem;
+				color: #fff;
+				font-size: 0.16rem;
+				background-color: #508BFF;
+				border-radius: 0.45rem;
+				margin: 0.2rem auto;
+			}
+
+			.btn.sign {
+				background-color: #cccccc;
+			}
+
+
+			.canvas-box {
+				display: none;
+				flex-direction: column;
+				justify-content: space-between;
+				align-items: center;
+				position: absolute;
+				bottom: 0;
+				width: 100%;
+				height: 100%;
+				background-color: #fff;
+				padding: 0.1rem;
+				border-radius: 0.1rem;
+				box-shadow: 0 -0.05rem 0.1rem #ccc;
+
+			}
+			@keyframes trans-top {
+				from {
+					transform: translateY(200%);
+				}
+			
+				to {
+					transform: translateY(0);
+				}
+			}
+			
+			@keyframes trans-dwon {
+				from {
+					transform: translateY(0);
+				}
+			
+				to {
+					transform: translateY(200%);
+				}
+			}
+			
+			.canvas-box.down {
+				animation: trans-down 0.4s ease-in-out;
+			}
+
+			.canvas-box.top {
+				animation: trans-top 0.4s ease-in-out;
+			}
+
+			.canvas {
+				width: 100%;
+				height: 100%;
+				display: block;
+				border: 1px solid #ccc;
+				background-color: #ececec;
+				border-radius: 0.1rem;
+			}
+
+			
+			.btn-group {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-end;
+				width: 100%;
+				height: 0.8rem;
+				margin-bottom: 0.15rem;
+			}
+
+			.btn-group > p {
+				width: 0.8rem;
+				height: 0.24rem;
+				text-align: center;
+				line-height: 0.24rem;
+				font-size: 0.14rem;
+				color: #333;
+				background-color: #f8f8f8;
+				border-radius: 0.05rem;
+			}
+
+			.btn-group .tip {
+				font-size: 0.14rem;
+				color: #333;
+				
+			}
+
+			.sign-notice {
+				width: 100%;
+				margin-top: 0.1rem;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-size: 0.16rem;
+				color: #333;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="wrapper">
+			<div class="top-head">
+				<div class="money-count">
+					<span class="salary-fs">12000.00</span>
+					<span>合计工资（元）</span>
+				</div>
+				<div class="user">
+					<span>周星星</span>
+					<span>952712138</span>
+				</div>
+			</div>
+			<div class="salary-detail">
+				<div class="title">工资明细</div>
+				<div class="content">
+					<div class="item">
+						<span class="item-title ">正常上班工资</span>
+						<span class="item-money ">4000.00</span>
+					</div>
+					<div class="item">
+						<span class="item-title">技能津贴</span>
+						<span class="item-money">1000.00</span>
+					</div>
+					<div class="item">
+						<span class="item-title">绩效工资</span>
+						<span class="item-money">3000.00</span>
+					</div>
+					<div class="item">
+						<span class="item-title">计件工资</span>
+						<span class="item-money">3020.00</span>
+					</div>
+					<div class="item">
+						<span class="item-title">餐补</span>
+						<span class="item-money">1000.00</span>
+					</div>
+					<div class="item">
+						<span class="item-title">迟到扣除</span>
+						<span class="item-money">-300.00</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="signing" class="btn">去签名</div>
+		<div id="canvas-box" class="canvas-box">
+			<div class="btn-group">
+				<p id="clear" class="btn-claer">取消</p>
+				<span class="tip">请签名</span>
+				<p id="save" class="btn-save">保存</p>
+			</div>
+			<canvas id="canvas" class="canvas">
+				
+			</canvas>
+			<p class="sign-notice">请确认工资后，用手写方式完成电子签名</p>
+		</div>
+		<script type="text/javascript" charset="utf-8">
+			// 请在手机模式下进行调试
+			// 签名图片已转为base64位图片数据  调用接口即可使用 ----> 453行
+      let data = {
+        "badge" : "050746", //员工号
+        "wageDate" : "2019-07" //工资月份
+      }
+      var isSign
+      $.ajax({
+          url:"http://smartapp.szyuto.com:8080/platform/wage/sign/get",
+          type :"POST",
+          contentType:"application/json",
+          beforeSend:function(xhr) { 
+          xhr.setRequestHeader("Authorization", "Bearer 674fd54e-2ae3-4846-b65a-9e562906fbb9")},
+          data:JSON.stringify(data),
+          success:function(res){
+            if (res.data == 1) {
+              isSign = true // 是否已经签收了
+              document.getElementById('signing').innerText = '已签收'
+
+            } else {
+              isSign = false // 是否已经签收了
+              document.getElementById('signing').innerText = '去签名'
+
+            }
+          },
+      })
+			var signBase64 = '' // base64  具体看接口调用 使用split(',')[1] 截断
+			var writeCanvas = {}
+			// 签收
+			document.getElementById('signing').onclick = function () {
+				if (!isSign) {
+					document.getElementById('canvas-box').style.display = 'flex'
+					document.getElementById('canvas-box').classList.add('top')
+          var canvasObj = document.getElementById('canvas')
+					/**
+					 * 初始化调用
+					 * 设置参数
+					 */
+					writeCanvas = new WriteFont('canvas', {
+						borderWidth: 10,
+						canvasHeight: canvasObj.offsetHeight,
+						canvasWidth: canvasObj.offsetWidth,
+						writeWidth: 3,
+						borderColor: '#ff6666',
+						isWriteName: true //签名模式
+					});
+					writeCanvas.option.control.clearCanvas();
+					// 重置canvas 宽度高度
+					
+				} else {
+          // 在这里调用
+
+				}
+				
+			}
+			// 取消
+			document.getElementById('clear').onclick = function() {
+        isSign = false
+				writeCanvas.option.control.clearCanvas();
+				document.getElementById('canvas-box').style.display = 'none'
+			};
+			// 保存
+			document.getElementById('save').onclick = function() {
+				writeCanvas.saveAsImg()
+				console.log(isSign);
+				if (!isSign) return
+				document.getElementById('canvas-box').style.display = 'none'
+				document.getElementById('signing').innerText = '确认签收'
+			};
+			function WriteFont(id, options) {
+				var self = this;
+				this.canvas = document.getElementById(id);
+				var obj = {
+					canvas: this.canvas,
+					context: this.canvas.getContext("2d"),
+					isWrite: false, //是否开始
+					lastWriteTime: -1,
+					lastWriteSpeed: 0,
+					lastWriteWidth: 0,
+					canvasWidth: 335, //canvas宽高
+					canvasHeight: 900,
+					isShowBorder: true, //是否显示网格
+					bgColor: '#fff', //背景色
+					borderWidth: 2, //	网格线宽度
+					borderColor: "#fff", //网格颜色	
+					lastPoint: {}, //
+					writeWidth: 2, //基础轨迹宽度
+					maxWriteWidth: 30, // 写字模式最大线宽
+					minWriteWidth: 1, // 写字模式最小线宽
+					writeColor: '#000', //	轨迹颜色
+					isWriteName: false ,//签名模式
+				}
+
+				for (var name in options) {
+					obj[name] = options[name];
+				}
+
+				/**
+				 * 轨迹宽度
+				 */
+				this.setLineWidth = function() {
+					var nowTime = new Date().getTime();
+					var diffTime = nowTime - obj.lastWriteTime;
+					obj.lastWriteTime = nowTime;
+					var returnNum = obj.minWriteWidth + (obj.maxWriteWidth - obj.minWriteWidth) * diffTime / 30;
+					if (returnNum < obj.minWriteWidth) {
+						returnNum = obj.minWriteWidth;
+					} else if (returnNum > obj.maxWriteWidth) {
+						returnNum = obj.maxWriteWidth;
+					}
+
+					returnNum = returnNum.toFixed(2);
+					//写字模式和签名模式
+					if (obj.isWriteName) {
+						obj.context.lineWidth = obj.writeWidth;
+					} else {
+						obj.context.lineWidth = obj.lastWriteWidth = obj.lastWriteWidth / 4 * 3 + returnNum / 4;
+					}
+				}
+
+				/**
+				 * 绘制轨迹
+				 */
+				this.writing = function(point) {
+					obj.context.beginPath();
+					obj.context.moveTo(obj.lastPoint.x, obj.lastPoint.y);
+					obj.context.lineTo(point.x, point.y);
+					self.setLineWidth();
+					obj.context.stroke();
+					obj.lastPoint = point;
+					obj.context.closePath();
+				}
+
+				/**
+				 * 轨迹样式
+				 */
+				this.writeContextStyle = function() {
+					obj.context.beginPath();
+					obj.context.strokeStyle = obj.writeColor;
+					obj.context.lineCap = 'round';
+					obj.context.lineJoin = "round";
+				}
+
+				/**
+				 * 写开始
+				 */
+				this.writeBegin = function(point) {
+					obj.isWrite = true;
+					obj.lastWriteTime = new Date().getTime();
+					obj.lastPoint = point;
+					self.writeContextStyle();
+				}
+
+				/**
+				 * 写结束
+				 */
+				this.writeEnd = function() {
+					obj.isWrite = false;
+					isSign = true
+				}
+
+				/**
+				 * 清空画板
+				 */
+				this.canvasClear = function() {
+					obj.context.save();
+					obj.context.strokeStyle = '#fff';
+					obj.context.clearRect(0, 0, obj.canvasWidth, obj.canvasHeight);
+					if (obj.isShowBorder && !obj.isWriteName) {
+						obj.context.beginPath();
+						var size = obj.borderWidth / 2;
+						//画外面的框
+						obj.context.moveTo(size, size);
+						obj.context.lineTo(obj.canvasWidth - size, size);
+						obj.context.lineTo(obj.canvasWidth - size, obj.canvasHeight - size);
+						obj.context.lineTo(size, obj.canvasHeight - size);
+						obj.context.closePath();
+						obj.context.lineWidth = obj.borderWidth;
+						obj.context.strokeStyle = obj.borderColor;
+						obj.context.stroke();
+						//画里面的框
+						obj.context.moveTo(0, 0);
+						obj.context.lineTo(obj.canvasWidth, obj.canvasHeight);
+						obj.context.lineTo(obj.canvasWidth, obj.canvasHeight / 2);
+						obj.context.lineTo(obj.canvasWidth, obj.canvasHeight / 2);
+						obj.context.lineTo(0, obj.canvasHeight / 2);
+						obj.context.lineTo(0, obj.canvasHeight);
+						obj.context.lineTo(obj.canvasWidth, 0);
+						obj.context.lineTo(obj.canvasWidth / 2, 0);
+						obj.context.lineTo(obj.canvasWidth / 2, obj.canvasHeight);
+						obj.context.stroke();
+
+					}
+					obj.context.restore();
+				}
+
+				/**
+				 * 保存图片 格式base64 要提交的base64位图片在这里
+				 */
+				this.saveAsImg = function() {
+					var image = new Image();
+					image.src = this.canvas.toDataURL("image/png");
+					if (image.src == this.emptyCanvas) {
+						isSign = false
+						plus.nativeUI.toast('请签名')
+					} else {
+            signBase64 = image.src
+            console.log(signBase64)
+            let data = {
+                "badge" : "050746", //员工号
+                "wageDate" : "2019-07", //工资月份
+                "signImg" : signBase64
+            }
+            $.ajax({
+                url:"http://smartapp.szyuto.com:8080/platform/wage/sign/save",
+                type :"POST",
+                contentType:"application/json",
+                beforeSend:function(xhr) { 
+                xhr.setRequestHeader("Authorization", "Bearer 674fd54e-2ae3-4846-b65a-9e562906fbb9")},
+                data:JSON.stringify(data),
+                success:function(res){
+                    console.log(res);
+                },
+            })
+					}
+				};
+
+				/**
+				 * 初始化画板
+				 */
+				this.canvasInit = function() {
+					this.canvas.width = obj.canvasWidth;
+					this.canvas.height = obj.canvasHeight;
+					this.emptyCanvas = this.canvas.toDataURL("image/png");
+				}
+
+				/**======================事件绑定===========================**/
+
+				this.canvas.addEventListener('mousedown', function(e) {
+					e.preventDefault()
+					var point = {
+						x: e.offsetX || e.clientX,
+						y: e.offsetY || e.clientY
+					};
+					self.writeBegin(point);
+				});
+
+				this.canvas.addEventListener('mouseup', function(e) {
+					e.preventDefault()
+					var point = {
+						x: e.offsetX,
+						y: e.offsetY
+					};
+					self.writeEnd(point);
+				});
+
+				this.canvas.addEventListener('mouseleave', function(e) {
+					e.preventDefault()
+					var point = {
+						x: e.offsetX,
+						y: e.offsetY
+					};
+					self.writeEnd(point);
+				});
+
+				this.canvas.addEventListener('mousemove', function(e) {
+					e.preventDefault()
+					if (obj.isWrite) {
+						var point = {
+							x: e.offsetX,
+							y: e.offsetY
+						};
+
+						self.writing(point);
+					}
+				});
+
+				//移动端
+				this.canvas.addEventListener('touchstart', function(e) {
+					e.preventDefault()
+					var touch = e.targetTouches[0];
+					var diffHeight = touch.target.offsetTop
+					var point = {
+						x: touch.pageX,
+						y: touch.pageY - diffHeight
+					};
+					self.writeBegin(point);
+				});
+				this.canvas.addEventListener('touchend', function(e) {
+					e.preventDefault()
+					var touch = e.changedTouches[0];
+					var diffHeight = touch.target.offsetTop
+					var point = {
+						x: touch.pageX,
+						y: touch.pageY - diffHeight
+					};
+					self.writeEnd(point);
+				});
+				this.canvas.addEventListener('touchmove', function(e) {
+					e.preventDefault()
+					var touch = e.targetTouches[0];
+					var diffHeight = touch.target.offsetTop
+					var point = {
+						x: touch.pageX,
+						y: touch.pageY - diffHeight
+					};
+					self.writing(point);
+				});
+
+				this.canvasInit();
+				this.canvasClear();
+
+				this.option = obj;
+				obj.control = {
+					clearCanvas: self.canvasClear
+				};
+			}
+		</script>
+	</body>
+</html>
