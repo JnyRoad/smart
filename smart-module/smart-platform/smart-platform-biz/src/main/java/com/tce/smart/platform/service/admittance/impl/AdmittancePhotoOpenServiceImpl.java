@@ -57,13 +57,15 @@ public class AdmittancePhotoOpenServiceImpl implements AdmittancePhotoOpenServic
 			return Collections.emptyList();
 		}
 		List<Long> applyIds = applies.stream().map(SmtAdmittanceApply::getId).collect(Collectors.toList());
-		// 第二步：这些申请单下 photoId 非空的随行人员（照片以随行人员为载体，与推送链路口径一致）
+		// 第二步：这些申请单下 photoId 非空的随行人员（照片以随行人员为载体，与推送链路口径一致）。
+		// 注意：这里只允许 IS NOT NULL，禁止再加 <> '' —— Oracle 中空串即 NULL，
+		// <> '' 对所有行恒不成立，会把整个清单过滤成空（2026-07 生产踩坑实录）；
+		// 空串/空白的兜底由下方内存过滤完成（方言无关）。
 		List<SmtAdmittanceFellow> fellows = smtAdmittanceFellowService.list(Wrappers.<SmtAdmittanceFellow>lambdaQuery()
 				.select(SmtAdmittanceFellow::getFellowPhotoId)
 				.in(SmtAdmittanceFellow::getVisitorId, applyIds)
-				.isNotNull(SmtAdmittanceFellow::getFellowPhotoId)
-				.ne(SmtAdmittanceFellow::getFellowPhotoId, ""));
-		// 去重保序；再防御一层空值（数据库空串条件在个别方言下可能漏拦）
+				.isNotNull(SmtAdmittanceFellow::getFellowPhotoId));
+		// 去重保序；空串/空白过滤在内存完成（MySQL 等方言存在真正的空串，Oracle 空串即 NULL 已被上面拦截）
 		Set<String> photoIds = new LinkedHashSet<>();
 		for (SmtAdmittanceFellow fellow : fellows) {
 			String photoId = fellow.getFellowPhotoId();
