@@ -1,0 +1,1366 @@
+{
+	"pages": [ //pages数组中第一项表示应用启动页,
+		{
+			"path": "pages/page/start/start",
+			"style": {
+				"navigationStyle": "custom",
+				"app-plus": {
+					"titleNView": false
+				}
+			}
+		},
+		{
+			"path": "pages/page/tabbar/home/home",
+			"style": {
+						"navigationBarTitleText": "大岭山园区",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "选择园区",
+									"fontSize": "16px",
+									"width" : "88px"
+								}]
+							}
+						}
+			}
+		}, 
+		{
+			"path": "pages/page/tabbar/mine/mine",
+			"style": {
+				"navigationBarTitleText": "我的",
+				"app-plus": {
+					"titleNView": {
+						"titleColor": "#FFFFFF",
+						"backgroundColor": "#508BFF"
+					}
+				}
+			}
+		},
+		
+		{
+			"path": "pages/page/tabbar/service/service",
+			"style": {
+				"navigationBarTitleText": "服务",
+				"app-plus": {
+					"titleNView": {
+						"splitLine":{"color":"#d8d8d8"}
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/page/neterr/neterr",
+			"style": {
+				"navigationBarTitleText": "网络错误",
+				"app-plus": {
+					"titleNView":{
+						"splitLine":{"color":"#d8d8d8"}
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/page/tabbar/news/news",
+			"style": {
+				"navigationStyle":"custom",
+				"enablePullDownRefresh": true,
+				"app-plus": {
+					"titleNView": false
+				}
+			}
+		}
+	],
+	"subPackages": [
+		{
+			"root": "pages/page/home",
+			"pages": [{
+				"path": "address-list/address-list",
+				"style": {
+					"navigationBarTitleText": "园区地址",
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "notice/list",
+				"style": {
+					"navigationBarTitleText": "集团公告",
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "notice/detail",
+				"style": {
+					"navigationBarTitleText": "公告详情",
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "notice/detail1",
+				"style": {
+					"app-plus": {
+						"titleNView":{
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "news/newsList",
+				"style": {
+					"navigationBarTitleText": "园区新闻",
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},{
+				"path": "news/web-link",
+				"style": {
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "news/web-link2",
+				"style": {
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "news/newsDetail",
+				"style": {
+					"navigationBarTitleText": "新闻详情",
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "park-general/list",
+				"style": {
+					"navigationBarTitleText": "园区概况",
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			
+			{
+				"path": "park-general/detail",
+				"style": {
+					"navigationBarTitleText": "概况详情",
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "activity/list",
+				"style": {
+					"navigationBarTitleText": "园区公告",
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			
+			{
+				"path": "activity/detail1",
+				"style": {
+					"app-plus": {
+						"titleNView":{
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "activity/detail",
+				"style": {
+					"navigationBarTitleText": "公告详情",
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "instroduce/list",
+				"style": {
+					"navigationBarTitleText": "裕同简介",
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			
+			{
+				"path": "instroduce/detail",
+				"style": {
+					"navigationBarTitleText": "简介详情",
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "culture/list",
+				"style": {
+					"navigationBarTitleText": "企业文化",
+					"enablePullDownRefresh": true,
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			
+			{
+				"path": "culture/detail",
+				"style": {
+					"navigationBarTitleText": "企业文化详情",
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			},
+			{
+				"path": "banner/banner",
+				"style": {
+					"app-plus": {
+						"titleNView": {
+							"splitLine":{"color":"#d8d8d8"}
+						}
+					}
+				}
+			}
+			]
+		},
+		{
+			"root": "pages/page/service",
+			"pages": [
+				{
+					"path": "resize-rest/apply",
+					"style": {
+						"navigationBarTitleText": "调休",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "记录",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				},
+				{
+					"path": "resize-rest/record",
+					"style": {
+						"navigationBarTitleText": "调休记录",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "resize-rest/detail",
+					"style": {
+						"navigationBarTitleText": "调休详情",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "ask-leave/apply",
+					"style": {
+						"navigationBarTitleText": "请假",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "记录",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				},
+				{
+					"path": "ask-leave/record",
+					"style": {
+						"navigationBarTitleText": "请假记录",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "ask-leave/detail",
+					"style": {
+						"navigationBarTitleText": "请假详情",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "on-business/apply",
+					"style": {
+						"navigationBarTitleText": "出差",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "记录",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				}, {
+					"path": "on-business/record",
+					"style": {
+						"navigationBarTitleText": "出差记录",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "on-business/detail",
+					"style": {
+						"navigationBarTitleText": "出差详情",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "extrawork/apply",
+					"style": {
+						"navigationBarTitleText": "加班",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "记录",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				},
+				{
+					"path": "extrawork/record",
+					"style": {
+						"navigationBarTitleText": "加班记录",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "extrawork/detail",
+					"style": {
+						"navigationBarTitleText": "加班详情",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "leave/leave-detail",
+					"style": {
+						"navigationBarTitleText": "离职详情",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				}, {
+					"path": "leave/leave-handover-detail",
+					"style": {
+						"navigationBarTitleText": "工作交接事项",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "leave/leave-node",
+					"style": {
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "leave/leave-apply",
+					"style": {
+						"navigationBarTitleText": "离职",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "记录",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				}, {
+					"path": "recruit/recruit-index",
+					"style": {
+						"navigationBarTitleText": "招聘管理",
+						"app-plus": {
+							"titleNView": {
+								"type": "default",
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "更多",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				}, {
+					"path": "recruit/recruit-plan-index",
+					"style": {
+						"navigationStyle": "custom",
+						"app-plus": {
+							"titleNView": false
+						}
+					}
+				}, {
+					"path": "recruit/recruit-detail",
+					"style": {
+						"navigationBarTitleText": "简历详情",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "recruit/recruit-record",
+					"style": {
+						"navigationBarTitleText": "应聘记录",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "recruit/success",
+					"style": {
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "recruit/refuse-entry",
+					"style": {
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "recruit/select-job",
+					"style": {
+						"navigationBarTitleText": "岗位选择",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "recruit/recruit-face",
+					"style": {
+						"navigationBarTitleText": "拍照找简历",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "recruit/recruit-post-select",
+					"style": {
+						"navigationBarTitleText": "选择入职岗位",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "recruit/recruit-search",
+					"style": {
+						"navigationStyle": "custom",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView": false
+						}
+					}
+				}, {
+					"path": "leave/leave-office/unusual-leave-reason",
+					"style": {
+						"navigationBarTitleText": "异常离职原因",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				}, {
+					"path": "leave/leave-office/leave-reason",
+					"style": {
+						"navigationBarTitleText": "离职原因",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				}, {
+					"path": "leave/leave-quit",
+					"style": {
+						"navigationBarTitleText": "离职",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "leave/leave-record",
+					"style": {
+						"navigationBarTitleText": "离职记录",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "leave/success",
+					"style": {
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "checking-in/apply-clockin",
+					"style": {
+						"navigationBarTitleText": "补卡申请",
+						"app-plus": {
+							"titleNView": {
+								"type": "default",
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "记录",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				},
+				{
+					"path": "checking-in/record",
+					"style": {
+						"navigationBarTitleText": "补卡记录",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "checking-in/dangyue",
+					"style": {
+						"navigationBarTitleText": "当月明细",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "checking-in/success-detail",
+					"style": {
+						"navigationBarTitleText": "考勤明细",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "checking-in/error-detail",
+					"style": {
+						"navigationBarTitleText": "考勤异常",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "checking-in/detail",
+					"style": {
+						"navigationBarTitleText": "补卡详情",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "checking-in/summary",
+					"style": {
+						"navigationBarTitleText": "考勤汇总",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "checking-in/checking-in-status",
+					"style": {
+						"navigationBarTitleText": "考勤状态",
+						"app-plus": {
+							"titleNView": {
+								"type": "default",
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "记录",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				},
+				{
+					"path": "salary-query/index",
+					"style": {
+						"navigationBarTitleText": "薪资查询",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "salary-query/list",
+					"style": {
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "visitor-appointment/add-visitor",
+					"style": {
+						"navigationBarTitleText": "添加访客预约",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "visitor-appointment/my-visitor",
+					"style": {
+						"navigationBarTitleText": "访客预约",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "visitor-appointment/visitor-detail",
+					"style": {
+						"navigationBarTitleText": "待我审批",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "visitor-appointment/accompany-people",
+					"style": {
+						"navigationBarTitleText": "随行人员",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "visitor-appointment/add-accompany-people",
+					"style": {
+						"navigationBarTitleText": "添加随行人员",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "new-employees/index",
+					"style": {
+						"navigationBarTitleText": "员工须知",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "new-employees/detail",
+					"style": {
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "new-employees/detail1",
+					"style": {
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "new-employees/detail2",
+					"style": {
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "wait-approve/index",
+					"style": {
+						"navigationBarTitleText": "待我审批的",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "wait-approve/approve",
+					"style": {
+						"navigationBarTitleText": "审批",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "expense-record/index",
+					"style": {
+						"navigationBarTitleText" : "消费记录",
+						"enablePullDownRefresh" : true,
+						"app-plus": {
+							"titleNView": false
+						}
+					}
+				},
+				{
+					"path": "social-security/index",
+					"style": {
+						"navigationBarTitleText": "社保公积金",
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "social-security/detail",
+					"style": {
+						"navigationStyle":"custom",
+						"app-plus": {
+							"titleNView": false
+						}
+					}
+				},
+				{
+					"path": "salary-pay/index",
+					"style": {
+						"navigationBarTitleText": "工资条",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView":{
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "salary-pay/detail",
+					"style": {
+						"navigationBarBackgroundColor":"#508BFF",
+						"navigationBarTextStyle":"white",
+						"app-plus": {
+
+						}
+					}
+				}
+            ]
+		},
+		{
+			"root": "pages/page/mine",
+			"pages": [
+				{
+					"path": "help/help-center",
+					"style": {
+						"navigationBarTitleText": "帮助中心",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "help/question-detail",
+					"style": {
+						"navigationBarTitleText": "问题详情",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mycar/index",
+					"style": {
+						"navigationBarTitleText": "我的车辆",
+						"enablePullDownRefresh": true,
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"},
+								"buttons": [{
+									"text": "添加",
+									"fontSize": "16px",
+									"color": "#5c92ff"
+								}]
+							}
+						}
+					}
+				},
+				{
+					"path": "mycar/addcar",
+					"style": {
+						"navigationBarTitleText": "添加车辆",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mycar/detail",
+					"style": {
+						"navigationBarTitleText": "车辆详情",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mycar/authlist",
+					"style": {
+						"navigationBarTitleText": "园区权限",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "settings/index",
+					"style": {
+						"navigationBarTitleText": "设置",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "ercode/index",
+					"style": {
+						"navigationBarTitleText": "扫码通行",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mydorm/index",
+					"style": {
+						"navigationBarTitleText": "我的宿舍",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mydorm/agreement",
+					"style": {
+						"navigationBarTitleText": "员工外宿协议",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mydorm/select-dorm-type",
+					"style": {
+						"navigationBarTitleText": "选择宿舍类型",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mydorm/apply-out-dorm",
+					"style": {
+						"navigationBarTitleText": "申请外宿",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mydorm/apply-in-dorm",
+					"style": {
+						"navigationBarTitleText": "申请内宿",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mydorm/in-dorm-success",
+					"style": {
+						"navigationBarTitleText": "我的宿舍",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mydorm/outDetail",
+					"style": {
+						"navigationBarTitleText": "外宿详情",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "mydorm/out-dorm-success",
+					"style": {
+						"navigationBarTitleText": "我的宿舍",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "settings/account-safe",
+					"style": {
+						"navigationBarTitleText": "账户与安全",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "settings/about-us",
+					"style": {
+						"navigationBarTitleText": "关于我们",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "settings/userXie",
+					"style": {
+						"navigationBarTitleText": "用户协议及隐私政策",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "settings/verify-tel",
+					"style": {
+						"navigationBarTitleText": "验证原手机号",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "settings/change-tel",
+					"style": {
+						"navigationBarTitleText": "验证手机号",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "settings/set-password",
+					"style": {
+						"navigationBarTitleText": "设置密码",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "settings/setting-success",
+					"style": {
+						"navigationBarTitleText": "设置成功",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "personnel-records/index",
+					"style": {
+						"navigationBarTitleText": "员工资料",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				}
+			    ,{
+                    "path" : "shareit/shareit",
+                    "style" : {
+						"navigationBarTitleText": "裕慧家园",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+                }
+            ]
+		},
+		{
+			"root": "pages/page/logins",
+			"pages": [
+				{
+					"path": "login/login",
+					"style": {
+						"navigationStyle": "custom",
+						"app-plus": {
+							"titleNView": false
+						}
+					}
+				},
+				{
+					"path": "findPwd/findPwd",
+					"style": {
+						"navigationBarTitleText": "选择找回方式",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				}, {
+					"path": "face/face",
+					"style": {
+						"navigationBarTitleText": "人脸识别",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				}, {
+					"path": "findPwdPhone/findPwdPhone",
+					"style": {
+						"navigationBarTitleText": "手机号码找回",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "findPwdPhone/setPassword",
+					"style": {
+						"navigationBarTitleText": "设置新密码",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "findPwdPhone/success",
+					"style": {
+						"navigationBarTitleText": "设置成功",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "Information/Information",
+					"style": {
+						"navigationBarTitleText": "信息完善",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				},
+				{
+					"path": "Information/idcard-scan",
+					"style": {
+						"navigationBarTitleText": "身份证上传",
+						"app-plus": {
+							"titleNView": {
+								"splitLine":{"color":"#d8d8d8"}
+							}
+						}
+					}
+				}
+			]
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarBackgroundColor": "#ffffff",
+		"backgroundColor": "#ffffff"
+	},
+	"tabBar": {
+		"color": "#7a7e83",
+		"selectedColor": "#5c92ff",
+		"backgroundColor": "#ffffff",
+		"list": [{
+			"pagePath": "pages/page/tabbar/home/home",
+			"text": "首页",
+			"iconPath": "static/img/index/icon1.png",
+			"selectedIconPath": "static/img/index/icon1-active.png"
+		}, {
+			"pagePath": "pages/page/tabbar/service/service",
+			"text": "服务",
+			"iconPath": "static/img/index/icon2.png",
+			"selectedIconPath": "static/img/index/icon2-active.png"
+		}, {
+			"pagePath": "pages/page/tabbar/news/news",
+			"text": "消息",
+			"iconPath": "static/img/index/icon3.png",
+			"selectedIconPath": "static/img/index/icon3-active.png"
+		}, {
+			"pagePath": "pages/page/tabbar/mine/mine",
+			"text": "我的",
+			"iconPath": "static/img/index/icon4.png",
+			"selectedIconPath": "static/img/index/icon4-active.png"
+		}]
+	},
+	"condition" : { //模式配置，仅开发期间生效
+		"current": 0, //当前激活的模式(list 的索引项)
+		"list": [
+			{
+				"name": "", //模式名称
+				"path": "", //启动页面，必选
+				"query": "" //启动参数，在页面的onLoad函数里面得到
+			}
+		]
+	}
+}

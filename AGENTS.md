@@ -7,7 +7,7 @@
 
 ## 仓库组织
 
-- 子项目按目录平铺，例如 `smart/`、`smart-module/`、`smart-ui/`、`smart-h5/`、`smart-h5-vue2/`，后续新增模块继续作为根目录同级子目录。
+- 子项目按目录平铺，例如 `smart/`、`smart-module/`、`smart-ui/`、`smart-h5/`、`smart-h5-vue2/`、`smart-app-uniapp/`，后续新增模块继续作为根目录同级子目录。
 - 子项目不要初始化独立 `.git`；需要例外时先说明原因。
 - 新增子项目时，同步更新根 `README.md` 和本文件的“子项目”清单。
 - 设计文档放在对应子项目自己的 `docs/` 下；实现时以当前代码、当前 README、当前配置为准。
@@ -26,6 +26,7 @@
 | `smart-ui/` | 管理后台前端 | Vue 2、Element UI、Avue、Vue CLI、pnpm | `pnpm install`、`pnpm dev`、`pnpm lint`、`pnpm test`、`pnpm build` |
 | `smart-h5/` | 当前维护的微信 H5 应用，本次开发的模块（功能与目录见下） | Next.js 16、React 19、TypeScript strict、antd-mobile 5、Tailwind CSS 4、TanStack Query、Zustand、Vitest、Playwright | `pnpm check`、`pnpm test`、`pnpm e2e`、`pnpm build` |
 | `smart-h5-vue2/` | 历史 Vue2 微信公众号版 H5，只读参考，不再维护/发布 | Vue 2、Vue CLI、Vue Router、Vuex、cube-ui、pnpm | 默认不执行；`pnpm install`、`pnpm run serve`、`pnpm run test`、`pnpm run build` |
+| `smart-app-uniapp/` | 「裕慧家园」移动 App 客户端（Android / iOS），与 `smart-h5` 并行使用：App 场景用它、公众号场景用 H5；对接 `smart-module/smart-app` 后端（注意二者是客户端与后端模块的关系，勿混淆） | uni-app（HBuilderX 可视化工程、App-plus）、Vue 2、Vuex、UniPush | 无 CLI 构建；HBuilderX 打开目录，`npm install` 后用 IDE 运行 / 云打包 |
 
 ### `smart-module` 模块清单
 
@@ -89,6 +90,7 @@
 - `smart-ui/`：`src/api/` 放接口封装，`src/views/` 放业务页面，`src/router/` 放路由和 axios 配置，`src/store/` 放 Vuex，`public/` 放原样发布静态资源。
 - `smart-h5/`：见上方「`smart-h5` 目录结构」。
 - `smart-h5-vue2/`：`src/views-mobile/` 放旧移动端页面，`src/router/` 放旧路由，`src/services/` 放旧接口封装，`src/components/` 放旧通用组件；只读对标优先，不主动扩展业务。
+- `smart-app-uniapp/`：`api/` 放接口封装，`pages/page/` 放业务页面，`components/` 放通用组件，`config/` 放端点常量与权限字典，`tools/` 放请求与存储封装，`static/` 放运行时静态资源，`unpackage/res/` 放 HBuilderX 生成的图标与启动图（被 manifest.json 引用必须入库，勿把 `unpackage/` 整体加入忽略）。
 
 ## 架构骨架
 
