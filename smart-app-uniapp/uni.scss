@@ -1,0 +1,693 @@
+/* 颜色变量 */
+$main-color: #508BFF;
+$main-tint-color: rgb(139, 174, 245);
+/* 行为相关颜色 */
+$primary: #508BFF;
+$success: #76C289;
+$warning: #F25C19;
+$error: #F25C19;
+$border-color: #ececec;
+
+.main-color {
+	color: $main-color;
+}
+
+.main-bg {
+	background-color: $main-color;
+}
+
+.suc-color {
+	color: $success;
+}
+
+.suc-bg {
+	background-color: $success;
+}
+
+.err-color {
+	color: $warning;
+}
+
+.err-bg {
+	background-color: $warning;
+}
+
+.ec-bg {
+	background-color: $border-color;
+}
+
+// flex系列缩写 
+@each $h,
+$x,
+$y in (h),
+(h, b),
+(h, c),
+(h, r),
+(h, r, c),
+(h, b, c),
+(h, d, b),
+(h, l),
+(h, l, c),
+(h, l, d),
+(h, c, c),
+(h, c, d),
+(h, c, b),
+(h, a, c),
+(h, l, u),
+(h, b, d),
+(v),
+(v, c),
+(v, c, c),
+(v, c, d),
+(v, l, c),
+(v, l, b),
+(v, l, d),
+(v, r),
+(v, r, c),
+(v, b),
+(v, b, c),
+(v, b, b),
+(v, c, a) {
+    .#{$h}#{$x}#{$y} {
+        $result: (l: flex-start, r: flex-end, c: center, u:flex-start, d:flex-end, b:space-between, a:space-around);
+        $xname: justify-content;
+        $yname: align-items;
+        flex-direction: row;
+        display: flex;
+        @if $h=='v' {
+            flex-direction: column;
+            $xname: align-items;
+            $yname: justify-content;
+        }
+        @if $x {
+            #{$xname}: map-get($result, $x)
+        }
+        @if $y {
+            #{$yname}: map-get($result, $y)
+        }
+    }
+}
+
+.fw {
+    flex-wrap: wrap;
+}
+
+.f1{
+    flex: 1;
+}
+
+.mw {
+    width: 100%;
+}
+
+.mh {
+    height: 100%;
+}
+
+.mwh {
+    width: 100%;
+    height: 100%;
+}
+
+.mvh{
+    height: 100vh;
+}
+
+
+//调试用
+.b {
+    border: 1upx solid red;
+}
+
+.bl {
+    border: 1upx solid blue;
+}
+
+view {
+    box-sizing: border-box;
+}
+
+.sizing{
+    box-sizing: border-box;
+}
+.thin-topLine::before {
+    content: "";
+    // width: 100%;
+    display: block;
+    border-bottom: 1upx solid #dedede;
+    transform: scaleY(0.2);
+    transform-origin: 0 100%;
+}
+
+.line::before,
+.thin-bottomLine::before {
+    content: "";
+    width: 100%;
+    display: block;
+    border-bottom: 1upx solid #dedede;
+    transform: scaleY(0.2);
+    transform-origin: 0 0;
+}
+
+//12-18像素的边距快捷方式
+@for $i from 2 through 120 {
+    @if $i % 2==0 {
+        //margin系列 
+        .ma#{$i} {
+            margin: #{$i}upx;
+        }
+        .ml#{$i} {
+            margin-left: #{$i}upx;
+        }
+        .mr#{$i} {
+            margin-right: #{$i}upx;
+        }
+        .mlr#{$i} {
+            margin-left: #{$i}upx;
+            margin-right: #{$i}upx;
+        }
+        .mtb#{$i} {
+            margin-top: #{$i}upx;
+            margin-bottom: #{$i}upx;
+        }
+        .mt#{$i} {
+            margin-top: #{$i}upx;
+        }
+        .mb#{$i} {
+            margin-bottom: #{$i}upx;
+        } //padding系列
+        .pt#{$i} {
+            padding-top: #{$i}upx;
+        }
+        .pl#{$i} {
+            padding-left: #{$i}upx;
+        }
+        .pb#{$i} {
+            padding-bottom: #{$i}upx;
+        }
+        .pr#{$i} {
+            padding-right: #{$i}upx;
+        }
+    }
+}
+
+/* 定义全局公共类 */
+.yt-page {
+	position: fixed;
+	z-index: 997;
+	/* #ifdef APP-PLUS || MP-WEIXIN */
+	top: 0;
+	/* #endif */
+	/* #ifdef H5 */
+	top: 88upx;
+	padding-bottom: 88upx;
+	/* #endif */
+	left: 0;
+	width: 100%;
+	height: 100%;
+	overflow-y: scroll;
+	/* #ifdef MP-WEIXIN */
+	&::-webkit-scrollbar {
+		display: none;
+	}
+	/* #endif */
+}
+
+.overflow-y {
+	overflow-y: scroll;
+}
+
+/* 设置所有image  */
+image {
+	width: 100%;
+	height: 100%;
+}
+
+
+.mt100{
+    margin-top: 100upx;
+}
+
+.mt200 {
+	margin-top: 200upx;
+}
+
+//width和高
+@for $i from 10 through 400 {
+    @if $i % 5==0 {
+        .w#{$i} {
+            width: #{$i}upx;
+        }
+        .h#{$i} {
+            height: #{$i}upx;
+        }
+    }
+}
+
+/* color */
+//颜色变量
+$pc: #333333;
+$pc1: #222222; //高亮一级主色
+$pc2: #666666; //高亮二级主色
+$pc3: #bbbbbb; //高亮三级主色
+$pc4:#999999;
+$mc: #f15d5d; //货币颜色
+$tc: #ff636a; //确定 色
+$pc5:#3f85bc;
+$pc6:#F25C19;
+$pc7:#508BFF;
+$pc8:#74C288;
+$pc9:#B9B9B9;
+
+//10-20像素字体快捷方式
+$font-map: ("": #{$pc}, "1":#{$pc1}, "2":  #{$pc2}, "3":  #{$pc3}, "4":  #{$pc4}, "5":  #{$pc5}, "6":  #{$pc6}, "7":  #{$pc7}, "8":  #{$pc8}, "9":  #{$pc9});
+@for $i from 10 through 40 {
+    @if $i%2==0 {
+        .f#{$i} {
+            font-size: #{$i}upx;
+        }
+        @each $color in ("", "1", "2", "3", "4", "5", "6", "7", "8","9") {
+            .f#{$i}pc#{$color} {
+                font-size: #{$i}upx;
+                color: map-get($font-map, $color);
+            }
+            .pc#{$color} {
+                color: map-get( $font-map,$color);
+            }
+        }
+    }
+}
+
+// 定位
+.rel {
+	position: relative;
+}
+
+.abs {
+	position: absolute;
+}
+
+.fixed {
+	position: fixed;
+}
+
+
+
+/* 定位 */
+@for $i from 0 through 300 {
+	@if $i % 5==0 {
+	    .top#{$i} {
+	        top: #{$i}upx;
+	    }
+	    .right#{$i} {
+	        right: #{$i}upx;
+	    }
+		.left#{$i} {
+			left: #{$i}upx;
+		}
+		.bottom#{$i} {
+			bottom: #{$i}upx;
+		}
+	}
+}
+
+
+
+
+
+//货币颜色
+.mc,
+.priceColor {
+    color: $mc;
+}
+
+.cf {
+    color: #ffffff;
+}
+.pc {
+    color: #000000;
+}
+.bc{
+    color:#bbbbbb;
+}
+.bc1{
+    color:#eeeeee;
+}
+
+
+.bf,
+.bgf,
+.bcf {
+    background-color: #ffffff;
+}
+.bge {
+    background-color: #eeeeee;
+}
+
+.bf5 {
+    background: #f5f5f5;
+}
+
+.btc {
+    background: #ff636a;
+}
+
+.bf2 {
+    background: #f2f2f2;
+}
+.bfte{
+    background: #d2aa38;
+}
+.red{
+    color: red;
+}
+.bgec {
+    background-color: #ECECEC;
+}
+//带¥符号的货币样式，¥为字体的80%
+.rmb {
+    color: #f15d5d;
+    font-weight: bolder;
+}
+
+.rmb::before {
+    content: "¥";
+    font-size: 80%;
+}
+
+/* 文字超出 */
+
+.text1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.text2 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+ 
+
+.fb {
+    width: 100%;
+    background: #ffffff;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    z-index: 9;
+}
+
+
+
+//删除线
+.del {
+    text-decoration: line-through;
+}
+
+.modal {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+}
+
+
+.bold {
+    font-weight: bold;
+}
+
+.borderD {
+    border: solid 1upx #dddddd;
+}
+.border-top {
+    border-top: 0.5px solid #f3f3f3
+}
+.border-bottom-f2 {
+    border-bottom: .5upx solid #f2f2f2;
+}
+.border-bottom-D {
+    border-bottom: .5upx solid #dddddd;
+}
+.border-top-D {
+    border-top:.5upx solid  #dddddd;
+}
+.border-left-4 {
+    border-left: 4upx solid #d2aa38;
+}
+.border-left-none4 {
+    border-left: 4upx solid #f5f5f5;
+}
+.borderC {
+    border: solid 1upx #cccccc;
+}
+
+.borderB{
+    border: solid 1upx #bbbbbb;
+}
+.rad3 {
+    border-radius: 3upx;
+}
+.rad8,.radius8 {
+    border-radius: 8upx;
+}
+
+.rad10,.radius10{
+    border-radius: 10upx;
+}
+
+.rad20 {
+	border-radius: 20upx;
+}
+
+.rad10tl{
+    border-top-left-radius:10upx; 
+}
+.rad10tr{
+    border-top-right-radius:10upx; 
+}
+
+
+
+.tr {
+    text-align: right;
+}
+
+.tl{
+    text-align: left;
+}
+
+
+.tj {
+    text-align: justify;
+}
+
+.vc {
+    vertical-align:middle;
+}
+.center {
+    text-align: center;
+}
+// 文字两端对齐
+.tcr {
+    text-align-last:justify;
+    text-align:justify;
+}
+
+.overflow {
+    overflow: hidden;
+}
+
+// radius
+.rad28{
+  border-radius: 28upx;
+}
+.rad44{
+    border-radius: 44upx;
+}
+
+.borderS{
+    border: solid 1upx #31af2e;
+}
+.radN{
+    border-radius: 0;
+}  
+
+.round{
+    border-radius: 50%;
+}
+
+
+
+.cursor{
+    cursor: pointer;
+}
+
+// width
+
+.w150 {
+    width: 150upx;
+}
+
+.w14 {
+    width: 14upx;
+}
+.w18 {
+    width: 18upx;
+}
+.w28 {
+    width: 28upx;
+}
+.w22 {
+    width: 22upx;
+}
+.h40{
+    height:40upx;
+}
+.w36 {
+    width: 36upx;
+}
+.w30 {
+    width: 30upx;
+}
+.w54 {
+    width: 54upx;
+}
+.h54 {
+    height: 54upx;
+}
+.w62 {
+    width:62upx;
+}
+.w68 {
+    width: 68upx;
+}
+.w600{
+    width: 600upx;
+}
+.w42 {
+    width: 42upx;
+}
+.w46 {
+    width: 46upx;
+}
+.h46 {
+    height: 46upx;    
+}
+.w48 {
+    width: 48upx;
+}
+
+.h48 {
+    height: 48upx;    
+}
+.h42{
+    height: 42upx;
+}
+.h26 {
+    height: 26upx;
+}
+.h18 {
+    height: 18upx;
+}
+.h60 {
+    height: 60upx;
+}
+.h80 {
+    height: 80upx;
+}
+.h62{
+    height: 62upx;
+}
+.h52{
+    height: 52upx;
+}
+.h36{
+    height: 36upx;
+}
+.h400{
+    height: 400upx;
+}
+.h440 {
+    height:440upx;
+}
+.next{
+    background:url('~/static/img/login/right.png') no-repeat center right;
+    background-size: 20upx;
+}
+.mineRight {
+    width: 100%;
+}
+.block {
+    display: inline-block
+}
+.auto {
+    margin: 0 auto;
+}
+.mt120 {
+	margin-top: 120upx;
+}
+.mt340 {
+	margin-top: 340upx;
+}
+
+.reg-button {
+    width:184upx;
+    height:54upx;
+    line-height: 54upx;
+    border:.5upx solid $pc4;
+    border-radius:24upx;
+    font-size: 20upx;
+    background-color:#ffffff!important;
+    color:$pc4!important;
+    padding:0!important;
+    &:after {
+        content: none;
+    }
+}
+.w750{
+    width:750rpx;
+}
+.button0{
+    width:158upx;
+    height:50upx;
+    background:#ffffff;
+    border-radius:25upx;
+    font-size: 24upx;
+    color: #333333;
+    text-align: center;
+}
+.button1{
+    width:158upx;
+    height:50upx;
+    line-height: 50upx;
+    background:rgba(80,139,255,1);
+    border-radius:25upx;
+    font-size: 24upx;
+    color:rgba(255,255,255,1);
+    text-align: center;
+}
+.button2{
+    background: #F25C19;
+    color: #ffffff;
+    text-align: center;
+}
+.button3{
+    background: #508BFF;
+    color: #ffffff;
+    text-align: center;
+}
+.button4{
+    background: #F2B219;
+    color: #ffffff;
+    text-align: center;
+}
+
+
+
+
