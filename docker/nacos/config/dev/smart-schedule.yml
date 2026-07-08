@@ -1,12 +1,16 @@
+## spring security 配置
 security:
   oauth2:
     client:
-      client-id: "${SMART_SCHEDULE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      client-secret: "${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      client-id: "${SMART_SCHEDULE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # data
+      client-secret: "${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # data
       scope: server
+      # 放行url
       ignore-urls:
-      - "/**"
+        - /**
+
 spring:
+  # C6-刷卡消费数据源，默认数据源
   datasource:
     type: "${SMART_SCHEDULE_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
     driver-class-name: "${SMART_SCHEDULE_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
@@ -14,26 +18,37 @@ spring:
     password: "${SMART_SCHEDULE_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
     jdbc-url: "${SMART_SCHEDULE_DB_URL:${SMART_DB_URL:}}"
   yuto-secsytem:
-    phone: "${SMART_SECSYSTEM_PHONE_UPDATE_TOKEN:}"
+    phone:
+    #update-url: http://10.0.20.97:81/SOS.WebFramework/Base_UserBll/RevisePhone
     update-url: "${SMART_SECSYSTEM_PHONE_UPDATE_URL:}"
   lock:
     base:
-      url: "${SMART_LOCK_BASE_URL:http://host.docker.internal:8001}"
+      url: http://test.baidu.com    
+
 smart:
   image:
+    #内网访问地址
     base-url: "${SMART_SCHEDULE_IMAGE_BASE_URL:}"
+    # 图库URL
     staff-photo-url: "${SMART_STAFF_PHOTO_URL:}"
+    # 照片同步轮询天数
     staff-photo-lookback-days: "${SMART_STAFF_PHOTO_LOOKBACK_DAYS:5}"
   park:
     xc-id: 5000021
+  # 许昌园区ID
   xc-park-id: 5000021
+  # 合肥园区ID
   hf-park-id: 10001
   org:
+    # index-code: 36b28cbf-74ca-4393-82a0-5d8e5d8115db
+    # 许昌外包工ISC组织编码
     xc-hpo-index-code: "${SMART_ORG_XC_HPO_INDEX_CODE:}"
+    # 许昌访客ISC组织编码
     xc-visitor-index-code: "${SMART_ORG_XC_VISITOR_INDEX_CODE:}"
     hf-index-code: "${SMART_ORG_HF_INDEX_CODE:}"
   device-mode:
     access: "${SMART_DEVICE_MODE_ACCESS:DS-K1T672MW|DS-K5604A-3XFZW-ZV|DS-K5604A-3XF/ZV|DS-K1T671THZ-SZ|DS-K1T607M|DS-K5604A-ZV|DS-K1T642MW|DS-K1T671BM|DS-K5604B-ZV|DS-K1T673M|DS-K1T6QT-ZC|DS-K1T671TM|DS-K1T673MW|DS-K1T670M|DS-K1T105AM}"
+    #ISC账号密码tce001/Tce124578
   schedule:
     sync:
       task:
@@ -43,10 +58,12 @@ smart:
   task:
     retry:
       enabled: true
-      device-task-timeout: 900
-      isc-config-timeout: 1800
-      isc-download-timeout: 2400
-      exclude-codes: '200,502,506,413'
+      device-task-timeout: 900        # 15分钟，生产环境较宽松
+      isc-config-timeout: 1800        # 30分钟
+      isc-download-timeout: 2400      # 40分钟
+      exclude-codes: "200,502,506,413" # 增加设备不在线错误码
+
+# tce-platform数据源
 platform:
   datasource:
     type: "${SMART_PLATFORM_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
@@ -54,34 +71,44 @@ platform:
     username: "${SMART_PLATFORM_DB_USERNAME:${SMART_DB_USERNAME:}}"
     password: "${SMART_PLATFORM_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
     jdbc-url: "${SMART_PLATFORM_DB_URL:${SMART_DB_URL:}}"
+
+# OA-补卡数据源
 attendance:
   datasource:
-    type: "${SMART_ATTENDANCE_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
-    driver-class-name: "${SMART_ATTENDANCE_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
-    username: "${SMART_ATTENDANCE_DB_USERNAME:}"
-    password: "${SMART_ATTENDANCE_DB_PASSWORD:}"
-    jdbc-url: "${SMART_ATTENDANCE_DB_URL:}"
+    type: "${SMART_ATTENDANCE_DB_TYPE_SCHEDULE:${SMART_ATTENDANCE_DB_TYPE:com.zaxxer.hikari.HikariDataSource}}"
+    driver-class-name: "${SMART_ATTENDANCE_DB_DRIVER_SCHEDULE:${SMART_ATTENDANCE_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}}"
+    username: "${SMART_ATTENDANCE_DB_USERNAME_SCHEDULE:${SMART_ATTENDANCE_DB_USERNAME:}}"
+    password: "${SMART_ATTENDANCE_DB_PASSWORD_SCHEDULE:${SMART_ATTENDANCE_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_ATTENDANCE_DB_URL_SCHEDULE:${SMART_ATTENDANCE_DB_URL:}}"
+
+# OA-出差数据源
 businesstrip:
   datasource:
-    type: "${SMART_BUSINESSTRIP_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
-    driver-class-name: "${SMART_BUSINESSTRIP_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
-    username: "${SMART_BUSINESSTRIP_DB_USERNAME:}"
-    password: "${SMART_BUSINESSTRIP_DB_PASSWORD:}"
-    jdbc-url: "${SMART_BUSINESSTRIP_DB_URL:}"
+    type: "${SMART_BUSINESSTRIP_DB_TYPE_SCHEDULE:${SMART_BUSINESSTRIP_DB_TYPE:com.zaxxer.hikari.HikariDataSource}}"
+    driver-class-name: "${SMART_BUSINESSTRIP_DB_DRIVER_SCHEDULE:${SMART_BUSINESSTRIP_DB_DRIVER:oracle.jdbc.driver.OracleDriver}}"
+    username: "${SMART_BUSINESSTRIP_DB_USERNAME_SCHEDULE:${SMART_BUSINESSTRIP_DB_USERNAME:}}"
+    password: "${SMART_BUSINESSTRIP_DB_PASSWORD_SCHEDULE:${SMART_BUSINESSTRIP_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_BUSINESSTRIP_DB_URL_SCHEDULE:${SMART_BUSINESSTRIP_DB_URL:}}"
+
+# EHR-查询视图数据源
 ehrview:
   datasource:
-    type: "${SMART_EHRVIEW_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
-    driver-class-name: "${SMART_EHRVIEW_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
-    username: "${SMART_EHRVIEW_DB_USERNAME:}"
-    password: "${SMART_EHRVIEW_DB_PASSWORD:}"
-    jdbc-url: "${SMART_EHRVIEW_DB_URL:}"
+    type: "${SMART_EHRVIEW_DB_TYPE_SCHEDULE:${SMART_EHRVIEW_DB_TYPE:com.zaxxer.hikari.HikariDataSource}}"
+    driver-class-name: "${SMART_EHRVIEW_DB_DRIVER_SCHEDULE:${SMART_EHRVIEW_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}}"
+    username: "${SMART_EHRVIEW_DB_USERNAME_SCHEDULE:${SMART_EHRVIEW_DB_USERNAME:}}"
+    password: "${SMART_EHRVIEW_DB_PASSWORD_SCHEDULE:${SMART_EHRVIEW_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_EHRVIEW_DB_URL_SCHEDULE:${SMART_EHRVIEW_DB_URL:}}"
+
+# EHR-中间表写入数据源
 temporary:
   datasource:
-    type: "${SMART_TEMPORARY_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
-    driver-class-name: "${SMART_TEMPORARY_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
-    username: "${SMART_TEMPORARY_DB_USERNAME:}"
-    password: "${SMART_TEMPORARY_DB_PASSWORD:}"
-    jdbc-url: "${SMART_TEMPORARY_DB_URL:}"
+    type: "${SMART_TEMPORARY_DB_TYPE_SCHEDULE:${SMART_TEMPORARY_DB_TYPE:com.zaxxer.hikari.HikariDataSource}}"
+    driver-class-name: "${SMART_TEMPORARY_DB_DRIVER_SCHEDULE:${SMART_TEMPORARY_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}}"
+    username: "${SMART_TEMPORARY_DB_USERNAME_SCHEDULE:${SMART_TEMPORARY_DB_USERNAME:}}"
+    password: "${SMART_TEMPORARY_DB_PASSWORD_SCHEDULE:${SMART_TEMPORARY_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_TEMPORARY_DB_URL_SCHEDULE:${SMART_TEMPORARY_DB_URL:}}"
+
+# 裕同-物流车辆数据源配置
 guard:
   datasource:
     type: "${SMART_GUARD_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
@@ -89,72 +116,20 @@ guard:
     username: "${SMART_GUARD_DB_USERNAME:}"
     password: "${SMART_GUARD_DB_PASSWORD:}"
     jdbc-url: "${SMART_GUARD_DB_URL:}"
+    #jdbc-url: jdbc:oracle:thin:@smart-oracle:1521:ev6db
+
 task:
   ehr:
-    wageSignTaskTime: 0 10 0 1 * ?
-    noticeTaskTime: 0 0 10 * * ?
-    emailPush: 0 0 10 * * ?
-    dealyQuit: 0 0 23 * * ?
+    wageSignTaskTime: 0 10 0 1 * ?             #每月一日零点十分执行工资签单员工信息生成任务
+    noticeTaskTime: 0 0 10 * * ?               #每天十点执行，工资签收提醒与考勤汇总确认提醒任务
+    emailPush: 0 0 10 * * ?                    #每天十点执行，访客记录推送任务
+    dealyQuit: 0 0 23 * * ?                    #每天23点执行，退宿申请延迟退宿
   meter:
-    checkOnline: 0 0/5 * * * ?
+    checkOnline: 0 0/5 * * * ? #定时查询设备连接状态
     water:
-      reading: 0 */59 * * * ?
+      reading: 0 */59 * * * ? #定时查询水表读数  0 0 0/8 * * ? 修正
     ele:
-      reading: 0 */59 * * * ?
-    day:
-      calc: 0 0 2 * * ?
-  job:
-    device-status: false
-    sync-dhr-face-img: false
-    sync-staff: false
-    sync-dhr-staff: false
-    sync-xc-dhr-face-img: false
-    staff-no-photo-sync-xc: false
-    staff-no-photo-sync: false
-    leave-reason: false
-    leave-type: false
-    leave-leaintent: false
-    visitor-type: false
-    admittance-remind: false
-    admittance-update-oa: false
-    admittance-come-ontime: false
-    admittance-overtime: false
-    visitor-no-leave: false
-    new-staff-recharge: false
-    news-terminal-check: false
-    senior-staff-recharge: false
-    outdormitory-type: false
-    dormitory-dealy-quit: false
-    push-visitor-email: false
-    replace-type: false
-    refresh-recruit: false
-    refresh-comp: false
-    wage-sign-info: false
-    attendance-sign-info: false
-    ehr-set-send-msg: false
-    logistics-appointment-type: false
-    isc-device-type-down-card: "${SMART_JOB_ISC_DOWN_CARD:false}"
-    isc-auth-process-handle: "${SMART_JOB_ISC_AUTH_PROCESS_HANDLE:false}"
-    isc-auth-result-handle: "${SMART_JOB_ISC_AUTH_RESULT_HANDLE:false}"
-    isc-auto-auth-result-handle: "${SMART_JOB_ISC_AUTO_AUTH_RESULT_HANDLE:false}"
-    isc-device-type-del-card: "${SMART_JOB_ISC_DEL_CARD:false}"
-    isc-device-sync: "${SMART_JOB_ISC_DEVICE_SYNC:false}"
-    isc-person-face-retry: "${SMART_JOB_ISC_PERSON_FACE_RETRY:false}"
-    isc-temperature-get: false
-    isc-device-offline-handler: "${SMART_JOB_ISC_DEVICE_OFFLINE_HANDLER:false}"
-    device-type-down-card: false
-    device-type-down-car: false
-    device-type-del-card: false
-    device-type-del-car: false
-    device-task-repeat: false
-    supplier-notify: false
-    admittance-oa-area-type: false
-    supplier-auto-auth-delete: false
-    supplier-auth-msg: false
-    leave-application-process-type: false
-    smart-meter-status: false
-    water-meter-reading: false
-    ele-meter-reading: false
-    gen-settlement-daily: false
-server:
-  port: 7070
+      reading: 0 */59 * * * ? #定时查询电表读数  
+    day: 
+      calc: 0 0 2 * * ? #许昌水电定时结算任务
+

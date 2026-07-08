@@ -1,25 +1,32 @@
+## spring security 配置
 security:
   oauth2:
     client:
-      client-id: "${SMART_BRIDGE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      client-secret: "${SMART_BRIDGE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      client-id: ${SMART_BRIDGE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}        # bridge
+      client-secret: ${SMART_BRIDGE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}    # bridge
       scope: server
+      # 放行url
       ignore-urls:
-      - "/**"
+        - /**
+
+#设备管理端base URL
 device:
   admin:
-    baseurl: "${SMART_DEVICE_ADMIN_BASEURL:http://host.docker.internal:7001/devicemanager/}"
-    faceurl: "${SMART_DEVICE_ADMIN_FACEURL:http://host.docker.internal:7002/facerecognition/}"
+    baseurl: ${SMART_DEVICE_ADMIN_BASEURL:http://host.docker.internal:7001/devicemanager/}
+    faceurl: ${SMART_DEVICE_ADMIN_FACEURL:http://host.docker.internal:7002/facerecognition/}
+
 spring:
   datasource:
-    type: "${SMART_BRIDGE_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
-    driver-class-name: "${SMART_BRIDGE_DB_DRIVER:org.sqlite.JDBC}"
-    url: "${SMART_BRIDGE_DB_URL:jdbc:sqlite:./database/smart_bridge.db}"
-    username: "${SMART_BRIDGE_DB_USERNAME:}"
-    password: "${SMART_BRIDGE_DB_PASSWORD:}"
+    type: ${SMART_BRIDGE_DB_TYPE:com.zaxxer.hikari.HikariDataSource}
+    driver-class-name: ${SMART_BRIDGE_DB_DRIVER:org.sqlite.JDBC}
+    #url: jdbc:sqlite:../database/smart_bridge.db            # 异常日志
+    url: ${SMART_BRIDGE_DB_URL_10001:${SMART_BRIDGE_DB_URL:jdbc:sqlite:./database/smart_bridge.db}}
+    #url: jdbc:sqlite:classpath:database/smart_bridge.db            # 异常日志
+    username: ${SMART_BRIDGE_DB_USERNAME:}
+    password: ${SMART_BRIDGE_DB_PASSWORD:}
   kafka:
-    bootstrap-servers: "${SMART_KAFKA_BOOTSTRAP_SERVERS:smart-kafka:9092}"
-    consumer.group-id: "${SMART_KAFKA_CONSUMER_GROUP_ID:smart-local}"
+    bootstrap-servers: ${SMART_KAFKA_BOOTSTRAP_SERVERS:smart-kafka:9092}
+    consumer.group-id: ${SMART_KAFKA_CONSUMER_GROUP_ID_10001:${SMART_KAFKA_CONSUMER_GROUP_ID:smart-local}}
     listener:
       concurrency: 5
   mybatis-plus:
@@ -32,32 +39,34 @@ spring:
         table-underline: true
     mapper-locations: classpath:/mapper/*Mapper.xml
 smart:
-  application-name: smart-bridge-biz
-  park-id: 10001
+  application-name: smart-bridge-isc-biz                        # application-name
+  park-id:  10001
   hik:
-    host: "${SMART_HIK_HOST:}"
-    app-key: "${SMART_HIK_APP_KEY:}"
-    app-secret: "${SMART_HIK_APP_SECRET:}"
-    event-subscribe-enabled: "${SMART_HIK_EVENT_SUBSCRIBE_ENABLED:false}"
-    callback-url: "${SMART_HIK_CALLBACK_URL:http://host.docker.internal:6060/bridge/handle}"
+    host: ${SMART_HIK_HOST_10001:${SMART_HIK_HOST:}}
+    app-key: ${SMART_HIK_APP_KEY_10001:${SMART_HIK_APP_KEY:}}
+    app-secret: ${SMART_HIK_APP_SECRET_10001:${SMART_HIK_APP_SECRET:}}
+    callback-url: ${SMART_HIK_CALLBACK_URL_10001:${SMART_HIK_CALLBACK_URL:http://host.docker.internal:6060/bridge/handle}}
+#  park-id: 1                                                # 园区ID
   image:
-    expire: 90
+    expire: 90                                            # 园区图片失效时间（天）, 系统初始化创建hbase表的时候生效
   exception-log:
-    retry: 300
+    retry: 300                                            # 异常记录重试时间间隔（秒）
   bridge:
     c-process:
-      url: "${SMART_BRIDGE_C_PROCESS_URL:http://host.docker.internal:7001}"
-      bridge-url: "${SMART_BRIDGE_C_PROCESS_BRIDGE_URL:http://smart-bridge-concentrator:6062}"
+      url: ${SMART_BRIDGE_C_PROCESS_URL:http://host.docker.internal:7001}                    # C++服务地址
+      bridge-url: ${SMART_BRIDGE_C_PROCESS_BRIDGE_URL_10001:${SMART_BRIDGE_C_PROCESS_BRIDGE_URL:http://smart-bridge-concentrator:6062}}              # 水电表Java服务地址
   kafka:
     consumer:
-      event-topic: "${SMART_KAFKA_EVENT_TOPIC:smart-local-event}"
-      event-group-id: "${SMART_KAFKA_EVENT_GROUP_ID:smart-local-event-group}"
-      image-topic: "${SMART_KAFKA_IMAGE_TOPIC:smart-local-image}"
-      image-group-id: "${SMART_KAFKA_IMAGE_GROUP_ID:smart-local-image-group}"
-      bridge-event-topic: "${SMART_KAFKA_BRIDGE_EVENT_TOPIC:smart-local-bridge-event}"
-      bridge-event-group-id: "${SMART_KAFKA_BRIDGE_EVENT_GROUP_ID:smart-local-bridge-event-group}"
+      event-topic: ${SMART_KAFKA_EVENT_TOPIC:smart-local-event}                                        # C++服务发送的事件消息的消费者topic
+      event-group-id: ${SMART_KAFKA_EVENT_GROUP_ID:smart-local-event-group}                                  # C++服务发送的事件消息的消费者group-id
+      image-topic: ${SMART_KAFKA_IMAGE_TOPIC:smart-local-image}                                        # C++服务发送的图片消息的消费者topic
+      image-group-id: ${SMART_KAFKA_IMAGE_GROUP_ID:smart-local-image-group}                                  # C++服务发送的图片消息的消费者group-id
+      bridge-event-topic: ${SMART_KAFKA_BRIDGE_EVENT_TOPIC:smart-local-bridge-event}                          # 水电表Java服务发送的事件消息的消费者topic
+      bridge-event-group-id: ${SMART_KAFKA_BRIDGE_EVENT_GROUP_ID:smart-local-bridge-event-group}                    # 水电表Java服务发送的事件消息的消费者group-id
 hbase:
   zookeeper:
-    znode: "${SMART_HBASE_ZOOKEEPER_ZNODE:/hbase}"
-    port: "${SMART_HBASE_ZOOKEEPER_PORT:2181}"
-    quorum: "${SMART_HBASE_ZOOKEEPER_QUORUM:smart-hbase}"
+    znode: ${SMART_HBASE_ZOOKEEPER_ZNODE:/hbase}
+    #192.168.2.214,192.168.2.210,192.168.2.211
+    port: ${SMART_HBASE_ZOOKEEPER_PORT:2181}
+    quorum: ${SMART_HBASE_ZOOKEEPER_QUORUM:smart-hbase}
+

@@ -1,12 +1,16 @@
+## spring security 配置
 security:
   oauth2:
     client:
-      client-id: "${SMART_DATA_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      client-secret: "${SMART_DATA_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      client-id: "${SMART_DATA_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # data
+      client-secret: "${SMART_DATA_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # data
       scope: server
+      # 放行url
       ignore-urls:
-      - "/**"
+        - /**
+
 spring:
+  # C6-刷卡消费数据源，默认数据源
   datasource:
     type: "${SMART_DATA_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
     driver-class-name: "${SMART_DATA_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
@@ -14,29 +18,38 @@ spring:
     password: "${SMART_DATA_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
     jdbc-url: "${SMART_DATA_DB_URL:${SMART_DB_URL:}}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_DATA_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_DATA_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
   main:
     allow-bean-definition-overriding: true
   sms:
+    #url: http://10.0.20.97:81/SOS.WebFramework/SMSBll/SendSMS
     url: "${SMART_SMS_URL:}"
     systemName: 智慧系统
     remarks: 智慧系统
-    token: "${SMART_SMS_TOKEN:}"
+    token: "${SMART_SMS_TOKEN:}"      #token
   oa:
     staff:
       query-url: "${SMART_OA_STAFF_QUERY_URL:}"
-      query-token: "${SMART_OA_STAFF_QUERY_TOKEN:}"
+      query-token: "${SMART_OA_STAFF_QUERY_TOKEN:}"      #token
+  #邮箱配置
   mail:
     host: "${SMART_MAIL_HOST:}"
     username: "${SMART_MAIL_USERNAME:}"
     password: "${SMART_MAIL_PASSWORD:}"
     default-encoding: utf-8
     port: 25
+
+# tce-platform数据源
 platform:
   datasource:
     type: "${SMART_PLATFORM_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
@@ -45,54 +58,83 @@ platform:
     password: "${SMART_PLATFORM_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
     jdbc-url: "${SMART_PLATFORM_DB_URL:${SMART_DB_URL:}}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_PLATFORM_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_PLATFORM_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
+
+# OA-补卡数据源
 attendance:
   datasource:
-    type: "${SMART_ATTENDANCE_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
-    driver-class-name: "${SMART_ATTENDANCE_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
-    username: "${SMART_ATTENDANCE_DB_USERNAME:}"
-    password: "${SMART_ATTENDANCE_DB_PASSWORD:}"
-    jdbc-url: "${SMART_ATTENDANCE_DB_URL:}"
+    type: "${SMART_ATTENDANCE_DB_TYPE_DATA:${SMART_ATTENDANCE_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}}"
+    driver-class-name: "${SMART_ATTENDANCE_DB_DRIVER_DATA:${SMART_ATTENDANCE_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}}"
+    username: "${SMART_ATTENDANCE_DB_USERNAME_DATA:${SMART_ATTENDANCE_DB_USERNAME:}}"
+    password: "${SMART_ATTENDANCE_DB_PASSWORD_DATA:${SMART_ATTENDANCE_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_ATTENDANCE_DB_URL_DATA:${SMART_ATTENDANCE_DB_URL:}}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_ATTENDANCE_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_ATTENDANCE_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
+
+# OA-出差数据源
 businesstrip:
   datasource:
-    type: "${SMART_BUSINESSTRIP_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
-    driver-class-name: "${SMART_BUSINESSTRIP_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
-    username: "${SMART_BUSINESSTRIP_DB_USERNAME:}"
-    password: "${SMART_BUSINESSTRIP_DB_PASSWORD:}"
-    jdbc-url: "${SMART_BUSINESSTRIP_DB_URL:}"
+    type: "${SMART_BUSINESSTRIP_DB_TYPE_DATA:${SMART_BUSINESSTRIP_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}}"
+    driver-class-name: "${SMART_BUSINESSTRIP_DB_DRIVER_DATA:${SMART_BUSINESSTRIP_DB_DRIVER:oracle.jdbc.driver.OracleDriver}}"
+    username: "${SMART_BUSINESSTRIP_DB_USERNAME_DATA:${SMART_BUSINESSTRIP_DB_USERNAME:}}"
+    password: "${SMART_BUSINESSTRIP_DB_PASSWORD_DATA:${SMART_BUSINESSTRIP_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_BUSINESSTRIP_DB_URL_DATA:${SMART_BUSINESSTRIP_DB_URL:}}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_BUSINESSTRIP_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_BUSINESSTRIP_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
+
+# EHR-查询视图数据源
+  
 ehrview:
   datasource:
-    type: "${SMART_EHRVIEW_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
-    driver-class-name: "${SMART_EHRVIEW_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
-    username: "${SMART_EHRVIEW_DB_USERNAME:}"
-    password: "${SMART_EHRVIEW_DB_PASSWORD:}"
-    jdbc-url: "${SMART_EHRVIEW_DB_URL:}"
+    type: "${SMART_EHRVIEW_DB_TYPE_DATA:${SMART_EHRVIEW_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}}"
+    driver-class-name: "${SMART_EHRVIEW_DB_DRIVER_DATA:${SMART_EHRVIEW_DB_DRIVER:oracle.jdbc.driver.OracleDriver}}"
+    username: "${SMART_EHRVIEW_DB_USERNAME_DATA:${SMART_EHRVIEW_DB_USERNAME:}}"
+    password: "${SMART_EHRVIEW_DB_PASSWORD_DATA:${SMART_EHRVIEW_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_EHRVIEW_DB_URL_DATA:${SMART_EHRVIEW_DB_URL:}}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_EHRVIEW_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_EHRVIEW_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
+
+#DHR 测试数据库
 dhrview:
   datasource:
     type: "${SMART_DHRVIEW_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
@@ -101,26 +143,40 @@ dhrview:
     password: "${SMART_DHRVIEW_DB_PASSWORD:}"
     jdbc-url: "${SMART_DHRVIEW_DB_URL:}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_DHRVIEW_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_DHRVIEW_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
+
+# EHR-中间表写入数据源
 temporary:
   datasource:
-    type: "${SMART_TEMPORARY_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
-    driver-class-name: "${SMART_TEMPORARY_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}"
-    username: "${SMART_TEMPORARY_DB_USERNAME:}"
-    password: "${SMART_TEMPORARY_DB_PASSWORD:}"
-    jdbc-url: "${SMART_TEMPORARY_DB_URL:}"
+    type: "${SMART_TEMPORARY_DB_TYPE_DATA:${SMART_TEMPORARY_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}}"
+    driver-class-name: "${SMART_TEMPORARY_DB_DRIVER_DATA:${SMART_TEMPORARY_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}}"
+    username: "${SMART_TEMPORARY_DB_USERNAME_DATA:${SMART_TEMPORARY_DB_USERNAME:}}"
+    password: "${SMART_TEMPORARY_DB_PASSWORD_DATA:${SMART_TEMPORARY_DB_PASSWORD:}}"
+    jdbc-url: "${SMART_TEMPORARY_DB_URL_DATA:${SMART_TEMPORARY_DB_URL:}}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_TEMPORARY_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_TEMPORARY_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
+
+# 裕同-物流车辆数据源配置
 guard:
   datasource:
     type: "${SMART_GUARD_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
@@ -129,14 +185,21 @@ guard:
     password: "${SMART_GUARD_DB_PASSWORD:}"
     jdbc-url: "${SMART_GUARD_DB_URL:}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_GUARD_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_GUARD_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
 smart:
   xc-park-id: 5000021
+
+# 许昌C6数据源
 xc-c6:
   datasource:
     type: "${SMART_XC_C6_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
@@ -145,11 +208,14 @@ xc-c6:
     password: "${SMART_XC_C6_DB_PASSWORD:}"
     jdbc-url: "${SMART_XC_C6_DB_URL:}"
     stat-view-servlet:
-      url-pattern: "/druid/*"
+      url-pattern: /druid/*
+      # IP 白名单，没有配置或者为空，则允许所有访问
       allow: 127.0.0.1
+      # 禁用 HTML 中 Reset All 按钮
       reset-enable: false
+      # 登录用户名/密码
       login-username: "${SMART_XC_C6_DB_DRUID_LOGIN_USERNAME:}"
       login-password: "${SMART_XC_C6_DB_DRUID_LOGIN_PASSWORD:}"
+      # 需要设置enabled=true,否则会报出There was an unexpected error (type=Not Found, status=404).错误，或者将druid-spring-boot-starter的版本降低到1.1.10及以下
+      # 是否启用StatViewServlet（监控页面）默认值为false（考虑到安全问题默认并未启动，如需启用建议设置密码或白名单以保障安全）
       enabled: false
-server:
-  port: 6060
