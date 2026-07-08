@@ -11,7 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import java.io.File;
 
 @Slf4j
-// 开启定时任务支持：PhotoPullTask 拉取轮询、PhotoCleanupTask 每日清理均依赖 @Scheduled
+// 开启定时任务支持：PhotoPullTask 拉取轮询、PhotoCleanupTask 定期清理（固定间隔）均依赖 @Scheduled
 @EnableScheduling
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
 public class FileApplication {
