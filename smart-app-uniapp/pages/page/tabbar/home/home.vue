@@ -520,6 +520,9 @@
 			},
 			// 获取消息
 			async getPlusNewsCount () {
+				if (typeof plus === 'undefined' || !plus.device) {
+					return
+				}
 				if (this.deviceNo == '') this.deviceNo = plus.device.uuid.split(',')[0]
 				try{
 					const res = await plusNews.plusNewsCount(this.deviceNo)

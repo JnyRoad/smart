@@ -6,6 +6,9 @@
 const locationAuthortyPermissions = (callback) => {
 	const that = this
 	let system = uni.getSystemInfoSync()
+	if (typeof plus === 'undefined' || !plus.android) {
+		return
+	}
 	if (system.platform === 'android') {
 		plus.android.requestPermissions(['android.permission.ACCESS_FINE_LOCATION'], function(e) {
 			if (e.deniedAlways.length > 0) { //权限被永久拒绝
