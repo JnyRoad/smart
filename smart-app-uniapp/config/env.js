@@ -24,7 +24,7 @@ const ENV = {
 	},
 	// 生产环境
 	production: {
-		API_BASE_URL: 'http://smartapp.szyuto.com:8090/',
+		API_BASE_URL: 'http://10.0.20.113:9990/',
 		SALARY_QUERY_URL: 'http://gz.szyuto.com/XinZiChaXun/salary-query.aspx',
 	},
 }
