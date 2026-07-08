@@ -164,8 +164,6 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	private Integer putOffsetHour;
 	@Value("${spring.admittance.sms-url}")
 	private String codeUrl;
-	@Value("${spring.visitor.overtime-offset-hour:0}")
-	private Integer overtimeOffsetHour;
 	@Value("${spring.visitor.arrived-offset-hour:0}")
 	private Integer arrivedOffsetHour;
 	@Value("${spring.visitor.arrived-send:true}")
@@ -1656,20 +1654,25 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 
 
 	/**
-	 * 访客是否超时
+	 * 访客是否超时。
+	 * <p>
+	 * 超时判定必须用"预约结束时间已过"（end_time &lt; now），不允许叠加提前量：
+	 * 历史上这里加了 overtime-offset-hour（生产配 24 小时）提前量，会把仍在 OA 审批中的
+	 * 短期单在建单后几分钟内提前终态化为"预约超时"，此后 OA 回调与拉取对账（都只认待审核状态）
+	 * 永远无法落审批结果——单子永久卡"待下发"、预约码为空（2026-07-07 生产事故根因）。
 	 */
 	@Override
 	public void visitorOverTime() {
-		//查询状态为0的访客，判断是否已经超时
+		//查询已通过(0)且预约结束时间已过的访客：置为超时未到(4)
 		List<SmtAdmittanceApply> selectList = this.list(Wrappers.<SmtAdmittanceApply>query().lambda()
 				.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
-				.lt(SmtAdmittanceApply::getEndTime, LocalDateTime.now().plusHours(overtimeOffsetHour)));
+				.lt(SmtAdmittanceApply::getEndTime, LocalDateTime.now()));
 		removeVisitor(selectList);
-		//查询超时未审批
+		//查询待审核(2)且预约结束时间已过的申请：置为预约超时(6)
 		List<SmtAdmittanceApply> selectListNoPass = this.list(
 				Wrappers.<SmtAdmittanceApply>query().lambda()
 						.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode())
-						.lt(SmtAdmittanceApply::getEndTime, LocalDateTime.now().plusHours(overtimeOffsetHour)));
+						.lt(SmtAdmittanceApply::getEndTime, LocalDateTime.now()));
 		updateNoPass(selectListNoPass);
 	}
 
@@ -1746,14 +1749,22 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	}
 
 	/**
-	 * 预约审批超时
+	 * 预约审批超时：把过期仍待审核(2)的申请置为预约超时(6)。
+	 * CAS 抢占（仅当行仍为待审核时生效），不做全字段 updateById 覆盖——
+	 * 否则与 OA 回调/拉取对账的 claim 并发时，会把刚落库的审批结果连同验证码一起抹掉。
+	 * CAS 未命中说明已被其他链路落终态，整单跳过（含待办与流程记录的后置更新）。
 	 *
-	 * @param selectListNoPass
+	 * @param selectListNoPass 过期仍待审核的申请列表
 	 */
 	private void updateNoPass(List<SmtAdmittanceApply> selectListNoPass) {
 		for (SmtAdmittanceApply v : selectListNoPass) {
-			v.setStatus(VisitorStatusEnum.CAUSE_6.getCode());
-			this.updateById(v);
+			boolean claimed = this.update(Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+					.eq(SmtAdmittanceApply::getId, v.getId())
+					.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode())
+					.set(SmtAdmittanceApply::getStatus, VisitorStatusEnum.CAUSE_6.getCode()));
+			if (!claimed) {
+				continue;
+			}
 			//修改待我审批里的状态
 			List<ApproveList> selectListApprove = approveListService.list(Wrappers.<ApproveList>query().lambda()
 					.eq(ApproveList::getBusinessId, v.getId()).eq(ApproveList::getApproveType, ApproveListTypeConstants.VISITOR));
@@ -1781,17 +1792,23 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	}
 
 	/**
-	 * 修改超时未到的访客
+	 * 修改超时未到的访客：把过期仍为已通过(0)的申请置为超时未到(4)。
+	 * CAS 抢占（仅当行仍为已通过时生效），不做全字段 updateById 覆盖，
+	 * 避免与到场登记等并发写入互相覆盖；CAS 未命中整单跳过。
 	 *
-	 * @param selectList
+	 * @param selectList 过期仍为已通过的申请列表
 	 */
 	private void removeVisitor(List<SmtAdmittanceApply> selectList) {
 		if (CollectionUtils.isNotEmpty(selectList)) {
 			selectList.forEach(v -> {
-				//修改访客的状态为超时未到 4
-				v.setStatus(VisitorStatusEnum.CAUSE_4.getCode());
-				//删除超时未到的访客
-				this.updateById(v);
+				//CAS：仅当行仍为已通过(0)时置为超时未到(4)
+				boolean claimed = this.update(Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+						.eq(SmtAdmittanceApply::getId, v.getId())
+						.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
+						.set(SmtAdmittanceApply::getStatus, VisitorStatusEnum.CAUSE_4.getCode()));
+				if (!claimed) {
+					return;
+				}
 				//修改待我审批里的状态
 				List<ApproveList> selectListApprove = approveListService.list(Wrappers.<ApproveList>query().lambda()
 						.eq(ApproveList::getBusinessId, v.getId())
