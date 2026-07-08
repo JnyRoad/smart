@@ -1,31 +1,36 @@
+## spring security 配置
 security:
   oauth2:
     client:
-      client-id: "${SMART_UPMS_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      client-secret: "${SMART_UPMS_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      client-id: "${SMART_UPMS_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # smart
+      client-secret: "${SMART_UPMS_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # smart
       scope: server
-      # 免鉴权白名单：命中即 permitAll（完全无需 token）。收敛原则——
-      # 只放行“确实无 token 场景”（登录前流程）和“仅内部 Feign 走裸路径 + @Inner 兜底”的端点。
-      # 已移除的 /user/info|query|verify|delete|simple|social/simple|park/list|edit 均有 /api/user/* 的
-      # @Inner 孪生端点（RemoteUserService 内部调用全部走 /api，见 smart-upms-api），裸 /user/* 副本无任何调用方，
-      # 移出白名单后回退为“需 token”，无 token 直接拒绝，彻底关闭“无 token 删号/改密/枚举”高危面。
+      # 默认放行url,子模块重写时application-dev.yml中的公共配置会被覆盖,所以要把公共配置中的放行url再写一次
+      #      ignore-urls:
+      #        - /**
       ignore-urls:
-      - "/actuator/**"
-      - "/v2/api-docs"
-      # 登录前自助改密：无 token 场景，靠 redis 人脸授权码 + AES 二次校验兜底（见 SysUserServiceImpl.updatePwd）
-      - "/user/password/update/**"
-      # 以下为“内部 Feign 走裸路径 + 方法级 @Inner”的端点，permitAll 仅为放过无 OAuth token 的内部调用，鉴权由 @Inner 承担
-      - "/social/info/*"
-      - "/log/save"
-      - "/dict/id"
-      - "/dict/value"
-      - "/dict/type"
-      - "/dict/save"
-      - "/movetask/list"
-      # 发短信验证码：登录前必须公开；缺限流，SMS 轰炸风险见 PR 说明
-      - "/mobile/*"
-      # 内部服务契约统一入口（/api/user/* 全部带 @Inner）；建议后续收敛为 /api/user/**
-      - "/api/**"
+        - /actuator/**
+        - /v2/api-docs
+        - /user/info/*
+        - /user/query/*
+        - /user/verify/*
+        - /user/delete/*
+        - /user/simple
+        - /user/social/simple
+        - /user/password/update/**
+        - /user/park/list/**
+        - /social/info/*
+        - /mobile/*
+        - /log/save
+        - /dict/id
+        - /dict/value
+        - /dict/type
+        - /dict/save
+        - /movetask/list
+        - /user/edit
+        - /api/**
+
+# 数据源
 spring:
   datasource:
     type: "${SMART_UPMS_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
@@ -35,15 +40,21 @@ spring:
     url: "${SMART_UPMS_DB_URL:${SMART_DB_URL:}}"
   yuto-secsytem:
     login:
+      #sign-on: http://10.0.20.97:81/SOS.WebFramework/LoginBll/GetUserAuthority
       sign-on: "${SMART_SECSYSTEM_LOGIN_SIGN_ON:}"
       sign-token: "${SMART_SECSYSTEM_LOGIN_SIGN_TOKEN:}"
     password:
+      #update-url: http://10.0.20.97:81/SOS.WebFramework/Base_UserBll/RevisePassword
       update-url: "${SMART_SECSYSTEM_PASSWORD_UPDATE_URL:}"
       update-token: "${SMART_SECSYSTEM_PASSWORD_UPDATE_TOKEN:}"
+
+# Logger Config
 logging:
   level:
     com.tce.smart.admin.mapper: debug
+
+# 是否测试环境 true：是 false：否
+# 测试环境将关闭裕同系统的登陆流程
+# 正式环境请设置为false
 env:
   test: false
-server:
-  port: 4000

@@ -50,6 +50,8 @@ yarn.lock
 !**/.env.example
 !.env.local.example
 !**/.env.local.example
+!.env.production.example
+!**/.env.production.example
 
 # Logs
 /logs/

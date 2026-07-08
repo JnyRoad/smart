@@ -1,33 +1,37 @@
+## spring security 配置
 security:
   oauth2:
     client:
-      client-id: "${SMART_APP_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      client-secret: "${SMART_APP_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      client-id: "${SMART_APP_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # app
+      client-secret: "${SMART_APP_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # app
       scope: server
+      # 放行url( - /actuator/**)
       ignore-urls:
-      - "/guide/welcome"
-      - "/login/face"
-      - "/sms/send/**"
-      - "/sms/verify/**"
-      - "/common/image/view/**"
-      - "/common/download/**"
-      - "/password/mobile/query/**"
-      - "/password/sms/send/**"
-      - "/password/verify/**"
-      - "/password/update/**"
-      - "/park/location/auto/**"
-      - "/wechat/**"
-      - "/device/query/list/bind/**"
-      - "/device/query/list/**"
-      - "/website/**"
-      - "/agreement/service"
-      - "/apparticles/**"
-      - "/appdormitory/queryDormitory"
-      - "/appdormitory/queryRoom"
-      - "/appdormitory/roomDetailByPhone/**"
-      - "/park/**"
-      - "/setting/version/check"
-      - "/yht/user/badge"
+        - /guide/welcome
+        - /login/face
+        - /sms/send/**
+        - /sms/verify/**
+        - /common/image/view/**
+        - /common/download/**
+        - /password/mobile/query/**
+        - /password/sms/send/**
+        - /password/verify/**
+        - /password/update/**
+        - /park/location/auto/**
+        - /wechat/**
+        - /device/query/list/bind/**
+        - /device/query/list/**
+        - /website/**
+        - /agreement/service
+        - /apparticles/**
+        - /appdormitory/queryDormitory
+        - /appdormitory/queryRoom
+        - /appdormitory/roomDetailByPhone/**
+        - /park/**
+        - /setting/version/check
+        - /yht/user/badge
+
+# 数据源配置
 spring:
   datasource:
     type: "${SMART_APP_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
@@ -38,14 +42,16 @@ spring:
   main:
     allow-bean-definition-overriding: true
   sms:
+    #url: http://10.0.20.97:81/SOS.WebFramework/SMSBll/SendSMS
     url: "${SMART_SMS_URL:}"
     systemName: 智慧系统
     remarks: 智慧系统
-    token: "${SMART_SMS_TOKEN:}"
+    token: "${SMART_SMS_TOKEN:}"      #token
   oa:
     staff:
       query-url: "${SMART_OA_STAFF_QUERY_URL:}"
-      query-token: "${SMART_OA_STAFF_QUERY_TOKEN:}"
+      query-token: "${SMART_OA_STAFF_QUERY_TOKEN:}"      #token
+  #邮箱配置
   mail:
     host: "${SMART_MAIL_HOST:}"
     username: "${SMART_MAIL_USERNAME:}"
@@ -54,15 +60,18 @@ spring:
     port: 25
   yuto-secsytem:
     phone:
+      #update-url: http://10.0.20.97:81/SOS.WebFramework/Base_UserBll/RevisePhone
       update-url: "${SMART_SECSYSTEM_PHONE_UPDATE_URL:}"
       update-token: "${SMART_SECSYSTEM_PHONE_UPDATE_TOKEN:}"
+  # Ocr服务
   ocr:
     username: "${SMART_OCR_USERNAME:}"
     url: "${SMART_OCR_URL:}"
   wechat:
-    oauth2: "${SMART_WECHAT_OAUTH2_URL:}"
+    oauth2:  "${SMART_WECHAT_OAUTH2_URL:}"
     appId: "${SMART_WECHAT_APP_ID:}"
     appSecret: "${SMART_WECHAT_APP_SECRET:}"
+    #人脸比对阈值
     xc:
       userInfo: "${SMART_WECHAT_XC_USER_INFO_URL:}"
       appId: "${SMART_WECHAT_XC_APP_ID:}"
@@ -72,20 +81,28 @@ spring:
     compare-value: 0.35
     forget-password: "${SMART_FACE_FORGET_PASSWORD:0.7}"
   file:
+    #图片访问地址-公共目录
+    #image: http://smartapp.szyuto.com:8090/app/common
     image: "${SMART_APP_FILE_IMAGE_URL:}"
+    #PDF附件下载地址
+    #text-pdf-enclosure: http://smartapp.szyuto.com:8090/app/common/download/
     text-pdf-enclosure: "${SMART_APP_FILE_TEXT_PDF_ENCLOSURE_URL:}"
+    #PDF文件预览地址
+    #pdf-preview: http://smartapp.szyuto.com:8090/apprelease/PDF/web/viewer.html?file=
     pdf-preview: "${SMART_APP_FILE_PDF_PREVIEW_URL:}"
   icbc:
     api:
+      #e钱包H5页面URL
       h5-eaccount: "${SMART_ICBC_H5_EACCOUNT_URL:}"
   yht:
     appKey: "${SMART_YHT_APP_KEY:}"
     appSecret: "${SMART_YHT_APP_SECRET:}"
     appCode: "${SMART_YHT_APP_CODE:}"
+    # 友互通获取ACCESS_TOKEN
     accessTokenUrl: "${SMART_YHT_ACCESS_TOKEN_URL:}"
+    # 通过 access_token 和 code 获得免登用户的 id
     userIdUrl: "${SMART_YHT_USER_ID_URL:}"
+    # 通过 access_token 和 id 获得免登用户信息
     userInfoUrl: "${SMART_YHT_USER_INFO_URL:}"
 swagger:
-  enabled: false
-server:
-  port: 6020
+  enabled: false    

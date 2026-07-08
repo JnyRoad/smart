@@ -1,21 +1,22 @@
 security:
   encode:
-    key: "${SMART_SECURITY_ENCODE_KEY:}"
+    # 前端密码密钥，必须16位
+    key: '${SMART_SECURITY_ENCODE_KEY:}'
+
+# 不校验验证码终端
 ignore:
   clients:
-  - test
-  - smart
-  - platform
-  - bridge
-  - app
-  - data
-  - oaview
+    - test
+    - smart
+    - platform
+    - bridge
+    - app
+    - data
+    - oaview
   swagger-providers:
-  - smart-auth
-  - smart-platform
-  - smart-bridge
-  - smart-app
-  - smart-data
-  - smart-oaview
-server:
-  port: 9990
+    - smart-auth
+    - smart-platform
+    - smart-bridge
+    - smart-app
+    - smart-data
+    - smart-oaview

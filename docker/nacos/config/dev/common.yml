@@ -1,18 +1,35 @@
+# 加解密根密码
 jasypt:
   encryptor:
-    password: "${SMART_JASYPT_PASSWORD:}"
+    password: "${SMART_JASYPT_PASSWORD:}" #根密码
+# redis 相关
 spring:
   redis:
+    #password: Tce123456
     host: "${SMART_REDIS_HOST:smart-redis}"
     port: "${SMART_REDIS_PORT:6379}"
     password: "${SMART_REDIS_PASSWORD:}"
-    database: "${SMART_REDIS_DATABASE:0}"
+#  # zipkin
+#  zipkin:
+#    enabled: true
+#    base-url: http://smart-zipkin
+#  sleuth:
+#    web:
+#      client:
+#        enabled: true
+#    sampler:
+#      # 默认的采样比率为0.1，不能看到所有请求数据
+#      # 更改采样比率为1，就能看到所有的请求数据了，但是这样会增加接口调用延迟
+#      probability: 1.0
+
+# 暴露监控端点
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: '*'
     enabled-by-default: false
+# feign 配置
 feign:
   hystrix:
     enabled: false
@@ -30,14 +47,16 @@ feign:
       enabled: true
     response:
       enabled: true
-rest:
+rest:                                           # RestTemplate配置
   config:
-    connectTimeout: 60000
-    connectionRequestTimeout: 60000
-    readTimeout: 60000
-    maxTotal: 1000
-    maxPerRoute: 1000
-    validateAfterInactivity: 30000
+    connectTimeout: 60000                       # 连接超时时间/毫秒
+    connectionRequestTimeout: 60000             # 请求超时时间/毫秒
+    readTimeout: 60000                          # 读写超时时间/毫秒
+    maxTotal: 1000                              # 最大连接数
+    maxPerRoute: 1000                           # 每个主机的最大连接数
+    validateAfterInactivity: 30000              # 可用空闲连接过期时间
+# hystrix If you need to use ThreadLocal bound variables in your RequestInterceptor`s
+# you will need to either set the thread isolation strategy for Hystrix to `SEMAPHORE or disable Hystrix in Feign.
 hystrix:
   command:
     default:
@@ -47,20 +66,31 @@ hystrix:
           thread:
             timeoutInMilliseconds: 60000
   shareSecurityContext: true
+
+#请求处理的超时时间
 ribbon:
   ReadTimeout: 60000
   ConnectTimeout: 60000
+
+# mybaits-plus配置
 mybatis-plus:
+  # MyBatis Mapper所对应的XML文件位置
   mapper-locations: classpath:/mapper/*Mapper.xml
   global-config:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 关闭MP3.0自带的banner
     banner: false
     db-config:
+      # 主键类型 0:数据库ID自增 1.未定义 2.用户输入 3 id_worker 4.uuid 5.id_worker字符串表示
       id-type: 0
+      #字段策略 0:"忽略判断",1:"非 NULL 判断"),2:"非空判断"
       field-strategy: 1
+      # 默认数据库表下划线命名
       table-underline: true
   configuration:
     map-underscore-to-camel-case: true
+
+#swagger公共信息
 swagger:
   title: Swagger API
   version: API3.0
@@ -73,32 +103,23 @@ swagger:
     url: http://www.tce.com.cn
   authorization:
     name: TCE OAuth
-    auth-regex: "^.*$"
+    auth-regex: ^.*$
     authorization-scope-list:
-    - scope: server
-      description: server all
+      - scope: server
+        description: server all
     token-url-list:
-    - http://smart-gateway:9990/auth/oauth/token
-  oauth:
-    client-secret: "${SMART_OAUTH_CLIENT_SECRET:}"
+      - http://smart-gateway:9990/auth/oauth/token
+
+## spring security 配置
 security:
   oauth2:
+#    client:
+#      # 默认放行url,如果子模块重写这里的配置就会被覆盖
+#      ignore-urls:
+#        - /webjars/**                         #swagger
+#        - /swagger-resources                  #swagger
+#        - /actuator/**
+#        - /v2/api-docs
     resource:
       loadBalanced: true
       token-info-uri: "${SMART_OAUTH_TOKEN_INFO_URI:http://smart-auth:3000/oauth/check_token}"
-  auth-code:
-    encode-key: "${SMART_AUTH_CODE_ENCODE_KEY:}"
-  default-reset-password: "${SMART_DEFAULT_RESET_PASSWORD:123456}"
-smart:
-  obs:
-    ak: "${SMART_OBS_AK:}"
-    sk: "${SMART_OBS_SK:}"
-    endpoint: "${SMART_OBS_ENDPOINT:}"
-    bucket-name: "${SMART_OBS_BUCKET_NAME:}"
-    dir-path: "${SMART_OBS_DIR_PATH:Photo/App/}"
-  smb:
-    photo:
-      domain: "${SMART_SMB_PHOTO_DOMAIN:}"
-      username: "${SMART_SMB_PHOTO_USERNAME:}"
-      password: "${SMART_SMB_PHOTO_PASSWORD:}"
-      url: "${SMART_SMB_PHOTO_URL:}"
