@@ -8,6 +8,30 @@ $warning: #F25C19;
 $error: #F25C19;
 $border-color: #ececec;
 
+/* ---------------------------------------------------------------------------
+ * uni-app 官方默认主题变量（工程模板自带，本文件被自定义时丢失）。
+ * 多个页面/组件仍在引用（如 $uni-border-color、$uni-bg-color-mask、$uni-text-color），
+ * dart-sass 遇到未定义变量会直接编译失败，故按官方默认值补齐颜色族变量。
+ * ------------------------------------------------------------------------- */
+/* 行为相关颜色 */
+$uni-color-primary: #007aff;
+$uni-color-success: #4cd964;
+$uni-color-warning: #f0ad4e;
+$uni-color-error: #dd524d;
+/* 文字基本颜色 */
+$uni-text-color: #333; // 基本色
+$uni-text-color-inverse: #fff; // 反色
+$uni-text-color-grey: #999; // 辅助灰色，如加载更多的提示信息
+$uni-text-color-placeholder: #808080;
+$uni-text-color-disable: #c0c0c0;
+/* 背景颜色 */
+$uni-bg-color: #ffffff;
+$uni-bg-color-grey: #f8f8f8;
+$uni-bg-color-hover: #f1f1f1; // 点击状态颜色
+$uni-bg-color-mask: rgba(0, 0, 0, 0.4); // 遮罩颜色
+/* 边框颜色 */
+$uni-border-color: #c8c7cc;
+
 .main-color {
 	color: $main-color;
 }
@@ -617,7 +641,9 @@ $font-map: ("": #{$pc}, "1":#{$pc1}, "2":  #{$pc2}, "3":  #{$pc3}, "4":  #{$pc4}
     height:440upx;
 }
 .next{
-    background:url('~/static/img/login/right.png') no-repeat center right;
+    // 本文件会被注入到任意深度的组件样式中，图片必须用 ~@/（工程根）引用，
+    // 相对路径和 ~/ 前缀都会导致 webpack 解析失败（文件查找失败）
+    background:url('~@/static/img/login/right.png') no-repeat center right;
     background-size: 20upx;
 }
 .mineRight {
