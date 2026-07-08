@@ -1,104 +1,112 @@
+## spring security 配置
 security:
   oauth2:
     client:
-      client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      client-secret: "${SMART_PLATFORM_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # platform
+      client-secret: "${SMART_PLATFORM_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # platform
       scope: server
+      # 放行url
       ignore-urls:
-      - "/alarm/record/save"
-      - "/application/**"
-      - "/applicationTask/remind"
-      - "/appmsg/**"
-      - "/approve/list/page"
-      - "/callowance/**"
-      - "/device/update/status"
-      - "/device/query/deviceStatus"
-      - "/device/task/**"
-      - "/leave/**"
-      - "/logistics/appointment/**"
-      - "/out/dormitory/**"
-      - "/parking/count/**"
-      - "/park/**"
-      - "/processRecord/add"
-      - "/staff/query/**"
-      - "/recruitment/**"
-      - "/snap/person/addSnapPerson"
-      - "/snap/vehicle/save"
-      - "/staff/**"
-      - "/dormitory/staff/addInDormitory"
-      - "/dormitory/staff/roomDetailByPhone/**"
-      - "/dormitory/room/getJche/freeBed"
-      - "/visitor/addFellowVisitor"
-      - "/visitor/addWechatFellowVisitor"
-      - "/visitor/addWechatVisitor"
-      - "/visitor/addVisitor"
-      - "/visitor/app/**"
-      - "/visitor/wechat/**"
-      - "/visitor/checkBlackVisitor"
-      - "/visitor/checkBlackVehicle"
-      - "/visitorTask/**"
-      - "/wage/sign/**"
-      - "/articlesrelease/**"
-      - "/ehr/to/staff/set/list"
-      - "/ehr/to/staff/set/list-dhr"
-      - "/ehr/to/staff/set/list-ehr"
-      - "/feed/back/add"
-      - "/inner/**"
-      - "/paper/status/refresh"
-      - "/parklogistics/list"
-      - "/parklogistics/companyId/*"
-      - "/processRecord/add"
-      - "/image/**"
-      - "/social/security/list"
-      - "/visitor/wechatVisitorAgain"
-      - "/visitor/refuseType"
-      - "/visitor/record/list"
-      - "/badge/**"
-      - "/attendance/sign/sync/task"
-      - "/ehr/setup/smg"
-      - "/recharge/new/recharge"
-      - "/regist/**"
-      - "/articlesrelease/**"
-      - "/dormitory/queryDormitory"
-      - "/dormitory/room/queryRoom"
-      - "/bigdata/park/**"
-      - "/visitor/searchVisitorAnalysisToday"
-      - "/snap/vehicle/count"
-      - "/visitor/searchVisitorByCode/**"
-      - "/visitor/searchVisitorById/**"
-      - "/visitor/createQRCode/**"
-      - "/visitor/delSmsCode/**"
-      - "/visitor/smbPutPhoto/**"
-      - "/recharge/senior/recharge"
-      - "/ehr/setup/auto/confirm"
-      - "/dormitory/staff/remote/to/lock"
-      - "/park/app/all"
-      - "/park/tolock/dormitory/allList"
-      - "/staff/simple/badge"
-      - "/admittance/**"
-      - "/common/config/visitor/notice"
-      - "/common/config/admittance/notice"
-      - "/oa/workflow/over"
-      # 内部定时任务端点（schedule 经 Feign FROM_IN 调用，均已 @Inner 标注；生产曾因白名单缺失 401 逾一月，2026-07-06 排查补齐）
-      - "/security/auth/apply/oa/status/task"
-      - "/security/auth/apply/msg"
-      - "/security/auth/delete/task"
-      - "/news/terminal/check"
-      - "/oa/workflow/callback/log/clean"
-      - "/wechat/banding/info/**"
-      - "/wechat/banding/save"
-      - "/visitor/enum/carry/type"
-      - "/common/config/visitor/health"
-      - "/visitor/enum/cause/type"
-      - "/visitor/hf/saveVisitor"
-      - "/visitor/hf/record/push"
-      - "/news/file/stream/**"
-      - "/websocket/**"
-      - "/snap/person/check/temp"
-      - "/dor/quit/dealy/quit"
-      - "/settlement/count"
-      - "/dormitory/meterread/daily/gen"
+        - /alarm/record/save
+        - /application/**
+        - /applicationTask/remind
+        - /appmsg/**
+        - /approve/list/page
+        - /callowance/**
+        - /device/update/status
+        - /device/query/deviceStatus
+        - /device/task/**
+        - /leave/**
+        - /logistics/appointment/**
+        - /out/dormitory/**
+        - /parking/count/**
+        - /park/**
+        - /processRecord/add
+        - /staff/query/**
+        - /recruitment/**
+        - /snap/person/addSnapPerson
+        - /snap/vehicle/save
+        - /staff/**
+        - /dormitory/staff/addInDormitory
+        - /dormitory/staff/roomDetailByPhone/**
+        - /dormitory/room/getJche/freeBed
+        - /visitor/addFellowVisitor
+        - /visitor/addWechatFellowVisitor
+        - /visitor/addWechatVisitor
+        - /visitor/addVisitor
+        - /visitor/app/**
+        - /visitor/wechat/**
+        - /visitor/checkBlackVisitor
+        - /visitor/checkBlackVehicle
+        - /visitorTask/**
+        - /wage/sign/**
+        - /articlesrelease/**
+        - /ehr/to/staff/set/list
+        - /ehr/to/staff/set/list-dhr
+        - /ehr/to/staff/set/list-ehr
+        - /feed/back/add
+        - /inner/**
+        - /paper/status/refresh
+        - /parklogistics/list
+        - /parklogistics/companyId/*
+        - /processRecord/add
+        - /image/**
+        - /social/security/list
+        - /visitor/wechatVisitorAgain
+        - /visitor/refuseType
+        - /visitor/record/list
+        - /badge/**
+        - /attendance/sign/sync/task
+        - /ehr/setup/smg
+        - /recharge/new/recharge
+        - /regist/**
+        - /articlesrelease/**
+        - /dormitory/queryDormitory
+        - /dormitory/room/queryRoom
+        - /bigdata/park/**
+        - /visitor/searchVisitorAnalysisToday
+        - /snap/vehicle/count
+        - /visitor/searchVisitorByCode/**
+        - /visitor/searchVisitorById/**
+        - /visitor/createQRCode/**
+        - /visitor/delSmsCode/**
+        - /visitor/smbPutPhoto/**
+        - /recharge/senior/recharge
+        - /ehr/setup/auto/confirm
+        - /dormitory/staff/remote/to/lock
+        - /park/app/all
+        - /park/tolock/dormitory/allList
+        - /staff/simple/badge
+        - /admittance/**
+        - /common/config/visitor/notice
+        - /common/config/admittance/notice
+        - /oa/workflow/over
+        - "/security/auth/apply/oa/status/task"
+        - "/security/auth/apply/msg"
+        - "/security/auth/delete/task"
+        - "/news/terminal/check"
+        - "/oa/workflow/callback/log/clean"
+        - /wechat/banding/info/**
+        - /wechat/banding/save
+        - /visitor/enum/carry/type
+        - /common/config/visitor/health
+        - /visitor/enum/cause/type
+        - /visitor/hf/saveVisitor
+        - /visitor/hf/record/push
+        - /news/file/stream/**
+        - /websocket/**
+        - /snap/person/check/temp
+        - /dor/quit/dealy/quit
+        - /settlement/count
+        - /dormitory/meterread/daily/gen
+        # 数据源配置
 spring:
+  #  datasource:
+  #    type: com.zaxxer.hikari.HikariDataSource
+  #    driver-class-name: oracle.jdbc.driver.OracleDriver
+  #    username: platform2
+  #    password: 123456
+  #    url: jdbc:oracle:thin:@smart-oracle:1521:orcl
   datasource:
     type: "${SMART_PLATFORM_DB_TYPE:com.alibaba.druid.pool.DruidDataSource}"
     driver-class-name: "${SMART_PLATFORM_DB_DRIVER:oracle.jdbc.driver.OracleDriver}"
@@ -107,80 +115,104 @@ spring:
     url: "${SMART_PLATFORM_DB_URL:${SMART_DB_URL:}}"
   main:
     allow-bean-definition-overriding: true
+    # Ocr服务
   ocr:
     username: "${SMART_OCR_USERNAME:}"
     url: "${SMART_OCR_URL:}"
   yuto-secsytem:
     phone:
+      #update-url: http://10.0.20.97:81/SOS.WebFramework/Base_UserBll/RevisePhone
       update-url: "${SMART_SECSYSTEM_PHONE_UPDATE_URL:}"
       update-token: "${SMART_SECSYSTEM_PHONE_UPDATE_TOKEN:}"
   face:
     comparevalue: 0.65
-    login-compare-value: 0.7
+    login-compare-value: 0.70
   dormitory:
     datenum: 25
   oa:
     process:
       request:
-        leave-url: "${SMART_OA_PROCESS_LEAVE_URL:}"
-        leave-token: "${SMART_OA_PROCESS_LEAVE_TOKEN:}"
-        log-url: "${SMART_OA_PROCESS_LOG_URL:}"
-        log-token: "${SMART_OA_PROCESS_LOG_TOKEN:}"
+        leave-url: "${SMART_OA_PROCESS_LEAVE_URL:}"          #推送离职流程URL
+        leave-token: "${SMART_OA_PROCESS_LEAVE_TOKEN:}"      #token
+        log-url: "${SMART_OA_PROCESS_LOG_URL:}"      #查询流程流转记录接口
+        log-token: "${SMART_OA_PROCESS_LOG_TOKEN:}"      #token
   visitor:
-    put-offset-hour: 2
-    # overtime-offset-hour 已废弃删除：超时清理固定按"预约结束时间已过"判定，
-    # 提前量会把仍在 OA 审批中的短期单提前终态化（2026-07-07 生产事故根因）
-    arrived-offset-hour: 24
-    arrived-send: true
-    arrived-send-message-offset-minute: 30
-    pre-send: true
-    pre-send-message-offset-minute: 30
-    push-email: "./预约记录.xlsx"
-    code-url: "${SMART_VISITOR_CODE_URL:}"
+    put-offset-hour: 2                          #访客预约提前多久下发设备权限(设备权限生效时间=预约开始时间提前N小时)
+    overtime-offset-hour: 0                     #访客过期未到超时多久删除设备权限(未使用)
+    arrived-offset-hour: 24                      #已到访客超时多久删除设备权限(未使用)
+    arrived-send: true                          #已到访客提前多久发送提醒短信
+    arrived-send-message-offset-minute: 30      #已到访客提前多久发送提醒短信
+    pre-send: true                              #访客预约是否提前发送提醒短信（预约成功后，快到预约时间时发送提醒短信）
+    pre-send-message-offset-minute: 30          #访客预约提前多久发送提醒短信（预约成功后，快到预约时间时发送提醒短信）
+    push-email: ./预约记录.xlsx                    #访客信息推送至邮件
+    code-url: "${SMART_VISITOR_CODE_URL:}"            #访客码短信url
+   # remote-url: smb://liuwc@szyuto.com:LIU0987654321·@10.13.140.28/visitor/,smb://Administrator:040117@222.181.144.146/visitor/  #访客凭条打印头像图片上传地址
     remote-url: "${SMART_VISITOR_REMOTE_URL:}"
-    remote-path: D:\\visitor\\
+    remote-path: D:\\visitor\\ #访客凭条打印头像图片上传路径
     hf-token: "${SMART_VISITOR_HF_TOKEN:}"
+#图片访问
   image:
+    #内网访问地址
     base-url: "${SMART_PLATFORM_IMAGE_BASE_URL:}"
     down-url: "${SMART_PLATFORM_IMAGE_DOWN_URL:}"
     base-park-url: "${SMART_PLATFORM_IMAGE_BASE_PARK_URL:}"
+    #人脸比对阈值
+  #放行短信url
   release:
+    #短信跳转
     sms-url: "${SMART_RELEASE_SMS_URL:}"
   temp:
     auth: "${SMART_TEMP_AUTH:}"
   admittance:
     sms-url: "${SMART_ADMITTANCE_SMS_URL:}"
     pretime: 30
+    # 世平本地 smb://Administrator:Q@10.0.200.2/visitor/ ，smb://liuwc@szyuto.com:LIU0987654321·@10.13.140.28/visitor/,smb://Administrator:admin123456@10.13.140.28/visitor/
+    # smb://.\Administrator:Yuto@9231!@10.13.140.154/visitor/
+    # smb://Administrator:Yuto@9231!@10.13.140.154/visitor/
+    #remote-url: '[{ip:"10.13.140.139",url:"smb://10.13.140.139/visitor//",password:"Yuto9231!",user:"Administrator"},{ip:"10.13.140.154",url:"smb://10.13.140.154/visitor//",password:"Yuto@9231!",user:"Administrator"},{ip:"10.13.140.215",url:"smb://10.13.140.215/visitor/",password:"admin123456",user:".\\administrator"}]'
     remote-url: "${SMART_ADMITTANCE_REMOTE_URL:}"
-    # 已废弃：Task 3 起推送 filePath 已改传相对文件名，本字段成死代码；
-    # 保留仅为兼容旧配置读取路径，推送功能整体退役（见上线 checklist 第 4 步）时随之删除。
     save-path: D:/visitor/
-    # 照片推送总开关：true=推送与拉取并存（当前上线阶段），false=仅拉取（推送退役后终态）。
-    # 对应 SmtAdmittanceApplyServiceImpl#photoPushEnabled（@Value("${spring.admittance.photo-push-enabled:true}")）。
     photo-push-enabled: true
   park-set:
     lg-park-id: 27
+
   lock:
     send:
       url: "${SMART_LOCK_SEND_URL:http://host.docker.internal:8001/person/dormitory}"
     base:
       url: "${SMART_LOCK_BASE_URL:http://host.docker.internal:8001}"
+
   msg-push:
     quitdor: "${SMART_MSG_PUSH_QUITDOR_URL:}"
     release: "${SMART_MSG_PUSH_RELEASE_URL:}"
     repairs: "${SMART_MSG_PUSH_REPAIRS_URL:}"
+  # admittance: https://xuchang.szyuto.com/#/xuchang/backLog/dormRepairs/detail?id={id}&curTabIndex=0
+
   file:
     base-url: "${SMART_PLATFORM_FILE_BASE_URL:}"
+
   settlement:
     check-token: "${SMART_SETTLEMENT_CHECK_TOKEN:}"
+
 swagger:
   enabled: false
+
+#C6同步数据
 smart:
+  # 许昌园区ID
   xc-park-id: 5000021
   sy-park-id: 161
+  # 合肥园区ID
   hf-park-id: 10001
   meter:
-    prod: 200
-    life: 100
-server:
-  port: 6030
+    prod: 200  #生产水电表阈值
+    life: 100  #生活水电表阈值
+  park:
+    xc-id: 5000021
+  org:
+    # index-code: 36b28cbf-74ca-4393-82a0-5d8e5d8115db
+    # 许昌外包工ISC组织编码
+    xc-hpo-index-code: "${SMART_ORG_XC_HPO_INDEX_CODE:}"
+    # 许昌访客ISC组织编码
+    xc-visitor-index-code: "${SMART_ORG_XC_VISITOR_INDEX_CODE:}"
+    hf-index-code: "${SMART_ORG_HF_INDEX_CODE:}"

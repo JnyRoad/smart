@@ -81,6 +81,7 @@ scripts/test-docker-compose-dev.sh
 ## 注意事项
 
 - `.env.local.example` 是样例文件，可以提交；根目录 `.env.local` 是真实本地配置，必须忽略。
+- `.env.production.example` 是生产环境变量模板（占位、可提交）；`docker/.env.production` 填入真实生产值，已被 `.gitignore` 忽略，切勿提交。生产部署时用 `SMART_DOCKER_ENV_FILE=docker/.env.production` 把这些变量注入各服务容器，Nacos 配置 `nacos/config/dev/*.yml` 里的 `${...}` 占位符即由此解析。data/schedule 的第三方数据源相同项只需填公共变量（两服务两级回落到它），仅两服务不同的项才填 `_DATA`/`_SCHEDULE` 后缀变量。
 - `nacos/config/dev/*.yml` 是本地开发配置模板，真实生产配置不要放进本目录。
 - Nacos 初始化脚本用 `curl` 调 Nacos OpenAPI 发布配置；如果新增服务配置，需要同步增加对应 YAML。
 - Java 后端 Dockerfile 使用已构建出的 Spring Boot Jar；构建镜像前先在对应子项目执行 Maven 打包，或使用根目录 `scripts/build-release-jars.sh` 生成后端 Jar。

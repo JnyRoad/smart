@@ -1,11 +1,14 @@
+## spring security 配置
 security:
   oauth2:
     client:
-      name: "${SMART_PUSH_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      password: "${SMART_PUSH_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      name: "${SMART_PUSH_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"     # smart
+      password: "${SMART_PUSH_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}" # smart
       scope: server
+      # 放行url
       ignore-urls:
-      - "/**"
+        - /**
+
 uni:
   push:
     app-id: "${SMART_UNI_PUSH_APP_ID:}"
@@ -13,5 +16,3 @@ uni:
     master-secret: "${SMART_UNI_PUSH_MASTER_SECRET:}"
     url: "${SMART_UNI_PUSH_URL:}"
     offline-expiretime: 600000
-server:
-  port: 6090
