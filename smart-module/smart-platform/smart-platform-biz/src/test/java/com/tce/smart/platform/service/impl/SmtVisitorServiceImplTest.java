@@ -33,11 +33,13 @@ import org.springframework.data.redis.core.ZSetOperations;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -192,18 +194,9 @@ public class SmtVisitorServiceImplTest {
 		setField(service, "deviceAuthorityRelationService", relationService);
 		setField(service, "smtFellowVisitorService", fellowVisitorService);
 		setField(service, "putOffsetHour", 0);
-		SmtVisitor approvedVisitor = pendingVisitor(3016L, "oa-approved-sms-failed");
-		approvedVisitor.setStatus(SmtVisitorEnum.PASS_STATUS.getType());
-		approvedVisitor.setParkId(1);
-		approvedVisitor.setVisitorName("访客");
-		approvedVisitor.setVisitorPhone("13800000000");
-		approvedVisitor.setReceptionistName("被访人");
-		approvedVisitor.setReceptionistPhone("13900000000");
-		approvedVisitor.setCompany("裕同");
-		approvedVisitor.setIsVehicle(SmtVisitorEnum.NOT_VEHICLE.getType());
-		approvedVisitor.setStartTime(new Date(System.currentTimeMillis() + 60 * 60 * 1000L));
-		approvedVisitor.setEndTime(new Date(System.currentTimeMillis() + 2 * 60 * 60 * 1000L));
-		Mockito.when(mapper.updateById(Mockito.any(SmtVisitor.class))).thenReturn(1);
+		SmtVisitor approvedVisitor = hfVisitor(3016L, SmtVisitorEnum.PASS_STATUS.getType());
+		//smsCode 为空：走补生成 + 条件落库路径
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
 		Mockito.when(relationService.getRelationAuth(Mockito.any(), Mockito.any(), Mockito.any()))
 				.thenReturn(Collections.emptyList());
 		Mockito.when(fellowVisitorService.selectListByVisitorId(Mockito.any(SmtVisitor.class)))
@@ -213,7 +206,205 @@ public class SmtVisitorServiceImplTest {
 
 		Assert.assertTrue(updated);
 		Assert.assertFalse(StrUtil.isBlank(approvedVisitor.getSmsCode()));
-		Mockito.verify(mapper).updateById(Mockito.eq(approvedVisitor));
+		//短信验证码经条件更新落库，不做全字段写回
+		Mockito.verify(mapper).update(Mockito.isNull(), Mockito.any());
+		Mockito.verify(mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	// ========== updateHfStatus：审批后置处理不得用陈旧快照全字段写回 ==========
+	//
+	// updateHfStatus 的两个调用方持有的都是查询时的快照：
+	// - claim 后置（claimAndApplyHfOaFinalStatus）：快照到调用之间隔着整批 OA 网络查询，
+	//   且状态/smsCode 已由 claim CAS 落库；
+	// - 合肥推送保存（saveHfVisitor）：实体刚 save，仅 smsCode 尚未生成。
+	// 任何 updateById 全字段写回都会用快照覆盖期间其他链路（回调/对账/清理任务）落的状态。
+
+	/**
+	 * updateHfStatus 测试专用 harness：写库走 baseMapper，下发走设备权限/随行人员两个服务，
+	 * 覆写 sendMessage 只记录模板编码、不真正外呼短信。
+	 */
+	private HfStatusHarness setUpHfStatusHarness() throws Exception {
+		HfStatusHarness harness = new HfStatusHarness();
+		harness.mapper = Mockito.mock(SmtVisitorMapper.class);
+		harness.relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		harness.fellowVisitorService = Mockito.mock(SmtFellowVisitorService.class);
+		harness.smsTempCodes = new ArrayList<>();
+		List<String> smsTempCodes = harness.smsTempCodes;
+		harness.service = new SmtVisitorServiceImpl() {
+			@Override
+			public Result<SendSmsVo> sendMessage(String number, String visitorName, String tempCode, String hostName,
+											 String appointmentDate, String realityDate, String deviceName, String company,
+											 String reportToName, String refuseDes, String smsCode, String swichCode,
+											 Integer parkId) {
+				smsTempCodes.add(tempCode);
+				return new Result<>(new SendSmsVo());
+			}
+		};
+		setField(harness.service, "baseMapper", harness.mapper);
+		setField(harness.service, "deviceAuthorityRelationService", harness.relationService);
+		setField(harness.service, "smtFellowVisitorService", harness.fellowVisitorService);
+		setField(harness.service, "putOffsetHour", 0);
+		Mockito.when(harness.relationService.getRelationAuth(Mockito.any(), Mockito.any(), Mockito.any()))
+				.thenReturn(Collections.emptyList());
+		Mockito.when(harness.fellowVisitorService.selectListByVisitorId(Mockito.any(SmtVisitor.class)))
+				.thenReturn(Collections.emptyList());
+		return harness;
+	}
+
+	private static final class HfStatusHarness {
+		SmtVisitorServiceImpl service;
+		SmtVisitorMapper mapper;
+		SmtDeviceAuthorityRelationService relationService;
+		SmtFellowVisitorService fellowVisitorService;
+		/** 记录 updateHfStatus 期间发出的短信模板编码 */
+		List<String> smsTempCodes;
+	}
+
+	/** 构造一条字段齐全、预约时段在未来的访客快照（无车辆、无随行）。 */
+	private SmtVisitor hfVisitor(Long id, Integer status) {
+		SmtVisitor visitor = pendingVisitor(id, "oa-hf-" + id);
+		visitor.setStatus(status);
+		visitor.setParkId(1);
+		visitor.setVisitorName("访客");
+		visitor.setVisitorPhone("13800000000");
+		visitor.setReceptionistName("被访人");
+		visitor.setReceptionistPhone("13900000000");
+		visitor.setCompany("裕同");
+		visitor.setIsVehicle(SmtVisitorEnum.NOT_VEHICLE.getType());
+		visitor.setStartTime(new Date(System.currentTimeMillis() + 60 * 60 * 1000L));
+		visitor.setEndTime(new Date(System.currentTimeMillis() + 2 * 60 * 60 * 1000L));
+		return visitor;
+	}
+
+	/**
+	 * 过期分支：状态迁移必须走 CAS（仅当行仍处于调用前状态时置预约超时(6)）且只写 status 列，
+	 * 不允许 updateById 全字段写回陈旧快照。
+	 */
+	@Test
+	public void updateHfStatusExpiredVisitorMovesStatusWithCasSingleColumn() throws Exception {
+		HfStatusHarness harness = setUpHfStatusHarness();
+		SmtVisitor visitor = hfVisitor(3020L, VisitorStatusEnum.Status_0.getCode());
+		visitor.setEndTime(new Date(System.currentTimeMillis() - 60_000L));
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+
+		Boolean updated = harness.service.updateHfStatus(visitor);
+
+		Assert.assertTrue(updated);
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(harness.mapper).update(Mockito.isNull(), updateCaptor.capture());
+		LambdaUpdateWrapper casWrapper = updateCaptor.getValue();
+		String setClause = casWrapper.getSqlSet().toLowerCase(Locale.ROOT);
+		Assert.assertTrue("必须更新 status 列，实际 set：" + setClause, setClause.contains("status"));
+		Assert.assertFalse("只写 status 列，不得顺带写回 sms_code，实际 set：" + setClause, setClause.contains("sms_code"));
+		Assert.assertTrue("CAS 条件必须限定行仍处于调用前状态",
+				casWrapper.getSqlSegment().toLowerCase(Locale.ROOT).contains("status"));
+		Assert.assertTrue(updateHasParam(casWrapper, VisitorStatusEnum.Status_0.getCode()));
+		Assert.assertTrue(updateHasParam(casWrapper, VisitorStatusEnum.CAUSE_6.getCode()));
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	/**
+	 * 过期分支 claim 路径：claim 阶段已把行 CAS 成预约超时(6)（见 claimOaFinalStatus），
+	 * 后置处理不得再写库。
+	 */
+	@Test
+	public void updateHfStatusExpiredRowAlreadyFinalizedByClaimSkipsDbWrite() throws Exception {
+		HfStatusHarness harness = setUpHfStatusHarness();
+		SmtVisitor visitor = hfVisitor(3021L, VisitorStatusEnum.CAUSE_6.getCode());
+		visitor.setEndTime(new Date(System.currentTimeMillis() - 60_000L));
+
+		Boolean updated = harness.service.updateHfStatus(visitor);
+
+		Assert.assertTrue(updated);
+		Mockito.verify(harness.mapper, Mockito.never()).update(Mockito.any(), Mockito.any());
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	/**
+	 * 通过分支 claim 路径：状态与 smsCode 已由 claim CAS 落库，后置处理只做下发与短信，
+	 * 不得再写库（updateById 会用隔着整批 OA 查询的陈旧快照覆盖并发变更）。
+	 */
+	@Test
+	public void updateHfStatusApprovedWithClaimPersistedSmsCodeWritesNothingBack() throws Exception {
+		HfStatusHarness harness = setUpHfStatusHarness();
+		SmtVisitor visitor = hfVisitor(3022L, SmtVisitorEnum.PASS_STATUS.getType());
+		visitor.setSmsCode("654321");
+
+		Boolean updated = harness.service.updateHfStatus(visitor);
+
+		Assert.assertTrue(updated);
+		Assert.assertEquals("654321", visitor.getSmsCode());
+		Mockito.verify(harness.mapper, Mockito.never()).update(Mockito.any(), Mockito.any());
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+		//闸机下发照常执行（人脸 + 车辆两类设备权限各查一次）
+		Mockito.verify(harness.relationService, Mockito.times(2))
+				.getRelationAuth(Mockito.any(), Mockito.any(), Mockito.any());
+		//通过短信照常发送（访客 + 被访人各一条）
+		Assert.assertEquals(2, harness.smsTempCodes.size());
+	}
+
+	/**
+	 * 通过分支合肥推送保存路径：smsCode 为空时补生成，落库必须是"仅当行仍为已通过(0)"的
+	 * 条件更新且只写 sms_code 列。
+	 */
+	@Test
+	public void updateHfStatusApprovedGeneratesSmsCodeAndPersistsSingleColumnWithStatusGuard() throws Exception {
+		HfStatusHarness harness = setUpHfStatusHarness();
+		SmtVisitor visitor = hfVisitor(3023L, SmtVisitorEnum.PASS_STATUS.getType());
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+
+		Boolean updated = harness.service.updateHfStatus(visitor);
+
+		Assert.assertTrue(updated);
+		Assert.assertFalse(StrUtil.isBlank(visitor.getSmsCode()));
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(harness.mapper).update(Mockito.isNull(), updateCaptor.capture());
+		LambdaUpdateWrapper conditionalUpdate = updateCaptor.getValue();
+		String setClause = conditionalUpdate.getSqlSet().toLowerCase(Locale.ROOT);
+		Assert.assertTrue("必须更新 sms_code 列，实际 set：" + setClause, setClause.contains("sms_code"));
+		Assert.assertFalse("只写 sms_code 列，不得顺带写回 status，实际 set：" + setClause, setClause.contains("status"));
+		Assert.assertTrue("条件必须限定行仍为已通过(0)",
+				conditionalUpdate.getSqlSegment().toLowerCase(Locale.ROOT).contains("status"));
+		Assert.assertTrue(updateHasParam(conditionalUpdate, visitor.getSmsCode()));
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+		//落库成功后下发照常执行
+		Mockito.verify(harness.relationService, Mockito.times(2))
+				.getRelationAuth(Mockito.any(), Mockito.any(), Mockito.any());
+	}
+
+	/**
+	 * 通过分支条件更新未命中（行已被并发链路改离已通过态）：跳过闸机下发与通过短信并返回失败，
+	 * 不得给已非通过状态的访客下发权限。
+	 */
+	@Test
+	public void updateHfStatusSkipsDispatchWhenApprovedRowWasConcurrentlyChanged() throws Exception {
+		HfStatusHarness harness = setUpHfStatusHarness();
+		SmtVisitor visitor = hfVisitor(3024L, SmtVisitorEnum.PASS_STATUS.getType());
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(0);
+
+		Boolean updated = harness.service.updateHfStatus(visitor);
+
+		Assert.assertFalse(updated);
+		Mockito.verify(harness.relationService, Mockito.never())
+				.getRelationAuth(Mockito.any(), Mockito.any(), Mockito.any());
+		Assert.assertTrue("CAS 未命中不得再发通过短信", harness.smsTempCodes.isEmpty());
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	/**
+	 * 拒绝分支：状态已由 claim CAS 落库（2→1），后置处理只发拒绝短信，不得再写库。
+	 */
+	@Test
+	public void updateHfStatusRejectedVisitorSendsSmsWithoutStaleSnapshotWriteBack() throws Exception {
+		HfStatusHarness harness = setUpHfStatusHarness();
+		SmtVisitor visitor = hfVisitor(3025L, SmtVisitorEnum.NOTPASS_STATUS.getType());
+
+		Boolean updated = harness.service.updateHfStatus(visitor);
+
+		Assert.assertTrue(updated);
+		Assert.assertEquals("拒绝短信应发送一条", 1, harness.smsTempCodes.size());
+		Mockito.verify(harness.mapper, Mockito.never()).update(Mockito.any(), Mockito.any());
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
 	}
 
 	@Test
