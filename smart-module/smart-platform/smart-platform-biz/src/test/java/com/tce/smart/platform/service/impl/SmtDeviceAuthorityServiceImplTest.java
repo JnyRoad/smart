@@ -1,6 +1,11 @@
 package com.tce.smart.platform.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.tce.smart.platform.api.dto.req.AreaTypeSwitchReqDTO;
+import com.tce.smart.platform.api.dto.req.DeviceAuthRelationAddReqDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationDelReqDTO;
 import com.tce.smart.platform.api.dto.resp.AreaTypeConflictDeviceVO;
 import com.tce.smart.platform.api.dto.resp.AreaTypeSwitchRespDTO;
@@ -24,17 +29,42 @@ import com.tce.smart.platform.service.SmtStaffDeviceAuthService;
 import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.platform.service.SmtVehicleApplyService;
 import com.tce.smart.tool.enums.DeviceAuthTypeEnum;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class SmtDeviceAuthorityServiceImplTest {
+
+	/**
+	 * Oracle IN 列表单批参数上限（超过即 ORA-01795），
+	 * 加上批量查询里 ne/eq 等额外条件各占 1 个绑定参数，
+	 * 单次查询的绑定参数总数不应超过 上限+1。
+	 */
+	private static final int MAX_BOUND_PARAMS_PER_QUERY = 1000 + 1;
+
+	/**
+	 * 纯单测环境没有 MyBatis-Plus 运行时，lambda 列名缓存不会自动初始化；
+	 * 这里手动注册涉及实体的 TableInfo，测试才能渲染查询条件并统计 IN 绑定参数个数。
+	 */
+	@BeforeClass
+	public static void initMybatisPlusLambdaCache() {
+		MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+		TableInfoHelper.initTableInfo(assistant, SmtStaffDeviceAuth.class);
+		TableInfoHelper.initTableInfo(assistant, SmtVehicleApply.class);
+		TableInfoHelper.initTableInfo(assistant, SmtStaff.class);
+	}
 
 	@Test
 	public void deviceAuthRelationClearKeepsDeviceScopeIndependentPerStaff() throws Exception {
@@ -460,6 +490,269 @@ public class SmtDeviceAuthorityServiceImplTest {
 				Mockito.anyList(), delListCaptor.capture(), addListCaptor.capture());
 		Assert.assertEquals(Collections.singletonList("device-A"), delListCaptor.getValue());
 		Assert.assertTrue(addListCaptor.getValue().isEmpty());
+	}
+
+	/**
+	 * 员工侧「其他权限」批量查询：清空 1500 人的大权限组时，
+	 * staffIds 的 IN 查询必须按 Oracle 上限(1000)分成两批，
+	 * 且跨批员工的"其他权限保留设备"合并语义与单条 IN 完全一致。
+	 * （修复前是单条 1500 参数的 IN，真实 Oracle 直接 ORA-01795 整个事务回滚）
+	 */
+	@Test
+	public void deviceAuthRelationClearBatchesStaffOtherAuthQueriesOverOracleLimit() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceAuthorityServiceImpl service = newService(authorityMapper, relationService, staffAuthService);
+		setField(service, "baseMapper", authorityMapper);
+
+		SmtDeviceAuthority authority = new SmtDeviceAuthority();
+		authority.setId(100);
+		authority.setType(DeviceAuthTypeEnum.PERSON.getCode());
+		Mockito.when(authorityMapper.selectById(100)).thenReturn(authority);
+
+		SmtDeviceAuthorityRelation targetDevice = relation(100, "device-A");
+		SmtDeviceAuthorityRelation otherAuthSameDevice = relation(200, "device-A");
+		Mockito.when(relationService.getRelationByAuthId(Mockito.anyList())).thenAnswer(invocation -> {
+			List<Integer> authIds = invocation.getArgument(0);
+			if (authIds.contains(100)) {
+				return Collections.singletonList(targetDevice);
+			}
+			if (authIds.contains(200)) {
+				return Collections.singletonList(otherAuthSameDevice);
+			}
+			return Collections.emptyList();
+		});
+
+		// 1500 名员工同属本次待清空的权限组(authId=100)，超过 Oracle IN 上限
+		List<SmtStaffDeviceAuth> targetAuthList = IntStream.rangeClosed(1, 1500)
+				.mapToObj(i -> staffAuth(i, (long) i, 100))
+				.collect(Collectors.toList());
+		// 第 1 批(前 1000 人)里的员工 1、第 2 批(后 500 人)里的员工 1401 各自还有另一个权限(200)覆盖 device-A
+		Mockito.when(staffAuthService.list(Mockito.any()))
+				.thenReturn(targetAuthList)
+				.thenReturn(Collections.singletonList(staffAuth(9001, 1L, 200)))
+				.thenReturn(Collections.singletonList(staffAuth(9002, 1401L, 200)));
+		Mockito.when(staffAuthService.removeAuthToDevice(Mockito.any(SmtStaffDeviceAuth.class), Mockito.anyList()))
+				.thenReturn(true);
+
+		service.deviceAuthRelationClear(100);
+
+		// 核心回归点 1：目标权限组 1 次 + 「其他权限」分批 2 次 = 共 3 次，且每次绑定参数都在 Oracle 上限内
+		ArgumentCaptor<Wrapper> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+		Mockito.verify(staffAuthService, Mockito.times(3)).list(wrapperCaptor.capture());
+		assertEveryQueryWithinOracleInLimit(wrapperCaptor.getAllValues());
+
+		// 核心回归点 2：合并语义与单条 IN 一致——跨批员工的其他权限设备照样被保留（从可删除列表剔除）
+		ArgumentCaptor<List> deviceIdsCaptor = ArgumentCaptor.forClass(List.class);
+		Mockito.verify(staffAuthService, Mockito.times(1500))
+				.removeAuthToDevice(Mockito.any(SmtStaffDeviceAuth.class), deviceIdsCaptor.capture());
+		List<List> removableLists = deviceIdsCaptor.getAllValues();
+		// 员工 1（第 1 批）与员工 1401（第 2 批）在权限 200 下仍保留 device-A，可删除列表应为空
+		Assert.assertTrue("第 1 批员工的其他权限设备应被保留", removableLists.get(0).isEmpty());
+		Assert.assertTrue("第 2 批员工的其他权限设备应被保留", removableLists.get(1400).isEmpty());
+		// 没有其他权限的员工，device-A 应整体可删除
+		Assert.assertEquals(Collections.singletonList("device-A"), removableLists.get(1));
+	}
+
+	/**
+	 * 车辆侧「其他权限」批量查询：与员工侧同构，
+	 * 1500 辆车的 vehicleIds IN 查询必须分两批，跨批合并语义不变。
+	 */
+	@Test
+	public void deviceAuthRelationClearBatchesVehicleOtherAuthQueriesOverOracleLimit() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtVehicleApplyService vehicleApplyService = Mockito.mock(SmtVehicleApplyService.class);
+		SmtDeviceAuthorityServiceImpl service = newService(authorityMapper, relationService,
+				Mockito.mock(SmtStaffDeviceAuthService.class), vehicleApplyService);
+		setField(service, "baseMapper", authorityMapper);
+
+		SmtDeviceAuthority authority = new SmtDeviceAuthority();
+		authority.setId(100);
+		authority.setType(DeviceAuthTypeEnum.VEHICLE.getCode());
+		Mockito.when(authorityMapper.selectById(100)).thenReturn(authority);
+
+		SmtDeviceAuthorityRelation targetDevice = relation(100, "device-A");
+		SmtDeviceAuthorityRelation otherAuthSameDevice = relation(200, "device-A");
+		Mockito.when(relationService.getRelationByAuthId(Mockito.anyList())).thenAnswer(invocation -> {
+			List<Integer> authIds = invocation.getArgument(0);
+			if (authIds.contains(100)) {
+				return Collections.singletonList(targetDevice);
+			}
+			if (authIds.contains(200)) {
+				return Collections.singletonList(otherAuthSameDevice);
+			}
+			return Collections.emptyList();
+		});
+
+		// 1500 辆车同属本次待清空的权限组，超过 Oracle IN 上限
+		List<SmtVehicleApply> targetApplyList = IntStream.rangeClosed(1, 1500)
+				.mapToObj(i -> vehicleApply(i, (long) i, 100))
+				.collect(Collectors.toList());
+		// 第 1 批里的车辆 1、第 2 批里的车辆 1401 各自还有另一个权限(200)覆盖 device-A
+		Mockito.when(vehicleApplyService.list(Mockito.any()))
+				.thenReturn(targetApplyList)
+				.thenReturn(Collections.singletonList(vehicleApply(9001, 1L, 200)))
+				.thenReturn(Collections.singletonList(vehicleApply(9002, 1401L, 200)));
+		Mockito.when(vehicleApplyService.removeAuthToDevice(Mockito.any(SmtVehicleApply.class), Mockito.anyList()))
+				.thenReturn(true);
+
+		service.deviceAuthRelationClear(100);
+
+		ArgumentCaptor<Wrapper> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+		Mockito.verify(vehicleApplyService, Mockito.times(3)).list(wrapperCaptor.capture());
+		assertEveryQueryWithinOracleInLimit(wrapperCaptor.getAllValues());
+
+		ArgumentCaptor<List> deviceIdsCaptor = ArgumentCaptor.forClass(List.class);
+		Mockito.verify(vehicleApplyService, Mockito.times(1500))
+				.removeAuthToDevice(Mockito.any(SmtVehicleApply.class), deviceIdsCaptor.capture());
+		List<List> removableLists = deviceIdsCaptor.getAllValues();
+		Assert.assertTrue("第 1 批车辆的其他权限设备应被保留", removableLists.get(0).isEmpty());
+		Assert.assertTrue("第 2 批车辆的其他权限设备应被保留", removableLists.get(1400).isEmpty());
+		Assert.assertEquals(Collections.singletonList("device-A"), removableLists.get(1));
+	}
+
+	/**
+	 * 批量授权：badges 来自 HTTP 外部输入，2500 个工号的 IN 查询必须分三批，
+	 * 每批绑定参数都在 Oracle 上限内，且所有批次查到的员工都被授权。
+	 * （修复前是单条 2500 参数的 IN，真实 Oracle 直接 ORA-01795 整批 500 回滚）
+	 */
+	@Test
+	public void deviceAuthRelationAddBatchesBadgeQueriesOverOracleLimit() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtDeviceAuthorityServiceImpl service = new SmtDeviceAuthorityServiceImpl(
+				Mockito.mock(SmtDeviceService.class),
+				authorityMapper,
+				relationService,
+				Mockito.mock(SmtBusinessDeviceAuthService.class),
+				staffAuthService,
+				Mockito.mock(SmtDeviceMapper.class),
+				Mockito.mock(SmtDeviceTaskService.class),
+				Mockito.mock(SmtIscDeviceTaskService.class),
+				Mockito.mock(SmtVehicleApplyService.class),
+				staffService,
+				Mockito.mock(SmtVehicleMapper.class),
+				Mockito.mock(SmtIscDeviceTaskServiceImpl.class),
+				Mockito.mock(SmtBatchDeviceTaskService.class));
+		setField(service, "baseMapper", authorityMapper);
+
+		// 该权限组暂无已授权员工、无关联设备（不生成设备任务，聚焦工号查询的分批行为）
+		Mockito.when(staffAuthService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(relationService.list(Mockito.any())).thenReturn(Collections.emptyList());
+
+		// 三批依次返回各自命中的员工（都在职、有人脸图片）
+		Mockito.when(staffService.list(Mockito.any()))
+				.thenReturn(buildStaffs(1, 1000))
+				.thenReturn(buildStaffs(1001, 2000))
+				.thenReturn(buildStaffs(2001, 2500));
+
+		DeviceAuthRelationAddReqDTO reqDTO = new DeviceAuthRelationAddReqDTO();
+		reqDTO.setAuthId(100);
+		reqDTO.setType(DeviceAuthTypeEnum.PERSON.getCode());
+		reqDTO.setBadges(IntStream.rangeClosed(1, 2500).mapToObj(i -> "B" + i).collect(Collectors.toList()));
+
+		List<String> noExist = service.deviceAuthRelationAdd(reqDTO);
+
+		// 核心回归点 1：2500 个工号拆成三批查询，每批绑定参数都在 Oracle 上限内
+		ArgumentCaptor<Wrapper> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+		Mockito.verify(staffService, Mockito.times(3)).list(wrapperCaptor.capture());
+		assertEveryQueryWithinOracleInLimit(wrapperCaptor.getAllValues());
+
+		// 核心回归点 2：三批命中的员工全部授权成功，无一遗漏
+		ArgumentCaptor<Collection> savedAuthCaptor = ArgumentCaptor.forClass(Collection.class);
+		Mockito.verify(staffAuthService, Mockito.times(1)).saveBatch(savedAuthCaptor.capture());
+		Assert.assertEquals(2500, savedAuthCaptor.getValue().size());
+		Assert.assertTrue(noExist.isEmpty());
+	}
+
+	/**
+	 * 批量授权的去重语义：单条 IN 对重复参数天然只返回一份结果，
+	 * 分批后同一工号若跨批出现会被重复授权——所以分批前必须先去重。
+	 * 1001 个工号里首尾重复(B1 出现两次)，去重后恰好 1000 个 = 只查一批、只授权一次。
+	 */
+	@Test
+	public void deviceAuthRelationAddDedupsBadgesBeforeBatching() throws Exception {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtDeviceAuthorityServiceImpl service = new SmtDeviceAuthorityServiceImpl(
+				Mockito.mock(SmtDeviceService.class),
+				authorityMapper,
+				relationService,
+				Mockito.mock(SmtBusinessDeviceAuthService.class),
+				staffAuthService,
+				Mockito.mock(SmtDeviceMapper.class),
+				Mockito.mock(SmtDeviceTaskService.class),
+				Mockito.mock(SmtIscDeviceTaskService.class),
+				Mockito.mock(SmtVehicleApplyService.class),
+				staffService,
+				Mockito.mock(SmtVehicleMapper.class),
+				Mockito.mock(SmtIscDeviceTaskServiceImpl.class),
+				Mockito.mock(SmtBatchDeviceTaskService.class));
+		setField(service, "baseMapper", authorityMapper);
+
+		Mockito.when(staffAuthService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(relationService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(staffService.list(Mockito.any())).thenReturn(buildStaffs(1, 1000));
+
+		// 1001 个工号：B1..B1000 + 重复的 B1（若不去重会拆成 1000+1 两批，B1 被授权两次）
+		List<String> badges = IntStream.rangeClosed(1, 1000).mapToObj(i -> "B" + i)
+				.collect(Collectors.toList());
+		badges.add("B1");
+
+		DeviceAuthRelationAddReqDTO reqDTO = new DeviceAuthRelationAddReqDTO();
+		reqDTO.setAuthId(100);
+		reqDTO.setType(DeviceAuthTypeEnum.PERSON.getCode());
+		reqDTO.setBadges(badges);
+
+		service.deviceAuthRelationAdd(reqDTO);
+
+		// 去重后恰好 1000 个工号 = 单批查询，且绑定参数在 Oracle 上限内
+		ArgumentCaptor<Wrapper> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+		Mockito.verify(staffService, Mockito.times(1)).list(wrapperCaptor.capture());
+		assertEveryQueryWithinOracleInLimit(wrapperCaptor.getAllValues());
+
+		// 每个员工只授权一次，不因工号重复而重复授权
+		ArgumentCaptor<Collection> savedAuthCaptor = ArgumentCaptor.forClass(Collection.class);
+		Mockito.verify(staffAuthService, Mockito.times(1)).saveBatch(savedAuthCaptor.capture());
+		Assert.assertEquals(1000, savedAuthCaptor.getValue().size());
+		long distinctStaffCount = ((Collection<SmtStaffDeviceAuth>) savedAuthCaptor.getValue()).stream()
+				.map(SmtStaffDeviceAuth::getStaffId).distinct().count();
+		Assert.assertEquals(1000, distinctStaffCount);
+	}
+
+	/** 构造 [from, to] 区间的在职、有人脸图片的员工（id=i，工号 B+i） */
+	private List<SmtStaff> buildStaffs(int from, int to) {
+		List<SmtStaff> staffs = new ArrayList<>();
+		for (int i = from; i <= to; i++) {
+			SmtStaff staff = new SmtStaff();
+			staff.setId((long) i);
+			staff.setBadge("B" + i);
+			staff.setName("员工" + i);
+			staff.setFacePicId("pic-" + i);
+			staffs.add(staff);
+		}
+		return staffs;
+	}
+
+	/**
+	 * 断言每次查询实际绑定的参数个数都不超过 Oracle IN 上限（+1 个 ne/eq 附加条件）。
+	 * MyBatis-Plus 的 in() 参数是渲染 SQL 时才绑定的，这里先强制渲染一次再统计。
+	 */
+	private void assertEveryQueryWithinOracleInLimit(List<Wrapper> wrappers) {
+		for (Wrapper wrapper : wrappers) {
+			AbstractWrapper<?, ?, ?> abstractWrapper = (AbstractWrapper<?, ?, ?>) wrapper;
+			abstractWrapper.getSqlSegment();
+			int boundParamCount = abstractWrapper.getParamNameValuePairs().size();
+			Assert.assertTrue(
+					"单次查询绑定参数应不超过 " + MAX_BOUND_PARAMS_PER_QUERY + " 个（IN≤1000 + 1 个附加条件），实际 " + boundParamCount + " 个",
+					boundParamCount <= MAX_BOUND_PARAMS_PER_QUERY);
+		}
 	}
 
 	private void setField(Object target, String name, Object value) throws Exception {
