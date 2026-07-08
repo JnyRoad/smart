@@ -660,14 +660,16 @@
 
 		&-time {
 			width: $calendar-size - 80upx !important;
-			left: ((750upx - $calendar-size) / 2 + 40upx) !important;
+			// dart-sass 2.0 将移除 / 除法，等价改写为 * 0.5（不能用 math.div：
+			// @use 必须位于文件首行，而 uni.scss 注入会破坏该前提）
+			left: ((750upx - $calendar-size) * 0.5 + 40upx) !important;
 		}
 
 		&-modal {
 			background: #fff;
 			position: absolute;
 			top: 50%;
-			left: (750upx - $calendar-size) / 2;
+			left: (750upx - $calendar-size) * 0.5;
 			width: $calendar-size;
 			transform: translateY(-50%);
 			box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.1);

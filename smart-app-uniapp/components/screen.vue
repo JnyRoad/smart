@@ -91,7 +91,7 @@
 		z-index: 2;
 		width: 66upx;
 		height: 60upx;
-		background: url('~/static/img/serive/recruit/bgchart.png') no-repeat;
+		background: url('~@/static/img/serive/recruit/bgchart.png') no-repeat;
 		background-size: contain;
 		color: #ffffff;
 	}
