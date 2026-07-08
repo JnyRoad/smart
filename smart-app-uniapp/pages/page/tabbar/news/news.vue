@@ -192,7 +192,7 @@
 			},
 			// 消息列表
 			async getPlusNewsList() {
-				if (this.deviceNo == 0 || this.deviceNo == '') {
+				if ((this.deviceNo == 0 || this.deviceNo == '') && typeof plus !== 'undefined' && plus.device) {
 					this.deviceNo = plus.device.uuid.split(',')[0]
 				}
 				try {

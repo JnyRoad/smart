@@ -14,10 +14,11 @@
 const FORCE_ENV = null
 
 const ENV = {
-	// 测试环境：当前尚未独立部署，与生产共用同一地址；测试网关就绪后只需改这里
+	// 测试环境：直连内网网关（10.0.20.113 的 smart-gateway，端口 9990）。
+	// 注意别用 113 的 80 端口——那是 admin 后台静态站，只代理 /auth 等、不代理 /app
 	development: {
 		// 后端网关地址（认证 /auth/** 与业务 /app/** 接口统一入口）
-		API_BASE_URL: 'http://smartapp.szyuto.com:8090/',
+		API_BASE_URL: 'http://10.0.20.113:9990/',
 		// 薪资查询外链（gz 为独立系统，协议与地址由对方系统决定，本工程只引用）
 		SALARY_QUERY_URL: 'http://gz.szyuto.com/XinZiChaXun/salary-query.aspx',
 	},
