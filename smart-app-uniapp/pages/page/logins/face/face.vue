@@ -56,13 +56,15 @@
 		onLoad(e) {
 			this.faceType = e.type // 1 为 人脸识别登录  2 为 人脸身份证比对 3 通过人脸修改密码 4 修改头像
 			if (e.perfectId) this.perfectId = e.perfectId // 身份识别的验证id
-			this.deviceNo = plus.device.uuid.split(',')[0] // 设备号
+			if (typeof plus !== 'undefined' && plus.device) {
+				this.deviceNo = plus.device.uuid.split(',')[0] // 设备号
+			}
 		},
 		methods: {
 			// 人脸识别登录
 			async postFace (img) {
 				// 防止第一次拿不到设备号
-				if (this.deviceNo == '') {
+				if (this.deviceNo == '' && typeof plus !== 'undefined' && plus.device) {
 					this.deviceNo = plus.device.uuid.split(',')[0]
 				}
 				try{
@@ -93,7 +95,7 @@
 			// 认证比对 
 			async perfectFace (img) {
 				// 防止第一次拿不到设备号
-				if (this.deviceNo == '') {
+				if (this.deviceNo == '' && typeof plus !== 'undefined' && plus.device) {
 					this.deviceNo = plus.device.uuid.split(',')[0]
 				}
 				const obj = {
@@ -143,7 +145,7 @@
 			// 人脸 修改密码
 			async faceToPassword (feceImg) {
 				// 防止第一次拿不到设备号
-				if (this.deviceNo == '') {
+				if (this.deviceNo == '' && typeof plus !== 'undefined' && plus.device) {
 					this.deviceNo = plus.device.uuid.split(',')[0]
 				}
 				try{

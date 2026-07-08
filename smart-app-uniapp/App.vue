@@ -17,7 +17,9 @@
 					showCancel: false
 				})
 			}
-			plus.screen.lockOrientation("portrait-primary");
+			if (typeof plus !== 'undefined' && plus.screen) {
+				plus.screen.lockOrientation("portrait-primary");
+			}
 			const that = this
 			const isFirstEnter = storage.getSync(ISFIRSTENTER) // 不是第一次 为 'false'
 			console.log(isFirstEnter);
