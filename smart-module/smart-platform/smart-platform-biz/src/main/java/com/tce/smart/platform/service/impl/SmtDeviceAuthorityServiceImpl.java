@@ -41,6 +41,7 @@ import com.tce.smart.platform.service.*;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
 import com.tce.smart.tool.constant.SymbolConstants;
 import com.tce.smart.tool.enums.*;
+import com.tce.smart.tool.util.OracleInBatchUtils;
 import com.tce.smart.tool.util.ToolUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -706,9 +707,12 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 			return Collections.emptyMap();
 		}
 		List<Long> staffIds = staffAuthList.stream().map(SmtStaffDeviceAuth::getStaffId).distinct().collect(Collectors.toList());
-		List<SmtStaffDeviceAuth> otherAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery()
-				.in(SmtStaffDeviceAuth::getStaffId, staffIds)
-				.ne(SmtStaffDeviceAuth::getAuthId, excludeAuthId));
+		// 生产实证单个权限组关联人员会超过 1000，staffIds 的 IN 查询必须分批，
+		// 否则 ORA-01795 直接让整个清空/删除事务回滚（staffIds 已去重，分批不会重复查询）
+		List<SmtStaffDeviceAuth> otherAuthList = OracleInBatchUtils.listInBatches(staffIds,
+				batchStaffIds -> smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery()
+						.in(SmtStaffDeviceAuth::getStaffId, batchStaffIds)
+						.ne(SmtStaffDeviceAuth::getAuthId, excludeAuthId)));
 		if (CollUtil.isEmpty(otherAuthList)) {
 			return Collections.emptyMap();
 		}
@@ -736,9 +740,11 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 			return Collections.emptyMap();
 		}
 		List<Long> vehicleIds = vehicleApplyList.stream().map(SmtVehicleApply::getVehicleId).distinct().collect(Collectors.toList());
-		List<SmtVehicleApply> otherAuthList = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery()
-				.in(SmtVehicleApply::getVehicleId, vehicleIds)
-				.ne(SmtVehicleApply::getAuthorityId, excludeAuthId));
+		// 与员工侧同理：车辆数同样无上界，vehicleIds 的 IN 查询必须分批（已去重）
+		List<SmtVehicleApply> otherAuthList = OracleInBatchUtils.listInBatches(vehicleIds,
+				batchVehicleIds -> smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>lambdaQuery()
+						.in(SmtVehicleApply::getVehicleId, batchVehicleIds)
+						.ne(SmtVehicleApply::getAuthorityId, excludeAuthId)));
 		if (CollUtil.isEmpty(otherAuthList)) {
 			return Collections.emptyMap();
 		}
@@ -812,10 +818,14 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 		List<String> newDeviceList = authDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
 
 		List<String> noExist = new ArrayList<>();
-		List<SmtStaff> staffList = smtStaffService.list(Wrappers.<SmtStaff>query().lambda()
-				.ne(SmtStaff::getStatus, StaffStatusEnum.STAFF_STATUS_QUIT.getCode())
-				.in(SmtStaff::getBadge, reqDTO.getBadges())
-		);
+		// badges 来自 HTTP 外部输入，条数无上界，IN 查询必须分批（超 1000 即 ORA-01795 整批回滚）。
+		// 分批前必须先去重：单条 IN 对重复工号天然只返回一份结果，
+		// 但同一工号跨批出现会被重复查询，导致同一员工被重复授权、重复下发任务
+		List<String> distinctBadges = reqDTO.getBadges().stream().distinct().collect(Collectors.toList());
+		List<SmtStaff> staffList = OracleInBatchUtils.listInBatches(distinctBadges,
+				badgeBatch -> smtStaffService.list(Wrappers.<SmtStaff>query().lambda()
+						.ne(SmtStaff::getStatus, StaffStatusEnum.STAFF_STATUS_QUIT.getCode())
+						.in(SmtStaff::getBadge, badgeBatch)));
 
 		Collection<SmtDeviceTask> deviceTaskList = new ArrayList<>();
 		Collection<SmtIscDeviceTask> iscDeviceTaskList = new ArrayList<>();

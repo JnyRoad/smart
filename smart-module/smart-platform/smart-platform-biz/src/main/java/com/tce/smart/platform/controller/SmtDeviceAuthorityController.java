@@ -18,6 +18,8 @@ import io.swagger.annotations.Api;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -204,11 +206,13 @@ public class SmtDeviceAuthorityController {
 
 	/**
 	 * 通关权限新增关联人员
+	 * 注意：@Valid 必须保留——DTO 上的 @NotEmpty/@Size(工号数上限 1000) 全靠它触发，
+	 * 缺了它超长 badges 会直达 service 层造成 Oracle IN 超限
 	 * @param reqDTO
 	 * @return
 	 */
 	@PostMapping("/relation/add")
-	public Result<List<String>> deviceAuthRelationAdd(@RequestBody DeviceAuthRelationAddReqDTO reqDTO) {
+	public Result<List<String>> deviceAuthRelationAdd(@RequestBody @Valid DeviceAuthRelationAddReqDTO reqDTO) {
 		return new Result<>(smtDeviceAuthorityService.deviceAuthRelationAdd(reqDTO));
 	}
 
