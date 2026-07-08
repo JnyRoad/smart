@@ -55,9 +55,15 @@
 				let link = ''
 				this.linkList.forEach(el => {
 					if (el.id == type) {
-						plus.runtime.openURL( el.link );
+						link = el.link
 					}
 				})
+				if (!link) return
+				if (typeof plus !== 'undefined' && plus.runtime) {
+					plus.runtime.openURL(link)
+					return
+				}
+				window.open(link, '_blank')
 			}
 		},
 	}

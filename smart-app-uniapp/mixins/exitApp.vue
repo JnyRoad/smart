@@ -8,7 +8,9 @@ export default {
 				success: function(res) {
 					if (res.confirm) {
 						// 退出当前应用，改方法只在App中生效
-						plus.runtime.quit();
+						if (typeof plus !== 'undefined' && plus.runtime) {
+							plus.runtime.quit();
+						}
 					}
 				}
 			});
