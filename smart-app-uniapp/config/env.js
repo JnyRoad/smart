@@ -24,6 +24,9 @@ const ENV = {
 	},
 	// 生产环境
 	production: {
+		// 正式对外地址（Smart App 公网入口，原值，发公网正式包前必须还原为此地址）：
+		//   http://smartapp.szyuto.com:8090/
+		// 当前临时改为直连内网网关 10.0.20.113:9990，仅供内网/VPN 可达的设备使用
 		API_BASE_URL: 'http://10.0.20.113:9990/',
 		SALARY_QUERY_URL: 'http://gz.szyuto.com/XinZiChaXun/salary-query.aspx',
 	},
