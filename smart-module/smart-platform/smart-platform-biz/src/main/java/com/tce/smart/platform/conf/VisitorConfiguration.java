@@ -16,8 +16,6 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "spring.visitor")
 public class VisitorConfiguration {
 
-	private Integer overtimeOffsetHour = 0;
-
 	private Integer arrivedOffsetHour = 0;
 
 	private Integer putOffsetHour = 0;
