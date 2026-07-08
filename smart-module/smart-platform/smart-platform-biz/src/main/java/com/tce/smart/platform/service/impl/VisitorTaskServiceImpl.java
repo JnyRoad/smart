@@ -406,8 +406,13 @@ public class VisitorTaskServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVis
 						Long between = DateUtils.between(v.getStartTime(), DateUtil.date(), DateUnit.MINUTE);
 						boolean send = sendMessage(v, SmsTemplateEnum.VISIT_1003, between.intValue());
 						if (send) {
-							v.setIsSend(SmtVisitorEnum.IS_SEND.getType());
-							v.updateById();
+							//仅当行仍为"已通过(0)"时条件更新提醒标记，且只写 is_send 列：
+							//短信外呼是秒级串行调用，期间行状态可能已被回调/清理任务改写，
+							//用 list() 快照 updateById 全字段写回会把新状态覆盖回快照值
+							this.update(Wrappers.<SmtVisitor>lambdaUpdate()
+									.eq(SmtVisitor::getId, v.getId())
+									.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_0.getCode())
+									.set(SmtVisitor::getIsSend, SmtVisitorEnum.IS_SEND.getType()));
 						}
 					});
 				}
