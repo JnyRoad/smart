@@ -93,8 +93,6 @@ public class VisitorTaskServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVis
 	private static final String EXCEL_XLS = "xls";
 	private static final String EXCEL_XLSX = "xlsx";
 
-	@Value("${spring.visitor.overtime-offset-hour:0}")
-	private Integer overtimeOffsetHour;
 	@Value("${spring.visitor.arrived-offset-hour:0}")
 	private Integer arrivedOffsetHour;
 	@Value("${spring.visitor.put-offset-hour:2}")
@@ -112,36 +110,47 @@ public class VisitorTaskServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVis
 
 
 	/**
-	 * 访客是否超时
+	 * 访客是否超时。
+	 * <p>
+	 * 超时判定必须用"预约结束时间已过"（end_time &lt; now），不允许叠加提前量：
+	 * 历史上这里加了 overtime-offset-hour（生产配 24 小时）提前量，会把仍在 OA 审批中的
+	 * 短期访客单提前终态化为"预约超时"，此后 OA 回调与拉取对账（都只认待审核状态）
+	 * 永远无法落审批结果（与入厂申请侧 2026-07-07 生产事故同根因）。
 	 */
 	@Override
 	public void visitorOverTime(Integer parkId) {
-		//.eq(SmtVisitor::getStatementStatus, SmtVisitorEnum.PASS_STATUS.getType())
-		//查询状态为0的访客，判断是否已经超时
+		//查询已通过(0)且预约结束时间已过的访客：置为超时未到(4)
 		List<SmtVisitor> selectList = visitorService.list(Wrappers.<SmtVisitor>query().lambda()
 				.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_0.getCode()).eq(SmtVisitor::getParkId, parkId)
-				.lt(SmtVisitor::getEndTime, DateUtils.offsetHour(DateUtil.date(), overtimeOffsetHour))
+				.lt(SmtVisitor::getEndTime, DateUtil.date())
 		);
 		removeVisitor(selectList);
-
+		//查询待审核(2)且预约结束时间已过的访客：置为预约超时(6)
 		List<SmtVisitor> selectListNoPass = visitorService.list(
 				Wrappers.<SmtVisitor>query().lambda()
 						.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode()).eq(SmtVisitor::getParkId, parkId)
-						.lt(SmtVisitor::getEndTime, DateUtils.offsetHour(DateUtil.date(), overtimeOffsetHour))
+						.lt(SmtVisitor::getEndTime, DateUtil.date())
 		);
 		updateNoPass(selectListNoPass);
 
 
 	}
 
+	/**
+	 * 预约审批超时：把过期仍待审核(2)的访客置为预约超时(6)。
+	 * CAS 抢占（仅当行仍为待审核时生效）——与 OA 回调/拉取对账的 claim 并发时，
+	 * 无条件写会把刚落库的审批结果改回超时。CAS 未命中整单跳过（含待办与流程记录更新）。
+	 */
 	private void updateNoPass(List<SmtVisitor> selectListNoPass) {
-		// TODO Auto-generated method stub
 		for (SmtVisitor v : selectListNoPass) {
-			//修改访客的状态为超时预约 6
-			SmtVisitor smtVisitor = new SmtVisitor();
-			smtVisitor.setId(v.getId());
-			smtVisitor.setStatus(VisitorStatusEnum.CAUSE_6.getCode());
-			this.updateById(smtVisitor);
+			//CAS：仅当行仍为待审核(2)时置为预约超时(6)
+			boolean claimed = this.update(Wrappers.<SmtVisitor>lambdaUpdate()
+					.eq(SmtVisitor::getId, v.getId())
+					.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_2.getCode())
+					.set(SmtVisitor::getStatus, VisitorStatusEnum.CAUSE_6.getCode()));
+			if (!claimed) {
+				continue;
+			}
 
 			/**
 			 * 修改待我审批里的状态
@@ -196,19 +205,23 @@ public class VisitorTaskServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVis
 	}
 
 	/**
-	 * 修改超时未到的访客
+	 * 修改超时未到的访客：把过期仍为已通过(0)的访客置为超时未到(4)。
+	 * CAS 抢占（仅当行仍为已通过时生效），避免与到场登记等并发写入互相覆盖；
+	 * CAS 未命中整单跳过。
 	 *
-	 * @param selectList
+	 * @param selectList 过期仍为已通过的访客列表
 	 */
 	private void removeVisitor(List<SmtVisitor> selectList) {
 		if (CollectionUtils.isNotEmpty(selectList)) {
 			selectList.forEach(v -> {
-				//修改访客的状态为超时未到 4
-				SmtVisitor smtVisitor = new SmtVisitor();
-				smtVisitor.setId(v.getId());
-				smtVisitor.setStatus(VisitorStatusEnum.CAUSE_4.getCode());
-				//删除超时未到的访客
-				this.updateById(smtVisitor);
+				//CAS：仅当行仍为已通过(0)时置为超时未到(4)
+				boolean claimed = this.update(Wrappers.<SmtVisitor>lambdaUpdate()
+						.eq(SmtVisitor::getId, v.getId())
+						.eq(SmtVisitor::getStatus, VisitorStatusEnum.Status_0.getCode())
+						.set(SmtVisitor::getStatus, VisitorStatusEnum.CAUSE_4.getCode()));
+				if (!claimed) {
+					return;
+				}
 
 				/**
 				 * 修改待我审批里的状态

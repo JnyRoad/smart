@@ -128,7 +128,8 @@ spring:
         log-token: "${SMART_OA_PROCESS_LOG_TOKEN:}"
   visitor:
     put-offset-hour: 2
-    overtime-offset-hour: 24
+    # overtime-offset-hour 已废弃删除：超时清理固定按"预约结束时间已过"判定，
+    # 提前量会把仍在 OA 审批中的短期单提前终态化（2026-07-07 生产事故根因）
     arrived-offset-hour: 24
     arrived-send: true
     arrived-send-message-offset-minute: 30

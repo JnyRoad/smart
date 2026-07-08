@@ -33,8 +33,10 @@ import com.tce.smart.platform.core.service.SmtImageService;
 import com.tce.smart.platform.core.service.SmtTaskDownRecordService;
 import com.tce.smart.platform.core.vo.SearchSmtVisitorVO;
 import com.tce.smart.platform.core.service.SmtMsgTemplateService;
+import com.tce.smart.platform.service.ApproveListService;
 import com.tce.smart.platform.service.ImageService;
 import com.tce.smart.platform.service.IOAWorkflowService;
+import com.tce.smart.platform.service.SmtVisitorProcessRecordService;
 import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.platform.service.SmtDeviceAuthorityRelationService;
 import com.tce.smart.platform.api.dto.req.admittance.AdmittanceFellowReqDTO;
@@ -77,6 +79,7 @@ import java.net.Socket;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -1637,6 +1640,159 @@ public class SmtAdmittanceApplyServiceImplTest {
 			return false;
 		}
 		return String.valueOf(expected).equals(String.valueOf(value));
+	}
+
+	// ========== visitorOverTime 超时清理：真过期才清理 + CAS 抢占 ==========
+
+	/**
+	 * 搭建 visitorOverTime 的最小依赖：mapper + 待办/流程记录两个副作用服务。
+	 */
+	private OverTimeHarness setUpOverTimeHarness() throws Exception {
+		OverTimeHarness harness = new OverTimeHarness();
+		harness.mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		harness.approveListService = Mockito.mock(ApproveListService.class);
+		harness.processRecordService = Mockito.mock(SmtVisitorProcessRecordService.class);
+		harness.service = new SmtAdmittanceApplyServiceImpl();
+		setField(harness.service, "baseMapper", harness.mapper);
+		setField(harness.service, "approveListService", harness.approveListService);
+		setField(harness.service, "smtVisitorProcessRecordService", harness.processRecordService);
+		return harness;
+	}
+
+	private static final class OverTimeHarness {
+		SmtAdmittanceApplyServiceImpl service;
+		SmtAdmittanceApplyMapper mapper;
+		ApproveListService approveListService;
+		SmtVisitorProcessRecordService processRecordService;
+	}
+
+	/**
+	 * 超时清理只处理"预约结束时间已过"的行：两条查询的 end_time 上限都必须是当前时刻，
+	 * 不允许叠加提前量——历史 overtime-offset-hour=24 会把仍在 OA 审批中的短期单提前一天终态化，
+	 * 之后回调与拉取对账（都只认 status=2）永远无法落审批结果（2026-07-07 生产事故根因）。
+	 */
+	@Test
+	public void visitorOverTimeOnlyTargetsRowsAlreadyPastEndTime() throws Exception {
+		OverTimeHarness harness = setUpOverTimeHarness();
+		Mockito.when(harness.mapper.selectList(Mockito.any())).thenReturn(Collections.emptyList());
+
+		harness.service.visitorOverTime();
+
+		ArgumentCaptor<LambdaQueryWrapper> queryCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		Mockito.verify(harness.mapper, Mockito.times(2)).selectList(queryCaptor.capture());
+		for (Object captured : queryCaptor.getAllValues()) {
+			LambdaQueryWrapper wrapper = (LambdaQueryWrapper) captured;
+			wrapper.getSqlSegment();
+			Collection<?> queryParams = wrapper.getParamNameValuePairs().values();
+			LocalDateTime endTimeUpperBound = queryParams.stream()
+					.filter(LocalDateTime.class::isInstance)
+					.map(LocalDateTime.class::cast)
+					.findFirst()
+					.orElseThrow(() -> new AssertionError("查询应包含 end_time 时间上限参数"));
+			Assert.assertFalse("end_time 上限不得晚于当前时刻（禁止提前量误杀在审单），实际：" + endTimeUpperBound,
+					endTimeUpperBound.isAfter(LocalDateTime.now().plusSeconds(1)));
+		}
+	}
+
+	/**
+	 * 待审核行的超时终态化必须走 CAS（仅当行仍为待审核(2)时置预约超时(6)），
+	 * 不允许全字段 updateById 覆盖——与回调/对账 claim 并发时会把已落的审批结果连同验证码一起抹掉。
+	 */
+	@Test
+	public void updateNoPassClaimsPendingRowWithCasInsteadOfFullRowOverwrite() throws Exception {
+		OverTimeHarness harness = setUpOverTimeHarness();
+		SmtAdmittanceApply expiredPending = pendingAdmittanceApply(3101L, "oa-overtime-pending");
+		expiredPending.setEndTime(LocalDateTime.now().minusHours(1));
+		//第一次查询（已通过 status=0）返回空，第二次查询（待审核 status=2）返回过期行
+		Mockito.when(harness.mapper.selectList(Mockito.any()))
+				.thenReturn(Collections.emptyList(), Collections.singletonList(expiredPending));
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.when(harness.approveListService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(harness.processRecordService.list(Mockito.any())).thenReturn(Collections.emptyList());
+
+		harness.service.visitorOverTime();
+
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(harness.mapper).update(Mockito.isNull(), updateCaptor.capture());
+		LambdaUpdateWrapper casWrapper = updateCaptor.getValue();
+		Assert.assertTrue("CAS 条件必须限定行仍为待审核",
+				casWrapper.getSqlSegment().toLowerCase(Locale.ROOT).contains("status"));
+		Assert.assertTrue(updateWrapperHasParam(casWrapper, VisitorStatusEnum.Status_2.getCode()));
+		Assert.assertTrue(updateWrapperHasParam(casWrapper, VisitorStatusEnum.CAUSE_6.getCode()));
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	/**
+	 * CAS 未命中（行已被回调/对账先行落终态）时必须整单跳过，
+	 * 不得再更新审批待办与流程记录，避免把已通过的单在待办里误标"预约超时"。
+	 */
+	@Test
+	public void updateNoPassSkipsSideEffectsWhenPendingRowAlreadyClaimed() throws Exception {
+		OverTimeHarness harness = setUpOverTimeHarness();
+		SmtAdmittanceApply expiredPending = pendingAdmittanceApply(3102L, "oa-overtime-claimed");
+		expiredPending.setEndTime(LocalDateTime.now().minusHours(1));
+		Mockito.when(harness.mapper.selectList(Mockito.any()))
+				.thenReturn(Collections.emptyList(), Collections.singletonList(expiredPending));
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(0);
+
+		harness.service.visitorOverTime();
+
+		Mockito.verify(harness.approveListService, Mockito.never()).list(Mockito.any());
+		Mockito.verify(harness.processRecordService, Mockito.never()).list(Mockito.any());
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	/**
+	 * 已通过行的"超时未到"同样必须走 CAS（仅当行仍为已通过(0)时置超时未到(4)），
+	 * 不允许全字段 updateById 覆盖并发写入。
+	 */
+	@Test
+	public void removeVisitorClaimsApprovedRowWithCasInsteadOfFullRowOverwrite() throws Exception {
+		OverTimeHarness harness = setUpOverTimeHarness();
+		SmtAdmittanceApply expiredApproved = pendingAdmittanceApply(3103L, "oa-overtime-approved");
+		expiredApproved.setStatus(VisitorStatusEnum.Status_0.getCode());
+		expiredApproved.setEndTime(LocalDateTime.now().minusHours(1));
+		//第一次查询（已通过 status=0）返回过期行，第二次查询（待审核 status=2）返回空
+		Mockito.when(harness.mapper.selectList(Mockito.any()))
+				.thenReturn(Collections.singletonList(expiredApproved), Collections.emptyList());
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.when(harness.approveListService.list(Mockito.any())).thenReturn(Collections.emptyList());
+
+		harness.service.visitorOverTime();
+
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(harness.mapper).update(Mockito.isNull(), updateCaptor.capture());
+		LambdaUpdateWrapper casWrapper = updateCaptor.getValue();
+		Assert.assertTrue(updateWrapperHasParam(casWrapper, VisitorStatusEnum.Status_0.getCode()));
+		Assert.assertTrue(updateWrapperHasParam(casWrapper, VisitorStatusEnum.CAUSE_4.getCode()));
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	/**
+	 * 已通过行 CAS 未命中（如访客已登记到场 status=3）时整单跳过，不再更新审批待办。
+	 */
+	@Test
+	public void removeVisitorSkipsSideEffectsWhenApprovedRowAlreadyClaimed() throws Exception {
+		OverTimeHarness harness = setUpOverTimeHarness();
+		SmtAdmittanceApply expiredApproved = pendingAdmittanceApply(3104L, "oa-overtime-approved-claimed");
+		expiredApproved.setStatus(VisitorStatusEnum.Status_0.getCode());
+		expiredApproved.setEndTime(LocalDateTime.now().minusHours(1));
+		Mockito.when(harness.mapper.selectList(Mockito.any()))
+				.thenReturn(Collections.singletonList(expiredApproved), Collections.emptyList());
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(0);
+
+		harness.service.visitorOverTime();
+
+		Mockito.verify(harness.approveListService, Mockito.never()).list(Mockito.any());
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	private boolean updateWrapperHasParam(LambdaUpdateWrapper updateWrapper, Object expected) {
+		//先触发 SQL 段生成，确保条件与 set 的参数都进入 paramNameValuePairs
+		updateWrapper.getSqlSegment();
+		updateWrapper.getSqlSet();
+		return updateWrapper.getParamNameValuePairs().values().stream()
+				.anyMatch(value -> queryParamMatches(value, expected));
 	}
 
 	// ========== claim 式落 OA 终态入口（回调链路与拉取对账共用，见 claimAndApplyOaFinalStatus） ==========
