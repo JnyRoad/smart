@@ -13,9 +13,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -101,6 +104,47 @@ public class AdmittancePhotoOpenServiceImplTest {
 		for (Object bound : captor.getValue().getParamNameValuePairs().values()) {
 			assertFalse("查询参数绑定了空串：Oracle 下 <> '' 恒不成立，pending 会永远为空", "".equals(bound));
 		}
+	}
+
+	/**
+	 * Oracle IN 上限回归：有效申请单超过 1000 个时，随行人员查询必须按每批 ≤1000 拆分，
+	 * 否则单条 SQL 的 IN 列表超过 Oracle 表达式上限（ORA-01795），/pending 接口整体报错，
+	 * 拉取链路（含新照片下载）全部瘫痪。
+	 */
+	@Test
+	public void listPendingPhotoIds_splitsFellowQueryToAvoidOracleInLimit() {
+		List<SmtAdmittanceApply> applies = new ArrayList<>();
+		for (long i = 1; i <= 2500; i++) {
+			SmtAdmittanceApply apply = new SmtAdmittanceApply();
+			apply.setId(i);
+			applies.add(apply);
+		}
+		when(applyService.list(any())).thenReturn(applies);
+
+		// 每批查询返回一个带独立 photoId 的随行人员，用于验证分批结果被合并返回
+		AtomicInteger batchNo = new AtomicInteger();
+		when(fellowService.list(any())).thenAnswer(invocation -> {
+			SmtAdmittanceFellow fellow = new SmtAdmittanceFellow();
+			fellow.setFellowPhotoId("photo-batch-" + batchNo.incrementAndGet());
+			return Collections.singletonList(fellow);
+		});
+
+		List<String> result = service.listPendingPhotoIds(Collections.singletonList(1));
+
+		// 2500 个申请单应拆成 1000/1000/500 三批
+		@SuppressWarnings("rawtypes")
+		ArgumentCaptor<LambdaQueryWrapper> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		verify(fellowService, times(3)).list(captor.capture());
+		int totalBoundApplyIds = 0;
+		for (LambdaQueryWrapper<?> wrapper : captor.getAllValues()) {
+			// IN 的参数绑定发生在 SQL 片段生成时（懒绑定），先触发生成再统计绑定数
+			wrapper.getSqlSegment();
+			int boundCount = wrapper.getParamNameValuePairs().size();
+			assertTrue("单批 IN 绑定参数数超过 Oracle 1000 上限：" + boundCount, boundCount <= 1000);
+			totalBoundApplyIds += boundCount;
+		}
+		assertEquals("分批绑定的申请单 ID 总数应等于有效申请单数", 2500, totalBoundApplyIds);
+		assertEquals("各批查询结果应合并返回", Arrays.asList("photo-batch-1", "photo-batch-2", "photo-batch-3"), result);
 	}
 
 	/** photoId 为空/空串的随行人员被过滤，重复 photoId 去重 */

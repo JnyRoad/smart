@@ -34,6 +34,12 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class AdmittancePhotoOpenServiceImpl implements AdmittancePhotoOpenService {
 
+	/**
+	 * Oracle IN 列表单批上限：表达式超过 1000 个直接 ORA-01795，
+	 * 有效申请单一旦过千整个 /pending 接口会 500，必须分批查询。
+	 */
+	private static final int ORACLE_IN_MAX_EXPRESSIONS = 1000;
+
 	private final SmtAdmittanceApplyService smtAdmittanceApplyService;
 
 	private final SmtAdmittanceFellowService smtAdmittanceFellowService;
@@ -61,10 +67,16 @@ public class AdmittancePhotoOpenServiceImpl implements AdmittancePhotoOpenServic
 		// 注意：这里只允许 IS NOT NULL，禁止再加 <> '' —— Oracle 中空串即 NULL，
 		// <> '' 对所有行恒不成立，会把整个清单过滤成空（2026-07 生产踩坑实录）；
 		// 空串/空白的兜底由下方内存过滤完成（方言无关）。
-		List<SmtAdmittanceFellow> fellows = smtAdmittanceFellowService.list(Wrappers.<SmtAdmittanceFellow>lambdaQuery()
-				.select(SmtAdmittanceFellow::getFellowPhotoId)
-				.in(SmtAdmittanceFellow::getVisitorId, applyIds)
-				.isNotNull(SmtAdmittanceFellow::getFellowPhotoId));
+		// 申请单 ID 按 1000 一批拆分 IN 查询（Oracle IN 列表上限，超限即 ORA-01795），各批结果合并。
+		// 注意：CollUtil.split 对空集合会返回含一个空子列表的 [[]]（空批进 in() 会生成非法 SQL），
+		// 此处依赖上方 applies 判空早退保证 applyIds 非空——复制本分批模式到别处时必须带上判空。
+		List<SmtAdmittanceFellow> fellows = new ArrayList<>();
+		for (List<Long> applyIdBatch : CollUtil.split(applyIds, ORACLE_IN_MAX_EXPRESSIONS)) {
+			fellows.addAll(smtAdmittanceFellowService.list(Wrappers.<SmtAdmittanceFellow>lambdaQuery()
+					.select(SmtAdmittanceFellow::getFellowPhotoId)
+					.in(SmtAdmittanceFellow::getVisitorId, applyIdBatch)
+					.isNotNull(SmtAdmittanceFellow::getFellowPhotoId)));
+		}
 		// 去重保序；空串/空白过滤在内存完成（MySQL 等方言存在真正的空串，Oracle 空串即 NULL 已被上面拦截）
 		Set<String> photoIds = new LinkedHashSet<>();
 		for (SmtAdmittanceFellow fellow : fellows) {
