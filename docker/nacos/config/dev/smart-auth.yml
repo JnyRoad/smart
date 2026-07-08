@@ -1,3 +1,4 @@
+# 数据源
 spring:
   datasource:
     type: "${SMART_AUTH_DB_TYPE:com.zaxxer.hikari.HikariDataSource}"
@@ -5,6 +6,7 @@ spring:
     username: "${SMART_AUTH_DB_USERNAME:${SMART_DB_USERNAME:}}"
     password: "${SMART_AUTH_DB_PASSWORD:${SMART_DB_PASSWORD:}}"
     url: "${SMART_AUTH_DB_URL:${SMART_DB_URL:}}"
+
   freemarker:
     allow-request-override: false
     allow-session-override: false
@@ -17,7 +19,5 @@ spring:
     expose-session-attributes: false
     expose-spring-macro-helpers: true
     prefer-file-system-access: true
-    suffix: ".ftl"
+    suffix: .ftl
     template-loader-path: classpath:/templates/
-server:
-  port: 3000

@@ -1,10 +1,10 @@
+## spring security 配置
 security:
   oauth2:
     client:
-      client-id: "${SMART_DISPATCHER_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      client-secret: "${SMART_DISPATCHER_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      client-id: "${SMART_DISPATCHER_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # guard
+      client-secret: "${SMART_DISPATCHER_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # guard
       scope: server
+      # 放行url
       ignore-urls:
-      - "/**"
-server:
-  port: 8082
+        - /**

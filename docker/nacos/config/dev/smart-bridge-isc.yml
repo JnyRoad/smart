@@ -1,22 +1,26 @@
 security:
   oauth2:
     client:
-      client-id: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
-      client-secret: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      client-id: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # bridge
+      client-secret: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # bridge
       scope: server
+      # 放行url
       ignore-urls:
-      - "/**"
+        - /**
+
 smart:
   image:
-    expire: 90
+    expire: 90                                            # 园区图片失效时间（天）, 系统初始化创建hbase表的时候生效
   hik:
-    host: "${SMART_HIK_HOST:}"
-    app-key: "${SMART_HIK_APP_KEY:}"
-    app-secret: "${SMART_HIK_APP_SECRET:}"
-    event-subscribe-enabled: "${SMART_HIK_EVENT_SUBSCRIBE_ENABLED:false}"
-    callback-url: "${SMART_HIK_CALLBACK_URL:http://host.docker.internal:6060/bridge/handle}"
+    host: "${SMART_HIK_HOST_ISC:${SMART_HIK_HOST:}}"
+    app-key: "${SMART_HIK_APP_KEY_ISC:${SMART_HIK_APP_KEY:}}"
+    app-secret: "${SMART_HIK_APP_SECRET_ISC:${SMART_HIK_APP_SECRET:}}"
+    callback-url: "${SMART_HIK_CALLBACK_URL_ISC:${SMART_HIK_CALLBACK_URL:}}"
+    # callback-url: http://10.1.20.110:6089/bridge/handle
+
 hbase:
   zookeeper:
     znode: "${SMART_HBASE_ZOOKEEPER_ZNODE:/hbase}"
+    #192.168.2.214,192.168.2.210,192.168.2.211
     port: "${SMART_HBASE_ZOOKEEPER_PORT:2181}"
     quorum: "${SMART_HBASE_ZOOKEEPER_QUORUM:smart-hbase}"
