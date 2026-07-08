@@ -22,12 +22,21 @@ import java.util.Set;
  * 双条件删除：文件 mtime 超过 retention-days 且不在最新 pending 清单中，
  * 避免误删刚好还没来得及被业务方消费的照片。
  * pending 清单拉取失败时跳过本轮清理并 WARN，retention-days=0 表示关闭清理。
+ * <p>
+ * 调度采用「启动延迟首跑 + 固定间隔」而非凌晨定点 cron：部署机是仅工作时间开机的
+ * Windows 台式机，凌晨永远不在线，定点 cron 会让清理静默失效；固定间隔保证开机当天必然执行。
  */
 @Slf4j
 @Component
 public class PhotoCleanupTask {
 
     private static final String PHOTO_SUFFIX = ".png";
+
+    /**
+     * 启动后首轮清理的延迟：1 分钟。错开启动初期的拉取首轮，又不至于让急需的清理（如磁盘吃紧时重启触发）等太久。
+     * 包内可见：StartupConfigValidator 的启动摘要日志从这里换算首跑时间，避免文案与真实值漂移。
+     */
+    static final long STARTUP_DELAY_MILLIS = 60L * 1000L;
 
     /**
      * 孤儿 tmp 文件的过期余量：1 天，防止删到正在写的文件。
@@ -45,12 +54,14 @@ public class PhotoCleanupTask {
         this.properties = properties;
     }
 
-    @Scheduled(cron = "0 0 3 * * ?")
+    // 间隔默认 14400s（4 小时）。注意默认值共三处需一致：本兜底、Cleanup#intervalSeconds 字段默认
+    // （这两处有单测钉住）、resources/application.properties 的环境变量兜底（运行时实际生效的一处）
+    @Scheduled(initialDelay = STARTUP_DELAY_MILLIS, fixedDelayString = "${file-receiver.cleanup.interval-seconds:14400}000")
     public void run() {
         try {
             runOnce();
         } catch (Exception e) {
-            // 兜底：单轮清理失败只记 ERROR，等次日重试，不让异常打断调度
+            // 兜底：单轮清理失败只记 ERROR，等下一轮固定间隔自动重试，不让异常打断调度
             log.error("本轮照片清理失败", e);
         }
     }
