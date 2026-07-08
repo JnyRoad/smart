@@ -3149,21 +3149,48 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 		return Boolean.TRUE;
 	}
 
+	/**
+	 * 审批后置处理（下发闸机/道闸、通过/拒绝短信）。
+	 * <p>
+	 * 两个调用方持有的都是查询时的陈旧快照：claim 后置（{@link #claimAndApplyHfOaFinalStatus}，
+	 * 快照到此处隔着整批 OA 网络查询，状态与 smsCode 已由 claim CAS 落库）和合肥推送保存
+	 * （saveHfVisitor，实体刚 save，仅 smsCode 尚未生成）。因此本方法内禁止 updateById
+	 * 全字段写回——会用快照覆盖期间回调/对账/清理任务落的状态；需要写库的列一律走
+	 * 带前置状态条件的 lambdaUpdate 只写必要列。
+	 */
 	@Override
 	public Boolean updateHfStatus(SmtVisitor smtVisitor) {
 		log.info("合肥访客预约状态更新：{}", smtVisitor);
 		//过期审批不下发 只修改状态
 		if (smtVisitor.getEndTime() != null && new Date().after(smtVisitor.getEndTime())) {
+			Integer statusBeforeExpire = smtVisitor.getStatus();
 			smtVisitor.setStatus(VisitorStatusEnum.CAUSE_6.getCode());
-			this.updateById(smtVisitor);
+			//claim 阶段已把过期行 CAS 成预约超时(6)（见 claimOaFinalStatus），此时无需再写库
+			if (!VisitorStatusEnum.CAUSE_6.getCode().equals(statusBeforeExpire)) {
+				//CAS：仅当行仍处于调用前状态时置为预约超时(6)，只写 status 列
+				this.update(Wrappers.<SmtVisitor>lambdaUpdate()
+						.eq(SmtVisitor::getId, smtVisitor.getId())
+						.eq(SmtVisitor::getStatus, statusBeforeExpire)
+						.set(SmtVisitor::getStatus, VisitorStatusEnum.CAUSE_6.getCode()));
+			}
 			return Boolean.TRUE;
 		}
 		//判断是否为状态为0：已经通过
 		if (smtVisitor.getStatus().equals(SmtVisitorEnum.PASS_STATUS.getType())) {
+			//smsCode 为空说明来自合肥推送保存链路（claim 链路已在 claim 阶段生成并落库）：
+			//补生成后条件落库，仅当行仍为"已通过(0)"时只写 sms_code 列
 			if (StrUtil.isBlank(smtVisitor.getSmsCode())) {
 				smtVisitor.setSmsCode(RandomUtil.randomNumbers(6));
+				boolean persisted = this.update(Wrappers.<SmtVisitor>lambdaUpdate()
+						.eq(SmtVisitor::getId, smtVisitor.getId())
+						.eq(SmtVisitor::getStatus, SmtVisitorEnum.PASS_STATUS.getType())
+						.set(SmtVisitor::getSmsCode, smtVisitor.getSmsCode()));
+				if (!persisted) {
+					//行已被并发链路改离"已通过"态：不下发闸机、不发通过短信
+					log.warn("访客已非通过状态，跳过闸机下发与通过短信，id={}", smtVisitor.getId());
+					return Boolean.FALSE;
+				}
 			}
-			this.updateById(smtVisitor);
 			//添加定时任务，下发闸机或者道闸
 			addTaskVisitor(smtVisitor);
 			sendVisitorPassNoticeSafely(smtVisitor);
@@ -3178,7 +3205,8 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 				log.error("发送访客预约拒绝短信异常-->{}", e.getMessage());
 			}
 		}
-		return this.updateById(smtVisitor);
+		//拒绝(1)等状态已由 claim CAS 落库，此处只做短信等后置动作，不再写库
+		return Boolean.TRUE;
 	}
 
 	private void sendVisitorPassNoticeSafely(SmtVisitor smtVisitor) {

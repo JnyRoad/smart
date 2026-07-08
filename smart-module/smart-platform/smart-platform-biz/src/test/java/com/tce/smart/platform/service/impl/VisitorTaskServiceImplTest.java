@@ -4,9 +4,15 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.tce.smart.common.core.constant.enums.SmtVisitorEnum;
+import com.tce.smart.common.core.model.Result;
+import com.tce.smart.data.api.feign.msg.RemoteSmsManageService;
+import com.tce.smart.data.api.vo.msg.SendSmsVo;
+import com.tce.smart.platform.core.entity.SmtNoticeSwitch;
 import com.tce.smart.platform.core.entity.SmtVisitor;
 import com.tce.smart.platform.core.mapper.SmtVisitorMapper;
 import com.tce.smart.platform.service.ApproveListService;
+import com.tce.smart.platform.service.SmtNoticeSwitchService;
 import com.tce.smart.platform.service.SmtVisitorProcessRecordService;
 import com.tce.smart.platform.service.SmtVisitorService;
 import com.tce.smart.tool.enums.VisitorStatusEnum;
@@ -38,8 +44,8 @@ public class VisitorTaskServiceImplTest {
 	}
 
 	/**
-	 * 搭建 visitorOverTime 的最小依赖：查询走 visitorService，写库走 baseMapper，
-	 * 副作用走审批待办与流程记录两个服务。
+	 * 搭建 visitorOverTime / visitorRemind 的最小依赖：查询走 visitorService，写库走 baseMapper，
+	 * 副作用走审批待办、流程记录、通知开关与短信四个服务。
 	 */
 	private VisitorTaskHarness setUpHarness() throws Exception {
 		VisitorTaskHarness harness = new VisitorTaskHarness();
@@ -47,11 +53,15 @@ public class VisitorTaskServiceImplTest {
 		harness.visitorService = Mockito.mock(SmtVisitorService.class);
 		harness.approveListService = Mockito.mock(ApproveListService.class);
 		harness.processRecordService = Mockito.mock(SmtVisitorProcessRecordService.class);
+		harness.noticeSwitchService = Mockito.mock(SmtNoticeSwitchService.class);
+		harness.smsService = Mockito.mock(RemoteSmsManageService.class);
 		harness.service = new VisitorTaskServiceImpl();
 		setField(harness.service, "baseMapper", harness.mapper);
 		setField(harness.service, "visitorService", harness.visitorService);
 		setField(harness.service, "approveListService", harness.approveListService);
 		setField(harness.service, "smtVisitorProcessRecordService", harness.processRecordService);
+		setField(harness.service, "smtNoticeSwitchService", harness.noticeSwitchService);
+		setField(harness.service, "remoteSmsManageService", harness.smsService);
 		return harness;
 	}
 
@@ -61,6 +71,8 @@ public class VisitorTaskServiceImplTest {
 		SmtVisitorService visitorService;
 		ApproveListService approveListService;
 		SmtVisitorProcessRecordService processRecordService;
+		SmtNoticeSwitchService noticeSwitchService;
+		RemoteSmsManageService smsService;
 	}
 
 	private static final Integer PARK_ID = 1001;
@@ -183,6 +195,82 @@ public class VisitorTaskServiceImplTest {
 		harness.service.visitorOverTime(PARK_ID);
 
 		Mockito.verify(harness.approveListService, Mockito.never()).list(Mockito.any());
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	// ========== visitorRemind：到访前短信提醒的提醒标记落库 ==========
+
+	/**
+	 * 构造一条落在提醒窗口内（开始时间在未来 beforeTime 分钟内）的已通过(0)、未发送提醒(isSend=1)访客。
+	 */
+	private SmtVisitor remindableVisitor(Long id) {
+		SmtVisitor visitor = new SmtVisitor();
+		visitor.setId(id);
+		visitor.setParkId(PARK_ID);
+		visitor.setStatus(VisitorStatusEnum.Status_0.getCode());
+		visitor.setIsSend(SmtVisitorEnum.NOT_IS_SEND.getType());
+		visitor.setStartTime(new Date(System.currentTimeMillis() + 10 * 60_000L));
+		visitor.setVisitorName("访客");
+		visitor.setVisitorPhone("13800000000");
+		visitor.setReceptionistName("被访人");
+		return visitor;
+	}
+
+	/** 打开提前提醒开关并返回提醒窗口 30 分钟的通知配置。 */
+	private void enablePreSendNotice(VisitorTaskHarness harness) throws Exception {
+		setField(harness.service, "preSend", Boolean.TRUE);
+		SmtNoticeSwitch noticeSwitch = new SmtNoticeSwitch();
+		noticeSwitch.setBeforeTime(30);
+		Mockito.when(harness.noticeSwitchService.getOne(Mockito.any())).thenReturn(noticeSwitch);
+	}
+
+	/**
+	 * 短信发送成功后，提醒标记必须用条件更新（仅当行仍为已通过(0)）且只写 is_send 列，
+	 * 不允许把 list() 查出的完整快照 updateById 全字段写回——短信外呼是秒级串行调用，
+	 * 期间行状态可能已被回调/清理任务改写，全字段写回会把新状态覆盖回快照值。
+	 */
+	@Test
+	public void visitorRemindMarksSentFlagWithConditionalSingleColumnUpdate() throws Exception {
+		VisitorTaskHarness harness = setUpHarness();
+		enablePreSendNotice(harness);
+		Mockito.when(harness.visitorService.list(Mockito.any()))
+				.thenReturn(Collections.singletonList(remindableVisitor(4201L)));
+		//短信发送成功（Result 默认 code=SUCCESS）
+		Mockito.when(harness.smsService.sendAppointmentSms(Mockito.any())).thenReturn(new Result<>(new SendSmsVo()));
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+
+		harness.service.visitorRemind(PARK_ID);
+
+		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(harness.mapper).update(Mockito.isNull(), updateCaptor.capture());
+		LambdaUpdateWrapper conditionalUpdate = updateCaptor.getValue();
+		String setClause = conditionalUpdate.getSqlSet().toLowerCase(Locale.ROOT);
+		Assert.assertTrue("必须更新 is_send 列，实际 set：" + setClause, setClause.contains("is_send"));
+		Assert.assertFalse("只写 is_send 列，不得顺带写回 status，实际 set：" + setClause, setClause.contains("status"));
+		String whereClause = conditionalUpdate.getSqlSegment().toLowerCase(Locale.ROOT);
+		Assert.assertTrue("条件必须限定行仍为已通过(0)，实际 where：" + whereClause, whereClause.contains("status"));
+		Assert.assertTrue(updateWrapperHasParam(conditionalUpdate, 4201L));
+		Assert.assertTrue(updateWrapperHasParam(conditionalUpdate, VisitorStatusEnum.Status_0.getCode()));
+		Assert.assertTrue(updateWrapperHasParam(conditionalUpdate, SmtVisitorEnum.IS_SEND.getType()));
+		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
+	}
+
+	/**
+	 * 短信发送失败时不落提醒标记，也不做任何写库。
+	 */
+	@Test
+	public void visitorRemindDoesNotTouchRowWhenSmsSendFails() throws Exception {
+		VisitorTaskHarness harness = setUpHarness();
+		enablePreSendNotice(harness);
+		Mockito.when(harness.visitorService.list(Mockito.any()))
+				.thenReturn(Collections.singletonList(remindableVisitor(4202L)));
+		//短信发送失败（Result(Throwable) 构造 code=FAIL）
+		Mockito.when(harness.smsService.sendAppointmentSms(Mockito.any()))
+				.thenReturn(new Result<>(new RuntimeException("短信网关异常")));
+
+		harness.service.visitorRemind(PARK_ID);
+
+		Mockito.verify(harness.mapper, Mockito.never()).update(Mockito.isNull(), Mockito.any());
 		Mockito.verify(harness.mapper, Mockito.never()).updateById(Mockito.any());
 	}
 
