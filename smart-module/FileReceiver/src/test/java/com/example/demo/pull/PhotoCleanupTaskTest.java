@@ -4,6 +4,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -94,6 +95,31 @@ public class PhotoCleanupTaskTest {
         assertThat(photoDir.resolve("stale-not-pending.png")).exists();
         // retention=0 关闭清理时不应该去调用清单接口
         verifyZeroInteractions(serverClient);
+    }
+
+    /**
+     * 调度回归：清理任务不得使用凌晨定点 cron——部署机是仅工作时间开机的 Windows 台式机，
+     * 凌晨永远不在线，cron 永远不会触发，清理会静默失效。
+     * 必须改为「启动延迟首跑 + 固定间隔」：只要白天开机就必然轮到。
+     */
+    @Test
+    public void cleanupTask_scheduledByFixedIntervalNotOffHoursCron() throws NoSuchMethodException {
+        Scheduled scheduled = PhotoCleanupTask.class.getMethod("run").getAnnotation(Scheduled.class);
+        assertThat(scheduled.cron()).isEmpty();
+        assertThat(scheduled.fixedDelayString()).isEqualTo("${file-receiver.cleanup.interval-seconds:14400}000");
+        // 启动后延迟 1 分钟首跑：错开启动初期的拉取首轮，又不至于让急需的清理等太久
+        assertThat(scheduled.initialDelay()).isEqualTo(60L * 1000L);
+    }
+
+    /** 配置字段默认值与 @Scheduled 占位符兜底值互相交叉比对，防止两处默认各自漂移（不能各钉各的字面量） */
+    @Test
+    public void cleanupProperties_defaultIntervalMatchesScheduleFallback() throws NoSuchMethodException {
+        Scheduled scheduled = PhotoCleanupTask.class.getMethod("run").getAnnotation(Scheduled.class);
+        // 从 "${file-receiver.cleanup.interval-seconds:14400}000" 中截取占位符兜底秒数
+        String delayString = scheduled.fixedDelayString();
+        String fallbackSeconds = delayString.substring(delayString.indexOf(':') + 1, delayString.indexOf('}'));
+        assertThat(fallbackSeconds)
+                .isEqualTo(String.valueOf(new PhotoPullProperties().getCleanup().getIntervalSeconds()));
     }
 
     @Test

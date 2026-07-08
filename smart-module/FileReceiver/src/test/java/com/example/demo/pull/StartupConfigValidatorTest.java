@@ -44,6 +44,54 @@ public class StartupConfigValidatorTest {
                 .hasMessageContaining("file-receiver.pull.app-secret");
     }
 
+    /**
+     * 清理间隔为 0/负数时必须启动即失败并点名配置键：否则会漏到 @Scheduled 注册阶段
+     * 抛不含任何配置键名的 IllegalArgumentException，远程 Windows 现场无从排查。
+     * （0 不承担「关闭清理」语义——关闭请用 retention-days=0，报错信息里要引导到位。）
+     */
+    @Test
+    public void cleanupIntervalNotPositive_failsFastNamingKey() {
+        properties.getPull().setEnabled(false);
+
+        properties.getCleanup().setIntervalSeconds(0);
+        assertThatThrownBy(() -> validator.validateAndReport())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("file-receiver.cleanup.interval-seconds")
+                .hasMessageContaining("retention-days=0");
+
+        properties.getCleanup().setIntervalSeconds(-300);
+        assertThatThrownBy(() -> validator.validateAndReport())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("file-receiver.cleanup.interval-seconds");
+    }
+
+    /** 拉取轮询间隔为 0/负数同样必须启动即失败：@Scheduled 不论 enabled 与否都会注册，0 间隔照样炸启动 */
+    @Test
+    public void pullIntervalNotPositive_failsFastNamingKey() {
+        properties.getPull().setEnabled(false);
+        properties.getPull().setIntervalSeconds(0);
+
+        assertThatThrownBy(() -> validator.validateAndReport())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("file-receiver.pull.interval-seconds")
+                .hasMessageContaining("enabled=false");
+    }
+
+    /** 多个配置问题必须合并成一次报错点清（本类设计哲学），避免现场修一轮、重启一轮地逐个试错 */
+    @Test
+    public void multipleConfigProblems_reportedInSingleFailure() {
+        properties.getPull().setEnabled(true);
+        properties.getPull().setServerUrl("");
+        properties.getPull().setAppId("file-receiver-xc");
+        properties.getPull().setAppSecret("secret");
+        properties.getCleanup().setIntervalSeconds(0);
+
+        assertThatThrownBy(() -> validator.validateAndReport())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("file-receiver.cleanup.interval-seconds")
+                .hasMessageContaining("file-receiver.pull.server-url");
+    }
+
     @Test
     public void pullEnabledWithCompleteConfig_startsWithoutError() {
         properties.getPull().setEnabled(true);

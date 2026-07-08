@@ -23,7 +23,7 @@ FileReceiver/
 │   │   │       ├── HutoolPhotoServerClient.java    # 基于 Hutool 的实现
 │   │   │       ├── OpenApiTokenClient.java         # token 获取与缓存
 │   │   │       ├── PhotoPullTask.java              # 定时拉取任务
-│   │   │       └── PhotoCleanupTask.java           # 每日过期清理任务
+│   │   │       └── PhotoCleanupTask.java           # 定期过期清理任务
 │   │   └── resources/
 │   │       └── application.properties
 │   └── test/java/com/example/demo/pull/            # 拉取/清理任务单测
@@ -41,7 +41,8 @@ FileReceiver/
 ## 部署与配置说明（拉取模式，主链路）
 
 程序定时执行以下流程：取 token → 拉取待处理照片清单 → 与本地目录 diff → 逐张下载（临时文件 + 原子改名落盘）。
-每日 03:00 额外执行一次过期清理：本地照片满足「超过保留天数」且「不在最新待处理清单中」两个条件才会被删除。
+过期清理在**启动 1 分钟后首跑、之后默认每 4 小时执行一次**（不用凌晨定点 cron——部署机下班后关机，凌晨任务永远赶不上开机时段）：
+本地照片满足「超过保留天数」且「不在最新待处理清单中」两个条件才会被删除。
 
 在 `application.properties`（或对应环境变量）中配置：
 
@@ -54,6 +55,7 @@ FileReceiver/
 | `file-receiver.pull.interval-seconds` | `FILE_RECEIVER_PULL_INTERVAL_SECONDS` | `30` | 拉取轮询间隔（秒） |
 | `file-receiver.photo-dir` | `FILE_RECEIVER_PHOTO_DIR` | `D:/visitor` | 本地照片存放目录（许昌打印机 Windows 机部署路径） |
 | `file-receiver.cleanup.retention-days` | `FILE_RECEIVER_CLEANUP_RETENTION_DAYS` | `7` | 本地照片保留天数，`0` 表示关闭清理任务 |
+| `file-receiver.cleanup.interval-seconds` | `FILE_RECEIVER_CLEANUP_INTERVAL_SECONDS` | `14400` | 清理执行间隔（秒），默认 4 小时；启动 1 分钟后首跑 |
 
 接口约定：
 
@@ -85,7 +87,7 @@ FileReceiver/
 | `下载照片失败，photoId=...` | ERROR | 单张失败，带堆栈，不影响本轮其余照片 |
 | `本轮照片拉取失败（token 或清单环节异常...）` | ERROR | 整轮失败（换 token、拉清单出错），下一轮自动重试 |
 | `已刷新 access token` | INFO | token 获取/刷新成功 |
-| `开始照片过期清理` / `清理轮完成` | INFO | 每日 03:00 清理任务 |
+| `开始照片过期清理` / `清理轮完成` | INFO | 定期清理任务（启动 1 分钟后首跑，默认每 4 小时一次） |
 
 ## 部署与配置说明（推送模式，已废弃）
 

@@ -63,5 +63,12 @@ public class PhotoPullProperties {
          * 本地照片保留天数，超过则视为过期候选；0 表示关闭清理任务。
          */
         private int retentionDays = 7;
+
+        /**
+         * 清理执行间隔（秒），默认 14400（4 小时）。
+         * 部署机是仅工作时间开机的 Windows 台式机，凌晨定点 cron 永远赶不上开机时段，
+         * 因此清理采用「启动延迟首跑 + 固定间隔」调度，开机当天必然执行到。
+         */
+        private int intervalSeconds = 14400;
     }
 }
