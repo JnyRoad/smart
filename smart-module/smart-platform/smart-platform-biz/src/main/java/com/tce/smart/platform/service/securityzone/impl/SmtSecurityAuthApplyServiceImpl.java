@@ -23,18 +23,22 @@ import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyPageQuer
 import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.securityzone.SecurityAuthApplyPageRespDTO;
 import com.tce.smart.platform.core.ao.SecurityAuthApplyPageQueryAO;
+import com.tce.smart.platform.core.dto.SecurityAuthDispatchContext;
 import com.tce.smart.platform.core.entity.SmtMsgTemplate;
 import com.tce.smart.platform.core.entity.SmtPark;
 import com.tce.smart.platform.core.entity.SmtSecurityArea;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.dto.WorkFlowLogDTO;
 import com.tce.smart.platform.core.dto.WorkFlowLogDataDTO;
+import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails;
 import com.tce.smart.platform.core.mapper.SmtSecurityAuthApplyMapper;
+import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
 import com.tce.smart.platform.core.service.SmtMsgTemplateService;
 import com.tce.smart.platform.core.service.SmtSecurityAreaService;
 import com.tce.smart.platform.core.vo.SecurityDispatchAcceptedVO;
+import com.tce.smart.platform.core.vo.SecurityDispatchFailureReasonVO;
 import com.tce.smart.platform.core.vo.SecurityDispatchProgressVO;
 import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.SmtParkService;
@@ -59,6 +63,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -85,6 +90,21 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	private static final int MSG_SEND_ABANDONED = 2;
 	/** 单轮 worker 最多处理一百个人员，避免大申请独占调度线程。 */
 	private static final int DISPATCH_PERSON_LIMIT = 100;
+	/** 失败备注中的中国居民身份证号。 */
+	private static final Pattern CHINESE_ID_PATTERN = Pattern.compile(
+			"(?i)(?<!\\d)(?:\\d{15}|\\d{17}[0-9x])(?!\\d)"
+	);
+	/** 失败备注中带字段名的证件、照片、内部任务和密钥值。 */
+	private static final Pattern SENSITIVE_FIELD_PATTERN = Pattern.compile(
+			"(?i)(身份证号?|证件号?|证件|card_?no|image_?id|photo|图片|照片|isc_?task_?id|"
+					+ "token|secret|password|credential|api[_-]?key)\\s*[:：=]?\\s*[^\\s,;，；]+"
+	);
+	/** 失败备注中可能内嵌的图片 Base64 数据。 */
+	private static final Pattern IMAGE_BASE64_PATTERN = Pattern.compile(
+			"(?i)(?:data:image/[^;\\s]+;base64,)?[a-z0-9+/]{80,}={0,2}"
+	);
+	/** 脱敏后的统一占位文本。 */
+	private static final String REDACTED_TEXT = "[已脱敏]";
 
 	@Autowired
 	private RemoteOaWorkFlowService remoteOaWorkFlowService;
@@ -104,6 +124,8 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	private SmtMsgTemplateService smtMsgTemplateService;
 	@Autowired
 	private SmtSecurityAreaService smtSecurityAreaService;
+	@Autowired
+	private SmtIscDeviceTaskService smtIscDeviceTaskService;
 	@Autowired
 	private IOAWorkflowService ioaWorkflowService;
 	@Autowired
@@ -228,8 +250,83 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 		progress.setInWorkCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.IN_WORK.getCode().equals(detail.getStatus())).count());
 		progress.setSuccessCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.SUCCESS.getCode().equals(detail.getStatus())).count());
 		progress.setFailCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.FAIL.getCode().equals(detail.getStatus())).count());
+		this.fillDispatchFailureProgress(progress, applyId, batchId, details);
 		this.updateDispatchMainStatus(authApply, progress);
 		return progress;
+	}
+
+	/**
+	 * 只连接当前批次的真实 ISC 任务与人员明细，并在返回管理端前统一脱敏失败备注。
+	 */
+	private void fillDispatchFailureProgress(SecurityDispatchProgressVO progress, Long applyId, Long batchId,
+			List<SmtSecurityTaskDetails> details) {
+		Map<Long, SmtSecurityTaskDetails> detailsById = details.stream()
+				.filter(detail -> detail.getId() != null)
+				.collect(Collectors.toMap(SmtSecurityTaskDetails::getId, detail -> detail,
+						(existing, duplicate) -> existing, LinkedHashMap::new));
+		List<SmtIscDeviceTask> terminalTasks = smtIscDeviceTaskService.list(Wrappers.<SmtIscDeviceTask>lambdaQuery()
+				.eq(SmtIscDeviceTask::getSourceType, SecurityAuthDispatchContext.SOURCE_TYPE)
+				.eq(SmtIscDeviceTask::getSourceId, applyId)
+				.eq(SmtIscDeviceTask::getBatchId, batchId)
+				.isNotNull(SmtIscDeviceTask::getSourceDetailId)
+				.in(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.FAIL.getCode(),
+						DeviceTaskStatusEnum.CANCEL.getCode(), DeviceTaskStatusEnum.EXPIRED.getCode()));
+		List<SmtIscDeviceTask> currentTerminalTasks = terminalTasks.stream()
+				.filter(task -> SecurityAuthDispatchContext.SOURCE_TYPE.equals(task.getSourceType()))
+				.filter(task -> Objects.equals(applyId, task.getSourceId()))
+				.filter(task -> Objects.equals(batchId, task.getBatchId()))
+				.filter(task -> detailsById.containsKey(task.getSourceDetailId()))
+				.filter(task -> isFailureTerminalStatus(task.getStatus()))
+				.sorted(Comparator.comparing(SmtIscDeviceTask::getSourceDetailId)
+						.thenComparing(SmtIscDeviceTask::getDeviceCode, Comparator.nullsFirst(String::compareTo)))
+				.collect(Collectors.toList());
+		progress.setCanceledCount((int) currentTerminalTasks.stream()
+				.filter(task -> DeviceTaskStatusEnum.CANCEL.getCode().equals(task.getStatus()))
+				.map(SmtIscDeviceTask::getSourceDetailId).distinct().count());
+		progress.setFailureReasons(currentTerminalTasks.stream()
+				.map(task -> buildFailureReason(detailsById.get(task.getSourceDetailId()), task))
+				.collect(Collectors.toList()));
+	}
+
+	private boolean isFailureTerminalStatus(Integer status) {
+		return DeviceTaskStatusEnum.FAIL.getCode().equals(status)
+				|| DeviceTaskStatusEnum.CANCEL.getCode().equals(status)
+				|| DeviceTaskStatusEnum.EXPIRED.getCode().equals(status);
+	}
+
+	private SecurityDispatchFailureReasonVO buildFailureReason(SmtSecurityTaskDetails detail,
+			SmtIscDeviceTask task) {
+		SecurityDispatchFailureReasonVO failureReason = new SecurityDispatchFailureReasonVO();
+		failureReason.setStaffBadge(detail.getStaffBadge());
+		failureReason.setStaffName(detail.getStaffName());
+		failureReason.setDeviceCode(task.getDeviceCode());
+		failureReason.setStatus(deviceTaskStatusName(task.getStatus()));
+		failureReason.setReason(sanitizeFailureReason(task));
+		return failureReason;
+	}
+
+	private String deviceTaskStatusName(Integer status) {
+		return Arrays.stream(DeviceTaskStatusEnum.values())
+				.filter(value -> value.getCode().equals(status))
+				.map(Enum::name)
+				.findFirst().orElse("UNKNOWN");
+	}
+
+	/**
+	 * 先按任务结构化敏感字段精确替换，再覆盖备注中常见的证件、图片和密钥格式。
+	 */
+	private String sanitizeFailureReason(SmtIscDeviceTask task) {
+		String reason = StringUtils.isNotEmpty(task.getRemark())
+				? task.getRemark() : DeviceTaskStatusEnum.desc(task.getStatus());
+		for (String sensitiveValue : Arrays.asList(task.getCardNo(), task.getImageId(),
+				task.getIscTaskId(), task.getPersonId())) {
+			if (StringUtils.isNotEmpty(sensitiveValue)) {
+				reason = reason.replace(sensitiveValue, REDACTED_TEXT);
+			}
+		}
+		reason = CHINESE_ID_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
+		reason = SENSITIVE_FIELD_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
+		return IMAGE_BASE64_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
 	}
 
 	@Override
