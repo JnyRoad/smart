@@ -53,3 +53,15 @@ mvn -pl smart-platform/smart-platform-biz,smart-schedule -am test \
 3. worker 候选改走专用 Mapper SQL：先 JOIN 申请单并匹配 `CURRENT_DISPATCH_BATCH_ID`，再按明细 ID 稳定排序，最后由外层 `ROWNUM` 限额。测试用一百条旧批次作为通用查询陷阱，确认当前批次候选不会被饿死。
 
 聚焦回归命令覆盖 core/biz/schedule，结果 core 44、biz 12、schedule 64，共 120 个测试全部通过；两个 Mapper XML 均通过 `xmllint`，`git diff --check` 通过。
+
+## Task4 契约补充（2026-07-16）
+
+详情页契约核查发现原进度响应缺少取消数量和可渲染失败原因，已继续按 RED→GREEN 补齐：
+
+- RED：新增验收测试后，`SecurityDispatchFailureReasonVO` 不存在导致 testCompile 失败，确认原契约没有失败原因结构。
+- GREEN：`SecurityDispatchProgressVO` 保留全部原字段并新增 `canceledCount`、`failureReasons`。取消数量按当前批次 `SOURCE_DETAIL_ID` 去重，且取消人员仍包含在兼容字段 `failCount` 内。
+- 失败原因只连接当前申请、当前 batch、有效 `SOURCE_DETAIL_ID` 的真实 ISC FAIL/CANCEL/EXPIRED 终态任务；旧批次和孤儿来源明细会在查询条件及内存连接两层被过滤。
+- 每条原因仅返回人员工号、姓名、设备编码、终态名称和脱敏备注。输出前会精确移除任务的卡号、图片 ID、ISC 任务 ID、ISC 人员 ID，并覆盖身份证、敏感键值和图片 Base64 格式；空备注回退到设备任务状态描述。
+- 新增 CANCEL 聚合测试，确认取消会同时把人员明细和当前申请单推进到失败；未增加任何 ISC 外部取消调用。
+
+聚焦回归结果：core 44、biz 14、schedule 64，共 122 个测试全部通过，`BUILD SUCCESS`；两个 Mapper XML 通过 `xmllint --noout`，`git diff --check` 通过。

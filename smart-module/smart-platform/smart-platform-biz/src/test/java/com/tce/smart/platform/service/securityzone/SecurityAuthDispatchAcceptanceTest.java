@@ -3,15 +3,20 @@ package com.tce.smart.platform.service.securityzone;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails;
 import com.tce.smart.platform.core.mapper.SmtSecurityAuthApplyMapper;
 import com.tce.smart.platform.core.mapper.SmtSecurityTaskDetailsMapper;
+import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
 import com.tce.smart.platform.core.vo.SecurityDispatchAcceptedVO;
+import com.tce.smart.platform.core.vo.SecurityDispatchFailureReasonVO;
+import com.tce.smart.platform.core.vo.SecurityDispatchProgressVO;
 import com.tce.smart.platform.service.securityzone.impl.SmtSecurityAuthApplyServiceImpl;
 import com.tce.smart.platform.service.securityzone.impl.SmtSecurityTaskDetailsServiceImpl;
 import com.tce.smart.tool.enums.ApproveListStateEnum;
 import com.tce.smart.tool.enums.DeviceDownStatusEnum;
+import com.tce.smart.tool.enums.DeviceTaskStatusEnum;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -49,19 +54,23 @@ public class SecurityAuthDispatchAcceptanceTest {
 	public static void initMybatisPlusLambdaCache() {
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtSecurityAuthApply.class);
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtSecurityTaskDetails.class);
+		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtIscDeviceTask.class);
 	}
 
 	private SmtSecurityAuthApplyMapper applyMapper;
 	private SmtSecurityTaskDetailsService taskDetailsService;
+	private SmtIscDeviceTaskService iscTaskService;
 	private SmtSecurityAuthApplyServiceImpl applyService;
 
 	@Before
 	public void setUp() throws Exception {
 		applyMapper = mock(SmtSecurityAuthApplyMapper.class);
 		taskDetailsService = mock(SmtSecurityTaskDetailsService.class);
+		iscTaskService = mock(SmtIscDeviceTaskService.class);
 		applyService = spy(new SmtSecurityAuthApplyServiceImpl());
 		setField(applyService, "baseMapper", applyMapper);
 		setField(applyService, "smtSecurityTaskDetailsService", taskDetailsService);
+		setField(applyService, "smtIscDeviceTaskService", iscTaskService);
 	}
 
 	@Test
@@ -134,6 +143,70 @@ public class SecurityAuthDispatchAcceptanceTest {
 		String sql = captor.getValue().getSqlSegment().toLowerCase(java.util.Locale.ROOT);
 		assertTrue("状态聚合必须以当前批次作 CAS 围栏，不能回写旧实体", sql.contains("current_dispatch_batch_id"));
 		assertTrue("进度查询的旧快照不得把终态主单回退为下发中", sql.contains("device_status"));
+	}
+
+	@Test
+	public void getDispatchProgress_exposesCurrentBatchCanceledCountAndSanitizedFailureReasons() throws Exception {
+		SmtSecurityAuthApply apply = approvedApply(1003L);
+		apply.setCurrentDispatchBatchId(9003L);
+		apply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
+		doReturn(apply).when(applyService).getById(1003L);
+		SmtSecurityTaskDetails canceledDetail = SmtSecurityTaskDetails.builder().id(101L).applyId(1003L)
+				.dispatchBatchId(9003L).staffBadge("E001").staffName("张三")
+				.status(DeviceDownStatusEnum.FAIL.getCode()).build();
+		SmtSecurityTaskDetails expiredDetail = SmtSecurityTaskDetails.builder().id(102L).applyId(1003L)
+				.dispatchBatchId(9003L).staffBadge("E002").staffName("李四")
+				.status(DeviceDownStatusEnum.FAIL.getCode()).build();
+		when(taskDetailsService.list(any())).thenReturn(java.util.Arrays.asList(canceledDetail, expiredDetail));
+		SmtIscDeviceTask canceledTask = iscTask(101L, "gate-1", DeviceTaskStatusEnum.CANCEL.getCode(),
+				"证件41010519491231002X card-secret image-secret secret=abc isc-secret person-secret 人脸拒绝");
+		canceledTask.setCardNo("card-secret");
+		canceledTask.setImageId("image-secret");
+		canceledTask.setIscTaskId("isc-secret");
+		canceledTask.setPersonId("person-secret");
+		SmtIscDeviceTask secondCanceledTask = iscTask(101L, "gate-4", DeviceTaskStatusEnum.CANCEL.getCode(),
+				"第二台设备取消");
+		SmtIscDeviceTask failedTask = iscTask(101L, "gate-3", DeviceTaskStatusEnum.FAIL.getCode(), "设备拒绝权限");
+		SmtIscDeviceTask expiredTask = iscTask(102L, "gate-2", DeviceTaskStatusEnum.EXPIRED.getCode(), null);
+		SmtIscDeviceTask oldBatchTask = iscTask(102L, "old-gate", DeviceTaskStatusEnum.CANCEL.getCode(), "旧批次取消");
+		oldBatchTask.setBatchId(9002L);
+		SmtIscDeviceTask orphanTask = iscTask(999L, "orphan-gate", DeviceTaskStatusEnum.CANCEL.getCode(), "孤儿任务取消");
+		when(iscTaskService.list(any())).thenReturn(java.util.Arrays.asList(
+				canceledTask, secondCanceledTask, failedTask, expiredTask, oldBatchTask, orphanTask));
+
+		SecurityDispatchProgressVO progress = applyService.getDispatchProgress(1003L, 9003L);
+
+		assertEquals("取消人员仍包含在兼容字段 failCount 内", Integer.valueOf(2), progress.getFailCount());
+		assertEquals("同一人员多设备失败只能计为一个取消人员", Integer.valueOf(1), progress.getCanceledCount());
+		assertEquals("旧批次和不存在的来源明细必须被过滤", 4, progress.getFailureReasons().size());
+		assertTrue(progress.getFailureReasons().stream().anyMatch(reason -> "FAIL".equals(reason.getStatus())));
+		SecurityDispatchFailureReasonVO canceledReason = progress.getFailureReasons().stream()
+				.filter(reason -> "CANCEL".equals(reason.getStatus())).findFirst().orElse(null);
+		assertNotNull(canceledReason);
+		assertEquals("E001", canceledReason.getStaffBadge());
+		assertEquals("张三", canceledReason.getStaffName());
+		assertEquals("gate-1", canceledReason.getDeviceCode());
+		assertTrue(canceledReason.getReason().contains("人脸拒绝"));
+		assertFalse(canceledReason.getReason().contains("41010519491231002X"));
+		assertFalse(canceledReason.getReason().contains("card-secret"));
+		assertFalse(canceledReason.getReason().contains("image-secret"));
+		assertFalse(canceledReason.getReason().contains("isc-secret"));
+		assertFalse(canceledReason.getReason().contains("person-secret"));
+		assertFalse(canceledReason.getReason().contains("secret=abc"));
+		SecurityDispatchFailureReasonVO expiredReason = progress.getFailureReasons().stream()
+				.filter(reason -> "EXPIRED".equals(reason.getStatus())).findFirst().orElse(null);
+		assertNotNull(expiredReason);
+		assertEquals(DeviceTaskStatusEnum.EXPIRED.getDesc(), expiredReason.getReason());
+
+		ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<SmtIscDeviceTask>> query =
+				ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+		verify(iscTaskService).list(query.capture());
+		String sql = query.getValue().getSqlSegment().toLowerCase(java.util.Locale.ROOT);
+		assertTrue(sql.contains("source_type"));
+		assertTrue(sql.contains("source_id"));
+		assertTrue(sql.contains("source_detail_id"));
+		assertTrue(sql.contains("batch_id"));
+		assertTrue(sql.contains("status"));
 	}
 
 	@Test
@@ -229,6 +302,18 @@ public class SecurityAuthDispatchAcceptanceTest {
 		apply.setOaStatus(ApproveListStateEnum.AGREE.getCode());
 		apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
 		return apply;
+	}
+
+	private SmtIscDeviceTask iscTask(Long sourceDetailId, String deviceCode, Integer status, String remark) {
+		SmtIscDeviceTask task = new SmtIscDeviceTask();
+		task.setSourceType("SECURITY_AUTH");
+		task.setSourceId(1003L);
+		task.setSourceDetailId(sourceDetailId);
+		task.setBatchId(9003L);
+		task.setDeviceCode(deviceCode);
+		task.setStatus(status);
+		task.setRemark(remark);
+		return task;
 	}
 
 	private void setField(Object target, String name, Object value) throws Exception {

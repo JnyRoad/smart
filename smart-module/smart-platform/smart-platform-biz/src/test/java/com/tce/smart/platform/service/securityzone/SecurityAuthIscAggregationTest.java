@@ -84,6 +84,24 @@ public class SecurityAuthIscAggregationTest {
 	}
 
 	@Test
+	public void syncTaskStatus_treatsCanceledIscTaskAsDetailAndApplyFailure() throws Exception {
+		Fixture fixture = fixture();
+		SmtSecurityTaskDetails detail = detail();
+		doReturn(Collections.singletonList(detail)).when(fixture.service).list(any());
+		when(fixture.iscTaskService.list(any())).thenReturn(
+				Collections.singletonList(iscTask(DeviceTaskStatusEnum.CANCEL.getCode(), "任务已被接管取消")));
+
+		fixture.service.syncTaskStatus(1001L);
+
+		assertEquals("取消任务必须使人员明细失败", DeviceDownStatusEnum.FAIL.getCode(), detail.getStatus());
+		ArgumentCaptor<Wrapper<SmtSecurityAuthApply>> applyUpdate = ArgumentCaptor.forClass(Wrapper.class);
+		verify(fixture.applyMapper).update(any(), applyUpdate.capture());
+		java.util.Collection<Object> params = ((AbstractWrapper) applyUpdate.getValue())
+				.getParamNameValuePairs().values();
+		assertTrue("取消人员必须使当前申请单最终失败", params.contains(DeviceDownStatusEnum.FAIL.getCode()));
+	}
+
+	@Test
 	public void syncTaskStatus_rereadsDetailsAndCasPreventsTerminalStateRegression() throws Exception {
 		Fixture fixture = fixture();
 		SmtSecurityTaskDetails staleInWork = detail();

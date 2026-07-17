@@ -2,6 +2,9 @@ package com.tce.smart.platform.core.vo;
 
 import lombok.Data;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 保密区权限下发批次进度。
  *
@@ -22,4 +25,8 @@ public class SecurityDispatchProgressVO {
 	private Integer successCount;
 	/** 已失败数量 */
 	private Integer failCount;
+	/** 已取消人员数量；取消同时计入失败数量 */
+	private Integer canceledCount;
+	/** 当前批次失败、取消或过期的脱敏原因 */
+	private List<SecurityDispatchFailureReasonVO> failureReasons = new ArrayList<>();
 }
