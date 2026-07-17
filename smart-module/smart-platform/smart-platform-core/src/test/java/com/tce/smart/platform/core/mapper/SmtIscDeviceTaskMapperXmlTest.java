@@ -158,7 +158,7 @@ public class SmtIscDeviceTaskMapperXmlTest {
 		Assert.assertTrue(fenceSql.contains("SMT_SECURITY_AUTH_APPLY"));
 		Assert.assertTrue(fenceSql.contains("CURRENT_DISPATCH_BATCH_ID = SDA.BATCH_ID"));
 
-		for (String selectId : new String[]{"getCardDown", "getDelayDown"}) {
+		for (String selectId : new String[]{"getCardDown", "getDelayDown", "getReTryCardDown"}) {
 			int queryStart = mapper.indexOf("<select id=\"" + selectId + "\"");
 			int queryEnd = mapper.indexOf("</select>", queryStart);
 			String querySql = mapper.substring(queryStart, queryEnd);

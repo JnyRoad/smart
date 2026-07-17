@@ -2,6 +2,7 @@ package com.tce.smart.platform.service.securityzone;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
 import com.tce.smart.platform.core.entity.SmtStaff;
@@ -80,6 +81,37 @@ public class SecurityAuthIscAggregationTest {
 
 		assertEquals(DeviceDownStatusEnum.FAIL.getCode(), detail.getStatus());
 		assertEquals("设备拒绝权限", detail.getRemark());
+	}
+
+	@Test
+	public void syncTaskStatus_rereadsDetailsAndCasPreventsTerminalStateRegression() throws Exception {
+		Fixture fixture = fixture();
+		SmtSecurityTaskDetails staleInWork = detail();
+		SmtSecurityTaskDetails concurrentlyCompleted = detail();
+		concurrentlyCompleted.setStatus(DeviceDownStatusEnum.SUCCESS.getCode());
+		doReturn(Collections.singletonList(staleInWork), Collections.singletonList(concurrentlyCompleted))
+				.when(fixture.service).list(any());
+		when(fixture.iscTaskService.list(any()))
+				.thenReturn(Collections.singletonList(iscTask(DeviceTaskStatusEnum.DOING.getCode(), null)));
+		when(fixture.detailsMapper.update(any(), any())).thenReturn(0);
+
+		fixture.service.syncTaskStatus(1001L);
+
+		ArgumentCaptor<Wrapper<SmtSecurityTaskDetails>> detailUpdate = ArgumentCaptor.forClass(Wrapper.class);
+		verify(fixture.detailsMapper).update(any(), detailUpdate.capture());
+		String detailWhere = detailUpdate.getValue().getSqlSegment().toLowerCase(Locale.ROOT);
+		assertTrue("明细聚合必须以 IN_WORK 作为 CAS 条件，终态不能被旧回调覆盖", detailWhere.contains("status"));
+
+		ArgumentCaptor<Wrapper<SmtSecurityAuthApply>> applyUpdate = ArgumentCaptor.forClass(Wrapper.class);
+		verify(fixture.applyMapper).update(any(), applyUpdate.capture());
+		String applyWhere = applyUpdate.getValue().getSqlSegment().toLowerCase(Locale.ROOT);
+		assertTrue("申请单聚合必须只允许 WAIT/IN_WORK 推进", applyWhere.contains("device_status in"));
+		java.util.Collection<Object> applyParams = ((AbstractWrapper) applyUpdate.getValue())
+				.getParamNameValuePairs().values();
+		assertTrue(applyParams.contains(DeviceDownStatusEnum.WAIT.getCode()));
+		assertTrue(applyParams.contains(DeviceDownStatusEnum.IN_WORK.getCode()));
+		assertTrue("聚合主单前必须重读明细，采用并发方已落库的 SUCCESS",
+				applyParams.contains(DeviceDownStatusEnum.SUCCESS.getCode()));
 	}
 
 	@Test

@@ -292,6 +292,8 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 			this.update(Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
 					.eq(SmtSecurityAuthApply::getId, authApply.getId())
 					.eq(SmtSecurityAuthApply::getCurrentDispatchBatchId, progress.getBatchId())
+					.in(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode(),
+							DeviceDownStatusEnum.IN_WORK.getCode())
 					.set(SmtSecurityAuthApply::getDeviceStatus, targetStatus));
 		}
 	}

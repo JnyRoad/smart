@@ -5,6 +5,8 @@ import com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 /**
  *
  *
@@ -19,5 +21,11 @@ public interface SmtSecurityTaskDetailsMapper extends BaseMapper<SmtSecurityTask
 	@Select("SELECT COUNT(DISTINCT STAFF_ID) FROM SMT_SECURITY_TASK_DETAILS "
 			+ "WHERE APPLY_ID = #{applyId} AND DISPATCH_BATCH_ID = #{dispatchBatchId}")
 	int countDispatchPeople(@Param("applyId") Long applyId, @Param("dispatchBatchId") Long dispatchBatchId);
+
+	/**
+	 * 先按申请单当前批次过滤，再稳定排序并限额；旧批次 WAIT 不能占据候选窗口。
+	 */
+	List<SmtSecurityTaskDetails> listPendingCurrentDispatchDetails(@Param("waitStatus") Integer waitStatus,
+			@Param("limit") int limit);
 
 }
