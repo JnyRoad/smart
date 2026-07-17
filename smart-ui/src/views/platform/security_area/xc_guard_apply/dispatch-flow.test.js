@@ -8,6 +8,7 @@ vi.mock('@/router/axios', () => ({ default: config => request(config) }))
 globalThis.tce = { mixins: { list: {} } }
 
 const component = (await import('./index.vue')).default
+const detailComponent = (await import('./detail.vue')).default
 
 function createContext() {
   const context = Object.assign(component.data(), {
@@ -25,6 +26,26 @@ function createContext() {
     'applyDispatchProgress'
   ].forEach(name => {
     context[name] = (...args) => component.methods[name].apply(context, args)
+  })
+  return context
+}
+
+/**
+ * 详情页不复用列表页的 activeDispatch，必须独立覆盖其批次与代际状态机。
+ */
+function createDetailContext() {
+  const context = Object.assign(detailComponent.data(), {
+    $message: vi.fn(),
+    $route: { params: { id: 88 }, query: {} }
+  })
+  ;[
+    'startDispatchProgressPolling',
+    'pollDispatchProgress',
+    'stopDispatchProgressPolling',
+    'isCurrentDispatch',
+    'isDispatchTerminal'
+  ].forEach(name => {
+    context[name] = (...args) => detailComponent.methods[name].apply(context, args)
   })
   return context
 }
@@ -177,5 +198,91 @@ describe('保密门禁手动下发流程', () => {
       data: { code: 0, data: { batchId: 7002, totalCount: 1, waitingCount: 0, inWorkCount: 0, successCount: 1, failCount: 0 } }
     })
     await newPolling
+  })
+
+  it('详情页销毁后旧成功不写进度也不创建定时器', async () => {
+    let resolveProgress
+    request.mockReturnValue(new Promise(resolve => {
+      resolveProgress = resolve
+    }))
+    const context = createDetailContext()
+    const originalProgress = context.dispatchProgress
+    const polling = context.startDispatchProgressPolling(7001)
+    await flushPromises()
+
+    context.isDestroyed = true
+    context.stopDispatchProgressPolling()
+    resolveProgress({
+      status: 200,
+      data: { code: 0, data: { batchId: 7001, totalCount: 1, waitingCount: 1, inWorkCount: 0, successCount: 0, failCount: 0 } }
+    })
+    await polling
+
+    expect(context.dispatchProgress).toBe(originalProgress)
+    expect(context.dispatchPollingTimer).toBeNull()
+  })
+
+  it('详情页切换批次后旧成功不影响新轮询', async () => {
+    let resolveOldProgress
+    let resolveNewProgress
+    request
+      .mockReturnValueOnce(new Promise(resolve => {
+        resolveOldProgress = resolve
+      }))
+      .mockReturnValueOnce(new Promise(resolve => {
+        resolveNewProgress = resolve
+      }))
+    const context = createDetailContext()
+    const originalProgress = context.dispatchProgress
+    const oldPolling = context.startDispatchProgressPolling(7001)
+    await flushPromises()
+    const newPolling = context.startDispatchProgressPolling(7002)
+    await flushPromises()
+
+    resolveOldProgress({
+      status: 200,
+      data: { code: 0, data: { batchId: 7001, totalCount: 1, waitingCount: 1, inWorkCount: 0, successCount: 0, failCount: 0 } }
+    })
+    await oldPolling
+
+    expect(context.dispatchBatchId).toBe(7002)
+    expect(context.dispatchProgress).toBe(originalProgress)
+    expect(context.dispatchPollingTimer).toBeNull()
+    resolveNewProgress({
+      status: 200,
+      data: { code: 0, data: { batchId: 7002, totalCount: 1, waitingCount: 1, inWorkCount: 0, successCount: 0, failCount: 0 } }
+    })
+    await newPolling
+    expect(context.dispatchProgress.batchId).toBe(7002)
+    expect(context.dispatchPollingTimer).not.toBeNull()
+  })
+
+  it('详情页切换批次后旧失败不停止新轮询', async () => {
+    let rejectOldProgress
+    let resolveNewProgress
+    request
+      .mockReturnValueOnce(new Promise((resolve, reject) => {
+        rejectOldProgress = reject
+      }))
+      .mockReturnValueOnce(new Promise(resolve => {
+        resolveNewProgress = resolve
+      }))
+    const context = createDetailContext()
+    const oldPolling = context.startDispatchProgressPolling(7001)
+    await flushPromises()
+    const newPolling = context.startDispatchProgressPolling(7002)
+    await flushPromises()
+
+    rejectOldProgress(new Error('旧批次查询失败'))
+    await oldPolling
+
+    expect(context.dispatchBatchId).toBe(7002)
+    expect(context.$message).not.toHaveBeenCalled()
+    resolveNewProgress({
+      status: 200,
+      data: { code: 0, data: { batchId: 7002, totalCount: 1, waitingCount: 1, inWorkCount: 0, successCount: 0, failCount: 0 } }
+    })
+    await newPolling
+    expect(context.dispatchPollingTimer).not.toBeNull()
   })
 })
