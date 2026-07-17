@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -91,6 +92,22 @@ public class SecurityAuthDispatchAcceptanceTest {
 		assertEquals(Integer.valueOf(0), accepted.getAcceptedCount());
 		assertNotNull(accepted.getBatchId());
 		assertEquals("空明细不能被误判为全部成功", DeviceDownStatusEnum.WAIT.getCode(), apply.getDeviceStatus());
+	}
+
+	@Test
+	public void acceptDispatch_whenAllDetailsAreAlreadySuccessful_reusesCurrentSuccessfulBatch() {
+		SmtSecurityAuthApply apply = approvedApply(1004L);
+		apply.setCurrentDispatchBatchId(9004L);
+		apply.setDeviceStatus(DeviceDownStatusEnum.SUCCESS.getCode());
+		doReturn(apply).when(applyService).getOne(any());
+		when(taskDetailsService.rebindDispatchBatch(anyLong(), anyLong())).thenReturn(0);
+
+		SecurityDispatchAcceptedVO accepted = applyService.acceptDispatch(1004L);
+
+		assertEquals("全成功后重复受理不得制造空新批次", Long.valueOf(9004L), accepted.getBatchId());
+		assertEquals(Integer.valueOf(0), accepted.getAcceptedCount());
+		assertEquals("当前成功批次必须保持不变", Long.valueOf(9004L), apply.getCurrentDispatchBatchId());
+		verify(applyMapper, never()).update(any(), any());
 	}
 
 	@Test

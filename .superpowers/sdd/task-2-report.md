@@ -30,14 +30,17 @@ mvn -pl smart-platform/smart-platform-biz -am test \
   -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
-结果：`Tests run: 35, Failures: 0, Errors: 0, Skipped: 0`，`BUILD SUCCESS`。
+结果：`Tests run: 36, Failures: 0, Errors: 0, Skipped: 0`，`BUILD SUCCESS`。
 
 独立复审曾指出两项阻断：空明细被错误置为 `SUCCESS`，以及旧批次进度可能覆盖新批次。已分别改为保持主单状态、和以 `id + currentDispatchBatchId` 条件更新，并补充回归测试；复审结论为 `APPROVE`。
+
+后续验收发现：全部明细已经 `SUCCESS` 后再次受理仍会生成并持久化空批次。新增 `acceptDispatch_whenAllDetailsAreAlreadySuccessful_reusesCurrentSuccessfulBatch` 后，GREEN 前稳定失败（期望 `9004`、实际为新生成批次）；现改为返回既有 `currentDispatchBatchId`、`acceptedCount=0`，且断言不执行主单更新，不产生空批次。
 
 ## 变更
 
 - 新增 POST `/security/auth/apply/{id}/dispatch`，返回 HTTP 202 与 `batchId`、去重受理人数、接管数（Task 2 固定 0）；保留旧 GET 兼容入口并返回相同 202 语义。
 - 事务内 `SELECT ... FOR UPDATE` 锁申请单，只允许 OA 已通过；以新批次重绑所有非成功明细为 `WAIT + DISPATCH_BATCH_ID`，成功明细不重发。
+- 当全部明细已成功且当前批次存在时，重复受理复用既有成功批次并返回零受理人数，不持久化空新批次。
 - 新增按 `id + WAIT + dispatchBatchId` 的原子领取条件，旧批次无法领取；受理路径不调用 `updatePersonCard`、ISC 或旧 ISC 任务接管。
 - 增加当前批次进度 VO/接口，并按当前批次明细聚合主表为 `IN_WORK`、`SUCCESS` 或 `FAIL`。
 - 兼容回调和 OA 对账入口使用显式事务模板，避免内部调用绕过申请单行锁。

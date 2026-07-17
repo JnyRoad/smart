@@ -179,6 +179,11 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 
 		Long batchId = IdWorker.getId();
 		int acceptedDetailCount = smtSecurityTaskDetailsService.rebindDispatchBatch(applyId, batchId);
+		if (acceptedDetailCount == 0 && DeviceDownStatusEnum.SUCCESS.getCode().equals(authApply.getDeviceStatus())
+				&& Objects.nonNull(authApply.getCurrentDispatchBatchId())) {
+			// 所有明细已成功时复用既有成功批次，禁止持久化空的新批次。
+			return new SecurityDispatchAcceptedVO(authApply.getCurrentDispatchBatchId(), 0, 0);
+		}
 		int acceptedCount = acceptedDetailCount == 0 ? 0 : smtSecurityTaskDetailsService.countDispatchPeople(applyId, batchId);
 		authApply.setCurrentDispatchBatchId(batchId);
 		if (acceptedDetailCount > 0) {
