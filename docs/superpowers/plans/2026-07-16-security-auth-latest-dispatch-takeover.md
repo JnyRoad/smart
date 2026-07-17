@@ -130,7 +130,7 @@
 **实现：**
 
 1. 新增 `updatePersonCardForSecurityDispatch(context)` 专用入口，内部复用当前任务生成代码；不得给通用 `updatePersonCard` 增加“默认替换”行为。
-2. 新建每 30 秒执行的 schedule：分布式锁 + Nacos 开关 + Feign `@Inner` 调用。worker 按申请单、batchId 和人员上限领取 Task 2 已持久化的 `WAIT + DISPATCH_BATCH_ID` 明细；领取、旧任务接管、创建新 ISC 任务须使用同一申请单串行边界，避免受理和消费交错。
+2. 新建每 30 秒执行的 schedule：分布式锁 + Nacos 开关 + Feign `@Inner` 调用。worker 按申请单、batchId 和人员上限领取 Task 2 已持久化的 `WAIT + DISPATCH_BATCH_ID` 明细；领取、旧任务接管、创建新 ISC 任务须使用同一申请单串行边界，避免受理和消费交错。`DOING` 且尚无 `ISC_TASK_ID` 的任务保留 2 分钟提交保护窗口（覆盖 1 分钟设备调度和一次 ISC 提交抖动），窗口内不得接管。
 3. Mapper 用意图键查询旧安全权限任务，并执行带状态、旧 batch 和更新时间条件的 CAS 取消；备注写“被批次 {newBatchId} 接管”，保留原 `ISC_TASK_ID` 作为审计证据。对于已提交 ISC 的 `DOING` 任务不调用 ISC 取消接口，直接创建新任务，由 ISC 的新权限覆盖旧权限。
 4. `getCardDown` 及其他实际提交 ISC 的查询增加围栏：`SOURCE_TYPE=SECURITY_AUTH` 的任务只有 `BATCH_ID = SMT_SECURITY_AUTH_APPLY.CURRENT_DISPATCH_BATCH_ID` 才可提交 ISC。被替换的 INIT/离线任务即使遗漏一次取消，也绝不能被调度取走。
 5. 旧批次的任何 ISC 轮询结果只能更新其本身任务，不能聚合或回写当前批次；当前批次只统计 `BATCH_ID = CURRENT_DISPATCH_BATCH_ID` 的任务。
