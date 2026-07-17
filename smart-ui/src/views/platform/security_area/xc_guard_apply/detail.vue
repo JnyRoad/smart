@@ -48,16 +48,28 @@
                   <td>{{detailInfo.deviceStatusDesc || '-'}}</td>
                 </tr>
                 <tr>
+                  <td>当前批次</td>
+                  <td>{{dispatchProgress.batchId || detailInfo.currentDispatchBatchId || '-'}}</td>
+                </tr>
+                <tr>
                   <td>下发总数</td>
-                  <td>{{detailInfo.totalNum}}</td>
+                  <td>{{dispatchProgress.totalCount || detailInfo.totalNum || 0}}</td>
+                </tr>
+                <tr>
+                  <td>待处理数量</td>
+                  <td>{{dispatchProgress.waitingCount + dispatchProgress.inWorkCount}}</td>
                 </tr>
                  <tr>
                   <td>下发成功数量</td>
-                  <td>{{detailInfo.successNum}}</td>
+                  <td>{{dispatchProgress.successCount}}</td>
                 </tr>
                  <tr>
                   <td>下发失败数量</td>
-                  <td>{{detailInfo.failNum}}</td>
+                  <td>{{dispatchProgress.failCount}}</td>
+                </tr>
+                 <tr>
+                  <td>已取消数量</td>
+                  <td>{{dispatchProgress.canceledCount}}</td>
                 </tr>
               </table>
             </el-col>
@@ -94,6 +106,25 @@
             </el-col>
           </el-row>
           <div class="gray-line"></div>
+          <div v-if="dispatchProgress.failureReasons.length" class="dispatch-failure-reasons">
+            <p class="box-orange">当前批次失败原因</p>
+            <table class="lit-table" border="false">
+              <tr>
+                <th>工号</th>
+                <th>姓名</th>
+                <th>设备编码</th>
+                <th>终态</th>
+                <th>原因</th>
+              </tr>
+              <tr v-for="(failure, index) in dispatchProgress.failureReasons" :key="`${failure.staffBadge}-${failure.deviceCode}-${index}`">
+                <td>{{failure.staffBadge || '-'}}</td>
+                <td>{{failure.staffName || '-'}}</td>
+                <td>{{failure.deviceCode || '-'}}</td>
+                <td>{{failure.status || '-'}}</td>
+                <td>{{failure.reason || '-'}}</td>
+              </tr>
+            </table>
+          </div>
           <div class="row2">
             <p class="box-orange">人员名单</p>
             <el-button type="primary" @click="handelExport" :loading="exportLoading" icon="icon-yutong-download" :disabled="!tableData || tableData.length===0">导出下发失败excel</el-button>
@@ -126,6 +157,17 @@
 import UploadImg from './components/upload_img'
 import { xcGuardApplyApi } from "./_service"
 
+const emptyDispatchProgress = () => ({
+  batchId: null,
+  totalCount: 0,
+  waitingCount: 0,
+  inWorkCount: 0,
+  successCount: 0,
+  failCount: 0,
+  canceledCount: 0,
+  failureReasons: []
+})
+
 export default {
   components: {
     UploadImg
@@ -140,7 +182,10 @@ export default {
       areaNewType: [],
       areaOldType: [],
       newAreaType: null,
-      oldAreaType: null
+      oldAreaType: null,
+      dispatchProgress: emptyDispatchProgress(),
+      dispatchPollingTimer: null,
+      dispatchBatchId: null
     };
   },
   created() {
@@ -151,6 +196,9 @@ export default {
       this.areaOldType = response.data.data
     })
     this.getDetail()
+  },
+  beforeDestroy() {
+    this.stopDispatchProgressPolling()
   },
   computed: {
   },
@@ -192,7 +240,7 @@ export default {
       ]).then(arr=>{
         if(arr[0].data.code===0 && arr[0].data.data){
           this.detailInfo = arr[0].data.data
-          const areaType = this.detailInfo.areaType
+          const areaType = this.detailInfo.areaType || []
           const newAreaTypeList = [],
             oldAreaTypeList = []
           areaType.forEach((element) => {
@@ -211,6 +259,12 @@ export default {
           if (oldAreaTypeList.length > 0) {
             this.oldAreaType = oldAreaTypeList.join(',')
           }
+          if (this.detailInfo.currentDispatchBatchId) {
+            this.startDispatchProgressPolling(this.detailInfo.currentDispatchBatchId)
+          } else {
+            this.stopDispatchProgressPolling()
+            this.dispatchProgress = emptyDispatchProgress()
+          }
         }else{
           this.detailInfo = {}
         }
@@ -219,7 +273,64 @@ export default {
         }else{
           this.tableData = []
         }
+      }).catch(() => {
+        this.stopDispatchProgressPolling()
       })
+    },
+    /**
+     * 详情页仅轮询当前批次；切换或销毁时清理旧定时器。
+     */
+    async startDispatchProgressPolling(batchId) {
+      this.stopDispatchProgressPolling()
+      this.dispatchBatchId = batchId
+      await this.pollDispatchProgress()
+    },
+    async pollDispatchProgress() {
+      if (!this.dispatchBatchId) {
+        return
+      }
+      const batchId = this.dispatchBatchId
+      try {
+        const res = await xcGuardApplyApi.getDispatchProgress(this.$route.params.id, batchId)
+        const progress = res.data && res.data.data
+        if (!res.data || res.data.code !== 0 || !progress || progress.batchId !== batchId) {
+          throw new Error('下发进度返回异常')
+        }
+        this.dispatchProgress = Object.assign(emptyDispatchProgress(), progress)
+        if (!Array.isArray(this.dispatchProgress.failureReasons)) {
+          this.dispatchProgress.failureReasons = []
+        }
+        if (this.isDispatchTerminal(progress)) {
+          this.stopDispatchProgressPolling()
+          return
+        }
+        this.dispatchPollingTimer = window.setTimeout(() => {
+          this.dispatchPollingTimer = null
+          this.pollDispatchProgress()
+        }, 3000)
+      } catch (error) {
+        this.stopDispatchProgressPolling()
+        this.$message({
+          message: '下发进度查询失败，请刷新后重试',
+          type: 'error'
+        })
+      }
+    },
+    /**
+     * canceledCount 已含在 failCount 中，因此不会重复计入完成数。
+     */
+    isDispatchTerminal(progress) {
+      const totalCount = Number(progress.totalCount) || 0
+      const pendingCount = (Number(progress.waitingCount) || 0) + (Number(progress.inWorkCount) || 0)
+      const completedCount = (Number(progress.successCount) || 0) + (Number(progress.failCount) || 0)
+      return totalCount > 0 && pendingCount === 0 && completedCount >= totalCount
+    },
+    stopDispatchProgressPolling() {
+      if (this.dispatchPollingTimer) {
+        window.clearTimeout(this.dispatchPollingTimer)
+      }
+      this.dispatchPollingTimer = null
+      this.dispatchBatchId = null
     },
     /**
      * 更换照片
