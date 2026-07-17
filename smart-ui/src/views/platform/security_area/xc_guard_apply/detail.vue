@@ -185,7 +185,10 @@ export default {
       oldAreaType: null,
       dispatchProgress: emptyDispatchProgress(),
       dispatchPollingTimer: null,
-      dispatchBatchId: null
+      dispatchBatchId: null,
+      dispatchPollingGeneration: 0,
+      dispatchPollingToken: null,
+      isDestroyed: false
     };
   },
   created() {
@@ -198,6 +201,7 @@ export default {
     this.getDetail()
   },
   beforeDestroy() {
+    this.isDestroyed = true
     this.stopDispatchProgressPolling()
   },
   computed: {
@@ -282,16 +286,20 @@ export default {
      */
     async startDispatchProgressPolling(batchId) {
       this.stopDispatchProgressPolling()
+      const token = ++this.dispatchPollingGeneration
       this.dispatchBatchId = batchId
-      await this.pollDispatchProgress()
+      this.dispatchPollingToken = token
+      await this.pollDispatchProgress(batchId, token)
     },
-    async pollDispatchProgress() {
-      if (!this.dispatchBatchId) {
+    async pollDispatchProgress(batchId, token) {
+      if (!this.isCurrentDispatch(batchId, token)) {
         return
       }
-      const batchId = this.dispatchBatchId
       try {
         const res = await xcGuardApplyApi.getDispatchProgress(this.$route.params.id, batchId)
+        if (!this.isCurrentDispatch(batchId, token)) {
+          return
+        }
         const progress = res.data && res.data.data
         if (!res.data || res.data.code !== 0 || !progress || progress.batchId !== batchId) {
           throw new Error('下发进度返回异常')
@@ -301,15 +309,24 @@ export default {
           this.dispatchProgress.failureReasons = []
         }
         if (this.isDispatchTerminal(progress)) {
-          this.stopDispatchProgressPolling()
+          this.stopDispatchProgressPolling(batchId, token)
+          return
+        }
+        if (!this.isCurrentDispatch(batchId, token)) {
           return
         }
         this.dispatchPollingTimer = window.setTimeout(() => {
+          if (!this.isCurrentDispatch(batchId, token)) {
+            return
+          }
           this.dispatchPollingTimer = null
-          this.pollDispatchProgress()
+          this.pollDispatchProgress(batchId, token)
         }, 3000)
       } catch (error) {
-        this.stopDispatchProgressPolling()
+        if (!this.isCurrentDispatch(batchId, token)) {
+          return
+        }
+        this.stopDispatchProgressPolling(batchId, token)
         this.$message({
           message: '下发进度查询失败，请刷新后重试',
           type: 'error'
@@ -325,12 +342,25 @@ export default {
       const completedCount = (Number(progress.successCount) || 0) + (Number(progress.failCount) || 0)
       return totalCount > 0 && pendingCount === 0 && completedCount >= totalCount
     },
-    stopDispatchProgressPolling() {
+    stopDispatchProgressPolling(batchId, token) {
+      if (token !== undefined && !this.isCurrentDispatch(batchId, token)) {
+        return
+      }
       if (this.dispatchPollingTimer) {
         window.clearTimeout(this.dispatchPollingTimer)
       }
       this.dispatchPollingTimer = null
       this.dispatchBatchId = null
+      this.dispatchPollingToken = null
+      this.dispatchPollingGeneration++
+    },
+    /**
+     * 仅当前详情组件、批次和轮询代际可以更新页面。
+     */
+    isCurrentDispatch(batchId, token) {
+      return !this.isDestroyed
+        && this.dispatchBatchId === batchId
+        && this.dispatchPollingToken === token
     },
     /**
      * 更换照片

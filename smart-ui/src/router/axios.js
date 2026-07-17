@@ -58,7 +58,7 @@ axios.interceptors.response.use(res => {
     return Promise.reject(new Error(message))
   }
 
-  if (status !== 200 || res.data.code === 1) {
+  if ((status < 200 || status >= 300) || res.data.code === 1) {
     Message({
       message: message,
       type: 'error'
