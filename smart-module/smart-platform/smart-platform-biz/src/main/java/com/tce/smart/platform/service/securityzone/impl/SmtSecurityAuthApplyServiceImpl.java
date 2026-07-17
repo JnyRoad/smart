@@ -177,13 +177,12 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 			throw new SmartException("OA审批未通过，禁止下发");
 		}
 
-		Long batchId = IdWorker.getId();
-		int acceptedDetailCount = smtSecurityTaskDetailsService.rebindDispatchBatch(applyId, batchId);
-		if (acceptedDetailCount == 0 && DeviceDownStatusEnum.SUCCESS.getCode().equals(authApply.getDeviceStatus())
-				&& Objects.nonNull(authApply.getCurrentDispatchBatchId())) {
-			// 所有明细已成功时复用既有成功批次，禁止持久化空的新批次。
+		if (isCurrentDispatchBatchAllSuccessful(authApply)) {
+			// 明细已全部成功但主单尚未聚合时，也必须复用既有批次，禁止持久化空的新批次。
 			return new SecurityDispatchAcceptedVO(authApply.getCurrentDispatchBatchId(), 0, 0);
 		}
+		Long batchId = IdWorker.getId();
+		int acceptedDetailCount = smtSecurityTaskDetailsService.rebindDispatchBatch(applyId, batchId);
 		int acceptedCount = acceptedDetailCount == 0 ? 0 : smtSecurityTaskDetailsService.countDispatchPeople(applyId, batchId);
 		authApply.setCurrentDispatchBatchId(batchId);
 		if (acceptedDetailCount > 0) {
@@ -191,6 +190,20 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 		}
 		this.updateById(authApply);
 		return new SecurityDispatchAcceptedVO(batchId, acceptedCount, 0);
+	}
+
+	/**
+	 * 以旧批次明细为准判断是否已经全部完成，不能依赖尚未聚合的主单状态。
+	 */
+	private boolean isCurrentDispatchBatchAllSuccessful(SmtSecurityAuthApply authApply) {
+		if (Objects.isNull(authApply.getCurrentDispatchBatchId())) {
+			return false;
+		}
+		List<SmtSecurityTaskDetails> details = smtSecurityTaskDetailsService.list(Wrappers.<SmtSecurityTaskDetails>lambdaQuery()
+				.eq(SmtSecurityTaskDetails::getApplyId, authApply.getId())
+				.eq(SmtSecurityTaskDetails::getDispatchBatchId, authApply.getCurrentDispatchBatchId()));
+		return CollUtil.isNotEmpty(details) && details.stream()
+				.allMatch(detail -> DeviceDownStatusEnum.SUCCESS.getCode().equals(detail.getStatus()));
 	}
 
 	@Override
