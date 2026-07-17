@@ -99,25 +99,22 @@
 
 **测试：**并发两个命令只能留下一个 current batch；新批次不包含已成功人员；迁移重复执行不报错。
 
-### Task 2：把同步下发改为 202 命令 + 后台分批消费
+### Task 2：把同步下发改为 202 命令 + 批次受理
 
 **文件：**
 
 - 修改：`SmtSecurityAuthApplyController.java`、`SmtSecurityAuthApplyService.java`、`SmtSecurityAuthApplyServiceImpl.java`
 - 修改：`SmtSecurityTaskDetailsService.java`、`SmtSecurityTaskDetailsServiceImpl.java`
 - 新增：`SecurityDispatchAcceptedVO`、`SecurityDispatchProgressVO`
-- 修改：`RemoteSecurityAuthService.java`
-- 修改：`smart-schedule/.../PlatformTimerTask.java`、`TaskJob.java`、`TimerTaskEnum.java`
 
 **实现：**
 
-1. 命令接口只做 OA 已通过校验、生成 batchId、明细重绑和旧 DB 任务接管；不得调用 `updatePersonCard`。明细的 `WAIT + DISPATCH_BATCH_ID` 即为已持久化的待执行命令。
+1. 命令接口只做 OA 已通过校验、锁定申请单、生成 batchId 和明细重绑；不得调用 `updatePersonCard`。明细的 `WAIT + DISPATCH_BATCH_ID` 即为已持久化的待执行命令。旧 ISC 任务接管与后台执行在任务 3 中和实际任务创建放进同一个事务边界。
 2. 返回码为 HTTP 202，不以 `Boolean` 表示“设备已下发成功”。受理 VO 必须给出 batchId、受理人数和接管数。
-3. 新建每 30 秒执行的 schedule：分布式锁 + Nacos 开关 + Feign `@Inner` 调用；每轮按申请单、batchId 和人员上限消费 `SmtSecurityTaskDetails`，避免一张大申请占满工作线程。
-4. 明细领取改为 `id + status + dispatchBatchId` 条件更新；旧批次 worker 即使拿到旧对象，也无法再创建新任务。
-5. 将当前 `triggerDownDevice` 中“明细为空也标主表已下发”的错误语义改掉。批次开始显示 `IN_WORK`；当前批次全部成功才写 `SUCCESS`，存在任一失败则写 `FAIL`，通过成功/失败数量区分部分失败，不新增不存在的状态枚举。
+3. 受理事务将待处理人员写成 `WAIT + DISPATCH_BATCH_ID`，不重新下发已成功人员；并提供 `id + status + dispatchBatchId` 条件领取能力，为任务 3 的 worker 建立批次围栏。
+4. 将当前 `triggerDownDevice` 中“明细为空也标主表已下发”的错误语义改掉。批次开始显示 `IN_WORK`；当前批次全部成功才写 `SUCCESS`，存在任一失败则写 `FAIL`，通过成功/失败数量区分部分失败，不新增不存在的状态枚举。
 
-**测试：**控制器 MockMvc 断言 202；大于单轮上限时命令仍快速返回；同一批次两次 worker 调用不会重复领取；旧 batch worker 不能创建任务。
+**测试：**控制器 MockMvc 断言 202；大于单轮上限时命令仍快速返回；同一申请连续受理只保留最新 batch；已成功人员不进入新批次；旧 batch 不能通过条件领取。
 
 ### Task 3：ISC 任务接管、调度围栏和状态聚合
 
@@ -128,14 +125,16 @@
 - 修改：`SmtStaffService.java`、`SmtStaffServiceImpl.java`
 - 修改：`ISCDeviceTaskServiceImpl.java`
 - 新增：`SecurityAuthDispatchContext`（只供安全权限路径传递来源、批次和意图键）。
+- 修改：`RemoteSecurityAuthService.java`、`PlatformTimerTask.java`、`TaskJob.java`、`TimerTaskEnum.java`
 
 **实现：**
 
 1. 新增 `updatePersonCardForSecurityDispatch(context)` 专用入口，内部复用当前任务生成代码；不得给通用 `updatePersonCard` 增加“默认替换”行为。
-2. Mapper 用意图键查询旧安全权限任务，并执行带状态、旧 batch 和更新时间条件的 CAS 取消；备注写“被批次 {newBatchId} 接管”，保留原 `ISC_TASK_ID` 作为审计证据。对于已提交 ISC 的 `DOING` 任务不调用 ISC 取消接口，直接创建新任务，由 ISC 的新权限覆盖旧权限。
-3. `getCardDown` 及其他实际提交 ISC 的查询增加围栏：`SOURCE_TYPE=SECURITY_AUTH` 的任务只有 `BATCH_ID = SMT_SECURITY_AUTH_APPLY.CURRENT_DISPATCH_BATCH_ID` 才可提交 ISC。被替换的 INIT/离线任务即使遗漏一次取消，也绝不能被调度取走。
-4. 旧批次的任何 ISC 轮询结果只能更新其本身任务，不能聚合或回写当前批次；当前批次只统计 `BATCH_ID = CURRENT_DISPATCH_BATCH_ID` 的任务。
-5. 用 `SOURCE_DETAIL_ID` 聚合一个人员的全部设备任务：全成功才 SUCCESS；任一 FAIL/CANCEL/EXPIRED 才 FAIL；其余保持 IN_WORK。批次聚合再回写申请单和进度接口，替换当前只查询 `SMT_DEVICE_TASK`、看不到 ISC 任务的 `syncTaskStatus` 实现。
+2. 新建每 30 秒执行的 schedule：分布式锁 + Nacos 开关 + Feign `@Inner` 调用。worker 按申请单、batchId 和人员上限领取 Task 2 已持久化的 `WAIT + DISPATCH_BATCH_ID` 明细；领取、旧任务接管、创建新 ISC 任务须使用同一申请单串行边界，避免受理和消费交错。
+3. Mapper 用意图键查询旧安全权限任务，并执行带状态、旧 batch 和更新时间条件的 CAS 取消；备注写“被批次 {newBatchId} 接管”，保留原 `ISC_TASK_ID` 作为审计证据。对于已提交 ISC 的 `DOING` 任务不调用 ISC 取消接口，直接创建新任务，由 ISC 的新权限覆盖旧权限。
+4. `getCardDown` 及其他实际提交 ISC 的查询增加围栏：`SOURCE_TYPE=SECURITY_AUTH` 的任务只有 `BATCH_ID = SMT_SECURITY_AUTH_APPLY.CURRENT_DISPATCH_BATCH_ID` 才可提交 ISC。被替换的 INIT/离线任务即使遗漏一次取消，也绝不能被调度取走。
+5. 旧批次的任何 ISC 轮询结果只能更新其本身任务，不能聚合或回写当前批次；当前批次只统计 `BATCH_ID = CURRENT_DISPATCH_BATCH_ID` 的任务。
+6. 用 `SOURCE_DETAIL_ID` 聚合一个人员的全部设备任务：全成功才 SUCCESS；任一 FAIL/CANCEL/EXPIRED 才 FAIL；其余保持 IN_WORK。批次聚合再回写申请单和进度接口，替换当前只查询 `SMT_DEVICE_TASK`、看不到 ISC 任务的 `syncTaskStatus` 实现。
 
 **测试：**
 
