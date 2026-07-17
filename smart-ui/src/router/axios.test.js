@@ -59,6 +59,12 @@ describe('response interceptor: success', () => {
     expect(onResponse(res)).toBe(res)
     expect(Message).not.toHaveBeenCalled()
   })
+
+  it.each([201, 204])('treats HTTP %i as a successful 2xx response without an error message', (status) => {
+    const res = makeRes(status, { code: 0 })
+    expect(onResponse(res)).toBe(res)
+    expect(Message).not.toHaveBeenCalled()
+  })
 })
 
 describe('response interceptor: business failure (code === 1)', () => {

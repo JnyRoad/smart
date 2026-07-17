@@ -222,7 +222,7 @@ describe('保密门禁手动下发流程', () => {
     expect(context.dispatchPollingTimer).toBeNull()
   })
 
-  it('详情页切换批次后旧成功不影响新轮询', async () => {
+  it('详情页新批次已创建轮询后旧成功不覆盖新进度或定时器', async () => {
     let resolveOldProgress
     let resolveNewProgress
     request
@@ -233,31 +233,33 @@ describe('保密门禁手动下发流程', () => {
         resolveNewProgress = resolve
       }))
     const context = createDetailContext()
-    const originalProgress = context.dispatchProgress
     const oldPolling = context.startDispatchProgressPolling(7001)
     await flushPromises()
     const newPolling = context.startDispatchProgressPolling(7002)
     await flushPromises()
 
+    resolveNewProgress({
+      status: 200,
+      data: { code: 0, data: { batchId: 7002, totalCount: 1, waitingCount: 1, inWorkCount: 0, successCount: 0, failCount: 0 } }
+    })
+    await newPolling
+    const newProgress = context.dispatchProgress
+    const newTimer = context.dispatchPollingTimer
+
+    expect(context.dispatchBatchId).toBe(7002)
+    expect(newProgress.batchId).toBe(7002)
+    expect(newTimer).not.toBeNull()
     resolveOldProgress({
       status: 200,
       data: { code: 0, data: { batchId: 7001, totalCount: 1, waitingCount: 1, inWorkCount: 0, successCount: 0, failCount: 0 } }
     })
     await oldPolling
 
-    expect(context.dispatchBatchId).toBe(7002)
-    expect(context.dispatchProgress).toBe(originalProgress)
-    expect(context.dispatchPollingTimer).toBeNull()
-    resolveNewProgress({
-      status: 200,
-      data: { code: 0, data: { batchId: 7002, totalCount: 1, waitingCount: 1, inWorkCount: 0, successCount: 0, failCount: 0 } }
-    })
-    await newPolling
-    expect(context.dispatchProgress.batchId).toBe(7002)
-    expect(context.dispatchPollingTimer).not.toBeNull()
+    expect(context.dispatchProgress).toBe(newProgress)
+    expect(context.dispatchPollingTimer).toBe(newTimer)
   })
 
-  it('详情页切换批次后旧失败不停止新轮询', async () => {
+  it('详情页新批次已创建轮询后旧失败不停止或干扰新轮询', async () => {
     let rejectOldProgress
     let resolveNewProgress
     request
@@ -273,16 +275,20 @@ describe('保密门禁手动下发流程', () => {
     const newPolling = context.startDispatchProgressPolling(7002)
     await flushPromises()
 
-    rejectOldProgress(new Error('旧批次查询失败'))
-    await oldPolling
-
-    expect(context.dispatchBatchId).toBe(7002)
-    expect(context.$message).not.toHaveBeenCalled()
     resolveNewProgress({
       status: 200,
       data: { code: 0, data: { batchId: 7002, totalCount: 1, waitingCount: 1, inWorkCount: 0, successCount: 0, failCount: 0 } }
     })
     await newPolling
-    expect(context.dispatchPollingTimer).not.toBeNull()
+    const newProgress = context.dispatchProgress
+    const newTimer = context.dispatchPollingTimer
+
+    rejectOldProgress(new Error('旧批次查询失败'))
+    await oldPolling
+
+    expect(context.dispatchBatchId).toBe(7002)
+    expect(context.$message).not.toHaveBeenCalled()
+    expect(context.dispatchProgress).toBe(newProgress)
+    expect(context.dispatchPollingTimer).toBe(newTimer)
   })
 })
