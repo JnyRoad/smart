@@ -95,6 +95,8 @@
 3. 将首次待下发的 WAIT 明细，以及可重试的明细（FAIL、CANCEL、DEVICE_OFFLINE、已判终态失败、已过保护期的孤儿 IN_WORK）绑到新 batch 并设为 WAIT；已成功明细不重发。
 4. 任务创建时传入来源/批次/明细/意图键；不使用 `APPLY_ID`，防止污染入厂申请聚合。
 
+**边界：**不在安全申请明细新增 `CANCEL`、`DEVICE_OFFLINE` 等镜像状态，ISC 的真实状态以 `SMT_ISC_DEVICE_TASK.STATUS` 为准；历史任务不回填 `SOURCE_DETAIL_ID`。重新绑批的事务和候选判定由任务 2、3 结合现有明细状态与新来源字段完成。
+
 **测试：**并发两个命令只能留下一个 current batch；新批次不包含已成功人员；迁移重复执行不报错。
 
 ### Task 2：把同步下发改为 202 命令 + 后台分批消费
