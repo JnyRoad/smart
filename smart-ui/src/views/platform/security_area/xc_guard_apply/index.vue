@@ -45,10 +45,9 @@
           <el-form-item label="下发状态" prop="downStatus">
             <el-select v-model="mixinSearchForm.downStatus" clearable>
               <el-option label="待下发" :value="0"></el-option>
-              <el-option label="已下发" :value="4"></el-option>
-              <!-- <el-option label="下发成功" :value="1"></el-option>
-              <el-option label="下发失败" :value="2"></el-option>
-              <el-option label="下发中" :value="3"></el-option> -->
+              <el-option label="下发中" :value="3"></el-option>
+              <el-option label="下发成功" :value="1"></el-option>
+              <el-option label="部分失败/失败" :value="2"></el-option>
             </el-select>
           </el-form-item>
         </el-form>
@@ -64,7 +63,7 @@
           <template slot-scope="scope" slot="menu">
             <el-button type="text" icon="el-icon-view" @click="handleDetail(scope.row,scope.$index)" >详情</el-button>
             <!--oaStatus oa状态 已通过 才可以手动下发；按钮权限码需在菜单管理配置并绑定角色（见 runbook） -->
-            <el-button type="text" v-if="permissions['platform_security_auth_down']" @click="handleSend(scope.row, scope.$index)" :disabled="scope.row.oaStatus!==1">手动下发</el-button>
+            <el-button type="text" v-if="permissions['platform_security_auth_down']" @click="handleSend(scope.row, scope.$index)" :disabled="scope.row.oaStatus!==1 || isDispatchPending(scope.row.id)">手动下发</el-button>
           </template>
         </avue-crud>
       </section>
@@ -85,6 +84,11 @@ export default {
       times: [],
       tableData: [],
       listOption: listOption(),
+      dispatchingIds: {},
+      dispatchPollingTimer: null,
+      activeDispatch: null,
+      dispatchPollingGeneration: 0,
+      isDestroyed: false
     };
   },
   computed: {
@@ -119,33 +123,166 @@ export default {
       }
     }
   },
-  mounted: function() {},
+  beforeDestroy() {
+    this.isDestroyed = true
+    this.stopDispatchProgressPolling()
+  },
   methods: {
     refresh(){
       this.getList(this.mixinPage, this.mixinSearchForm)
     },
     async getList(page, params) {
       this.mixinTableLoading = true
-      const res = await  xcGuardApplyApi.getList({
+      try {
+        const res = await xcGuardApplyApi.getList({
           current: page.currentPage,
           size: page.pageSize
-        },params
-      )
-      this.tableData = res.data.data.records
-      this.mixinPage.total = res.data.data.total
-      this.mixinTableLoading = false;
+        }, params)
+        this.tableData = res.data.data.records
+        this.mixinPage.total = res.data.data.total
+      } finally {
+        this.mixinTableLoading = false
+      }
     },
     /**
      * 手动下发
      */
     async handleSend(row){
-      const res = await xcGuardApplyApi.doSend(row.id)
-      if(res.data.code===0 && res.data.data){
-        this.$message({
-          message: '手动下发成功',
-          type: 'success'
-        });
+      if (this.isDispatchPending(row.id)) {
+        return
       }
+      if (this.$set) {
+        this.$set(this.dispatchingIds, row.id, true)
+      } else {
+        this.dispatchingIds[row.id] = true
+      }
+      try {
+        const res = await xcGuardApplyApi.doSend(row.id)
+        const accepted = res.data && res.data.data
+        if (res.status !== 202 || !res.data || res.data.code !== 0 || !accepted || !accepted.batchId) {
+          throw new Error('下发命令未被受理')
+        }
+        this.$message({
+          message: `已受理，正在下发（批次 ${accepted.batchId}）`,
+          type: 'success'
+        })
+        this.refresh()
+        this.startDispatchProgressPolling(row.id, accepted.batchId)
+      } catch (error) {
+        this.$message({
+          message: '下发命令未受理，请稍后重试',
+          type: 'error'
+        })
+      } finally {
+        if (this.$set) {
+          this.$set(this.dispatchingIds, row.id, false)
+        } else {
+          this.dispatchingIds[row.id] = false
+        }
+      }
+    },
+    /**
+     * 当前申请单的受理请求尚未返回时禁止重复提交。
+     */
+    isDispatchPending(applyId) {
+      return this.dispatchingIds[applyId] === true
+    },
+    /**
+     * 每次只保留一个当前批次轮询，防止旧批次结果覆盖新批次展示。
+     */
+    async startDispatchProgressPolling(applyId, batchId) {
+      this.stopDispatchProgressPolling()
+      const token = ++this.dispatchPollingGeneration
+      this.activeDispatch = { applyId, batchId, token }
+      await this.pollDispatchProgress(token)
+    },
+    async pollDispatchProgress(token) {
+      if (!this.isCurrentDispatch(token)) {
+        return
+      }
+      const activeDispatch = this.activeDispatch
+      try {
+        const res = await xcGuardApplyApi.getDispatchProgress(activeDispatch.applyId, activeDispatch.batchId)
+        if (!this.isCurrentDispatch(token)) {
+          return
+        }
+        const progress = res.data && res.data.data
+        if (!res.data || res.data.code !== 0 || !progress || progress.batchId !== activeDispatch.batchId) {
+          throw new Error('下发进度返回异常')
+        }
+        this.applyDispatchProgress(activeDispatch.applyId, progress)
+        if (this.isDispatchTerminal(progress)) {
+          this.stopDispatchProgressPolling(token)
+          this.refresh()
+          return
+        }
+        if (!this.isCurrentDispatch(token)) {
+          return
+        }
+        this.dispatchPollingTimer = window.setTimeout(() => {
+          if (!this.isCurrentDispatch(token)) {
+            return
+          }
+          this.dispatchPollingTimer = null
+          this.pollDispatchProgress(token)
+        }, 3000)
+      } catch (error) {
+        if (!this.isCurrentDispatch(token)) {
+          return
+        }
+        this.stopDispatchProgressPolling(token)
+        this.$message({
+          message: '下发进度查询失败，请刷新后重试',
+          type: 'error'
+        })
+      }
+    },
+    /**
+     * HTTP 失败、组件销毁和批次终态都必须停止定时器。
+     */
+    stopDispatchProgressPolling(token) {
+      if (token !== undefined && !this.isCurrentDispatch(token)) {
+        return
+      }
+      if (this.dispatchPollingTimer) {
+        window.clearTimeout(this.dispatchPollingTimer)
+      }
+      this.dispatchPollingTimer = null
+      this.activeDispatch = null
+      this.dispatchPollingGeneration++
+    },
+    /**
+     * 仅当前组件、当前批次和当前代际可写入轮询状态。
+     */
+    isCurrentDispatch(token) {
+      return !this.isDestroyed && this.activeDispatch && this.activeDispatch.token === token
+    },
+    /**
+     * canceledCount 已包含在 failCount 中，终态不能再次相加。
+     */
+    isDispatchTerminal(progress) {
+      const totalCount = Number(progress.totalCount) || 0
+      const pendingCount = (Number(progress.waitingCount) || 0) + (Number(progress.inWorkCount) || 0)
+      const completedCount = (Number(progress.successCount) || 0) + (Number(progress.failCount) || 0)
+      return totalCount > 0 && pendingCount === 0 && completedCount >= totalCount
+    },
+    /**
+     * 轮询期间用当前批次的真实 ISC 聚合结果更新列表行。
+     */
+    applyDispatchProgress(applyId, progress) {
+      const row = this.tableData.find(item => item.id === applyId)
+      if (!row) {
+        return
+      }
+      row.currentDispatchBatchId = progress.batchId
+      row.totalNum = progress.totalCount
+      row.pendingNum = (Number(progress.waitingCount) || 0) + (Number(progress.inWorkCount) || 0)
+      row.successNum = progress.successCount
+      row.failNum = progress.failCount
+      row.cancelNum = progress.canceledCount
+      row.deviceStatusDesc = this.isDispatchTerminal(progress)
+        ? (Number(progress.failCount) > 0 ? '部分失败/失败' : '下发成功')
+        : '下发中'
     },
     /**
      * 添加保密门禁申请
@@ -229,6 +366,16 @@ const listOption = function () {
         prop: 'deviceStatusDesc'
       },
       {
+        label: '当前批次',
+        prop: 'currentDispatchBatchId',
+        width: 130
+      },
+      {
+        label: '待处理数量',
+        prop: 'pendingNum',
+        width: 110
+      },
+      {
         label: '下发总人数',
         prop: 'totalNum'
       },
@@ -240,6 +387,11 @@ const listOption = function () {
       {
         label: '下发失败数量',
         prop: 'failNum',
+        width: 120
+      },
+      {
+        label: '已取消数量',
+        prop: 'cancelNum',
         width: 120
       }
     ]

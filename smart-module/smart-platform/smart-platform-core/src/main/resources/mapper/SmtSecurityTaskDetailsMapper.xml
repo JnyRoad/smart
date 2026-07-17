@@ -16,4 +16,21 @@
                         <result property="createTime" column="CREATE_TIME"/>
                         <result property="updateTime" column="UPDATE_TIME"/>
             </resultMap>
+
+	<!-- 旧批次必须在限额前排除；外层 ROWNUM 只作用于稳定排序后的当前批次候选。 -->
+	<select id="listPendingCurrentDispatchDetails"
+			resultType="com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails">
+		SELECT *
+		FROM (
+			SELECT STD.*
+			FROM SMT_SECURITY_TASK_DETAILS STD
+			JOIN SMT_SECURITY_AUTH_APPLY SAA
+			  ON SAA.ID = STD.APPLY_ID
+			 AND SAA.CURRENT_DISPATCH_BATCH_ID = STD.DISPATCH_BATCH_ID
+			WHERE STD.STATUS = #{waitStatus}
+			  AND STD.DISPATCH_BATCH_ID IS NOT NULL
+			ORDER BY STD.ID ASC
+		)
+		WHERE ROWNUM <![CDATA[<=]]> #{limit}
+	</select>
 </mapper>

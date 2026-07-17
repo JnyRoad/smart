@@ -59,4 +59,23 @@ public interface SmtSecurityTaskDetailsService extends IService<SmtSecurityTaskD
 	 * @return
 	 */
 	Boolean downDevice(Long applyId, String badge);
+
+	/**
+	 * 将申请单中所有尚未成功的人员明细重绑到最新批次，并重置为待领取状态。
+	 */
+	int rebindDispatchBatch(Long applyId, Long dispatchBatchId);
+
+	/** 统计批次内去重后的受理人员数量。 */
+	int countDispatchPeople(Long applyId, Long dispatchBatchId);
+
+	/**
+	 * 按明细ID、待领取状态和批次号原子领取任务，旧批次必须领取失败。
+	 */
+	boolean claimDispatchDetail(Long detailId, Long dispatchBatchId);
+
+	/** 读取本轮异步 worker 的有限待处理候选。 */
+	List<SmtSecurityTaskDetails> listPendingDispatchDetails(int limit);
+
+	/** 在已锁定申请单的事务内领取并创建当前批次真实 ISC 任务。 */
+	int dispatchCurrentBatchDetails(Long applyId, Long dispatchBatchId, String applyBadge, List<Long> staffIds);
 }

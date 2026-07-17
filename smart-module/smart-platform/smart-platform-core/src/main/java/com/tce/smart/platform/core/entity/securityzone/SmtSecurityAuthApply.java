@@ -100,4 +100,9 @@ private static final long serialVersionUID = 1L;
 	 * 授权进入旧厂区域详情
 	 */
 	private String permitOldArea;
+
+	/**
+	 * 当前保密区权限下发批次号，用于标识本申请最新受理的下发命令
+	 */
+	private Long currentDispatchBatchId;
 }

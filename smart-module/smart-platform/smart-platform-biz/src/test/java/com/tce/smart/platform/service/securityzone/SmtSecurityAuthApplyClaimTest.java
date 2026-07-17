@@ -7,6 +7,7 @@ import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails;
 import com.tce.smart.platform.core.mapper.SmtSecurityAuthApplyMapper;
 import com.tce.smart.platform.core.mapper.SmtSecurityTaskDetailsMapper;
+import com.tce.smart.platform.core.vo.SecurityDispatchAcceptedVO;
 import com.tce.smart.platform.service.securityzone.impl.SmtSecurityAuthApplyServiceImpl;
 import com.tce.smart.platform.service.securityzone.impl.SmtSecurityTaskDetailsServiceImpl;
 import com.tce.smart.tool.enums.ApproveListStateEnum;
@@ -16,6 +17,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -56,8 +59,14 @@ public class SmtSecurityAuthApplyClaimTest {
 	@Before
 	public void setUp() throws Exception {
 		applyMapper = mock(SmtSecurityAuthApplyMapper.class);
-		applyService = new SmtSecurityAuthApplyServiceImpl();
+		applyService = spy(new SmtSecurityAuthApplyServiceImpl());
 		setField(applyService, "baseMapper", applyMapper);
+		TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+		when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+			TransactionCallback<Boolean> callback = invocation.getArgument(0);
+			return callback.doInTransaction(mock(org.springframework.transaction.TransactionStatus.class));
+		});
+		setField(applyService, "transactionTemplate", transactionTemplate);
 
 		taskDetailsService = mock(SmtSecurityTaskDetailsService.class);
 		setField(applyService, "smtSecurityTaskDetailsService", taskDetailsService);
@@ -124,40 +133,30 @@ public class SmtSecurityAuthApplyClaimTest {
 	// ========== triggerDownDevice ==========
 
 	@Test
-	public void triggerDownDevice_downloadThrows_returnsFalseAndDoesNotTouchMainTable() {
+	public void triggerDownDevice_acceptanceFails_returnsFalseWithoutDeviceCall() {
 		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
 		apply.setId(2001L);
 		apply.setApplyBadge("badge-1");
-		doThrow(new RuntimeException("device offline")).when(taskDetailsService).downDevice(2001L, "badge-1");
+		doThrow(new RuntimeException("database unavailable")).when(applyService).acceptDispatch(2001L);
 
 		boolean result = applyService.triggerDownDevice(apply);
 
 		assertFalse(result);
-		// 下发异常后不应触碰主表 device_status，交由对账任务重试
-		verify(applyMapper, never()).update(any(), any());
+		verify(taskDetailsService, never()).downDevice(anyLong(), any());
 	}
 
 	@Test
-	public void triggerDownDevice_success_updatesMainTableWithDeviceStatusCas() {
+	public void triggerDownDevice_success_onlyAcceptsCommandWithoutDeviceCall() {
 		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
 		apply.setId(2002L);
 		apply.setApplyBadge("badge-2");
-		when(taskDetailsService.downDevice(2002L, "badge-2")).thenReturn(Boolean.TRUE);
-		when(applyMapper.update(any(), any())).thenReturn(1);
+		doReturn(new SecurityDispatchAcceptedVO(9001L, 1, 0)).when(applyService).acceptDispatch(2002L);
 
 		boolean result = applyService.triggerDownDevice(apply);
 
 		assertTrue(result);
-		ArgumentCaptor<LambdaUpdateWrapper<SmtSecurityAuthApply>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
-		verify(applyMapper).update(isNull(), captor.capture());
-		LambdaUpdateWrapper<SmtSecurityAuthApply> wrapper = captor.getValue();
-		String sqlSegment = wrapper.getSqlSegment().toLowerCase(java.util.Locale.ROOT);
-		String sqlSet = wrapper.getSqlSet();
-		Map<String, Object> params = wrapper.getParamNameValuePairs();
-		// CAS 条件必须限定 device_status=0（WAIT），且 set 的目标值为 ALRAEDY(4)
-		assertTrue("CAS 条件应限定 device_status", sqlSegment.contains("device_status"));
-		assertEquals("set 的 device_status 绑定值应为 ALRAEDY", DeviceDownStatusEnum.ALRAEDY.getCode(),
-				params.get(boundParamFor(sqlSet, "device_status")));
+		verify(applyService).acceptDispatch(2002L);
+		verify(taskDetailsService, never()).downDevice(anyLong(), any());
 	}
 
 	// ========== triggerDownDevice 内存状态同步回归用例 ==========
@@ -166,32 +165,23 @@ public class SmtSecurityAuthApplyClaimTest {
 	// triggerDownDevice 验证同等的 Critical 回归点：内存字段与 CAS 结果的一致性。
 
 	/**
-	 * Critical 回归用例：不 stub triggerDownDevice 内部逻辑，走真实方法路径，
-	 * 只 mock 最底层依赖（downDevice 成功、applyMapper.update CAS 返回 true），
-	 * 断言调用后传入实体的 deviceStatus 已被同步为 ALRAEDY(4)，
-	 * 而不是调用前的旧值 WAIT(0)——否则后续任何基于该实体的 updateById 都会用
-	 * 内存里过期的 0 把 CAS 刚写入 DB 的 4 覆盖回去（Task 21 评审确认的 Critical）。
-	 * 注意：主表 device_status（本用例断言的 4=ALRAEDY）与明细表
-	 * SmtSecurityTaskDetails.status（1=SUCCESS）是两套码表，勿混淆。
+	 * 202 命令路径不得把申请单直接写为已下发；实际成功与失败由后台批次聚合决定。
 	 */
 	@Test
-	public void triggerDownDevice_success_syncsInMemoryDeviceStatusToAlready() {
+	public void triggerDownDevice_success_doesNotMarkApplyAlready() {
 		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
 		apply.setId(3003L);
 		apply.setApplyBadge("badge-3");
 		apply.setOaStatus(ApproveListStateEnum.AGREE.getCode());
 		apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
 
-		// 底层设备下发成功
-		when(taskDetailsService.downDevice(3003L, "badge-3")).thenReturn(Boolean.TRUE);
-		// 主表 CAS update（device_status 0->4）返回命中
-		when(applyMapper.update(any(), any())).thenReturn(1);
+		doReturn(new SecurityDispatchAcceptedVO(9002L, 1, 0)).when(applyService).acceptDispatch(3003L);
 
 		boolean result = applyService.triggerDownDevice(apply);
 
 		assertTrue(result);
-		assertEquals("triggerDownDevice 成功后应把内存字段同步为 ALRAEDY，防止后续误用旧值覆盖 CAS 结果",
-				DeviceDownStatusEnum.ALRAEDY.getCode(), apply.getDeviceStatus());
+		assertEquals("命令受理不得把内存状态伪装为已下发",
+				DeviceDownStatusEnum.WAIT.getCode(), apply.getDeviceStatus());
 	}
 
 	/**
@@ -199,22 +189,21 @@ public class SmtSecurityAuthApplyClaimTest {
 	 * deviceStatus 应保持调用前的原值（这里是 WAIT），交由对账任务重试。
 	 */
 	@Test
-	public void triggerDownDevice_downloadThrows_deviceStatusStaysWait() {
+	public void triggerDownDevice_acceptanceFails_deviceStatusStaysWait() {
 		SmtSecurityAuthApply apply = new SmtSecurityAuthApply();
 		apply.setId(3004L);
 		apply.setApplyBadge("badge-4");
 		apply.setOaStatus(ApproveListStateEnum.AGREE.getCode());
 		apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
 
-		doThrow(new RuntimeException("device offline")).when(taskDetailsService).downDevice(3004L, "badge-4");
+		doThrow(new RuntimeException("database unavailable")).when(applyService).acceptDispatch(3004L);
 
 		boolean result = applyService.triggerDownDevice(apply);
 
 		assertFalse(result);
 		assertEquals("下发异常时不应误推进 deviceStatus，应保持原值由对账任务重试",
 				DeviceDownStatusEnum.WAIT.getCode(), apply.getDeviceStatus());
-		// 异常路径不应触碰主表 CAS
-		verify(applyMapper, never()).update(any(), any());
+		verify(taskDetailsService, never()).downDevice(anyLong(), any());
 	}
 
 	// ========== down() 明细级 CAS 抢占（SmtSecurityTaskDetailsServiceImpl）==========
