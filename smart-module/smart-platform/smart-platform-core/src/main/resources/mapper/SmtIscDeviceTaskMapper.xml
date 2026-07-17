@@ -238,6 +238,7 @@
 		  AND SDA.CODE in (502,506)
 		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
 		  and device.CONNECT_STATUS = 2
+		  <include refid="security_auth_current_batch_fence" />
 		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
 	</select>
 

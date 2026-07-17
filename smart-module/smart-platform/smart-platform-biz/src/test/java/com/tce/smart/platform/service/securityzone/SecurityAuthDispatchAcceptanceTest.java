@@ -21,7 +21,9 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -129,8 +131,9 @@ public class SecurityAuthDispatchAcceptanceTest {
 
 		ArgumentCaptor<LambdaUpdateWrapper<SmtSecurityAuthApply>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
 		verify(applyMapper).update(any(), captor.capture());
-		assertTrue("状态聚合必须以当前批次作 CAS 围栏，不能回写旧实体", captor.getValue().getSqlSegment()
-				.toLowerCase(java.util.Locale.ROOT).contains("current_dispatch_batch_id"));
+		String sql = captor.getValue().getSqlSegment().toLowerCase(java.util.Locale.ROOT);
+		assertTrue("状态聚合必须以当前批次作 CAS 围栏，不能回写旧实体", sql.contains("current_dispatch_batch_id"));
+		assertTrue("进度查询的旧快照不得把终态主单回退为下发中", sql.contains("device_status"));
 	}
 
 	@Test
@@ -167,6 +170,31 @@ public class SecurityAuthDispatchAcceptanceTest {
 		String sql = captor.getValue().getSqlSegment().toLowerCase(java.util.Locale.ROOT);
 		assertTrue("领取条件必须包含批次围栏", sql.contains("dispatch_batch_id"));
 		assertTrue("领取条件必须限定待领取状态", sql.contains("status"));
+	}
+
+	@Test
+	public void listPendingDispatchDetails_hundredOldBatchRowsCannotStarveCurrentCandidate() throws Exception {
+		SmtSecurityTaskDetailsMapper detailsMapper = mock(SmtSecurityTaskDetailsMapper.class);
+		SmtSecurityTaskDetailsServiceImpl detailsService = new SmtSecurityTaskDetailsServiceImpl();
+		setField(detailsService, "baseMapper", detailsMapper);
+		List<SmtSecurityTaskDetails> oldBatchRows = new ArrayList<>();
+		for (long id = 1; id <= 100; id++) {
+			oldBatchRows.add(SmtSecurityTaskDetails.builder().id(id).applyId(1001L).dispatchBatchId(9001L)
+					.status(DeviceDownStatusEnum.WAIT.getCode()).build());
+		}
+		SmtSecurityTaskDetails current = SmtSecurityTaskDetails.builder().id(101L).applyId(1001L)
+				.dispatchBatchId(9002L).status(DeviceDownStatusEnum.WAIT.getCode()).build();
+		// 旧实现走通用 selectList 时会被前一百条旧批次占满；将其设为陷阱结果，确保专用 SQL 被调用。
+		when(detailsMapper.selectList(any())).thenReturn(oldBatchRows);
+		when(detailsMapper.listPendingCurrentDispatchDetails(DeviceDownStatusEnum.WAIT.getCode(), 100))
+				.thenReturn(Collections.singletonList(current));
+
+		List<SmtSecurityTaskDetails> candidates = detailsService.listPendingDispatchDetails(100);
+
+		assertEquals("旧批次必须在限额前由 SQL 排除", Collections.singletonList(current), candidates);
+		assertEquals(100, oldBatchRows.size());
+		verify(detailsMapper).listPendingCurrentDispatchDetails(DeviceDownStatusEnum.WAIT.getCode(), 100);
+		verify(detailsMapper, never()).selectList(any());
 	}
 
 	@Test

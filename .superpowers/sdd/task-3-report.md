@@ -43,3 +43,13 @@ mvn -pl smart-platform/smart-platform-biz,smart-schedule -am test \
 - 已修正候选查询中 `ORDER BY + ROWNUM` 可能拼出非法 Oracle SQL 的问题。
 - 已让单个申请事务失败后回滚并继续处理其他申请，避免坏单长期饿死后续批次。
 - 未连接 Oracle/ISC 实环境；上线前仍需按计划在测试库验证 SQL 方言、锁竞争和 ISC 覆盖语义。调度开关应保持关闭，待平台服务发布和演练完成后再开启。
+
+## Review Important 修复（2026-07-16）
+
+独立评审提出的三项 Important 已逐项按 RED→GREEN 修复：
+
+1. `getReTryCardDown` 也引用 `security_auth_current_batch_fence`，错误码重试链不再绕过申请单当前批次。
+2. 明细聚合更新增加 `IN_WORK + batchId` CAS；主单仅允许从 WAIT/IN_WORK 推进，并在主单聚合前重读当前批次明细。进度查询的第二条主单回写路径同步增加终态保护，旧回调/旧快照不能把 SUCCESS/FAIL 回退为 IN_WORK。
+3. worker 候选改走专用 Mapper SQL：先 JOIN 申请单并匹配 `CURRENT_DISPATCH_BATCH_ID`，再按明细 ID 稳定排序，最后由外层 `ROWNUM` 限额。测试用一百条旧批次作为通用查询陷阱，确认当前批次候选不会被饿死。
+
+聚焦回归命令覆盖 core/biz/schedule，结果 core 44、biz 12、schedule 64，共 120 个测试全部通过；两个 Mapper XML 均通过 `xmllint`，`git diff --check` 通过。

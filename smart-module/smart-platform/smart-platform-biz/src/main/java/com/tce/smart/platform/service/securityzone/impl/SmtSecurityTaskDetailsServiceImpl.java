@@ -196,10 +196,7 @@ public class SmtSecurityTaskDetailsServiceImpl extends ServiceImpl<SmtSecurityTa
 		if (limit <= 0) {
 			throw new IllegalArgumentException("下发候选上限必须大于零");
 		}
-		return this.list(Wrappers.<SmtSecurityTaskDetails>lambdaQuery()
-				.eq(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.WAIT.getCode())
-				.isNotNull(SmtSecurityTaskDetails::getDispatchBatchId)
-				.last("AND ROWNUM <= " + limit));
+		return this.baseMapper.listPendingCurrentDispatchDetails(DeviceDownStatusEnum.WAIT.getCode(), limit);
 	}
 
 	@Override
@@ -348,14 +345,24 @@ public class SmtSecurityTaskDetailsServiceImpl extends ServiceImpl<SmtSecurityTa
 			this.update(Wrappers.<SmtSecurityTaskDetails>lambdaUpdate()
 					.eq(SmtSecurityTaskDetails::getId, detail.getId())
 					.eq(SmtSecurityTaskDetails::getDispatchBatchId, currentBatchId)
+					.eq(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.IN_WORK.getCode())
 					.set(SmtSecurityTaskDetails::getStatus, targetStatus)
 					.set(SmtSecurityTaskDetails::getRemark, targetRemark)
 					.set(SmtSecurityTaskDetails::getUpdateTime, detail.getUpdateTime()));
 		}
-		Integer mainStatus = aggregateApplyStatus(details);
+		// 明细 CAS 可能因并发终态回调未命中；聚合主单前必须重读，禁止用旧快照回退状态。
+		List<SmtSecurityTaskDetails> currentDetails = this.list(Wrappers.<SmtSecurityTaskDetails>lambdaQuery()
+				.eq(SmtSecurityTaskDetails::getApplyId, applyId)
+				.eq(SmtSecurityTaskDetails::getDispatchBatchId, currentBatchId));
+		if (CollUtil.isEmpty(currentDetails)) {
+			return Boolean.TRUE;
+		}
+		Integer mainStatus = aggregateApplyStatus(currentDetails);
 		smtSecurityAuthApplyMapper.update(null, Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
 				.eq(SmtSecurityAuthApply::getId, applyId)
 				.eq(SmtSecurityAuthApply::getCurrentDispatchBatchId, currentBatchId)
+				.in(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode(),
+						DeviceDownStatusEnum.IN_WORK.getCode())
 				.set(SmtSecurityAuthApply::getDeviceStatus, mainStatus));
 		return Boolean.TRUE;
 	}
