@@ -65,3 +65,11 @@ mvn -pl smart-platform/smart-platform-biz,smart-schedule -am test \
 - 新增 CANCEL 聚合测试，确认取消会同时把人员明细和当前申请单推进到失败；未增加任何 ISC 外部取消调用。
 
 聚焦回归结果：core 44、biz 14、schedule 64，共 122 个测试全部通过，`BUILD SUCCESS`；两个 Mapper XML 通过 `xmllint --noout`，`git diff --check` 通过。
+
+### 契约脱敏审查 BLOCK 修复
+
+- RED：备注包含 `personId=camel-value`、`person_id=snake-value`、`密钥=zh-value`、`key=raw-value` 时，回归测试在首个 personId 值仍可见处失败，证明原字段模式存在泄漏。
+- GREEN：新增大小写不敏感、兼容下划线的敏感赋值模式，测试覆盖 `personId` / `person_id` / `PERSON_ID`、中文“密钥”和裸 `key`；三者必须显式带 `=`、`:` 或 `：` 才会替换，因此 `key performance indicator` 等自然语言保持可读。
+- `getDispatchProgress` 原本就会比较请求 batch 与申请单 `CURRENT_DISPATCH_BATCH_ID`，不一致时在构造进度响应前抛出“只能查询当前下发批次”。本次只新增测试，确认不会继续执行响应专用的明细与失败原因查询，没有修改既有同步及校验流程。
+
+修复后聚焦回归结果：core 44、biz 16、schedule 64，共 124 个测试全部通过，`BUILD SUCCESS`；两个 Mapper XML 通过 `xmllint --noout`，`git diff --check` 通过。

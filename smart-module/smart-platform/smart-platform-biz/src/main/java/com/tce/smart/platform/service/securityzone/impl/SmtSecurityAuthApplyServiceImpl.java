@@ -99,6 +99,10 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 			"(?i)(身份证号?|证件号?|证件|card_?no|image_?id|photo|图片|照片|isc_?task_?id|"
 					+ "token|secret|password|credential|api[_-]?key)\\s*[:：=]?\\s*[^\\s,;，；]+"
 	);
+	/** personId、中文密钥和裸 key 仅在明确赋值时脱敏，避免误删普通自然语言。 */
+	private static final Pattern SENSITIVE_ASSIGNMENT_PATTERN = Pattern.compile(
+			"(?i)(?<![a-z0-9_])(?:person_?id|密钥|key)\\s*[:：=]\\s*[^\\s,;，；]+"
+	);
 	/** 失败备注中可能内嵌的图片 Base64 数据。 */
 	private static final Pattern IMAGE_BASE64_PATTERN = Pattern.compile(
 			"(?i)(?:data:image/[^;\\s]+;base64,)?[a-z0-9+/]{80,}={0,2}"
@@ -326,6 +330,7 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 		}
 		reason = CHINESE_ID_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
 		reason = SENSITIVE_FIELD_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
+		reason = SENSITIVE_ASSIGNMENT_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
 		return IMAGE_BASE64_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
 	}
 
