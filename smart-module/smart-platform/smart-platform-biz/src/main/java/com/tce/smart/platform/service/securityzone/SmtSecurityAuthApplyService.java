@@ -7,6 +7,8 @@ import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyPageQuer
 import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.securityzone.SecurityAuthApplyPageRespDTO;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
+import com.tce.smart.platform.core.vo.SecurityDispatchAcceptedVO;
+import com.tce.smart.platform.core.vo.SecurityDispatchProgressVO;
 
 /**
  *
@@ -48,15 +50,30 @@ public interface SmtSecurityAuthApplyService extends IService<SmtSecurityAuthApp
 	boolean claimOaFinalStatus(Long applyId, Integer finalOaStatus);
 
 	/**
-	 * 触发设备下发：委托明细服务下发，仅当下发过程未抛异常才把主表 device_status
-	 * 由 WAIT(0) CAS 置为 ALRAEDY(4)；下发异常时保持主表现值，由对账任务重试（修 D4，spec §3.1.3）。
+	 * 触发设备下发兼容入口：只受理异步批次，不在 HTTP/回调线程执行设备下发。
 	 * @param authApply 申请单（需已带最新 oaStatus）
 	 * @return 是否成功触发并推进主表下发状态
 	 */
 	boolean triggerDownDevice(SmtSecurityAuthApply authApply);
 
 	/**
-	 * 手动下发
+	 * 受理保密区权限下发命令。
+	 *
+	 * 该方法只锁定申请单并持久化明细批次，不调用 ISC，也不接管旧 ISC 任务。
+	 */
+	SecurityDispatchAcceptedVO acceptDispatch(Long applyId);
+
+	/** 查询当前有效批次的进度。 */
+	SecurityDispatchProgressVO getDispatchProgress(Long applyId, Long batchId);
+
+	/** 单轮异步消费最多领取一百个人员候选。 */
+	int processDispatch();
+
+	/** ISC 终态回调触发当前批次聚合。 */
+	void syncDispatchStatus(Long applyId);
+
+	/**
+	 * 旧手动下发兼容入口。返回值仅表示命令已被受理，不能解释为设备下发成功。
 	 * @param applyId
 	 * @return
 	 */

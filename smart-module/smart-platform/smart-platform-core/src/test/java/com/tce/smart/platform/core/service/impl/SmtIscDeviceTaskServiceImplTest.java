@@ -27,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -37,6 +38,164 @@ public class SmtIscDeviceTaskServiceImplTest {
 	public static void initMybatisPlusLambdaCache() {
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtIscDownRecord.class);
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtIscDeviceTask.class);
+	}
+
+	@Test
+	public void saveSecurityAuthTaskCancelsOldInitTaskWithCasAndCreatesLatestBatchTask() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class), deviceMapper);
+		SmtDevice device = new SmtDevice();
+		device.setId("device-1");
+		device.setParkId(5000021);
+		Mockito.when(deviceMapper.selectById("device-1")).thenReturn(device);
+		LocalDateTime oldUpdateTime = LocalDateTime.of(2026, 7, 16, 20, 0);
+		SmtIscDeviceTask oldTask = securityAuthTask(81L, 1001L, 9001L,
+				DeviceTaskStatusEnum.INIT.getCode(), oldUpdateTime, null);
+		Mockito.when(deviceTaskMapper.listSecurityAuthTasksByIntent(1001L,
+				"SECURITY_AUTH:11:22:device-1")).thenReturn(Collections.singletonList(oldTask));
+		Mockito.when(deviceTaskMapper.cancelSecurityAuthTask(Mockito.eq(81L),
+				Mockito.eq(DeviceTaskStatusEnum.INIT.getCode()), Mockito.eq(9001L), Mockito.eq(oldUpdateTime),
+				Mockito.eq(DeviceTaskStatusEnum.CANCEL.getCode()), Mockito.eq(9002L),
+				Mockito.any(LocalDateTime.class))).thenReturn(1);
+		Mockito.when(deviceTaskMapper.insert(Mockito.any(SmtIscDeviceTask.class))).thenAnswer(invocation -> {
+			SmtIscDeviceTask task = invocation.getArgument(0);
+			task.setId(82L);
+			return 1;
+		});
+
+		String taskId = service.saveSecurityAuthTask(securityAuthTaskVO(1001L, 101L, 9002L));
+
+		Assert.assertEquals("82", taskId);
+		Mockito.verify(deviceTaskMapper).cancelSecurityAuthTask(Mockito.eq(81L),
+				Mockito.eq(DeviceTaskStatusEnum.INIT.getCode()), Mockito.eq(9001L), Mockito.eq(oldUpdateTime),
+				Mockito.eq(DeviceTaskStatusEnum.CANCEL.getCode()), Mockito.eq(9002L),
+				Mockito.any(LocalDateTime.class));
+		ArgumentCaptor<SmtIscDeviceTask> insertedTask = ArgumentCaptor.forClass(SmtIscDeviceTask.class);
+		Mockito.verify(deviceTaskMapper).insert(insertedTask.capture());
+		Assert.assertEquals("SECURITY_AUTH", insertedTask.getValue().getSourceType());
+		Assert.assertEquals(Long.valueOf(1001L), insertedTask.getValue().getSourceId());
+		Assert.assertEquals(Long.valueOf(101L), insertedTask.getValue().getSourceDetailId());
+		Assert.assertEquals(Long.valueOf(9002L), insertedTask.getValue().getBatchId());
+		Assert.assertEquals("SECURITY_AUTH:11:22:device-1", insertedTask.getValue().getIntentKey());
+	}
+
+	@Test
+	public void saveSecurityAuthTaskDoesNotOverwriteTaskChangedByAnotherThread() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class), deviceMapper);
+		SmtDevice device = new SmtDevice();
+		device.setId("device-1");
+		device.setParkId(5000021);
+		Mockito.when(deviceMapper.selectById("device-1")).thenReturn(device);
+		LocalDateTime oldUpdateTime = LocalDateTime.of(2026, 7, 16, 20, 0);
+		Mockito.when(deviceTaskMapper.listSecurityAuthTasksByIntent(Mockito.anyLong(), Mockito.anyString()))
+				.thenReturn(Collections.singletonList(securityAuthTask(81L, 1001L, 9001L,
+						DeviceTaskStatusEnum.DEVICE_OFFLINE.getCode(), oldUpdateTime, null)));
+		Mockito.when(deviceTaskMapper.cancelSecurityAuthTask(Mockito.anyLong(), Mockito.anyInt(), Mockito.anyLong(),
+				Mockito.any(LocalDateTime.class), Mockito.anyInt(), Mockito.anyLong(),
+				Mockito.any(LocalDateTime.class))).thenReturn(0);
+
+		try {
+			service.saveSecurityAuthTask(securityAuthTaskVO(1001L, 101L, 9002L));
+			Assert.fail("CAS 未命中时必须中止本轮创建并由事务重试");
+		} catch (IllegalStateException expected) {
+			Assert.assertTrue(expected.getMessage().contains("状态已变化"));
+		}
+		Mockito.verify(deviceTaskMapper, Mockito.never()).insert(Mockito.any(SmtIscDeviceTask.class));
+	}
+
+	@Test
+	public void saveSecurityAuthTaskProtectsFreshDoingTaskWithoutIscTaskId() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class), deviceMapper);
+		SmtDevice device = new SmtDevice();
+		device.setId("device-1");
+		device.setParkId(5000021);
+		Mockito.when(deviceMapper.selectById("device-1")).thenReturn(device);
+		Mockito.when(deviceTaskMapper.listSecurityAuthTasksByIntent(Mockito.anyLong(), Mockito.anyString()))
+				.thenReturn(Collections.singletonList(securityAuthTask(81L, 1001L, 9001L,
+						DeviceTaskStatusEnum.DOING.getCode(), LocalDateTime.now().minusSeconds(30), null)));
+
+		try {
+			service.saveSecurityAuthTask(securityAuthTaskVO(1001L, 101L, 9002L));
+			Assert.fail("提交保护窗口内不得接管空 ISC_TASK_ID 的 DOING 任务");
+		} catch (IllegalStateException expected) {
+			Assert.assertTrue(expected.getMessage().contains("保护窗口"));
+		}
+		Mockito.verify(deviceTaskMapper, Mockito.never()).cancelSecurityAuthTask(Mockito.anyLong(), Mockito.anyInt(),
+				Mockito.anyLong(), Mockito.any(), Mockito.anyInt(), Mockito.anyLong(), Mockito.any());
+		Mockito.verify(deviceTaskMapper, Mockito.never()).insert(Mockito.any(SmtIscDeviceTask.class));
+	}
+
+	@Test
+	public void saveSecurityAuthTaskTakesOverStaleDoingTaskWithoutIscTaskId() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class), deviceMapper);
+		SmtDevice device = new SmtDevice();
+		device.setId("device-1");
+		device.setParkId(5000021);
+		Mockito.when(deviceMapper.selectById("device-1")).thenReturn(device);
+		LocalDateTime staleUpdateTime = LocalDateTime.now().minusMinutes(3);
+		Mockito.when(deviceTaskMapper.listSecurityAuthTasksByIntent(Mockito.anyLong(), Mockito.anyString()))
+				.thenReturn(Collections.singletonList(securityAuthTask(81L, 1001L, 9001L,
+						DeviceTaskStatusEnum.DOING.getCode(), staleUpdateTime, null)));
+		Mockito.when(deviceTaskMapper.cancelSecurityAuthTask(Mockito.eq(81L),
+				Mockito.eq(DeviceTaskStatusEnum.DOING.getCode()), Mockito.eq(9001L), Mockito.eq(staleUpdateTime),
+				Mockito.eq(DeviceTaskStatusEnum.CANCEL.getCode()), Mockito.eq(9002L),
+				Mockito.any(LocalDateTime.class))).thenReturn(1);
+		Mockito.when(deviceTaskMapper.insert(Mockito.any(SmtIscDeviceTask.class))).thenAnswer(invocation -> {
+			SmtIscDeviceTask task = invocation.getArgument(0);
+			task.setId(82L);
+			return 1;
+		});
+
+		Assert.assertEquals("82", service.saveSecurityAuthTask(securityAuthTaskVO(1001L, 101L, 9002L)));
+		Mockito.verify(deviceTaskMapper).cancelSecurityAuthTask(Mockito.eq(81L),
+				Mockito.eq(DeviceTaskStatusEnum.DOING.getCode()), Mockito.eq(9001L), Mockito.eq(staleUpdateTime),
+				Mockito.eq(DeviceTaskStatusEnum.CANCEL.getCode()), Mockito.eq(9002L),
+				Mockito.any(LocalDateTime.class));
+	}
+
+	@Test
+	public void saveSecurityAuthTaskLocallyTakesOverSubmittedDoingTaskAndKeepsIscAuditId() throws Exception {
+		SmtIscDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtIscDeviceTaskMapper.class);
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtIscDeviceTaskServiceImpl service = service(Mockito.mock(SmtIscDownRecordService.class),
+				deviceTaskMapper, Mockito.mock(SmtVisitorMapper.class), deviceMapper);
+		SmtDevice device = new SmtDevice();
+		device.setId("device-1");
+		device.setParkId(5000021);
+		Mockito.when(deviceMapper.selectById("device-1")).thenReturn(device);
+		LocalDateTime oldUpdateTime = LocalDateTime.now();
+		SmtIscDeviceTask oldTask = securityAuthTask(81L, 1001L, 9001L,
+				DeviceTaskStatusEnum.DOING.getCode(), oldUpdateTime, "isc-audit-81");
+		Mockito.when(deviceTaskMapper.listSecurityAuthTasksByIntent(Mockito.anyLong(), Mockito.anyString()))
+				.thenReturn(Collections.singletonList(oldTask));
+		Mockito.when(deviceTaskMapper.cancelSecurityAuthTask(Mockito.eq(81L),
+				Mockito.eq(DeviceTaskStatusEnum.DOING.getCode()), Mockito.eq(9001L), Mockito.eq(oldUpdateTime),
+				Mockito.eq(DeviceTaskStatusEnum.CANCEL.getCode()), Mockito.eq(9002L),
+				Mockito.any(LocalDateTime.class))).thenReturn(1);
+		Mockito.when(deviceTaskMapper.insert(Mockito.any(SmtIscDeviceTask.class))).thenAnswer(invocation -> {
+			SmtIscDeviceTask task = invocation.getArgument(0);
+			task.setId(82L);
+			return 1;
+		});
+
+		service.saveSecurityAuthTask(securityAuthTaskVO(1001L, 101L, 9002L));
+
+		Assert.assertEquals("调用方对象中的审计 ID 不得被清空", "isc-audit-81", oldTask.getIscTaskId());
+		Mockito.verify(deviceTaskMapper).cancelSecurityAuthTask(Mockito.eq(81L),
+				Mockito.eq(DeviceTaskStatusEnum.DOING.getCode()), Mockito.eq(9001L), Mockito.eq(oldUpdateTime),
+				Mockito.eq(DeviceTaskStatusEnum.CANCEL.getCode()), Mockito.eq(9002L),
+				Mockito.any(LocalDateTime.class));
 	}
 
 	@Test
@@ -816,6 +975,38 @@ public class SmtIscDeviceTaskServiceImplTest {
 		Mockito.verify(deviceTaskMapper, Mockito.never()).cancelStaleOfflineDownloadTask(Mockito.anyLong(),
 				Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyString(),
 				Mockito.any(), Mockito.any());
+	}
+
+	private SmtIscDeviceTask securityAuthTask(Long id, Long sourceId, Long batchId, Integer status,
+			LocalDateTime updateTime, String iscTaskId) {
+		SmtIscDeviceTask task = new SmtIscDeviceTask();
+		task.setId(id);
+		task.setSourceType("SECURITY_AUTH");
+		task.setSourceId(sourceId);
+		task.setSourceDetailId(101L);
+		task.setIntentKey("SECURITY_AUTH:11:22:device-1");
+		task.setBatchId(batchId);
+		task.setStatus(status);
+		task.setUpdateTime(updateTime);
+		task.setIscTaskId(iscTaskId);
+		return task;
+	}
+
+	private DeviceTaskVO securityAuthTaskVO(Long sourceId, Long sourceDetailId, Long batchId) {
+		DeviceTaskVO taskVO = new DeviceTaskVO();
+		taskVO.setAction(DeviceTaskActionEnum.DOWN.getCode());
+		taskVO.setDeviceType(DeviceTaskConstants.CARD);
+		taskVO.setServiceType(DeviceTaskConstants.CARD_STAFF_IMPORT);
+		taskVO.setDeviceCode("device-1");
+		taskVO.setCardNo("11");
+		taskVO.setStartTime(1784257200L);
+		taskVO.setOverTime(DeviceTaskConstants.maxTime);
+		taskVO.setSourceType("SECURITY_AUTH");
+		taskVO.setSourceId(sourceId);
+		taskVO.setSourceDetailId(sourceDetailId);
+		taskVO.setBatchId(batchId);
+		taskVO.setIntentKey("SECURITY_AUTH:11:22:device-1");
+		return taskVO;
 	}
 
 	private void assertQueryHasParam(LambdaQueryWrapper queryWrapper, Object expected) {

@@ -25,6 +25,12 @@ public interface SmtIscDeviceTaskService extends IService<SmtIscDeviceTask> {
 	 */
 	String saveTask(DeviceTaskVO deviceTaskVO);
 
+	/**
+	 * 保密区权限下发专用任务入口：按意图键接管旧批次后创建最新批次任务。
+	 * 通用 {@link #saveTask(DeviceTaskVO)} 的去重语义保持不变。
+	 */
+	String saveSecurityAuthTask(DeviceTaskVO deviceTaskVO);
+
 	boolean deleteTask(String deviceCode, String cardNo);
 
 	/**
