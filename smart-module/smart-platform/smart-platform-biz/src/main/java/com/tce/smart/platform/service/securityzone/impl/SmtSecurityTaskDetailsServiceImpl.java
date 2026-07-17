@@ -162,6 +162,30 @@ public class SmtSecurityTaskDetailsServiceImpl extends ServiceImpl<SmtSecurityTa
 		return Boolean.TRUE;
 	}
 
+	@Override
+	public int rebindDispatchBatch(Long applyId, Long dispatchBatchId) {
+		return this.baseMapper.update(null, Wrappers.<SmtSecurityTaskDetails>lambdaUpdate()
+				.eq(SmtSecurityTaskDetails::getApplyId, applyId)
+				.and(wrapper -> wrapper.ne(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.SUCCESS.getCode())
+						.or().isNull(SmtSecurityTaskDetails::getStatus))
+				.set(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.WAIT.getCode())
+				.set(SmtSecurityTaskDetails::getDispatchBatchId, dispatchBatchId));
+	}
+
+	@Override
+	public int countDispatchPeople(Long applyId, Long dispatchBatchId) {
+		return this.baseMapper.countDispatchPeople(applyId, dispatchBatchId);
+	}
+
+	@Override
+	public boolean claimDispatchDetail(Long detailId, Long dispatchBatchId) {
+		return this.baseMapper.update(null, Wrappers.<SmtSecurityTaskDetails>lambdaUpdate()
+				.eq(SmtSecurityTaskDetails::getId, detailId)
+				.eq(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.WAIT.getCode())
+				.eq(SmtSecurityTaskDetails::getDispatchBatchId, dispatchBatchId)
+				.set(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.IN_WORK.getCode())) == 1;
+	}
+
 	/**
 	 * 设备权限下发
 	 * @param detail 设备信息

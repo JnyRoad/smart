@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -29,9 +30,12 @@ import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.dto.WorkFlowLogDTO;
 import com.tce.smart.platform.core.dto.WorkFlowLogDataDTO;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
+import com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails;
 import com.tce.smart.platform.core.mapper.SmtSecurityAuthApplyMapper;
 import com.tce.smart.platform.core.service.SmtMsgTemplateService;
 import com.tce.smart.platform.core.service.SmtSecurityAreaService;
+import com.tce.smart.platform.core.vo.SecurityDispatchAcceptedVO;
+import com.tce.smart.platform.core.vo.SecurityDispatchProgressVO;
 import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.SmtParkService;
 import com.tce.smart.platform.service.SmtStaffService;
@@ -50,6 +54,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
@@ -105,6 +110,8 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	private ProcessRecordWriter processRecordWriter;
 	@Autowired(required = false)
 	private StringRedisTemplate stringRedisTemplate;
+	@Autowired
+	private TransactionTemplate transactionTemplate;
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
@@ -146,33 +153,82 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 
 	@Override
 	public boolean triggerDownDevice(SmtSecurityAuthApply authApply) {
-		try {
-			smtSecurityTaskDetailsService.downDevice(authApply.getId(), authApply.getApplyBadge());
-			// 下发未抛异常才推进主表"已触发下发"状态（修 D4，spec §3.1.3）
-			// 注意：主表 device_status 与明细表 SmtSecurityTaskDetails.status 是两套码表，
-			// 主表 4=ALRAEDY 表示"已触发下发"，明细表 1=SUCCESS 表示"单台设备下发成功"，切勿混淆。
+		return Boolean.TRUE.equals(transactionTemplate.execute(status -> {
+			try {
+				this.acceptDispatch(authApply.getId());
+				return true;
+			} catch (Exception e) {
+				status.setRollbackOnly();
+				log.error("保密区申请权限下发命令受理失败：applyId={}", authApply.getId(), e);
+				return false;
+			}
+		}));
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public SecurityDispatchAcceptedVO acceptDispatch(Long applyId) {
+		SmtSecurityAuthApply authApply = this.getOne(Wrappers.<SmtSecurityAuthApply>lambdaQuery()
+				.eq(SmtSecurityAuthApply::getId, applyId).last("FOR UPDATE"));
+		if (Objects.isNull(authApply)) {
+			throw new SmartException("申请单不存在");
+		}
+		if (!ApproveListStateEnum.AGREE.getCode().equals(authApply.getOaStatus())) {
+			throw new SmartException("OA审批未通过，禁止下发");
+		}
+
+		Long batchId = IdWorker.getId();
+		int acceptedDetailCount = smtSecurityTaskDetailsService.rebindDispatchBatch(applyId, batchId);
+		int acceptedCount = acceptedDetailCount == 0 ? 0 : smtSecurityTaskDetailsService.countDispatchPeople(applyId, batchId);
+		authApply.setCurrentDispatchBatchId(batchId);
+		if (acceptedDetailCount > 0) {
+			authApply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
+		}
+		this.updateById(authApply);
+		return new SecurityDispatchAcceptedVO(batchId, acceptedCount, 0);
+	}
+
+	@Override
+	public SecurityDispatchProgressVO getDispatchProgress(Long applyId, Long batchId) {
+		SmtSecurityAuthApply authApply = this.getById(applyId);
+		if (Objects.isNull(authApply)) {
+			throw new SmartException("申请单不存在");
+		}
+		if (!batchId.equals(authApply.getCurrentDispatchBatchId())) {
+			throw new SmartException("只能查询当前下发批次");
+		}
+		List<SmtSecurityTaskDetails> details = smtSecurityTaskDetailsService.list(Wrappers.<SmtSecurityTaskDetails>lambdaQuery()
+				.eq(SmtSecurityTaskDetails::getApplyId, applyId)
+				.eq(SmtSecurityTaskDetails::getDispatchBatchId, batchId));
+		SecurityDispatchProgressVO progress = new SecurityDispatchProgressVO();
+		progress.setBatchId(batchId);
+		progress.setTotalCount(details.size());
+		progress.setWaitingCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.WAIT.getCode().equals(detail.getStatus())).count());
+		progress.setInWorkCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.IN_WORK.getCode().equals(detail.getStatus())).count());
+		progress.setSuccessCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.SUCCESS.getCode().equals(detail.getStatus())).count());
+		progress.setFailCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.FAIL.getCode().equals(detail.getStatus())).count());
+		this.updateDispatchMainStatus(authApply, progress);
+		return progress;
+	}
+
+	/**
+	 * 仅由当前批次聚合申请单状态：存在失败即失败，全部成功才成功，其余保持下发中。
+	 */
+	private void updateDispatchMainStatus(SmtSecurityAuthApply authApply, SecurityDispatchProgressVO progress) {
+		if (progress.getTotalCount() == 0) {
+			return;
+		}
+		Integer targetStatus = DeviceDownStatusEnum.IN_WORK.getCode();
+		if (progress.getSuccessCount().equals(progress.getTotalCount())) {
+			targetStatus = DeviceDownStatusEnum.SUCCESS.getCode();
+		} else if (progress.getFailCount() > 0) {
+			targetStatus = DeviceDownStatusEnum.FAIL.getCode();
+		}
+		if (!targetStatus.equals(authApply.getDeviceStatus())) {
 			this.update(Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
 					.eq(SmtSecurityAuthApply::getId, authApply.getId())
-					.eq(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode())
-					.set(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.ALRAEDY.getCode()));
-			// Critical 修复：CAS 只更新了 DB，未同步内存中的 authApply.deviceStatus。
-			// 调用方（callback handler / 对账任务 / 手动下发 downDevice）后续若基于该实体
-			// 再做 MyBatis-Plus 的 updateById，默认按 NOT_NULL 策略回写所有非空字段——若内存
-			// 字段仍是调用方传入时的旧值 0（WAIT），就会把上面 CAS 刚写入的 4 覆盖回 0，
-			// 导致"下发成功但主表仍显示待下发"。
-			// 因此只要 downDevice 未抛异常（走到这里），无论上面的 CAS 是否命中（返回 true/false），
-			// 都必须把内存字段同步为 ALRAEDY：
-			// - CAS 命中：DB 已从 0→4，内存需跟上，否则被后续 updateById 覆盖回 0；
-			// - CAS 未命中（说明 DB 已非 0，大概率已是并发场景下别的调用者写成了 4）：
-			//   内存置 4 同样安全且必要，避免 updateById 用过期的 0 覆盖 DB 现有的 4。
-			// 失败路径（downDevice 抛异常，进入 catch）不会执行到这里，内存字段保持不变，
-			// 交由对账任务按现值重试，不允许在异常路径误推进状态。
-			authApply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
-			return true;
-		} catch (Exception e) {
-			// 带堆栈，保持主表 device_status 现值，由对账任务场景 2 重试（spec §3.1.3）
-			log.error("保密区申请权限下发失败：applyId={}", authApply.getId(), e);
-			return false;
+					.eq(SmtSecurityAuthApply::getCurrentDispatchBatchId, progress.getBatchId())
+					.set(SmtSecurityAuthApply::getDeviceStatus, targetStatus));
 		}
 	}
 
