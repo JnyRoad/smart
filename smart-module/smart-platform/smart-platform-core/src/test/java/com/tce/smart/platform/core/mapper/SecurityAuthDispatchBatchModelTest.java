@@ -59,6 +59,17 @@ public class SecurityAuthDispatchBatchModelTest {
 	}
 
 	@Test
+	public void iscSecurityIndexesMustNotIncludeStatusForHistoricalTasks() throws Exception {
+		String migration = new String(Files.readAllBytes(Paths.get("../../database/manual/2026-07-16-security-auth-dispatch-batch.sql")), StandardCharsets.UTF_8)
+				.toUpperCase(java.util.Locale.ROOT);
+
+		Assert.assertTrue(migration.contains("CREATE INDEX IDX_ISC_TASK_SECURITY_BATCH ON SMT_ISC_DEVICE_TASK (SOURCE_TYPE, SOURCE_ID, BATCH_ID)"));
+		Assert.assertTrue(migration.contains("CREATE INDEX IDX_ISC_TASK_SECURITY_INTENT ON SMT_ISC_DEVICE_TASK (SOURCE_TYPE, INTENT_KEY)"));
+		Assert.assertFalse(migration.contains("SOURCE_TYPE, SOURCE_ID, BATCH_ID, STATUS"));
+		Assert.assertFalse(migration.contains("SOURCE_TYPE, INTENT_KEY, STATUS"));
+	}
+
+	@Test
 	public void rollbackKeepsPreExistingBatchIdColumn() throws Exception {
 		String rollback = new String(Files.readAllBytes(Paths.get("../../database/manual/2026-07-16-security-auth-dispatch-batch-rollback.sql")), StandardCharsets.UTF_8)
 				.toUpperCase(java.util.Locale.ROOT);
