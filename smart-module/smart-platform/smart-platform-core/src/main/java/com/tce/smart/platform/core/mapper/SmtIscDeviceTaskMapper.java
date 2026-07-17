@@ -188,5 +188,16 @@ public interface SmtIscDeviceTaskMapper extends BaseMapper<SmtIscDeviceTask> {
 	 */
 	List<SmtIscDeviceTask> listSmtDeviceTask(@Param("query") SmtDeviceTask smtDeviceTask,@Param("parkIds") List<Integer> parkIds);
 
+	/**
+	 * 按保密区权限下发来源和意图键查询 ISC 任务。
+	 *
+	 * 仅提供持久化查询支撑，批次接管的状态判定与 CAS 取消由后续业务任务完成。
+	 *
+	 * @param sourceId 保密区权限申请单 ID
+	 * @param intentKey 人员、权限策略和设备组成的意图键
+	 * @return 同一安全权限意图下的 ISC 任务
+	 */
+	List<SmtIscDeviceTask> listSecurityAuthTasksByIntent(@Param("sourceId") Long sourceId,
+															 @Param("intentKey") String intentKey);
 
 }

@@ -25,7 +25,12 @@
 		SDA.ISC_TASK_ID,
 		SDA.BADGE,
 		SDA.OPT_USER,
-		SDA.PERSON_ID
+		SDA.PERSON_ID,
+		SDA.BATCH_ID,
+		SDA.SOURCE_TYPE,
+		SDA.SOURCE_ID,
+		SDA.SOURCE_DETAIL_ID,
+		SDA.INTENT_KEY
 	</sql>
 
 	<!-- 新增：到期删除任务查询，访客未到期的删除任务不能提前执行 -->
@@ -302,6 +307,16 @@
 		  AND SDA.CARD_NO = #{cardNo}
 		  AND (SDA.STATUS = 0 OR SDA.STATUS = 1 OR SDA.STATUS = 3)
 		ORDER BY SDA.ID ASC
+	</select>
+
+	<!-- 保密区权限下发专用查询：按来源和人员权限设备意图键定位历史 ISC 任务，不复用 APPLY_ID。 -->
+	<select id="listSecurityAuthTasksByIntent" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
+		SELECT <include refid="base_column_list" />
+		FROM SMT_ISC_DEVICE_TASK SDA
+		WHERE SDA.SOURCE_TYPE = 'SECURITY_AUTH'
+		  AND SDA.SOURCE_ID = #{sourceId}
+		  AND SDA.INTENT_KEY = #{intentKey}
+		ORDER BY SDA.CREATE_TIME DESC, SDA.ID DESC
 	</select>
 
 	<select id="getDeviceCode" resultType="String">
