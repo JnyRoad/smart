@@ -3,6 +3,7 @@ package com.tce.smart.platform.service.securityzone;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails;
@@ -35,6 +36,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
@@ -207,6 +209,51 @@ public class SecurityAuthDispatchAcceptanceTest {
 		assertTrue(sql.contains("source_detail_id"));
 		assertTrue(sql.contains("batch_id"));
 		assertTrue(sql.contains("status"));
+	}
+
+	@Test
+	public void getDispatchProgress_redactsPersonAndKeyAssignmentsButKeepsNaturalLanguageKey() {
+		SmtSecurityAuthApply apply = approvedApply(1003L);
+		apply.setCurrentDispatchBatchId(9003L);
+		apply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
+		doReturn(apply).when(applyService).getById(1003L);
+		SmtSecurityTaskDetails failedDetail = SmtSecurityTaskDetails.builder().id(101L).applyId(1003L)
+				.dispatchBatchId(9003L).staffBadge("E001").staffName("张三")
+				.status(DeviceDownStatusEnum.FAIL.getCode()).build();
+		when(taskDetailsService.list(any())).thenReturn(Collections.singletonList(failedDetail));
+		SmtIscDeviceTask failedTask = iscTask(101L, "gate-1", DeviceTaskStatusEnum.FAIL.getCode(),
+				"personId=camel-value person_id=snake-value PERSON_ID=upper-value "
+						+ "密钥=zh-value key=raw-value "
+						+ "key performance indicator 计算失败");
+		when(iscTaskService.list(any())).thenReturn(Collections.singletonList(failedTask));
+
+		String reason = applyService.getDispatchProgress(1003L, 9003L)
+				.getFailureReasons().get(0).getReason();
+
+		assertFalse("personId 赋值不能泄漏", reason.contains("camel-value"));
+		assertFalse("person_id 赋值不能泄漏", reason.contains("snake-value"));
+		assertFalse("大写 PERSON_ID 赋值不能泄漏", reason.contains("upper-value"));
+		assertFalse("中文密钥赋值不能泄漏", reason.contains("zh-value"));
+		assertFalse("裸 key 赋值不能泄漏", reason.contains("raw-value"));
+		assertTrue("普通自然语言 key 不能被误删", reason.contains("key performance indicator"));
+	}
+
+	@Test
+	public void getDispatchProgress_rejectsNonCurrentBatchBeforeLoadingProgressDetails() {
+		SmtSecurityAuthApply apply = approvedApply(1003L);
+		apply.setCurrentDispatchBatchId(9003L);
+		doReturn(apply).when(applyService).getById(1003L);
+
+		try {
+			applyService.getDispatchProgress(1003L, 9002L);
+			fail("非当前批次必须被拒绝");
+		} catch (SmartException exception) {
+			assertEquals("只能查询当前下发批次", exception.getMessage());
+		}
+
+		verify(taskDetailsService).syncTaskStatus(1003L);
+		verify(taskDetailsService, never()).list(any());
+		verify(iscTaskService, never()).list(any());
 	}
 
 	@Test
