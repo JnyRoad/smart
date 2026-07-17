@@ -53,6 +53,12 @@ describe('response interceptor: success', () => {
     expect(onResponse(res)).toBe(res)
     expect(Message).not.toHaveBeenCalled()
   })
+
+  it('treats HTTP 202 as a successful accepted command without an error message', () => {
+    const res = makeRes(202, { code: 0, data: { batchId: 7001 } })
+    expect(onResponse(res)).toBe(res)
+    expect(Message).not.toHaveBeenCalled()
+  })
 })
 
 describe('response interceptor: business failure (code === 1)', () => {

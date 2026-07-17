@@ -20,6 +20,7 @@ function createContext() {
     'startDispatchProgressPolling',
     'pollDispatchProgress',
     'stopDispatchProgressPolling',
+    'isCurrentDispatch',
     'isDispatchTerminal',
     'applyDispatchProgress'
   ].forEach(name => {
@@ -77,7 +78,7 @@ describe('保密门禁手动下发流程', () => {
     })
     expect(context.refresh).toHaveBeenCalledOnce()
     expect(context.dispatchingIds[88]).toBe(false)
-    expect(context.activeDispatch).toEqual({ applyId: 88, batchId: 7001 })
+    expect(context.activeDispatch).toMatchObject({ applyId: 88, batchId: 7001 })
   })
 
   it('命令受理期间禁止同一申请重复点击', async () => {
@@ -127,5 +128,54 @@ describe('保密门禁手动下发流程', () => {
       url: '/platform/security/auth/apply/88/dispatch/7001',
       method: 'get'
     })
+  })
+
+  it('组件销毁后，旧请求返回不能写状态或重新触发轮询', async () => {
+    let resolveProgress
+    request.mockReturnValue(new Promise(resolve => {
+      resolveProgress = resolve
+    }))
+    const context = createContext()
+    const polling = context.startDispatchProgressPolling(88, 7001)
+    await flushPromises()
+
+    context.isDestroyed = true
+    context.stopDispatchProgressPolling()
+    resolveProgress({
+      status: 200,
+      data: { code: 0, data: { batchId: 7001, totalCount: 1, waitingCount: 0, inWorkCount: 0, successCount: 1, failCount: 0 } }
+    })
+    await polling
+
+    expect(context.activeDispatch).toBeNull()
+    expect(context.dispatchPollingTimer).toBeNull()
+    expect(context.refresh).not.toHaveBeenCalled()
+  })
+
+  it('旧批次请求失败不能停止已经启动的新批次', async () => {
+    let rejectOldProgress
+    let resolveNewProgress
+    request
+      .mockReturnValueOnce(new Promise((resolve, reject) => {
+        rejectOldProgress = reject
+      }))
+      .mockReturnValueOnce(new Promise(resolve => {
+        resolveNewProgress = resolve
+      }))
+    const context = createContext()
+    const oldPolling = context.startDispatchProgressPolling(88, 7001)
+    await flushPromises()
+    const newPolling = context.startDispatchProgressPolling(88, 7002)
+    await flushPromises()
+
+    rejectOldProgress(new Error('旧批次查询失败'))
+    await oldPolling
+
+    expect(context.activeDispatch).toMatchObject({ applyId: 88, batchId: 7002 })
+    resolveNewProgress({
+      status: 200,
+      data: { code: 0, data: { batchId: 7002, totalCount: 1, waitingCount: 0, inWorkCount: 0, successCount: 1, failCount: 0 } }
+    })
+    await newPolling
   })
 })

@@ -86,7 +86,9 @@ export default {
       listOption: listOption(),
       dispatchingIds: {},
       dispatchPollingTimer: null,
-      activeDispatch: null
+      activeDispatch: null,
+      dispatchPollingGeneration: 0,
+      isDestroyed: false
     };
   },
   computed: {
@@ -122,6 +124,7 @@ export default {
     }
   },
   beforeDestroy() {
+    this.isDestroyed = true
     this.stopDispatchProgressPolling()
   },
   methods: {
@@ -189,32 +192,45 @@ export default {
      */
     async startDispatchProgressPolling(applyId, batchId) {
       this.stopDispatchProgressPolling()
-      this.activeDispatch = { applyId, batchId }
-      await this.pollDispatchProgress()
+      const token = ++this.dispatchPollingGeneration
+      this.activeDispatch = { applyId, batchId, token }
+      await this.pollDispatchProgress(token)
     },
-    async pollDispatchProgress() {
-      if (!this.activeDispatch) {
+    async pollDispatchProgress(token) {
+      if (!this.isCurrentDispatch(token)) {
         return
       }
       const activeDispatch = this.activeDispatch
       try {
         const res = await xcGuardApplyApi.getDispatchProgress(activeDispatch.applyId, activeDispatch.batchId)
+        if (!this.isCurrentDispatch(token)) {
+          return
+        }
         const progress = res.data && res.data.data
         if (!res.data || res.data.code !== 0 || !progress || progress.batchId !== activeDispatch.batchId) {
           throw new Error('下发进度返回异常')
         }
         this.applyDispatchProgress(activeDispatch.applyId, progress)
         if (this.isDispatchTerminal(progress)) {
-          this.stopDispatchProgressPolling()
+          this.stopDispatchProgressPolling(token)
           this.refresh()
           return
         }
+        if (!this.isCurrentDispatch(token)) {
+          return
+        }
         this.dispatchPollingTimer = window.setTimeout(() => {
+          if (!this.isCurrentDispatch(token)) {
+            return
+          }
           this.dispatchPollingTimer = null
-          this.pollDispatchProgress()
+          this.pollDispatchProgress(token)
         }, 3000)
       } catch (error) {
-        this.stopDispatchProgressPolling()
+        if (!this.isCurrentDispatch(token)) {
+          return
+        }
+        this.stopDispatchProgressPolling(token)
         this.$message({
           message: '下发进度查询失败，请刷新后重试',
           type: 'error'
@@ -224,12 +240,22 @@ export default {
     /**
      * HTTP 失败、组件销毁和批次终态都必须停止定时器。
      */
-    stopDispatchProgressPolling() {
+    stopDispatchProgressPolling(token) {
+      if (token !== undefined && !this.isCurrentDispatch(token)) {
+        return
+      }
       if (this.dispatchPollingTimer) {
         window.clearTimeout(this.dispatchPollingTimer)
       }
       this.dispatchPollingTimer = null
       this.activeDispatch = null
+      this.dispatchPollingGeneration++
+    },
+    /**
+     * 仅当前组件、当前批次和当前代际可写入轮询状态。
+     */
+    isCurrentDispatch(token) {
+      return !this.isDestroyed && this.activeDispatch && this.activeDispatch.token === token
     },
     /**
      * canceledCount 已包含在 failCount 中，终态不能再次相加。
