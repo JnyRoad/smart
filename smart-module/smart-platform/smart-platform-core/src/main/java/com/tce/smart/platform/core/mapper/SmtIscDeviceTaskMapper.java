@@ -198,6 +198,18 @@ public interface SmtIscDeviceTaskMapper extends BaseMapper<SmtIscDeviceTask> {
 	 * @return 同一安全权限意图下的 ISC 任务
 	 */
 	List<SmtIscDeviceTask> listSecurityAuthTasksByIntent(@Param("sourceId") Long sourceId,
-															 @Param("intentKey") String intentKey);
+													 @Param("intentKey") String intentKey);
+
+	/**
+	 * 以旧状态、旧批次和旧更新时间为 CAS 条件执行本地接管。
+	 * ISC_TASK_ID 不参与更新，必须保留为审计证据。
+	 */
+	int cancelSecurityAuthTask(@Param("id") Long id,
+								   @Param("oldStatus") Integer oldStatus,
+								   @Param("oldBatchId") Long oldBatchId,
+								   @Param("oldUpdateTime") LocalDateTime oldUpdateTime,
+								   @Param("cancelStatus") Integer cancelStatus,
+								   @Param("newBatchId") Long newBatchId,
+								   @Param("updateTime") LocalDateTime updateTime);
 
 }

@@ -7,6 +7,7 @@ import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.data.api.feign.consume.RemoteRsEmpService;
 import com.tce.smart.platform.core.dto.DeviceTaskVO;
+import com.tce.smart.platform.core.dto.SecurityAuthDispatchContext;
 import com.tce.smart.platform.core.entity.SmtBusinessDeviceAuth;
 import com.tce.smart.platform.core.entity.SmtDevice;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthorityRelation;
@@ -185,6 +186,49 @@ public class SmtStaffServiceImplTest {
 		Assert.assertEquals(DeviceTaskActionEnum.DOWN.getCode(), task.getAction());
 		Assert.assertEquals(DeviceTaskConstants.CARD, task.getDeviceType());
 		Assert.assertEquals(DeviceTaskConstants.CARD, task.getServiceType());
+		Assert.assertNull("通用入口不得隐式带入保密区来源", task.getSourceType());
+	}
+
+	@Test
+	public void updatePersonCardForSecurityDispatchAddsExplicitSourceAndIntentMetadata() throws Exception {
+		SmtDeviceTaskService deviceTaskService = Mockito.mock(SmtDeviceTaskService.class);
+		SmtStaffDeviceAuthService staffDeviceAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceAuthorityRelationService deviceAuthorityRelationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtDeviceService deviceService = Mockito.mock(SmtDeviceService.class);
+		SmtIscDownRecordService iscDownRecordService = Mockito.mock(SmtIscDownRecordService.class);
+		SmtStaffServiceImpl service = new SmtStaffServiceImpl();
+		SmtStaff staff = staff();
+		SmtStaffDeviceAuth staffDeviceAuth = new SmtStaffDeviceAuth();
+		staffDeviceAuth.setAuthId(77);
+		SmtDeviceAuthorityRelation deviceAuthorityRelation = new SmtDeviceAuthorityRelation();
+		deviceAuthorityRelation.setDeviceId("isc-device-1");
+		SmtDevice iscDevice = new SmtDevice();
+		iscDevice.setId("isc-device-1");
+		iscDevice.setIsSync(DeviceSyncEnum.YES.getCode());
+		Mockito.when(deviceAuthorityRelationService.list(Mockito.any()))
+				.thenReturn(Collections.singletonList(deviceAuthorityRelation));
+		Mockito.when(deviceService.getById("isc-device-1")).thenReturn(iscDevice);
+		Mockito.when(iscDownRecordService.getOne(Mockito.any())).thenReturn(null);
+		Mockito.when(deviceTaskService.saveTask(Mockito.any())).thenReturn("123");
+		setField(service, "smtStaffDeviceAuthService", staffDeviceAuthService);
+		setField(service, "smtDeviceAuthorityRelationService", deviceAuthorityRelationService);
+		setField(service, "smtDeviceService", deviceService);
+		setField(service, "smtIscDownRecordService", iscDownRecordService);
+		setField(service, "smtDeviceTaskService", deviceTaskService);
+
+		service.updatePersonCardForSecurityDispatch(staff, "AQID", "face-new",
+				Collections.singletonList(staffDeviceAuth), null, "APPLY",
+				SecurityAuthDispatchContext.of(1001L, 101L, 9002L, staff.getId(), 77));
+
+		ArgumentCaptor<DeviceTaskVO> taskCaptor = ArgumentCaptor.forClass(DeviceTaskVO.class);
+		Mockito.verify(deviceTaskService).saveTask(taskCaptor.capture());
+		DeviceTaskVO task = taskCaptor.getValue();
+		Assert.assertEquals("SECURITY_AUTH", task.getSourceType());
+		Assert.assertEquals(Long.valueOf(1001L), task.getSourceId());
+		Assert.assertEquals(Long.valueOf(101L), task.getSourceDetailId());
+		Assert.assertEquals(Long.valueOf(9002L), task.getBatchId());
+		Assert.assertEquals("SECURITY_AUTH:" + staff.getId() + ":77:isc-device-1", task.getIntentKey());
+		Assert.assertNull("保密区来源不得复用入厂 APPLY_ID", task.getApplyId());
 	}
 
 	@Test

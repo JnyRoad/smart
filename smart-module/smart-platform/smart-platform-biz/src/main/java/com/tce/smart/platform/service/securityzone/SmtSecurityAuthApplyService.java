@@ -66,6 +66,12 @@ public interface SmtSecurityAuthApplyService extends IService<SmtSecurityAuthApp
 	/** 查询当前有效批次的进度。 */
 	SecurityDispatchProgressVO getDispatchProgress(Long applyId, Long batchId);
 
+	/** 单轮异步消费最多领取一百个人员候选。 */
+	int processDispatch();
+
+	/** ISC 终态回调触发当前批次聚合。 */
+	void syncDispatchStatus(Long applyId);
+
 	/**
 	 * 旧手动下发兼容入口。返回值仅表示命令已被受理，不能解释为设备下发成功。
 	 * @param applyId

@@ -72,4 +72,10 @@ public interface SmtSecurityTaskDetailsService extends IService<SmtSecurityTaskD
 	 * 按明细ID、待领取状态和批次号原子领取任务，旧批次必须领取失败。
 	 */
 	boolean claimDispatchDetail(Long detailId, Long dispatchBatchId);
+
+	/** 读取本轮异步 worker 的有限待处理候选。 */
+	List<SmtSecurityTaskDetails> listPendingDispatchDetails(int limit);
+
+	/** 在已锁定申请单的事务内领取并创建当前批次真实 ISC 任务。 */
+	int dispatchCurrentBatchDetails(Long applyId, Long dispatchBatchId, String applyBadge, List<Long> staffIds);
 }

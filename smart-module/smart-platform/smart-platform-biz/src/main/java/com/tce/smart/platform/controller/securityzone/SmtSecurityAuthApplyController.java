@@ -124,6 +124,21 @@ public class SmtSecurityAuthApplyController extends BaseController {
 		return success(smtSecurityAuthApplyService.getDispatchProgress(Long.parseLong(id), Long.parseLong(batchId)));
 	}
 
+	/** smart-schedule 每三十秒调用一次，只消费有限人员。 */
+	@Inner
+	@PostMapping("/dispatch/process")
+	public Result<Integer> processDispatch() {
+		return success(smtSecurityAuthApplyService.processDispatch());
+	}
+
+	/** ISC 任务进入终态后触发；实现内部始终以申请单当前批次聚合。 */
+	@Inner
+	@PostMapping("/{id}/dispatch/sync")
+	public Result syncDispatchStatus(@PathVariable("id") Long id) {
+		smtSecurityAuthApplyService.syncDispatchStatus(id);
+		return success();
+	}
+
     /**
      * 提示信息推送（仅供 smart-schedule 定时任务 Feign 调用，对齐 /oa/status/task 的 @Inner）
      *

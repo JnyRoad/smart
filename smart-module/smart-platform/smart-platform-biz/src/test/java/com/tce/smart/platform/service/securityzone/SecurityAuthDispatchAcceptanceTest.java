@@ -17,6 +17,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
@@ -165,6 +167,32 @@ public class SecurityAuthDispatchAcceptanceTest {
 		String sql = captor.getValue().getSqlSegment().toLowerCase(java.util.Locale.ROOT);
 		assertTrue("领取条件必须包含批次围栏", sql.contains("dispatch_batch_id"));
 		assertTrue("领取条件必须限定待领取状态", sql.contains("status"));
+	}
+
+	@Test
+	public void processDispatch_locksCurrentApplyAndDispatchesOnlyCurrentBatch() throws Exception {
+		SmtSecurityTaskDetails candidate = SmtSecurityTaskDetails.builder()
+				.id(101L).applyId(1001L).dispatchBatchId(9002L).staffId(501L)
+				.status(DeviceDownStatusEnum.WAIT.getCode()).build();
+		SmtSecurityAuthApply apply = approvedApply(1001L);
+		apply.setCurrentDispatchBatchId(9002L);
+		apply.setApplyBadge("APPLY");
+		when(taskDetailsService.listPendingDispatchDetails(100)).thenReturn(Collections.singletonList(candidate));
+		doReturn(apply).when(applyService).getOne(any());
+		when(taskDetailsService.dispatchCurrentBatchDetails(1001L, 9002L, "APPLY",
+				Collections.singletonList(501L))).thenReturn(1);
+		TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+		when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+			TransactionCallback<Integer> callback = invocation.getArgument(0);
+			return callback.doInTransaction(mock(org.springframework.transaction.TransactionStatus.class));
+		});
+		setField(applyService, "transactionTemplate", transactionTemplate);
+
+		int processed = applyService.processDispatch();
+
+		assertEquals(1, processed);
+		verify(taskDetailsService).dispatchCurrentBatchDetails(1001L, 9002L, "APPLY",
+				Collections.singletonList(501L));
 	}
 
 	private SmtSecurityAuthApply approvedApply(Long id) {

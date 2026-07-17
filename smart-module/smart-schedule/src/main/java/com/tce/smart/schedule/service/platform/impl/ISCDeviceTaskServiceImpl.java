@@ -31,6 +31,8 @@ import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.feign.RemoteParkService;
 import com.tce.smart.platform.api.feign.RemoteSnapPersonService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
+import com.tce.smart.platform.api.feign.securityzone.RemoteSecurityAuthService;
+import com.tce.smart.platform.core.dto.SecurityAuthDispatchContext;
 import com.tce.smart.platform.core.entity.*;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceApply;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceFellow;
@@ -51,6 +53,7 @@ import com.tce.smart.tool.util.WeChatMsgUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -108,6 +111,9 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	private final SmtStaffOtherService smtStaffOtherService;
 
 	private final StringRedisTemplate redisTemplate;
+
+	@Autowired
+	private RemoteSecurityAuthService remoteSecurityAuthService;
 
 	private static final int DEFAULT_CHANNEL_NO = 1;
 
@@ -169,13 +175,23 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	private Integer hfParkId;
 
 	/**
-	 * ISC任务终态落库后触发入厂申请聚合回写（状态诚实化最终落点）。
-	 * 只对来源于入厂申请（{@code task.getApplyId() != null}）的任务生效；
+	 * ISC任务终态落库后触发对应业务的聚合回写（状态诚实化最终落点）。
+	 * 保密区任务按 sourceId 通过内部接口聚合当前批次；入厂申请仍按 applyId 本地聚合。
 	 * 聚合/回写内部已自行处理重试与异常兜底（见{@link AdmittanceDispatchAggregator}），
 	 * 这里再包一层try/catch纯粹是防御性的：绝不能因为聚合失败影响ISC任务主流程。
 	 * 同一批次内多个任务同时落终态会重复触发聚合，聚合本身按当前DB状态重新计算，天然幂等。
 	 */
 	private void triggerDispatchAggregationIfApplicable(SmtIscDeviceTask task) {
+		if (task != null && SecurityAuthDispatchContext.SOURCE_TYPE.equals(task.getSourceType())
+				&& task.getSourceId() != null) {
+			try {
+				remoteSecurityAuthService.syncDispatchStatus(task.getSourceId(), SecurityConstants.FROM_IN);
+			} catch (Exception e) {
+				log.error("保密区 ISC 任务终态聚合触发异常，sourceId={}, batchId={}, taskId={}",
+						task.getSourceId(), task.getBatchId(), task.getId(), e);
+			}
+			return;
+		}
 		if (task == null || task.getApplyId() == null) {
 			return;
 		}

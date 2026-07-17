@@ -53,6 +53,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @AllArgsConstructor
 public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, SmtDeviceTask> implements SmtDeviceTaskService {
+	private static final String SECURITY_AUTH_SOURCE_TYPE = "SECURITY_AUTH";
 
 	private final SmtTaskDownRecordService smtTaskDownRecordService;
 
@@ -114,7 +115,13 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 
 		if (StaffSyncEnum.YES.getCode().equals(smtDevice.getIsSync())) {
 			log.info("ISC设备路由 - 设备: {} 路由到ISC任务服务", deviceTaskVO.getDeviceCode());
+			if (SECURITY_AUTH_SOURCE_TYPE.equals(deviceTaskVO.getSourceType())) {
+				return smtIscDeviceTaskService.saveSecurityAuthTask(deviceTaskVO);
+			}
 			return smtIscDeviceTaskService.saveTask(deviceTaskVO);
+		}
+		if (SECURITY_AUTH_SOURCE_TYPE.equals(deviceTaskVO.getSourceType())) {
+			throw new IllegalStateException("保密区权限批次仅支持ISC设备，禁止写入普通设备任务表");
 		}
 
 		log.info("非ISC设备路由 - 设备: {} 使用标准任务服务", deviceTaskVO.getDeviceCode());
