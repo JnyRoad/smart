@@ -98,9 +98,11 @@ public class SecurityAuthDispatchAcceptanceTest {
 	public void acceptDispatch_whenAllDetailsAreAlreadySuccessful_reusesCurrentSuccessfulBatch() {
 		SmtSecurityAuthApply apply = approvedApply(1004L);
 		apply.setCurrentDispatchBatchId(9004L);
-		apply.setDeviceStatus(DeviceDownStatusEnum.SUCCESS.getCode());
+		apply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
 		doReturn(apply).when(applyService).getOne(any());
-		when(taskDetailsService.rebindDispatchBatch(anyLong(), anyLong())).thenReturn(0);
+		when(taskDetailsService.list(any())).thenReturn(java.util.Arrays.asList(
+				SmtSecurityTaskDetails.builder().status(DeviceDownStatusEnum.SUCCESS.getCode()).build(),
+				SmtSecurityTaskDetails.builder().status(DeviceDownStatusEnum.SUCCESS.getCode()).build()));
 
 		SecurityDispatchAcceptedVO accepted = applyService.acceptDispatch(1004L);
 
@@ -108,6 +110,7 @@ public class SecurityAuthDispatchAcceptanceTest {
 		assertEquals(Integer.valueOf(0), accepted.getAcceptedCount());
 		assertEquals("当前成功批次必须保持不变", Long.valueOf(9004L), apply.getCurrentDispatchBatchId());
 		verify(applyMapper, never()).update(any(), any());
+		verify(taskDetailsService, never()).rebindDispatchBatch(anyLong(), anyLong());
 	}
 
 	@Test
