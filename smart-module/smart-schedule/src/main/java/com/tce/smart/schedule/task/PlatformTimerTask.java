@@ -35,6 +35,8 @@ public class PlatformTimerTask {
 	 * 覆盖单轮最长耗时（两批×200单×OA查询超时5s 的量级裕度），避免任务未跑完锁已过期导致重入。
 	 */
 	private static final long SECURITY_AUTH_UPDATE_OA_LOCK_MINUTES = 5L;
+	/** 单轮仅处理一百个人员，一分钟锁租期足以覆盖本轮且避免重入。 */
+	private static final long SECURITY_AUTH_DISPATCH_LOCK_MINUTES = 1L;
 
 	@Autowired
 	private IDeviceTaskService deviceTaskService;
@@ -188,6 +190,29 @@ public class PlatformTimerTask {
 			remoteSecurityAuthService.updateOaStatusTask(SecurityConstants.FROM_IN);
 		} finally {
 			switchService.release(TimerTaskEnum.SECURITY_AUTH_UPDATE_OA, lockToken);
+		}
+	}
+
+	/**
+	 * 保密门禁权限异步下发每三十秒执行一次；开关默认关闭。
+	 * 显式持锁覆盖 Feign 调用，防止多 schedule 实例并发领取同一申请单。
+	 */
+	@Scheduled(fixedDelay = 1000 * 30)
+	public void securityAuthDispatchProcess() {
+		if (!Boolean.TRUE.equals(taskJob.getSecurityAuthDispatchProcess())) {
+			return;
+		}
+		String lockToken = switchService.acquire(TimerTaskEnum.SECURITY_AUTH_DISPATCH_PROCESS,
+				SECURITY_AUTH_DISPATCH_LOCK_MINUTES, TimeUnit.MINUTES);
+		if (lockToken == null) {
+			return;
+		}
+		try {
+			remoteSecurityAuthService.processDispatch(SecurityConstants.FROM_IN);
+		} catch (Exception e) {
+			log.error("保密门禁权限异步下发任务异常", e);
+		} finally {
+			switchService.release(TimerTaskEnum.SECURITY_AUTH_DISPATCH_PROCESS, lockToken);
 		}
 	}
 

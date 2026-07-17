@@ -33,6 +33,20 @@
 		SDA.INTENT_KEY
 	</sql>
 
+	<!-- 保密区权限任务只能由申请单当前批次进入真实 ISC 提交链；其余来源不受影响。 -->
+	<sql id="security_auth_current_batch_fence">
+		AND (
+			SDA.SOURCE_TYPE IS NULL
+			OR SDA.SOURCE_TYPE != 'SECURITY_AUTH'
+			OR EXISTS (
+				SELECT 1
+				FROM SMT_SECURITY_AUTH_APPLY SAA
+				WHERE SAA.ID = SDA.SOURCE_ID
+				  AND SAA.CURRENT_DISPATCH_BATCH_ID = SDA.BATCH_ID
+			)
+		)
+	</sql>
+
 	<!-- 新增：到期删除任务查询，访客未到期的删除任务不能提前执行 -->
 	<select id="getDeleteTasks" resultType="com.tce.smart.platform.core.entity.SmtIscDeviceTask">
 		SELECT * FROM (
@@ -208,6 +222,7 @@
 		  AND (SDA.CODE != 200 OR SDA.CODE IS NULL)
 		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
 		  AND device.CONNECT_STATUS = 2
+		  <include refid="security_auth_current_batch_fence" />
 		ORDER BY CASE WHEN SDA.START_TIME IS NULL THEN 0 ELSE 1 END ASC, SDA.START_TIME ASC, SDA.TIMES ASC
 	</select>
 
@@ -238,6 +253,7 @@
 		  AND (SDA.CODE != 200 or SDA.CODE is null)
 		  AND (SDA.TIMES IS NULL OR SDA.TIMES <![CDATA[<]]> 10)
 		  and device.CONNECT_STATUS = 2
+		  <include refid="security_auth_current_batch_fence" />
 		ORDER BY SDA.START_TIME ASC, SDA.TIMES ASC
 	</select>
 
@@ -318,6 +334,33 @@
 		  AND SDA.INTENT_KEY = #{intentKey}
 		ORDER BY SDA.CREATE_TIME DESC, SDA.ID DESC
 	</select>
+
+	<!-- 仅修改本地状态；明确不清空 ISC_TASK_ID，也不调用任何 ISC 取消接口。 -->
+	<update id="cancelSecurityAuthTask">
+		UPDATE SMT_ISC_DEVICE_TASK SDA
+		SET SDA.STATUS = #{cancelStatus},
+			SDA.REMARK = '被批次 ' || #{newBatchId} || ' 接管',
+			SDA.UPDATE_TIME = #{updateTime}
+		WHERE SDA.ID = #{id}
+		  AND SDA.SOURCE_TYPE = 'SECURITY_AUTH'
+		  AND SDA.STATUS = #{oldStatus}
+		  <choose>
+			<when test="oldBatchId != null">
+			  AND SDA.BATCH_ID = #{oldBatchId}
+			</when>
+			<otherwise>
+			  AND SDA.BATCH_ID IS NULL
+			</otherwise>
+		  </choose>
+		  <choose>
+			<when test="oldUpdateTime != null">
+			  AND SDA.UPDATE_TIME = #{oldUpdateTime}
+			</when>
+			<otherwise>
+			  AND SDA.UPDATE_TIME IS NULL
+			</otherwise>
+		  </choose>
+	</update>
 
 	<select id="getDeviceCode" resultType="String">
 		SELECT

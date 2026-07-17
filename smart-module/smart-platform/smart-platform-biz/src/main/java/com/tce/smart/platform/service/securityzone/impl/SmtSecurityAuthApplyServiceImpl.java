@@ -83,6 +83,8 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	private static final int MAX_MSG_RETRY = 3;
 	/** isMsg 终态：连续失败达上限后放弃，不再入扫（0=未发送，1=已发送，2=失败放弃） */
 	private static final int MSG_SEND_ABANDONED = 2;
+	/** 单轮 worker 最多处理一百个人员，避免大申请独占调度线程。 */
+	private static final int DISPATCH_PERSON_LIMIT = 100;
 
 	@Autowired
 	private RemoteOaWorkFlowService remoteOaWorkFlowService;
@@ -208,6 +210,7 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 
 	@Override
 	public SecurityDispatchProgressVO getDispatchProgress(Long applyId, Long batchId) {
+		smtSecurityTaskDetailsService.syncTaskStatus(applyId);
 		SmtSecurityAuthApply authApply = this.getById(applyId);
 		if (Objects.isNull(authApply)) {
 			throw new SmartException("申请单不存在");
@@ -227,6 +230,49 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 		progress.setFailCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.FAIL.getCode().equals(detail.getStatus())).count());
 		this.updateDispatchMainStatus(authApply, progress);
 		return progress;
+	}
+
+	@Override
+	public int processDispatch() {
+		List<SmtSecurityTaskDetails> candidates = smtSecurityTaskDetailsService
+				.listPendingDispatchDetails(DISPATCH_PERSON_LIMIT);
+		if (CollUtil.isEmpty(candidates)) {
+			return 0;
+		}
+		Map<String, List<SmtSecurityTaskDetails>> groups = candidates.stream().collect(Collectors.groupingBy(
+				detail -> detail.getApplyId() + ":" + detail.getDispatchBatchId(), LinkedHashMap::new,
+				Collectors.toList()));
+		int processed = 0;
+		for (List<SmtSecurityTaskDetails> group : groups.values()) {
+			try {
+				Integer groupProcessed = transactionTemplate.execute(status -> processCurrentDispatchGroup(group));
+				processed += groupProcessed == null ? 0 : groupProcessed;
+			} catch (Exception e) {
+				SmtSecurityTaskDetails candidate = group.get(0);
+				log.error("保密区权限批次消费失败，本申请事务已回滚：applyId={}, batchId={}",
+						candidate.getApplyId(), candidate.getDispatchBatchId(), e);
+			}
+		}
+		return processed;
+	}
+
+	private int processCurrentDispatchGroup(List<SmtSecurityTaskDetails> group) {
+		SmtSecurityTaskDetails candidate = group.get(0);
+		SmtSecurityAuthApply lockedApply = this.getOne(Wrappers.<SmtSecurityAuthApply>lambdaQuery()
+				.eq(SmtSecurityAuthApply::getId, candidate.getApplyId()).last("FOR UPDATE"));
+		if (lockedApply == null
+				|| !Objects.equals(lockedApply.getCurrentDispatchBatchId(), candidate.getDispatchBatchId())) {
+			return 0;
+		}
+		List<Long> staffIds = group.stream().map(SmtSecurityTaskDetails::getStaffId)
+				.filter(Objects::nonNull).distinct().collect(Collectors.toList());
+		return smtSecurityTaskDetailsService.dispatchCurrentBatchDetails(lockedApply.getId(),
+				lockedApply.getCurrentDispatchBatchId(), lockedApply.getApplyBadge(), staffIds);
+	}
+
+	@Override
+	public void syncDispatchStatus(Long applyId) {
+		smtSecurityTaskDetailsService.syncTaskStatus(applyId);
 	}
 
 	/**
