@@ -11,13 +11,7 @@ export const xcGuardApplyApi = {
   },
   doSend(id){
     return request({
-      url: `/platform/security/auth/apply/${id}/dispatch`,
-      method: 'post'
-    })
-  },
-  getDispatchProgress(id, batchId){
-    return request({
-      url: `/platform/security/auth/apply/${id}/dispatch/${batchId}`,
+      url: `/platform/security/auth/apply/down/${id}`,
       method: 'get'
     })
   },

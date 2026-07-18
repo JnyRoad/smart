@@ -60,12 +60,6 @@ import java.util.stream.Collectors;
 public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMapper, SmtIscDeviceTask> implements SmtIscDeviceTaskService {
 
 	private static final String ISC_VEHICLE_AUTH_UNSUPPORTED_MESSAGE = "ISC车辆权限不支持下发";
-	private static final String SECURITY_AUTH_SOURCE_TYPE = "SECURITY_AUTH";
-	/**
-	 * ISC 调度每分钟运行一次；两分钟保护窗口覆盖一轮调度和单次 ISC 提交抖动，
-	 * 防止任务刚置为 DOING、尚未来得及写 ISC_TASK_ID 时被新批次误接管。
-	 */
-	private static final long SECURITY_AUTH_SUBMIT_PROTECTION_MINUTES = 2L;
 
 	@Autowired
     private SmtIscDownRecordService smtIscDownRecordService;
@@ -122,7 +116,15 @@ public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMap
 				|| deviceTaskVO.getAction().equals(DeviceTaskActionEnum.DELAY_DOWN.getCode())
 				|| deviceTaskVO.getAction().equals(DeviceTaskActionEnum.DELAY_UPDATE.getCode())
 		) {
-			return persistDownloadTask(deviceTaskVO);
+			SmtIscDeviceTask deviceTask = new SmtIscDeviceTask();
+			BeanUtil.copyProperties(deviceTaskVO, deviceTask);
+			deviceTask.setBadge(deviceTaskVO.getApplyBadge());
+			setOpsUser(deviceTask);
+			deviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
+			deviceTask.setCreateTime(LocalDateTime.now());
+			//生成新的下发任务
+			this.save(deviceTask);
+			return deviceTask.getId().toString();
 		} else if(deviceTaskVO.getAction().equals(DeviceTaskActionEnum.DEL.getCode()) ||
 				deviceTaskVO.getAction().equals(DeviceTaskActionEnum.DELAY_DEL.getCode())) {
 			//删除任务
@@ -172,114 +174,6 @@ public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMap
 			return deviceTask.getId().toString();
 		}
 		return null;
-	}
-
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public String saveSecurityAuthTask(DeviceTaskVO deviceTaskVO) {
-		validateSecurityAuthTask(deviceTaskVO);
-		SmtDevice smtDevice = smtDeviceMapper.selectById(deviceTaskVO.getDeviceCode());
-		if (smtDevice == null) {
-			throw new IllegalStateException("设备" + deviceTaskVO.getDeviceCode() + "不存在");
-		}
-		if (Objects.equals(hfParkId, smtDevice.getParkId())
-				&& DeviceTaskConstants.CARD.equals(deviceTaskVO.getDeviceType())
-				&& !isHefeiCardAccessServiceType(deviceTaskVO.getServiceType())) {
-			throw new IllegalStateException("合肥非访客人脸照片无需下发ISC权限");
-		}
-
-		List<SmtIscDeviceTask> oldTasks = this.baseMapper.listSecurityAuthTasksByIntent(
-				deviceTaskVO.getSourceId(), deviceTaskVO.getIntentKey());
-		SmtIscDeviceTask currentBatchTask = findCurrentBatchTask(oldTasks, deviceTaskVO.getBatchId());
-		if (currentBatchTask != null) {
-			return currentBatchTask.getId().toString();
-		}
-
-		LocalDateTime now = LocalDateTime.now();
-		LocalDateTime protectionBefore = now.minusMinutes(SECURITY_AUTH_SUBMIT_PROTECTION_MINUTES);
-		for (SmtIscDeviceTask oldTask : emptySecurityAuthTasks(oldTasks)) {
-			if (isPreviousBatch(oldTask, deviceTaskVO.getBatchId())
-					&& isProtectedDoingTask(oldTask, protectionBefore)) {
-				throw new IllegalStateException("旧 ISC 任务仍在两分钟提交保护窗口内");
-			}
-		}
-		for (SmtIscDeviceTask oldTask : emptySecurityAuthTasks(oldTasks)) {
-			if (!isPreviousBatch(oldTask, deviceTaskVO.getBatchId())
-					|| !shouldTakeOver(oldTask, protectionBefore)) {
-				continue;
-			}
-			int updated = this.baseMapper.cancelSecurityAuthTask(oldTask.getId(), oldTask.getStatus(),
-					oldTask.getBatchId(), oldTask.getUpdateTime(), DeviceTaskStatusEnum.CANCEL.getCode(),
-					deviceTaskVO.getBatchId(), now);
-			if (updated != 1) {
-				throw new IllegalStateException("旧 ISC 任务状态已变化，本轮接管已中止");
-			}
-		}
-		return persistDownloadTask(deviceTaskVO);
-	}
-
-	private String persistDownloadTask(DeviceTaskVO deviceTaskVO) {
-		SmtIscDeviceTask deviceTask = new SmtIscDeviceTask();
-		BeanUtil.copyProperties(deviceTaskVO, deviceTask);
-		deviceTask.setBadge(deviceTaskVO.getApplyBadge());
-		setOpsUser(deviceTask);
-		deviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
-		deviceTask.setCreateTime(LocalDateTime.now());
-		this.save(deviceTask);
-		return deviceTask.getId().toString();
-	}
-
-	private void validateSecurityAuthTask(DeviceTaskVO task) {
-		if (task == null
-				|| !SECURITY_AUTH_SOURCE_TYPE.equals(task.getSourceType())
-				|| task.getSourceId() == null
-				|| task.getSourceDetailId() == null
-				|| task.getBatchId() == null
-				|| StringUtils.isEmpty(task.getIntentKey())) {
-			throw new IllegalArgumentException("保密区 ISC 任务缺少来源、批次、明细或意图键");
-		}
-		Integer action = task.getAction();
-		if (!DeviceTaskActionEnum.DOWN.getCode().equals(action)
-				&& !DeviceTaskActionEnum.UPDATE.getCode().equals(action)
-				&& !DeviceTaskActionEnum.DELAY_DOWN.getCode().equals(action)
-				&& !DeviceTaskActionEnum.DELAY_UPDATE.getCode().equals(action)) {
-			throw new IllegalArgumentException("保密区 ISC 接管入口只允许权限下发或更新任务");
-		}
-	}
-
-	private List<SmtIscDeviceTask> emptySecurityAuthTasks(List<SmtIscDeviceTask> tasks) {
-		return tasks == null ? Collections.emptyList() : tasks;
-	}
-
-	private SmtIscDeviceTask findCurrentBatchTask(List<SmtIscDeviceTask> tasks, Long batchId) {
-		for (SmtIscDeviceTask task : emptySecurityAuthTasks(tasks)) {
-			if (Objects.equals(batchId, task.getBatchId())) {
-				return task;
-			}
-		}
-		return null;
-	}
-
-	private boolean isPreviousBatch(SmtIscDeviceTask task, Long newBatchId) {
-		return task != null && !Objects.equals(task.getBatchId(), newBatchId);
-	}
-
-	private boolean isProtectedDoingTask(SmtIscDeviceTask task, LocalDateTime protectionBefore) {
-		return DeviceTaskStatusEnum.DOING.getCode().equals(task.getStatus())
-				&& StringUtils.isEmpty(task.getIscTaskId())
-				&& (task.getUpdateTime() == null || !task.getUpdateTime().isBefore(protectionBefore));
-	}
-
-	private boolean shouldTakeOver(SmtIscDeviceTask task, LocalDateTime protectionBefore) {
-		if (DeviceTaskStatusEnum.INIT.getCode().equals(task.getStatus())
-				|| DeviceTaskStatusEnum.DEVICE_OFFLINE.getCode().equals(task.getStatus())) {
-			return true;
-		}
-		if (!DeviceTaskStatusEnum.DOING.getCode().equals(task.getStatus())) {
-			return false;
-		}
-		return StringUtils.isNotEmpty(task.getIscTaskId())
-				|| (task.getUpdateTime() != null && task.getUpdateTime().isBefore(protectionBefore));
 	}
 
 	private SmtIscDownRecord findDeleteDownRecord(DeviceTaskVO deviceTaskVO) {
