@@ -10,13 +10,10 @@ import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.securityzone.SecurityAuthApplyDetailRespDTO;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.platform.core.service.SmtSecurityAreaService;
-import com.tce.smart.platform.core.vo.SecurityDispatchAcceptedVO;
-import com.tce.smart.platform.core.vo.SecurityDispatchProgressVO;
 import com.tce.smart.platform.service.securityzone.SmtSecurityAuthApplyService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -92,52 +89,17 @@ public class SmtSecurityAuthApplyController extends BaseController {
     }
 
     /**
-	 * 受理异步下发命令（管理端操作，需菜单按钮权限码）
+     * 手动下发（管理端操作，需菜单按钮权限码，PR #118/#119 评审安全后续项）
      *
      * @param id
      * @return
      */
-	@PreAuthorize("@pms.hasPermission('platform_security_auth_down')")
-	@PostMapping("/{id}/dispatch")
-	@ApiOperation("受理手动下发命令")
-	public ResponseEntity<Result<SecurityDispatchAcceptedVO>> dispatch(@PathVariable("id") String id) {
-		SecurityDispatchAcceptedVO accepted = smtSecurityAuthApplyService.acceptDispatch(Long.parseLong(id));
-		return ResponseEntity.accepted().body(success(accepted));
-	}
-
-	/**
-	 * 兼容旧管理端一个发布周期；语义与 POST 完全相同，HTTP 202 仅代表命令已受理。
-	 */
-	@PreAuthorize("@pms.hasPermission('platform_security_auth_down')")
-	@GetMapping("/down/{id}")
-	@ApiOperation("受理手动下发命令（兼容入口）")
-	public ResponseEntity<Result<SecurityDispatchAcceptedVO>> downDevice(@PathVariable("id") String id) {
-		return dispatch(id);
-	}
-
-	/** 查询当前受理批次的进度，旧批次不允许作为当前结果返回。 */
-	@PreAuthorize("@pms.hasPermission('platform_security_auth_down')")
-	@GetMapping("/{id}/dispatch/{batchId}")
-	@ApiOperation("查询下发批次进度")
-	public Result<SecurityDispatchProgressVO> getDispatchProgress(@PathVariable("id") String id,
-			@PathVariable("batchId") String batchId) {
-		return success(smtSecurityAuthApplyService.getDispatchProgress(Long.parseLong(id), Long.parseLong(batchId)));
-	}
-
-	/** smart-schedule 每三十秒调用一次，只消费有限人员。 */
-	@Inner
-	@PostMapping("/dispatch/process")
-	public Result<Integer> processDispatch() {
-		return success(smtSecurityAuthApplyService.processDispatch());
-	}
-
-	/** ISC 任务进入终态后触发；实现内部始终以申请单当前批次聚合。 */
-	@Inner
-	@PostMapping("/{id}/dispatch/sync")
-	public Result syncDispatchStatus(@PathVariable("id") Long id) {
-		smtSecurityAuthApplyService.syncDispatchStatus(id);
-		return success();
-	}
+    @PreAuthorize("@pms.hasPermission('platform_security_auth_down')")
+    @GetMapping("/down/{id}")
+    @ApiOperation("手动下发")
+    public Result downDevice(@PathVariable("id") String id) {
+        return success(smtSecurityAuthApplyService.downDevice(Long.parseLong(id)));
+    }
 
     /**
      * 提示信息推送（仅供 smart-schedule 定时任务 Feign 调用，对齐 /oa/status/task 的 @Inner）

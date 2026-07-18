@@ -4,7 +4,6 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -23,23 +22,16 @@ import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyPageQuer
 import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.securityzone.SecurityAuthApplyPageRespDTO;
 import com.tce.smart.platform.core.ao.SecurityAuthApplyPageQueryAO;
-import com.tce.smart.platform.core.dto.SecurityAuthDispatchContext;
 import com.tce.smart.platform.core.entity.SmtMsgTemplate;
 import com.tce.smart.platform.core.entity.SmtPark;
 import com.tce.smart.platform.core.entity.SmtSecurityArea;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.dto.WorkFlowLogDTO;
 import com.tce.smart.platform.core.dto.WorkFlowLogDataDTO;
-import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
-import com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails;
 import com.tce.smart.platform.core.mapper.SmtSecurityAuthApplyMapper;
-import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
 import com.tce.smart.platform.core.service.SmtMsgTemplateService;
 import com.tce.smart.platform.core.service.SmtSecurityAreaService;
-import com.tce.smart.platform.core.vo.SecurityDispatchAcceptedVO;
-import com.tce.smart.platform.core.vo.SecurityDispatchFailureReasonVO;
-import com.tce.smart.platform.core.vo.SecurityDispatchProgressVO;
 import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.SmtParkService;
 import com.tce.smart.platform.service.SmtStaffService;
@@ -58,12 +50,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -88,27 +78,6 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	private static final int MAX_MSG_RETRY = 3;
 	/** isMsg 终态：连续失败达上限后放弃，不再入扫（0=未发送，1=已发送，2=失败放弃） */
 	private static final int MSG_SEND_ABANDONED = 2;
-	/** 单轮 worker 最多处理一百个人员，避免大申请独占调度线程。 */
-	private static final int DISPATCH_PERSON_LIMIT = 100;
-	/** 失败备注中的中国居民身份证号。 */
-	private static final Pattern CHINESE_ID_PATTERN = Pattern.compile(
-			"(?i)(?<!\\d)(?:\\d{15}|\\d{17}[0-9x])(?!\\d)"
-	);
-	/** 失败备注中带字段名的证件、照片、内部任务和密钥值。 */
-	private static final Pattern SENSITIVE_FIELD_PATTERN = Pattern.compile(
-			"(?i)(身份证号?|证件号?|证件|card_?no|image_?id|photo|图片|照片|isc_?task_?id|"
-					+ "token|secret|password|credential|api[_-]?key)\\s*[:：=]?\\s*[^\\s,;，；]+"
-	);
-	/** personId、中文密钥和裸 key 仅在明确赋值时脱敏，避免误删普通自然语言。 */
-	private static final Pattern SENSITIVE_ASSIGNMENT_PATTERN = Pattern.compile(
-			"(?i)(?<![a-z0-9_])(?:person_?id|密钥|key)\\s*[:：=]\\s*[^\\s,;，；]+"
-	);
-	/** 失败备注中可能内嵌的图片 Base64 数据。 */
-	private static final Pattern IMAGE_BASE64_PATTERN = Pattern.compile(
-			"(?i)(?:data:image/[^;\\s]+;base64,)?[a-z0-9+/]{80,}={0,2}"
-	);
-	/** 脱敏后的统一占位文本。 */
-	private static final String REDACTED_TEXT = "[已脱敏]";
 
 	@Autowired
 	private RemoteOaWorkFlowService remoteOaWorkFlowService;
@@ -129,8 +98,6 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	@Autowired
 	private SmtSecurityAreaService smtSecurityAreaService;
 	@Autowired
-	private SmtIscDeviceTaskService smtIscDeviceTaskService;
-	@Autowired
 	private IOAWorkflowService ioaWorkflowService;
 	@Autowired
 	private OaFinalStatusResolver oaFinalStatusResolver;
@@ -138,8 +105,6 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 	private ProcessRecordWriter processRecordWriter;
 	@Autowired(required = false)
 	private StringRedisTemplate stringRedisTemplate;
-	@Autowired
-	private TransactionTemplate transactionTemplate;
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
@@ -181,222 +146,33 @@ public class SmtSecurityAuthApplyServiceImpl extends ServiceImpl<SmtSecurityAuth
 
 	@Override
 	public boolean triggerDownDevice(SmtSecurityAuthApply authApply) {
-		return Boolean.TRUE.equals(transactionTemplate.execute(status -> {
-			try {
-				this.acceptDispatch(authApply.getId());
-				return true;
-			} catch (Exception e) {
-				status.setRollbackOnly();
-				log.error("保密区申请权限下发命令受理失败：applyId={}", authApply.getId(), e);
-				return false;
-			}
-		}));
-	}
-
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public SecurityDispatchAcceptedVO acceptDispatch(Long applyId) {
-		SmtSecurityAuthApply authApply = this.getOne(Wrappers.<SmtSecurityAuthApply>lambdaQuery()
-				.eq(SmtSecurityAuthApply::getId, applyId).last("FOR UPDATE"));
-		if (Objects.isNull(authApply)) {
-			throw new SmartException("申请单不存在");
-		}
-		if (!ApproveListStateEnum.AGREE.getCode().equals(authApply.getOaStatus())) {
-			throw new SmartException("OA审批未通过，禁止下发");
-		}
-
-		if (isCurrentDispatchBatchAllSuccessful(authApply)) {
-			// 明细已全部成功但主单尚未聚合时，也必须复用既有批次，禁止持久化空的新批次。
-			return new SecurityDispatchAcceptedVO(authApply.getCurrentDispatchBatchId(), 0, 0);
-		}
-		Long batchId = IdWorker.getId();
-		int acceptedDetailCount = smtSecurityTaskDetailsService.rebindDispatchBatch(applyId, batchId);
-		int acceptedCount = acceptedDetailCount == 0 ? 0 : smtSecurityTaskDetailsService.countDispatchPeople(applyId, batchId);
-		authApply.setCurrentDispatchBatchId(batchId);
-		if (acceptedDetailCount > 0) {
-			authApply.setDeviceStatus(DeviceDownStatusEnum.IN_WORK.getCode());
-		}
-		this.updateById(authApply);
-		return new SecurityDispatchAcceptedVO(batchId, acceptedCount, 0);
-	}
-
-	/**
-	 * 以旧批次明细为准判断是否已经全部完成，不能依赖尚未聚合的主单状态。
-	 */
-	private boolean isCurrentDispatchBatchAllSuccessful(SmtSecurityAuthApply authApply) {
-		if (Objects.isNull(authApply.getCurrentDispatchBatchId())) {
-			return false;
-		}
-		List<SmtSecurityTaskDetails> details = smtSecurityTaskDetailsService.list(Wrappers.<SmtSecurityTaskDetails>lambdaQuery()
-				.eq(SmtSecurityTaskDetails::getApplyId, authApply.getId())
-				.eq(SmtSecurityTaskDetails::getDispatchBatchId, authApply.getCurrentDispatchBatchId()));
-		return CollUtil.isNotEmpty(details) && details.stream()
-				.allMatch(detail -> DeviceDownStatusEnum.SUCCESS.getCode().equals(detail.getStatus()));
-	}
-
-	@Override
-	public SecurityDispatchProgressVO getDispatchProgress(Long applyId, Long batchId) {
-		smtSecurityTaskDetailsService.syncTaskStatus(applyId);
-		SmtSecurityAuthApply authApply = this.getById(applyId);
-		if (Objects.isNull(authApply)) {
-			throw new SmartException("申请单不存在");
-		}
-		if (!batchId.equals(authApply.getCurrentDispatchBatchId())) {
-			throw new SmartException("只能查询当前下发批次");
-		}
-		List<SmtSecurityTaskDetails> details = smtSecurityTaskDetailsService.list(Wrappers.<SmtSecurityTaskDetails>lambdaQuery()
-				.eq(SmtSecurityTaskDetails::getApplyId, applyId)
-				.eq(SmtSecurityTaskDetails::getDispatchBatchId, batchId));
-		SecurityDispatchProgressVO progress = new SecurityDispatchProgressVO();
-		progress.setBatchId(batchId);
-		progress.setTotalCount(details.size());
-		progress.setWaitingCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.WAIT.getCode().equals(detail.getStatus())).count());
-		progress.setInWorkCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.IN_WORK.getCode().equals(detail.getStatus())).count());
-		progress.setSuccessCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.SUCCESS.getCode().equals(detail.getStatus())).count());
-		progress.setFailCount((int) details.stream().filter(detail -> DeviceDownStatusEnum.FAIL.getCode().equals(detail.getStatus())).count());
-		this.fillDispatchFailureProgress(progress, applyId, batchId, details);
-		this.updateDispatchMainStatus(authApply, progress);
-		return progress;
-	}
-
-	/**
-	 * 只连接当前批次的真实 ISC 任务与人员明细，并在返回管理端前统一脱敏失败备注。
-	 */
-	private void fillDispatchFailureProgress(SecurityDispatchProgressVO progress, Long applyId, Long batchId,
-			List<SmtSecurityTaskDetails> details) {
-		Map<Long, SmtSecurityTaskDetails> detailsById = details.stream()
-				.filter(detail -> detail.getId() != null)
-				.collect(Collectors.toMap(SmtSecurityTaskDetails::getId, detail -> detail,
-						(existing, duplicate) -> existing, LinkedHashMap::new));
-		List<SmtIscDeviceTask> terminalTasks = smtIscDeviceTaskService.list(Wrappers.<SmtIscDeviceTask>lambdaQuery()
-				.eq(SmtIscDeviceTask::getSourceType, SecurityAuthDispatchContext.SOURCE_TYPE)
-				.eq(SmtIscDeviceTask::getSourceId, applyId)
-				.eq(SmtIscDeviceTask::getBatchId, batchId)
-				.isNotNull(SmtIscDeviceTask::getSourceDetailId)
-				.in(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.FAIL.getCode(),
-						DeviceTaskStatusEnum.CANCEL.getCode(), DeviceTaskStatusEnum.EXPIRED.getCode()));
-		List<SmtIscDeviceTask> currentTerminalTasks = terminalTasks.stream()
-				.filter(task -> SecurityAuthDispatchContext.SOURCE_TYPE.equals(task.getSourceType()))
-				.filter(task -> Objects.equals(applyId, task.getSourceId()))
-				.filter(task -> Objects.equals(batchId, task.getBatchId()))
-				.filter(task -> detailsById.containsKey(task.getSourceDetailId()))
-				.filter(task -> isFailureTerminalStatus(task.getStatus()))
-				.sorted(Comparator.comparing(SmtIscDeviceTask::getSourceDetailId)
-						.thenComparing(SmtIscDeviceTask::getDeviceCode, Comparator.nullsFirst(String::compareTo)))
-				.collect(Collectors.toList());
-		progress.setCanceledCount((int) currentTerminalTasks.stream()
-				.filter(task -> DeviceTaskStatusEnum.CANCEL.getCode().equals(task.getStatus()))
-				.map(SmtIscDeviceTask::getSourceDetailId).distinct().count());
-		progress.setFailureReasons(currentTerminalTasks.stream()
-				.map(task -> buildFailureReason(detailsById.get(task.getSourceDetailId()), task))
-				.collect(Collectors.toList()));
-	}
-
-	private boolean isFailureTerminalStatus(Integer status) {
-		return DeviceTaskStatusEnum.FAIL.getCode().equals(status)
-				|| DeviceTaskStatusEnum.CANCEL.getCode().equals(status)
-				|| DeviceTaskStatusEnum.EXPIRED.getCode().equals(status);
-	}
-
-	private SecurityDispatchFailureReasonVO buildFailureReason(SmtSecurityTaskDetails detail,
-			SmtIscDeviceTask task) {
-		SecurityDispatchFailureReasonVO failureReason = new SecurityDispatchFailureReasonVO();
-		failureReason.setStaffBadge(detail.getStaffBadge());
-		failureReason.setStaffName(detail.getStaffName());
-		failureReason.setDeviceCode(task.getDeviceCode());
-		failureReason.setStatus(deviceTaskStatusName(task.getStatus()));
-		failureReason.setReason(sanitizeFailureReason(task));
-		return failureReason;
-	}
-
-	private String deviceTaskStatusName(Integer status) {
-		return Arrays.stream(DeviceTaskStatusEnum.values())
-				.filter(value -> value.getCode().equals(status))
-				.map(Enum::name)
-				.findFirst().orElse("UNKNOWN");
-	}
-
-	/**
-	 * 先按任务结构化敏感字段精确替换，再覆盖备注中常见的证件、图片和密钥格式。
-	 */
-	private String sanitizeFailureReason(SmtIscDeviceTask task) {
-		String reason = StringUtils.isNotEmpty(task.getRemark())
-				? task.getRemark() : DeviceTaskStatusEnum.desc(task.getStatus());
-		for (String sensitiveValue : Arrays.asList(task.getCardNo(), task.getImageId(),
-				task.getIscTaskId(), task.getPersonId())) {
-			if (StringUtils.isNotEmpty(sensitiveValue)) {
-				reason = reason.replace(sensitiveValue, REDACTED_TEXT);
-			}
-		}
-		reason = CHINESE_ID_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
-		reason = SENSITIVE_FIELD_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
-		reason = SENSITIVE_ASSIGNMENT_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
-		return IMAGE_BASE64_PATTERN.matcher(reason).replaceAll(REDACTED_TEXT);
-	}
-
-	@Override
-	public int processDispatch() {
-		List<SmtSecurityTaskDetails> candidates = smtSecurityTaskDetailsService
-				.listPendingDispatchDetails(DISPATCH_PERSON_LIMIT);
-		if (CollUtil.isEmpty(candidates)) {
-			return 0;
-		}
-		Map<String, List<SmtSecurityTaskDetails>> groups = candidates.stream().collect(Collectors.groupingBy(
-				detail -> detail.getApplyId() + ":" + detail.getDispatchBatchId(), LinkedHashMap::new,
-				Collectors.toList()));
-		int processed = 0;
-		for (List<SmtSecurityTaskDetails> group : groups.values()) {
-			try {
-				Integer groupProcessed = transactionTemplate.execute(status -> processCurrentDispatchGroup(group));
-				processed += groupProcessed == null ? 0 : groupProcessed;
-			} catch (Exception e) {
-				SmtSecurityTaskDetails candidate = group.get(0);
-				log.error("保密区权限批次消费失败，本申请事务已回滚：applyId={}, batchId={}",
-						candidate.getApplyId(), candidate.getDispatchBatchId(), e);
-			}
-		}
-		return processed;
-	}
-
-	private int processCurrentDispatchGroup(List<SmtSecurityTaskDetails> group) {
-		SmtSecurityTaskDetails candidate = group.get(0);
-		SmtSecurityAuthApply lockedApply = this.getOne(Wrappers.<SmtSecurityAuthApply>lambdaQuery()
-				.eq(SmtSecurityAuthApply::getId, candidate.getApplyId()).last("FOR UPDATE"));
-		if (lockedApply == null
-				|| !Objects.equals(lockedApply.getCurrentDispatchBatchId(), candidate.getDispatchBatchId())) {
-			return 0;
-		}
-		List<Long> staffIds = group.stream().map(SmtSecurityTaskDetails::getStaffId)
-				.filter(Objects::nonNull).distinct().collect(Collectors.toList());
-		return smtSecurityTaskDetailsService.dispatchCurrentBatchDetails(lockedApply.getId(),
-				lockedApply.getCurrentDispatchBatchId(), lockedApply.getApplyBadge(), staffIds);
-	}
-
-	@Override
-	public void syncDispatchStatus(Long applyId) {
-		smtSecurityTaskDetailsService.syncTaskStatus(applyId);
-	}
-
-	/**
-	 * 仅由当前批次聚合申请单状态：存在失败即失败，全部成功才成功，其余保持下发中。
-	 */
-	private void updateDispatchMainStatus(SmtSecurityAuthApply authApply, SecurityDispatchProgressVO progress) {
-		if (progress.getTotalCount() == 0) {
-			return;
-		}
-		Integer targetStatus = DeviceDownStatusEnum.IN_WORK.getCode();
-		if (progress.getSuccessCount().equals(progress.getTotalCount())) {
-			targetStatus = DeviceDownStatusEnum.SUCCESS.getCode();
-		} else if (progress.getFailCount() > 0) {
-			targetStatus = DeviceDownStatusEnum.FAIL.getCode();
-		}
-		if (!targetStatus.equals(authApply.getDeviceStatus())) {
+		try {
+			smtSecurityTaskDetailsService.downDevice(authApply.getId(), authApply.getApplyBadge());
+			// 下发未抛异常才推进主表"已触发下发"状态（修 D4，spec §3.1.3）
+			// 注意：主表 device_status 与明细表 SmtSecurityTaskDetails.status 是两套码表，
+			// 主表 4=ALRAEDY 表示"已触发下发"，明细表 1=SUCCESS 表示"单台设备下发成功"，切勿混淆。
 			this.update(Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
 					.eq(SmtSecurityAuthApply::getId, authApply.getId())
-					.eq(SmtSecurityAuthApply::getCurrentDispatchBatchId, progress.getBatchId())
-					.in(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode(),
-							DeviceDownStatusEnum.IN_WORK.getCode())
-					.set(SmtSecurityAuthApply::getDeviceStatus, targetStatus));
+					.eq(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode())
+					.set(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.ALRAEDY.getCode()));
+			// Critical 修复：CAS 只更新了 DB，未同步内存中的 authApply.deviceStatus。
+			// 调用方（callback handler / 对账任务 / 手动下发 downDevice）后续若基于该实体
+			// 再做 MyBatis-Plus 的 updateById，默认按 NOT_NULL 策略回写所有非空字段——若内存
+			// 字段仍是调用方传入时的旧值 0（WAIT），就会把上面 CAS 刚写入的 4 覆盖回 0，
+			// 导致"下发成功但主表仍显示待下发"。
+			// 因此只要 downDevice 未抛异常（走到这里），无论上面的 CAS 是否命中（返回 true/false），
+			// 都必须把内存字段同步为 ALRAEDY：
+			// - CAS 命中：DB 已从 0→4，内存需跟上，否则被后续 updateById 覆盖回 0；
+			// - CAS 未命中（说明 DB 已非 0，大概率已是并发场景下别的调用者写成了 4）：
+			//   内存置 4 同样安全且必要，避免 updateById 用过期的 0 覆盖 DB 现有的 4。
+			// 失败路径（downDevice 抛异常，进入 catch）不会执行到这里，内存字段保持不变，
+			// 交由对账任务按现值重试，不允许在异常路径误推进状态。
+			authApply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
+			return true;
+		} catch (Exception e) {
+			// 带堆栈，保持主表 device_status 现值，由对账任务场景 2 重试（spec §3.1.3）
+			log.error("保密区申请权限下发失败：applyId={}", authApply.getId(), e);
+			return false;
 		}
 	}
 

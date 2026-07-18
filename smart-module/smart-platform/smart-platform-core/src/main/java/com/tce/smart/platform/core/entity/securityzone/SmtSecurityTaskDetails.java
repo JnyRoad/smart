@@ -79,9 +79,4 @@ private static final long serialVersionUID = 1L;
 	 */
 	private String authName;
 
-	/**
-	 * 保密区权限下发批次号，WAIT 明细以此字段作为持久化待消费命令标记
-	 */
-	private Long dispatchBatchId;
-
 }
