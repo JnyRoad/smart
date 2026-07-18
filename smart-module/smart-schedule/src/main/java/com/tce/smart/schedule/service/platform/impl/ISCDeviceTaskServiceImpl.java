@@ -42,6 +42,7 @@ import com.tce.smart.platform.core.mapper.SmtStaffMapper;
 import com.tce.smart.platform.core.service.*;
 import com.tce.smart.schedule.dto.DownDetailDTO;
 import com.tce.smart.schedule.service.platform.ISCDeviceTaskService;
+import com.tce.smart.schedule.support.IscLogPayloadFormatter;
 import com.tce.smart.tool.constant.DeviceConstants;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
 import com.tce.smart.tool.constant.RedisKeyConstants;
@@ -114,6 +115,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	private static final int DOWNLOAD_DETAIL_PAGE_SIZE = 1000;
 
 	private static final int AUTH_CONFIG_PERSON_BATCH_SIZE = 1000;
+
+	private static final int ISC_LOG_TASK_ID_LIMIT = 100;
 
 	private static final int ISC_TASK_TIMEOUT_HOURS = 6;
 
@@ -336,7 +339,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			// 在添加人员前先检查人员是否已存在
 			if (isAdd) {
 				JSONObject person = this.getPersonDetail(task);
-				log.info("ISC人员查询结果：task:{},person:{}", task, person);
+				log.info("event=isc_person_lookup task_id={} park_id={} staff_id={} staff_no={} person_payload={}",
+						task.getId(), task.getParkId(), task.getCardNo(), logTaskBadge(task), IscLogPayloadFormatter.format(person));
 				if (person != null) {
 					// 人员已存在，返回现有的personId，不需要重复添加
 					String existingPersonId = person.getStr("personId");
@@ -376,7 +380,9 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			if (!isTemporaryAuthorizationTask(task)) {
 				staffInfo = remoteStaffService.getSimpleSttaffById(task.getCardNo(), SecurityConstants.FROM_IN);
 			}
-			log.info("ISC添加或更新人员-根据卡号获取人员信息：{}", staffInfo);
+			log.info("event=isc_staff_lookup task_id={} park_id={} staff_id={} staff_payload={}",
+					task.getId(), task.getParkId(), task.getCardNo(),
+					staffInfo == null ? "null" : IscLogPayloadFormatter.format(staffInfo.getData()));
 			if (staffInfo != null && staffInfo.isSuccess() && Objects.nonNull(staffInfo.getData())) {
 				// 获取员工信息
 				SmtStaffDTO staff = staffInfo.getData();
@@ -607,13 +613,15 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setParkId(parkId);
 			dispatcherDTO.setEventType(EventEnum.ISC_PERSON_GET.getCode());
 			dispatcherDTO.setData(params);
-			log.debug("ISC批量查询员工人员参数:{}",JSONUtil.toJsonStr(params));
+			log.debug("event=isc_person_batch_lookup_request park_id={} payload={}", parkId,
+					IscLogPayloadFormatter.format(params));
 			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				log.debug("从ISC平台批量查询人员失败：{}", result.getMessage());
 				return null;
 			} else {
-				log.debug("从ISC平台批量查询人员：{}",JSONUtil.toJsonStr(result.getData()));
+				log.debug("event=isc_person_batch_lookup_response park_id={} payload={}", parkId,
+						IscLogPayloadFormatter.format(result.getData()));
 			}
 			Map<String,JSONObject> personMap = new HashMap<>();
 			JSONArray list = JSONUtil.parseObj(result.getData()).getJSONArray("list");
@@ -677,7 +685,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setParkId(taskList.get(0).getParkId());
 			dispatcherDTO.setEventType(EventEnum.ISC_PERSON_GET.getCode());
 			dispatcherDTO.setData(params);
-			log.info("ISC批量查询访客人员参数:{}",JSONUtil.toJsonStr(params));
+			log.info("event=isc_visitor_batch_lookup_request park_id={} payload={}", dispatcherDTO.getParkId(),
+					IscLogPayloadFormatter.format(params));
 			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				// 查询失败返回null哨兵，调用方跳过本轮避免误判"人员不存在"而重复建人
@@ -767,7 +776,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setEventType(EventEnum.ISC_PERSON_GET.getCode());
 			dispatcherDTO.setData(params);
 			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
-			log.info("获取人员详细信息结果：{}", result);
+			log.info("event=isc_person_detail_response park_id={} person_count={} payload={}", parkId, personIds.size(),
+					IscLogPayloadFormatter.format(result == null ? null : result.getData()));
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				log.info("从ISC平台查询人员[{}]失败：{}", personIds, result.getMessage());
 				return null;
@@ -887,10 +897,10 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		List<SmtIscDeviceTask> normalTaskList = new ArrayList<>();
 		normalTaskList.addAll(emptyTaskList(smtIscDeviceTaskService.getCardDown(newDeviceTaskPage(), currentSeconds,
 				DeviceTaskConstants.CARD)));
-		log.info("结束-查询ISC正常下发任务TaskList，normalTaskList：{}", normalTaskList);
+		log.info("结束-查询ISC正常下发任务TaskList，任务数量：{}", normalTaskList.size());
 		// 获取正常下发任务列表
 		log.info("开始-获取ISC正常下发任务列表");
-		log.info("结束-获取ISC正常下发任务列表，normalList：{}", normalTaskList);
+		log.info("结束-获取ISC正常下发任务列表，任务数量：{}", normalTaskList.size());
 
 		// 处理正常任务中的过期情况
 		List<SmtIscDeviceTask> validNormalTasks = filterAndHandleExpiredTasks(normalTaskList, currentSeconds);
@@ -903,10 +913,10 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		IPage<SmtIscDeviceTask> delayTaskList = smtIscDeviceTaskService.getDelayDown(newDeviceTaskPage(), currentSeconds,
 				DeviceTaskConstants.CARD);
 		delayList.addAll(pageRecords(delayTaskList));
-		log.info("结束-查询ISC延迟下发任务TaskList，delayTaskList：{}", delayTaskList);
+		log.info("结束-查询ISC延迟下发任务TaskList，任务数量：{}", delayList.size());
 		// 获取延迟下发任务列表
 		log.info("开始-获取ISC延迟下发任务列表");
-		log.info("结束-获取ISC延迟下发任务列表，delayList：{}", delayList);
+		log.info("结束-获取ISC延迟下发任务列表，任务数量：{}", delayList.size());
 
 		// 处理延迟任务中的过期情况
 		List<SmtIscDeviceTask> validDelayTasks = filterAndHandleExpiredTasks(delayList, currentSeconds);
@@ -1875,10 +1885,12 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 					if (isAdd && !isTemporaryAuthorizationTask(item)) {
 						SmtStaff smtStaff = smtStaffOtherService.getOne(new LambdaQueryWrapper<SmtStaff>().eq(SmtStaff::getId, item.getCardNo()));
 						if (smtStaff != null && Objects.equals(smtStaff.getStatus(), StaffStatusEnum.STAFF_STATUS_QUIT.getCode())) {
+							Integer previousStatus = item.getStatus();
 							item.setStatus(DeviceTaskStatusEnum.CANCEL.getCode());
 							item.setCode(ISCDeviceTaskEnum.PERSON_HAVE_RESIGNED.getCode());
 							item.setRemark(ISCDeviceTaskEnum.PERSON_HAVE_RESIGNED.getDesc());
 							smtIscDeviceTaskService.updateById(item);
+							logTaskState("cancel_resigned", parkId, item, previousStatus, item.getRemark());
 							triggerDispatchAggregationIfApplicable(item);
 							continue;
 						}
@@ -1890,7 +1902,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
                     }
 					// 判断人员信息是否存在
 					if(personId == null || StringUtils.isEmpty(personId)){
-						log.info("任务{}对应的人员信息不存在，尝试重新获取人员信息", item.getCardNo());
+						log.info("event=isc_auth_person_lookup task_id={} park_id={} staff_id={} staff_no={} device_code={} action={} reason=person_id_missing",
+								item.getId(), parkId, item.getCardNo(), logTaskBadge(item), item.getDeviceCode(), item.getAction());
 
 						if (!isAdd) {
 							// 删除任务三态判定：人员在ISC已删除时权限已被级联清理，按删除成功收敛
@@ -1920,12 +1933,15 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 
 							// 如果仍然获取不到人员信息
 							if (personId == null || StringUtils.isEmpty(personId)) {
-								log.warn("任务{}对应的人员信息确实不存在于ISC平台", item.getCardNo());
+								Integer previousStatus = item.getStatus();
+								log.warn("event=isc_auth_person_lookup_failed task_id={} park_id={} staff_id={} staff_no={} device_code={} action={} reason=person_not_found",
+										item.getId(), parkId, item.getCardNo(), logTaskBadge(item), item.getDeviceCode(), item.getAction());
 								handleTaskResult(item, ISCDeviceTaskEnum.PERSON_NOT_EXIST, null, null);
 								item.setStatus(DeviceTaskStatusEnum.FAIL.getCode());
 								// 更新任务状态
 								item.setUpdateTime(LocalDateTime.now());
 								smtIscDeviceTaskService.updateById(item);
+								logTaskState("fail_person_not_found", parkId, item, previousStatus, item.getRemark());
 								triggerDispatchAggregationIfApplicable(item);
 								continue;
 							}
@@ -1933,11 +1949,13 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 					}
 
 					if (isAdd && isTemporaryAuthorizationTask(item) && !hasValidTemporaryAccessWindow(item)) {
+						Integer previousStatus = item.getStatus();
 						item.setStatus(DeviceTaskStatusEnum.FAIL.getCode());
 						item.setCode(ISCDeviceTaskEnum.AUTH_CONFIG_ERROR.getCode());
 						item.setRemark("临时人员权限缺少有效起止时间");
 						item.setUpdateTime(LocalDateTime.now());
 						smtIscDeviceTaskService.updateById(item);
+						logTaskState("fail_invalid_access_window", parkId, item, previousStatus, item.getRemark());
 						triggerDispatchAggregationIfApplicable(item);
 						continue;
 					}
@@ -1946,21 +1964,27 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 						//添加权限
 						byte[] imageByte = smtImageService.getImageBinaryByCode(item.getImageId());
 						if (imageByte == null) {
+							Integer previousStatus = item.getStatus();
 							item.setStatus(DeviceTaskStatusEnum.CANCEL.getCode());
 							item.setCode(ISCDeviceTaskEnum.FACE_IMG_NOT_EXIST.getCode());
 							item.setRemark(ISCDeviceTaskEnum.FACE_IMG_NOT_EXIST.getDesc());
 							// 更新任务CODE
 							smtIscDeviceTaskService.updateById(item);
+							logTaskState("cancel_face_missing", parkId, item, previousStatus, item.getRemark());
 							triggerDispatchAggregationIfApplicable(item);
 							continue;
 						}
 						// 判断照片是否在10KB到400KB之间
 						if (imageByte.length < 1024 * 10 || imageByte.length > 1024 * 400) {
+							Integer previousStatus = item.getStatus();
 							item.setStatus(DeviceTaskStatusEnum.CANCEL.getCode());
 							item.setCode(ISCDeviceTaskEnum.FACE_IMG_SIZE_ERROR.getCode());
 							item.setRemark(ISCDeviceTaskEnum.FACE_IMG_SIZE_ERROR.getDesc());
 							// 更新任务CODE
 							smtIscDeviceTaskService.updateById(item);
+							log.info("event=isc_auth_face_invalid task_id={} park_id={} staff_id={} staff_no={} device_code={} image_id={} image_length={} valid_length=10240-409600",
+									item.getId(), parkId, item.getCardNo(), logTaskBadge(item), item.getDeviceCode(), item.getImageId(), imageByte.length);
+							logTaskState("cancel_face_invalid", parkId, item, previousStatus, item.getRemark());
 							triggerDispatchAggregationIfApplicable(item);
 							if (item.getTimes() == 1) {
 								sendWechatMsg(StrUtil.nullToEmpty(item.getGeneral()).concat("照片不合格，请更换照片"), item.getBadge());
@@ -1968,14 +1992,12 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 							continue;
 						}
 					}
-					if (isAdd) {
-						log.info("zhongsj-权限下发成功");
-					}
+					Integer previousStatus = item.getStatus();
 					item.setStatus(DeviceTaskStatusEnum.DOING.getCode());
 					item.setPersonId(personId);
-					log.info("zhongsj-更新任务状态");
 					// 更新任务状态为处理中
 					smtIscDeviceTaskService.updateById(item);
+					logTaskState(isAdd ? "ready_for_add_dispatch" : "ready_for_delete_dispatch", parkId, item, previousStatus, null);
 				}
 				List<SmtIscDeviceTask> readyTasks = taskListTemp.stream()
 						.filter(task -> DeviceTaskStatusEnum.DOING.getCode().equals(task.getStatus()))
@@ -2017,14 +2039,24 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 						dispatcherDTO.setParkId(parkId);
 						dispatcherDTO.setEventType(isAdd ? EventEnum.ISC_AUTH_CONFIG_ADD.getCode() : EventEnum.ISC_AUTH_CONFIG_DEL.getCode());
 						dispatcherDTO.setData(params);
-						log.info("zhongsj-【设备权限下发】：{}", JSONUtil.toJsonStr(dispatcherDTO));
+						long dispatchStartTime = System.currentTimeMillis();
+						String taskIdSummary = summarizeTaskIds(batchTasks);
+						log.info("event=isc_auth_dispatch_request event_id={} park_id={} device_code={} action={} task_count={} task_ids={} payload={}",
+								dispatcherDTO.getEventId(), parkId, deviceCode, isAdd ? "ADD" : "DELETE", batchTasks.size(), taskIdSummary,
+								IscLogPayloadFormatter.format(dispatcherDTO));
 						try {
 							Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
-							log.info("【设备权限下发返回】：{}", result);
-							if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
-								log.info("权限配置至ISC平台失败：{}", result.getMessage());
+							long elapsedMillis = System.currentTimeMillis() - dispatchStartTime;
+							log.info("event=isc_auth_dispatch_response event_id={} park_id={} device_code={} action={} task_count={} task_ids={} success={} result_code={} elapsed_ms={} payload={}",
+									dispatcherDTO.getEventId(), parkId, deviceCode, isAdd ? "ADD" : "DELETE", batchTasks.size(), taskIdSummary,
+									result != null && result.isSuccess(), result == null ? null : result.getCode(), elapsedMillis,
+									IscLogPayloadFormatter.format(result));
+							if (result == null || !result.isSuccess() || StrUtil.isBlank(result.getData())) {
+								String resultMessage = result == null ? "ISC响应为空" : result.getMessage();
+								log.warn("event=isc_auth_dispatch_failed event_id={} park_id={} device_code={} task_count={} task_ids={} result_message={}",
+										dispatcherDTO.getEventId(), parkId, deviceCode, batchTasks.size(), taskIdSummary, resultMessage);
 								markTaskFailureBatch(batchTasks, ISCDeviceTaskEnum.AUTH_CONFIG_ERROR,
-										ISCDeviceTaskEnum.AUTH_CONFIG_ERROR.getDesc() + "：" + result.getMessage(), null);
+										ISCDeviceTaskEnum.AUTH_CONFIG_ERROR.getDesc() + "：" + resultMessage, null);
 								continue;
 							}
 							String taskId = JSONUtil.parseObj(result.getData()).getStr("taskId");
@@ -2038,7 +2070,9 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 							handleTaskResultBatch(batchTasks, ISCDeviceTaskEnum.AUTH_CONFIG_OK, taskId);
 						} catch (Exception e) {
 							// 异常不能让已置DOING的批次悬空（孤儿态），统一转失败重试
-							log.error("权限配置批次下发异常，任务数：{}", batchTasks.size(), e);
+							log.error("event=isc_auth_dispatch_exception event_id={} park_id={} device_code={} action={} task_count={} task_ids={} elapsed_ms={}",
+									dispatcherDTO.getEventId(), parkId, deviceCode, isAdd ? "ADD" : "DELETE", batchTasks.size(), taskIdSummary,
+									System.currentTimeMillis() - dispatchStartTime, e);
 							markTaskFailureBatch(batchTasks, ISCDeviceTaskEnum.AUTH_CONFIG_ERROR,
 									ISCDeviceTaskEnum.AUTH_CONFIG_ERROR.getDesc() + "：下发请求异常 " + e.getMessage(), null);
 						}
@@ -2046,6 +2080,34 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				}
 			}
 		}
+	}
+
+	/**
+	 * 记录任务状态转换，确保单条日志可定位到人员、设备和 ISC 任务。
+	 */
+	private void logTaskState(String stage, Integer parkId, SmtIscDeviceTask task, Integer previousStatus, String reason) {
+		log.info("event=isc_auth_task_state stage={} task_id={} park_id={} staff_id={} staff_no={} person_id={} device_code={} action={} service_type={} isc_task_id={} status_from={} status_to={} retry_times={} reason={}",
+				stage, task.getId(), parkId, task.getCardNo(), logTaskBadge(task), task.getPersonId(), task.getDeviceCode(),
+				task.getAction(), task.getServiceType(), task.getIscTaskId(), previousStatus, task.getStatus(), task.getTimes(), reason);
+	}
+
+	/**
+	 * 临时人员任务的 badge 是证件号，日志中必须脱敏；员工任务的 badge 是工号，可完整记录。
+	 */
+	private String logTaskBadge(SmtIscDeviceTask task) {
+		return isTemporaryAuthorizationTask(task) ? IscLogPayloadFormatter.maskCertificate(task.getBadge()) : task.getBadge();
+	}
+
+	/**
+	 * 批量日志只保留有限任务 ID 摘要，避免单条日志被大量任务 ID 淹没。
+	 */
+	private String summarizeTaskIds(List<SmtIscDeviceTask> tasks) {
+		String taskIds = tasks.stream().limit(ISC_LOG_TASK_ID_LIMIT).map(task -> String.valueOf(task.getId()))
+				.collect(Collectors.joining(","));
+		if (tasks.size() <= ISC_LOG_TASK_ID_LIMIT) {
+			return taskIds;
+		}
+		return taskIds + "...[truncated=true,total=" + tasks.size() + "]";
 	}
 
 	private List<SmtIscDeviceTask> cancelUnsupportedVehicleTasks(List<SmtIscDeviceTask> taskList) {
@@ -2157,7 +2219,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 						"查询ISC权限配置进度超过" + ISC_TASK_TIMEOUT_HOURS + "小时仍失败：" + result.getMessage(), taskId);
 				return;
 			}
-			log.info("查询权限配置任务响应数据：taskId-{},{}", taskId, result.getData());
+			log.info("event=isc_auth_config_progress_response isc_task_id={} task_count={} payload={}", taskId,
+					taskList.size(), IscLogPayloadFormatter.format(result.getData()));
 			JSONObject configProgressObj = JSONUtil.parseObj(result.getData());
 			boolean isFinished = configProgressObj.getBool("isFinished", false);
 			if (!isFinished) {
@@ -2191,7 +2254,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			downAuthDTO.setParkId(taskList.get(0).getParkId());
 			downAuthDTO.setEventType(EventEnum.ISC_AUTH_CONFIG_DOWN.getCode());
 			downAuthDTO.setData(downAuth);
-			log.info("zhongsj-快捷下载权限配置响应数据-开始：downAuthDTO={}", JSONUtil.toJsonStr(downAuthDTO));
+			log.info("event=isc_auth_download_request event_id={} isc_task_id={} park_id={} task_count={} payload={}",
+					downAuthDTO.getEventId(), taskId, downAuthDTO.getParkId(), taskList.size(), IscLogPayloadFormatter.format(downAuthDTO));
 			Result<String> downResult = remoteDispatcherService.dispatch(downAuthDTO, SecurityConstants.FROM_IN);
 			if (!downResult.isSuccess() || StrUtil.isBlank(downResult.getData())) {
 				log.info("快捷下载权限配置[{}]失败：{}", taskId, downResult.getMessage());
@@ -2199,7 +2263,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 						ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL.getDesc() + "：" + downResult.getMessage(), taskId);
 				return;
 			}
-			log.info("快捷下载权限配置响应数据：taskId-{},{}", taskId, downResult.getData());
+			log.info("event=isc_auth_download_response isc_task_id={} task_count={} payload={}", taskId, taskList.size(),
+					IscLogPayloadFormatter.format(downResult.getData()));
 			String downTaskId = JSONUtil.parseObj(downResult.getData()).getStr("taskId");
 			if (StrUtil.isBlank(downTaskId)) {
 				// 不能带着空iscTaskId停在DOING+202：该状态不会被下载结果轮询命中
@@ -2274,7 +2339,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 						"查询ISC权限下载进度超过" + ISC_TASK_TIMEOUT_HOURS + "小时仍失败：" + result.getMessage(), taskId);
 				return;
 			}
-			log.info("ISC下载权限进度处理待处理数据结果：{}，耗时：{}ms", result, System.currentTimeMillis() - step1Start);
+			log.info("event=isc_auth_download_progress_response isc_task_id={} task_count={} elapsed_ms={} payload={}", taskId,
+					taskList.size(), System.currentTimeMillis() - step1Start, IscLogPayloadFormatter.format(result.getData()));
 			// 解析请求结果
 			Integer downResult = 0;
 			String errorCode = null;
@@ -2462,7 +2528,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				.eq(SmtIscDeviceTask::getCode, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_OK.getCode())
 				.in(SmtIscDeviceTask::getPersonId, downDetailMap.keySet()));
 
-		log.info("步骤三定时任务：{}", updateTaskList);
+		log.info("event=isc_auth_download_detail_update task_count={} task_ids={}", updateTaskList.size(),
+				summarizeTaskIds(updateTaskList));
 		if (CollectionUtil.isEmpty(updateTaskList)) {
 			return;
 		}
@@ -2652,7 +2719,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	 */
 	public void genDeviceTask(SmtIscDeviceTask deviceTask, Date endTime) {
 		//开始生成访客删除任务
-		log.info("开始生成访客删除任务：{},{}", deviceTask, endTime);
+		log.info("event=isc_visitor_delete_task_create task_id={} park_id={} device_code={} end_time={}",
+				deviceTask.getId(), deviceTask.getParkId(), deviceTask.getDeviceCode(), endTime);
 		Long deleteOverTime = isTemporaryAuthorizationTask(deviceTask)
 				? endTime.getTime() / 1000
 				: ToolUtils.getDateEndTime(endTime).getTime() / 1000;
@@ -2696,7 +2764,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		newDeviceTask.setRemark(null);
 		newDeviceTask.setCode(null);
 		newDeviceTask.setTimes(null);
-		log.info("生成访客删除任务：{},{},{}", newDeviceTask, endTime, deleteOverTime);
+		log.info("event=isc_visitor_delete_task_created task_id={} park_id={} device_code={} delete_over_time={}",
+				newDeviceTask.getId(), newDeviceTask.getParkId(), newDeviceTask.getDeviceCode(), deleteOverTime);
 		smtIscDeviceTaskService.save(newDeviceTask);
 	}
 
@@ -2832,12 +2901,12 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		log.info("开始-查询ISC正常删除任务TaskList，时间戳：{} 时区：{} 当前服务器时间: {}", currentSeconds, timeZone, currentTime);
 		IPage<SmtIscDeviceTask> normalTaskList = smtIscDeviceTaskService.getDel(newDeviceTaskPage(), currentSeconds,
 				DeviceTaskConstants.CARD);
-		log.info("结束-查询ISC正常删除任务TaskList，normalTaskList：{}", normalTaskList);
+		log.info("结束-查询ISC正常删除任务TaskList，任务数量：{}", pageRecords(normalTaskList).size());
 		// 获取正常删除任务列表
 		log.info("开始-获取ISC正常删除任务列表");
 		List<SmtIscDeviceTask> normalList = new ArrayList<>();
 		normalList.addAll(pageRecords(normalTaskList));
-		log.info("结束-获取ISC正常删除任务列表，normalList：{}", normalList);
+		log.info("结束-获取ISC正常删除任务列表，任务数量：{}", normalList.size());
 		// 将正常删除任务列表添加到任务列表中
 		taskList.addAll(normalList);
 
@@ -2846,12 +2915,12 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		log.info("开始-查询ISC延迟删除任务TaskList，时间戳：{}", currentSeconds);
 		IPage<SmtIscDeviceTask> delayTaskList = smtIscDeviceTaskService.getDelayDel(newDeviceTaskPage(), currentSeconds,
 				DeviceTaskConstants.CARD);
-		log.info("结束-查询ISC延迟删除任务TaskList，normalTaskList：{}", delayTaskList);
+		log.info("结束-查询ISC延迟删除任务TaskList，任务数量：{}", pageRecords(delayTaskList).size());
 		// 获取延迟删除任务列表
 		log.info("开始-获取ISC延迟删除任务列表");
 		List<SmtIscDeviceTask> delayList = new ArrayList<>();
 		delayList.addAll(pageRecords(delayTaskList));
-		log.info("结束-获取ISC延迟删除任务列表，normalList：{}", delayList);
+		log.info("结束-获取ISC延迟删除任务列表，任务数量：{}", delayList.size());
 		// 将延迟删除任务列表添加到任务列表中
 		taskList.addAll(delayList);
 

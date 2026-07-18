@@ -1,7 +1,5 @@
 package com.tce.smart.schedule.task;
 
-import cn.hutool.core.date.DateTime;
-import cn.hutool.core.date.DateUtil;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
@@ -44,9 +42,8 @@ public class ISCDeviceTimerTask {
 	 */
 	@Scheduled(fixedDelay = 1000 * 60, initialDelay = 1000 * 10)
 	public void deviceTaskDownCard() {
-		if (taskJob.getIscDeviceTypeDownCard() && switchService.process(TimerTaskEnum.ISC_DEVICE_TYPE_DOWN_CARD)) {
-			deviceTaskService.downAccess();
-		}
+		executeIscJob("device_auth_dispatch", taskJob.getIscDeviceTypeDownCard(),
+				TimerTaskEnum.ISC_DEVICE_TYPE_DOWN_CARD, deviceTaskService::downAccess);
 	}
 
 	/**
@@ -55,9 +52,8 @@ public class ISCDeviceTimerTask {
 	 */
 	@Scheduled(fixedDelay = 1000 * 30, initialDelay = 1000 * 20)
 	public void authConfigProcessHandle() {
-		if (taskJob.getIscAuthProcessHandle() && switchService.process(TimerTaskEnum.ISC_AUTH_PROCESS_HANDLE)) {
-			deviceTaskService.authConfigProcessHandle();
-		}
+		executeIscJob("auth_config_progress", taskJob.getIscAuthProcessHandle(),
+				TimerTaskEnum.ISC_AUTH_PROCESS_HANDLE, deviceTaskService::authConfigProcessHandle);
 	}
 
 	/**
@@ -66,16 +62,8 @@ public class ISCDeviceTimerTask {
 	 */
 	@Scheduled(fixedDelay = 1000 * 60, initialDelay = 1000 * 30)
 	public void authConfigDownResultHandle() {
-		if (taskJob.getIscAuthResultHandle() && switchService.process(TimerTaskEnum.ISC_AUTH_RESULT_HANDLE)) {
-			DateTime start = DateUtil.date();
-			log.info("ISC下载权限进度处理开始：{}", start);
-			try {
-				deviceTaskService.authConfigDownResultHandle();
-			} catch (Exception e) {
-				log.info("ISC下载权限进度处理异常", e);
-			}
-			log.info("ISC下载权限进度处理开始：{}, 结束：{}", start, DateUtil.date());
-		}
+		executeIscJob("auth_download_progress", taskJob.getIscAuthResultHandle(),
+				TimerTaskEnum.ISC_AUTH_RESULT_HANDLE, deviceTaskService::authConfigDownResultHandle);
 	}
 
 	/**
@@ -84,9 +72,8 @@ public class ISCDeviceTimerTask {
 	 */
 	@Scheduled(fixedDelay = 1000 * 60, initialDelay = 1000 * 40)
 	public void deviceTaskCardDel() {
-		if (taskJob.getIscDeviceTypeDelCard() && switchService.process(TimerTaskEnum.ISC_DEVICE_TYPE_DEL_CARD)) {
-			deviceTaskService.delAccess();
-		}
+		executeIscJob("device_auth_delete", taskJob.getIscDeviceTypeDelCard(),
+				TimerTaskEnum.ISC_DEVICE_TYPE_DEL_CARD, deviceTaskService::delAccess);
 	}
 
 	/**
@@ -95,9 +82,8 @@ public class ISCDeviceTimerTask {
 	 */
 	@Scheduled(fixedDelay = 1000 * 60, initialDelay = 1000 * 20)
 	public void deviceSync() {
-		if (taskJob.getIscDeviceSync() && switchService.process(TimerTaskEnum.ISC_DEVICE_SYNC)) {
-			deviceTaskService.syncDevice();
-		}
+		executeIscJob("device_sync", taskJob.getIscDeviceSync(), TimerTaskEnum.ISC_DEVICE_SYNC,
+				deviceTaskService::syncDevice);
 	}
 
 	/**
@@ -107,14 +93,23 @@ public class ISCDeviceTimerTask {
 	@Scheduled(fixedDelay = 1000 * 60 * 10, initialDelay = 1000 * 60 * 2)
 	public void retryIscPersonFaceSync() {
 		if (Boolean.TRUE.equals(taskJob.getIscPersonFaceRetry()) && switchService.process(TimerTaskEnum.ISC_PERSON_FACE_RETRY)) {
+			long startTime = System.currentTimeMillis();
+			log.info("event=isc_scheduler_run job_name=person_face_retry outcome=started");
 			try {
 				Result<Boolean> result = remoteStaffService.retryFailedIscPersonFaceSync(SecurityConstants.FROM_IN);
 				if (result == null || !result.isSuccess()) {
-					log.warn("ISC人员照片同步失败重试任务调用失败：{}", result == null ? "无响应" : result.getMessage());
+					log.warn("event=isc_scheduler_run job_name=person_face_retry outcome=remote_failure elapsed_ms={} result_message={}",
+							System.currentTimeMillis() - startTime, result == null ? "无响应" : result.getMessage());
+					return;
 				}
+				log.info("event=isc_scheduler_run job_name=person_face_retry outcome=success elapsed_ms={}",
+						System.currentTimeMillis() - startTime);
 			} catch (Exception e) {
-				log.error("ISC人员照片同步失败重试任务异常", e);
+				log.error("event=isc_scheduler_run job_name=person_face_retry outcome=exception elapsed_ms={}",
+						System.currentTimeMillis() - startTime, e);
 			}
+		} else {
+			log.debug("event=isc_scheduler_skip job_name=person_face_retry reason=disabled");
 		}
 	}
 
@@ -124,8 +119,31 @@ public class ISCDeviceTimerTask {
 	 */
 	@Scheduled(fixedDelay = 1000 * 60, initialDelay = 1000 * 50)
 	public void syncIscCardTasks() {
-		if (Boolean.TRUE.equals(taskJob.getIscCardTaskSync()) && switchService.process(TimerTaskEnum.ISC_CARD_TASK_SYNC)) {
-			cardTaskService.syncCardTasks();
+		executeIscJob("card_task_sync", taskJob.getIscCardTaskSync(), TimerTaskEnum.ISC_CARD_TASK_SYNC,
+				cardTaskService::syncCardTasks);
+	}
+
+	/**
+	 * 统一记录 ISC 定时任务的执行结果，保留既有开关和业务调用顺序。
+	 */
+	private void executeIscJob(String jobName, Boolean enabled, TimerTaskEnum timerTask, Runnable task) {
+		if (!Boolean.TRUE.equals(enabled)) {
+			log.debug("event=isc_scheduler_skip job_name={} reason=disabled", jobName);
+			return;
+		}
+		if (!switchService.process(timerTask)) {
+			log.debug("event=isc_scheduler_skip job_name={} reason=switch_closed", jobName);
+			return;
+		}
+		long startTime = System.currentTimeMillis();
+		log.info("event=isc_scheduler_run job_name={} outcome=started", jobName);
+		try {
+			task.run();
+			log.info("event=isc_scheduler_run job_name={} outcome=success elapsed_ms={}", jobName,
+					System.currentTimeMillis() - startTime);
+		} catch (Exception e) {
+			log.error("event=isc_scheduler_run job_name={} outcome=exception elapsed_ms={}", jobName,
+					System.currentTimeMillis() - startTime, e);
 		}
 	}
 

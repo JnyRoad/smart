@@ -9,6 +9,7 @@ import com.tce.smart.schedule.config.TaskJob;
 import com.tce.smart.schedule.service.comm.ISwitchService;
 import com.tce.smart.schedule.service.platform.DeviceStatusMonitorService;
 import com.tce.smart.schedule.service.platform.ISCDeviceTaskService;
+import com.tce.smart.schedule.support.IscLogPayloadFormatter;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
 import com.tce.smart.tool.enums.DeviceTaskActionEnum;
 import com.tce.smart.tool.enums.DeviceTaskStatusEnum;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 离线设备任务处理器
@@ -35,6 +37,8 @@ import java.util.List;
 @EnableScheduling
 @RequiredArgsConstructor
 public class OfflineDeviceTaskHandler {
+
+    private static final int DEVICE_LOG_SAMPLE_SIZE = 20;
 
     private final DeviceStatusMonitorService deviceStatusMonitorService;
     private final SmtIscDeviceTaskService smtIscDeviceTaskService;
@@ -53,47 +57,54 @@ public class OfflineDeviceTaskHandler {
     public void handleOfflineDeviceTasks() {
         if (!taskJob.getIscDeviceOfflineHandler() &&
             !switchService.process(TimerTaskEnum.ISC_DEVICE_OFFLINE_HANDLER)) {
+            log.debug("event=isc_offline_device_task_skip reason=disabled");
             return;
         }
 
         try {
             long startTime = System.currentTimeMillis();
-            log.info("开始处理离线设备上线任务重发");
+            log.info("event=isc_offline_device_task_run outcome=started check_window_minutes={}", checkWindowMinutes);
 
             // 1. 获取最近上线的设备
             List<String> recentOnlineDevices = deviceStatusMonitorService.getRecentOnlineDevices(checkWindowMinutes);
             if (CollectionUtil.isEmpty(recentOnlineDevices)) {
-                log.debug("没有发现最近上线的设备");
+                log.info("event=isc_offline_device_task_run outcome=no_recent_online_device elapsed_ms={}",
+                    System.currentTimeMillis() - startTime);
                 return;
             }
 
-            log.info("发现最近上线设备：{}台，设备列表：{}", recentOnlineDevices.size(), recentOnlineDevices);
+            log.info("event=isc_offline_device_task_devices device_count={} device_sample={}",
+                recentOnlineDevices.size(), summarizeDeviceCodes(recentOnlineDevices));
 
             // 2. 查询这些设备的待处理任务
             List<SmtIscDeviceTask> pendingTasks = smtIscDeviceTaskService.getRecentOnlineDeviceTasks(
                 DeviceTaskConstants.CARD, recentOnlineDevices);
 
             if (CollectionUtil.isEmpty(pendingTasks)) {
-                log.info("最近上线设备无待处理任务");
+                log.info("event=isc_offline_device_task_run outcome=no_pending_task device_count={} elapsed_ms={}",
+                    recentOnlineDevices.size(), System.currentTimeMillis() - startTime);
                 return;
             }
 
-            log.info("发现待处理任务：{}个", pendingTasks.size());
+            log.info("event=isc_offline_device_task_pending task_count={} device_count={}", pendingTasks.size(),
+                recentOnlineDevices.size());
 
             // 3. 智能分类处理任务
-            processTasksByType(pendingTasks);
+            TaskProcessSummary summary = processTasksByType(pendingTasks);
 
-            log.info("离线设备任务处理完成，耗时：{}ms", System.currentTimeMillis() - startTime);
+            log.info("event=isc_offline_device_task_run outcome=success task_count={} delete_count={} valid_count={} expired_count={} offline_count={} elapsed_ms={}",
+                pendingTasks.size(), summary.deleteCount, summary.validCount, summary.expiredCount, summary.offlineCount,
+                System.currentTimeMillis() - startTime);
 
         } catch (Exception e) {
-            log.error("处理离线设备任务异常", e);
+            log.error("event=isc_offline_device_task_run outcome=exception", e);
         }
     }
 
     /**
      * 按任务类型智能处理
      */
-    private void processTasksByType(List<SmtIscDeviceTask> tasks) {
+    private TaskProcessSummary processTasksByType(List<SmtIscDeviceTask> tasks) {
         long currentTime = DateUtil.currentSeconds();
         int deleteCount = 0;
         int validCount = 0;
@@ -106,31 +117,73 @@ public class OfflineDeviceTaskHandler {
                     // 删除任务：直接标记为待处理，让下次调度执行
                     markTaskForProcessing(task);
                     deleteCount++;
-                    log.debug("删除任务标记为待处理：{}", task.getId());
+                    log.debug("event=isc_offline_device_task_state task_id={} staff_id={} staff_no={} device_code={} state=ready_for_delete",
+                        task.getId(), task.getCardNo(), logTaskBadge(task), task.getDeviceCode());
 
                 } else if (isPermissionStillValid(task, currentTime)) {
                     // 权限仍有效：标记为待处理
                     markTaskForProcessing(task);
                     validCount++;
-                    log.debug("有效权限任务标记为待处理：{}", task.getId());
+                    log.debug("event=isc_offline_device_task_state task_id={} staff_id={} staff_no={} device_code={} state=ready_for_dispatch",
+                        task.getId(), task.getCardNo(), logTaskBadge(task), task.getDeviceCode());
 
                 } else {
                     // 权限已过期：标记为过期状态
                     markTaskAsExpired(task);
                     expiredCount++;
-                    log.debug("过期任务标记为过期：{}", task.getId());
+                    log.debug("event=isc_offline_device_task_state task_id={} staff_id={} staff_no={} device_code={} state=expired",
+                        task.getId(), task.getCardNo(), logTaskBadge(task), task.getDeviceCode());
                 }
 
             } catch (Exception e) {
-                log.error("处理任务异常，任务ID：{}", task.getId(), e);
+                log.error("event=isc_offline_device_task_state task_id={} staff_id={} staff_no={} device_code={} state=exception",
+                    task.getId(), task.getCardNo(), logTaskBadge(task), task.getDeviceCode(), e);
                 // 处理异常的任务标记为设备离线状态，等待下次处理
                 markTaskAsDeviceOffline(task);
                 offlineCount++;
             }
         }
 
-        log.info("任务分类处理完成 - 删除任务：{}，有效任务：{}，过期任务：{}，离线任务：{}",
-                deleteCount, validCount, expiredCount, offlineCount);
+        return new TaskProcessSummary(deleteCount, validCount, expiredCount, offlineCount);
+    }
+
+    /**
+     * 设备列表仅记录有限样本，避免批量设备上线时写入超长日志。
+     */
+    private String summarizeDeviceCodes(List<String> deviceCodes) {
+        String sample = deviceCodes.stream().limit(DEVICE_LOG_SAMPLE_SIZE).collect(Collectors.joining(","));
+        if (deviceCodes.size() <= DEVICE_LOG_SAMPLE_SIZE) {
+            return sample;
+        }
+        return sample + "...[truncated=true,total=" + deviceCodes.size() + "]";
+    }
+
+    /**
+     * 访客和入厂申请任务的 badge 是证件号，员工任务的 badge 才是工号。
+     */
+    private String logTaskBadge(SmtIscDeviceTask task) {
+        if (DeviceTaskConstants.CARD_VISITOR.equals(task.getServiceType())
+            || DeviceTaskConstants.CARD_ADMITTANCE.equals(task.getServiceType())) {
+            return IscLogPayloadFormatter.maskCertificate(task.getBadge());
+        }
+        return task.getBadge();
+    }
+
+    /**
+     * 离线设备任务处理结果汇总。
+     */
+    private static final class TaskProcessSummary {
+        private final int deleteCount;
+        private final int validCount;
+        private final int expiredCount;
+        private final int offlineCount;
+
+        private TaskProcessSummary(int deleteCount, int validCount, int expiredCount, int offlineCount) {
+            this.deleteCount = deleteCount;
+            this.validCount = validCount;
+            this.expiredCount = expiredCount;
+            this.offlineCount = offlineCount;
+        }
     }
 
     /**
