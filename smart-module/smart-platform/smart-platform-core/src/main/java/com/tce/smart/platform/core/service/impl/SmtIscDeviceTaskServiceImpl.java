@@ -382,6 +382,22 @@ public class SmtIscDeviceTaskServiceImpl extends ServiceImpl<SmtIscDeviceTaskMap
 	}
 
 	@Override
+	public int cancelSupersededStaffAuthTasks(String staffId) {
+		return this.baseMapper.update(null, Wrappers.<SmtIscDeviceTask>lambdaUpdate()
+				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.CANCEL.getCode())
+				.set(SmtIscDeviceTask::getRemark, "已被重新下发权限替代")
+				.set(SmtIscDeviceTask::getUpdateTime, LocalDateTime.now())
+				.eq(SmtIscDeviceTask::getCardNo, staffId)
+				.eq(SmtIscDeviceTask::getDeviceType, DeviceTaskConstants.CARD)
+				.in(SmtIscDeviceTask::getServiceType,
+						DeviceTaskConstants.CARD_STAFF_IMPORT, DeviceTaskConstants.UPDATE_FACE)
+				.in(SmtIscDeviceTask::getStatus,
+						DeviceTaskStatusEnum.INIT.getCode(),
+						DeviceTaskStatusEnum.FAIL.getCode(),
+						DeviceTaskStatusEnum.DEVICE_OFFLINE.getCode()));
+	}
+
+	@Override
 	public IPage<SmtIscDeviceTask> getReTryCardDown(Page page, long overTime, int deviceType) {
 		return  this.baseMapper.getReTryCardDown(page, overTime,deviceType);
 	}
