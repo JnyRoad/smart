@@ -16,7 +16,6 @@ import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.feign.RemoteParkService;
 import com.tce.smart.platform.api.feign.RemoteSnapPersonService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
-import com.tce.smart.platform.api.feign.securityzone.RemoteSecurityAuthService;
 import com.tce.smart.platform.core.entity.SmtDevice;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
@@ -82,27 +81,6 @@ public class ISCDeviceTaskServiceImplTest {
 
 	private static String formatIscTime(long epochSecond) {
 		return ISC_TIME_FORMAT.format(Instant.ofEpochSecond(epochSecond).atZone(ISC_ZONE));
-	}
-
-	@Test
-	public void terminalSecurityAuthTaskTriggersCurrentBatchAggregationBySourceId() throws Exception {
-		ISCDeviceTaskServiceImpl service = service(Mockito.mock(RemoteDispatcherService.class),
-				Mockito.mock(SmtIscDeviceTaskService.class), Mockito.mock(SmtDeviceService.class),
-				Mockito.mock(SmtIscDownRecordService.class));
-		RemoteSecurityAuthService remoteSecurityAuthService = Mockito.mock(RemoteSecurityAuthService.class);
-		setField(service, "remoteSecurityAuthService", remoteSecurityAuthService);
-		SmtIscDeviceTask task = new SmtIscDeviceTask();
-		task.setId(81L);
-		task.setSourceType("SECURITY_AUTH");
-		task.setSourceId(1001L);
-		task.setBatchId(9002L);
-		Method trigger = ISCDeviceTaskServiceImpl.class
-				.getDeclaredMethod("triggerDispatchAggregationIfApplicable", SmtIscDeviceTask.class);
-		trigger.setAccessible(true);
-
-		trigger.invoke(service, task);
-
-		Mockito.verify(remoteSecurityAuthService).syncDispatchStatus(1001L, SecurityConstants.FROM_IN);
 	}
 
 	@Test

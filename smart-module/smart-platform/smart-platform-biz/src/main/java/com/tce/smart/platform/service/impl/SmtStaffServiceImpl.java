@@ -1857,20 +1857,6 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	@Override
 	public String updatePersonCard(SmtStaff staff, String faceImage, String facePicId, List<SmtStaffDeviceAuth> staffDeviceAuths,
 								   String taskNum, String applyBadge) {
-		return updatePersonCard(staff, faceImage, facePicId, staffDeviceAuths, taskNum, applyBadge, null);
-	}
-
-	@Override
-	public String updatePersonCardForSecurityDispatch(SmtStaff staff, String faceImage, String facePicId,
-			List<SmtStaffDeviceAuth> staffDeviceAuths, String taskNum, String applyBadge,
-			SecurityAuthDispatchContext context) {
-		return updatePersonCard(staff, faceImage, facePicId, staffDeviceAuths, taskNum, applyBadge,
-				Objects.requireNonNull(context, "保密区下发上下文不能为空"));
-	}
-
-	private String updatePersonCard(SmtStaff staff, String faceImage, String facePicId,
-			List<SmtStaffDeviceAuth> staffDeviceAuths, String taskNum, String applyBadge,
-			SecurityAuthDispatchContext securityContext) {
 		int count = 0;
 		String remark = null;
 		//查询员工的设备权限记录
@@ -1880,10 +1866,6 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		}
 		if (CollectionUtil.isNotEmpty(staffDeviceAuths)) {
 			for (SmtStaffDeviceAuth staffDeviceAuth : staffDeviceAuths) {
-				if (securityContext != null
-						&& !Objects.equals(securityContext.getAuthId(), staffDeviceAuth.getAuthId())) {
-					throw new IllegalArgumentException("保密区明细权限与人员权限不一致");
-				}
 				//查询权限配置对应的设备列表
 				List<SmtDeviceAuthorityRelation> deviceAuthList = smtDeviceAuthorityRelationService
 						.list(new LambdaQueryWrapper<SmtDeviceAuthorityRelation>()
@@ -1939,8 +1921,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 					}
 						//保存下发任务
 						String taskId = addDeviceTask(deviceCode, cardNo, staff.getBadge() + SymbolConstants.MINUS + staff.getName(),
-								facePicId, DeviceTaskStatusEnum.INIT.getCode(), sNo, deviceTaskActionEnum, applyBadge, device,
-								securityContext);
+								facePicId, DeviceTaskStatusEnum.INIT.getCode(), sNo, deviceTaskActionEnum, applyBadge, device);
 					// 如果taskNum不为空
 					if (StringUtils.isNotEmpty(taskNum)) {
 						// 如果taskId是数字
@@ -1999,8 +1980,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	 * @param status
 	 */
 	private String addDeviceTask(String deviceCode, String cardNo, String general, String facePicId, Integer status,
-								 String serialNo, DeviceTaskActionEnum taskActionEnum, String applyBadge, SmtDevice device,
-								 SecurityAuthDispatchContext securityContext) {
+								 String serialNo, DeviceTaskActionEnum taskActionEnum, String applyBadge, SmtDevice device) {
 		DeviceTaskVO deviceTaskVO = new DeviceTaskVO();
 		deviceTaskVO.setAction(taskActionEnum.getCode());
 		deviceTaskVO.setServiceType(personCardServiceType(taskActionEnum.getCode(), device));
@@ -2015,9 +1995,6 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		deviceTaskVO.setStatus(status);
 		deviceTaskVO.setSerialNo(serialNo);
 		deviceTaskVO.setApplyBadge(applyBadge);
-		if (securityContext != null) {
-			securityContext.applyTo(deviceTaskVO, deviceCode);
-		}
 		return smtDeviceTaskService.saveTask(deviceTaskVO);
 	}
 

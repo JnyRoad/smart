@@ -37,31 +37,6 @@ public class SmtDeviceTaskServiceImplTest {
 	}
 
 	@Test
-	public void saveSecurityAuthTaskRejectsNonIscDeviceInsteadOfWritingWrongTaskTable() throws Exception {
-		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
-		SmtDeviceTaskMapper taskMapper = Mockito.mock(SmtDeviceTaskMapper.class);
-		SmtDeviceTaskServiceImpl service = new SmtDeviceTaskServiceImpl(Mockito.mock(SmtTaskDownRecordService.class),
-				Mockito.mock(SmtIscDownRecordService.class), Mockito.mock(SmtDeviceAuthorityRelationMapper.class),
-				deviceMapper, Mockito.mock(SmtIscDeviceTaskService.class));
-		setField(service, "baseMapper", taskMapper);
-		SmtDevice device = new SmtDevice();
-		device.setId("legacy-device");
-		device.setIsSync(StaffSyncEnum.NO.getCode());
-		Mockito.when(deviceMapper.selectById("legacy-device")).thenReturn(device);
-		DeviceTaskVO task = new DeviceTaskVO();
-		task.setDeviceCode("legacy-device");
-		task.setSourceType("SECURITY_AUTH");
-
-		try {
-			service.saveTask(task);
-			Assert.fail("保密区任务不得落入 SMT_DEVICE_TASK");
-		} catch (IllegalStateException expected) {
-			Assert.assertTrue(expected.getMessage().contains("仅支持ISC设备"));
-		}
-		Mockito.verify(taskMapper, Mockito.never()).insert(Mockito.any());
-	}
-
-	@Test
 	public void delVisitorDeviceAuthHandlesAdmittanceCardRecordsAndIgnoresHistoricalDeletes() throws Exception {
 		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
 		SmtIscDeviceTaskService iscDeviceTaskService = Mockito.mock(SmtIscDeviceTaskService.class);
