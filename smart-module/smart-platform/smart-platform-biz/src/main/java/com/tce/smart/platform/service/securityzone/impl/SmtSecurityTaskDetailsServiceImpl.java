@@ -6,16 +6,13 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tce.smart.platform.api.dto.req.securityzone.SecurityApplyPersonReqDTO;
 import com.tce.smart.platform.api.dto.req.securityzone.UpdateFaceImgReqDTO;
-import com.tce.smart.platform.core.dto.SecurityAuthDispatchContext;
-import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
+import com.tce.smart.platform.core.entity.SmtDeviceTask;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.entity.SmtStaffDeviceAuth;
-import com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthApply;
 import com.tce.smart.platform.core.entity.securityzone.SmtSecurityTaskDetails;
-import com.tce.smart.platform.core.mapper.SmtSecurityAuthApplyMapper;
 import com.tce.smart.platform.core.mapper.SmtSecurityTaskDetailsMapper;
+import com.tce.smart.platform.core.service.SmtDeviceTaskService;
 import com.tce.smart.platform.core.service.SmtImageService;
-import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
 import com.tce.smart.platform.service.SmtDeviceAuthorityService;
 import com.tce.smart.platform.service.SmtStaffDeviceAuthService;
 import com.tce.smart.platform.service.SmtStaffService;
@@ -47,9 +44,7 @@ public class SmtSecurityTaskDetailsServiceImpl extends ServiceImpl<SmtSecurityTa
 	@Autowired
 	private SmtImageService smtImageService;
 	@Autowired
-	private SmtIscDeviceTaskService smtIscDeviceTaskService;
-	@Autowired
-	private SmtSecurityAuthApplyMapper smtSecurityAuthApplyMapper;
+	private SmtDeviceTaskService smtDeviceTaskService;
 	@Autowired
 	private SmtDeviceAuthorityService smtDeviceAuthorityService;
 	@Autowired
@@ -167,88 +162,6 @@ public class SmtSecurityTaskDetailsServiceImpl extends ServiceImpl<SmtSecurityTa
 		return Boolean.TRUE;
 	}
 
-	@Override
-	public int rebindDispatchBatch(Long applyId, Long dispatchBatchId) {
-		return this.baseMapper.update(null, Wrappers.<SmtSecurityTaskDetails>lambdaUpdate()
-				.eq(SmtSecurityTaskDetails::getApplyId, applyId)
-				.and(wrapper -> wrapper.ne(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.SUCCESS.getCode())
-						.or().isNull(SmtSecurityTaskDetails::getStatus))
-				.set(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.WAIT.getCode())
-				.set(SmtSecurityTaskDetails::getDispatchBatchId, dispatchBatchId));
-	}
-
-	@Override
-	public int countDispatchPeople(Long applyId, Long dispatchBatchId) {
-		return this.baseMapper.countDispatchPeople(applyId, dispatchBatchId);
-	}
-
-	@Override
-	public boolean claimDispatchDetail(Long detailId, Long dispatchBatchId) {
-		return this.baseMapper.update(null, Wrappers.<SmtSecurityTaskDetails>lambdaUpdate()
-				.eq(SmtSecurityTaskDetails::getId, detailId)
-				.eq(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.WAIT.getCode())
-				.eq(SmtSecurityTaskDetails::getDispatchBatchId, dispatchBatchId)
-				.set(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.IN_WORK.getCode())) == 1;
-	}
-
-	@Override
-	public List<SmtSecurityTaskDetails> listPendingDispatchDetails(int limit) {
-		if (limit <= 0) {
-			throw new IllegalArgumentException("下发候选上限必须大于零");
-		}
-		return this.baseMapper.listPendingCurrentDispatchDetails(DeviceDownStatusEnum.WAIT.getCode(), limit);
-	}
-
-	@Override
-	public int dispatchCurrentBatchDetails(Long applyId, Long dispatchBatchId, String applyBadge,
-			List<Long> staffIds) {
-		if (CollUtil.isEmpty(staffIds)) {
-			return 0;
-		}
-		List<SmtSecurityTaskDetails> details = this.list(Wrappers.<SmtSecurityTaskDetails>lambdaQuery()
-				.eq(SmtSecurityTaskDetails::getApplyId, applyId)
-				.eq(SmtSecurityTaskDetails::getDispatchBatchId, dispatchBatchId)
-				.eq(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.WAIT.getCode())
-				.in(SmtSecurityTaskDetails::getStaffId, staffIds));
-		int processed = 0;
-		for (SmtSecurityTaskDetails detail : details) {
-			if (!claimDispatchDetail(detail.getId(), dispatchBatchId)) {
-				continue;
-			}
-			SmtStaff staff = smtStaffService.getById(detail.getStaffId());
-			if (staff == null) {
-				throw new IllegalStateException("保密区下发员工不存在：" + detail.getStaffId());
-			}
-			List<SmtStaffDeviceAuth> existingAuths = checkAuth(detail.getAuthId(), staff.getId());
-			List<SmtStaffDeviceAuth> staffAuthList = CollUtil.isEmpty(existingAuths)
-					? new ArrayList<>() : new ArrayList<>(existingAuths);
-			if (CollUtil.isEmpty(staffAuthList)) {
-				SmtStaffDeviceAuth staffAuth = new SmtStaffDeviceAuth();
-				staffAuth.setAuthId(detail.getAuthId());
-				staffAuth.setCreateTime(new Date());
-				staffAuth.setStaffId(staff.getId());
-				staffAuth.setAuthType(RelationAuthTypeEnum.SECURITY_AUTH.getCode());
-				smtStaffDeviceAuthService.save(staffAuth);
-				staffAuthList.add(staffAuth);
-			}
-			String imgBase64 = smtImageService.getImageBase64ByCode(staff.getFacePicId());
-			SecurityAuthDispatchContext context = SecurityAuthDispatchContext.of(applyId, detail.getId(),
-					dispatchBatchId, staff.getId(), detail.getAuthId());
-			String remark = smtStaffService.updatePersonCardForSecurityDispatch(staff, imgBase64,
-					staff.getFacePicId(), staffAuthList, null, applyBadge, context);
-			if (StringUtils.isNotEmpty(remark)) {
-				this.update(Wrappers.<SmtSecurityTaskDetails>lambdaUpdate()
-						.eq(SmtSecurityTaskDetails::getId, detail.getId())
-						.eq(SmtSecurityTaskDetails::getDispatchBatchId, dispatchBatchId)
-						.set(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.FAIL.getCode())
-						.set(SmtSecurityTaskDetails::getRemark, remark)
-						.set(SmtSecurityTaskDetails::getUpdateTime, LocalDateTime.now()));
-			}
-			processed++;
-		}
-		return processed;
-	}
-
 	/**
 	 * 设备权限下发
 	 * @param detail 设备信息
@@ -316,92 +229,32 @@ public class SmtSecurityTaskDetailsServiceImpl extends ServiceImpl<SmtSecurityTa
 	 */
 	@Override
 	public Boolean syncTaskStatus(Long applyId) {
-		SmtSecurityAuthApply authApply = smtSecurityAuthApplyMapper.selectById(applyId);
-		if (authApply == null || authApply.getCurrentDispatchBatchId() == null) {
-			return Boolean.TRUE;
-		}
-		Long currentBatchId = authApply.getCurrentDispatchBatchId();
-		// 只聚合申请单当前批次；旧批次的迟到结果只能更新旧 ISC 任务本身。
+		//查询下发中任务
 		List<SmtSecurityTaskDetails> details = this.list(Wrappers.<SmtSecurityTaskDetails>query()
-				.lambda().eq(SmtSecurityTaskDetails::getApplyId, applyId)
-				.eq(SmtSecurityTaskDetails::getDispatchBatchId, currentBatchId));
+				.lambda().eq(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.IN_WORK.getCode())
+				.eq(SmtSecurityTaskDetails::getApplyId, applyId));
 		if (CollUtil.isEmpty(details)) {
 			return Boolean.TRUE;
 		}
-		for (SmtSecurityTaskDetails detail : details) {
-			if (!DeviceDownStatusEnum.IN_WORK.getCode().equals(detail.getStatus())) {
-				continue;
+		details.forEach(detail -> {
+			detail.setStatus(DeviceDownStatusEnum.SUCCESS.getCode());
+			//查询设备表中下发中任务的下发结果
+			List<SmtDeviceTask> tasks = smtDeviceTaskService.list(Wrappers.<SmtDeviceTask>query().lambda()
+					.eq(SmtDeviceTask::getCardNo, detail.getStaffId()).eq(SmtDeviceTask::getImageId, detail.getImgCode()));
+			for (SmtDeviceTask task : tasks) {
+				if (DeviceTaskStatusEnum.FAIL.getCode().equals(task.getStatus())) {
+					detail.setRemark(task.getRemark());
+					detail.setStatus(DeviceDownStatusEnum.FAIL.getCode());
+					continue;
+				}
+				if (DeviceTaskStatusEnum.INIT.getCode().equals(task.getStatus())) {
+					detail.setStatus(DeviceDownStatusEnum.IN_WORK.getCode());
+					detail.setRemark(task.getRemark());
+					continue;
+				}
 			}
-			List<SmtIscDeviceTask> tasks = smtIscDeviceTaskService.list(Wrappers.<SmtIscDeviceTask>lambdaQuery()
-					.eq(SmtIscDeviceTask::getSourceType, SecurityAuthDispatchContext.SOURCE_TYPE)
-					.eq(SmtIscDeviceTask::getSourceId, applyId)
-					.eq(SmtIscDeviceTask::getSourceDetailId, detail.getId())
-					.eq(SmtIscDeviceTask::getBatchId, currentBatchId));
-			Integer targetStatus = aggregateDetailStatus(tasks);
-			String targetRemark = detailFailureReason(tasks);
-			detail.setStatus(targetStatus);
-			detail.setRemark(targetRemark);
-			detail.setUpdateTime(LocalDateTime.now());
-			this.update(Wrappers.<SmtSecurityTaskDetails>lambdaUpdate()
-					.eq(SmtSecurityTaskDetails::getId, detail.getId())
-					.eq(SmtSecurityTaskDetails::getDispatchBatchId, currentBatchId)
-					.eq(SmtSecurityTaskDetails::getStatus, DeviceDownStatusEnum.IN_WORK.getCode())
-					.set(SmtSecurityTaskDetails::getStatus, targetStatus)
-					.set(SmtSecurityTaskDetails::getRemark, targetRemark)
-					.set(SmtSecurityTaskDetails::getUpdateTime, detail.getUpdateTime()));
-		}
-		// 明细 CAS 可能因并发终态回调未命中；聚合主单前必须重读，禁止用旧快照回退状态。
-		List<SmtSecurityTaskDetails> currentDetails = this.list(Wrappers.<SmtSecurityTaskDetails>lambdaQuery()
-				.eq(SmtSecurityTaskDetails::getApplyId, applyId)
-				.eq(SmtSecurityTaskDetails::getDispatchBatchId, currentBatchId));
-		if (CollUtil.isEmpty(currentDetails)) {
-			return Boolean.TRUE;
-		}
-		Integer mainStatus = aggregateApplyStatus(currentDetails);
-		smtSecurityAuthApplyMapper.update(null, Wrappers.<SmtSecurityAuthApply>lambdaUpdate()
-				.eq(SmtSecurityAuthApply::getId, applyId)
-				.eq(SmtSecurityAuthApply::getCurrentDispatchBatchId, currentBatchId)
-				.in(SmtSecurityAuthApply::getDeviceStatus, DeviceDownStatusEnum.WAIT.getCode(),
-						DeviceDownStatusEnum.IN_WORK.getCode())
-				.set(SmtSecurityAuthApply::getDeviceStatus, mainStatus));
+			this.updateById(detail);
+		});
 		return Boolean.TRUE;
-	}
-
-	private Integer aggregateDetailStatus(List<SmtIscDeviceTask> tasks) {
-		if (CollUtil.isEmpty(tasks)) {
-			return DeviceDownStatusEnum.IN_WORK.getCode();
-		}
-		boolean failed = tasks.stream().anyMatch(task -> DeviceTaskStatusEnum.FAIL.getCode().equals(task.getStatus())
-				|| DeviceTaskStatusEnum.CANCEL.getCode().equals(task.getStatus())
-				|| DeviceTaskStatusEnum.EXPIRED.getCode().equals(task.getStatus()));
-		if (failed) {
-			return DeviceDownStatusEnum.FAIL.getCode();
-		}
-		boolean allSucceeded = tasks.stream()
-				.allMatch(task -> DeviceTaskStatusEnum.SUCCESS.getCode().equals(task.getStatus()));
-		return allSucceeded ? DeviceDownStatusEnum.SUCCESS.getCode() : DeviceDownStatusEnum.IN_WORK.getCode();
-	}
-
-	private String detailFailureReason(List<SmtIscDeviceTask> tasks) {
-		if (CollUtil.isEmpty(tasks)) {
-			return null;
-		}
-		return tasks.stream()
-				.filter(task -> DeviceTaskStatusEnum.FAIL.getCode().equals(task.getStatus())
-						|| DeviceTaskStatusEnum.CANCEL.getCode().equals(task.getStatus())
-						|| DeviceTaskStatusEnum.EXPIRED.getCode().equals(task.getStatus()))
-				.map(task -> StringUtils.isNotEmpty(task.getRemark())
-						? task.getRemark() : DeviceTaskStatusEnum.desc(task.getStatus()))
-				.findFirst().orElse(null);
-	}
-
-	private Integer aggregateApplyStatus(List<SmtSecurityTaskDetails> details) {
-		if (details.stream().allMatch(detail -> DeviceDownStatusEnum.SUCCESS.getCode().equals(detail.getStatus()))) {
-			return DeviceDownStatusEnum.SUCCESS.getCode();
-		}
-		if (details.stream().anyMatch(detail -> DeviceDownStatusEnum.FAIL.getCode().equals(detail.getStatus()))) {
-			return DeviceDownStatusEnum.FAIL.getCode();
-		}
-		return DeviceDownStatusEnum.IN_WORK.getCode();
 	}
 }

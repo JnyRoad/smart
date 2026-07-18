@@ -216,7 +216,6 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 				smtTaskDownRecordService.remove(buildStaffDownRecordCleanupQuery(staffId));
 				iscDownRecordService.remove(buildStaffIscDownRecordCleanupQuery(staffId));
 				smtDeviceTaskService.remove(buildStaffDeviceTaskCleanupQuery(staffId));
-				smtIscDeviceTaskService.remove(buildStaffIscDeviceTaskCleanupQuery(staffId));
 				//重新下发不删除权限
 				newAuthIds.addAll(oldAuthIds);
 				oldAuthIds.clear();
@@ -246,6 +245,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 
 			// 若员工非离职状态，则更新通关权限
 			if (!staff.getStatus().equals(StaffStatusEnum.STAFF_STATUS_QUIT.getCode())) {
+				smtIscDeviceTaskService.cancelSupersededStaffAuthTasks(staffId);
 				smtDeviceTaskService.updateStaffAuthNew(staff, oldAuthIds, newAuthIds,
 						DeviceTaskConstants.CARD_STAFF_IMPORT, taskRecordNum, type);
 			} else {
@@ -284,16 +284,6 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 						.or().isNull(SmtDeviceTask::getStatus));
 	}
 
-	private LambdaQueryWrapper<SmtIscDeviceTask> buildStaffIscDeviceTaskCleanupQuery(String staffId) {
-		// 在途任务（DOING）不删除：避免进度查询悬挂、并发回写丢失，让其自然走完状态机
-		return new LambdaQueryWrapper<SmtIscDeviceTask>()
-				.eq(SmtIscDeviceTask::getCardNo, staffId)
-				.eq(SmtIscDeviceTask::getDeviceType, DeviceTaskConstants.CARD)
-				.in(SmtIscDeviceTask::getServiceType, DeviceTaskConstants.CARD_STAFF_IMPORT, DeviceTaskConstants.UPDATE_FACE)
-				.and(wrapper -> wrapper.ne(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.DOING.getCode())
-						.or().isNull(SmtIscDeviceTask::getStatus));
-	}
-
 	@Transactional
 	@Override
 	public Boolean updateAuth(List<Long> staffIds, List<Integer> deviceAuthIds) {
@@ -324,6 +314,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 				SmtStaff staff = staffService.getById(staffId);
 				if (!staff.getStatus().equals(StaffStatusEnum.STAFF_STATUS_QUIT.getCode())) {
 					//如果员工是离职状态 不生成设备权限任务
+					smtIscDeviceTaskService.cancelSupersededStaffAuthTasks(staffId.toString());
 					smtDeviceTaskService.updateStaffAuth(staff, oldDeviceAuthIds, deviceAuthIds, DeviceTaskConstants.CARD_STAFF_IMPORT);
 				}
 			}
@@ -374,6 +365,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 			}
 			if (!StaffStatusEnum.STAFF_STATUS_QUIT.getCode().equals(staff.getStatus())) {
 				//如果员工是离职状态 不生成设备权限任务
+				smtIscDeviceTaskService.cancelSupersededStaffAuthTasks(staffId.toString());
 				smtDeviceTaskService.updateStaffAuth(staff, oldAuthIds, newAuthIds, DeviceTaskConstants.CARD_STAFF_IMPORT);
 			}
 		}

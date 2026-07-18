@@ -44,7 +44,7 @@ public class SmtStaffDeviceAuthServiceImplTest {
 	}
 
 	@Test
-	public void updateAuthNewRemovesIscRecordsBeforeReissue() {
+	public void updateAuthNewCancelsIscTasksBeforeReissue() {
 		SmtIscDownRecordService iscDownRecordService = Mockito.mock(SmtIscDownRecordService.class);
 		SmtIscDeviceTaskService iscDeviceTaskService = Mockito.mock(SmtIscDeviceTaskService.class);
 		SmtTaskDownRecordService taskDownRecordService = Mockito.mock(SmtTaskDownRecordService.class);
@@ -85,13 +85,10 @@ public class SmtStaffDeviceAuthServiceImplTest {
 		Mockito.verify(taskDownRecordService).remove(Mockito.any());
 		Mockito.verify(deviceTaskService).remove(Mockito.any());
 		ArgumentCaptor<LambdaQueryWrapper> downRecordQueryCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
-		ArgumentCaptor<LambdaQueryWrapper> deviceTaskQueryCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
 		Mockito.verify(iscDownRecordService).remove(downRecordQueryCaptor.capture());
-		Mockito.verify(iscDeviceTaskService).remove(deviceTaskQueryCaptor.capture());
+		Mockito.verify(iscDeviceTaskService).cancelSupersededStaffAuthTasks("1001");
 		assertStaffIscCleanupQuery(downRecordQueryCaptor.getValue());
-		assertStaffIscTaskCleanupQuery(deviceTaskQueryCaptor.getValue());
 		Mockito.verify(iscDownRecordService, Mockito.never()).list(Mockito.any());
-		Mockito.verify(iscDeviceTaskService, Mockito.never()).list(Mockito.any());
 		Mockito.verify(deviceTaskService).updateStaffAuthNew(
 				Mockito.eq(staff),
 				Mockito.eq(Collections.emptyList()),

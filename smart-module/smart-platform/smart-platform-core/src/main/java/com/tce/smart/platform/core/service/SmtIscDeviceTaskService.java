@@ -25,12 +25,6 @@ public interface SmtIscDeviceTaskService extends IService<SmtIscDeviceTask> {
 	 */
 	String saveTask(DeviceTaskVO deviceTaskVO);
 
-	/**
-	 * 保密区权限下发专用任务入口：按意图键接管旧批次后创建最新批次任务。
-	 * 通用 {@link #saveTask(DeviceTaskVO)} 的去重语义保持不变。
-	 */
-	String saveSecurityAuthTask(DeviceTaskVO deviceTaskVO);
-
 	boolean deleteTask(String deviceCode, String cardNo);
 
 	/**
@@ -76,6 +70,14 @@ public interface SmtIscDeviceTaskService extends IService<SmtIscDeviceTask> {
 	 * @return
 	 */
 	Boolean delVisitorDeviceAuth(Long id);
+
+	/**
+	 * 员工权限重新下发前取消本地尚未完成的ISC卡权限任务。
+	 *
+	 * @param staffId 员工主键字符串
+	 * @return 更新的任务数量
+	 */
+	int cancelSupersededStaffAuthTasks(String staffId);
 
 	// ========== 新增优化查询方法 ==========
 

@@ -147,42 +147,6 @@ public class SmtIscDeviceTaskMapperXmlTest {
 	}
 
 	@Test
-	public void securityAuthDownloadQueriesRequireCurrentApplyBatch() throws Exception {
-		String mapper = new String(Files.readAllBytes(Paths.get("src/main/resources/mapper/SmtIscDeviceTaskMapper.xml")), StandardCharsets.UTF_8);
-		int fenceStart = mapper.indexOf("<sql id=\"security_auth_current_batch_fence\"");
-		Assert.assertTrue("必须定义保密区当前批次围栏", fenceStart >= 0);
-		int fenceEnd = mapper.indexOf("</sql>", fenceStart);
-		String fenceSql = mapper.substring(fenceStart, fenceEnd);
-		Assert.assertTrue(fenceSql.contains("SDA.SOURCE_TYPE"));
-		Assert.assertTrue(fenceSql.contains("'SECURITY_AUTH'"));
-		Assert.assertTrue(fenceSql.contains("SMT_SECURITY_AUTH_APPLY"));
-		Assert.assertTrue(fenceSql.contains("CURRENT_DISPATCH_BATCH_ID = SDA.BATCH_ID"));
-
-		for (String selectId : new String[]{"getCardDown", "getDelayDown", "getReTryCardDown"}) {
-			int queryStart = mapper.indexOf("<select id=\"" + selectId + "\"");
-			int queryEnd = mapper.indexOf("</select>", queryStart);
-			String querySql = mapper.substring(queryStart, queryEnd);
-			Assert.assertTrue(selectId + " 必须引用真实 ISC 提交围栏",
-					querySql.contains("<include refid=\"security_auth_current_batch_fence\""));
-		}
-	}
-
-	@Test
-	public void securityAuthTakeoverCancellationUsesOldBatchStatusAndUpdateTimeCas() throws Exception {
-		String mapper = new String(Files.readAllBytes(Paths.get("src/main/resources/mapper/SmtIscDeviceTaskMapper.xml")), StandardCharsets.UTF_8);
-		int updateStart = mapper.indexOf("<update id=\"cancelSecurityAuthTask\"");
-		Assert.assertTrue("必须提供本地接管 CAS", updateStart >= 0);
-		int updateEnd = mapper.indexOf("</update>", updateStart);
-		String updateSql = mapper.substring(updateStart, updateEnd);
-		Assert.assertTrue(updateSql.contains("SDA.STATUS = #{oldStatus}"));
-		Assert.assertTrue(updateSql.contains("SDA.BATCH_ID = #{oldBatchId}"));
-		Assert.assertTrue(updateSql.contains("SDA.UPDATE_TIME = #{oldUpdateTime}"));
-		Assert.assertTrue(updateSql.contains("SDA.STATUS = #{cancelStatus}"));
-		Assert.assertTrue(updateSql.contains("被批次"));
-		Assert.assertFalse("本地接管必须保留 ISC_TASK_ID 审计证据", updateSql.contains("ISC_TASK_ID = NULL"));
-	}
-
-	@Test
 	public void staleOfflineCancellationCoversOfflineMarkedStatus() throws Exception {
 		String mapper = new String(Files.readAllBytes(Paths.get("src/main/resources/mapper/SmtIscDeviceTaskMapper.xml")), StandardCharsets.UTF_8);
 		int selectStart = mapper.indexOf("<select id=\"getStaleOfflineDownloadTasks\"");

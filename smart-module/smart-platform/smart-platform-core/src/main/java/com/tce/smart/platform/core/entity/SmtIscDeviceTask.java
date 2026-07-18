@@ -157,24 +157,4 @@ public class SmtIscDeviceTask extends Model<SmtIscDeviceTask> {
 	 * 下发批次号（同一次提交的任务集共享）
 	 */
 	private Long batchId;
-
-	/**
-	 * 业务来源类型；保密区权限下发固定为 SECURITY_AUTH
-	 */
-	private String sourceType;
-
-	/**
-	 * 业务来源主键；保密区权限下发对应申请单 ID，不得复用 APPLY_ID
-	 */
-	private Long sourceId;
-
-	/**
-	 * 业务来源明细主键；保密区权限下发对应 SMT_SECURITY_TASK_DETAILS.ID
-	 */
-	private Long sourceDetailId;
-
-	/**
-	 * 权限下发意图键，格式为 SECURITY_AUTH:{staffId}:{authId}:{deviceCode}
-	 */
-	private String intentKey;
 }

@@ -245,11 +245,6 @@ public interface SmtStaffService extends IService<SmtStaff> {
 	String updatePersonCard(SmtStaff staff, String faceImage, String facePicId, List<SmtStaffDeviceAuth> staffDeviceAuths,
 							String taskNum, String applyBadge);
 
-	/** 保密区批次专用入口，显式携带来源与接管意图，不改变通用下发语义。 */
-	String updatePersonCardForSecurityDispatch(SmtStaff staff, String faceImage, String facePicId,
-			List<SmtStaffDeviceAuth> staffDeviceAuths, String taskNum, String applyBadge,
-			SecurityAuthDispatchContext context);
-
 	void savePersonCardTask(Integer actionType, long startTime, long endTime, SmtStaff smtStaff, List<SmtDeviceAuthorityRelation> deviceAuthList);
 
 	IPage<SecurityAllStaffListDTO> getStaffPage(Page page, SecurityPersonRelationExt reqDTO);
