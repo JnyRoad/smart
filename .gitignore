@@ -21,6 +21,9 @@ Thumbs.db
 .superpowers/
 .codebase-memory/
 
+# 已完成的开发过程文档仅保留在本地，不提交到仓库
+**/docs/superpowers/
+
 # Node dependencies and package-manager caches
 node_modules/
 .pnp
