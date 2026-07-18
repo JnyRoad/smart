@@ -30,7 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * sendMessage() 重试治理单测（spec docs/superpowers/specs/2026-07-06-security-auth-wechat-msg-redesign.md §3）。
+ * sendMessage() 重试治理单测。
  * 覆盖：成功置 isMsg=1、失败计数、达上限置 isMsg=2 放弃、员工缺失按失败计、单条异常不中断整轮。
  * 静态调用 WeChatMsgUtil 通过覆写 protected pushWeChatMsg 隔离（Mockito 2.x 无 mockStatic）。
  *

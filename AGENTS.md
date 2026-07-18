@@ -86,7 +86,7 @@
 ## 目录边界（各子项目，原版逐字保留）
 
 - `smart/`：`smart-gateway/` 放网关服务，`smart-auth/` 放认证服务，`smart-upms/` 放用户权限服务，`smart-common/` 放跨服务公共组件。
-- `smart-module/`：业务按一级目录划分；`api` 放服务契约，`biz` 放可部署服务，`core` 放领域复用代码，`database/manual/` 放人工数据库脚本。
+- `smart-module/`：业务按一级目录划分；`api` 放服务契约，`biz` 放可部署服务，`core` 放领域复用代码；数据库变更以发布记录和已上线版本为准，不保留人工脚本目录。
 - `smart-ui/`：`src/api/` 放接口封装，`src/views/` 放业务页面，`src/router/` 放路由和 axios 配置，`src/store/` 放 Vuex，`public/` 放原样发布静态资源。
 - `smart-h5/`：见上方「`smart-h5` 目录结构」。
 - `smart-h5-vue2/`：`src/views-mobile/` 放旧移动端页面，`src/router/` 放旧路由，`src/services/` 放旧接口封装，`src/components/` 放旧通用组件；只读对标优先，不主动扩展业务。
