@@ -34,9 +34,6 @@ public/config.js  运行时租户配置（window.__SMART_CONFIG__，部署期渲
 
 ## 关键文档
 
-- 架构设计：docs/superpowers/specs/2026-06-11-nextjs-rewrite-architecture.md
-- 阶段一设计：docs/superpowers/specs/2026-06-12-stage1-auth-home-mine-design.md
-- 全量页面清单（69 页）：docs/superpowers/specs/2026-06-11-page-inventory.md
 - 原型规格与 mockup：docs/prototype/
 
 ## 已实现

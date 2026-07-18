@@ -144,8 +144,7 @@ public interface SecurityConstants {
 	/**
 	 * sys_oauth_client_details 表的字段，不包括client_id、client_secret
 	 * 注意：client_secret 直接读取原始值，不再在 SQL 里强制拼接 '{noop}' 前缀；
-	 *      编码前缀（{noop}/{bcrypt}）随数据入库，交给 DelegatingPasswordEncoder 按前缀选择匹配算法，
-	 *      详见 smart-module/database/manual/2026-07-01-oauth-client-secret-prefix.sql 的存量数据迁移。
+	 *      编码前缀（{noop}/{bcrypt}）随数据入库，交给 DelegatingPasswordEncoder 按前缀选择匹配算法。
 	 */
 	String CLIENT_FIELDS = "client_id, client_secret, resource_ids, scope, "
 			+ "authorized_grant_types, web_server_redirect_uri, authorities, access_token_validity, "
