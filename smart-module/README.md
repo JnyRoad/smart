@@ -71,5 +71,5 @@ mvn -pl smart-bridge-isc/smart-bridge-isc-biz -am test
 
 - 新业务服务优先按 `api` + `biz` + 必要 `core` 的现有结构拆分。
 - `smart-tool` 只放跨模块共享工具，不放单一业务流程。
-- `database/manual/` 是人工迁移脚本目录；没有 Flyway/Liquibase 自动迁移。
+- 数据库结构变更以发布记录和已上线版本为准，不保留人工迁移脚本。
 - `.flattened-pom.xml`、`target/`、本地数据库、日志和构建产物都不应提交。
