@@ -71,6 +71,14 @@ public interface SmtIscDeviceTaskService extends IService<SmtIscDeviceTask> {
 	 */
 	Boolean delVisitorDeviceAuth(Long id);
 
+	/**
+	 * 员工权限重新下发前取消本地尚未完成的ISC卡权限任务。
+	 *
+	 * @param staffId 员工主键字符串
+	 * @return 更新的任务数量
+	 */
+	int cancelSupersededStaffAuthTasks(String staffId);
+
 	// ========== 新增优化查询方法 ==========
 
 	/**
