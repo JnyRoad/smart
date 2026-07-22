@@ -430,6 +430,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				log.error("添加人员至ISC平台异常，cardNo信息未找到");
 				return null;
 			}
+			trimIscPersonTextParameters(params);
 
 			// 园区分发
 			DispatcherDTO<Map> dispatcherDTO = new DispatcherDTO<>();
@@ -481,6 +482,13 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			log.error("添加人员至ISC平台异常：{}", task.getCardNo(), e);
 			return null;
 		}
+	}
+
+	/**
+	 * ISC 对人员文本字段格式严格校验，统一清除首尾空白，避免手机号、姓名或证件号因导入空格被拒绝。
+	 */
+	static void trimIscPersonTextParameters(Map<String, Object> params) {
+		params.replaceAll((key, value) -> value instanceof String ? StrUtil.trim((String) value) : value);
 	}
 
 	private String resolveAddedPersonId(String resultData, SmtIscDeviceTask task, String fallbackPersonId) {

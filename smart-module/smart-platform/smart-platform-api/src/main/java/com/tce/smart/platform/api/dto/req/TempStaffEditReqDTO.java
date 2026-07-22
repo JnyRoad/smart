@@ -91,4 +91,29 @@ public class TempStaffEditReqDTO extends BaseDTO {
 
 	@ApiModelProperty("查询工号列表")
 	private String badges;
+
+	/**
+	 * 临时人员资料会用于身份匹配和 ISC 下发，保存前统一去除所有文本字段的首尾空白。
+	 */
+	public void trimTextFields() {
+		name = trim(name);
+		phone = trim(phone);
+		badge = trim(badge);
+		certno = trim(certno);
+		jobName = trim(jobName);
+		depName = trim(depName);
+		jcheId = trim(jcheId);
+		jcheName = trim(jcheName);
+		faceImg = trim(faceImg);
+		entryTime = trim(entryTime);
+		dispatch = trim(dispatch);
+		badges = trim(badges);
+		if (ids != null) {
+			ids.replaceAll(this::trim);
+		}
+	}
+
+	private String trim(String value) {
+		return value == null ? null : value.trim();
+	}
 }
