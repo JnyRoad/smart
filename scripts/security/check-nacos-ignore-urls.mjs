@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { LineCounter, isAlias, isScalar, isSeq, parseDocument } from 'yaml'
 
 export const FORBIDDEN_ANONYMOUS_PATTERNS = new Set([
   '/**',
@@ -20,157 +21,86 @@ export function findForbiddenIgnoreUrls(urls) {
   return urls.filter((url) => FORBIDDEN_ANONYMOUS_PATTERNS.has(url))
 }
 
-function getIndentation(line) {
-  return line.length - line.trimStart().length
+function getLineNumber(node, lineCounter) {
+  const startOffset = node?.range?.[0]
+  return Number.isInteger(startOffset) ? lineCounter.linePos(startOffset).line : null
 }
 
-function getYamlListValue(line) {
-  const matched = line.match(/^\s*-\s*("(?:\\.|[^"])*"|'(?:''|[^'])*'|[^\s#]+)(?:\s+#.*)?\s*$/)
-  if (!matched) {
-    return null
-  }
-
-  return getYamlScalarValue(matched[1])
+function createUnsupportedValueError(fileName, node, lineCounter) {
+  const line = getLineNumber(node, lineCounter)
+  return new Error(`Unsupported ignore-urls value in ${fileName}${line ? `:${line}` : ''}`)
 }
 
-function getYamlScalarValue(value) {
-  const trimmedValue = value.trim()
-  if (!trimmedValue) {
-    return null
+function getIgnoreUrlsEntries(content, fileName) {
+  const lineCounter = new LineCounter()
+  const document = parseDocument(content, {
+    lineCounter,
+    prettyErrors: false,
+    strict: true,
+    uniqueKeys: true,
+  })
+  if (document.errors.length > 0) {
+    throw new Error(`Invalid YAML in ${fileName}`)
   }
 
-  if (trimmedValue.startsWith('"')) {
+  const configuredNode = document.getIn(['security', 'oauth2', 'client', 'ignore-urls'], true)
+  if (configuredNode === undefined) {
+    return []
+  }
+
+  let ignoreUrlsNode = configuredNode
+  if (isAlias(ignoreUrlsNode)) {
     try {
-      const decodedValue = JSON.parse(trimmedValue)
-      if (typeof decodedValue === 'string') {
-        return decodedValue
-      }
+      ignoreUrlsNode = ignoreUrlsNode.resolve(document)
     } catch (error) {
-      // 仅接受 JSON 兼容的双引号转义，其他 YAML 转义必须显式失败，防止漏报。
+      throw createUnsupportedValueError(fileName, configuredNode, lineCounter)
     }
-    throw new Error('Unsupported double-quoted ignore-urls value')
   }
 
-  const singleQuotedValue = trimmedValue.match(/^'((?:''|[^'])*)'$/)
-  if (singleQuotedValue) {
-    return singleQuotedValue[1].replace(/''/g, "'")
+  if (!isSeq(ignoreUrlsNode)) {
+    throw createUnsupportedValueError(fileName, configuredNode, lineCounter)
   }
 
-  if (/^[^\s#]+$/.test(trimmedValue)) {
-    return trimmedValue
-  }
-
-  throw new Error('Unsupported flow ignore-urls value')
-}
-
-function getYamlFlowListEntries(lines, startIndex) {
-  const matched = lines[startIndex].trim().match(/^ignore-urls\s*:\s*\[(.*)$/)
-  if (!matched) {
-    return null
-  }
-
-  const entries = []
-  let content = matched[1]
-
-  for (let index = startIndex; index < lines.length; index += 1) {
-    if (!content.trim().startsWith('#')) {
-      const closingBracketIndex = content.indexOf(']')
-      const valuesText = closingBracketIndex === -1 ? content : content.slice(0, closingBracketIndex)
-
-      for (const rawValue of valuesText.split(',')) {
-        const ignoredPath = getYamlScalarValue(rawValue)
-        if (ignoredPath) {
-          entries.push({ line: index + 1, path: ignoredPath })
-        }
-      }
-
-      if (closingBracketIndex !== -1) {
-        return { endIndex: index, entries }
-      }
+  return ignoreUrlsNode.items.map((item) => {
+    if (!isScalar(item) || typeof item.value !== 'string') {
+      throw createUnsupportedValueError(fileName, item, lineCounter)
     }
 
-    content = lines[index + 1] || ''
-  }
+    const line = getLineNumber(item, lineCounter)
+    if (!line) {
+      throw createUnsupportedValueError(fileName, item, lineCounter)
+    }
 
-  throw new Error('Unterminated flow ignore-urls list')
+    return { line, path: item.value }
+  })
 }
 
 /**
  * 扫描本地 Nacos YAML 基线，只记录 Data ID、行号和命中的匿名路径，避免输出配置中的秘密。
  */
 export async function scanConfigDirectory(directory) {
-  const entries = await readdir(directory, { withFileTypes: true })
+  const directoryEntries = await readdir(directory, { withFileTypes: true })
   const findings = []
+  const yamlFiles = directoryEntries
+    .filter((entry) => entry.isFile() && /\.ya?ml$/i.test(entry.name))
+    .sort((left, right) => left.name.localeCompare(right.name))
 
-  for (const entry of entries.filter((candidate) => candidate.isFile() && /\.ya?ml$/i.test(candidate.name)).sort((left, right) => left.name.localeCompare(right.name))) {
+  for (const entry of yamlFiles) {
     const fileName = entry.name
-    const lines = (await readFile(path.join(directory, fileName), 'utf8')).split(/\r?\n/)
-    let ignoreUrlsIndentation = null
+    const content = await readFile(path.join(directory, fileName), 'utf8')
+    const ignoreUrlsEntries = getIgnoreUrlsEntries(content, fileName)
 
-    for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index]
-      const trimmed = line.trim()
-      if (trimmed.startsWith('#') || trimmed === '') {
+    for (const ignoreUrlsEntry of ignoreUrlsEntries) {
+      if (!FORBIDDEN_ANONYMOUS_PATTERNS.has(ignoreUrlsEntry.path)) {
         continue
       }
 
-      const indentation = getIndentation(line)
-      let flowList
-      try {
-        flowList = getYamlFlowListEntries(lines, index)
-      } catch (error) {
-        throw new Error(`Unsupported ignore-urls syntax in ${fileName}:${index + 1}`)
-      }
-      if (flowList !== null) {
-        for (const entry of flowList.entries) {
-          if (!FORBIDDEN_ANONYMOUS_PATTERNS.has(entry.path)) {
-            continue
-          }
-          findings.push({
-            dataId: fileName,
-            fileName,
-            line: entry.line,
-            path: entry.path,
-          })
-        }
-        ignoreUrlsIndentation = null
-        index = flowList.endIndex
-        continue
-      }
-
-      const ignoreUrlsHeader = trimmed.match(/^ignore-urls\s*:\s*(.*)$/)
-      if (ignoreUrlsHeader && (ignoreUrlsHeader[1] === '' || ignoreUrlsHeader[1].startsWith('#'))) {
-        ignoreUrlsIndentation = indentation
-        continue
-      }
-
-      if (ignoreUrlsHeader) {
-        throw new Error(`Unsupported ignore-urls syntax in ${fileName}:${index + 1}`)
-      }
-
-      if (ignoreUrlsIndentation === null) {
-        continue
-      }
-
-      if (indentation <= ignoreUrlsIndentation) {
-        ignoreUrlsIndentation = null
-        continue
-      }
-
-      let ignoredPath
-      try {
-        ignoredPath = getYamlListValue(line)
-      } catch (error) {
-        throw new Error(`Unsupported ignore-urls syntax in ${fileName}:${index + 1}`)
-      }
-      if (ignoredPath && FORBIDDEN_ANONYMOUS_PATTERNS.has(ignoredPath)) {
-        findings.push({
-          dataId: fileName,
-          fileName,
-          line: index + 1,
-          path: ignoredPath,
-        })
-      }
+      findings.push({
+        dataId: fileName,
+        fileName,
+        line: ignoreUrlsEntry.line,
+        path: ignoreUrlsEntry.path,
+      })
     }
   }
 
@@ -199,7 +129,7 @@ async function main() {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   main().catch((error) => {
-    console.error(`Failed to scan Nacos config directory: ${error.message}`)
+    console.error(error.message)
     process.exitCode = 2
   })
 }

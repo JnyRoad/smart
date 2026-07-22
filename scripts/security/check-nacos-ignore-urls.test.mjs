@@ -89,28 +89,28 @@ try {
   await rm(fixtureDirectory, { force: true, recursive: true })
 }
 
-const unsupportedHeaderDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-unsupported-header-'))
+const unsupportedValueDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-unsupported-value-'))
 
 try {
   await writeFile(
-    path.join(unsupportedHeaderDirectory, 'smart-unsupported.yml'),
+    path.join(unsupportedValueDirectory, 'smart-unsupported.yml'),
     [
       'security:',
       '  oauth2:',
       '    client:',
-      '      ignore-urls: !!seq ["/api/**"]',
+      '      ignore-urls: { path: "/api/**" }',
     ].join('\n'),
   )
 
   await assert.rejects(
-    scanConfigDirectory(unsupportedHeaderDirectory),
-    /Unsupported ignore-urls syntax in smart-unsupported\.yml:4/,
+    scanConfigDirectory(unsupportedValueDirectory),
+    /Unsupported ignore-urls value in smart-unsupported\.yml:4/,
   )
-  const cliResult = runScannerCli(unsupportedHeaderDirectory)
+  const cliResult = runScannerCli(unsupportedValueDirectory)
   assert.equal(cliResult.status, 2)
-  assert.match(cliResult.stderr, /Unsupported ignore-urls syntax in smart-unsupported\.yml:4/)
+  assert.match(cliResult.stderr, /Unsupported ignore-urls value in smart-unsupported\.yml:4/)
 } finally {
-  await rm(unsupportedHeaderDirectory, { force: true, recursive: true })
+  await rm(unsupportedValueDirectory, { force: true, recursive: true })
 }
 
 const escapedScalarDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-escaped-scalar-'))
@@ -140,6 +140,109 @@ try {
   assert.match(cliResult.stderr, /smart-escaped\.yml:5 ignore-urls \/api\/\*\*/)
 } finally {
   await rm(escapedScalarDirectory, { force: true, recursive: true })
+}
+
+const semanticYamlDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-semantic-yaml-'))
+
+try {
+  await writeFile(
+    path.join(semanticYamlDirectory, 'smart-anchor.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      ignore-urls: &public_paths',
+      '        - "/api/**"',
+    ].join('\n'),
+  )
+  await writeFile(
+    path.join(semanticYamlDirectory, 'smart-quoted-key.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      "ignore-urls": ["/staff/**"]',
+    ].join('\n'),
+  )
+  await writeFile(
+    path.join(semanticYamlDirectory, 'smart-tag.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      ignore-urls: !!seq ["/articlesrelease/**"]',
+    ].join('\n'),
+  )
+  await writeFile(
+    path.join(semanticYamlDirectory, 'smart-unicode-key.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      "\\u0069gnore-urls": ["/**"]',
+    ].join('\n'),
+  )
+
+  assert.deepEqual(await scanConfigDirectory(semanticYamlDirectory), [
+    { dataId: 'smart-anchor.yml', fileName: 'smart-anchor.yml', line: 5, path: '/api/**' },
+    { dataId: 'smart-quoted-key.yml', fileName: 'smart-quoted-key.yml', line: 4, path: '/staff/**' },
+    { dataId: 'smart-tag.yml', fileName: 'smart-tag.yml', line: 4, path: '/articlesrelease/**' },
+    { dataId: 'smart-unicode-key.yml', fileName: 'smart-unicode-key.yml', line: 4, path: '/**' },
+  ])
+
+  const cliResult = runScannerCli(semanticYamlDirectory)
+  assert.equal(cliResult.status, 1)
+  assert.match(cliResult.stderr, /smart-anchor\.yml:5 ignore-urls \/api\/\*\*/)
+  assert.match(cliResult.stderr, /smart-quoted-key\.yml:4 ignore-urls \/staff\/\*\*/)
+  assert.match(cliResult.stderr, /smart-tag\.yml:4 ignore-urls \/articlesrelease\/\*\*/)
+  assert.match(cliResult.stderr, /smart-unicode-key\.yml:4 ignore-urls \/\*\*/)
+} finally {
+  await rm(semanticYamlDirectory, { force: true, recursive: true })
+}
+
+const invalidValueDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-invalid-value-'))
+
+try {
+  await writeFile(
+    path.join(invalidValueDirectory, 'smart-invalid-value.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      ignore-urls: [123]',
+    ].join('\n'),
+  )
+
+  await assert.rejects(
+    scanConfigDirectory(invalidValueDirectory),
+    /Unsupported ignore-urls value in smart-invalid-value\.yml:4/,
+  )
+  const cliResult = runScannerCli(invalidValueDirectory)
+  assert.equal(cliResult.status, 2)
+  assert.match(cliResult.stderr, /Unsupported ignore-urls value in smart-invalid-value\.yml:4/)
+} finally {
+  await rm(invalidValueDirectory, { force: true, recursive: true })
+}
+
+const invalidYamlDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-invalid-yaml-'))
+
+try {
+  await writeFile(
+    path.join(invalidYamlDirectory, 'smart-invalid-yaml.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      ignore-urls: ["/api/**"',
+    ].join('\n'),
+  )
+
+  await assert.rejects(scanConfigDirectory(invalidYamlDirectory), /Invalid YAML in smart-invalid-yaml\.yml/)
+  const cliResult = runScannerCli(invalidYamlDirectory)
+  assert.equal(cliResult.status, 2)
+  assert.match(cliResult.stderr, /Invalid YAML in smart-invalid-yaml\.yml/)
+} finally {
+  await rm(invalidYamlDirectory, { force: true, recursive: true })
 }
 
 console.log('check-nacos-ignore-urls tests passed')

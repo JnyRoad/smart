@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "check:nacos-access-control": "node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev"
+  },
+  "dependencies": {
+    "yaml": "2.8.2"
+  }
+}
