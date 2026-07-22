@@ -142,8 +142,22 @@ public class SmtIscDeviceTaskMapperXmlTest {
 		int queryStart = mapper.indexOf("<select id=\"getCardDown\"");
 		int queryEnd = mapper.indexOf("</select>", queryStart);
 		String querySql = mapper.substring(queryStart, queryEnd);
-		// 孤儿回收会把任务重置为 INIT + code=null，getCardDown 必须能选中
-		Assert.assertTrue(querySql.contains("SDA.CODE != 200 OR SDA.CODE IS NULL"));
+		// 孤儿回收会把任务重置为 INIT + code=null，getCardDown必须能选中；502/506交由退避重试查询处理。
+		Assert.assertTrue(querySql.contains("SDA.CODE NOT IN (200, 502, 506) OR SDA.CODE IS NULL"));
+	}
+
+	@Test
+	public void retryCardDownUsesRetryableCodesAndExponentialBackoff() throws Exception {
+		String mapper = new String(Files.readAllBytes(Paths.get("src/main/resources/mapper/SmtIscDeviceTaskMapper.xml")), StandardCharsets.UTF_8);
+		int queryStart = mapper.indexOf("<select id=\"getReTryCardDown\"");
+		int queryEnd = mapper.indexOf("</select>", queryStart);
+		String querySql = mapper.substring(queryStart, queryEnd);
+
+		Assert.assertTrue(querySql.contains("SDA.STATUS IN (0, 6)"));
+		Assert.assertTrue(querySql.contains("SDA.CODE in (502,506)"));
+		Assert.assertTrue(querySql.contains("SDA.UPDATE_TIME"));
+		Assert.assertTrue(querySql.contains("NUMTODSINTERVAL"));
+		Assert.assertTrue(querySql.contains("POWER(2, NVL(SDA.TIMES, 1) - 1) * 5"));
 	}
 
 	@Test
