@@ -127,6 +127,7 @@ public class SmtStaffController extends BaseController {
 	@ApiOperation("导入临时员工")
 	@PostMapping("/addBatchTempStaff")
 	public Result saveBatchTemp(@RequestBody List<TempStaffEditReqDTO> smtStaff) {
+		smtStaff.forEach(TempStaffEditReqDTO::trimTextFields);
 		return success(smtStaffExtService.saveBatchTemporaryStaff(smtStaff, dormitoryStaffService));
 	}
 
@@ -187,6 +188,7 @@ public class SmtStaffController extends BaseController {
 	@ApiOperation("新增临时员工")
 	@PostMapping("/addTempStaff")
 	public Result saveTemp(@RequestBody TempStaffEditReqDTO smtStaff) {
+		smtStaff.trimTextFields();
 		return success(smtStaffService.saveTemporaryStaff(smtStaff, dormitoryStaffService));
 	}
 
@@ -194,6 +196,7 @@ public class SmtStaffController extends BaseController {
 	@ApiOperation("修改临时员工")
 	@PostMapping("/updateTempStaff")
 	public Result updateTemp(@RequestBody TempStaffEditReqDTO smtStaff) {
+		smtStaff.trimTextFields();
 		return success(smtStaffService.updateTemporaryStaff(smtStaff));
 	}
 
@@ -210,7 +213,7 @@ public class SmtStaffController extends BaseController {
 	@ApiOperation("后台修改员工手机号")
 	@PostMapping("/updateStaffPhone")
 	public Result<Boolean> updateStaffPhone(@RequestParam("staffId") String staffId,@RequestParam("newPhone")String newPhone) {
-		return success(smtStaffService.updateStaffPhone(Long.parseLong(staffId),newPhone));
+		return success(smtStaffService.updateStaffPhone(Long.parseLong(staffId), StrUtil.trim(newPhone)));
 	}
 
 	@SysLog("新增员工到hr中间表")

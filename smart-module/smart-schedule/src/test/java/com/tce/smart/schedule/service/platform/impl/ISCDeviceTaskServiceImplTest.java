@@ -73,6 +73,28 @@ public class ISCDeviceTaskServiceImplTest {
 	private static final String TEMP_ACCESS_START_ISO = formatIscTime(TEMP_ACCESS_START);
 	private static final String TEMP_ACCESS_END_ISO = formatIscTime(TEMP_ACCESS_END);
 
+	@Test
+	public void trimIscPersonTextParametersRemovesLeadingAndTrailingWhitespaceFromAllTextParameters() {
+		Map<String, Object> params = new HashMap<>();
+		params.put("personId", " HC0460 ");
+		params.put("personName", " 李思翔 ");
+		params.put("phoneNo", " 13700893346 ");
+		params.put("certificateNo", " 411082200603033070 ");
+		params.put("jobNo", " HC0460 ");
+		params.put("email", " test@example.com ");
+		params.put("gender", 1);
+
+		ISCDeviceTaskServiceImpl.trimIscPersonTextParameters(params);
+
+		Assert.assertEquals("HC0460", params.get("personId"));
+		Assert.assertEquals("李思翔", params.get("personName"));
+		Assert.assertEquals("13700893346", params.get("phoneNo"));
+		Assert.assertEquals("411082200603033070", params.get("certificateNo"));
+		Assert.assertEquals("HC0460", params.get("jobNo"));
+		Assert.assertEquals("test@example.com", params.get("email"));
+		Assert.assertEquals(1, params.get("gender"));
+	}
+
 	@BeforeClass
 	public static void initMybatisPlusLambdaCache() {
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtIscDeviceTask.class);
