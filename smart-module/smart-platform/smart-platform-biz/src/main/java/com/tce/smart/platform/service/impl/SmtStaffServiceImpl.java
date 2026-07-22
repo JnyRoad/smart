@@ -60,7 +60,10 @@ import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
+import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
+import com.tce.smart.platform.api.dto.resp.StaffSelfCheckInProfileRespDTO;
 import com.tce.smart.platform.core.ao.SmtAppStaffAuthSaveAO;
 import com.tce.smart.platform.core.dto.*;
 import com.tce.smart.platform.core.entity.*;
@@ -959,6 +962,98 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 			return null;
 		}
 		return smtStaff;
+	}
+
+	@Override
+	public List<StaffLookupRespDTO> searchStaffForAdmin(String badge, List<Integer> parkIds) {
+		if (StrUtil.isBlank(badge) || CollectionUtil.isEmpty(parkIds)) {
+			return Collections.emptyList();
+		}
+
+		List<SmtParkBu> parkBus = smtParkBuService.list(Wrappers.<SmtParkBu>query().lambda()
+				.in(SmtParkBu::getParkId, parkIds));
+		Set<String> visibleCompIds = parkBus.stream()
+				.map(SmtParkBu::getCompId)
+				.filter(StrUtil::isNotBlank)
+				.collect(Collectors.toSet());
+		// 临时员工通过组织关系绑定园区，需与常规 BU 关系一并纳入权限范围。
+		smtOrganizeRelationService.list(Wrappers.<SmtOrganizeRelation>query().lambda()
+				.in(SmtOrganizeRelation::getParkId, parkIds)).stream()
+				.map(SmtOrganizeRelation::getId)
+				.filter(Objects::nonNull)
+				.map(String::valueOf)
+				.forEach(visibleCompIds::add);
+		if (visibleCompIds.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<SmtStaff> staffs = this.baseMapper.selectList(Wrappers.<SmtStaff>query().lambda()
+				.like(SmtStaff::getBadge, badge.trim())
+				.in(SmtStaff::getCompId, visibleCompIds)
+				.last("and rownum <= 20"));
+		return staffs.stream().limit(20).map(this::toStaffLookupResp).collect(Collectors.toList());
+	}
+
+	@Override
+	public StaffSelfCheckInProfileRespDTO getCheckInProfileForBadge(String badge) {
+		if (StrUtil.isBlank(badge)) {
+			return null;
+		}
+		SmtStaff staff = this.baseMapper.selectOne(Wrappers.<SmtStaff>query().lambda()
+				.eq(SmtStaff::getBadge, badge));
+		if (staff == null) {
+			return null;
+		}
+
+		StaffSelfCheckInProfileRespDTO response = new StaffSelfCheckInProfileRespDTO();
+		response.setName(staff.getName());
+		response.setProfileComplete(StrUtil.isNotBlank(staff.getName()) && StrUtil.isNotBlank(staff.getCertno()));
+		response.setMaskedCertNo(maskCertNo(staff.getCertno()));
+		return response;
+	}
+
+	@Override
+	public InternalStaffAccountRespDTO getInternalAccountByBadge(String badge) {
+		if (StrUtil.isBlank(badge)) {
+			return null;
+		}
+		SmtStaff staff = this.baseMapper.selectOne(Wrappers.<SmtStaff>query().lambda()
+				.eq(SmtStaff::getBadge, badge));
+		if (staff == null) {
+			return null;
+		}
+
+		InternalStaffAccountRespDTO response = new InternalStaffAccountRespDTO();
+		response.setStaffId(staff.getId());
+		response.setBadge(staff.getBadge());
+		response.setName(staff.getName());
+		response.setStatus(staff.getStatus());
+		return response;
+	}
+
+	/** 将持久化实体显式投影为管理员查询响应，避免反射复制引入敏感字段。 */
+	private StaffLookupRespDTO toStaffLookupResp(SmtStaff staff) {
+		StaffLookupRespDTO response = new StaffLookupRespDTO();
+		response.setStaffId(staff.getId());
+		response.setBadge(staff.getBadge());
+		response.setName(staff.getName());
+		response.setDepartmentName(staff.getDepName());
+		return response;
+	}
+
+	/** 身份证号仅显示末四位，短证件号不暴露任何原始字符。 */
+	private String maskCertNo(String certNo) {
+		if (StrUtil.isBlank(certNo)) {
+			return null;
+		}
+		if (certNo.length() <= 4) {
+			return "****";
+		}
+		StringBuilder masked = new StringBuilder(certNo.length());
+		for (int index = 0; index < certNo.length() - 4; index++) {
+			masked.append('*');
+		}
+		return masked.append(certNo.substring(certNo.length() - 4)).toString();
 	}
 
 	@Override

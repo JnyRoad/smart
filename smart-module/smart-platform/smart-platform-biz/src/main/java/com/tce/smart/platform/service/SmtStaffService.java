@@ -8,6 +8,9 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
+import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
+import com.tce.smart.platform.api.dto.resp.StaffSelfCheckInProfileRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
 import com.tce.smart.platform.core.dto.*;
 import com.tce.smart.platform.core.entity.*;
@@ -105,6 +108,31 @@ public interface SmtStaffService extends IService<SmtStaff> {
 	 * @return 员工信息
 	 */
 	SmtStaff getSimpleSttaffByBadge(String badge);
+
+	/**
+	 * 按管理员可见园区查询员工最小信息。
+	 *
+	 * @param badge 工号关键字
+	 * @param parkIds 当前管理员可见园区
+	 * @return 不含个人敏感信息的员工列表
+	 */
+	List<StaffLookupRespDTO> searchStaffForAdmin(String badge, List<Integer> parkIds);
+
+	/**
+	 * 查询当前员工入住流程可展示的资料摘要。
+	 *
+	 * @param badge 已认证主体的工号
+	 * @return 仅含姓名、资料完整状态和脱敏证件号的资料摘要
+	 */
+	StaffSelfCheckInProfileRespDTO getCheckInProfileForBadge(String badge);
+
+	/**
+	 * 按工号查询内部账号识别信息。
+	 *
+	 * @param badge 工号
+	 * @return 仅含内部账号识别所需字段的响应
+	 */
+	InternalStaffAccountRespDTO getInternalAccountByBadge(String badge);
 
 	/**
 	 * 根据员工ID获取员工信息

@@ -31,6 +31,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -142,23 +143,26 @@ public class SmtStaffController extends BaseController {
 	}
 
 	/**
-	 * 根据员工工号查询员工实体信息
+	 * 后台按工号查询员工最小信息。
 	 *
-	 * @param badge 员工工号
-	 * @return 员工信息
+	 * 查询范围由当前认证用户的园区权限决定，响应不包含任何个人敏感信息。
 	 */
-	@ApiOperation("根据工号模糊查询")
-	@GetMapping("/simple/badge")
-	public Result<List<SmtStaff>> getByBadge(@RequestParam("badge") String badge){
-		List<SmtStaff> smtStaff = smtStaffService.list(Wrappers.<SmtStaff>query().lambda().like(SmtStaff::getBadge, badge).last("and rownum <= 20"));
-		return success(smtStaff);
+	@ApiOperation("后台按工号查询员工最小信息")
+	@GetMapping("/lookup")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result<List<StaffLookupRespDTO>> lookup(@RequestParam("badge") String badge) {
+		return success(smtStaffService.searchStaffForAdmin(badge, SecurityUtils.getUser().getParkIdList()));
 	}
 
-	@ApiOperation("根据工号精确查询")
-	@GetMapping("/define/badge")
-	public Result<SmtStaff> getOneByBadge(@RequestParam("badge") String badge){
-		SmtStaff smtStaff = smtStaffService.getOne(Wrappers.<SmtStaff>query().lambda().eq(SmtStaff::getBadge, badge));
-		return success(smtStaff);
+	/**
+	 * 查询当前认证员工的入住资料摘要。
+	 *
+	 * 工号始终从认证主体获取，外部请求参数不能指定其他员工。
+	 */
+	@ApiOperation("查询本人入住资料摘要")
+	@GetMapping("/me/check-in-profile")
+	public Result<StaffSelfCheckInProfileRespDTO> myCheckInProfile() {
+		return success(smtStaffService.getCheckInProfileForBadge(SecurityUtils.getUser().getUsername()));
 	}
 
 	@SysLog("临时人员列表")
@@ -305,17 +309,6 @@ public class SmtStaffController extends BaseController {
 	public Result getStaffByBadges(@RequestParam("badges") String badges, @RequestParam("compId") String compId){
 		List<String> badgeList = Arrays.asList(badges.split(","));
 		return success(smtStaffService.getStaffByBadges(badgeList, compId), TempStaffEditRespDTO.class);
-	}
-
-	/**
-	 * 根据员工工号查询员工实体信息
-	 *
-	 * @param badge 员工工号
-	 * @return 员工信息
-	 */
-	@GetMapping("/simple/get/badge")
-	public Result<SmtStaff> getSimpleSttaffByBadge(@RequestParam("badge") String badge){
-		return new Result<SmtStaff>(smtStaffService.getSimpleSttaffByBadge(badge));
 	}
 
 	/**
