@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { LineCounter, isAlias, isScalar, isSeq, parseDocument } from 'yaml'
+import { LineCounter, isMap, isScalar, isSeq, parseDocument } from 'yaml'
 
 export const FORBIDDEN_ANONYMOUS_PATTERNS = new Set([
   '/**',
@@ -31,10 +31,57 @@ function createUnsupportedValueError(fileName, node, lineCounter) {
   return new Error(`Unsupported ignore-urls value in ${fileName}${line ? `:${line}` : ''}`)
 }
 
+function getObjectPath(value, pathSegments) {
+  let currentValue = value
+  for (const pathSegment of pathSegments) {
+    if (!currentValue || typeof currentValue !== 'object' || Array.isArray(currentValue)) {
+      return undefined
+    }
+    currentValue = currentValue[pathSegment]
+  }
+  return currentValue
+}
+
+function sequenceMatchesPaths(node, paths) {
+  return isSeq(node)
+    && node.items.length === paths.length
+    && node.items.every((item, index) => isScalar(item) && item.value === paths[index])
+}
+
+function findMatchingIgnoreUrlsSequences(node, paths, matches) {
+  if (isMap(node)) {
+    for (const pair of node.items) {
+      if (isScalar(pair.key) && pair.key.value === 'ignore-urls' && sequenceMatchesPaths(pair.value, paths)) {
+        matches.push(pair.value)
+      }
+      findMatchingIgnoreUrlsSequences(pair.value, paths, matches)
+    }
+    return
+  }
+
+  if (isSeq(node)) {
+    for (const item of node.items) {
+      findMatchingIgnoreUrlsSequences(item, paths, matches)
+    }
+  }
+}
+
+function findSourceIgnoreUrlsSequence(document, paths) {
+  const directNode = document.getIn(['security', 'oauth2', 'client', 'ignore-urls'], true)
+  if (sequenceMatchesPaths(directNode, paths)) {
+    return directNode
+  }
+
+  const matches = []
+  findMatchingIgnoreUrlsSequences(document.contents, paths, matches)
+  return matches.length === 1 ? matches[0] : null
+}
+
 function getIgnoreUrlsEntries(content, fileName) {
   const lineCounter = new LineCounter()
   const document = parseDocument(content, {
     lineCounter,
+    merge: true,
     prettyErrors: false,
     strict: true,
     uniqueKeys: true,
@@ -43,35 +90,35 @@ function getIgnoreUrlsEntries(content, fileName) {
     throw new Error(`Invalid YAML in ${fileName}`)
   }
 
-  const configuredNode = document.getIn(['security', 'oauth2', 'client', 'ignore-urls'], true)
-  if (configuredNode === undefined) {
+  let semanticConfig
+  try {
+    semanticConfig = document.toJS({ maxAliasCount: 100 })
+  } catch (error) {
+    throw createUnsupportedValueError(fileName, null, lineCounter)
+  }
+
+  const paths = getObjectPath(semanticConfig, ['security', 'oauth2', 'client', 'ignore-urls'])
+  if (paths === undefined) {
     return []
   }
 
-  let ignoreUrlsNode = configuredNode
-  if (isAlias(ignoreUrlsNode)) {
-    try {
-      ignoreUrlsNode = ignoreUrlsNode.resolve(document)
-    } catch (error) {
-      throw createUnsupportedValueError(fileName, configuredNode, lineCounter)
-    }
+  const directNode = document.getIn(['security', 'oauth2', 'client', 'ignore-urls'], true)
+  if (!Array.isArray(paths) || paths.some((pathValue) => typeof pathValue !== 'string')) {
+    throw createUnsupportedValueError(fileName, directNode, lineCounter)
   }
 
-  if (!isSeq(ignoreUrlsNode)) {
-    throw createUnsupportedValueError(fileName, configuredNode, lineCounter)
+  const sourceSequence = findSourceIgnoreUrlsSequence(document, paths)
+  if (!sourceSequence) {
+    throw createUnsupportedValueError(fileName, directNode, lineCounter)
   }
 
-  return ignoreUrlsNode.items.map((item) => {
-    if (!isScalar(item) || typeof item.value !== 'string') {
-      throw createUnsupportedValueError(fileName, item, lineCounter)
-    }
-
-    const line = getLineNumber(item, lineCounter)
+  return paths.map((pathValue, index) => {
+    const line = getLineNumber(sourceSequence.items[index], lineCounter)
     if (!line) {
-      throw createUnsupportedValueError(fileName, item, lineCounter)
+      throw createUnsupportedValueError(fileName, sourceSequence.items[index], lineCounter)
     }
 
-    return { line, path: item.value }
+    return { line, path: pathValue }
   })
 }
 

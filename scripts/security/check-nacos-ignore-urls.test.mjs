@@ -245,4 +245,29 @@ try {
   await rm(invalidYamlDirectory, { force: true, recursive: true })
 }
 
+const mergeKeyDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-merge-key-'))
+
+try {
+  await writeFile(
+    path.join(mergeKeyDirectory, 'smart-merge.yml'),
+    [
+      'defaults: &defaults',
+      '  ignore-urls: ["/api/**"]',
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      <<: *defaults',
+    ].join('\n'),
+  )
+
+  assert.deepEqual(await scanConfigDirectory(mergeKeyDirectory), [
+    { dataId: 'smart-merge.yml', fileName: 'smart-merge.yml', line: 2, path: '/api/**' },
+  ])
+  const cliResult = runScannerCli(mergeKeyDirectory)
+  assert.equal(cliResult.status, 1)
+  assert.match(cliResult.stderr, /smart-merge\.yml:2 ignore-urls \/api\/\*\*/)
+} finally {
+  await rm(mergeKeyDirectory, { force: true, recursive: true })
+}
+
 console.log('check-nacos-ignore-urls tests passed')
