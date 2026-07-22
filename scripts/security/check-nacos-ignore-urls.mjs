@@ -33,6 +33,19 @@ function getYamlListValue(line) {
   return matched[1] || matched[2] || matched[3]
 }
 
+function getYamlFlowListValues(line) {
+  const matched = line.match(/^ignore-urls\s*:\s*\[(.*)]\s*(?:#.*)?$/)
+  if (!matched) {
+    return null
+  }
+
+  return matched[1]
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => value.replace(/^(?:"([^"]*)"|'([^']*)')$/, '$1$2'))
+}
+
 /**
  * 扫描本地 Nacos YAML 基线，只记录 Data ID、行号和命中的匿名路径，避免输出配置中的秘密。
  */
@@ -52,6 +65,20 @@ export async function scanConfigDirectory(directory) {
       }
 
       const indentation = getIndentation(line)
+      const flowListValues = getYamlFlowListValues(trimmed)
+      if (flowListValues !== null) {
+        for (const ignoredPath of findForbiddenIgnoreUrls(flowListValues)) {
+          findings.push({
+            dataId: fileName,
+            fileName,
+            line: index + 1,
+            path: ignoredPath,
+          })
+        }
+        ignoreUrlsIndentation = null
+        return
+      }
+
       if (/^ignore-urls\s*:(?:\s+#.*)?$/.test(trimmed)) {
         ignoreUrlsIndentation = indentation
         return
