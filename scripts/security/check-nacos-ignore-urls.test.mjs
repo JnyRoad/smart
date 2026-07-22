@@ -42,7 +42,25 @@ try {
     ].join('\n'),
   )
 
+  await writeFile(
+    path.join(fixtureDirectory, 'smart-data.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      ignore-urls: [',
+      '        "/api/**"',
+      '      ]',
+    ].join('\n'),
+  )
+
   assert.deepEqual(await scanConfigDirectory(fixtureDirectory), [
+    {
+      dataId: 'smart-data.yml',
+      fileName: 'smart-data.yml',
+      line: 5,
+      path: '/api/**',
+    },
     {
       dataId: 'smart-platform.yml',
       fileName: 'smart-platform.yml',
@@ -63,6 +81,7 @@ try {
     { encoding: 'utf8' },
   )
   assert.equal(cliResult.status, 1)
+  assert.match(cliResult.stderr, /smart-data\.yml:5 ignore-urls \/api\/\*\*/)
   assert.match(cliResult.stderr, /smart-upms-biz\.yml:4 ignore-urls \/api\/\*\*/)
 } finally {
   await rm(fixtureDirectory, { force: true, recursive: true })

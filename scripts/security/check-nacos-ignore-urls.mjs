@@ -33,17 +33,54 @@ function getYamlListValue(line) {
   return matched[1] || matched[2] || matched[3]
 }
 
-function getYamlFlowListValues(line) {
-  const matched = line.match(/^ignore-urls\s*:\s*\[(.*)]\s*(?:#.*)?$/)
+function getYamlFlowScalarValue(value) {
+  const trimmedValue = value.trim()
+  if (!trimmedValue) {
+    return null
+  }
+
+  const quotedValue = trimmedValue.match(/^(?:"([^"]*)"|'([^']*)')$/)
+  if (quotedValue) {
+    return quotedValue[1] || quotedValue[2]
+  }
+
+  if (/^[^\s#]+$/.test(trimmedValue)) {
+    return trimmedValue
+  }
+
+  throw new Error('Unsupported flow ignore-urls value')
+}
+
+function getYamlFlowListEntries(lines, startIndex) {
+  const matched = lines[startIndex].trim().match(/^ignore-urls\s*:\s*\[(.*)$/)
   if (!matched) {
     return null
   }
 
-  return matched[1]
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value) => value.replace(/^(?:"([^"]*)"|'([^']*)')$/, '$1$2'))
+  const entries = []
+  let content = matched[1]
+
+  for (let index = startIndex; index < lines.length; index += 1) {
+    if (!content.trim().startsWith('#')) {
+      const closingBracketIndex = content.indexOf(']')
+      const valuesText = closingBracketIndex === -1 ? content : content.slice(0, closingBracketIndex)
+
+      for (const rawValue of valuesText.split(',')) {
+        const ignoredPath = getYamlFlowScalarValue(rawValue)
+        if (ignoredPath) {
+          entries.push({ line: index + 1, path: ignoredPath })
+        }
+      }
+
+      if (closingBracketIndex !== -1) {
+        return { endIndex: index, entries }
+      }
+    }
+
+    content = lines[index + 1] || ''
+  }
+
+  throw new Error('Unterminated flow ignore-urls list')
 }
 
 /**
@@ -58,39 +95,49 @@ export async function scanConfigDirectory(directory) {
     const lines = (await readFile(path.join(directory, fileName), 'utf8')).split(/\r?\n/)
     let ignoreUrlsIndentation = null
 
-    lines.forEach((line, index) => {
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index]
       const trimmed = line.trim()
       if (trimmed.startsWith('#') || trimmed === '') {
-        return
+        continue
       }
 
       const indentation = getIndentation(line)
-      const flowListValues = getYamlFlowListValues(trimmed)
-      if (flowListValues !== null) {
-        for (const ignoredPath of findForbiddenIgnoreUrls(flowListValues)) {
+      let flowList
+      try {
+        flowList = getYamlFlowListEntries(lines, index)
+      } catch (error) {
+        throw new Error(`Unsupported ignore-urls syntax in ${fileName}:${index + 1}`)
+      }
+      if (flowList !== null) {
+        for (const entry of flowList.entries) {
+          if (!FORBIDDEN_ANONYMOUS_PATTERNS.has(entry.path)) {
+            continue
+          }
           findings.push({
             dataId: fileName,
             fileName,
-            line: index + 1,
-            path: ignoredPath,
+            line: entry.line,
+            path: entry.path,
           })
         }
         ignoreUrlsIndentation = null
-        return
+        index = flowList.endIndex
+        continue
       }
 
       if (/^ignore-urls\s*:(?:\s+#.*)?$/.test(trimmed)) {
         ignoreUrlsIndentation = indentation
-        return
+        continue
       }
 
       if (ignoreUrlsIndentation === null) {
-        return
+        continue
       }
 
       if (indentation <= ignoreUrlsIndentation) {
         ignoreUrlsIndentation = null
-        return
+        continue
       }
 
       const ignoredPath = getYamlListValue(line)
@@ -102,7 +149,7 @@ export async function scanConfigDirectory(directory) {
           path: ignoredPath,
         })
       }
-    })
+    }
   }
 
   return findings
