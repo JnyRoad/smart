@@ -979,9 +979,8 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		// 临时员工通过组织关系绑定园区，需与常规 BU 关系一并纳入权限范围。
 		smtOrganizeRelationService.list(Wrappers.<SmtOrganizeRelation>query().lambda()
 				.in(SmtOrganizeRelation::getParkId, parkIds)).stream()
-				.map(SmtOrganizeRelation::getId)
-				.filter(Objects::nonNull)
-				.map(String::valueOf)
+				.map(SmtOrganizeRelation::getCompId)
+				.filter(StrUtil::isNotBlank)
 				.forEach(visibleCompIds::add);
 		if (visibleCompIds.isEmpty()) {
 			return Collections.emptyList();

@@ -9,6 +9,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
@@ -31,7 +32,9 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -162,7 +165,15 @@ public class SmtStaffController extends BaseController {
 	@ApiOperation("查询本人入住资料摘要")
 	@GetMapping("/me/check-in-profile")
 	public Result<StaffSelfCheckInProfileRespDTO> myCheckInProfile() {
-		return success(smtStaffService.getCheckInProfileForBadge(SecurityUtils.getUser().getUsername()));
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			throw new AccessDeniedException("未认证用户不可查询入住资料");
+		}
+		SmartUser currentUser = SecurityUtils.getUser(authentication);
+		if (currentUser == null) {
+			throw new AccessDeniedException("未认证用户不可查询入住资料");
+		}
+		return success(smtStaffService.getCheckInProfileForBadge(currentUser.getUsername()));
 	}
 
 	@SysLog("临时人员列表")
