@@ -30,6 +30,7 @@ scripts/build-release-jars.sh
 scripts/build-release-jars.sh --skip-build
 scripts/test-build-release-jars.sh
 scripts/test-docker-compose-dev.sh
+npm ci --prefix scripts/security
 node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev
 ```
 
@@ -37,5 +38,5 @@ node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev
 
 - 新增可部署后端服务时，先确认它会产出 Spring Boot executable jar，再加入 `release-jars.manifest`。
 - 新增 Docker Compose 服务时，同步更新 `scripts/test-docker-compose-dev.sh` 的模块映射。
-- 发布 Nacos 配置前运行 `check-nacos-ignore-urls.mjs`；命中禁止的匿名规则时会以非零状态退出，不能据此跳过收口流程。
+- 发布 Nacos 配置前先运行 `npm ci --prefix scripts/security`，再运行 `check-nacos-ignore-urls.mjs`；命中禁止的匿名规则时会以非零状态退出，不能据此跳过收口流程。
 - 不要把 `release-artifacts/`、`smart-jar/` 或脚本测试临时目录提交。
