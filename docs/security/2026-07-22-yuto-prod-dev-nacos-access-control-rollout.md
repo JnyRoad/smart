@@ -4,17 +4,17 @@
 
 ## 发布范围
 
-| Data ID | 当前已验证风险 | 目标状态 | 代码前置版本 | 生产状态 |
+| Data ID | 当前已验证风险 | 收口前置条件 | 灰度探针 | 生产状态 |
 |---|---|---|---|---|
-| `smart-platform.yml` | `/staff/**`、`/articlesrelease/**` | 仅精确签名回调和无敏感健康检查匿名；员工和放行接口认证 | Tasks 2-7 | 未发布 |
-| `smart-upms-biz.yml` | `/api/**` | Open API 走 App 身份和 scope，不走匿名白名单 | Tasks 5、9 | 未发布 |
-| `smart-data.yml` | `/**` | 全部内部认证或精确签名回调 | Task 8 | 未发布 |
-| `smart-algorithm.yml` | `/**` | 全部内部认证 | Tasks 6、8 | 未发布 |
-| `smart-push.yml` | `/**` | 内部认证；厂商回调仅精确签名路径 | Task 8 | 未发布 |
-| `smart-dispatcher.yml` | `/**` | 全部内部认证 | Tasks 6、8 | 未发布 |
-| `smart-schedule.yml` | 本地基线为 `/**`；生产需再次只读核验 | 全部内部认证 | Tasks 6、8 | 未核验 |
-| `smart-bridge-biz-*.yml` | `/**` | 内部认证或精确签名设备回调 | Tasks 6、8 | 未发布 |
-| `smart-bridge-isc*.yml` | `/**` | 内部认证或精确签名设备回调 | Tasks 6、8 | 未发布 |
+| `smart-platform.yml` | `/staff/**`、`/articlesrelease/**` | Tasks 2-5、7 完成，仓外调用方为零或已迁移 | 旧路径无 Token 返回 401/403；当前 H5、UI、App 通过 | 未发布 |
+| `smart-upms-biz.yml` | `/api/**` | Open API App scope 核验完成 | 无 App 身份返回 401/403；合法 App token 成功 | 未发布 |
+| `smart-data.yml` | `/**` | Controller 清单逐条完成分类 | 内部 Feign 成功；外部直连拒绝 | 未发布 |
+| `smart-algorithm.yml` | `/**` | 人脸、OCR 调用方完成服务令牌迁移 | 内部算法调用成功；外部直连拒绝 | 未发布 |
+| `smart-push.yml` | `/**` | 推送回调签名与调用方清单完成 | 签名回调成功；无签名拒绝 | 未发布 |
+| `smart-dispatcher.yml` | `/**` | 所有调度 Feign 标识和令牌验证完成 | 定时任务和 Feign 成功 | 未发布 |
+| `smart-schedule.yml` | 本地基线为 `/**`；生产需再次只读核验 | Nacos 读取核验与任务清单完成 | 定时任务无失败 | 未核验 |
+| `smart-bridge-biz-*.yml` | `/**` | 每个设备、厂商回调签名和来源确认 | 合法设备回调成功；未签名拒绝 | 未发布 |
+| `smart-bridge-isc*.yml` | `/**` | 每个设备、厂商回调签名和来源确认 | 合法设备回调成功；未签名拒绝 | 未发布 |
 
 ## 单 Data ID 发布记录
 
