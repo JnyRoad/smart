@@ -16,6 +16,12 @@ assert.deepEqual(
 )
 assert.deepEqual(findForbiddenIgnoreUrls(['/actuator/**', '/v2/api-docs']), [])
 
+const scannerScriptPath = fileURLToPath(new URL('./check-nacos-ignore-urls.mjs', import.meta.url))
+
+function runScannerCli(directory) {
+  return spawnSync(process.execPath, [scannerScriptPath, directory], { encoding: 'utf8' })
+}
+
 const fixtureDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-ignore-urls-'))
 
 try {
@@ -75,16 +81,65 @@ try {
     },
   ])
 
-  const cliResult = spawnSync(
-    process.execPath,
-    [fileURLToPath(new URL('./check-nacos-ignore-urls.mjs', import.meta.url)), fixtureDirectory],
-    { encoding: 'utf8' },
-  )
+  const cliResult = runScannerCli(fixtureDirectory)
   assert.equal(cliResult.status, 1)
   assert.match(cliResult.stderr, /smart-data\.yml:5 ignore-urls \/api\/\*\*/)
   assert.match(cliResult.stderr, /smart-upms-biz\.yml:4 ignore-urls \/api\/\*\*/)
 } finally {
   await rm(fixtureDirectory, { force: true, recursive: true })
+}
+
+const unsupportedHeaderDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-unsupported-header-'))
+
+try {
+  await writeFile(
+    path.join(unsupportedHeaderDirectory, 'smart-unsupported.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      ignore-urls: !!seq ["/api/**"]',
+    ].join('\n'),
+  )
+
+  await assert.rejects(
+    scanConfigDirectory(unsupportedHeaderDirectory),
+    /Unsupported ignore-urls syntax in smart-unsupported\.yml:4/,
+  )
+  const cliResult = runScannerCli(unsupportedHeaderDirectory)
+  assert.equal(cliResult.status, 2)
+  assert.match(cliResult.stderr, /Unsupported ignore-urls syntax in smart-unsupported\.yml:4/)
+} finally {
+  await rm(unsupportedHeaderDirectory, { force: true, recursive: true })
+}
+
+const escapedScalarDirectory = await mkdtemp(path.join(tmpdir(), 'smart-nacos-escaped-scalar-'))
+
+try {
+  await writeFile(
+    path.join(escapedScalarDirectory, 'smart-escaped.yml'),
+    [
+      'security:',
+      '  oauth2:',
+      '    client:',
+      '      ignore-urls:',
+      '        - "/api/\\u002a\\u002a"',
+    ].join('\n'),
+  )
+
+  assert.deepEqual(await scanConfigDirectory(escapedScalarDirectory), [
+    {
+      dataId: 'smart-escaped.yml',
+      fileName: 'smart-escaped.yml',
+      line: 5,
+      path: '/api/**',
+    },
+  ])
+  const cliResult = runScannerCli(escapedScalarDirectory)
+  assert.equal(cliResult.status, 1)
+  assert.match(cliResult.stderr, /smart-escaped\.yml:5 ignore-urls \/api\/\*\*/)
+} finally {
+  await rm(escapedScalarDirectory, { force: true, recursive: true })
 }
 
 console.log('check-nacos-ignore-urls tests passed')

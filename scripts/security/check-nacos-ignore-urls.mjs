@@ -25,23 +25,35 @@ function getIndentation(line) {
 }
 
 function getYamlListValue(line) {
-  const matched = line.match(/^\s*-\s*(?:"([^"]+)"|'([^']+)'|([^\s#]+))/)
+  const matched = line.match(/^\s*-\s*("(?:\\.|[^"])*"|'(?:''|[^'])*'|[^\s#]+)(?:\s+#.*)?\s*$/)
   if (!matched) {
     return null
   }
 
-  return matched[1] || matched[2] || matched[3]
+  return getYamlScalarValue(matched[1])
 }
 
-function getYamlFlowScalarValue(value) {
+function getYamlScalarValue(value) {
   const trimmedValue = value.trim()
   if (!trimmedValue) {
     return null
   }
 
-  const quotedValue = trimmedValue.match(/^(?:"([^"]*)"|'([^']*)')$/)
-  if (quotedValue) {
-    return quotedValue[1] || quotedValue[2]
+  if (trimmedValue.startsWith('"')) {
+    try {
+      const decodedValue = JSON.parse(trimmedValue)
+      if (typeof decodedValue === 'string') {
+        return decodedValue
+      }
+    } catch (error) {
+      // 仅接受 JSON 兼容的双引号转义，其他 YAML 转义必须显式失败，防止漏报。
+    }
+    throw new Error('Unsupported double-quoted ignore-urls value')
+  }
+
+  const singleQuotedValue = trimmedValue.match(/^'((?:''|[^'])*)'$/)
+  if (singleQuotedValue) {
+    return singleQuotedValue[1].replace(/''/g, "'")
   }
 
   if (/^[^\s#]+$/.test(trimmedValue)) {
@@ -66,7 +78,7 @@ function getYamlFlowListEntries(lines, startIndex) {
       const valuesText = closingBracketIndex === -1 ? content : content.slice(0, closingBracketIndex)
 
       for (const rawValue of valuesText.split(',')) {
-        const ignoredPath = getYamlFlowScalarValue(rawValue)
+        const ignoredPath = getYamlScalarValue(rawValue)
         if (ignoredPath) {
           entries.push({ line: index + 1, path: ignoredPath })
         }
@@ -126,9 +138,14 @@ export async function scanConfigDirectory(directory) {
         continue
       }
 
-      if (/^ignore-urls\s*:(?:\s+#.*)?$/.test(trimmed)) {
+      const ignoreUrlsHeader = trimmed.match(/^ignore-urls\s*:\s*(.*)$/)
+      if (ignoreUrlsHeader && (ignoreUrlsHeader[1] === '' || ignoreUrlsHeader[1].startsWith('#'))) {
         ignoreUrlsIndentation = indentation
         continue
+      }
+
+      if (ignoreUrlsHeader) {
+        throw new Error(`Unsupported ignore-urls syntax in ${fileName}:${index + 1}`)
       }
 
       if (ignoreUrlsIndentation === null) {
@@ -140,7 +157,12 @@ export async function scanConfigDirectory(directory) {
         continue
       }
 
-      const ignoredPath = getYamlListValue(line)
+      let ignoredPath
+      try {
+        ignoredPath = getYamlListValue(line)
+      } catch (error) {
+        throw new Error(`Unsupported ignore-urls syntax in ${fileName}:${index + 1}`)
+      }
       if (ignoredPath && FORBIDDEN_ANONYMOUS_PATTERNS.has(ignoredPath)) {
         findings.push({
           dataId: fileName,
