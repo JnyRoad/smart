@@ -1097,6 +1097,125 @@ public class ISCDeviceTaskServiceImplTest {
 	}
 
 	@Test
+	public void downAccessQueriesRetryablePersonCreationTasks() {
+		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
+		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
+		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService,
+				Mockito.mock(SmtImageService.class));
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt()))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(Collections.emptyList());
+		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+		Mockito.when(taskService.getReTryCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+
+		service.downAccess();
+
+		Mockito.verify(taskService).getReTryCardDown(Mockito.any(Page.class), Mockito.anyLong(),
+				Mockito.eq(DeviceTaskConstants.CARD));
+	}
+
+	@Test
+	public void downAccessRetainsPersonCreationFailureAsRetryable502WithOriginalIscMessage() {
+		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
+		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
+		SmtImageService imageService = Mockito.mock(SmtImageService.class);
+		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService, imageService);
+		SmtIscDeviceTask visitor = visitorTask(30L, "9990000030", "cert-create-failure");
+		visitor.setServiceType(DeviceTaskConstants.CARD_ADMITTANCE);
+		visitor.setGeneral("建人失败测试访客");
+		SmtImage image = new SmtImage();
+		image.setImage(new byte[20 * 1024]);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt()))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(Collections.singletonList(visitor));
+		Mockito.when(taskService.getReTryCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
+		Mockito.when(imageService.getByCode(Mockito.anyString())).thenReturn(image);
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
+				.thenAnswer(invocation -> {
+					DispatcherDTO request = invocation.getArgument(0);
+					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())) {
+						return Result.success(emptyPersonList());
+					}
+					if (EventEnum.ISC_PERSON_ADD.getCode().equals(request.getEventType())) {
+						return Result.fail("ISC原始错误：证件号格式错误");
+					}
+					return Result.fail("不应继续下发权限");
+				});
+
+		service.downAccess();
+
+		Assert.assertEquals(ISCDeviceTaskEnum.ADD_PERSON_ERROR.getCode(), visitor.getCode());
+		Assert.assertEquals(DeviceTaskStatusEnum.INIT.getCode(), visitor.getStatus());
+		Assert.assertEquals(Integer.valueOf(1), visitor.getTimes());
+		Assert.assertTrue(visitor.getRemark().contains("ISC原始错误：证件号格式错误"));
+		Assert.assertFalse(visitor.getRemark().contains(ISCDeviceTaskEnum.PERSON_NOT_EXIST.getDesc()));
+	}
+
+	@Test
+	public void downAccessCreatesOnePersonForSameParkAndPersonAcrossTwoDevices() {
+		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
+		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
+		SmtImageService imageService = Mockito.mock(SmtImageService.class);
+		ISCDeviceTaskServiceImpl service = serviceForDownAccess(dispatcherService, taskService, imageService);
+		SmtIscDeviceTask firstVisitor = visitorTask(31L, "9990000031", "cert-shared");
+		firstVisitor.setDeviceCode("device-shared-1");
+		firstVisitor.setServiceType(DeviceTaskConstants.CARD_ADMITTANCE);
+		firstVisitor.setGeneral("共享建人测试访客");
+		SmtIscDeviceTask secondVisitor = visitorTask(32L, "9990000032", "cert-shared");
+		secondVisitor.setDeviceCode("device-shared-2");
+		secondVisitor.setServiceType(DeviceTaskConstants.CARD_ADMITTANCE);
+		secondVisitor.setGeneral("共享建人测试访客");
+		SmtImage image = new SmtImage();
+		image.setImage(new byte[20 * 1024]);
+		Mockito.when(taskService.cancelStaleOfflineDownloadTasksAndCollectApplyIds(Mockito.eq(DeviceTaskConstants.CARD), Mockito.anyInt()))
+				.thenReturn(Collections.emptySet());
+		Mockito.when(taskService.getCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(Arrays.asList(firstVisitor, secondVisitor));
+		Mockito.when(taskService.getReTryCardDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
+				.thenReturn(new Page<>());
+		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
+		Mockito.when(imageService.getByCode(Mockito.anyString())).thenReturn(image);
+		Mockito.when(imageService.getImageBinaryByCode(Mockito.anyString())).thenReturn(new byte[20 * 1024]);
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
+				.thenAnswer(invocation -> {
+					DispatcherDTO request = invocation.getArgument(0);
+					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())) {
+						return Result.success(emptyPersonList());
+					}
+					if (EventEnum.ISC_PERSON_ADD.getCode().equals(request.getEventType())) {
+						return Result.success("{\"personId\":\"person-shared\"}");
+					}
+					if (EventEnum.ISC_AUTH_CONFIG_ADD.getCode().equals(request.getEventType())) {
+						return Result.success("{\"taskId\":\"auth-task\"}");
+					}
+					return Result.fail("未预期的ISC请求");
+				});
+
+		service.downAccess();
+
+		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
+		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
+		long personAddCount = captor.getAllValues().stream()
+				.filter(request -> EventEnum.ISC_PERSON_ADD.getCode().equals(request.getEventType()))
+				.count();
+		long authConfigAddCount = captor.getAllValues().stream()
+				.filter(request -> EventEnum.ISC_AUTH_CONFIG_ADD.getCode().equals(request.getEventType()))
+				.count();
+		Assert.assertEquals(1L, personAddCount);
+		Assert.assertEquals(2L, authConfigAddCount);
+	}
+
+	@Test
 	public void downAccessSkipsVisitorTasksWhenVisitorBatchQueryFails() {
 		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
 		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
@@ -1322,6 +1441,21 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertNotEquals(firstPhotoKey, secondPhotoKey);
 		Assert.assertTrue(firstPhotoKey.contains("image:image-first"));
 		Assert.assertTrue(secondPhotoKey.contains("image:image-second"));
+	}
+
+	@Test
+	public void personDetailMapKeyKeepsTemporaryTasksSeparateWhenIdentityIsMissing() throws Exception {
+		ISCDeviceTaskServiceImpl service = serviceForDownAccess(Mockito.mock(RemoteDispatcherService.class),
+				Mockito.mock(SmtIscDeviceTaskService.class), Mockito.mock(SmtImageService.class));
+		SmtIscDeviceTask firstTask = visitorTask(23L, "9990000023", null);
+		SmtIscDeviceTask secondTask = visitorTask(24L, "9990000024", null);
+		Method method = ISCDeviceTaskServiceImpl.class.getDeclaredMethod("personDetailMapKey", SmtIscDeviceTask.class);
+		method.setAccessible(true);
+
+		String firstKey = String.valueOf(method.invoke(service, firstTask));
+		String secondKey = String.valueOf(method.invoke(service, secondTask));
+
+		Assert.assertNotEquals(firstKey, secondKey);
 	}
 
 	@Test
