@@ -104,6 +104,13 @@ public class SmtDormitoryStaffControllerAccessTest {
 		}
 
 		setPrivateField(controller, "appServiceClientId", "app");
+		try {
+			controller.getStaffRoomInfoListForInternal("staff-badge", SecurityConstants.FROM_IN, "other-purpose");
+			fail("未经审核的内部用途不得读取员工住宿列表");
+		} catch (AccessDeniedException expected) {
+			Mockito.verifyZeroInteractions(service);
+		}
+
 		Mockito.when(adapter.clientId(authentication)).thenReturn("generic-server-client");
 		try {
 			controller.getStaffRoomInfoListForInternal("staff-badge", SecurityConstants.FROM_IN, "app-self-room-list");
