@@ -24,9 +24,9 @@ import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.data.api.dto.msg.req.*;
+import com.tce.smart.data.api.dto.msg.resp.OaStaffLookupRespDTO;
 import com.tce.smart.data.api.feign.msg.RemoteOaWorkFlowService;
 import com.tce.smart.data.api.feign.msg.RemoteSmsManageService;
-import com.tce.smart.data.api.vo.msg.QueryOaStaffRespVo;
 import com.tce.smart.platform.api.dto.req.*;
 import com.tce.smart.platform.api.dto.req.approval.ApprovalProcessReqDTO;
 import com.tce.smart.platform.api.dto.resp.ArticlesReleaseListRespDTO;
@@ -117,17 +117,17 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 	private String baseImageUrl;
 
 	private ReleaseStaffLookupRespDTO getReleaseStaffLookup(String badge) {
-		Result<QueryOaStaffRespVo> oaInfoByBadge = remoteOaWorkFlowService.getOAInfoByBadge(badge);
+		Result<OaStaffLookupRespDTO> oaInfoByBadge = remoteOaWorkFlowService.getOAInfoByBadge(badge);
 		if (oaInfoByBadge == null || !oaInfoByBadge.isSuccess()) {
 			throw new TCEException("查询OA员工信息失败");
 		}
-		QueryOaStaffRespVo oaData = oaInfoByBadge.getData();
+		OaStaffLookupRespDTO oaData = oaInfoByBadge.getData();
 		if (oaData == null) {
 			throw new TCEException("OA系统不存在该员工信息");
 		}
 		ReleaseStaffLookupRespDTO respDTO = new ReleaseStaffLookupRespDTO();
-		respDTO.setId(oaData.getID());
-		respDTO.setName(oaData.getLASTNAME());
+		respDTO.setId(oaData.getId());
+		respDTO.setName(oaData.getName());
 		return respDTO;
 	}
 

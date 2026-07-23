@@ -1,8 +1,8 @@
 package com.tce.smart.platform.controller;
 
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.data.api.dto.msg.resp.OaStaffLookupRespDTO;
 import com.tce.smart.data.api.feign.msg.RemoteOaWorkFlowService;
-import com.tce.smart.data.api.vo.msg.QueryOaStaffRespVo;
 import com.tce.smart.platform.api.dto.resp.ReleaseStaffLookupRespDTO;
 import com.tce.smart.platform.api.dto.req.GuardReleaseConfirmReqDTO;
 import com.tce.smart.platform.core.entity.SmtArticlesRelease;
@@ -37,9 +37,9 @@ public class SmtArticlesReleaseControllerAccessTest {
 		SmtArticlesReleaseMapper mapper = Mockito.mock(SmtArticlesReleaseMapper.class);
 		RemoteOaWorkFlowService oaWorkFlowService = Mockito.mock(RemoteOaWorkFlowService.class);
 		SmtArticlesRelease release = officeDraft(17L, "owner-badge", 1);
-		QueryOaStaffRespVo oaStaff = new QueryOaStaffRespVo();
-		oaStaff.setID(9);
-		oaStaff.setLASTNAME("测试员工");
+		OaStaffLookupRespDTO oaStaff = new OaStaffLookupRespDTO();
+		oaStaff.setId(9);
+		oaStaff.setName("测试员工");
 		Mockito.when(mapper.selectById(17L)).thenReturn(release);
 		Mockito.when(oaWorkFlowService.getOAInfoByBadge("A100")).thenReturn(Result.success(oaStaff));
 
