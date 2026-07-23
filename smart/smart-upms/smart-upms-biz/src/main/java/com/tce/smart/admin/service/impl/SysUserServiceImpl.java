@@ -189,7 +189,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		}
 
 		//查询员工计薪类型
-		Result<EvwEmphrYsRespDTO> dataResult = remoteEvwEmphrYsService.info(sysUser.getUsername(), SecurityConstants.FROM_IN);
+		Result<EvwEmphrYsRespDTO> dataResult = remoteEvwEmphrYsService.info(sysUser.getUsername(),
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(dataResult.isSuccess() && Objects.nonNull(dataResult.getData())){
 			userInfo.setSalaryTypeName(dataResult.getData().getSalarytypeName());
 		}

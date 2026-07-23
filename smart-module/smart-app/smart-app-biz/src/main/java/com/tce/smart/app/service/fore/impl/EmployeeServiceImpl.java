@@ -433,7 +433,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 				return null;
 			}
 		}
-		EvwEmphrYsRespDTO data = remoteEvwEmphrYsService.info(badge, SecurityConstants.FROM_IN).get("员工信息不存在");
+		EvwEmphrYsRespDTO data = remoteEvwEmphrYsService.info(badge, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).get("员工信息不存在");
 		employeeSalayType.setBadge(badge);
 		employeeSalayType.setSalaryTypeName(data.getSalarytypeName());
 		return employeeSalayType;

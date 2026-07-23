@@ -80,7 +80,8 @@ public class OAWorkflowServiceImpl implements IOAWorkflowService {
 	}
 
 	private void fillLeaveTable(String badge, SendLeaveMainTableReqDTO sendLeaveMainTableAo, LeaveMainTable leaveMainTable, List<LeaveDetailTable> leaveDetailTableList) {
-		Result<YsLeaveRespDTO> remoteResult = remoteEvwEmphrYsService.leave(badge, SecurityConstants.FROM_IN);
+		Result<YsLeaveRespDTO> remoteResult = remoteEvwEmphrYsService.leave(badge, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (!remoteResult.isSuccess()) {
 			log.warn("查询员工信息失败：Badge = {}", badge);
 			return;
