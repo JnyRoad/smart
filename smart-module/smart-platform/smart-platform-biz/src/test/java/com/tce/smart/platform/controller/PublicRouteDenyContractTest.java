@@ -9,7 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,8 +23,18 @@ public class PublicRouteDenyContractTest {
     private static final Pattern LIST_ITEM = Pattern.compile("^\\s*-\\s+([^#\\s]+).*$" );
 
     @Test
-    public void platformAllowsOnlyNonSensitiveHealthProbe() throws IOException {
-        assertEquals(Collections.singletonList("/actuator/health"), readIgnoreUrls("smart-platform.yml"));
+    public void platformAllowsOnlyHealthAndCapabilityGuardedPublicRoutes() throws IOException {
+        List<String> ignoreUrls = readIgnoreUrls("smart-platform.yml");
+
+        assertEquals(Arrays.asList(
+                "/actuator/health",
+                "/admittance/apply/get/openId",
+                "/admittance/visitor-face/capability",
+                "/admittance/visitor-face/crop",
+                "/regist/save/identification",
+                "/regist/face/crop",
+                "/regist/face/add"), ignoreUrls);
+        assertFalse("公开例外必须逐路径声明，不能扩展整个简历前缀", ignoreUrls.contains("/regist/**"));
     }
 
     @Test

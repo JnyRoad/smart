@@ -19,6 +19,7 @@ security:
         - /admittance/visitor-face/capability
         - /admittance/visitor-face/crop
         # 简历公开流程仅放行受一次性 HttpOnly capability 约束的两个 POST 路径，禁止使用 /regist/**。
+        - /regist/save/identification
         - /regist/face/crop
         - /regist/face/add
 spring:
