@@ -51,6 +51,7 @@ public class AppSmsPublicRoutePolicyTest {
 		List<String> routes = allIgnoreUrls(locateRepositoryRoot().resolve("docker/nacos/config/dev/smart-app.yml"));
 		assertFalse("匿名白名单不得保留业务通配符", routes.stream()
 				.anyMatch(route -> route.contains("*")));
+		assertFalse("无 Controller 映射的历史人脸登录路径不得继续占用匿名白名单", routes.contains("/login/face"));
 	}
 
 	private List<String> smsIgnoreUrls(Path configPath) throws IOException {
