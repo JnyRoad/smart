@@ -5,6 +5,7 @@ import com.tce.smart.admin.api.dto.StaffPerfectReqDTO;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.constant.ServiceNameConstants;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.platform.api.dto.resp.InternalStaffProvisioningRespDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.*;
@@ -20,8 +21,14 @@ import java.util.List;
 @FeignClient(value = ServiceNameConstants.PLATFORM_SERVICE)
 public interface RemoteStaffService {
 
-	@GetMapping("/staff/simple/get/badge")
-	Result<SmtStaffDTO> getSimpleSttaffByBadge(@RequestParam("badge") String badge);
+	/**
+	 * 仅供 UPMS 本地账号开通流程使用的员工最小资料。
+	 */
+	@GetMapping("/internal/staff/provisioning/{badge}")
+	Result<InternalStaffProvisioningRespDTO> getProvisioningStaff(
+			@PathVariable("badge") String badge,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 登陆初始化员工权限

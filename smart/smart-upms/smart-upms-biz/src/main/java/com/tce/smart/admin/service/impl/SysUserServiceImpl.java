@@ -31,6 +31,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.model.ResultData;
 import com.tce.smart.common.core.util.*;
 import com.tce.smart.common.security.util.SecurityUtils;
+import com.tce.smart.platform.api.dto.resp.InternalStaffProvisioningRespDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -462,7 +463,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				}
 				//检测是否为临时人员，临时人员不同通过裕同接口检测
 				Boolean isTemp = false;
-				SmtStaffDTO queryStaffRs = this.checkStaff(username);
+				InternalStaffProvisioningRespDTO queryStaffRs = this.checkStaff(username);
 				if(queryStaffRs.getStatus() == 4) {
 					isTemp = Boolean.TRUE;
 				}
@@ -505,7 +506,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 						sysUser.setUsername(username);
 						sysUser.setPassword(ENCODER.encode(password));
 						if(queryStaffRs.getStatus().equals(4)) {
-							String pwd = queryStaffRs.getCertno().substring(queryStaffRs.getCertno().length() - 6);
+							String pwd = requiredCertNoLast6(queryStaffRs);
 							if(!password.equals(pwd) ) {
 								throw new TCEException("账号或密码错误");
 							}
@@ -539,7 +540,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 					try {
 						// 初始化帐号App权限
 						Result<Boolean> inintLoginAuthRs = remoteStaffService.inintLoginAuth(username);
-						log.info("remoteStaffService.inintLoginAuth result=[{}],username={}", inintLoginAuthRs,username);
+						log.info("员工 App 权限初始化完成 scene=simple-login success={}", inintLoginAuthRs != null && inintLoginAuthRs.isSuccess());
 
 					}catch(Exception e) {
 						log.error("初始化员工App权限异常",e);
@@ -567,7 +568,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			if (cache != null && cache.get(username) != null) {
 				return Boolean.TRUE;
 			}
-			SmtStaffDTO queryStaffRs = this.checkStaff(username);
+			InternalStaffProvisioningRespDTO queryStaffRs = this.checkStaff(username);
 			SysUser sysUser = this.baseMapper
 					.selectOne(Wrappers.<SysUser>query().lambda().eq(SysUser::getUsername, username));
 			if (Objects.isNull(sysUser)) {
@@ -577,7 +578,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				sysUser.setUpdateTime(LocalDateTime.now());
 				sysUser.setDelFlag(CommonConstants.STATUS_NORMAL);
 				sysUser.setLockFlag(CommonConstants.STATUS_NORMAL);
-				String pwd = queryStaffRs.getCertno().substring(queryStaffRs.getCertno().length() - 6);
+				String pwd = requiredCertNoLast6(queryStaffRs);
 				sysUser.setPassword(ENCODER.encode(pwd));
 				sysUser.setPhone(queryStaffRs.getPhone());
 				this.baseMapper.insert(sysUser);
@@ -590,7 +591,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			try {
 				// 初始化帐号App权限
 				Result<Boolean> inintLoginAuthRs = remoteStaffService.inintLoginAuth(username);
-				log.info("remoteStaffService.inintLoginAuth result=[{}],username={}", inintLoginAuthRs,username);
+				log.info("员工 App 权限初始化完成 scene=social-login success={}", inintLoginAuthRs != null && inintLoginAuthRs.isSuccess());
 			} catch(Exception e) {
 				log.error("初始化员工App权限异常",e);
 			}
@@ -638,7 +639,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 		Boolean isTemp = false;
 		//判断是否临时人员，临时人员不必通过裕同接口检测
-		SmtStaffDTO queryStaffRs = this.checkStaff(username);
+		InternalStaffProvisioningRespDTO queryStaffRs = this.checkStaff(username);
 		if(queryStaffRs.getStatus() == 4) {
 			isTemp = Boolean.TRUE;
 		}
@@ -689,22 +690,32 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 	/**
 	 * 检测app登录用户员工信息是否存在
-	 * @return SmtStaffDTO 员工信息
+	 * @return UPMS 账号开通所需的最小员工资料
 	 */
-	private SmtStaffDTO checkStaff(String username) {
-		Result<SmtStaffDTO> queryStaffRs = remoteStaffService.getSimpleSttaffByBadge(username);
-		SmtStaffDTO staffInfo = queryStaffRs.getData();
-		log.info("remoteStaffService.getSimpleSttaffByBadge.rs={}",queryStaffRs);
+	private InternalStaffProvisioningRespDTO checkStaff(String username) {
+		Result<InternalStaffProvisioningRespDTO> queryStaffRs = remoteStaffService.getProvisioningStaff(username,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		InternalStaffProvisioningRespDTO staffInfo = queryStaffRs.getData();
 		if(!queryStaffRs.isSuccess() || Objects.isNull(staffInfo)){
 			log.error("员工信息不存在");
 			throw new TCEException("员工信息不存在");
 		}
-		else if(-1 == staffInfo.getStatus()
+		else if(Objects.isNull(staffInfo.getStatus()) || -1 == staffInfo.getStatus()
 				||0 == staffInfo.getStatus()){
 			log.error("员工状态异常");
 			throw new TCEException("员工状态异常");
 		}
 		return staffInfo;
+	}
+
+	/**
+	 * 临时员工默认密码只能使用受控内部契约返回的证件号末六位。
+	 */
+	private String requiredCertNoLast6(InternalStaffProvisioningRespDTO staff) {
+		if (staff == null || StringUtils.isBlank(staff.getCertNoLast6())) {
+			throw new TCEException("员工身份证信息不存在");
+		}
+		return staff.getCertNoLast6();
 	}
 
 	/**

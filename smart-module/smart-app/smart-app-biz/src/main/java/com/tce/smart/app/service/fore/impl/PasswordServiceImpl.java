@@ -18,9 +18,10 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.common.core.util.EncDecryUtils;
 import com.tce.smart.common.core.util.UUIDUtils;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffPasswordRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffInfoRespDTO;
 import com.tce.smart.platform.api.feign.RemoteSmtImageService;
+import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +57,9 @@ public class PasswordServiceImpl implements PasswordService {
 
 	@Autowired
 	private RemoteStaffService remoteStaffService;
+
+	@Autowired
+	private RemoteStaffInternalService remoteStaffInternalService;
 
 	@Autowired
 	private RemoteAlgorithmService remoteAlgorithmService;
@@ -126,23 +130,23 @@ public class PasswordServiceImpl implements PasswordService {
 		//只取最近登录过的，优先已绑定的
 		AppUserDevice appUserDevice = userDeviceList.get(0);
 
-		Result<SmtStaffDTO> staffResult;
+		Result<InternalStaffPasswordRespDTO> passwordStaffResponse;
 		String badge;
 		String staffFaceImgId;
 		try {
 			// 远程调用查询员工信息
-			staffResult = remoteStaffService.getSimpleSttaffByBadge(appUserDevice.getBadge());
-			log.info("remoteStaffService.getSimpleSttaffById.result=={}", staffResult);
-			if (!staffResult.isSuccess() || Objects.isNull(staffResult.getData())) {
+			passwordStaffResponse = remoteStaffInternalService.getPasswordStaff(appUserDevice.getBadge(),
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			if (!passwordStaffResponse.isSuccess() || Objects.isNull(passwordStaffResponse.getData())) {
 				throw new TCEException("查询员工信息异常");
 			}
 
-			badge = staffResult.getData().getBadge();
-			staffFaceImgId = staffResult.getData().getFacePicId();
+			badge = passwordStaffResponse.getData().getBadge();
+			staffFaceImgId = passwordStaffResponse.getData().getFacePicId();
 
 			//下载员工人脸图片
 			Result<String> getImageBase64Rs = remoteSmtImageService.getImageBase64ByCode(staffFaceImgId, SecurityConstants.FROM_IN);
-			log.info("forgetPwd.blobService.getBlob completed: Badge=[{}],FacePicId=[{}],success={}", badge, staffFaceImgId, getImageBase64Rs.isSuccess());
+			log.info("找回密码人脸图片读取完成 scene=forget-password success={}", getImageBase64Rs.isSuccess());
 			if (!getImageBase64Rs.isSuccess() || StringUtil.isNullOrEmpty(getImageBase64Rs.getData())) {
 				throw new TCEException("下载员工人脸图异常");
 			}
@@ -161,7 +165,7 @@ public class PasswordServiceImpl implements PasswordService {
 			//log.info("verifyFace 对比请求参数:[{}]",JSONUtil.toJsonStr(compareDTO));
 			Result<com.tce.smart.algorithm.api.dto.resp.CompareDTO> result = remoteAlgorithmService.compare(UUIDUtils.create(),
 					AlgorithmTypeEnum.COMPARE_FACEALL.getType(), compareDTO, SecurityConstants.FROM_IN);
-			log.info("verifyFace 对比相应:[{}]",JSONUtil.toJsonStr(result));
+			log.info("找回密码人脸比对完成 scene=forget-password success={}", result.isSuccess());
 
 			if (result.isSuccess()) {
 				//小于阀值则认为不是本人

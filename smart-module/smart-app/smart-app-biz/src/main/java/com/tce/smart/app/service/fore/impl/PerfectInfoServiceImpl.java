@@ -17,8 +17,9 @@ import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffIdentityRespDTO;
 import com.tce.smart.platform.api.dto.req.StaffPerfectReqDTO;
+import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -53,10 +54,13 @@ public class PerfectInfoServiceImpl implements PerfectInfoService {
 	@Autowired
 	private RemoteStaffService remoteStaffService;
 
+	@Autowired
+	private RemoteStaffInternalService remoteStaffInternalService;
+
 	@Override
 	public Result<Boolean> checkPerfectFace() {
 		Result<Boolean> result = remoteStaffService.checkPerfectInfo(SecurityUtils.getUser().getUsername());
-		log.info("remote remoteStaffService.checkPerfectInfo result=[{}]", result);
+		log.info("员工资料完整性校验完成 scene=check-perfect-info success={}", result.isSuccess());
 		return result;
 	}
 
@@ -90,15 +94,15 @@ public class PerfectInfoServiceImpl implements PerfectInfoService {
 	public CheckPerfectCardVo checkOcrInfo(CheckPerfectCardDto checkPerfectCardDto) {
 		String badge = SecurityUtils.getUser().getUsername();
 		// 查询员工信息
-		Result<SmtStaffDTO> getSimpleStaffRs = remoteStaffService.getSimpleSttaffByBadge(badge);
-		log.info("remote remoteStaffService.getSimpleSttaffById result=[{}]", getSimpleStaffRs);
-		if (!getSimpleStaffRs.isSuccess() || Objects.isNull(getSimpleStaffRs.getData())) {
+		Result<InternalStaffIdentityRespDTO> identityStaffResponse = remoteStaffInternalService.getIdentityStaff(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		if (!identityStaffResponse.isSuccess() || Objects.isNull(identityStaffResponse.getData())) {
 			throw new TCEException("查询员工信息失败");
 		}
 
-		SmtStaffDTO smtStaff = getSimpleStaffRs.getData();
-		String certno = smtStaff.getCertno();
-		String staffName = smtStaff.getName();
+		InternalStaffIdentityRespDTO identityStaff = identityStaffResponse.getData();
+		String certno = identityStaff.getCertno();
+		String staffName = identityStaff.getName();
 		// 检查姓名
 		if (StringUtil.isNullOrEmpty(staffName) || !staffName.equals(checkPerfectCardDto.getName())) {
 			throw new TCEException("姓名不匹配");
@@ -149,7 +153,7 @@ public class PerfectInfoServiceImpl implements PerfectInfoService {
 
 		Result<FaceFeaturesDTO> result = remoteAlgorithmService.getFaceFeatures(facePhoto, SecurityConstants.FROM_IN);
 
-		log.info("remoteFaceService.faceImageStore result=[{}]", result);
+		log.info("人脸资料存储完成 scene=perfect-face success={}", result.isSuccess());
 		if (result.isSuccess() && !StringUtil.isNullOrEmpty(result.getData().getFaceFeature())) {
 			AppIdentityCollect updatePo = new AppIdentityCollect();
 			updatePo.setId(appIdentityCollect.getId());

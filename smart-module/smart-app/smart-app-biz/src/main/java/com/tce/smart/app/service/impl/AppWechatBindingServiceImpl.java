@@ -19,12 +19,12 @@ import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.SaveImageReqDto;
 import com.tce.smart.platform.api.dto.req.WechatBandingReqDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffBindingRespDTO;
 import com.tce.smart.platform.api.dto.resp.WechatBandingRespDTO;
 import com.tce.smart.platform.api.feign.RemoteSmtImageService;
-import com.tce.smart.platform.api.feign.RemoteStaffService;
+import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import com.tce.smart.platform.api.feign.RemoteWechatBandingService;
 import com.tce.smart.tool.enums.SmtImageEnum;
 import com.tce.smart.tool.enums.StaffStatusEnum;
@@ -57,7 +57,7 @@ public class AppWechatBindingServiceImpl extends ServiceImpl<AppWechatBindingMap
 
 	private final RemoteWechatBandingService remoteWechatBandingService;
 
-	private final RemoteStaffService remoteStaffService;
+	private final RemoteStaffInternalService remoteStaffInternalService;
 
 	@Override
     public WechatBindingInfoDTO isWechatBinding(String code) {
@@ -105,8 +105,8 @@ public class AppWechatBindingServiceImpl extends ServiceImpl<AppWechatBindingMap
 		if (openId == null) {
 			throw new SmartException("您还未关注公众号,请先关注");
 		}
-		Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffByBadge(reqDTO.getBadge());
-		log.info("remoteStaffService.getSimpleSttaffByBadge==={}", staffInfo);
+		Result<InternalStaffBindingRespDTO> staffInfo = remoteStaffInternalService.getBindingStaff(reqDTO.getBadge(),
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (!staffInfo.isSuccess() || staffInfo.getData() == null) {
 			throw new SmartException("员工信息不存在");
 		}
@@ -120,11 +120,11 @@ public class AppWechatBindingServiceImpl extends ServiceImpl<AppWechatBindingMap
 				|| StaffStatusEnum.STAFF_STATUS_PRACTICE.getCode().equals(status)) {
 			throw new SmartException("请前往小程序绑定");
 		}
-		String certNo = staffInfo.getData().getCertno();
-		if (StrUtil.isBlank(certNo)) {
+		String certNoLast6 = staffInfo.getData().getCertNoLast6();
+		if (StrUtil.isBlank(certNoLast6)) {
 			throw new SmartException("员工身份证信息不存在");
 		}
-		if (!certNo.substring(certNo.length() - 6).equalsIgnoreCase(reqDTO.getLastCertNum())) {
+		if (!certNoLast6.equalsIgnoreCase(reqDTO.getLastCertNum())) {
 			throw new SmartException("身份证信息不匹配");
 		}
 		Result<WechatBandingRespDTO> bandingInfo = remoteWechatBandingService.getByOpenId(reqDTO.getBadge(), SecurityConstants.FROM_IN);
