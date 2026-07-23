@@ -152,6 +152,25 @@ assert.deepEqual(
   [],
 )
 
+const commentOnlyEvidence = parseControllerSourceDetailed(
+  [
+    '@RequestMapping("/comments")',
+    'public class CommentOnlyController {',
+    '  @PostMapping("/callback")',
+    '  public void callback() {',
+    '    // signatureVerifier.verifySignature(event);',
+    '    // replayGuard.validateTimestamp(event);',
+    '    // replayGuard.checkNonce(event);',
+    '    String ignored = "signatureVerifier.verifySignature replayGuard.validateTimestamp replayGuard.checkNonce";',
+    '  }',
+    '}',
+  ].join('\n'),
+  'CommentOnlyController.java',
+).routes[0]
+
+assert.deepEqual(commentOnlyEvidence.signatureEvidence, [])
+assert.equal(classifyRoute(commentOnlyEvidence).exposure, 'external-authenticated')
+
 const fixtureRoot = await mkdtemp(path.join(tmpdir(), 'smart-route-inventory-'))
 try {
   const controllerDirectory = path.join(fixtureRoot, 'module', 'src', 'main', 'java')
@@ -256,4 +275,28 @@ try {
   )
 } finally {
   await rm(unparsedFixtureRoot, { force: true, recursive: true })
+}
+
+const zeroRouteFixtureRoot = await mkdtemp(path.join(tmpdir(), 'smart-route-zero-'))
+try {
+  const controllerDirectory = path.join(zeroRouteFixtureRoot, 'module', 'src', 'main', 'java')
+  const configDirectory = path.join(zeroRouteFixtureRoot, 'config')
+  await mkdir(controllerDirectory, { recursive: true })
+  await mkdir(configDirectory, { recursive: true })
+  await writeFile(
+    path.join(configDirectory, 'smart-zero-route.yml'),
+    ['security:', '  oauth2:', '    client:', '      ignore-urls: []'].join('\n'),
+  )
+  await writeFile(
+    path.join(controllerDirectory, 'NoRouteController.java'),
+    ['@RestController', 'public class NoRouteController {}'].join('\n'),
+  )
+  const inventory = await buildInventory({
+    configDirectory,
+    targets: [{ service: 'smart-zero-route', configNames: ['smart-zero-route.yml'], controllerDirectory }],
+  })
+  assert.equal(inventory.hasBlockingFindings, true)
+  assert.match(inventory.markdown, /发现 Controller 源码但未解析到任何路由/)
+} finally {
+  await rm(zeroRouteFixtureRoot, { force: true, recursive: true })
 }

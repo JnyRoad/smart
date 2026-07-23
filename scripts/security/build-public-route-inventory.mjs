@@ -230,10 +230,85 @@ function collectOpenApiScopes(annotationDetails) {
     })
 }
 
+/**
+ * 静态证据只允许来自 Java 可执行代码。保留换行以便正则边界稳定，注释和字符串均改为空白，不能作为安全证明。
+ */
+function stripJavaCommentsAndStrings(source) {
+  let output = ''
+  let index = 0
+  let state = 'code'
+  while (index < source.length) {
+    const character = source[index]
+    const next = source[index + 1]
+    const nextTwo = source[index + 2]
+    if (state === 'code') {
+      if (character === '/' && next === '/') {
+        output += '  '
+        index += 2
+        state = 'line-comment'
+      } else if (character === '/' && next === '*') {
+        output += '  '
+        index += 2
+        state = 'block-comment'
+      } else if (character === '"' && next === '"' && nextTwo === '"') {
+        output += '   '
+        index += 3
+        state = 'text-block'
+      } else if (character === '"') {
+        output += ' '
+        index += 1
+        state = 'string'
+      } else if (character === "'") {
+        output += ' '
+        index += 1
+        state = 'character'
+      } else {
+        output += character
+        index += 1
+      }
+    } else if (state === 'line-comment') {
+      output += character === '\n' ? '\n' : ' '
+      index += 1
+      if (character === '\n') state = 'code'
+    } else if (state === 'block-comment') {
+      if (character === '*' && next === '/') {
+        output += '  '
+        index += 2
+        state = 'code'
+      } else {
+        output += character === '\n' ? '\n' : ' '
+        index += 1
+      }
+    } else if (state === 'text-block') {
+      if (character === '"' && next === '"' && nextTwo === '"') {
+        output += '   '
+        index += 3
+        state = 'code'
+      } else {
+        output += character === '\n' ? '\n' : ' '
+        index += 1
+      }
+    } else {
+      output += character === '\n' ? '\n' : ' '
+      if (character === '\\' && index + 1 < source.length) {
+        output += source[index + 1] === '\n' ? '\n' : ' '
+        index += 2
+      } else if ((state === 'string' && character === '"') || (state === 'character' && character === "'")) {
+        state = 'code'
+        index += 1
+      } else {
+        index += 1
+      }
+    }
+  }
+  return output
+}
+
 function collectSignatureEvidence(annotationDetails, methodSource) {
   const annotationNames = new Set(annotationDetails.map((annotation) => annotation.name))
+  const executableSource = stripJavaCommentsAndStrings(methodSource)
   const evidence = []
-  const has = (annotation, pattern) => annotationNames.has(annotation) || pattern.test(methodSource)
+  const has = (annotation, pattern) => annotationNames.has(annotation) || pattern.test(executableSource)
   if (has('SignatureVerified', /\b(?:verify|validate)(?:Request)?Signature\s*\(|\b(?:signatureVerifier|signatureValidator)\s*\.\s*verify\s*\(/)) {
     evidence.push('signature')
   }
@@ -584,6 +659,12 @@ export async function buildInventory({
           ...routeReview(route, configIgnoreUrls),
         })
       }
+    }
+    if (controllerFiles.length > 0 && serviceRoutes.length === 0) {
+      serviceFindings.push({
+        service: target.service,
+        message: '发现 Controller 源码但未解析到任何路由，无法证明匿名白名单安全，禁止收口配置',
+      })
     }
     serviceRoutes.sort((left, right) => left.path.localeCompare(right.path) || left.sourcePath.localeCompare(right.sourcePath))
     routes.push(...serviceRoutes)
