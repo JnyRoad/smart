@@ -2,6 +2,7 @@ package com.tce.smart.platform.controller;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -45,6 +46,16 @@ public class PublicRouteDenyContractTest {
         assertFalse(ignoreUrls.contains("/staff/simple/badge"));
         assertFalse(ignoreUrls.contains("/articlesrelease/**"));
         assertFalse(ignoreUrls.contains("/inner/**"));
+    }
+
+    @Test
+    public void internalClientTemplatesDefaultToEmptyAndThereforeFailClosed() throws IOException {
+        String config = new String(Files.readAllBytes(locateConfig("smart-platform.yml")), StandardCharsets.UTF_8);
+
+        assertTrue(config.contains("dispatcher-client-id: \"${SMART_PARK_DISPATCHER_CLIENT_ID:}\""));
+        assertTrue(config.contains("list-client-ids: \"${SMART_PARK_LIST_CLIENT_IDS:}\""));
+        assertTrue(config.contains("schedule-client-id: \"${SMART_RECHARGE_SCHEDULE_CLIENT_ID:}\""));
+        assertTrue(config.contains("schedule-client-id: \"${SMART_LOGISTICS_SCHEDULE_CLIENT_ID:}\""));
     }
 
     private List<String> readIgnoreUrls(String dataId) throws IOException {
