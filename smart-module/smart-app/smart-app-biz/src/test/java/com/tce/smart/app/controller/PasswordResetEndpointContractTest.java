@@ -9,6 +9,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** 公共改密入口必须是 JSON POST，并只委托给内部受管调用链。 */
@@ -24,5 +25,17 @@ public class PasswordResetEndpointContractTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"username\":\"employee\",\"password\":\"NewPassword1!\",\"updateAuthCode\":\"code\"}"))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	public void passwordResetRejectsGetAndInvalidJsonBody() throws Exception {
+		PasswordService passwordService = Mockito.mock(PasswordService.class);
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new PasswordController(passwordService)).build();
+
+		mockMvc.perform(get("/password/update")).andExpect(status().isMethodNotAllowed());
+		mockMvc.perform(post("/password/update")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"username\":\"employee\"}"))
+				.andExpect(status().isBadRequest());
 	}
 }

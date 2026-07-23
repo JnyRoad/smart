@@ -43,6 +43,8 @@ public class AppSmsPublicRoutePolicyTest {
 		List<String> routes = allIgnoreUrls(testConfig);
 		assertFalse("测试配置不得保留业务通配符", routes.stream().anyMatch(route -> route.contains("*")));
 		assertFalse("测试配置不得复活无映射的历史人脸登录路径", routes.contains("/login/face"));
+		assertEquals("测试配置必须与受审 dev 匿名白名单完整一致，避免新增精确路径绕过门禁",
+				allIgnoreUrls(locateRepositoryRoot().resolve("docker/nacos/config/dev/smart-app.yml")), routes);
 	}
 
 	/**

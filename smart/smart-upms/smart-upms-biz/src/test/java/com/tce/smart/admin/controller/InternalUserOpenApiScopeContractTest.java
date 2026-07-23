@@ -18,10 +18,17 @@ import org.springframework.security.oauth2.provider.OAuth2Request;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Collections;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** 真实 MVC 拦截器链必须拒绝匿名、用户 token 和错误 scope，只允许受管 server client。 */
@@ -39,6 +46,7 @@ public class InternalUserOpenApiScopeContractTest {
         ReflectionTestUtils.setField(controller, "platformServiceClientId", "platform-service");
         ReflectionTestUtils.setField(controller, "appServiceClientId", "app-service");
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new AccessDeniedAdvice())
                 .addInterceptors(new OpenApiInterceptor(new OpenApiAuthenticationAdapter()))
                 .build();
     }
@@ -78,6 +86,32 @@ public class InternalUserOpenApiScopeContractTest {
         performLogin().andExpect(status().isOk());
     }
 
+    @Test
+    public void passwordResetRejectsAnonymousUserWrongScopeWrongClientAndWrongPurpose() throws Exception {
+        performPasswordReset("app-password-reset").andExpect(status().isForbidden());
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("normal-user", "N/A", Collections.emptyList()));
+        performPasswordReset("app-password-reset").andExpect(status().isForbidden());
+
+        SecurityContextHolder.getContext().setAuthentication(clientToken("app-service", "wrong-scope"));
+        performPasswordReset("app-password-reset").andExpect(status().isForbidden());
+
+        SecurityContextHolder.getContext().setAuthentication(clientToken("unexpected-client", "server"));
+        performPasswordReset("app-password-reset").andExpect(status().isForbidden());
+
+        SecurityContextHolder.getContext().setAuthentication(clientToken("app-service", "server"));
+        performPasswordReset("wrong-purpose").andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void passwordResetAllowsOnlyManagedAppServerClientWithExactPurpose() throws Exception {
+        Mockito.when(userService.updatePwd("employee", "NewPassword1!", "one-time-code")).thenReturn(Boolean.TRUE);
+        SecurityContextHolder.getContext().setAuthentication(clientToken("app-service", "server"));
+
+        performPasswordReset("app-password-reset").andExpect(status().isOk());
+    }
+
     private org.springframework.test.web.servlet.ResultActions performLogin() throws Exception {
         return mockMvc.perform(get("/internal/user/login/username/employee")
                 .header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
@@ -88,5 +122,23 @@ public class InternalUserOpenApiScopeContractTest {
         OAuth2Request request = new OAuth2Request(Collections.emptyMap(), clientId, Collections.emptyList(), true,
                 Collections.singleton(scope), Collections.emptySet(), null, Collections.emptySet(), Collections.emptyMap());
         return new OAuth2Authentication(request, null);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions performPasswordReset(String purpose) throws Exception {
+        return mockMvc.perform(post("/internal/user/password/app-reset")
+                .contentType(APPLICATION_JSON)
+                .content("{\"username\":\"employee\",\"password\":\"NewPassword1!\",\"updateAuthCode\":\"one-time-code\"}")
+                .header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
+                .header("X-Smart-Internal-Purpose", purpose));
+    }
+
+    @RestControllerAdvice
+    private static class AccessDeniedAdvice {
+
+        @ExceptionHandler(AccessDeniedException.class)
+        @ResponseStatus(HttpStatus.FORBIDDEN)
+        void accessDenied() {
+            // 测试 MVC 链路将服务端拒绝明确映射为 403，与生产全局异常处理保持一致。
+        }
     }
 }

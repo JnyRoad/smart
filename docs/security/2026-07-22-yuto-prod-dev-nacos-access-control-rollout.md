@@ -97,6 +97,8 @@ node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev
    拒绝。若生产核查不存在该完整内部接口消费者，应在完整灰度窗口后删除该路由和 Feign 契约，而非向 App 回退。
 7. 园区全量内部列表必须配置 `security.inner.park.list-client-ids` 为逗号分隔的实际 Smart App 与 Smart Schedule
    `client_id`；空值、普通用户 token、其他 `server` client 或不匹配用途均必须拒绝。灰度同时验证两个合法调用方成功。
+   Dispatcher 动态 Bridge 目标还必须单独配置 `security.inner.park.dispatcher-client-id`，精确等于 Smart Dispatcher
+   的实际 `client_id`；任何其他 `server` client 均必须拒绝。
 8. 充值与物流定时内部命令分别必须配置
    `security.inner.recharge.schedule-client-id`、`security.inner.logistics.schedule-client-id`，且都精确等于 Smart
    Schedule 的实际 `client_id`。任一配置为空、client 不匹配或 purpose 不匹配时必须拒绝；发布前分别运行一次合法

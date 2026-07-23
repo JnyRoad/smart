@@ -8,6 +8,8 @@ security:
       access-token-uri: "${SMART_PLATFORM_OAUTH_TOKEN_URI:}"
     # 全园区列表仅允许 App、定时任务两个受管服务 client；未注入配置时控制器必须拒绝调用。
     park:
+      # Dispatcher 读取动态 Bridge 目标只能使用专属受管服务 client；未注入配置时必须拒绝调用。
+      dispatcher-client-id: "${SMART_PARK_DISPATCHER_CLIENT_ID:}"
       list-client-ids: "${SMART_PARK_LIST_CLIENT_IDS:}"
     # 充值定时任务仅允许 Smart Schedule 的受管服务 client；未注入配置时必须拒绝调用。
     recharge:
