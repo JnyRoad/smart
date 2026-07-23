@@ -1,4 +1,7 @@
 security:
+  inner:
+    # 先审计历史直连调用；生产观察完成后仅将此值切换为 ENFORCE，禁止以 ignore-urls 放宽接口。
+    mode: "${SMART_ALGORITHM_INNER_MODE:AUDIT}"
   oauth2:
     client:
       client-id: "${SMART_ALGORITHM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # smart

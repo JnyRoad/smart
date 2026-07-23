@@ -8,6 +8,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.annotation.OpenApi;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,18 +38,25 @@ public class TestController {
 
 	private final CompareController compareController;
 
+	@Inner
+	@OpenApi("server")
 	@GetMapping
 	public String index () {
 		return "index";
 	}
 
 	@ResponseBody
+	@Inner
+	@OpenApi("server")
+	@PreAuthorize("@pms.hasPermission('algorithm_config_manage')")
 	@GetMapping("/algorithms")
 	public Result<List<AlgorithmConfigListDTO>> algorithms(@RequestParam(value = "type", required = false) String type) {
 		return algorithmConfigController.algorithms(type);
 	}
 
 	@ResponseBody
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/face/detect/type")
 	public Result<List<FaceDetectTypeDTO>> faceDetectType(){
 		return faceDetectController.getFaceDetectType();
