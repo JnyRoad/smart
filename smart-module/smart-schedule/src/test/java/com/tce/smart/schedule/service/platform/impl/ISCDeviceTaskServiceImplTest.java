@@ -532,7 +532,8 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress("0x15409999")))
-				.thenReturn(Result.success(downloadDetailForOtherPerson()));
+				.thenReturn(Result.success(downloadDetailForOtherPerson()))
+				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"));
 
 		service.authConfigDownResultHandle();
 
@@ -543,6 +544,56 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertFalse(wrapperHasParam(updateCaptor.getValue(),
 				"下载权限失败_ISC返回未知错误，任务保留并将在下次调度重试"));
 		Assert.assertFalse(wrapperHasParam(updateCaptor.getValue(), "0x15409999"));
+	}
+
+	@Test
+	public void authConfigDownResultTreatsNoAvailableDownloadAsSuccessWhenAuthItemExists() {
+		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
+		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
+		SmtDeviceService deviceService = Mockito.mock(SmtDeviceService.class);
+		SmtIscDownRecordService downRecordService = Mockito.mock(SmtIscDownRecordService.class);
+		ISCDeviceTaskServiceImpl service = service(dispatcherService, taskService, deviceService, downRecordService);
+		SmtIscDeviceTask task = downTask();
+		Mockito.when(taskService.list(Mockito.any())).thenReturn(Collections.singletonList(task));
+		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
+		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
+				.thenReturn(Result.success(downloadProgress(
+						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
+				.thenReturn(Result.success("{\"total\":1,\"list\":[{}]}"));
+
+		service.authConfigDownResultHandle();
+
+		Assert.assertEquals(DeviceTaskStatusEnum.SUCCESS.getCode(), task.getStatus());
+		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getCode(), task.getCode());
+		Assert.assertEquals("ISC已存在权限，按幂等成功处理", task.getRemark());
+		Mockito.verify(downRecordService).handleTaskDownRecord(task);
+	}
+
+	@Test
+	public void authConfigDownResultTreatsMissingDownloadDetailAsSuccessWhenAuthItemExists() {
+		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
+		SmtIscDeviceTaskService taskService = Mockito.mock(SmtIscDeviceTaskService.class);
+		SmtDeviceService deviceService = Mockito.mock(SmtDeviceService.class);
+		SmtIscDownRecordService downRecordService = Mockito.mock(SmtIscDownRecordService.class);
+		ISCDeviceTaskServiceImpl service = service(dispatcherService, taskService, deviceService, downRecordService);
+		SmtIscDeviceTask task = downTask();
+		Mockito.when(taskService.list(Mockito.any()))
+				.thenReturn(Collections.singletonList(task))
+				.thenReturn(Collections.emptyList());
+		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
+		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
+				.thenReturn(Result.success(partialDownloadProgress("0x15409999")))
+				.thenReturn(Result.success(downloadDetailForOtherPerson()))
+				.thenReturn(Result.success("{\"total\":1,\"list\":[{}]}"));
+
+		service.authConfigDownResultHandle();
+
+		Assert.assertEquals(DeviceTaskStatusEnum.SUCCESS.getCode(), task.getStatus());
+		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getCode(), task.getCode());
+		Assert.assertEquals("ISC已存在权限，按幂等成功处理", task.getRemark());
+		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 	}
 
 	@Test

@@ -132,6 +132,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 
 	private static final String DELETE_NO_AVAILABLE_DOWNLOAD_DATA_REMARK = "删除权限已无可用下发数据，已按删除成功处理";
 
+	private static final String DOWNLOAD_AUTH_ITEM_EXISTS_REMARK = "ISC已存在权限，按幂等成功处理";
+
 	private static final String DELETE_PERSON_GONE_REMARK = "ISC人员已删除，权限已由ISC级联清理，按删除成功处理";
 
 	private static final String AUTH_CONFIG_MAX_RETRY_REMARK = "权限下发失败已达到最大重试次数"
@@ -1472,6 +1474,21 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		}
 	}
 
+	/**
+	 * ISC 已有该权限时按幂等成功收敛，避免下载明细缺失导致重复下发。
+	 */
+	private void markDownloadTaskAsExistingAuthItemSuccess(SmtIscDeviceTask task) {
+		task.setStatus(DeviceTaskStatusEnum.SUCCESS.getCode());
+		task.setCode(ISCDeviceTaskEnum.DEVICE_OK.getCode());
+		task.setRemark(DOWNLOAD_AUTH_ITEM_EXISTS_REMARK);
+		task.setUpdateTime(LocalDateTime.now());
+		boolean updated = smtIscDeviceTaskService.updateById(task);
+		if (updated) {
+			smtIscDownRecordService.handleTaskDownRecord(task);
+			triggerDispatchAggregationIfApplicable(task);
+		}
+	}
+
 	private enum DeletePersonLookupStatus {
 		FOUND, ABSENT, QUERY_FAILED
 	}
@@ -1721,7 +1738,35 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		return true;
 	}
 
+	/**
+	 * 新增权限在 ISC 返回无可用数据或漏返回人员明细时，复查权限项后再决定是否重试。
+	 */
+	private void reconcileDownloadTasksWithIscAuthItems(List<SmtIscDeviceTask> taskList, String taskId, String retryRemark) {
+		if (CollUtil.isEmpty(taskList)) {
+			return;
+		}
+		Integer fallbackParkId = taskList.get(0).getParkId();
+		for (SmtIscDeviceTask task : taskList) {
+			IscAuthItemPresence presence = queryIscAuthItemPresence(task, fallbackParkId);
+			if (presence == IscAuthItemPresence.PRESENT) {
+				markDownloadTaskAsExistingAuthItemSuccess(task);
+				log.info("新增权限下载任务[{}]已在ISC存在权限项，按幂等成功处理，taskId：{}", task.getId(), taskId);
+				continue;
+			}
+			markDownloadTaskForRetry(task, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, retryRemark);
+			log.info("新增权限下载任务[{}]复查ISC权限项结果为{}，保留重试，taskId：{}", task.getId(), presence, taskId);
+		}
+	}
+
 	private boolean hasIscAuthItem(SmtIscDeviceTask task, Integer fallbackParkId) {
+		return queryIscAuthItemPresence(task, fallbackParkId) != IscAuthItemPresence.ABSENT;
+	}
+
+	private enum IscAuthItemPresence {
+		PRESENT, ABSENT, UNKNOWN
+	}
+
+	private IscAuthItemPresence queryIscAuthItemPresence(SmtIscDeviceTask task, Integer fallbackParkId) {
 		Integer parkId = task.getParkId() == null ? fallbackParkId : task.getParkId();
 		if (parkId == null) {
 			SmtDevice device = smtDeviceService.getOne(Wrappers.<SmtDevice>query().lambda().eq(SmtDevice::getId,
@@ -1730,11 +1775,11 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			task.setParkId(parkId);
 		}
 		String resourceType = ISCDeviceTypeEnum.getByCode(task.getDeviceType());
-		String personId = resolveDeleteTaskPersonId(task);
+		String personId = isDeleteAction(task.getAction()) ? resolveDeleteTaskPersonId(task) : task.getPersonId();
 		if (StrUtil.hasBlank(personId, task.getDeviceCode(), resourceType) || parkId == null) {
-			log.warn("删除权限任务[{}]缺少权限条目复查参数，保持重试，personId：{}，deviceCode：{}，resourceType：{}，parkId：{}",
+			log.warn("权限下载任务[{}]缺少权限条目复查参数，保持重试，personId：{}，deviceCode：{}，resourceType：{}，parkId：{}",
 					task.getId(), personId, task.getDeviceCode(), resourceType, parkId);
-			return true;
+			return IscAuthItemPresence.UNKNOWN;
 		}
 		task.setPersonId(personId);
 		Map<String, Object> resourceInfo = new HashMap<>(3);
@@ -1759,40 +1804,40 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		try {
 			result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 		} catch (Exception e) {
-			log.warn("删除权限任务[{}]复查ISC权限条目异常，保持重试：{}", task.getId(), e.getMessage());
-			return true;
+			log.warn("权限下载任务[{}]复查ISC权限条目异常，保持重试：{}", task.getId(), e.getMessage());
+			return IscAuthItemPresence.UNKNOWN;
 		}
 		if (result == null) {
-			log.warn("删除权限任务[{}]复查ISC权限条目响应为空，保持重试", task.getId());
-			return true;
+			log.warn("权限下载任务[{}]复查ISC权限条目响应为空，保持重试", task.getId());
+			return IscAuthItemPresence.UNKNOWN;
 		}
 		if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
-			log.warn("删除权限任务[{}]复查ISC权限条目失败，保持重试：{}", task.getId(), result.getMessage());
-			return true;
+			log.warn("权限下载任务[{}]复查ISC权限条目失败，保持重试：{}", task.getId(), result.getMessage());
+			return IscAuthItemPresence.UNKNOWN;
 		}
 		try {
 			JSONObject dataObj = JSONUtil.parseObj(result.getData());
 			Integer total = dataObj.getInt("total");
 			Object list = dataObj.get("list");
 			if (total == null || !dataObj.containsKey("list")) {
-				log.warn("删除权限任务[{}]复查ISC权限条目响应缺少total或list，保持重试：{}", task.getId(), result.getData());
-				return true;
+				log.warn("权限下载任务[{}]复查ISC权限条目响应缺少total或list，保持重试：{}", task.getId(), result.getData());
+				return IscAuthItemPresence.UNKNOWN;
 			}
 			if (total > 0) {
-				return true;
+				return IscAuthItemPresence.PRESENT;
 			}
 			if (total < 0) {
-				log.warn("删除权限任务[{}]复查ISC权限条目响应total小于0，保持重试：{}", task.getId(), result.getData());
-				return true;
+				log.warn("权限下载任务[{}]复查ISC权限条目响应total小于0，保持重试：{}", task.getId(), result.getData());
+				return IscAuthItemPresence.UNKNOWN;
 			}
 			if (hasAuthItemList(list)) {
-				log.warn("删除权限任务[{}]复查ISC权限条目响应total为0但list非空，保持重试：{}", task.getId(), result.getData());
-				return true;
+				log.warn("权限下载任务[{}]复查ISC权限条目响应total为0但list非空，保持重试：{}", task.getId(), result.getData());
+				return IscAuthItemPresence.PRESENT;
 			}
-			return false;
+			return IscAuthItemPresence.ABSENT;
 		} catch (Exception e) {
-			log.warn("删除权限任务[{}]解析ISC权限条目响应失败，保持重试：{}", task.getId(), e.getMessage());
-			return true;
+			log.warn("权限下载任务[{}]解析ISC权限条目响应失败，保持重试：{}", task.getId(), e.getMessage());
+			return IscAuthItemPresence.UNKNOWN;
 		}
 	}
 
@@ -2471,10 +2516,20 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 							.filter(task -> !isDeleteAction(task.getAction()))
 							.collect(Collectors.toList());
 					if (CollUtil.isNotEmpty(nonDeleteTasks)) {
-						markTaskFailureBatch(nonDeleteTasks, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL,
-								buildAuthConfigDownFailRemark(errorCode), taskId);
+						reconcileDownloadTasksWithIscAuthItems(nonDeleteTasks, taskId,
+								buildAuthConfigDownFailRemark(errorCode));
 					}
 					return;
+				}
+				if (shouldVerifyMissingAuthForDelete(errorCode)) {
+					List<SmtIscDeviceTask> nonDeleteTasks = taskList.stream()
+							.filter(task -> !isDeleteAction(task.getAction()))
+							.collect(Collectors.toList());
+					if (CollUtil.isNotEmpty(nonDeleteTasks)) {
+						reconcileDownloadTasksWithIscAuthItems(nonDeleteTasks, taskId,
+								buildAuthConfigDownFailRemark(errorCode));
+						return;
+					}
 				}
 				markTaskFailureBatch(taskList, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL,
 						buildAuthConfigDownFailRemark(errorCode), taskId);
@@ -2510,12 +2565,25 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 								.filter(task -> !isDeleteAction(task.getAction()))
 								.collect(Collectors.toList());
 						if (CollUtil.isNotEmpty(nonDeleteTasks)) {
-							markTaskFailureBatch(nonDeleteTasks,
-									ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, "下载完成但ISC未返回人员下载明细", taskId);
+							reconcileDownloadTasksWithIscAuthItems(nonDeleteTasks, taskId,
+									"下载完成但ISC未返回人员下载明细");
 						}
 						continue;
 					}
-					markTaskFailureBatch(deviceTasks, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, "下载完成但ISC未返回人员下载明细", taskId);
+					List<SmtIscDeviceTask> nonDeleteTasks = deviceTasks.stream()
+							.filter(task -> !isDeleteAction(task.getAction()))
+							.collect(Collectors.toList());
+					List<SmtIscDeviceTask> deleteTasks = deviceTasks.stream()
+							.filter(task -> isDeleteAction(task.getAction()))
+							.collect(Collectors.toList());
+					if (CollUtil.isNotEmpty(nonDeleteTasks)) {
+						reconcileDownloadTasksWithIscAuthItems(nonDeleteTasks, taskId,
+								"下载完成但ISC未返回人员下载明细");
+					}
+					if (CollUtil.isNotEmpty(deleteTasks)) {
+						markTaskFailureBatch(deleteTasks, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL,
+								"下载完成但ISC未返回人员下载明细", taskId);
+					}
 					continue;
 				}
 
@@ -2535,7 +2603,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 					markTaskFailureBatch(unhandledDeleteTasks, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, unhandledRemark, taskId);
 				}
 				if (CollUtil.isNotEmpty(unhandledNonDeleteTasks)) {
-					markTaskFailureBatch(unhandledNonDeleteTasks, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, unhandledRemark, taskId);
+					reconcileDownloadTasksWithIscAuthItems(unhandledNonDeleteTasks, taskId, unhandledRemark);
 				}
 
 			}
