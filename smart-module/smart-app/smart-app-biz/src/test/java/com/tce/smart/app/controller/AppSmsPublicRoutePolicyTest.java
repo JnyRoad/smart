@@ -40,6 +40,9 @@ public class AppSmsPublicRoutePolicyTest {
 		Path testConfig = locateRepositoryRoot().resolve(
 				"smart-module/smart-app/smart-app-biz/src/main/resources/test.yml");
 		assertEquals(EXPECTED_SMS_ROUTES, smsIgnoreUrls(testConfig));
+		List<String> routes = allIgnoreUrls(testConfig);
+		assertFalse("测试配置不得保留业务通配符", routes.stream().anyMatch(route -> route.contains("*")));
+		assertFalse("测试配置不得复活无映射的历史人脸登录路径", routes.contains("/login/face"));
 	}
 
 	/**
