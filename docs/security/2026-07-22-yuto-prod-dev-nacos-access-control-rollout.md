@@ -6,7 +6,7 @@
 
 | Data ID | 当前已验证风险 | 收口前置条件 | 灰度探针 | 生产状态 |
 |---|---|---|---|---|
-| `smart-platform.yml` | `/staff/**`、`/articlesrelease/**` | Tasks 2-5、7 完成，仓外调用方为零或已迁移；App 住宿内部列表 client-id 门槛完成 | 旧路径无 Token 返回 401/403；当前 H5、UI、App 通过 | 未发布 |
+| `smart-platform.yml` | `/staff/**`、`/articlesrelease/**` | Tasks 2-5、7 完成，仓外调用方为零或已迁移；住宿、园区列表、充值和物流内部 client-id 门槛完成 | 旧路径无 Token 返回 401/403；当前 H5、UI、App 通过 | 未发布 |
 | `smart-upms-biz.yml` | `/api/**` | Open API App scope 核验完成 | 无 App 身份返回 401/403；合法 App token 成功 | 未发布 |
 | `smart-data.yml` | `/**` | Controller 清单逐条完成分类 | 内部 Feign 成功；外部直连拒绝 | 未发布 |
 | `smart-algorithm.yml` | `/**` | 人脸、OCR 调用方完成服务令牌迁移 | 内部算法调用成功；外部直连拒绝 | 未发布 |
@@ -95,6 +95,15 @@ node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev
    `security.inner.dormitory.admin-room-detail-client-id` 和
    `security.inner.dormitory.admin-room-detail-purpose` 对应的专用管理员服务调用；任何未受管客户端或用途必须
    拒绝。若生产核查不存在该完整内部接口消费者，应在完整灰度窗口后删除该路由和 Feign 契约，而非向 App 回退。
+7. 园区全量内部列表必须配置 `security.inner.park.list-client-ids` 为逗号分隔的实际 Smart App 与 Smart Schedule
+   `client_id`；空值、普通用户 token、其他 `server` client 或不匹配用途均必须拒绝。灰度同时验证两个合法调用方成功。
+8. 充值与物流定时内部命令分别必须配置
+   `security.inner.recharge.schedule-client-id`、`security.inner.logistics.schedule-client-id`，且都精确等于 Smart
+   Schedule 的实际 `client_id`。任一配置为空、client 不匹配或 purpose 不匹配时必须拒绝；发布前分别运行一次合法
+   定时任务探针并保留不含令牌的结果。
+9. App 密码找回公开入口只能为 `POST /app/password/update` 的 JSON 请求体；旧
+   `PUT /admin/user/password/update` 仅限 `sys_user_edit` 管理权限。发布时验证匿名 POST 在一次性 challenge 已通过时
+   成功、重复/错误 challenge 拒绝，且普通用户访问旧管理端路由被拒绝。
 
 ## `security.inner.mode=ENFORCE` 后置收口
 
