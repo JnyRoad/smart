@@ -55,10 +55,17 @@ public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 			// 只有显式标记的敏感内部调用才在无入站请求时申请服务令牌，
 			// 其余历史 Feign 调用保持原有行为，避免未迁移端点被客户端令牌拒绝。
 			if (requiresServiceToken(template)) {
-				super.apply(template);
+				applyServiceToken(template);
 			}
 			return;
 		}
+
+		// 服务令牌端点绝不能复制入站 Authorization；先清除模板和 OAuth 上下文中的用户令牌。
+		if (requiresServiceToken(template)) {
+			applyServiceToken(template);
+			return;
+		}
+
 		HttpServletRequest request = attributes.getRequest();
 		Enumeration<String> headerNames = request.getHeaderNames();
 		if (headerNames != null) {
@@ -66,15 +73,6 @@ public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 				String name = headerNames.nextElement();
 				String values = request.getHeader(name);
 				template.header(name, values);
-			}
-
-			if (requiresServiceToken(template)) {
-				// 内部 Feign 不得复用外部用户令牌。清空可能由前序调用留下的令牌后，
-				// 由 OAuth2FeignRequestInterceptor 按服务客户端凭据重新获取 Bearer token；
-				// 获取失败会向调用方显式报错，绝不能退化为匿名请求。
-				oAuth2ClientContext.setAccessToken(null);
-				super.apply(template);
-				return;
 			}
 
 			Collection<String> fromHeader = template.headers().get(SecurityConstants.FROM);
@@ -87,6 +85,15 @@ public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 				super.apply(template);
 			}
 		}
+	}
+
+	/**
+	 * 清除可能遗留的终端用户凭据后，仅由 OAuth 客户端凭据流程写入服务令牌。
+	 */
+	private void applyServiceToken(RequestTemplate template) {
+		template.header("Authorization");
+		oAuth2ClientContext.setAccessToken(null);
+		super.apply(template);
 	}
 
 	/**
