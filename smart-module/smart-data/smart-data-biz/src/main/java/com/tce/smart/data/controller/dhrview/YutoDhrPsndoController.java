@@ -3,6 +3,8 @@ package com.tce.smart.data.controller.dhrview;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.dhrview.resp.YutoDhrPsndoDTO;
 import com.tce.smart.data.service.dhr.DhrPsndoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +25,16 @@ public class YutoDhrPsndoController extends BaseController {
     private DhrPsndoService dhrPsndoService;
 
     /**
-     * 根据BU列表分页获取DHR员工数据
-     * @return
+     * 根据 BU 列表分页获取 DHR 员工数据。
+     *
+     * 返回内容包含证件号、手机号和邮箱等敏感字段，只允许服务令牌用于定时同步，
+     * 禁止继续通过旧的通用 {@code /page} 路径访问。
+     *
+     * @return DHR 员工分页数据
      */
-    @GetMapping("/page")
+    @Inner
+    @OpenApi("server")
+    @GetMapping("/internal/page")
     public Result<Page<YutoDhrPsndoDTO>> page(@RequestParam("current") Integer current,
 											  @RequestParam("size") Integer size,
 											  @RequestParam("buIds") List<Integer> buIds) {

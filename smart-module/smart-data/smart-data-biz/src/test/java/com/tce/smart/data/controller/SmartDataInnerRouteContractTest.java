@@ -5,6 +5,8 @@ import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.feign.xcc6.RemoteXCRsEmpService;
 import com.tce.smart.data.api.feign.xcvehicle.RemoteXCVehicleService;
+import com.tce.smart.data.api.feign.dhrview.RemoteYutoDhrYsService;
+import com.tce.smart.data.controller.dhrview.YutoDhrPsndoController;
 import com.tce.smart.data.controller.xcc6.RsXCEmpController;
 import com.tce.smart.data.controller.xcvehicle.TParkCardController;
 import org.junit.Assert;
@@ -52,6 +54,23 @@ public class SmartDataInnerRouteContractTest {
 	public void xcVehicleFeignRoutesRequireServiceTokenMarker() {
 		assertFeignContract(RemoteXCVehicleService.class, "saveVehicle", "/xc-vehicle/inner/saveVehicle", PostMapping.class);
 		assertFeignContract(RemoteXCVehicleService.class, "deleteVehicle", "/xc-vehicle/inner/deleteVehicle/{cardNo}", PostMapping.class);
+	}
+
+	@Test
+	public void dhrEmployeePageRouteRequiresInternalServerScope() {
+		Method method = findMethod(YutoDhrPsndoController.class, "page");
+		Assert.assertEquals("DHR 员工分页基础路径必须保持精确",
+				"/empdhr/ys", YutoDhrPsndoController.class.getAnnotation(RequestMapping.class).value()[0]);
+		assertMappingPath(method, "/internal/page", GetMapping.class);
+		Assert.assertNotNull("DHR 员工分页必须声明 @Inner", method.getAnnotation(Inner.class));
+		OpenApi openApi = method.getAnnotation(OpenApi.class);
+		Assert.assertNotNull("DHR 员工分页必须声明 @OpenApi", openApi);
+		Assert.assertEquals("DHR 员工分页必须只接受 server 服务令牌", "server", openApi.value());
+	}
+
+	@Test
+	public void dhrEmployeePageFeignRouteRequiresServiceTokenMarker() {
+		assertFeignContract(RemoteYutoDhrYsService.class, "page", "/empdhr/ys/internal/page", GetMapping.class);
 	}
 
 	private void assertInternalServerRoute(Class<?> controllerType, String methodName, String expectedPath,
