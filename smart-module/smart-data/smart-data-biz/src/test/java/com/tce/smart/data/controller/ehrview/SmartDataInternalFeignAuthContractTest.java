@@ -47,6 +47,28 @@ public class SmartDataInternalFeignAuthContractTest {
 			new ControllerFeignPair("EvwCotherAllowanceAllController", "RemoteEvwCotherAllowanceAllService"),
 			new ControllerFeignPair("EvwHortationsAllController", "RemoteEvwHortationsAllService"),
 			new ControllerFeignPair("EvwLdxRegLeaveAllController", "RemoteEvwLdxRegLeaveAllService"));
+	private static final List<CallerExpectation> INTERNAL_CALLERS = Arrays.asList(
+			new CallerExpectation(
+					"smart-module/smart-app/smart-app-biz/src/main/java/com/tce/smart/app/service/fore/impl/RestApplicationServiceImpl.java",
+					"remoteLvwAdjustbasicService.getByBadge("),
+			new CallerExpectation(
+					"smart-module/smart-app/smart-app-biz/src/main/java/com/tce/smart/app/service/fore/impl/AttendanceServiceImpl.java",
+					"remoteAvaGetskyPayService.info("),
+			new CallerExpectation(
+					"smart-module/smart-app/smart-app-biz/src/main/java/com/tce/smart/app/service/fore/impl/EmployeeServiceImpl.java",
+					"remoteEvwEmphrYsService.info("),
+			new CallerExpectation(
+					"smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/impl/SmtBlackVisitorServiceImpl.java",
+					"remoteEvwEmphrYsService.getBlack("),
+			new CallerExpectation(
+					"smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/impl/OAWorkflowServiceImpl.java",
+					"remoteEvwEmphrYsService.leave("),
+			new CallerExpectation(
+					"smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/securityzone/impl/SmtSecurityAuthDeleteServiceImpl.java",
+					"remoteEvwLdxRegLeaveAllService.listByDay("),
+			new CallerExpectation(
+					"smart/smart-upms/smart-upms-biz/src/main/java/com/tce/smart/admin/service/impl/SysUserServiceImpl.java",
+					"remoteEvwEmphrYsService.info("));
 
 	@Test
 	public void everyEhrInternalRouteFeignMethodDeclaresSourceAndServiceAuthHeaders() throws IOException {
@@ -78,6 +100,19 @@ public class SmartDataInternalFeignAuthContractTest {
 		assertEquals("A 组应覆盖且只覆盖 46 个 EHR 内部路由", EXPECTED_INTERNAL_ROUTE_COUNT, internalRouteCount);
 	}
 
+	@Test
+	public void selectedInternalFeignCallersPassSourceAndServiceCredentials() throws IOException {
+		Path repositoryRoot = locateRepositoryRoot();
+		for (CallerExpectation expectation : INTERNAL_CALLERS) {
+			String source = readSource(repositoryRoot.resolve(expectation.sourceFile));
+			String invocation = findInvocation(source, expectation.invocation, expectation.sourceFile);
+			assertTrue(expectation.invocation + " 必须显式传入内部来源标记",
+					invocation.contains("SecurityConstants.FROM_IN"));
+			assertTrue(expectation.invocation + " 必须显式传入服务凭据标记",
+					invocation.contains("SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED"));
+		}
+	}
+
 	private String findClassMapping(String source, String controller) {
 		Matcher mapping = CLASS_MAPPING.matcher(source);
 		assertTrue(controller + " 必须声明类级路由", mapping.find());
@@ -90,6 +125,13 @@ public class SmartDataInternalFeignAuthContractTest {
 		Matcher declaration = endpoint.matcher(source);
 		assertTrue(feign + " 必须声明与内部路由一致的 " + route + " 契约", declaration.find());
 		return declaration.group(2);
+	}
+
+	private String findInvocation(String source, String invocationPrefix, String sourceFile) {
+		Pattern invocationPattern = Pattern.compile(Pattern.quote(invocationPrefix) + "([\\s\\S]*?)\\);");
+		Matcher invocation = invocationPattern.matcher(source);
+		assertTrue(sourceFile + " 必须调用 " + invocationPrefix, invocation.find());
+		return invocation.group();
 	}
 
 	private String joinPath(String prefix, String path) {
@@ -118,6 +160,16 @@ public class SmartDataInternalFeignAuthContractTest {
 		private ControllerFeignPair(String controller, String feign) {
 			this.controller = controller;
 			this.feign = feign;
+		}
+	}
+
+	private static final class CallerExpectation {
+		private final String sourceFile;
+		private final String invocation;
+
+		private CallerExpectation(String sourceFile, String invocation) {
+			this.sourceFile = sourceFile;
+			this.invocation = invocation;
 		}
 	}
 }
