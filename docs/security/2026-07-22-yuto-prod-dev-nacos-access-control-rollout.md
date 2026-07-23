@@ -106,6 +106,10 @@ node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev
 9. App 密码找回公开入口只能为 `POST /app/password/update` 的 JSON 请求体；旧
    `PUT /admin/user/password/update` 仅限 `sys_user_edit` 管理权限。发布时验证匿名 POST 在一次性 challenge 已通过时
    成功、重复/错误 challenge 拒绝，且普通用户访问旧管理端路由被拒绝。
+10. 若 UPMS 兼容镜像存在任何内部 Feign 调用，`smart-upms-biz.yml` 的
+    `security.inner.service-token.*` 必须注入 **UPMS 独立 client_credentials** 客户端的真实值；该客户端只能拥有
+    `client_credentials` 的 `server` scope，且不得复用终端用户 OAuth 资源或 Auth、Platform、App 的客户端。发布前在隔离
+    环境以同一 UPMS 镜像与受管密钥验证取 token 和目标 Feign 调用成功；变量为空、错误 scope 或客户端不独立均阻断发布。
 
 ## `security.inner.mode=ENFORCE` 后置收口
 

@@ -2,6 +2,7 @@ package com.tce.smart.admin.controller;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +31,27 @@ public class UpmsOpenApiAccessContractTest {
         assertEquals(Collections.singletonList("/actuator/health"), ignoreUrls);
     }
 
+    @Test
+    public void upmsInternalServiceTokenTemplateAndRolloutChecklistRequireIndependentServerClient() throws IOException {
+        String config = new String(Files.readAllBytes(locateConfig("smart-upms-biz.yml")), StandardCharsets.UTF_8);
+
+        String expectedServiceToken = "service-token:\n"
+                + "      client-id: \"${SMART_UPMS_OAUTH_CLIENT_ID:}\"\n"
+                + "      client-secret: \"${SMART_UPMS_OAUTH_CLIENT_SECRET:}\"\n"
+                + "      access-token-uri: \"${SMART_UPMS_OAUTH_TOKEN_URI:}\"";
+        assertTrue(config.contains(expectedServiceToken));
+        int serviceTokenStart = config.indexOf("service-token:");
+        int serviceTokenEnd = config.indexOf("\n    user:", serviceTokenStart);
+        String serviceTokenBlock = config.substring(serviceTokenStart, serviceTokenEnd);
+        assertFalse(serviceTokenBlock.contains("SMART_OAUTH_CLIENT_ID"));
+
+        String checklist = new String(Files.readAllBytes(locateRepositoryRoot()
+                .resolve("docs/security/2026-07-22-yuto-prod-dev-nacos-access-control-rollout.md")),
+                StandardCharsets.UTF_8);
+        assertTrue(checklist.contains("UPMS 独立 client_credentials"));
+        assertTrue(checklist.contains("`server` scope"));
+    }
+
     private List<String> readIgnoreUrls(String dataId) throws IOException {
         Path configPath = locateConfig(dataId);
         List<String> urls = new ArrayList<>();
@@ -54,14 +76,17 @@ public class UpmsOpenApiAccessContractTest {
     }
 
     private Path locateConfig(String dataId) {
+        return locateRepositoryRoot().resolve("docker/nacos/config/dev").resolve(dataId);
+    }
+
+    private Path locateRepositoryRoot() {
         Path current = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
         while (current != null) {
-            Path candidate = current.resolve("docker/nacos/config/dev").resolve(dataId);
-            if (Files.isRegularFile(candidate)) {
-                return candidate;
+            if (Files.isDirectory(current.resolve("docker/nacos/config/dev"))) {
+                return current;
             }
             current = current.getParent();
         }
-        throw new IllegalStateException("无法定位本地 Nacos 配置：" + dataId);
+        throw new IllegalStateException("无法定位仓库根目录");
     }
 }

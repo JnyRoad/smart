@@ -1,6 +1,11 @@
 ## spring security 配置
 security:
   inner:
+    # UPMS 作为内部 Feign 调用方时只能使用独立 client_credentials；缺失任一变量即拒绝调用。
+    service-token:
+      client-id: "${SMART_UPMS_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_UPMS_OAUTH_CLIENT_SECRET:}"
+      access-token-uri: "${SMART_UPMS_OAUTH_TOKEN_URI:}"
     user:
       # 仅接受三个明确服务客户端；空值保持 fail-closed，发布前由受管环境变量提供非共享 client_id。
       auth-client-id: "${SMART_AUTH_OAUTH_CLIENT_ID:}"
