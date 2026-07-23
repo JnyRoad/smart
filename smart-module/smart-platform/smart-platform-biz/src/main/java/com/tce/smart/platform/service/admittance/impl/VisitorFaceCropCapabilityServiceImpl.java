@@ -184,7 +184,8 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 	}
 
 	private boolean validPayloadHash(VisitorActionCapabilityAction action, String payloadHash) {
-		if (action != VisitorActionCapabilityAction.FACE_UPLOAD && action != VisitorActionCapabilityAction.DOCUMENT_UPLOAD) {
+		if (action != VisitorActionCapabilityAction.FACE_UPLOAD && action != VisitorActionCapabilityAction.DOCUMENT_UPLOAD
+				&& action != VisitorActionCapabilityAction.BLACKLIST_CHECK) {
 			return !StringUtils.hasText(payloadHash);
 		}
 		return payloadHash != null && payloadHash.matches("[0-9a-f]{64}");

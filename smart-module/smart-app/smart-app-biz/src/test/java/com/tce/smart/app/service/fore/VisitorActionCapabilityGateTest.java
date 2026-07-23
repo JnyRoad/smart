@@ -1,6 +1,7 @@
 package com.tce.smart.app.service.fore;
 
 import com.tce.smart.app.ao.wechat.CheckFaceAo;
+import com.tce.smart.app.ao.wechat.AddVisitorAo;
 import com.tce.smart.app.service.fore.impl.VisitorServiceImpl;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
@@ -83,6 +84,31 @@ public class VisitorActionCapabilityGateTest {
 			fail("员工身份不得绕过访客黑名单 capability");
 		} catch (org.springframework.security.access.AccessDeniedException expected) {
 			Mockito.verifyZeroInteractions(visitorRemote, imageRemote);
+		}
+	}
+
+	@Test
+	public void capabilityForAnotherBlacklistIdentityFailsBeforeRemoteBlacklistQuery() {
+		RemoteVisitorService visitorRemote = Mockito.mock(RemoteVisitorService.class);
+		RemoteSmtImageService imageRemote = Mockito.mock(RemoteSmtImageService.class);
+		Mockito.when(visitorRemote.consumeVisitorActionCapability(Mockito.any(VisitorActionCapabilityConsumeReqDTO.class),
+				Mockito.anyString(), Mockito.anyString())).thenReturn(Result.fail("capability payload mismatch"));
+		AddVisitorAo request = new AddVisitorAo();
+		request.setVisitorName(" 张 三 ");
+		request.setCertNo("110101199001010011");
+		request.setParkId(1);
+
+		try {
+			service(visitorRemote, imageRemote).checkBlackVisitor(request, "ticket-for-other-identity", "draft-1");
+			fail("身份摘要不匹配的 capability 不得查询黑名单");
+		} catch (org.springframework.security.access.AccessDeniedException expected) {
+			ArgumentCaptor<VisitorActionCapabilityConsumeReqDTO> consume = ArgumentCaptor.forClass(VisitorActionCapabilityConsumeReqDTO.class);
+			Mockito.verify(visitorRemote).consumeVisitorActionCapability(consume.capture(), Mockito.eq(SecurityConstants.FROM_IN),
+					Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+			assertEquals(VisitorActionCapabilityAction.BLACKLIST_CHECK, consume.getValue().getAction());
+			assertEquals("5b012e396a3e0bc4c43b600a31d30d68b79a1f34f19aadf667e141a3a7c2440c",
+					consume.getValue().getPayloadHash());
+			Mockito.verify(visitorRemote, Mockito.never()).checkBlackVisitor(Mockito.any(), Mockito.anyString());
 		}
 	}
 

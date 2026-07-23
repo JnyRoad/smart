@@ -139,7 +139,11 @@ describe('anonymous visitor action capability', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const [capabilityUrl, capabilityInit] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(capabilityUrl).toBe('/platform/admittance/visitor-action/capability')
-    expect(JSON.parse(capabilityInit.body as string)).toEqual({ draftId: 'draft-id', action: 'BLACKLIST_CHECK' })
+    expect(JSON.parse(capabilityInit.body as string)).toEqual({
+      draftId: 'draft-id',
+      action: 'BLACKLIST_CHECK',
+      payloadHash: '5b012e396a3e0bc4c43b600a31d30d68b79a1f34f19aadf667e141a3a7c2440c',
+    })
 
     const [checkUrl, checkInit] = fetchMock.mock.calls[1] as [string, RequestInit]
     expect(checkUrl).toBe('/app/wechat/visit/checkBlackVisitor')

@@ -651,7 +651,8 @@ public class VisitorServiceImpl implements VisitorService {
 
 	@Override
 	public Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo, String capability, String draftId) {
-		requireVisitorActionOrAuthenticatedEmployee(capability, draftId, VisitorActionCapabilityAction.BLACKLIST_CHECK, null);
+		requireVisitorActionOrAuthenticatedEmployee(capability, draftId, VisitorActionCapabilityAction.BLACKLIST_CHECK,
+				blacklistPayloadHash(addVisitorAo));
 		SmtVisitorDTO smtVisitor = new SmtVisitorDTO();
 		smtVisitor.setVisitorName(addVisitorAo.getVisitorName());
 		smtVisitor.setCertNo(addVisitorAo.getCertNo());
@@ -715,6 +716,20 @@ public class VisitorServiceImpl implements VisitorService {
 		} catch (java.security.NoSuchAlgorithmException exception) {
 			throw visitorActionDenied();
 		}
+	}
+
+	/**
+	 * 黑名单 capability 必须绑定实际查询身份，不能只绑定草稿。该规范与 Smart H5 完全一致：
+	 * 姓名、证件号移除所有空白，证件号转大写，再以竖线和园区编号组成摘要原文。
+	 */
+	private String blacklistPayloadHash(AddVisitorAo request) {
+		if (request == null || request.getParkId() == null || StringUtils.isBlank(request.getVisitorName())
+				|| StringUtils.isBlank(request.getCertNo())) {
+			return null;
+		}
+		String visitorName = request.getVisitorName().replaceAll("\\s+", "");
+		String certNo = request.getCertNo().replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT);
+		return sha256(visitorName + "|" + certNo + "|" + request.getParkId());
 	}
 
 	/** 缺票、错票、过期和重放统一以 403 失败，不暴露图片存储或黑名单查询状态。 */

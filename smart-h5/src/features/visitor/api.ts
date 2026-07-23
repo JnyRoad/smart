@@ -218,12 +218,17 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+/** 与 App 使用完全一致的黑名单查询摘要：姓名和证件号去空白、证件号大写后用分隔符拼接。 */
+function blacklistPayload(data: { visitorName: string; certNo: string; parkId: number }): string {
+  return [data.visitorName.replace(/\s+/g, ''), data.certNo.replace(/\s+/g, '').toUpperCase(), String(data.parkId)].join('|')
+}
+
 /** Blacklist check; `data === false` means the visitor is blocked. */
 export async function checkBlackVisitor(
   data: { visitorName: string; certNo: string; parkId: number },
   visitorDraft: VisitorFaceDraft,
 ) {
-  const capability = await issueVisitorActionCapability(visitorDraft, 'BLACKLIST_CHECK')
+  const capability = await issueVisitorActionCapability(visitorDraft, 'BLACKLIST_CHECK', await sha256(blacklistPayload(data)))
   return request<Envelope<boolean>>({
     module: 'app',
     url: '/wechat/visit/checkBlackVisitor',
