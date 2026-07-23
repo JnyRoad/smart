@@ -47,7 +47,8 @@ describe('work 草稿 store', () => {
   })
 
   it('clearAll 清空全部草稿', () => {
-    const s = useWorkDraft.getState()
+	const s = useWorkDraft.getState()
+	 s.setReleaseId(17)
     s.patchApplyMain({ fxsx: 0 })
     s.addPerson(PERSON)
     s.addGood(GOOD)
@@ -55,6 +56,7 @@ describe('work 草稿 store', () => {
     const after = useWorkDraft.getState()
     expect(after.applyMain).toEqual({})
     expect(after.persons).toEqual([])
-    expect(after.goods).toEqual([])
+	expect(after.goods).toEqual([])
+	expect(after.releaseId).toBeUndefined()
   })
 })

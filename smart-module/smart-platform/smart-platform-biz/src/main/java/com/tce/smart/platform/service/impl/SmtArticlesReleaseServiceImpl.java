@@ -30,7 +30,8 @@ import com.tce.smart.data.api.vo.msg.QueryOaStaffRespVo;
 import com.tce.smart.platform.api.dto.req.*;
 import com.tce.smart.platform.api.dto.req.approval.ApprovalProcessReqDTO;
 import com.tce.smart.platform.api.dto.resp.ArticlesReleaseListRespDTO;
-import com.tce.smart.platform.api.dto.resp.OaStaffInfoRespDTO;
+import com.tce.smart.platform.api.dto.resp.OfficeReleaseDraftRespDTO;
+import com.tce.smart.platform.api.dto.resp.ReleaseStaffLookupRespDTO;
 import com.tce.smart.platform.api.dto.resp.approval.ApproveProcessListReqDTO;
 import com.tce.smart.platform.core.dto.AppMsgPushDTO;
 import com.tce.smart.platform.core.dto.WorkFlowLogDTO;
@@ -56,6 +57,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -114,8 +116,7 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 	@Value("${spring.image.base-url}")
 	private String baseImageUrl;
 
-	@Override
-	public OaStaffInfoRespDTO getOAStaffInfoByBadge(String badge) {
+	private ReleaseStaffLookupRespDTO getReleaseStaffLookup(String badge) {
 		Result<QueryOaStaffRespVo> oaInfoByBadge = remoteOaWorkFlowService.getOAInfoByBadge(badge);
 		if (oaInfoByBadge == null || !oaInfoByBadge.isSuccess()) {
 			throw new TCEException("查询OA员工信息失败");
@@ -124,10 +125,75 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 		if (oaData == null) {
 			throw new TCEException("OA系统不存在该员工信息");
 		}
-		OaStaffInfoRespDTO respDTO = new OaStaffInfoRespDTO();
+		ReleaseStaffLookupRespDTO respDTO = new ReleaseStaffLookupRespDTO();
 		respDTO.setId(oaData.getID());
 		respDTO.setName(oaData.getLASTNAME());
 		return respDTO;
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public OfficeReleaseDraftRespDTO createOfficeDraft(String ownerBadge, CreateOfficeReleaseDraftReqDTO request) {
+		if (StrUtil.isBlank(ownerBadge) || request == null || request.getParkId() == null) {
+			throw new AccessDeniedException("未认证用户不能创建物品放行草稿");
+		}
+		SmtStaff staff = smtStaffService.getSimpleSttaffByBadge(ownerBadge);
+		if (staff == null) {
+			throw new SmartException("员工信息不存在");
+		}
+		SmtArticlesRelease draft = new SmtArticlesRelease();
+		draft.setBadge(ownerBadge);
+		draft.setName(staff.getName());
+		draft.setCarrier(staff.getName());
+		draft.setParkId(request.getParkId());
+		draft.setArticlesType(ArticlesReleaseTypeEnum.XC_OFFICE_ZONE.getCode());
+		draft.setArticlesDesc(ArticlesReleaseTypeEnum.XC_OFFICE_ZONE.getDesc());
+		draft.setStatus(ArticlesReleaseStatusEnum.DRAFT.getCode());
+		Assert.isTrue(this.save(draft), "创建物品放行草稿失败");
+		OfficeReleaseDraftRespDTO response = new OfficeReleaseDraftRespDTO();
+		response.setReleaseId(draft.getId());
+		return response;
+	}
+
+	@Override
+	public ReleaseStaffLookupRespDTO lookupStaffForRelease(String currentBadge, List<Integer> currentParkIds,
+			Long releaseId, String badge) {
+		getReleaseForAuthorizedUser(currentBadge, currentParkIds, releaseId);
+		if (StrUtil.isBlank(badge)) {
+			throw new SmartException("员工工号不能为空");
+		}
+		return getReleaseStaffLookup(badge);
+	}
+
+	@Override
+	public SmtArticlesRelease getReleaseForAuthorizedUser(String currentBadge, List<Integer> currentParkIds, Long releaseId) {
+		SmtArticlesRelease release = getByReleaseId(releaseId);
+		if (StrUtil.isBlank(currentBadge) || CollUtil.isEmpty(currentParkIds)
+				|| release.getParkId() == null || !currentParkIds.contains(release.getParkId())) {
+			throw new AccessDeniedException("无权访问该物品放行记录");
+		}
+		if (currentBadge.equals(release.getBadge()) || currentBadge.equals(release.getGuardBadge())) {
+			return release;
+		}
+		List<ApproveList> approveRecords = approveListService.list(Wrappers.<ApproveList>lambdaQuery()
+				.eq(ApproveList::getBusinessId, releaseId.toString())
+				.eq(ApproveList::getApproveBadge, currentBadge));
+		boolean isApprover = CollUtil.isNotEmpty(approveRecords);
+		if (!isApprover) {
+			throw new AccessDeniedException("无权访问该物品放行记录");
+		}
+		return release;
+	}
+
+	private SmtArticlesRelease getOfficeDraftForOwner(String ownerBadge, List<Integer> ownerParkIds, Long releaseId) {
+		SmtArticlesRelease release = getByReleaseId(releaseId);
+		if (StrUtil.isBlank(ownerBadge) || !ownerBadge.equals(release.getBadge())
+				|| CollUtil.isEmpty(ownerParkIds) || release.getParkId() == null || !ownerParkIds.contains(release.getParkId())
+				|| !ArticlesReleaseTypeEnum.XC_OFFICE_ZONE.getCode().equals(release.getArticlesType())
+				|| !ArticlesReleaseStatusEnum.DRAFT.getCode().equals(release.getStatus())) {
+			throw new AccessDeniedException("无权提交该物品放行草稿");
+		}
+		return release;
 	}
 
 	@Override
@@ -692,16 +758,16 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public Boolean saveOfficeArticlesRelease(OfficeZoneReleaseReqDTO reqDTO) {
-		SmtStaff staff = smtStaffService.getSimpleSttaffByBadge(reqDTO.getBadge());
+	public Boolean saveOfficeArticlesRelease(String ownerBadge, List<Integer> ownerParkIds, OfficeZoneReleaseReqDTO reqDTO) {
+		if (reqDTO == null || reqDTO.getReleaseId() == null) {
+			throw new AccessDeniedException("必须先创建物品放行草稿");
+		}
+		SmtArticlesRelease articlesRelease = getOfficeDraftForOwner(ownerBadge, ownerParkIds, reqDTO.getReleaseId());
+		SmtStaff staff = smtStaffService.getSimpleSttaffByBadge(ownerBadge);
 		if (Objects.isNull(staff)) {
 			throw new SmartException("员工信息不存在");
 		}
-		SmtArticlesRelease articlesRelease = new SmtArticlesRelease();
-		articlesRelease.setParkId(reqDTO.getParkId());
-		articlesRelease.setBadge(reqDTO.getBadge());
-		articlesRelease.setArticlesType(ArticlesReleaseTypeEnum.XC_OFFICE_ZONE.getCode());
-		articlesRelease.setArticlesDesc(ArticlesReleaseTypeEnum.XC_OFFICE_ZONE.getDesc());
+		Integer parkId = articlesRelease.getParkId();
 		articlesRelease.setCarrier(staff.getName());
 		articlesRelease.setStatus(ArticlesReleaseStatusEnum.PENDING_APPROVAL.getCode());
 		articlesRelease.setName(staff.getName());
@@ -711,15 +777,15 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 		articlesRelease.setIsBack(reqDTO.getApplyMain().getSffc());
 		// 先保存图片
 		if (StringUtils.isNotEmpty(reqDTO.getOneImg())) {
-			articlesRelease.setOneImg(smtImageService.saveImage(reqDTO.getParkId(), reqDTO.getOneImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			articlesRelease.setOneImg(smtImageService.saveImage(parkId, reqDTO.getOneImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
 		if (StringUtils.isNotEmpty(reqDTO.getTwoImg())) {
-			articlesRelease.setTwoImg(smtImageService.saveImage(reqDTO.getParkId(), reqDTO.getTwoImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			articlesRelease.setTwoImg(smtImageService.saveImage(parkId, reqDTO.getTwoImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
 		if (StringUtils.isNotEmpty(reqDTO.getThreeImg())) {
-			articlesRelease.setThreeImg(smtImageService.saveImage(reqDTO.getParkId(), reqDTO.getThreeImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			articlesRelease.setThreeImg(smtImageService.saveImage(parkId, reqDTO.getThreeImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
-		boolean save = save(articlesRelease);
+		boolean save = updateById(articlesRelease);
 		if (save) {
 			SendReleaseApplyReqDTO applyReqDTO = new SendReleaseApplyReqDTO();
 			SmtArticlesReleaseMain releaseMain = new SmtArticlesReleaseMain();
@@ -728,13 +794,13 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 			releaseMain.setSqr(staff.getBadge());
 			String imageUrl = null;
 			if (StrUtil.isNotBlank(reqDTO.getApplyMain().getFjsc())) {
-				String imageId = smtImageService.saveImage(reqDTO.getParkId(), reqDTO.getApplyMain().getFjsc(), SmtImageEnum.ARTICLES_RELEASE.getCode());
+				String imageId = smtImageService.saveImage(parkId, reqDTO.getApplyMain().getFjsc(), SmtImageEnum.ARTICLES_RELEASE.getCode());
 				releaseMain.setFjsc(imageId);
 				imageUrl = smtImageService.buildImageUrl(baseImageUrl, imageId);
 			}
 			save = releaseMainService.save(releaseMain);
 			applyReqDTO.setReleaseApplyMainReqDTO(BeanUtil.toBean(reqDTO.getApplyMain(), ReleaseApplyMainReqDTO.class));
-			applyReqDTO.getReleaseApplyMainReqDTO().setBadge(reqDTO.getBadge());
+			applyReqDTO.getReleaseApplyMainReqDTO().setBadge(ownerBadge);
 			applyReqDTO.getReleaseApplyMainReqDTO().setName(staff.getName());
 			applyReqDTO.getReleaseApplyMainReqDTO().setLcbh("29061");
 			applyReqDTO.getReleaseApplyMainReqDTO().setFjsc(imageUrl);

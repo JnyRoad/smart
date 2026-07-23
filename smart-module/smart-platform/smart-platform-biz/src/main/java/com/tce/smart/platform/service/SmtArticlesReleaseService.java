@@ -4,7 +4,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tce.smart.platform.api.dto.req.*;
-import com.tce.smart.platform.api.dto.resp.OaStaffInfoRespDTO;
+import com.tce.smart.platform.api.dto.resp.OfficeReleaseDraftRespDTO;
+import com.tce.smart.platform.api.dto.resp.ReleaseStaffLookupRespDTO;
 import com.tce.smart.platform.core.entity.SmtArticlesRelease;
 import com.tce.smart.platform.core.entity.SmtArticlesReleasePerson;
 import com.tce.smart.platform.core.entity.SmtArticlesReleaseThing;
@@ -80,7 +81,13 @@ public interface SmtArticlesReleaseService extends IService<SmtArticlesRelease> 
 	 * @param reqDTO
 	 * @return
 	 */
-	Boolean saveOfficeArticlesRelease(OfficeZoneReleaseReqDTO reqDTO);
+	Boolean saveOfficeArticlesRelease(String ownerBadge, List<Integer> ownerParkIds, OfficeZoneReleaseReqDTO reqDTO);
+
+	OfficeReleaseDraftRespDTO createOfficeDraft(String ownerBadge, CreateOfficeReleaseDraftReqDTO request);
+
+	ReleaseStaffLookupRespDTO lookupStaffForRelease(String currentBadge, List<Integer> currentParkIds, Long releaseId, String badge);
+
+	SmtArticlesRelease getReleaseForAuthorizedUser(String currentBadge, List<Integer> currentParkIds, Long releaseId);
 
 	List<SmtArticlesReleasePerson> queryPerson(String badge);
 
@@ -93,8 +100,6 @@ public interface SmtArticlesReleaseService extends IService<SmtArticlesRelease> 
 	Boolean saveThing(ReleaseApplyThingDetail thingDetail);
 
 	Boolean deleteThing(Long id);
-
-	OaStaffInfoRespDTO getOAStaffInfoByBadge(String badge);
 
 	/**
 	 * 导出许昌办公区物品放行OA记录

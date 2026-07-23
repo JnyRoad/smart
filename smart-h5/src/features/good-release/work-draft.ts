@@ -39,10 +39,13 @@ export interface WorkGood {
 }
 
 interface WorkDraftState {
-  applyMain: WorkApplyMain
+	/** 服务端持久化草稿标识，人员查询与提交均以此验证归属。 */
+	releaseId?: string | number
+	applyMain: WorkApplyMain
   persons: WorkPerson[]
   goods: WorkGood[]
-  patchApplyMain: (p: Partial<WorkApplyMain>) => void
+	patchApplyMain: (p: Partial<WorkApplyMain>) => void
+	setReleaseId: (releaseId: string | number) => void
   addPerson: (p: WorkPerson) => void
   updatePerson: (i: number, p: WorkPerson) => void
   removePerson: (i: number) => void
@@ -60,17 +63,19 @@ interface WorkDraftState {
 export const useWorkDraft = create<WorkDraftState>()(
   persist(
     (set) => ({
-      applyMain: {},
+		applyMain: {},
+		releaseId: undefined,
       persons: [],
       goods: [],
-      patchApplyMain: (p) => set((s) => ({ applyMain: { ...s.applyMain, ...p } })),
+		patchApplyMain: (p) => set((s) => ({ applyMain: { ...s.applyMain, ...p } })),
+		setReleaseId: (releaseId) => set({ releaseId }),
       addPerson: (p) => set((s) => ({ persons: [...s.persons, p] })),
       updatePerson: (i, p) => set((s) => ({ persons: s.persons.map((x, n) => (n === i ? p : x)) })),
       removePerson: (i) => set((s) => ({ persons: s.persons.filter((_, n) => n !== i) })),
       addGood: (g) => set((s) => ({ goods: [...s.goods, g] })),
       updateGood: (i, g) => set((s) => ({ goods: s.goods.map((x, n) => (n === i ? g : x)) })),
       removeGood: (i) => set((s) => ({ goods: s.goods.filter((_, n) => n !== i) })),
-      clearAll: () => set({ applyMain: {}, persons: [], goods: [] }),
+		clearAll: () => set({ releaseId: undefined, applyMain: {}, persons: [], goods: [] }),
     }),
     { name: 'goods-work-draft' },
   ),

@@ -13,6 +13,8 @@ import java.util.*;
 @Getter
 @AllArgsConstructor
 public enum ArticlesReleaseStatusEnum {
+	/** 仅用于办公区人员选择前的服务端归属锚点，不能进入审批或出厂流程。 */
+	DRAFT(0, "草稿"),
 
 	PENDING_APPROVAL(1, "待审批"),
 
