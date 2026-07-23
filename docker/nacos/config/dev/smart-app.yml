@@ -27,7 +27,7 @@ security:
         # 未登录时选择园区/地理定位，不得因此开放 /park/{id}、/park/user/list 等人员关联查询。
         - /park/location/auto
         - /park/list
-        # 当前 Smart H5 的微信授权与访客预校验。其余 /wechat/** 必须带登录令牌。
+        # 当前 Smart H5 的微信授权与访客预校验；两个访客动作均须控制器消费草稿绑定的单次能力。其余 /wechat/** 必须带登录令牌。
         - /wechat/xc/banging/badge
         - /wechat/visit/checkBlackVisitor
         - /wechat/visit/checkFace

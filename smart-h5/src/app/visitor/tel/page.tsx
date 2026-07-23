@@ -79,11 +79,15 @@ export default function VisitorTelPage() {
 
       // 黑名单校验用的姓名/证件号必须与下方入库 save 同口径（去空格、证件号大写），
       // 否则会出现「按清洗后入库、却按原始值查黑名单」的漏判缝隙。
+      if (!flow.host.visitorDraftToken || !flow.host.visitorDraftId) {
+        Toast.show('访客操作授权已失效，请重新进入申请流程')
+        return
+      }
       const black = await checkBlackVisitor({
         visitorName: stripSpaces(flow.visitor.visitorName),
         certNo: stripSpaces(flow.visitor.certNo).toUpperCase(),
         parkId: config.parkId,
-      })
+      }, { draftToken: flow.host.visitorDraftToken, draftId: flow.host.visitorDraftId })
       // Security check must fail closed: a service error blocks the submit.
       if (black.code !== 0) {
         Toast.show(black.message ?? '黑名单校验失败，请稍后重试')

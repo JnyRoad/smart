@@ -13,7 +13,7 @@ const routerMock = vi.hoisted(() => ({
 
 const visitorApiMock = vi.hoisted(() => ({
   checkFace: vi.fn(),
-  faceCut: vi.fn(),
+  cropEmployeeFace: vi.fn(),
 }))
 
 const dormApiMock = vi.hoisted(() => ({
@@ -51,7 +51,7 @@ vi.mock('@/features/auth/use-require-auth', () => ({
 
 vi.mock('@/features/visitor/api', () => ({
   checkFace: visitorApiMock.checkFace,
-  faceCut: visitorApiMock.faceCut,
+  cropEmployeeFace: visitorApiMock.cropEmployeeFace,
 }))
 
 vi.mock('@/features/dorm/api', () => ({
@@ -80,7 +80,7 @@ function renderGetCodePage() {
 }
 
 beforeEach(() => {
-  visitorApiMock.faceCut.mockResolvedValue({ code: 0, data: 'cut-face-base64' })
+  visitorApiMock.cropEmployeeFace.mockResolvedValue({ code: 0, data: 'cut-face-base64' })
   visitorApiMock.checkFace.mockResolvedValue({ code: 0, data: { photoId: 'photo-1' } })
   dormApiMock.refreshLockPwd.mockResolvedValue({ code: 0 })
   stopTrack.mockClear()
@@ -121,7 +121,7 @@ afterEach(() => {
   routerMock.back.mockClear()
   routerMock.push.mockClear()
   routerMock.replace.mockClear()
-  visitorApiMock.faceCut.mockReset()
+  visitorApiMock.cropEmployeeFace.mockReset()
   visitorApiMock.checkFace.mockReset()
   dormApiMock.refreshLockPwd.mockReset()
   getUserMedia.mockReset()

@@ -1,6 +1,7 @@
 package com.tce.smart.platform.service.admittance.impl;
 
 import com.tce.smart.common.core.exception.SmartException;
+import com.tce.smart.platform.api.dto.admittance.VisitorActionCapabilityAction;
 import com.tce.smart.platform.service.admittance.VisitorFaceCropCapabilityService;
 import com.tce.smart.platform.service.admittance.VisitorFaceDraftCredential;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -25,10 +26,13 @@ import java.util.function.Supplier;
 @Service
 public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapabilityService {
 	private static final String DRAFT_KEY_PREFIX = "smart:admittance:visitor-face:draft:";
-	private static final String CROP_KEY_PREFIX = "smart:admittance:visitor-face:crop:";
+	private static final String ACTION_KEY_PREFIX = "smart:admittance:visitor-action:";
+	private static final String ACTION_RATE_KEY_PREFIX = "smart:admittance:visitor-action-rate:";
 	private static final long DRAFT_TTL_SECONDS = 30L * 60L;
-	private static final long CROP_TTL_SECONDS = 2L * 60L;
-	private static final DefaultRedisScript<Long> CONSUME_CROP_SCRIPT = new DefaultRedisScript<>(
+	private static final long ACTION_TTL_SECONDS = 2L * 60L;
+	private static final long ACTION_RATE_TTL_SECONDS = 60L;
+	private static final long MAX_ACTION_ISSUES_PER_MINUTE = 12L;
+	private static final DefaultRedisScript<Long> CONSUME_ACTION_SCRIPT = new DefaultRedisScript<>(
 			"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
 			Long.class);
 
@@ -58,22 +62,75 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 
 	@Override
 	public String issueCropCapability(String draftToken, String draftId) {
+		return issueActionCapability(draftToken, draftId, VisitorActionCapabilityAction.FACE_CROP);
+	}
+
+	@Override
+	public String issueActionCapability(String draftToken, String draftId, VisitorActionCapabilityAction action) {
+		return issueActionCapability(draftToken, draftId, action, null);
+	}
+
+	@Override
+	public String issueActionCapability(String draftToken, String draftId, VisitorActionCapabilityAction action,
+			String payloadHash) {
 		String expectedDraftId = draftIdFromSession(draftToken);
 		if (!StringUtils.hasText(draftId) || !draftId.equals(expectedDraftId)) {
 			throw forbidden();
 		}
+		return issueActionCapabilityForVerifiedDraft(draftId, action, payloadHash, true);
+	}
+
+	@Override
+	public String issueActionCapabilityForVerifiedDraft(String draftId, VisitorActionCapabilityAction action, String payloadHash) {
+		return issueActionCapabilityForVerifiedDraft(draftId, action, payloadHash, false);
+	}
+
+	private String issueActionCapabilityForVerifiedDraft(String draftId, VisitorActionCapabilityAction action, String payloadHash,
+			boolean applyRateLimit) {
+		if (!StringUtils.hasText(draftId) || action == null || !validPayloadHash(action, payloadHash)) {
+			throw forbidden();
+		}
+		if (applyRateLimit) {
+			assertIssueRate(draftId, action);
+		}
 		String capability = nextToken();
-		redisTemplate.opsForValue().set(cropKey(capability), draftId, CROP_TTL_SECONDS, TimeUnit.SECONDS);
+		redisTemplate.opsForValue().set(actionKey(capability), actionValue(draftId, action, payloadHash), ACTION_TTL_SECONDS,
+				TimeUnit.SECONDS);
 		return capability;
 	}
 
 	@Override
 	public void consumeCropCapability(String capability, String draftId) {
-		if (!StringUtils.hasText(capability) || !StringUtils.hasText(draftId)) {
+		consumeActionCapability(capability, draftId, VisitorActionCapabilityAction.FACE_CROP);
+	}
+
+	@Override
+	public void consumeActionCapability(String capability, String draftId, VisitorActionCapabilityAction action) {
+		consumeActionCapability(capability, draftId, action, null);
+	}
+
+	@Override
+	public void consumeActionCapability(String capability, String draftId, VisitorActionCapabilityAction action,
+			String payloadHash) {
+		if (!StringUtils.hasText(capability) || !StringUtils.hasText(draftId) || action == null
+				|| !validPayloadHash(action, payloadHash)) {
 			throw forbidden();
 		}
-		Long consumed = redisTemplate.execute(CONSUME_CROP_SCRIPT, Collections.singletonList(cropKey(capability)), draftId);
+		Long consumed = redisTemplate.execute(CONSUME_ACTION_SCRIPT, Collections.singletonList(actionKey(capability)),
+				actionValue(draftId, action, payloadHash));
 		if (!Long.valueOf(1L).equals(consumed)) {
+			throw forbidden();
+		}
+	}
+
+	/** 限制每个短时草稿的动作签发频率，避免持有草稿票据的一方无限放大存图或查询压力。 */
+	private void assertIssueRate(String draftId, VisitorActionCapabilityAction action) {
+		String key = actionRateKey(draftId, action);
+		Long count = redisTemplate.opsForValue().increment(key);
+		if (Long.valueOf(1L).equals(count)) {
+			redisTemplate.expire(key, ACTION_RATE_TTL_SECONDS, TimeUnit.SECONDS);
+		}
+		if (count == null || count > MAX_ACTION_ISSUES_PER_MINUTE) {
 			throw forbidden();
 		}
 	}
@@ -118,8 +175,23 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 		return DRAFT_KEY_PREFIX + token;
 	}
 
-	private String cropKey(String capability) {
-		return CROP_KEY_PREFIX + capability;
+	private String actionKey(String capability) {
+		return ACTION_KEY_PREFIX + capability;
+	}
+
+	private String actionRateKey(String draftId, VisitorActionCapabilityAction action) {
+		return ACTION_RATE_KEY_PREFIX + action.name() + ":" + draftId;
+	}
+
+	private boolean validPayloadHash(VisitorActionCapabilityAction action, String payloadHash) {
+		if (action != VisitorActionCapabilityAction.FACE_UPLOAD && action != VisitorActionCapabilityAction.DOCUMENT_UPLOAD) {
+			return !StringUtils.hasText(payloadHash);
+		}
+		return payloadHash != null && payloadHash.matches("[0-9a-f]{64}");
+	}
+
+	private String actionValue(String draftId, VisitorActionCapabilityAction action, String payloadHash) {
+		return draftId + "|" + action.name() + "|" + (payloadHash == null ? "" : payloadHash);
 	}
 
 	private SmartException forbidden() {

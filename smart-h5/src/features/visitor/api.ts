@@ -185,14 +185,55 @@ export function verifyVisitorSms(mobile: string, smsCode: string) {
   })
 }
 
+type VisitorAction = 'DOCUMENT_UPLOAD' | 'BLACKLIST_CHECK'
+
+interface VisitorFaceCropResult {
+  imageData?: string
+  uploadCapability?: string
+}
+
+/** 访客草稿换取一次性动作票据；票据只在请求头传给 App，草稿 token 永不离开 Platform。 */
+async function issueVisitorActionCapability(
+  visitorDraft: VisitorFaceDraft,
+  action: VisitorAction,
+  payloadHash?: string,
+) {
+  const capability = await request<Envelope<{ capability?: string }>>({
+    module: 'platform',
+    url: '/admittance/visitor-action/capability',
+    method: 'POST',
+    data: { draftId: visitorDraft.draftId, action, payloadHash },
+    auth: 'none',
+    headers: { 'X-Visitor-Draft-Token': visitorDraft.draftToken },
+  })
+  if (capability.code !== 0 || !capability.data?.capability) {
+    throw new Error(capability.message ?? '访客操作授权已失效，请重新进入申请流程')
+  }
+  return capability.data.capability
+}
+
+async function sha256(value: string): Promise<string> {
+  if (!globalThis.crypto?.subtle) throw new Error('访客操作授权已失效，请重新进入申请流程')
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 /** Blacklist check; `data === false` means the visitor is blocked. */
-export function checkBlackVisitor(data: { visitorName: string; certNo: string; parkId: number }) {
+export async function checkBlackVisitor(
+  data: { visitorName: string; certNo: string; parkId: number },
+  visitorDraft: VisitorFaceDraft,
+) {
+  const capability = await issueVisitorActionCapability(visitorDraft, 'BLACKLIST_CHECK')
   return request<Envelope<boolean>>({
     module: 'app',
     url: '/wechat/visit/checkBlackVisitor',
     method: 'POST',
     data,
     auth: 'none',
+    headers: {
+      'X-Visitor-Action-Capability': capability,
+      'X-Visitor-Draft-Id': visitorDraft.draftId,
+    },
   })
 }
 
@@ -242,20 +283,8 @@ export function getApplyDetail(id: string) {
   })
 }
 
-/**
- * 人脸裁剪。访客必须传入微信授权派生的草稿会话，后端按草稿换取单次能力；
- * 已登录员工不接受任何人员标识，仅使用 Bearer 认证入口处理其主动提交的图片。
- */
-export async function faceCut(imageData: string, visitorDraft?: VisitorFaceDraft) {
-  if (!visitorDraft) {
-    return request<Envelope<string>>({
-      module: 'app',
-      url: '/employee/face/crop',
-      method: 'POST',
-      data: { imageData },
-    })
-  }
-
+/** 访客人脸裁剪只允许草稿会话；草稿缺失必须重新 OAuth，绝不降级到员工端点。 */
+export async function cropVisitorFace(imageData: string, visitorDraft: VisitorFaceDraft) {
   const capability = await request<Envelope<{ capability?: string }>>({
     module: 'platform',
     url: '/admittance/visitor-face/capability',
@@ -267,7 +296,7 @@ export async function faceCut(imageData: string, visitorDraft?: VisitorFaceDraft
   if (capability.code !== 0 || !capability.data?.capability) {
     throw new Error(capability.message ?? '访客人脸授权已失效，请重新进入申请流程')
   }
-  return request<Envelope<string>>({
+  return request<Envelope<VisitorFaceCropResult>>({
     module: 'platform',
     url: '/admittance/visitor-face/crop',
     method: 'POST',
@@ -277,19 +306,49 @@ export async function faceCut(imageData: string, visitorDraft?: VisitorFaceDraft
   })
 }
 
-/**
- * Uploads a photo (face or document). The usual response returns `data.photoId`;
- * `resultData.base64` is only an optional gateway variant.
- */
-export function checkFace(visitorPhoto: string) {
-  // 网关把照片 id 嵌在 data.photoId（旧版 res.data.photoId）；部分场景直接给字符串。
+/** 已登录员工裁剪，只走 Bearer 认证路径。 */
+export function cropEmployeeFace(imageData: string) {
+  return request<Envelope<string>>({
+    module: 'app',
+    url: '/employee/face/crop',
+    method: 'POST',
+    data: { imageData },
+  })
+}
+
+type PhotoUploadEnvelope = Envelope<string | number | { photoId?: string | number }> & {
+  resultData?: { base64?: string }
+}
+
+/** 把已签发的访客上传 capability 与其对应图片送往兼容 App 路径。 */
+export function uploadVisitorPhoto(visitorPhoto: string, visitorDraft: VisitorFaceDraft, capability: string) {
   return request<
-    Envelope<string | number | { photoId?: string | number }> & { resultData?: { base64?: string } }
+    PhotoUploadEnvelope
   >({
     module: 'app',
     url: '/wechat/visit/checkFace',
     method: 'POST',
     data: { visitorPhoto },
     auth: 'none',
+    headers: {
+      'X-Visitor-Action-Capability': capability,
+      'X-Visitor-Draft-Id': visitorDraft.draftId,
+    },
+  })
+}
+
+/** 访客车辆等文档图片必须使用绑定图片摘要的 DOCUMENT_UPLOAD capability。 */
+export async function uploadVisitorDocument(visitorPhoto: string, visitorDraft: VisitorFaceDraft) {
+  const capability = await issueVisitorActionCapability(visitorDraft, 'DOCUMENT_UPLOAD', await sha256(visitorPhoto))
+  return uploadVisitorPhoto(visitorPhoto, visitorDraft, capability)
+}
+
+/** 已登录员工图片上传不再复用匿名访客路由。 */
+export function checkFace(visitorPhoto: string) {
+  return request<PhotoUploadEnvelope>({
+    module: 'app',
+    url: '/employee/photo/upload',
+    method: 'POST',
+    data: { visitorPhoto },
   })
 }

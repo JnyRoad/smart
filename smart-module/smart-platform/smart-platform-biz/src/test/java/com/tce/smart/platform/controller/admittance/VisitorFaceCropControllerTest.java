@@ -7,6 +7,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorFaceCropCapabilityReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorFaceCropReqDTO;
+import com.tce.smart.platform.api.dto.admittance.VisitorActionCapabilityAction;
+import com.tce.smart.platform.api.dto.resp.admittance.VisitorFaceCropRespDTO;
 import com.tce.smart.platform.service.admittance.VisitorFaceCropCapabilityService;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -48,8 +50,14 @@ public class VisitorFaceCropControllerTest {
 		request.setDraftId("draft-1");
 		request.setImageData("raw-face-image");
 
-		assertEquals("cropped-face", controller.crop("capability-1", request).data());
+		Mockito.when(capabilityService.issueActionCapabilityForVerifiedDraft(Mockito.eq("draft-1"),
+				Mockito.eq(VisitorActionCapabilityAction.FACE_UPLOAD), Mockito.anyString())).thenReturn("upload-capability");
+		VisitorFaceCropRespDTO response = controller.crop("capability-1", request).data();
+		assertEquals("cropped-face", response.getImageData());
+		assertEquals("upload-capability", response.getUploadCapability());
 		Mockito.verify(capabilityService).consumeCropCapability("capability-1", "draft-1");
+		Mockito.verify(capabilityService).issueActionCapabilityForVerifiedDraft(Mockito.eq("draft-1"),
+				Mockito.eq(VisitorActionCapabilityAction.FACE_UPLOAD), Mockito.anyString());
 		ArgumentCaptor<FaceImgCutReq> capture = ArgumentCaptor.forClass(FaceImgCutReq.class);
 		Mockito.verify(algorithmService).cutFace(capture.capture(), Mockito.eq(SecurityConstants.FROM_IN),
 				Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));

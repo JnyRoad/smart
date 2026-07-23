@@ -113,7 +113,7 @@ public interface VisitorService {
 	 * @param checkFaceAo
 	 * @return
 	 */
-	PhotoVisitorVo checkFace(CheckFaceAo checkFaceAo);
+	PhotoVisitorVo checkFace(CheckFaceAo checkFaceAo, String capability, String draftId);
 
 	/**
 	 * 获取图片base64
@@ -125,7 +125,7 @@ public interface VisitorService {
 	Boolean addCheck(AddVisitorAo addVisitorAo);
 
 
-	Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo);
+	Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo, String capability, String draftId);
 
 	Result getVisitorRefuseType();
 

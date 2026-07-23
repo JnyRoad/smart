@@ -102,7 +102,10 @@ async function mockInfoApis(page: Page) {
     route.fulfill({ json: { code: 0, data: { capability: 'one-time-capability' } } }),
   )
   await page.route('**/platform/admittance/visitor-face/crop', (route) =>
-    route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } }),
+    route.fulfill({ json: { code: 0, message: 'success', data: { imageData: 'cut-base64', uploadCapability: 'face-upload-capability' } } }),
+  )
+  await page.route('**/platform/admittance/visitor-action/capability', (route) =>
+    route.fulfill({ json: { code: 0, data: { capability: 'visitor-action-capability' } } }),
   )
   await page.route('**/app/wechat/visit/checkFace', (route) =>
     route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-001' } } }),
@@ -161,7 +164,7 @@ test('访客信息页：填写校验与 equal/check 通过跳 tel', async ({ pag
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: { openId: 'oid-1', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
+          host: { openId: 'oid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
           visitor: { visitorName: '', visitorPhotoId: '', certNo: '', company: '', startTime: '', endTime: '' },
           areasByFactory: {}, fellows: [], cars: [], phone: '',
         },
@@ -211,7 +214,7 @@ test('访客照片上传：嵌套 data.photoId 取值（预览显示 + 存真实
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: { openId: 'oid-1', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
+          host: { openId: 'oid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
           visitor: { visitorName: '', visitorPhotoId: '', certNo: '', company: '', startTime: '', endTime: '' },
           areasByFactory: {}, fellows: [], cars: [], phone: '',
         },
@@ -246,7 +249,7 @@ test('访客信息页：授权区域为空拦截', async ({ page }) => {
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: { receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
+          host: { visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
           visitor: { visitorName: '', visitorPhotoId: '', certNo: '', company: '', startTime: '', endTime: '' },
           areasByFactory: {}, fellows: [], cars: [], phone: '',
         },
@@ -284,7 +287,7 @@ test('访客信息页：访客姓名格式非法当页拦截（不到提交才�
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: { receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
+          host: { visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
           visitor: { visitorName: '', visitorPhotoId: '', certNo: '', company: '', startTime: '', endTime: '' },
           areasByFactory: {}, fellows: [], cars: [], phone: '',
         },
@@ -321,7 +324,7 @@ test('访客信息页：提交时去除姓名/证件号的全部空格（含中�
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: { openId: 'oid-1', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
+          host: { openId: 'oid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
           visitor: {
             visitorName: '  王 五  ',
             visitorPhotoId: 'photo-001',
@@ -358,7 +361,7 @@ async function seedFilledDraft(page: Page) {
       JSON.stringify({
         state: {
           host: {
-            openId: 'oid-1', unionId: 'uid-1',
+            openId: 'oid-1', unionId: 'uid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id',
             receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111',
           },
           visitor: {
@@ -385,6 +388,9 @@ async function mockTelApis(page: Page) {
   )
   await page.route('**/app/wechat/visit/checkBlackVisitor', (route) =>
     route.fulfill({ json: { code: 0, data: true } }),
+  )
+  await page.route('**/platform/admittance/visitor-action/capability', (route) =>
+    route.fulfill({ json: { code: 0, data: { capability: 'blacklist-capability' } } }),
   )
 }
 
@@ -479,7 +485,7 @@ test('提交链：黑名单校验体与 save 同口径去空格、证件号大�
       JSON.stringify({
         state: {
           host: {
-            openId: 'oid-1', unionId: 'uid-1',
+            openId: 'oid-1', unionId: 'uid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id',
             receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111',
           },
           visitor: {

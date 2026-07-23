@@ -35,12 +35,15 @@ import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.BeanUtils;
 import com.tce.smart.common.core.util.DateUtils;
+import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.data.api.feign.ehrview.RemoteEvwEmphrYsService;
 import com.tce.smart.platform.api.dto.SaveSmtVisitorDTO;
 import com.tce.smart.platform.api.dto.SmtParkDTO;
 import com.tce.smart.platform.api.dto.SmtVisitorDTO;
+import com.tce.smart.platform.api.dto.admittance.VisitorActionCapabilityAction;
 import com.tce.smart.platform.api.dto.req.*;
+import com.tce.smart.platform.api.dto.req.admittance.VisitorActionCapabilityConsumeReqDTO;
 import com.tce.smart.platform.api.dto.resp.SearchAppSmtVisitorRespDTO;
 import com.tce.smart.platform.api.dto.resp.SearchAppVisitorDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
@@ -56,6 +59,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -514,7 +518,9 @@ public class VisitorServiceImpl implements VisitorService {
 	 * 判断人脸
 	 */
 	@Override
-	public PhotoVisitorVo checkFace(CheckFaceAo checkFaceAo) {
+	public PhotoVisitorVo checkFace(CheckFaceAo checkFaceAo, String capability, String draftId) {
+		requireVisitorActionOrAuthenticatedEmployee(capability, draftId, VisitorActionCapabilityAction.FACE_UPLOAD,
+				checkFaceAo == null ? null : sha256(checkFaceAo.getVisitorPhoto()));
 		PhotoVisitorVo photoVisitorVo = new PhotoVisitorVo();
 		if (StringUtils.isNotEmpty(checkFaceAo.getVisitorPhoto())) {
 			//已做了图片人脸剪裁，无需压缩
@@ -644,13 +650,76 @@ public class VisitorServiceImpl implements VisitorService {
 	}
 
 	@Override
-	public Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo) {
-		// TODO Auto-generated method stub
+	public Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo, String capability, String draftId) {
+		requireVisitorActionOrAuthenticatedEmployee(capability, draftId, VisitorActionCapabilityAction.BLACKLIST_CHECK, null);
 		SmtVisitorDTO smtVisitor = new SmtVisitorDTO();
 		smtVisitor.setVisitorName(addVisitorAo.getVisitorName());
 		smtVisitor.setCertNo(addVisitorAo.getCertNo());
 		smtVisitor.setParkId(addVisitorAo.getParkId());
 		return remoteVisitorService.checkBlackVisitor(smtVisitor, SecurityConstants.FROM_IN);
+	}
+
+	/**
+	 * 网关精确放行的两条访客路由仍必须在 App 层二次收口。匿名请求只有在 Platform
+	 * 按草稿、动作和图片摘要原子消费 capability 后，才能进入原有存图或黑名单服务。
+	 */
+	private void requireVisitorActionOrAuthenticatedEmployee(String capability, String draftId,
+			VisitorActionCapabilityAction action, String payloadHash) {
+		boolean hasCapability = StringUtils.isNotBlank(capability);
+		boolean hasDraftId = StringUtils.isNotBlank(draftId);
+		if (hasCapability || hasDraftId) {
+			if (!hasCapability || !hasDraftId) {
+				throw visitorActionDenied();
+			}
+			VisitorActionCapabilityConsumeReqDTO request = new VisitorActionCapabilityConsumeReqDTO();
+			request.setCapability(capability);
+			request.setDraftId(draftId);
+			request.setAction(action);
+			request.setPayloadHash(payloadHash);
+			Result<Boolean> consumed = remoteVisitorService.consumeVisitorActionCapability(request,
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			if (consumed == null || !consumed.isSuccess() || !Boolean.TRUE.equals(consumed.getData())) {
+				log.warn("访客动作 capability 消费失败 action={}", action);
+				throw visitorActionDenied();
+			}
+			return;
+		}
+		// 员工端仅保留已登录的人脸上传兼容路径；黑名单查询始终要求访客 capability，防止员工身份被用于枚举他人证件信息。
+		if (action != VisitorActionCapabilityAction.FACE_UPLOAD || !hasAuthenticatedEmployee()) {
+			throw visitorActionDenied();
+		}
+	}
+
+	/** 历史已登录客户端保留原业务行为，但必须有真实员工主体，不能用匿名或 client token 绕过。 */
+	private boolean hasAuthenticatedEmployee() {
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return false;
+		}
+		SmartUser user = SecurityUtils.getUser(authentication);
+		return user != null && StringUtils.isNotBlank(user.getUsername());
+	}
+
+	private String sha256(String value) {
+		if (StringUtils.isBlank(value)) {
+			return null;
+		}
+		try {
+			byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+					.digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			StringBuilder result = new StringBuilder(digest.length * 2);
+			for (byte current : digest) {
+				result.append(String.format("%02x", current));
+			}
+			return result.toString();
+		} catch (java.security.NoSuchAlgorithmException exception) {
+			throw visitorActionDenied();
+		}
+	}
+
+	/** 缺票、错票、过期和重放统一以 403 失败，不暴露图片存储或黑名单查询状态。 */
+	private org.springframework.security.access.AccessDeniedException visitorActionDenied() {
+		return new org.springframework.security.access.AccessDeniedException("访客操作授权已失效，请重新进入申请流程");
 	}
 
 	@Override

@@ -10,6 +10,7 @@ import com.tce.smart.platform.api.dto.req.AddFellowVisitorReqDTO;
 import com.tce.smart.platform.api.dto.req.AddWechatFellowVisitorReqDTO;
 import com.tce.smart.platform.api.dto.req.SaveWechatSmtVisitorReqDTO;
 import com.tce.smart.platform.api.dto.req.VisitorAgainReqDTO;
+import com.tce.smart.platform.api.dto.req.admittance.VisitorActionCapabilityConsumeReqDTO;
 import com.tce.smart.platform.api.dto.resp.SearchAppSmtVisitorRespDTO;
 import com.tce.smart.platform.api.dto.resp.SearchAppVisitorDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
@@ -140,6 +141,15 @@ public interface RemoteVisitorService {
 	 */
 	@PostMapping("/visitor/checkBlackVisitor")
 	Result<?> checkBlackVisitor(@RequestBody SmtVisitorDTO smtVisitor, @RequestHeader(SecurityConstants.FROM) String fromIn);
+
+	/**
+	 * App 在执行匿名访客上传或黑名单校验前原子消费 capability。
+	 * 服务令牌标记会让 Feign 拦截器改用 App 专属 client_credentials，不能透传浏览器令牌。
+	 */
+	@PostMapping("/admittance/visitor-action/internal/consume")
+	Result<Boolean> consumeVisitorActionCapability(@RequestBody VisitorActionCapabilityConsumeReqDTO request,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 查询拒绝访客的原因

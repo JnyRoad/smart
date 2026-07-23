@@ -211,8 +211,8 @@ test('刷新动态码：人脸比对 → 生成 → 回门锁页', async ({ page
     cutBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } })
   })
-  // Real checkFace returns data.photoId and no resultData.base64; lock refresh must reuse uploaded base64.
-  await page.route('**/app/wechat/visit/checkFace', async (route) => {
+  // 已登录门锁不再复用匿名访客上传路径；仍需复用上传后的 base64 刷新动态码。
+  await page.route('**/app/employee/photo/upload', async (route) => {
     checkFaceBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({
       json: { code: 0, message: 'success', data: { photoId: 'p-lock' } },

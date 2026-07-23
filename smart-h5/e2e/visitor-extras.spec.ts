@@ -117,7 +117,10 @@ test('随行人员：增 → 列表 → 编辑 → 删除 → 空态；身份证
     route.fulfill({ json: { code: 0, data: { capability: 'one-time-capability' } } }),
   )
   await page.route('**/platform/admittance/visitor-face/crop', (route) =>
-    route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } }),
+    route.fulfill({ json: { code: 0, message: 'success', data: { imageData: 'cut-base64', uploadCapability: 'face-upload-capability' } } }),
+  )
+  await page.route('**/platform/admittance/visitor-action/capability', (route) =>
+    route.fulfill({ json: { code: 0, data: { capability: 'visitor-action-capability' } } }),
   )
   await page.route('**/app/wechat/visit/checkFace', (route) =>
     route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-fellow' } } }),
@@ -166,6 +169,9 @@ test('车辆：添加（默认司机姓名/证件类型）→ 列表 → 删除'
   await page.route('**/app/wechat/visit/checkFace', (route) =>
     route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-cert' } } }),
   )
+  await page.route('**/platform/admittance/visitor-action/capability', (route) =>
+    route.fulfill({ json: { code: 0, data: { capability: 'document-capability' } } }),
+  )
 
   await page.goto('/visitor/cars')
   await expect(page.getByText('暂无车辆信息')).toBeVisible()
@@ -204,7 +210,7 @@ test('主链回归：带随行人员与车辆的提交体映射', async ({ page 
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: { openId: 'oid-1', unionId: 'uid-1', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
+          host: { openId: 'oid-1', unionId: 'uid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
           visitor: {
             visitorName: '王五', visitorPhotoId: 'photo-001', certNo: '11010519491231002X',
             company: '测试公司', cause: { code: 1, desc: '商务洽谈' },

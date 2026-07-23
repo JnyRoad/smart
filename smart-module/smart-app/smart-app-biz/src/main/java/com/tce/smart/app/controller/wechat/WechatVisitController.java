@@ -47,8 +47,11 @@ public class WechatVisitController extends BaseController {
 	 */
 	@ApiIgnore
 	@PostMapping("/checkFace")
-	public Result<?> checkFace(@RequestBody CheckFaceAo checkFaceAo) {
-		return success(visitorService.checkFace(checkFaceAo));
+	public Result<?> checkFace(
+			@RequestHeader(value = "X-Visitor-Action-Capability", required = false) String capability,
+			@RequestHeader(value = "X-Visitor-Draft-Id", required = false) String draftId,
+			@RequestBody CheckFaceAo checkFaceAo) {
+		return success(visitorService.checkFace(checkFaceAo, capability, draftId));
 	}
 	/**
 	 * 根据图片的id获取图片的bASE64位
@@ -126,8 +129,11 @@ public class WechatVisitController extends BaseController {
 	 */
 	@ApiIgnore
 	@PostMapping("/checkBlackVisitor")
-	public Result<?> checkBlackVisitor( @RequestBody AddVisitorAo addVisitorAo) {
-		return visitorService.checkBlackVisitor(addVisitorAo);
+	public Result<?> checkBlackVisitor(
+			@RequestHeader(value = "X-Visitor-Action-Capability", required = false) String capability,
+			@RequestHeader(value = "X-Visitor-Draft-Id", required = false) String draftId,
+			@RequestBody AddVisitorAo addVisitorAo) {
+		return visitorService.checkBlackVisitor(addVisitorAo, capability, draftId);
 	}
 
 	/**
