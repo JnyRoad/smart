@@ -457,7 +457,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			log.info("获取部门信息:部门ID:{} 部门名称:{}", ovwYsdepRespDTO.getDepid(), ovwYsdepRespDTO.getDepname());
 		}
 		if (director != null) {
-			EvwEmphrYsRespDTO info = remoteEvwEmphrYsService.info(director, SecurityConstants.FROM_IN).data();
+			EvwEmphrYsRespDTO info = remoteEvwEmphrYsService.info(director, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
 			estaff.setReportto(info.getEId());
 		}
 
@@ -476,7 +476,8 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 				estaff.setTelephone(em.getTelephont());
 			}
 		}
-		Result<?> feignRs = staffRegister.save(estaff);
+		Result<?> feignRs = staffRegister.save(estaff, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("保持入职信息:{}", feignRs);
 	}
 

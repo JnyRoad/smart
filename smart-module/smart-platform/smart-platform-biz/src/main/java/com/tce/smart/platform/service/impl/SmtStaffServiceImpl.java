@@ -1489,7 +1489,8 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 				SaveEPhotoReqDTO saveEPhotoDto = new SaveEPhotoReqDTO();
 				saveEPhotoDto.setEid(eid);
 				saveEPhotoDto.setPhoto(perfectDTO.getFacePic());
-				Result<Boolean> saveOrUpdatePhotoRs = remoteEPhotoService.saveOrUpdatePhoto(saveEPhotoDto);
+				Result<Boolean> saveOrUpdatePhotoRs = remoteEPhotoService.saveOrUpdatePhoto(saveEPhotoDto,
+						SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				log.info("保存人事员工人脸图片信息:{}", saveOrUpdatePhotoRs);
 			} catch (Exception e) {
 				log.error("同步照片到EHR失败", e);
