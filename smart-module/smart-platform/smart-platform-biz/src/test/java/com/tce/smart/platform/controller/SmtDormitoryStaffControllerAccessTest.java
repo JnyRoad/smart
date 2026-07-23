@@ -201,17 +201,79 @@ public class SmtDormitoryStaffControllerAccessTest {
 	}
 
 	@Test
-	public void internalFullRoomDetailRejectsUnmanagedClient() {
+	public void internalFullRoomDetailAllowsDedicatedAdminClientWithConfiguredPurpose() throws Exception {
+		SmtDormitoryStaffService service = Mockito.mock(SmtDormitoryStaffService.class);
+		OpenApiAuthenticationAdapter adapter = Mockito.mock(OpenApiAuthenticationAdapter.class);
+		org.springframework.security.core.Authentication authentication = Mockito.mock(org.springframework.security.core.Authentication.class);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		Mockito.when(adapter.isClientOnly(authentication)).thenReturn(true);
+		Mockito.when(adapter.clientId(authentication)).thenReturn("dormitory-admin-client");
+		DormitoryRoomDetailRespDTO room = DormitoryRoomDetailRespDTO.builder().id(1).staffBadge("staff-badge").build();
+		Mockito.when(service.getStaffRoomInfo("staff-badge")).thenReturn(room);
+		SmtDormitoryStaffController controller = controller(service, adapter);
+		setPrivateField(controller, "adminRoomDetailClientId", "dormitory-admin-client");
+		setPrivateField(controller, "adminRoomDetailPurpose", "dormitory-admin-detail");
+
+		assertEquals(room, controller.getStaffRoomInfoForInternal("staff-badge", SecurityConstants.FROM_IN,
+				"dormitory-admin-detail").getData());
+		Mockito.verify(service).getStaffRoomInfo("staff-badge");
+	}
+
+	@Test
+	public void internalFullRoomDetailRejectsWrongManagedPurpose() throws Exception {
+		SmtDormitoryStaffService service = Mockito.mock(SmtDormitoryStaffService.class);
+		OpenApiAuthenticationAdapter adapter = Mockito.mock(OpenApiAuthenticationAdapter.class);
+		org.springframework.security.core.Authentication authentication = Mockito.mock(org.springframework.security.core.Authentication.class);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		Mockito.when(adapter.isClientOnly(authentication)).thenReturn(true);
+		Mockito.when(adapter.clientId(authentication)).thenReturn("dormitory-admin-client");
+		SmtDormitoryStaffController controller = controller(service, adapter);
+		setPrivateField(controller, "adminRoomDetailClientId", "dormitory-admin-client");
+		setPrivateField(controller, "adminRoomDetailPurpose", "dormitory-admin-detail");
+
+		try {
+			controller.getStaffRoomInfoForInternal("staff-badge", SecurityConstants.FROM_IN, "other-purpose");
+			fail("完整住宿详情不得接受错误用途");
+		} catch (AccessDeniedException expected) {
+			Mockito.verifyZeroInteractions(service);
+		}
+	}
+
+	@Test
+	public void internalFullRoomDetailRejectsMissingAdminClientConfiguration() throws Exception {
+		SmtDormitoryStaffService service = Mockito.mock(SmtDormitoryStaffService.class);
+		OpenApiAuthenticationAdapter adapter = Mockito.mock(OpenApiAuthenticationAdapter.class);
+		org.springframework.security.core.Authentication authentication = Mockito.mock(org.springframework.security.core.Authentication.class);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		Mockito.when(adapter.isClientOnly(authentication)).thenReturn(true);
+		Mockito.when(adapter.clientId(authentication)).thenReturn("dormitory-admin-client");
+		SmtDormitoryStaffController controller = controller(service, adapter);
+		setPrivateField(controller, "adminRoomDetailPurpose", "dormitory-admin-detail");
+
+		try {
+			controller.getStaffRoomInfoForInternal("staff-badge", SecurityConstants.FROM_IN,
+					"dormitory-admin-detail");
+			fail("管理员 client_id 配置缺失时不得读取完整住宿详情");
+		} catch (AccessDeniedException expected) {
+			Mockito.verifyZeroInteractions(service);
+		}
+	}
+
+	@Test
+	public void internalFullRoomDetailRejectsUnmanagedClient() throws Exception {
 		SmtDormitoryStaffService service = Mockito.mock(SmtDormitoryStaffService.class);
 		OpenApiAuthenticationAdapter adapter = Mockito.mock(OpenApiAuthenticationAdapter.class);
 		org.springframework.security.core.Authentication authentication = Mockito.mock(org.springframework.security.core.Authentication.class);
 		SecurityContextHolder.getContext().setAuthentication(authentication);
 		Mockito.when(adapter.isClientOnly(authentication)).thenReturn(true);
 		Mockito.when(adapter.clientId(authentication)).thenReturn("generic-server-client");
+		SmtDormitoryStaffController controller = controller(service, adapter);
+		setPrivateField(controller, "adminRoomDetailClientId", "dormitory-admin-client");
+		setPrivateField(controller, "adminRoomDetailPurpose", "dormitory-admin-detail");
 
 		try {
-			controller(service, adapter).getStaffRoomInfoForInternal("staff-badge", SecurityConstants.FROM_IN,
-					"unmanaged-purpose");
+			controller.getStaffRoomInfoForInternal("staff-badge", SecurityConstants.FROM_IN,
+					"dormitory-admin-detail");
 			fail("未受管客户端不得读取完整住宿详情");
 		} catch (AccessDeniedException expected) {
 			Mockito.verifyZeroInteractions(service);
