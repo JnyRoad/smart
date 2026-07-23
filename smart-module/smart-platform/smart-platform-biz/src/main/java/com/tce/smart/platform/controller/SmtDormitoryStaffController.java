@@ -25,7 +25,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.models.auth.In;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  */
 @Api(tags = "住宿管理")
 @RestController
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RequestMapping("/dormitory/staff")
 public class SmtDormitoryStaffController {
 	private static final String APP_SELF_ROOM_LIST_PURPOSE = "app-self-room-list";
