@@ -11,6 +11,13 @@ export const FORBIDDEN_ANONYMOUS_PATTERNS = new Set([
 ])
 
 /**
+ * 匿名白名单中的业务通配会让后续新增端点自动绕过认证；仅健康探针允许使用精确的 actuator 通配。
+ */
+export function isForbiddenBusinessWildcard(url) {
+  return typeof url === 'string' && url.includes('*') && url !== '/actuator/**'
+}
+
+/**
  * 返回匿名白名单中禁止出现的精确路径，避免把正常的精确回调路径误报为风险项。
  */
 export function findForbiddenIgnoreUrls(urls) {
@@ -18,7 +25,7 @@ export function findForbiddenIgnoreUrls(urls) {
     throw new TypeError('ignore-urls must be an array of strings')
   }
 
-  return urls.filter((url) => FORBIDDEN_ANONYMOUS_PATTERNS.has(url))
+  return urls.filter((url) => FORBIDDEN_ANONYMOUS_PATTERNS.has(url) || isForbiddenBusinessWildcard(url))
 }
 
 function getLineNumber(node, lineCounter) {
@@ -138,7 +145,8 @@ export async function scanConfigDirectory(directory) {
     const ignoreUrlsEntries = getIgnoreUrlsEntries(content, fileName)
 
     for (const ignoreUrlsEntry of ignoreUrlsEntries) {
-      if (!FORBIDDEN_ANONYMOUS_PATTERNS.has(ignoreUrlsEntry.path)) {
+      if (!FORBIDDEN_ANONYMOUS_PATTERNS.has(ignoreUrlsEntry.path)
+        && !isForbiddenBusinessWildcard(ignoreUrlsEntry.path)) {
         continue
       }
 

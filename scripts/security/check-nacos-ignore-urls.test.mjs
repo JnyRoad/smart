@@ -15,6 +15,10 @@ assert.deepEqual(
   ['/**', '/staff/**', '/articlesrelease/**', '/api/**'],
 )
 assert.deepEqual(findForbiddenIgnoreUrls(['/actuator/**', '/v2/api-docs']), [])
+assert.deepEqual(
+  findForbiddenIgnoreUrls(['/actuator/**', '/wechat/**', '/password/verify/**']),
+  ['/wechat/**', '/password/verify/**'],
+)
 
 const scannerScriptPath = fileURLToPath(new URL('./check-nacos-ignore-urls.mjs', import.meta.url))
 
