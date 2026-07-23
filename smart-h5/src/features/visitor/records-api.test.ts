@@ -50,13 +50,13 @@ describe('mock 开关', () => {
     expect(res.data?.records[0]?.currentNode).toBe('部门负责人 张三 审批中')
   })
 
-  it('开关开：sendRecordSms 仍复用访客申请短信 GET', async () => {
+  it('开关开：sendRecordSms 使用访客场景 POST 请求体，不把手机号放入 URL', async () => {
     setMockFlag(true)
     await sendRecordSms('13700001234')
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('/app/sms/send/getCode/13700001234')
-    expect(init.method).toBe('GET')
-    expect(init.body).toBeUndefined()
+    expect(url).toBe('/app/sms/visitor/send')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ mobile: '13700001234' })
   })
 
   it('开关开：详情按 applyId 返回对应演示态', async () => {

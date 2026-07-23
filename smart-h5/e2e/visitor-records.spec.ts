@@ -59,8 +59,9 @@ const LIST_RESULT = {
 }
 
 async function mockListApis(page: Page) {
-  await page.route('**/app/sms/send/getCode/13712341234', async (route) => {
-    expect(route.request().method()).toBe('GET')
+  await page.route('**/app/sms/visitor/send', async (route) => {
+    expect(route.request().method()).toBe('POST')
+    expect(route.request().postDataJSON()).toEqual({ mobile: '13712341234' })
     await route.fulfill({ json: { code: 0 } })
   })
   await page.route('**/platform/admittance/apply/app/listMyApply', (route) =>
@@ -191,9 +192,10 @@ test('mock 开关冒烟：显式开启后列表走 fixture，但短信仍真实�
     }),
   )
   let smsRequestCount = 0
-  await page.route('**/app/sms/send/getCode/13700000000', async (route) => {
+  await page.route('**/app/sms/visitor/send', async (route) => {
     smsRequestCount += 1
-    expect(route.request().method()).toBe('GET')
+    expect(route.request().method()).toBe('POST')
+    expect(route.request().postDataJSON()).toEqual({ mobile: '13700000000' })
     await route.fulfill({ json: { code: 0 } })
   })
 

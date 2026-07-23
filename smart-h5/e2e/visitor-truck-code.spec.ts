@@ -4,8 +4,8 @@ async function mockTruckApis(page: Page) {
   await page.route('**/platform/admittance/apply/enum/car/cause', (route) =>
     route.fulfill({ json: { code: 0, data: [{ code: 11, desc: '送货' }, { code: 12, desc: '提货' }] } }),
   )
-  await page.route('**/app/sms/send/getCode/**', (route) => route.fulfill({ json: { code: 0 } }))
-  await page.route('**/app/sms/verify*', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/app/sms/visitor/send', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/app/sms/visitor/verify', (route) => route.fulfill({ json: { code: 0 } }))
 }
 
 test('货车预约：填表 → 短信验证 → 提交体正确 → 结果页', async ({ page }) => {
@@ -50,7 +50,7 @@ test('货车预约：填表 → 短信验证 → 提交体正确 → 结果页',
 
 test('货车预约：验证码校验失败 toast 且不提交不跳转', async ({ page }) => {
   await mockTruckApis(page)
-  await page.route('**/app/sms/verify*', (route) =>
+  await page.route('**/app/sms/visitor/verify', (route) =>
     route.fulfill({ json: { code: 1, message: '验证码错误或已过期' } }),
   )
   let applyCalled = false
