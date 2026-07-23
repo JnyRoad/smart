@@ -5,6 +5,8 @@ import com.tce.smart.algorithm.api.dto.resp.AlgorithmConfigListDTO;
 import com.tce.smart.algorithm.api.dto.resp.FaceDetectTypeDTO;
 import com.tce.smart.algorithm.api.dto.resp.LivenessDTO;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -53,6 +55,8 @@ public class TestController {
 	}
 
 	@ResponseBody
+	@Inner
+	@OpenApi("server")
 	@PostMapping("/face/detect/{algorithmType}/{faceDetectType}/{id}")
 	public Result<String> faceDetect(@PathVariable("id") String id,
 									 @PathVariable("algorithmType") String algorithmType,
@@ -62,6 +66,8 @@ public class TestController {
 	}
 
 	@ResponseBody
+	@Inner
+	@OpenApi("server")
 	@PostMapping("/ocr/{algorithmType}/{cardType}/{id}")
 	public Result<String> ocr (@PathVariable("id") String id,
 							   @PathVariable("algorithmType") String algorithmType,
@@ -71,6 +77,8 @@ public class TestController {
 	}
 
 	@ResponseBody
+	@Inner
+	@OpenApi("server")
 	@PostMapping("/compare/{algorithmType}/{id}")
 	public Result<com.tce.smart.algorithm.api.dto.resp.CompareDTO> compare(@PathVariable("id") String id,
 																		   @PathVariable("algorithmType") String algorithmType,

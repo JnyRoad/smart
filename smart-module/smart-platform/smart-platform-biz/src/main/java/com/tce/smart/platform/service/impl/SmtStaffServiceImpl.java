@@ -1675,7 +1675,8 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 			compareDTO.setCompareImageA(compareImageDTO1);
 			compareDTO.setCompareImageB(compareImageDTO2);
 
-			com.tce.smart.algorithm.api.dto.resp.CompareDTO imageComareRs = remoteAlgorithmService.compare(IdUtil.fastSimpleUUID().toUpperCase(), AlgorithmTypeEnum.COMPARE_FACEALL.getType(), compareDTO, SecurityConstants.FROM_IN).data();
+			com.tce.smart.algorithm.api.dto.resp.CompareDTO imageComareRs = remoteAlgorithmService.compare(IdUtil.fastSimpleUUID().toUpperCase(), AlgorithmTypeEnum.COMPARE_FACEALL.getType(), compareDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
 			log.info("人像比对: 员工号:{} 相似度：{}", smtStaff.getBadge(), imageComareRs.getSimilarity());
 			//小于阀值则认为不是本人
 			if (-1 == (new BigDecimal(String.valueOf(imageComareRs.getSimilarity()))

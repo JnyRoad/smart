@@ -345,7 +345,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 			throw new TCEException("设备编号为空");
 		}
 		String facePhoto = perfectInfoAo.getFacePhoto();
-		FaceFeaturesDTO faceFeaturesDTO = remoteAlgorithmService.getFaceFeatures(facePhoto, SecurityConstants.FROM_IN).data();
+		FaceFeaturesDTO faceFeaturesDTO = remoteAlgorithmService.getFaceFeatures(facePhoto, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
 		if (!StringUtil.isNullOrEmpty(faceFeaturesDTO.getFaceFeature())) {
 			// 更新人脸、身份证照片信息
 			String badge = SecurityUtils.getUser().getUsername();

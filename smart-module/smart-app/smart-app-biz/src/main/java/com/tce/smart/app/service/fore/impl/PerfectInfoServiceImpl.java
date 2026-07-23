@@ -151,7 +151,8 @@ public class PerfectInfoServiceImpl implements PerfectInfoService {
 
 		String facePhoto = ocrAo.getFacePhoto();
 
-		Result<FaceFeaturesDTO> result = remoteAlgorithmService.getFaceFeatures(facePhoto, SecurityConstants.FROM_IN);
+		Result<FaceFeaturesDTO> result = remoteAlgorithmService.getFaceFeatures(facePhoto, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 
 		log.info("人脸资料存储完成 scene=perfect-face success={}", result.isSuccess());
 		if (result.isSuccess() && !StringUtil.isNullOrEmpty(result.getData().getFaceFeature())) {

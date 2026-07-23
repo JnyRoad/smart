@@ -1694,7 +1694,8 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 //		dispatcherDTO.setParkId(parkId);
 //		dispatcherDTO.setData(queryFeatureReq);
 //		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
-		Result<FaceFeaturesDTO> result = remoteAlgorithmService.getFaceFeatures(encodePhoto, SecurityConstants.FROM_IN);
+		Result<FaceFeaturesDTO> result = remoteAlgorithmService.getFaceFeatures(encodePhoto, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("获取人脸特征值 result:{}", result);
 /*		JsonObject data = bodyObject.getAsJsonObject("data");
 		if(null!=data){

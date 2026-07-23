@@ -327,7 +327,8 @@ public class JobServiceImpl implements JobService {
 				UUIDUtils.create(),
 				AlgorithmTypeEnum.COMPARE_FACEALL.getType(),
 				compareDTO,
-				SecurityConstants.FROM_IN)
+				SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)
 				.data();
 
 		if (compare.getSimilarity() < compareValue) {

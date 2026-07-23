@@ -62,7 +62,6 @@ public class PasswordServiceImpl implements PasswordService {
 	private static final int MAX_CHALLENGE_REQUESTS_PER_MINUTE = 5;
 	private static final int MAX_SMS_SEND_ATTEMPTS = 3;
 	private static final int MAX_VERIFY_ATTEMPTS = 5;
-	private static final long SMS_SEND_RESERVATION_TIMEOUT_MILLIS = 60_000L;
 	private static final String SMS_SEND_STATE_READY = "READY";
 	private static final String SMS_SEND_STATE_SENDING = "SENDING";
 	private static final String SMS_SEND_STATE_SENT = "SENT";
@@ -76,11 +75,9 @@ public class PasswordServiceImpl implements PasswordService {
 					+ "if challenge['purpose'] ~= ARGV[1] or challenge['active'] ~= true "
 					+ "or (tonumber(challenge['sendAttempts']) or 0) >= tonumber(ARGV[2]) then return nil; end; "
 					+ "local state = challenge['sendState'] or 'READY'; "
-					+ "if state == 'SENT' then return nil; end; "
-					+ "local now = redis.call('time'); local nowMillis = now[1] * 1000 + math.floor(now[2] / 1000); "
-					+ "if state == 'SENDING' and nowMillis - (tonumber(challenge['sendReservationAt']) or 0) < tonumber(ARGV[3]) then return nil; end; "
+					+ "if state == 'SENDING' or state == 'SENT' then return nil; end; "
 					+ "challenge['sendAttempts'] = (tonumber(challenge['sendAttempts']) or 0) + 1; "
-					+ "challenge['sendState'] = 'SENDING'; challenge['sendReservationId'] = ARGV[4]; challenge['sendReservationAt'] = nowMillis; "
+					+ "challenge['sendState'] = 'SENDING'; challenge['sendReservationId'] = ARGV[3]; "
 					+ "local updated = cjson.encode(challenge); local ttl = redis.call('ttl', KEYS[1]); "
 					+ "if ttl > 0 then redis.call('setex', KEYS[1], ttl, updated); else redis.call('set', KEYS[1], updated); end; "
 					+ "return updated;",
@@ -89,7 +86,7 @@ public class PasswordServiceImpl implements PasswordService {
 			"local value = redis.call('get', KEYS[1]); if not value then return 0; end; "
 					+ "local challenge = cjson.decode(value); "
 					+ "if challenge['sendState'] ~= 'SENDING' or challenge['sendReservationId'] ~= ARGV[1] then return 0; end; "
-					+ "challenge['sendState'] = ARGV[2]; challenge['sendReservationId'] = nil; challenge['sendReservationAt'] = nil; "
+					+ "challenge['sendState'] = ARGV[2]; challenge['sendReservationId'] = nil; "
 					+ "local updated = cjson.encode(challenge); local ttl = redis.call('ttl', KEYS[1]); "
 					+ "if ttl > 0 then redis.call('setex', KEYS[1], ttl, updated); else redis.call('set', KEYS[1], updated); end; return 1;",
 			Long.class);
@@ -166,6 +163,7 @@ public class PasswordServiceImpl implements PasswordService {
 
 	/**
 	 * 通过 Lua 原子创建 challenge 级 SENDING 预约。只有预约赢家能消耗一次发送计数并调用短信 provider。
+	 * SENDING 不会按时间自动接管，直到 challenge 自然到期或 provider 同步失败明确释放。
 	 */
 	private String reserveSmsSendAttempt(String challengeId) {
 		if (StringUtils.isBlank(challengeId)) {
@@ -175,7 +173,7 @@ public class PasswordServiceImpl implements PasswordService {
 			String reservationId = UUID.randomUUID().toString().replace("-", "");
 			return stringRedisTemplate.execute(RESERVE_SMS_SEND_ATTEMPT,
 					Collections.singletonList(CHALLENGE_KEY_PREFIX + challengeId), PASSWORD_RESET_PURPOSE,
-					String.valueOf(MAX_SMS_SEND_ATTEMPTS), String.valueOf(SMS_SEND_RESERVATION_TIMEOUT_MILLIS), reservationId);
+					String.valueOf(MAX_SMS_SEND_ATTEMPTS), reservationId);
 		} catch (Exception e) {
 			// Redis 不可用时不下发短信，防止跳过次数控制而放大短信轰炸风险。
 			log.warn("找回密码短信预占失败 scene=password-reset");
@@ -196,7 +194,7 @@ public class PasswordServiceImpl implements PasswordService {
 					Collections.singletonList(CHALLENGE_KEY_PREFIX + challengeId), reservationId,
 					providerSucceeded ? SMS_SEND_STATE_SENT : SMS_SEND_STATE_READY);
 		} catch (Exception e) {
-			// 状态落库失败时保留 SENDING，预约超时后可恢复，不能直接放开并发下发。
+			// 状态落库失败时保留 SENDING 直到 challenge 自然过期，不能直接放开并发下发。
 			log.warn("找回密码短信预约完成失败 scene=password-reset");
 		}
 	}
@@ -277,7 +275,8 @@ public class PasswordServiceImpl implements PasswordService {
 			// 人脸照片1:1对比
 			//log.info("verifyFace 对比请求参数:[{}]",JSONUtil.toJsonStr(compareDTO));
 			Result<com.tce.smart.algorithm.api.dto.resp.CompareDTO> result = remoteAlgorithmService.compare(UUIDUtils.create(),
-					AlgorithmTypeEnum.COMPARE_FACEALL.getType(), compareDTO, SecurityConstants.FROM_IN);
+					AlgorithmTypeEnum.COMPARE_FACEALL.getType(), compareDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("找回密码人脸比对完成 scene=forget-password success={}", result.isSuccess());
 
 			if (result.isSuccess()) {
