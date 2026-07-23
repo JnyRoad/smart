@@ -10,8 +10,9 @@ security:
         - /v2/api-docs
         - /guide/welcome
         - /login/face
-        - /sms/send/**
-        - /sms/verify/**
+        - /sms/visitor/send
+        - /sms/visitor/verify
+        - /sms/login/send
         - /common/image/view/**
         - /common/download/**
         - /password/mobile/query/**

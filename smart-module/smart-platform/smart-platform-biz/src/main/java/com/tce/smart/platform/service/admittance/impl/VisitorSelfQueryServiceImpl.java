@@ -2,7 +2,9 @@ package com.tce.smart.platform.service.admittance.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tce.smart.app.api.dto.InternalSmsVerifyReqDTO;
 import com.tce.smart.app.api.feign.RemoteAppSmsService;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
@@ -133,7 +135,11 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 	}
 
 	private void verifySmsCode(String mobile, String smsCode) {
-		Result<Boolean> result = remoteAppSmsService.verifySmsCode(mobile, smsCode);
+		InternalSmsVerifyReqDTO request = new InternalSmsVerifyReqDTO();
+		request.setMobile(mobile);
+		request.setSmsCode(smsCode);
+		Result<Boolean> result = remoteAppSmsService.verifySmsCode(request, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (result == null || !result.isSuccess() || !Boolean.TRUE.equals(result.getData())) {
 			throw new SmartException("验证码错误或已过期");
 		}

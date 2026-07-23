@@ -1,5 +1,11 @@
 ## spring security 配置
 security:
+  inner:
+    # App 到 UPMS 的本人手机号同步只使用专属服务令牌。
+    service-token:
+      client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_APP_OAUTH_CLIENT_SECRET:}"
+      access-token-uri: "${SMART_APP_OAUTH_TOKEN_URI:}"
   oauth2:
     client:
       client-id: "${SMART_APP_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # app
@@ -9,8 +15,10 @@ security:
       ignore-urls:
         - /guide/welcome
         - /login/face
-        - /sms/send/**
-        - /sms/verify/**
+        # 匿名访客短信仅保留精确、场景化的 POST JSON 路径；内部校验必须使用服务令牌。
+        - /sms/visitor/send
+        - /sms/visitor/verify
+        - /sms/login/send
         - /common/image/view/**
         - /common/download/**
         - /password/mobile/query/**

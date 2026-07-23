@@ -1,6 +1,8 @@
 package com.tce.smart.platform.service.admittance.impl;
 
+import com.tce.smart.app.api.dto.InternalSmsVerifyReqDTO;
 import com.tce.smart.app.api.feign.RemoteAppSmsService;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
@@ -60,7 +62,10 @@ public class VisitorSelfQueryServiceImplTest {
 		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
 				fellowService, vehicleService);
 		setField(service, "queryTokenSupplier", (Supplier<String>) () -> "tok-fixed");
-		Mockito.when(smsService.verifySmsCode("13712341234", "123456")).thenReturn(Result.success(Boolean.TRUE));
+		Mockito.when(smsService.verifySmsCode(Mockito.argThat(candidate -> candidate != null
+				&& "13712341234".equals(candidate.getMobile()) && "123456".equals(candidate.getSmsCode())),
+				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+				.thenReturn(Result.success(Boolean.TRUE));
 		SmtPark park = new SmtPark();
 		park.setParkName("裕同科技许昌园区");
 		Mockito.when(parkService.getById(5000021)).thenReturn(park);
@@ -86,7 +91,9 @@ public class VisitorSelfQueryServiceImplTest {
 		Assert.assertEquals("ISSUING", records.get(0).getDispatchStatus());
 		Assert.assertEquals(Integer.valueOf(1), records.get(0).getFellowCount());
 		Assert.assertEquals(Collections.singletonList("豫A12345"), records.get(0).getPlates());
-		Mockito.verify(smsService).verifySmsCode("13712341234", "123456");
+		Mockito.verify(smsService).verifySmsCode(Mockito.argThat(candidate -> candidate != null
+				&& "13712341234".equals(candidate.getMobile()) && "123456".equals(candidate.getSmsCode())),
+				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Mockito.verify(valueOperations).set("smart:admittance:visitor-query:tok-fixed", "13712341234", 1L,
 				TimeUnit.DAYS);
 	}
@@ -110,7 +117,8 @@ public class VisitorSelfQueryServiceImplTest {
 
 		Assert.assertEquals("tok-existing", response.getQueryToken());
 		Assert.assertEquals(1, response.getRecords().size());
-		Mockito.verify(smsService, Mockito.never()).verifySmsCode(Mockito.anyString(), Mockito.anyString());
+		Mockito.verify(smsService, Mockito.never()).verifySmsCode(Mockito.any(InternalSmsVerifyReqDTO.class),
+				Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(valueOperations).get("smart:admittance:visitor-query:tok-existing");
 	}
 

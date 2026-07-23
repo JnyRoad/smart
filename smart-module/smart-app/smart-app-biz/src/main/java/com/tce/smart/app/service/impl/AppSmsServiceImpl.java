@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * 短信服务接口
@@ -31,6 +32,16 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class AppSmsServiceImpl implements AppSmsService {
 	private static final Integer MESSAGE_LENGTH = 6;
+	/** 匿名访客同一手机号的最短重发间隔，和 H5 倒计时保持一致。 */
+	private static final long VISITOR_SMS_SEND_COOLDOWN_SECONDS = 60L;
+	/** 单个验证码有效期内最多允许的错误校验次数，避免六位码在线撞库。 */
+	private static final long VISITOR_SMS_MAX_VERIFY_ATTEMPTS = 5L;
+	/** 验证失败计数窗口与验证码有效期一致。 */
+	private static final long VISITOR_SMS_VERIFY_WINDOW_SECONDS = 600L;
+	private static final String VISITOR_SMS_SEND_RATE_KEY = "smart_app:visitor:sms:send:";
+	private static final String LOGIN_SMS_SEND_RATE_KEY = "smart_app:login:sms:send:";
+	private static final String VISITOR_SMS_VERIFY_RATE_KEY = "smart_app:visitor:sms:verify:";
+	private static final Pattern MOBILE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
 
 	@Autowired
 	private StringRedisTemplate stringRedisTemplate;
@@ -66,9 +77,8 @@ public class AppSmsServiceImpl implements AppSmsService {
 			sendSmsErrorAo.setTempCode(SmsTemplateEnum.SMS_12001.getCode());
 			sendSmsErrorAo.setTempNameError(SmsTemplateEnum.SMSCODE_4001.getDesc());
 			sendSmsErrorAo.setRemark(errorMsg);
-			log.info("remoteSmsManageService:"+remoteSmsManageService);
 			Result sendSmsError = remoteSmsManageService.sendSmsError(sendSmsErrorAo);
-			log.info("remoteSmsManageService.sendSmsError Result={} :"+sendSmsError);
+			log.info("短信验证码供应商失败已上报 scene=app-sms success={}", sendSmsError != null && sendSmsError.isSuccess());
 
 			throw new TCEException(result.getCode(), errorMsg);
 		}
@@ -94,6 +104,68 @@ public class AppSmsServiceImpl implements AppSmsService {
 		}
 
 		return Boolean.TRUE;
+	}
+
+	/**
+	 * 匿名访客短信仅允许该显式场景使用。手机号冷却期内返回同一受理结果，
+	 * 既避免重复计费/轰炸，也不把限流状态暴露给攻击者。
+	 */
+	@Override
+	public Boolean sendVisitorSmsCode(String mobile) {
+		return sendPublicSmsCode(mobile, VISITOR_SMS_SEND_RATE_KEY);
+	}
+
+	/**
+	 * 手机号登录保留独立限流命名空间，防止某一访客流程消耗或重置登录流程的冷却状态。
+	 */
+	@Override
+	public Boolean sendLoginSmsCode(String mobile) {
+		return sendPublicSmsCode(mobile, LOGIN_SMS_SEND_RATE_KEY);
+	}
+
+	/**
+	 * 所有匿名发送场景共用的受理逻辑。调用方只能传入代码常量，不能由外部请求指定场景或 Redis 键。
+	 */
+	private Boolean sendPublicSmsCode(String mobile, String rateKeyPrefix) {
+		String normalizedMobile = requireMobile(mobile);
+		String rateKey = rateKeyPrefix + normalizedMobile;
+		Boolean accepted = stringRedisTemplate.opsForValue().setIfAbsent(
+				rateKey, "1", VISITOR_SMS_SEND_COOLDOWN_SECONDS, TimeUnit.SECONDS);
+		if (!Boolean.TRUE.equals(accepted)) {
+			return Boolean.TRUE;
+		}
+		try {
+			return sendSmsCode(normalizedMobile);
+		} catch (RuntimeException e) {
+			// 供应商同步失败时释放本次预约，合法访客可重试；成功或超时不释放，不能放大下发量。
+			stringRedisTemplate.delete(rateKey);
+			throw new TCEException("短信发送失败，请稍后重试");
+		}
+	}
+
+	/**
+	 * 访客验证码错误计数独立于通用内部校验，避免匿名入口无限尝试。
+	 */
+	@Override
+	public Boolean verifyVisitorSmsCode(String mobile, String smsCode) {
+		String normalizedMobile = requireMobile(mobile);
+		if (StringUtils.isEmpty(smsCode) || !smsCode.matches("^\\d{6}$")) {
+			throw new TCEException("验证码错误或已过期");
+		}
+		Long attempts = stringRedisTemplate.opsForValue().increment(VISITOR_SMS_VERIFY_RATE_KEY + normalizedMobile, 1L);
+		if (attempts != null && attempts == 1L) {
+			stringRedisTemplate.expire(VISITOR_SMS_VERIFY_RATE_KEY + normalizedMobile,
+					VISITOR_SMS_VERIFY_WINDOW_SECONDS, TimeUnit.SECONDS);
+		}
+		if (attempts != null && attempts > VISITOR_SMS_MAX_VERIFY_ATTEMPTS) {
+			throw new TCEException("验证码错误或已过期");
+		}
+		try {
+			return verifySmsCode(normalizedMobile, smsCode);
+		} catch (TCEException e) {
+			// 对匿名调用统一错误，不能区分手机号、验证码和有效期的具体状态。
+			throw new TCEException("验证码错误或已过期");
+		}
 	}
 
 	@Override
@@ -123,9 +195,8 @@ public class AppSmsServiceImpl implements AppSmsService {
 			sendSmsErrorAo.setTempCode(SmsTemplateEnum.SMS_12001.getCode());
 			sendSmsErrorAo.setTempNameError(SmsTemplateEnum.SMSCODE_4001.getDesc());
 			sendSmsErrorAo.setRemark(errorMsg);
-			log.info("remoteSmsManageService:"+remoteSmsManageService);
 			Result sendSmsError = remoteSmsManageService.sendSmsError(sendSmsErrorAo);
-			log.info("remoteSmsManageService.sendSmsError Result={} :"+sendSmsError);
+			log.info("短信验证码供应商失败已上报 scene=app-sms success={}", sendSmsError != null && sendSmsError.isSuccess());
 
 			throw new TCEException(result.getCode(), errorMsg);
 		}
@@ -150,6 +221,17 @@ public class AppSmsServiceImpl implements AppSmsService {
 			return "***";
 		}
 		return mobile.substring(0, 3) + "****" + mobile.substring(mobile.length() - 4);
+	}
+
+	/**
+	 * 入口手机号只接受中国大陆 11 位移动号码；拒绝而非纠正输入，避免号码混淆进入 Redis 键或短信供应商。
+	 */
+	private String requireMobile(String mobile) {
+		String normalizedMobile = mobile == null ? null : mobile.trim();
+		if (normalizedMobile == null || !MOBILE_PATTERN.matcher(normalizedMobile).matches()) {
+			throw new TCEException("短信请求无效");
+		}
+		return normalizedMobile;
 	}
 
 }
