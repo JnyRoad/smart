@@ -19,9 +19,9 @@ import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.common.core.util.HttpUtils;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
-import com.tce.smart.platform.api.dto.resp.StaffInfoRespDTO;
-import com.tce.smart.platform.api.feign.RemoteStaffService;
+import com.tce.smart.platform.api.dto.req.InternalStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffPhoneRespDTO;
+import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import com.tce.smart.tool.constant.DictConstants;
 import io.netty.util.internal.StringUtil;
 import lombok.Data;
@@ -73,7 +73,7 @@ public class SettingServiceImpl implements SettingService {
 	private AppSmsService appSmsService;
 
 	@Autowired
-	private RemoteStaffService remoteStaffService;
+	private RemoteStaffInternalService remoteStaffInternalService;
 
 	@Autowired
 	private RemoteUserService remoteUserService;
@@ -127,12 +127,12 @@ public class SettingServiceImpl implements SettingService {
 	@Override
 	public boolean verifyOldMobile(String mobile, String smsCode) {
 
-		Result<StaffInfoRespDTO> result = remoteStaffService.getBaseinfoByBadge(SecurityUtils.getUser().getUsername(), SecurityConstants.FROM_IN);
+		Result<InternalStaffPhoneRespDTO> result = remoteStaffInternalService.getPasswordPhone(
+				SecurityUtils.getUser().getUsername(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (!result.isSuccess() || Objects.isNull(result.getData())) {
 			throw new TCEException("获取员工信息异常");
 		}
-		StaffInfoRespDTO staffInfoVO = result.getData();
-		String staffPhone = staffInfoVO.getSmtStaff().getPhone();
+		String staffPhone = result.getData().getPhone();
 		if (StringUtils.isBlank(staffPhone) || !StringUtils.equals(mobile.trim(),staffPhone.trim())) {
 			throw new TCEException("手机号错误，请联系人资管理员，修改预留手机号");
 		}
@@ -166,11 +166,15 @@ public class SettingServiceImpl implements SettingService {
 			LoginResult result = HttpUtils.parse(response, LoginResult.class);
 			assert result != null;
 			if (result.getType().equals(1) && result.getErrorcode().equals(0)) {
-				// 修改本地smt_staff数据
-				SmtStaffDTO staff = new SmtStaffDTO();
+				// 修改本地 smt_staff 数据，使用最小内部更新请求避免透传员工实体。
+				InternalStaffPhoneUpdateReqDTO staff = new InternalStaffPhoneUpdateReqDTO();
 				staff.setBadge(user.getUsername());
 				staff.setPhone(mobile);
-				remoteStaffService.updatePhone(staff);
+				Result<Boolean> staffUpdate = remoteStaffInternalService.updatePhone(staff,
+						SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				if (!staffUpdate.isSuccess() || !Boolean.TRUE.equals(staffUpdate.getData())) {
+					throw new TCEException("员工手机号更新失败");
+				}
 				// 修改sys_user 表数据
 				UserDTO  needUpdate = new UserDTO();
 				needUpdate.setUsername(user.getUsername());

@@ -19,10 +19,9 @@ import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.common.core.util.EncDecryUtils;
 import com.tce.smart.common.core.util.UUIDUtils;
 import com.tce.smart.platform.api.dto.resp.InternalStaffPasswordRespDTO;
-import com.tce.smart.platform.api.dto.resp.StaffInfoRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffPhoneRespDTO;
 import com.tce.smart.platform.api.feign.RemoteSmtImageService;
 import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
-import com.tce.smart.platform.api.feign.RemoteStaffService;
 import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
@@ -56,9 +55,6 @@ public class PasswordServiceImpl implements PasswordService {
 	private StringRedisTemplate stringRedisTemplate;
 
 	@Autowired
-	private RemoteStaffService remoteStaffService;
-
-	@Autowired
 	private RemoteStaffInternalService remoteStaffInternalService;
 
 	@Autowired
@@ -78,38 +74,20 @@ public class PasswordServiceImpl implements PasswordService {
 
 	@Override
 	public String queryMobile(String badge) {
-		Result<StaffInfoRespDTO> result = remoteStaffService.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN);
-		if (!result.isSuccess() || Objects.isNull(result.getData())) {
-			throw new TCEException(result.getMessage());
-		}
-
-		StaffInfoRespDTO staffInfoVO = result.getData();
-		//String mobile = staffInfoVO.getSmtStaff().getPhone().replaceAll("(\\d{3})\\d{6}(\\d{2})", "$1******$2");
-		String mobile = staffInfoVO.getSmtStaff().getPhone();
-		return mobile;
+		return passwordPhone(badge).getMaskedPhone();
 	}
 
 	@Override
-	public Boolean sendSmsCode(String badge, String mobile) {
-		// 检查手机号
-		try {
-			checkMobile(badge, mobile);
-		}catch (Exception e){
-			throw new TCEException(e.getMessage());
-		}
-		// 发送短信验证码
-		appSmsService.sendSmsCode(mobile);
+	public Boolean sendSmsCode(String badge) {
+		// 手机号仅在服务端取得，客户端不得提交或获知完整值。
+		appSmsService.sendSmsCode(passwordPhone(badge).getPhone());
 		return Boolean.TRUE;
 	}
 
 	@Override
-	public String verifySmsCode(String badge, String mobile, String smsCode) {
-
-		// 检查手机号
-		checkMobile(badge, mobile);
-
+	public String verifySmsCode(String badge, String smsCode) {
 		// 校验短信验证码
-		appSmsService.verifySmsCode(mobile, smsCode);
+		appSmsService.verifySmsCode(passwordPhone(badge).getPhone(), smsCode);
 
 		// 短信验证校验成功授权码
 		String verifySuccessCode = saveRedisCode(badge);
@@ -229,17 +207,13 @@ public class PasswordServiceImpl implements PasswordService {
 		return isBind;
 	}
 
-	private void checkMobile(String badge, String mobile) {
-		Result<StaffInfoRespDTO> result = remoteStaffService.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN);
-		if (!result.isSuccess() || Objects.isNull(result.getData())) {
+	private InternalStaffPhoneRespDTO passwordPhone(String badge) {
+		Result<InternalStaffPhoneRespDTO> result = remoteStaffInternalService.getPasswordPhone(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		if (!result.isSuccess() || Objects.isNull(result.getData()) || StringUtils.isBlank(result.getData().getPhone())) {
 			throw new TCEException("获取员工信息异常");
 		}
-
-		StaffInfoRespDTO staffInfoVO = result.getData();
-		String staffPhone = staffInfoVO.getSmtStaff().getPhone();
-		if (StringUtils.isBlank(staffPhone) || !staffPhone.trim().equals(mobile.trim())) {
-			throw new TCEException("手机号错误，请联系人资管理员，修改预留手机号");
-		}
+		return result.getData();
 	}
 
 }

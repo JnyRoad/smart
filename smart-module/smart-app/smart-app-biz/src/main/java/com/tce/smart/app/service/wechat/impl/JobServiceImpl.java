@@ -64,6 +64,9 @@ public class JobServiceImpl implements JobService {
 	private RemoteRecruitmentService remoteRecruit;
 
 	@Autowired
+	private RemoteStaffInternalService remoteStaffInternalService;
+
+	@Autowired
 	private RemoteDictService remoteDictService;
 
 	@Autowired
@@ -736,27 +739,41 @@ public class JobServiceImpl implements JobService {
 	public EmployeeVo getBaseinfo(String badge) {
 		// TODO Auto-generated method stub
 		// 获取员工号
-		if (StringUtils.isBlank(badge)) {
-			badge = SecurityUtils.getUser().getUsername();
+		badge = requireSelfBadge(badge);
+		Result<InternalStaffSelfProfileRespDTO> profileResult = remoteStaffInternalService.getSelfProfile(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		if (!profileResult.isSuccess() || profileResult.getData() == null) {
+			throw new TCEException("获取员工信息异常");
 		}
-		// 远程调用获取员工基本信息
-		StaffInfoRespDTO staff = remoteStaff.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN).data();
+		InternalStaffSelfProfileRespDTO staff = profileResult.getData();
 
 		EmployeeVo employeeVo = new EmployeeVo();
-		employeeVo.setEmployeeName(staff.getSmtStaff().getName());
-		employeeVo.setMobile(staff.getSmtStaff().getPhone());
-		employeeVo.setBuName(staff.getSmtStaff().getCompName());
-		employeeVo.setDeptName(staff.getSmtStaff().getDepName());
-		employeeVo.setEntryDate(staff.getSmtStaff().getCreateTime());
+		employeeVo.setEmployeeName(staff.getName());
+		employeeVo.setMobile(staff.getPhone());
+		employeeVo.setBuName(staff.getCompName());
+		employeeVo.setDeptName(staff.getDepName());
+		employeeVo.setEntryDate(staff.getCreateTime());
 		employeeVo.setDormitoryState(Objects.nonNull(staff.getDormitoryState()) ? String.valueOf(staff.getDormitoryState()) : null);
 		employeeVo.setDormitoryStateDesc(staff.getDormitoryStateDesc());
 		employeeVo.setVehicleState(staff.getVehicleState().toString());
 		employeeVo.setVehicleStateDesc(staff.getVehicleStateDesc());
-		employeeVo.setEmployeeSex(staff.getSmtStaff().getSex());
-		employeeVo.setEmployeeCardNo(staff.getSmtStaff().getCertno());
-		employeeVo.setJobName(staff.getSmtStaff().getJobName());
-		employeeVo.setJcheName(staff.getSmtStaff().getJcheName());
+		employeeVo.setEmployeeSex(staff.getSex());
+		employeeVo.setEmployeeCardNo(staff.getCertno());
+		employeeVo.setJobName(staff.getJobName());
+		employeeVo.setJcheName(staff.getJcheName());
 		return employeeVo;
+	}
+
+	/** 微信端个人资料仅允许读取当前认证员工。 */
+	private String requireSelfBadge(String requestedBadge) {
+		String currentBadge = SecurityUtils.getUser().getUsername();
+		if (StringUtils.isBlank(currentBadge)) {
+			throw new TCEException("当前登录员工信息缺失");
+		}
+		if (StringUtils.isNotBlank(requestedBadge) && !currentBadge.equals(requestedBadge)) {
+			throw new TCEException("无权查询其他员工资料");
+		}
+		return currentBadge;
 	}
 
 

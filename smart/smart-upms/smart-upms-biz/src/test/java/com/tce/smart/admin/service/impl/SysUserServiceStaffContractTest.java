@@ -37,5 +37,15 @@ public class SysUserServiceStaffContractTest {
 				"src/main/java/com/tce/smart/admin/service/impl/SysUserServiceImpl.java")), StandardCharsets.UTF_8);
 		assertFalse(source.contains("getSimpleSttaffByBadge("));
 		assertFalse(source.contains("remoteStaffService.getSimpleSttaffByBadge.rs="));
+		assertFalse("手机号登录不得调用公开员工实体查询", source.contains("remoteStaffService.queryMobile("));
+		assertFalse("手机号登录不得消费 SmtStaffDTO", source.contains("SmtStaffDTO"));
+	}
+
+	@Test
+	public void upmsFeignDoesNotExposeLegacyMobileOrFaceEntityHandlers() throws Exception {
+		for (Method method : RemoteStaffService.class.getMethods()) {
+			assertFalse("UPMS Feign 不得保留公开手机号员工实体查询", "queryMobile".equals(method.getName()));
+			assertFalse("UPMS Feign 不得保留公开人脸员工实体查询", "faceSearchForLogin".equals(method.getName()));
+		}
 	}
 }

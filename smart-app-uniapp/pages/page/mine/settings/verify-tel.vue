@@ -57,7 +57,7 @@
 				}
 				this.cutTime()
 				try{
-					const res = await apiPassword.sendSms(this.badge, this.tel)
+					const res = await apiPassword.sendSms(this.badge)
 					if (!res) return
 					this.$ytHint.toast({
 						title: '验证码发送成功',

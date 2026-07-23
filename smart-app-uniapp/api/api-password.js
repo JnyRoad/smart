@@ -13,12 +13,12 @@ import {
 // 导出 密码找回 接口信息
 export default {
 	// 发送短息验证码
-	sendSms (badge, mobile) {
-		return axios.get(`${API_SMS_SEND}?mobile=${mobile}&badge=${badge}`)
+	sendSms (badge) {
+		return axios.get(`${API_SMS_SEND}?badge=${badge}`)
 	},
 	// 校验短信验证码
 	verifySms (obj) {
-		return axios.get(`${API_SMS_VERIFY}?mobile=${obj.mobile}&smsCode=${obj.smsCode}&badge=${obj.badge}`)
+		return axios.get(`${API_SMS_VERIFY}?smsCode=${obj.smsCode}&badge=${obj.badge}`)
 	},
 	// 设置密码
 	updatePassword (obj) {

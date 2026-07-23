@@ -36,36 +36,32 @@ public class PasswordController extends BaseController {
 	 * @return
 	 */
 	@GetMapping("/mobile/query")
-	public Result<?> sendSmsCode(@RequestParam(value = "badge", required = true) String badge) {
+	public Result<?> queryMaskedMobile(@RequestParam(value = "badge", required = true) String badge) {
 		return success(passwordService.queryMobile(badge));
 	}
 
 	/**
 	 * 发送短信验证码
 	 *
-	 * @param badge  员工号
-	 * @param mobile 手机号
+	 * @param badge 员工号
 	 * @return
 	 */
 	@GetMapping("/sms/send")
-	public Result<?> sendSmsCode(@RequestParam(value = "badge", required = true) String badge,
-			@RequestParam(value = "mobile", required = true) String mobile) {
-		return success(passwordService.sendSmsCode(badge, mobile));
+	public Result<?> sendSmsCode(@RequestParam(value = "badge", required = true) String badge) {
+		return success(passwordService.sendSmsCode(badge));
 	}
 
 	/**
 	 * 校验短信验证码
 	 *
 	 * @param badge   员工号
-	 * @param mobile  手机号
 	 * @param smsCode 短信验证码
 	 * @return
 	 */
 	@GetMapping("/verify")
 	public Result<?> verifySmsCode(@RequestParam(value = "badge", required = true) String badge,
-			@RequestParam(value = "mobile", required = true) String mobile,
 			@RequestParam(value = "smsCode", required = true) String smsCode) {
-		return success(passwordService.verifySmsCode(badge, mobile, smsCode));
+		return success(passwordService.verifySmsCode(badge, smsCode));
 	}
 
 	/**

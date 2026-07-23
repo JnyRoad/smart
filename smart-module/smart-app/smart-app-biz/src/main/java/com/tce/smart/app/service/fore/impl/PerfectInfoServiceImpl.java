@@ -94,8 +94,8 @@ public class PerfectInfoServiceImpl implements PerfectInfoService {
 	public CheckPerfectCardVo checkOcrInfo(CheckPerfectCardDto checkPerfectCardDto) {
 		String badge = SecurityUtils.getUser().getUsername();
 		// 查询员工信息
-		Result<InternalStaffIdentityRespDTO> identityStaffResponse = remoteStaffInternalService.getIdentityStaff(badge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<InternalStaffIdentityRespDTO> identityStaffResponse = remoteStaffInternalService.getIdentityStaff(badge,
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "ocr-compare");
 		if (!identityStaffResponse.isSuccess() || Objects.isNull(identityStaffResponse.getData())) {
 			throw new TCEException("查询员工信息失败");
 		}

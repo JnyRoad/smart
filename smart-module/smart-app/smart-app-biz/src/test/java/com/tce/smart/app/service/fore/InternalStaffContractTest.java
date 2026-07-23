@@ -5,6 +5,8 @@ import com.tce.smart.platform.api.dto.resp.InternalStaffBindingRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffIdentityRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffModuleRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffPasswordRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffFaceLoginRespDTO;
+import com.tce.smart.platform.api.dto.req.InternalStaffFaceLoginReqDTO;
 import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import org.junit.Test;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -40,7 +42,8 @@ public class InternalStaffContractTest {
 		assertInternalHeaders("getBindingStaff");
 		assertInternalHeaders("getModuleStaff");
 		assertInternalHeaders("getPasswordStaff");
-		assertInternalHeaders("getIdentityStaff");
+		assertIdentityHeaders();
+		assertFaceLoginHeaders();
 	}
 
 	@Test
@@ -49,17 +52,22 @@ public class InternalStaffContractTest {
 		assertFields(InternalStaffModuleRespDTO.class, "badge", "compId");
 		assertFields(InternalStaffPasswordRespDTO.class, "staffId", "badge", "facePicId");
 		assertFields(InternalStaffIdentityRespDTO.class, "staffId", "badge", "name", "certno");
+		assertFields(InternalStaffFaceLoginRespDTO.class, "badge");
+		assertFields(InternalStaffFaceLoginReqDTO.class, "facePic", "deviceNo");
 	}
 
 	@Test
 	public void appBusinessServicesDoNotUseLegacyStaffEntityLookupOrLogIt() throws IOException {
 		String[] relativePaths = {
 				"fore/impl/PasswordServiceImpl.java",
+				"fore/impl/EmployeeServiceImpl.java",
+				"fore/impl/SettingServiceImpl.java",
 				"fore/impl/ForeModuleServiceImpl.java",
 				"fore/impl/BadgeLossServiceImpl.java",
 				"fore/impl/PerfectInfoServiceImpl.java",
 				"fore/impl/IcbcCommonServiceImpl.java",
-				"impl/AppWechatBindingServiceImpl.java"
+				"impl/AppWechatBindingServiceImpl.java",
+				"wechat/impl/JobServiceImpl.java"
 		};
 
 		for (String relativePath : relativePaths) {
@@ -68,7 +76,25 @@ public class InternalStaffContractTest {
 					source.contains("getSimpleSttaffByBadge("));
 			assertFalse("业务服务不得记录完整员工查询结果：" + relativePath,
 					source.contains("staffResult"));
+			assertFalse("业务服务不得消费旧 StaffInfoRespDTO：" + relativePath,
+					source.contains("StaffInfoRespDTO"));
+			if (relativePath.contains("EmployeeServiceImpl") || relativePath.contains("SettingServiceImpl")) {
+				assertFalse("员工设置服务不得消费 SmtStaffDTO：" + relativePath,
+						source.contains("SmtStaffDTO"));
+			}
 		}
+	}
+
+	@Test
+	public void passwordAndIcbcEndpointsDoNotReturnRawPhoneOrIdentityHtml() throws IOException {
+		String controllerRoot = "src/main/java/com/tce/smart/app/controller/fore/";
+		String passwordController = read(controllerRoot + "PasswordController.java");
+		String icbcController = read(controllerRoot + "IcbcCommonController.java");
+		String icbcService = read(APP_SOURCE_ROOT + "/fore/impl/IcbcCommonServiceImpl.java");
+
+		assertFalse("找回密码接口不得接收客户端回传的完整手机号", passwordController.contains("@RequestParam(value = \"mobile\""));
+		assertFalse("银行实名接口不得回传 HTML 表单", icbcController.contains("ResponseEntity<String>"));
+		assertFalse("银行实名接口不得向客户端构造包含身份证的表单", icbcService.contains("buildPostForm("));
 	}
 
 	private void assertInternalHeaders(String methodName) throws Exception {
@@ -81,6 +107,32 @@ public class InternalStaffContractTest {
 		assertNotNull("服务令牌标记必须显式声明", serviceAuthHeader);
 		assertEquals(SecurityConstants.FROM, fromHeader.value());
 		assertEquals(SecurityConstants.INTERNAL_SERVICE_AUTH, serviceAuthHeader.value());
+	}
+
+	private void assertIdentityHeaders() throws Exception {
+		Method method = RemoteStaffInternalService.class.getMethod("getIdentityStaff",
+				String.class, String.class, String.class, String.class);
+		RequestHeader purposeHeader = method.getParameters()[3].getAnnotation(RequestHeader.class);
+		assertNotNull("身份资料调用必须显式声明用途", purposeHeader);
+		assertEquals("X-Smart-Internal-Purpose", purposeHeader.value());
+	}
+
+	private void assertFaceLoginHeaders() throws Exception {
+		Method method = RemoteStaffInternalService.class.getMethod("faceLogin",
+				InternalStaffFaceLoginReqDTO.class, String.class, String.class, String.class);
+		RequestHeader fromHeader = method.getParameters()[1].getAnnotation(RequestHeader.class);
+		RequestHeader serviceAuthHeader = method.getParameters()[2].getAnnotation(RequestHeader.class);
+		RequestHeader purposeHeader = method.getParameters()[3].getAnnotation(RequestHeader.class);
+		assertNotNull("人脸登录必须声明内部来源", fromHeader);
+		assertNotNull("人脸登录必须声明服务令牌标记", serviceAuthHeader);
+		assertNotNull("人脸登录必须声明调用用途", purposeHeader);
+		assertEquals(SecurityConstants.FROM, fromHeader.value());
+		assertEquals(SecurityConstants.INTERNAL_SERVICE_AUTH, serviceAuthHeader.value());
+		assertEquals("X-Smart-Internal-Purpose", purposeHeader.value());
+	}
+
+	private String read(String relativePath) throws IOException {
+		return new String(Files.readAllBytes(Paths.get(relativePath)), StandardCharsets.UTF_8);
 	}
 
 	private void assertFields(Class<?> type, String... expectedFields) {

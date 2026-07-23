@@ -32,6 +32,7 @@ import com.tce.smart.common.core.model.ResultData;
 import com.tce.smart.common.core.util.*;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.resp.InternalStaffProvisioningRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffLoginRespDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -302,15 +303,19 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				.lambda().eq(SysUser::getPhone, mobile).eq(SysUser::getDelFlag,0)
 		);
 		if (Objects.isNull(users) || users.size() < 1) {
-			Result<List<SmtStaffDTO>> listResult = remoteStaffService.queryMobile(mobile, SecurityConstants.FROM_IN);
+			Result<List<InternalStaffLoginRespDTO>> listResult = remoteStaffService.getLoginStaffByMobile(mobile,
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if(listResult.isSuccess()){
-				List<SmtStaffDTO> data = listResult.getData();
+				List<InternalStaffLoginRespDTO> data = listResult.getData();
 				if(data.size() > 1){
 					throw new TCEException("验证码登录失败，此手机号码关联多个员工信息");
 				}else if(data.size() == 1){
 					SysUser sysUser = new SysUser();
 					sysUser.setUsername(data.get(0).getBadge());
-					String pwd = data.get(0).getCertno().substring(data.get(0).getCertno().length() - 6);
+					String pwd = data.get(0).getCertNoLast6();
+					if (StrUtil.isBlank(pwd)) {
+						throw new TCEException("员工证件信息不完整，无法初始化账号");
+					}
 					sysUser.setPassword(ENCODER.encode(pwd));
 					sysUser.setCreateTime(LocalDateTime.now());
 					sysUser.setUpdateTime(LocalDateTime.now());

@@ -21,21 +21,19 @@ public interface PasswordService {
 	/**
 	 * 发送短信验证码
 	 *
-	 * @param badge  员工工号
-	 * @param mobile 手机号码
+	 * @param badge 员工工号
 	 * @return true-成功
 	 */
-	Boolean sendSmsCode(String badge, String mobile);
+	Boolean sendSmsCode(String badge);
 
 	/**
 	 * 校验短信验证码
 	 *
 	 * @param badge   员工号
-	 * @param mobile  手机号
 	 * @param smsCode 短信验证码
 	 * @return 校验成功授权码
 	 */
-	String verifySmsCode(String badge, String mobile, String smsCode);
+	String verifySmsCode(String badge, String smsCode);
 
 	/**
 	 * 人脸识别校验

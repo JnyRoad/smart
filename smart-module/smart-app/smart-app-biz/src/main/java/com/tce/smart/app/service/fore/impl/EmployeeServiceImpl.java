@@ -30,15 +30,15 @@ import com.tce.smart.data.api.feign.consume.RemoteRsEmpPhotoService;
 import com.tce.smart.data.api.feign.dhrview.RemoteYutoDhrYsService;
 import com.tce.smart.data.api.feign.ehrview.RemoteEvwEmphrYsService;
 import com.tce.smart.platform.api.dto.SmtOutDormitoryStaffDTO;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.InDormitoryReqDTO;
 import com.tce.smart.platform.api.dto.req.StaffEmergencyReqDTO;
 import com.tce.smart.platform.api.dto.req.StaffPerfectReqDTO;
 import com.tce.smart.platform.api.dto.resp.MyDormitoryRespDTO;
-import com.tce.smart.platform.api.dto.resp.StaffInfoRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffSelfProfileRespDTO;
 import com.tce.smart.platform.api.feign.RemoteCallowanceCancelRecordService;
 import com.tce.smart.platform.api.feign.RemoteOutDormitoryStaffService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
+import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import com.tce.smart.tool.constant.DictConstants;
 import com.tce.smart.tool.enums.*;
 import com.tce.smart.tool.exception.TCEException;
@@ -64,6 +64,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Autowired
 	private RemoteStaffService remoteStaff;
+
+	@Autowired
+	private RemoteStaffInternalService remoteStaffInternalService;
 
 	@Autowired
 	private RemoteDictService remoteDictService;
@@ -101,36 +104,33 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public EmployeeVo getBaseinfo(String badge) {
 		// 获取员工号
-		if (StringUtils.isBlank(badge)) {
-			badge = SecurityUtils.getUser().getUsername();
-		}
-		// 远程调用获取员工基本信息
-		StaffInfoRespDTO staff = remoteStaff.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN).data();
+		badge = requireSelfBadge(badge);
+		InternalStaffSelfProfileRespDTO staff = selfProfile(badge);
 
 		EmployeeVo employeeVo = new EmployeeVo();
-		employeeVo.setEmployeeBadge(staff.getSmtStaff().getBadge());
-		employeeVo.setEmployeeName(staff.getSmtStaff().getName());
-		employeeVo.setMobile(staff.getSmtStaff().getPhone());
-		employeeVo.setEmployeeSex(staff.getSmtStaff().getSex());
-		employeeVo.setBuName(staff.getSmtStaff().getCompName());
-		employeeVo.setDeptName(staff.getSmtStaff().getDepName());
-		employeeVo.setJobName(staff.getSmtStaff().getJobName());
+		employeeVo.setEmployeeBadge(staff.getBadge());
+		employeeVo.setEmployeeName(staff.getName());
+		employeeVo.setMobile(staff.getPhone());
+		employeeVo.setEmployeeSex(staff.getSex());
+		employeeVo.setBuName(staff.getCompName());
+		employeeVo.setDeptName(staff.getDepName());
+		employeeVo.setJobName(staff.getJobName());
 		employeeVo.setIsSecurityGuard(employeeVo.getJobName() != null && employeeVo.getJobName().contains("保安") ? 0 : 1);
-		employeeVo.setEmployeePhoto(appCommService.buildHqImageUrl(staff.getSmtStaff().getFacePicId()));
-		employeeVo.setEntryDate(staff.getSmtStaff().getCreateTime());
+		employeeVo.setEmployeePhoto(appCommService.buildHqImageUrl(staff.getFacePicId()));
+		employeeVo.setEntryDate(staff.getCreateTime());
 		employeeVo.setParkName(staff.getParkName());
 		employeeVo.setDormitoryState(Objects.nonNull(staff.getDormitoryState()) ? String.valueOf(staff.getDormitoryState()) : null);
 		employeeVo.setDormitoryStateDesc(staff.getDormitoryStateDesc());
 		employeeVo.setVehicleState(staff.getVehicleState().toString());
 		employeeVo.setVehicleStateDesc(staff.getVehicleStateDesc());
 		employeeVo.setStatus(staff.getStatus());
-		employeeVo.setJcheName(staff.getSmtStaff().getJcheName());
+		employeeVo.setJcheName(staff.getJcheName());
 		employeeVo.setStatusDes(staff.getStatusDes());
-		employeeVo.setEmployeeCardNo(staff.getSmtStaff().getCertno());
+		employeeVo.setEmployeeCardNo(staff.getCertno());
 		employeeVo.setEmpType(staff.getEmpType());
 		employeeVo.setEmpTypeDes(staff.getEmpTypeDes());
 		employeeVo.setApplyState(staff.getApplyState());
-		employeeVo.setWelfareLevel(staff.getSmtStaff().getWelfareLevel());
+		employeeVo.setWelfareLevel(staff.getWelfareLevel());
 		employeeVo.setApplyStateDesc(staff.getApplyStateDesc());
 		Result<String> attribute = remoteYutoDhrYsService.getProperties(employeeVo.getEmployeeBadge(), SecurityConstants.FROM_IN);
 		if(Objects.nonNull(attribute.getData())) {
@@ -146,44 +146,41 @@ public class EmployeeServiceImpl implements EmployeeService {
 	public EmployeeInfoVo getFullinfo(String badge) {
 		// TODO Auto-generated method stub
 		// 获取员工号
-		if (StringUtils.isBlank(badge)) {
-			badge = SecurityUtils.getUser().getUsername();
-		}
-		StaffInfoRespDTO staffVo = remoteStaff.getFullByBadge(badge, SecurityConstants.FROM_IN).data();
+		badge = requireSelfBadge(badge);
+		InternalStaffSelfProfileRespDTO staffVo = selfProfile(badge);
 		List<SysDict> findByType = remoteDictService.findByType(DictConstants.REALTION_TYPE, SecurityConstants.FROM_IN).data();
 
-		SmtStaffDTO staff = staffVo.getSmtStaff();
 		EmployeeInfoVo emp = new EmployeeInfoVo();
-		emp.setEmployeeId(staff.getBadge());
-		emp.setEmployeeName(staff.getName());
-		emp.setIdentification(staff.getCertno());
+		emp.setEmployeeId(staffVo.getBadge());
+		emp.setEmployeeName(staffVo.getName());
+		emp.setIdentification(staffVo.getCertno());
 		emp.setEmployeePhoto(ImageUtils.changeFullBase64(staffVo.getFacePic()));
-		emp.setBuName(staff.getCompName());
-		emp.setDeptName(staff.getDepName());
-		emp.setJobName(staff.getJobName());
-		emp.setJobLeve(staff.getJcheName());
-		emp.setMobile(staff.getPhone());
-		emp.setEmail(staff.getEmail());
-		emp.setEmpType(staff.getEmpType());
+		emp.setBuName(staffVo.getCompName());
+		emp.setDeptName(staffVo.getDepName());
+		emp.setJobName(staffVo.getJobName());
+		emp.setJobLeve(staffVo.getJcheName());
+		emp.setMobile(staffVo.getPhone());
+		emp.setEmail(staffVo.getEmail());
+		emp.setEmpType(staffVo.getEmpType());
 		emp.setParkName(staffVo.getParkName());
 		emp.setEmpTypeDes("");
 		if (Objects.nonNull(emp.getEmpType())) {
 			emp.setEmpTypeDes(EmpTypeEnum.desc(emp.getEmpType()));
 		}
-		emp.setJobLevelflag(staff.getWelfareLevel());
-		if (CollectionUtils.isNotEmpty(staffVo.getSmtStaffEmergency())) {
+		emp.setJobLevelflag(staffVo.getWelfareLevel());
+		if (StringUtils.isNotBlank(staffVo.getEmergencyName())) {
 			if (CollectionUtils.isNotEmpty(findByType)) {
 				for (SysDict sysDict : findByType) {
-					if (staffVo.getSmtStaffEmergency().get(0).getRelation().equals(sysDict.getValue())) {
+					if (staffVo.getEmergencyRelation().equals(sysDict.getValue())) {
 						emp.setRelation(sysDict.getLabel());
 						break;
 					}
 				}
 			}
-			emp.setEmergencyName(staffVo.getSmtStaffEmergency().get(0).getEmergencyName());
-			emp.setEmergencyPhone(staffVo.getSmtStaffEmergency().get(0).getTelephont());
+			emp.setEmergencyName(staffVo.getEmergencyName());
+			emp.setEmergencyPhone(staffVo.getEmergencyPhone());
 		}
-		emp.setEntryDate(staff.getCreateTime());
+		emp.setEntryDate(staffVo.getCreateTime());
 		return emp;
 	}
 
@@ -240,9 +237,12 @@ public class EmployeeServiceImpl implements EmployeeService {
 	public RoomDetailVo roomDetail() {
 		// TODO Auto-generated method stub
 		String badge = SecurityUtils.getUser().getUsername(); // 获取员工号
-		SmtStaffDTO staff = new SmtStaffDTO();
-		staff.setBadge(badge);
-		MyDormitoryRespDTO apply = remoteStaff.myDormitory(staff, SecurityConstants.FROM_IN).data();
+		Result<MyDormitoryRespDTO> dormitoryResult = remoteStaffInternalService.getMyDormitory(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		if (!dormitoryResult.isSuccess() || dormitoryResult.getData() == null) {
+			throw new TCEException("获取宿舍信息异常");
+		}
+		MyDormitoryRespDTO apply = dormitoryResult.getData();
 
 		RoomDetailVo vo = new RoomDetailVo();
 		vo.setBuildingName(apply.getDormitoryName());
@@ -425,7 +425,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			throw new TCEException("员工号缺失");
 		}
 		//临时人员不查询薪资
-		StaffInfoRespDTO staff = remoteStaff.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN).data();
+		InternalStaffSelfProfileRespDTO staff = selfProfile(requireSelfBadge(badge));
 		if(Objects.nonNull(staff)) {
 			if (staff.getStatus().equals(StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode())) {
 				return null;
@@ -435,6 +435,27 @@ public class EmployeeServiceImpl implements EmployeeService {
 		employeeSalayType.setBadge(badge);
 		employeeSalayType.setSalaryTypeName(data.getSalarytypeName());
 		return employeeSalayType;
+	}
+
+	/** 资料类接口只能查询当前认证员工，防止客户端替换工号越权读取。 */
+	private String requireSelfBadge(String requestedBadge) {
+		String currentBadge = SecurityUtils.getUser().getUsername();
+		if (StringUtils.isBlank(currentBadge)) {
+			throw new TCEException("当前登录员工信息缺失");
+		}
+		if (StringUtils.isNotBlank(requestedBadge) && !currentBadge.equals(requestedBadge)) {
+			throw new TCEException("无权查询其他员工资料");
+		}
+		return currentBadge;
+	}
+
+	private InternalStaffSelfProfileRespDTO selfProfile(String badge) {
+		Result<InternalStaffSelfProfileRespDTO> result = remoteStaffInternalService.getSelfProfile(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		if (!result.isSuccess() || result.getData() == null) {
+			throw new TCEException("获取员工信息异常");
+		}
+		return result.getData();
 	}
 
 	@Override
