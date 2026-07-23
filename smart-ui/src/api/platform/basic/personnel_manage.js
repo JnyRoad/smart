@@ -290,17 +290,41 @@ export function getStaffPage(query, {
 
 
 /**
- * 搜索主管列表
+ * 将后台员工查询响应投影为页面选择控件所需的最小字段。
+ *
+ * 这里不能透传接口新增字段，避免证件号、手机号等敏感数据重新进入管理端内存。
+ */
+export function normalizeLookup(staff) {
+  return {
+    id: staff.staffId,
+    badge: staff.badge,
+    name: staff.name,
+    departmentName: staff.departmentName
+  }
+}
+
+/**
+ * 搜索主管列表。
+ *
+ * 后端只返回当前管理员园区范围内的最小员工信息。
  */
 export function getSearchStaff({
   badge
 }) {
   return request({
-    url: '/platform/staff/simple/badge',
+    url: '/platform/staff/lookup',
     method: 'get',
     params: {
       badge: badge
     }
+  }).then(response => {
+    const body = response && response.data ? response.data : {}
+    const staffList = Array.isArray(body.data) ? body.data : []
+    return Object.assign({}, response, {
+      data: Object.assign({}, body, {
+        data: staffList.map(normalizeLookup)
+      })
+    })
   })
 }
 

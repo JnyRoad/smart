@@ -18,13 +18,6 @@ export function fetchList (query) {
     data: query
   })
 }
-export function getStaffByBadge (badge) {
-  return request({
-    url: '/platform/staff/define/badge',
-    method: 'get',
-    params: { badge }
-  })
-}
 // 查询APP权限
 export function fetchAppList () {
   return request({

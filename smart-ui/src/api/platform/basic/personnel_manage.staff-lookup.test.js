@@ -1,0 +1,61 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const request = vi.fn(() => Promise.resolve({ data: { data: [] } }))
+vi.mock('@/router/axios', () => ({ default: config => request(config) }))
+
+const api = await import('./personnel_manage')
+
+describe('api/platform/basic/personnel_manage 员工最小搜索契约', () => {
+  beforeEach(() => request.mockClear())
+
+  it('通过认证的最小人员查询端点按工号搜索', async () => {
+    await api.getSearchStaff({ badge: 'A100' })
+
+    expect(request).toHaveBeenCalledWith({
+      url: '/platform/staff/lookup',
+      method: 'get',
+      params: { badge: 'A100' }
+    })
+  })
+
+  it('搜索选项只保留允许的最小字段', () => {
+    expect(api.normalizeLookup).toBeTypeOf('function')
+    expect(api.normalizeLookup({
+      staffId: 1,
+      badge: 'A100',
+      name: '测试员工',
+      departmentName: '生产',
+      certno: '不得保留',
+      phone: '不得保留'
+    })).toEqual({
+      id: 1,
+      badge: 'A100',
+      name: '测试员工',
+      departmentName: '生产'
+    })
+  })
+
+  it('响应中的搜索结果也会投影为最小字段', async () => {
+    request.mockResolvedValueOnce({
+      data: {
+        data: [{
+          staffId: 1,
+          badge: 'A100',
+          name: '测试员工',
+          departmentName: '生产',
+          certno: '不得保留',
+          phone: '不得保留'
+        }]
+      }
+    })
+
+    const response = await api.getSearchStaff({ badge: 'A100' })
+
+    expect(response.data.data).toEqual([{
+      id: 1,
+      badge: 'A100',
+      name: '测试员工',
+      departmentName: '生产'
+    }])
+  })
+})
