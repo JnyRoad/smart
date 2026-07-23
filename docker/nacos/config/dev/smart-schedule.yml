@@ -5,9 +5,8 @@ security:
       client-id: "${SMART_SCHEDULE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # data
       client-secret: "${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # data
       scope: server
-      # 放行url
-      ignore-urls:
-        - /**
+      # 定时任务不提供 HTTP 触发入口，禁止匿名绕过资源服务器。
+      ignore-urls: []
 
 spring:
   # C6-刷卡消费数据源，默认数据源
@@ -132,4 +131,3 @@ task:
       reading: 0 */59 * * * ? #定时查询电表读数  
     day: 
       calc: 0 0 2 * * ? #许昌水电定时结算任务
-

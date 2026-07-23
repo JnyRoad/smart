@@ -325,3 +325,35 @@ try {
 } finally {
   await rm(zeroRouteFixtureRoot, { force: true, recursive: true })
 }
+
+const schedulerFixtureRoot = await mkdtemp(path.join(tmpdir(), 'smart-route-scheduler-'))
+try {
+  const controllerDirectory = path.join(schedulerFixtureRoot, 'module', 'src', 'main', 'java')
+  const configDirectory = path.join(schedulerFixtureRoot, 'config')
+  await mkdir(controllerDirectory, { recursive: true })
+  await mkdir(configDirectory, { recursive: true })
+  await writeFile(
+    path.join(configDirectory, 'smart-schedule.yml'),
+    ['security:', '  oauth2:', '    client:', '      ignore-urls: []'].join('\n'),
+  )
+
+  const inventory = await buildInventory({
+    configDirectory,
+    targets: [{
+      service: 'smart-schedule',
+      configNames: ['smart-schedule.yml'],
+      controllerDirectory,
+      noHttpControllers: true,
+    }],
+  })
+
+  assert.equal(inventory.hasBlockingFindings, false)
+  assert.deepEqual(inventory.services, [{
+    service: 'smart-schedule',
+    configNames: ['smart-schedule.yml'],
+    routeCount: 0,
+    blockingCount: 0,
+  }])
+} finally {
+  await rm(schedulerFixtureRoot, { force: true, recursive: true })
+}

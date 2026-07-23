@@ -41,7 +41,9 @@ export const DEFAULT_TARGETS = [
   {
     service: 'smart-schedule',
     configNames: ['smart-schedule.yml'],
-    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-schedule/smart-schedule-biz/src/main/java'),
+    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-schedule/src/main/java'),
+    // 调度任务只在进程内由 Spring 调度器执行，不应存在 HTTP Controller。
+    noHttpControllers: true,
   },
   {
     service: 'smart-bridge',
@@ -720,10 +722,17 @@ export async function buildInventory({
     const controllerFiles = (await listFiles(target.controllerDirectory))
       .filter((file) => file.endsWith('Controller.java'))
       .sort()
-    if (controllerFiles.length === 0) {
+    if (controllerFiles.length === 0 && !target.noHttpControllers) {
       serviceFindings.push({
         service: target.service,
         message: '未找到 Controller 源码，无法证明匿名白名单安全，禁止收口配置',
+      })
+    }
+
+    if (controllerFiles.length > 0 && target.noHttpControllers) {
+      serviceFindings.push({
+        service: target.service,
+        message: '该服务声明不提供 HTTP 入口，但发现 Controller 源码，禁止匿名白名单收口',
       })
     }
 
