@@ -54,7 +54,7 @@ public class AppDormitoryController extends BaseController {
 	@GetMapping("/me/roomList")
 	public Result getMyRoomList(){
 		return success(remoteDormitoryService.getStaffRoomInfoList(currentAuthenticatedBadge(), SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-self-room-list"));
 	}
 
 	/**

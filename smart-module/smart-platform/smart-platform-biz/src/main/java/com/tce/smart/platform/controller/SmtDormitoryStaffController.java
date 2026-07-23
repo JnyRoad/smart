@@ -3,10 +3,12 @@ package com.tce.smart.platform.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.annotation.OpenApi;
+import com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.req.DormitoryQueryNoStaffDTO;
@@ -14,6 +16,7 @@ import com.tce.smart.platform.api.dto.req.SelfLockPwdRefreshReqDTO;
 import com.tce.smart.platform.api.dto.req.SelfLockPwdUpdateReqDTO;
 import com.tce.smart.platform.api.dto.req.lock.*;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.SelfDormitoryRoomRespDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryStaffRespDTO;
 import com.tce.smart.platform.api.feign.RemoteSmartLockService;
 import com.tce.smart.platform.core.dto.*;
@@ -23,6 +26,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.models.auth.In;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -48,10 +52,19 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @RequestMapping("/dormitory/staff")
 public class SmtDormitoryStaffController {
+	private static final String APP_SELF_ROOM_LIST_PURPOSE = "app-self-room-list";
 
   private final  SmtDormitoryStaffService smtDormitoryStaffService;
 
   private final RemoteSmartLockService remoteSmartLockService;
+
+	private final OpenApiAuthenticationAdapter openApiAuthenticationAdapter;
+
+	/**
+	 * App 服务调用内部住宿列表的 OAuth client_id。配置缺失时拒绝，避免猜测客户端标识。
+	 */
+	@Value("${security.inner.dormitory.app-client-id:}")
+	private String appServiceClientId;
 
   /**
    * 分页查询员工内宿列表
@@ -246,8 +259,14 @@ public class SmtDormitoryStaffController {
 	@OpenApi("server")
 	@ApiOperation("内部根据员工工号查询入住信息列表")
 	@GetMapping("/internal/roomList/{staffBadge}")
-	public Result<List<DormitoryRoomDetailRespDTO>> getStaffRoomInfoListForInternal(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
-		return new Result<>(smtDormitoryStaffService.getStaffRoomInfoList(staffBadge));
+	public Result<List<SelfDormitoryRoomRespDTO>> getStaffRoomInfoListForInternal(
+			@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose){
+		assertAppRoomListCaller(from, purpose);
+		List<SelfDormitoryRoomRespDTO> rooms = smtDormitoryStaffService.getStaffRoomInfoList(staffBadge).stream()
+				.map(this::toSelfDormitoryRoom).collect(Collectors.toList());
+		return new Result<>(rooms);
 	}
 
 	@GetMapping("/lock/device/page")
@@ -473,6 +492,28 @@ public class SmtDormitoryStaffController {
 			throw new AccessDeniedException(denialMessage);
 		}
 		return currentUser;
+	}
+
+	/**
+	 * 内部住宿列表属于员工位置资料：仅受管 App client_credentials 加已审核用途可读取。
+	 * 即使请求伪造 from=Y 或持有通用 server scope 令牌也必须拒绝。
+	 */
+	private void assertAppRoomListCaller(String from, String purpose) {
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (!SecurityConstants.FROM_IN.equals(from) || StringUtils.isEmpty(appServiceClientId)
+				|| !APP_SELF_ROOM_LIST_PURPOSE.equals(purpose) || authentication == null
+				|| !openApiAuthenticationAdapter.isClientOnly(authentication)
+				|| !appServiceClientId.equals(openApiAuthenticationAdapter.clientId(authentication))) {
+			throw new AccessDeniedException("内部住宿列表调用未获授权");
+		}
+	}
+
+	/** 将通用住宿详情映射为本人可见的最小位置投影，禁止向 App 透传工号或门锁动态码。 */
+	private SelfDormitoryRoomRespDTO toSelfDormitoryRoom(DormitoryRoomDetailRespDTO room) {
+		return SelfDormitoryRoomRespDTO.builder().id(room.getId()).bedNumber(room.getBedNumber())
+				.parkId(room.getParkId()).parkName(room.getParkName()).dormitoryId(room.getDormitoryId())
+				.dormitoryName(room.getDormitoryName()).floorId(room.getFloorId()).floorName(room.getFloorName())
+				.roomId(room.getRoomId()).roomName(room.getRoomName()).inRecordId(room.getInRecordId()).build();
 	}
 
 	@ApiOperation("修改入住备注")

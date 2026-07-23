@@ -1,6 +1,7 @@
 package com.tce.smart.platform.controller;
 
 import com.tce.smart.common.security.service.SmartUser;
+import com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter;
 import com.tce.smart.platform.api.dto.req.SelfLockPwdRefreshReqDTO;
 import com.tce.smart.platform.api.dto.req.SelfLockPwdUpdateReqDTO;
 import com.tce.smart.platform.api.feign.RemoteSmartLockService;
@@ -30,7 +31,7 @@ public class SmtDormitoryStaffControllerSelfLockTest {
 	public void selfLockEndpointsUseAuthenticatedUsernameOnly() {
 		SmtDormitoryStaffService service = Mockito.mock(SmtDormitoryStaffService.class);
 		SmtDormitoryStaffController controller = new SmtDormitoryStaffController(
-				service, Mockito.mock(RemoteSmartLockService.class));
+				service, Mockito.mock(RemoteSmartLockService.class), Mockito.mock(OpenApiAuthenticationAdapter.class));
 		authenticate("self-badge");
 		Mockito.when(service.getPwdForAuthenticatedStaff("self-badge")).thenReturn("cipher");
 		Mockito.when(service.updateLockPwdForAuthenticatedStaff(Mockito.eq("self-badge"), Mockito.anyString()))
@@ -68,7 +69,8 @@ public class SmtDormitoryStaffControllerSelfLockTest {
 	@Test
 	public void selfLockEndpointsRejectAnonymousRequests() {
 		SmtDormitoryStaffController controller = new SmtDormitoryStaffController(
-				Mockito.mock(SmtDormitoryStaffService.class), Mockito.mock(RemoteSmartLockService.class));
+				Mockito.mock(SmtDormitoryStaffService.class), Mockito.mock(RemoteSmartLockService.class),
+				Mockito.mock(OpenApiAuthenticationAdapter.class));
 
 		try {
 			controller.getPwdForCurrentUser();

@@ -58,7 +58,7 @@ public class AppDormitoryControllerAccessTest {
 		controller.getMyRoomList();
 
 		Mockito.verify(remoteService).getStaffRoomInfoList("self-badge", SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-self-room-list");
 	}
 
 	@Test

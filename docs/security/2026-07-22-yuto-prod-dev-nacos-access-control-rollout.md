@@ -6,7 +6,7 @@
 
 | Data ID | 当前已验证风险 | 收口前置条件 | 灰度探针 | 生产状态 |
 |---|---|---|---|---|
-| `smart-platform.yml` | `/staff/**`、`/articlesrelease/**` | Tasks 2-5、7 完成，仓外调用方为零或已迁移 | 旧路径无 Token 返回 401/403；当前 H5、UI、App 通过 | 未发布 |
+| `smart-platform.yml` | `/staff/**`、`/articlesrelease/**` | Tasks 2-5、7 完成，仓外调用方为零或已迁移；App 住宿内部列表 client-id 门槛完成 | 旧路径无 Token 返回 401/403；当前 H5、UI、App 通过 | 未发布 |
 | `smart-upms-biz.yml` | `/api/**` | Open API App scope 核验完成 | 无 App 身份返回 401/403；合法 App token 成功 | 未发布 |
 | `smart-data.yml` | `/**` | Controller 清单逐条完成分类 | 内部 Feign 成功；外部直连拒绝 | 未发布 |
 | `smart-algorithm.yml` | `/**` | 人脸、OCR 调用方完成服务令牌迁移 | 内部算法调用成功；外部直连拒绝 | 未发布 |
@@ -56,6 +56,11 @@
 2. 授权服务器已登记独立客户端，仅授予 `client_credentials` 的 `server` scope；在预发或隔离灰度用同一不可变镜像和受管密钥来源验证能获取该 token。
 3. 预发或隔离灰度已验证标记的 App/Feign 调用成功、错误客户端/错误 scope/缺失配置拒绝，以及应用日志不记录 Authorization 或访问令牌。
 4. 错误 scope、过期令牌、缺失配置或授权服务器不可用时，调用必须在 Feign 拦截器阶段失败，不能发送下游 HTTP 请求。任一项未完成时，不得部署标记调用方，也不得以 `AUDIT`、`ENFORCE` 或放宽匿名路由绕过。
+5. 对 `GET /dormitory/staff/internal/roomList/{staffBadge}`，`smart-platform.yml` 必须受管配置
+   `security.inner.dormitory.app-client-id`，其值必须精确等于发起该 Feign 调用的 App 服务令牌 client_id。
+   该值缺失、为空、client_id 不匹配、用途头不是 `app-self-room-list`，或 token 不是纯
+   client_credentials 主体时均必须拒绝；灰度探针必须分别留存合法 App 调用成功和通用 `server`
+   scope 客户端被拒绝的证据。此项未通过不得发布 App/Platform 兼容镜像。
 
 ## `security.inner.mode=ENFORCE` 后置收口
 

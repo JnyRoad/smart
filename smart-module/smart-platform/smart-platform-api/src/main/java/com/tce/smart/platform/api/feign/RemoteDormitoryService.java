@@ -7,6 +7,7 @@ import com.tce.smart.platform.api.dto.req.SmtDormitoryReqDTO;
 import com.tce.smart.platform.api.dto.req.dormitorymange.SearchDormitoryRoomDetailReqDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryFloorRespDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.SelfDormitoryRoomRespDTO;
 import com.tce.smart.platform.api.dto.resp.RoomBedRespDTO;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -53,10 +54,11 @@ public interface RemoteDormitoryService {
 	 * 服务间查询指定员工的入住列表；调用方必须先把外部主体约束为认证用户。
 	 */
 	@GetMapping("/dormitory/staff/internal/roomList/{staffBadge}")
-	Result<List<DormitoryRoomDetailRespDTO>> getStaffRoomInfoList(
+	Result<List<SelfDormitoryRoomRespDTO>> getStaffRoomInfoList(
 			@PathVariable("staffBadge") String staffBadge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@GetMapping("/dor/quit/dealy/quit")
 	Result<Boolean> dealyQuit(@RequestHeader(SecurityConstants.FROM) String from);
