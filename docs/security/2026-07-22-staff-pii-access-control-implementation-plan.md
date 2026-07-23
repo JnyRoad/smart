@@ -63,7 +63,7 @@ assert.deepEqual(findForbiddenIgnoreUrls(['/actuator/**', '/v2/api-docs']), [])
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `node scripts/security/check-nacos-ignore-urls.test.mjs`  
+Run: `node scripts/security/check-nacos-ignore-urls.test.mjs`
 Expected: `ERR_MODULE_NOT_FOUND`，因为检测器尚不存在。
 
 - [ ] **步骤 3：实现检测器。**
@@ -82,10 +82,10 @@ export function findForbiddenIgnoreUrls(urls) {
 
 - [ ] **步骤 4：运行通过测试和本地配置扫描。**
 
-Run: `node scripts/security/check-nacos-ignore-urls.test.mjs`  
+Run: `node scripts/security/check-nacos-ignore-urls.test.mjs`
 Expected: exit `0`。
 
-Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`  
+Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`
 Expected: 对当前风险配置非零退出，并列出 Platform、UPMS、data、algorithm、push、dispatcher、schedule、bridge 与 bridge-isc 的命中；不得输出秘密。
 
 - [ ] **步骤 5：编写 Nacos 发布清单。**
@@ -124,7 +124,7 @@ git commit -m "test(security): add nacos anonymous route guard"
 - Modify: `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/SmtStaffService.java`
 - Modify: `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/impl/SmtStaffServiceImpl.java:955-961`
 
-**消耗：** 当前 `SmtStaff` 数据和认证主体。  
+**消耗：** 当前 `SmtStaff` 数据和认证主体。
 **产出：** 外部查询不再返回实体；新的 DTO 契约可被 UI、H5 和内部服务分别消费。
 
 - [ ] **步骤 1：写失败的序列化与路由测试。**
@@ -148,7 +148,7 @@ public void legacyBadgeHandlersAreNotPublicApiHandlers() throws Exception {
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtStaffControllerPrivacyContractTest test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtStaffControllerPrivacyContractTest test`
 Expected: 编译失败，因为 DTO 和测试目标尚不存在。
 
 - [ ] **步骤 3：实现三个 DTO 与投影方法。**
@@ -186,7 +186,7 @@ public Result<StaffSelfCheckInProfileRespDTO> myCheckInProfile() {
 
 - [ ] **步骤 5：运行通过测试。**
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtStaffControllerPrivacyContractTest test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtStaffControllerPrivacyContractTest test`
 Expected: `BUILD SUCCESS`。
 
 - [ ] **步骤 6：提交。**
@@ -217,7 +217,7 @@ git commit -m "fix(platform): split public staff lookup contracts"
 - Modify: `smart-h5/e2e/check-in.spec.ts`
 - Create: `smart-h5/e2e/staff-access-control.spec.ts`
 
-**消耗：** Task 2 的本人资料 DTO、OAuth 用户名、当前入住和门锁服务。  
+**消耗：** Task 2 的本人资料 DTO、OAuth 用户名、当前入住和门锁服务。
 **产出：** H5 不再发送或读取任意工号的员工身份资料和动态码。
 
 - [ ] **步骤 1：写失败的后端归属测试。**
@@ -241,7 +241,7 @@ public void lockCodeUsesOnlyAuthenticatedUser() {
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtDormitoryRoomServiceImplSelfCheckInTest,SmtDormitoryStaffControllerSelfLockTest test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtDormitoryRoomServiceImplSelfCheckInTest,SmtDormitoryStaffControllerSelfLockTest test`
 Expected: 编译失败，因为本人入口尚不存在。
 
 - [ ] **步骤 3：实现本人入住请求和服务端身份覆盖。**
@@ -287,13 +287,13 @@ await page.route('**/platform/dormitory/staff/get/pwd*badge=*', (route) => route
 
 - [ ] **步骤 7：运行通过测试。**
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtDormitoryRoomServiceImplSelfCheckInTest,SmtDormitoryStaffControllerSelfLockTest test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtDormitoryRoomServiceImplSelfCheckInTest,SmtDormitoryStaffControllerSelfLockTest test`
 Expected: `BUILD SUCCESS`。
 
-Run: `pnpm --dir smart-h5 test -- check-in-rules.test.ts`  
+Run: `pnpm --dir smart-h5 test -- check-in-rules.test.ts`
 Expected: PASS。
 
-Run: `pnpm --dir smart-h5 e2e -- staff-access-control.spec.ts`  
+Run: `pnpm --dir smart-h5 e2e -- staff-access-control.spec.ts`
 Expected: PASS。
 
 - [ ] **步骤 8：提交。**
@@ -320,7 +320,7 @@ git commit -m "fix(h5): bind check-in and lock access to current user"
 - Modify: `smart-h5/src/app/good-release/work/page.tsx`
 - Create: `smart-h5/src/features/good-release/api.test.ts`
 
-**消耗：** 当前认证用户、放行申请草稿或已保存申请、园区数据权限。  
+**消耗：** 当前认证用户、放行申请草稿或已保存申请、园区数据权限。
 **产出：** 放行人员查询不再匿名，且仅返回人员 ID 和姓名。
 
 - [ ] **步骤 1：写失败的访问控制测试。**
@@ -342,7 +342,7 @@ public void releaseStaffLookupRejectsForeignDraft() {
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtArticlesReleaseControllerAccessTest test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtArticlesReleaseControllerAccessTest test`
 Expected: 编译失败，因为按申请归属的查询尚不存在。
 
 - [ ] **步骤 3：实现申请归属查询。**
@@ -373,10 +373,10 @@ export function createOfficeReleaseDraft(data: Record<string, unknown>) {
 
 - [ ] **步骤 5：运行通过测试。**
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtArticlesReleaseControllerAccessTest test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=SmtArticlesReleaseControllerAccessTest test`
 Expected: `BUILD SUCCESS`。
 
-Run: `pnpm --dir smart-h5 test -- api.test.ts work-draft.test.ts`  
+Run: `pnpm --dir smart-h5 test -- api.test.ts work-draft.test.ts`
 Expected: PASS。
 
 - [ ] **步骤 6：提交。**
@@ -408,7 +408,7 @@ git commit -m "fix(platform): restrict release staff lookup by ownership"
 - Create: `smart-module/smart-app/smart-app-biz/src/test/java/com/tce/smart/app/service/fore/InternalStaffContractTest.java`
 - Create: `smart/smart-upms/smart-upms-biz/src/test/java/com/tce/smart/admin/service/impl/SysUserServiceStaffContractTest.java`
 
-**消耗：** Task 2 DTO、`SecurityConstants.FROM_IN`、当前 App/UPMS 使用字段。  
+**消耗：** Task 2 DTO、`SecurityConstants.FROM_IN`、当前 App/UPMS 使用字段。
 **产出：** 仓内调用不再依赖 `/staff/simple/get/badge` 或记录完整员工响应。
 
 - [ ] **步骤 1：写失败的 Feign 契约测试。**
@@ -430,7 +430,7 @@ public void noAppServiceLogsWholeStaffResult() throws IOException {
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `mvn -pl smart-module/smart-app/smart-app-biz -am -Dtest=InternalStaffContractTest test`  
+Run: `mvn -pl smart-module/smart-app/smart-app-biz -am -Dtest=InternalStaffContractTest test`
 Expected: 编译失败，因为内部 Feign 契约尚不存在。
 
 - [ ] **步骤 3：定义按用途拆分的内部 DTO 与路由。**
@@ -487,13 +487,13 @@ Result<InternalStaffIdentityRespDTO> getIdentityStaff(
 
 - [ ] **步骤 5：运行通过测试。**
 
-Run: `mvn -pl smart-module/smart-app/smart-app-biz -am -Dtest=InternalStaffContractTest test`  
+Run: `mvn -pl smart-module/smart-app/smart-app-biz -am -Dtest=InternalStaffContractTest test`
 Expected: `BUILD SUCCESS`。
 
-Run: `mvn -pl smart/smart-upms/smart-upms-biz -am -Dtest=SysUserServiceStaffContractTest test`  
+Run: `mvn -pl smart/smart-upms/smart-upms-biz -am -Dtest=SysUserServiceStaffContractTest test`
 Expected: `BUILD SUCCESS`。
 
-Run: `rg -n 'getSimpleSttaffByBadge\\(' smart-module/smart-app smart/smart-upms`  
+Run: `rg -n 'getSimpleSttaffByBadge\\(' smart-module/smart-app smart/smart-upms`
 Expected: 不再有业务调用；仅允许历史注释或被删除的旧接口定义，最终应为零命中。
 
 - [ ] **步骤 6：提交。**
@@ -540,7 +540,7 @@ public void gatewayRemovesForgedFromHeaderBeforeForwarding() {
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `mvn -pl smart/smart-common/smart-common-security -am -Dtest=SmartFeignClientInterceptorTest,SmartSecurityInnerAspectTest test`  
+Run: `mvn -pl smart/smart-common/smart-common-security -am -Dtest=SmartFeignClientInterceptorTest,SmartSecurityInnerAspectTest test`
 Expected: 当前无请求上下文分支直接返回，新的服务令牌断言失败。
 
 - [ ] **步骤 3：实现服务令牌回退和 fail-closed 行为。**
@@ -553,10 +553,10 @@ Gateway 继续剥离外部 `from` 头，并新增 `/internal/**` 外部路由拒
 
 - [ ] **步骤 4：运行通过测试。**
 
-Run: `mvn -pl smart/smart-common/smart-common-security -am -Dtest=SmartFeignClientInterceptorTest,SmartSecurityInnerAspectTest test`  
+Run: `mvn -pl smart/smart-common/smart-common-security -am -Dtest=SmartFeignClientInterceptorTest,SmartSecurityInnerAspectTest test`
 Expected: `BUILD SUCCESS`。
 
-Run: `mvn -pl smart/smart-gateway -am -Dtest=SmartRequestGlobalFilterTest test`  
+Run: `mvn -pl smart/smart-gateway -am -Dtest=SmartRequestGlobalFilterTest test`
 Expected: `BUILD SUCCESS`。
 
 - [ ] **步骤 5：提交。**
@@ -581,7 +581,7 @@ git commit -m "fix(security): enforce authenticated internal staff calls"
 - Verify consumers: `smart-ui/src/views/platform/outsourcing/onwork/popover-tree/index-single.vue`
 - Verify consumers: `smart-ui/src/views/platform/security_area/supplier_person/_supplier.vue`
 
-**消耗：** Task 2 的 `StaffLookupRespDTO` 和受控详情 DTO。  
+**消耗：** Task 2 的 `StaffLookupRespDTO` 和受控详情 DTO。
 **产出：** 管理端维持下拉搜索体验，但不会接收完整员工实体。
 
 - [ ] **步骤 1：写失败的 API 请求与字段测试。**
@@ -602,7 +602,7 @@ it('does not expose sensitive columns in search options', () => {
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `pnpm --dir smart-ui test -- personnel_manage.staff-lookup.test.js staff_info.staff-detail.test.js`  
+Run: `pnpm --dir smart-ui test -- personnel_manage.staff-lookup.test.js staff_info.staff-detail.test.js`
 Expected: FAIL，因为 API 仍指向旧路径。
 
 - [ ] **步骤 3：实现 API 适配。**
@@ -611,13 +611,13 @@ Expected: FAIL，因为 API 仍指向旧路径。
 
 - [ ] **步骤 4：运行通过测试和质量门禁。**
 
-Run: `pnpm --dir smart-ui test -- personnel_manage.staff-lookup.test.js staff_info.staff-detail.test.js`  
+Run: `pnpm --dir smart-ui test -- personnel_manage.staff-lookup.test.js staff_info.staff-detail.test.js`
 Expected: PASS。
 
-Run: `pnpm --dir smart-ui check:admin-search`  
+Run: `pnpm --dir smart-ui check:admin-search`
 Expected: PASS。
 
-Run: `pnpm --dir smart-ui lint`  
+Run: `pnpm --dir smart-ui lint`
 Expected: PASS，或仅报告本分支之前已记录的基线告警。
 
 - [ ] **步骤 5：提交。**
@@ -643,7 +643,7 @@ git commit -m "fix(smart-ui): use minimal staff lookup contract"
 - Modify: `docker/nacos/config/dev/smart-bridge-isc*.yml`
 - Modify: 与已确认内部 Controller 对应的 `@Inner`、Feign 接口及测试文件。
 
-**消耗：** Task 1 检测器、每个 Controller 的 `@RequestMapping`/`@GetMapping`/`@PostMapping`、Nacos 配置。  
+**消耗：** Task 1 检测器、每个 Controller 的 `@RequestMapping`/`@GetMapping`/`@PostMapping`、Nacos 配置。
 **产出：** 每个服务的完整路由分类、精确匿名白名单和内部调用验证。
 
 - [ ] **步骤 1：写失败的路由归类测试。**
@@ -661,7 +661,7 @@ assert.deepEqual(
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `node scripts/security/build-public-route-inventory.test.mjs`  
+Run: `node scripts/security/build-public-route-inventory.test.mjs`
 Expected: `ERR_MODULE_NOT_FOUND`。
 
 - [ ] **步骤 3：实现静态库存生成器。**
@@ -683,10 +683,10 @@ Expected: `ERR_MODULE_NOT_FOUND`。
 
 - [ ] **步骤 5：运行库存和配置门禁。**
 
-Run: `node scripts/security/build-public-route-inventory.mjs`  
+Run: `node scripts/security/build-public-route-inventory.mjs`
 Expected: 生成库存文档，且每条路由均已分类。
 
-Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`  
+Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`
 Expected: exit `0`，没有被禁止的通配匿名规则。
 
 - [ ] **步骤 6：提交。**
@@ -706,7 +706,7 @@ git commit -m "fix(nacos): replace wildcard anonymous routes"
 - Create: `smart-module/smart-platform/smart-platform-biz/src/test/java/com/tce/smart/platform/controller/PublicRouteDenyContractTest.java`
 - Create: `smart/smart-upms/smart-upms-biz/src/test/java/com/tce/smart/admin/controller/UpmsOpenApiAccessContractTest.java`
 
-**消耗：** Tasks 2 至 8 的迁移完成状态和 Nacos 路由库存。  
+**消耗：** Tasks 2 至 8 的迁移完成状态和 Nacos 路由库存。
 **产出：** Platform、UPMS 不再拥有业务通配匿名路径。
 
 - [ ] **步骤 1：写失败的拒绝契约测试。**
@@ -727,7 +727,7 @@ public void openApiRequiresRegisteredClientScope() {
 
 - [ ] **步骤 2：运行失败测试。**
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=PublicRouteDenyContractTest test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=PublicRouteDenyContractTest test`
 Expected: FAIL，因为本地 Nacos Platform 配置仍包含旧规则。
 
 - [ ] **步骤 3：收紧本地配置基线。**
@@ -742,13 +742,13 @@ Expected: FAIL，因为本地 Nacos Platform 配置仍包含旧规则。
 
 - [ ] **步骤 5：运行通过测试。**
 
-Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`  
+Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`
 Expected: exit `0`。
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=PublicRouteDenyContractTest test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am -Dtest=PublicRouteDenyContractTest test`
 Expected: `BUILD SUCCESS`。
 
-Run: `mvn -pl smart/smart-upms/smart-upms-biz -am -Dtest=UpmsOpenApiAccessContractTest test`  
+Run: `mvn -pl smart/smart-upms/smart-upms-biz -am -Dtest=UpmsOpenApiAccessContractTest test`
 Expected: `BUILD SUCCESS`。
 
 - [ ] **步骤 6：提交。**
@@ -765,7 +765,7 @@ git commit -m "fix(nacos): require auth for platform and upms routes"
 - Modify: `docs/security/2026-07-22-yuto-prod-dev-nacos-access-control-rollout.md`
 - Modify: `docs/security/2026-07-22-service-route-inventory.md`
 
-**消耗：** 已合并或待发布的兼容版本、Nacos 历史版本、网关访问日志、运维网络隔离证明。  
+**消耗：** 已合并或待发布的兼容版本、Nacos 历史版本、网关访问日志、运维网络隔离证明。
 **产出：** 每个 Data ID 的发布记录、验收证据、回滚版本和旧接口下线结论。
 
 - [ ] **步骤 1：发布前只读核验。**
@@ -804,22 +804,22 @@ git commit -m "fix(nacos): require auth for platform and upms routes"
 
 - [ ] **步骤 8：最终验收。**
 
-Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`  
+Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`
 Expected: exit `0`。
 
-Run: `pnpm --dir smart-h5 check && pnpm --dir smart-h5 test && pnpm --dir smart-h5 e2e`  
+Run: `pnpm --dir smart-h5 check && pnpm --dir smart-h5 test && pnpm --dir smart-h5 e2e`
 Expected: PASS。
 
-Run: `pnpm --dir smart-ui test && pnpm --dir smart-ui lint`  
+Run: `pnpm --dir smart-ui test && pnpm --dir smart-ui lint`
 Expected: PASS，或已记录的历史基线告警。
 
-Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am test`  
+Run: `mvn -pl smart-module/smart-platform/smart-platform-biz -am test`
 Expected: `BUILD SUCCESS`。
 
-Run: `mvn -pl smart-module/smart-app/smart-app-biz -am test`  
+Run: `mvn -pl smart-module/smart-app/smart-app-biz -am test`
 Expected: `BUILD SUCCESS`。
 
-Run: `mvn -pl smart/smart-upms/smart-upms-biz -am test`  
+Run: `mvn -pl smart/smart-upms/smart-upms-biz -am test`
 Expected: `BUILD SUCCESS`。
 
 记录每个命令的 commit、镜像、Nacos Data ID、MD5、执行时间和结果。任何未运行项必须标明原因，不得以“命令退出 0”代替业务验证。

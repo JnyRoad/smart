@@ -1,8 +1,8 @@
 # 员工隐私接口分层与 Nacos 精确收口设计
 
-**状态：已批准，待实施计划审核**  
-**适用分支：** `fix/staff-pii-access-control`  
-**生产配置范围：** Nacos `yuto_prod / dev`  
+**状态：已批准，待实施计划审核**
+**适用分支：** `fix/staff-pii-access-control`
+**生产配置范围：** Nacos `yuto_prod / dev`
 **不在范围内：** `smart-h5-vue2`（已下线，不修改、不回归、不发布）
 
 ## 1. 背景与已验证事实
