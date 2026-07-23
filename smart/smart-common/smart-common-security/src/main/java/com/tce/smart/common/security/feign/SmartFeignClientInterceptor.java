@@ -52,7 +52,11 @@ public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder
 				.getRequestAttributes();
 		if(null == attributes){
-			log.info("RequestContextHolder.getRequestAttributes() is null");
+			// 只有显式标记的敏感内部调用才在无入站请求时申请服务令牌，
+			// 其余历史 Feign 调用保持原有行为，避免未迁移端点被客户端令牌拒绝。
+			if (requiresServiceToken(template)) {
+				super.apply(template);
+			}
 			return;
 		}
 		HttpServletRequest request = attributes.getRequest();
@@ -62,6 +66,15 @@ public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 				String name = headerNames.nextElement();
 				String values = request.getHeader(name);
 				template.header(name, values);
+			}
+
+			if (requiresServiceToken(template)) {
+				// 内部 Feign 不得复用外部用户令牌。清空可能由前序调用留下的令牌后，
+				// 由 OAuth2FeignRequestInterceptor 按服务客户端凭据重新获取 Bearer token；
+				// 获取失败会向调用方显式报错，绝不能退化为匿名请求。
+				oAuth2ClientContext.setAccessToken(null);
+				super.apply(template);
+				return;
 			}
 
 			Collection<String> fromHeader = template.headers().get(SecurityConstants.FROM);
@@ -74,5 +87,13 @@ public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 				super.apply(template);
 			}
 		}
+	}
+
+	/**
+	 * 服务令牌只由 Feign 契约显式声明，避免把所有历史 {@code from=Y} 调用一次性切换为客户端凭据。
+	 */
+	private boolean requiresServiceToken(RequestTemplate template) {
+		Collection<String> values = template.headers().get(SecurityConstants.INTERNAL_SERVICE_AUTH);
+		return CollUtil.isNotEmpty(values) && values.contains(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 }

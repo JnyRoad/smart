@@ -52,12 +52,12 @@ export default function GoodReleaseLivePage() {
   })
   const me = baseInfo.data?.code === 0 ? baseInfo.data.data : undefined
 
-  const roomsQuery = useQuery({
-    queryKey: ['good-release-live-rooms', me?.employeeBadge],
-    queryFn: () => getLiveRooms(me?.employeeBadge as string),
-    enabled: authorized && me?.employeeBadge !== undefined,
-  })
-  const rooms = roomsQuery.data?.code === 0 ? (roomsQuery.data.data?.data ?? []) : []
+	const roomsQuery = useQuery({
+		queryKey: ['good-release-live-rooms'],
+		queryFn: getLiveRooms,
+		enabled: authorized,
+	})
+	const rooms = roomsQuery.data?.code === 0 ? (roomsQuery.data.data ?? []) : []
   const roomOptions = rooms.map(liveRoomOption)
   // Legacy behavior: empty/failed room lookup blocks the whole application;
   // envelope errors surface the backend message instead of the generic tip.

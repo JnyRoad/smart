@@ -37,17 +37,13 @@ public class AppDormitoryController extends BaseController {
 
 	@GetMapping("/roomDetail/{staffBadge}")
 	public Result getStaffRoomInfo(@PathVariable("staffBadge") String staffBadge){
-		return success(remoteDormitoryService.getStaffRoomInfo(currentUserBadge(staffBadge), SecurityConstants.FROM_IN));
+		return success(remoteDormitoryService.getStaffRoomInfo(currentUserBadge(staffBadge), SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 	}
 
 	@GetMapping("/roomList/{staffBadge}")
 	public Result getStaffRoomInfoList(@PathVariable("staffBadge") String staffBadge){
 		return success(remoteDormitoryService.getSimpleStaffRoomList(currentUserBadge(staffBadge), SecurityConstants.FROM_IN));
-	}
-
-	@GetMapping("/roomDetailByPhone/{phone}/{name}")
-	public Result getStaffRoomInfoByPhone(@PathVariable("phone") String phone,@PathVariable("name") String name){
-		return success(remoteDormitoryService.getStaffRoomInfoByPhone(phone,name, SecurityConstants.FROM_IN));
 	}
 
 	/**

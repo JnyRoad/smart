@@ -50,6 +50,16 @@ public class AppDormitoryControllerAccessTest {
 		}
 	}
 
+	@Test
+	public void legacyPhoneAndNameRoomLookupIsNotForwardedByAppController() {
+		try {
+			AppDormitoryController.class.getMethod("getStaffRoomInfoByPhone", String.class, String.class);
+			fail("App 不能再把手机号和姓名转发为住宿查询");
+		} catch (NoSuchMethodException expected) {
+			// 预期：客户端不能通过手机号码和姓名定位员工住宿信息。
+		}
+	}
+
 	private void authenticate(String badge) {
 		SmartUser user = new SmartUser(1, 1, badge, Collections.singletonList(1), "N/A",
 				true, true, true, true, Collections.emptyList());

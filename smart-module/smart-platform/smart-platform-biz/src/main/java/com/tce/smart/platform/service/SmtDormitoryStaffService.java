@@ -125,8 +125,6 @@ public interface SmtDormitoryStaffService extends IService<SmtDormitoryStaff> {
 	 */
 	List<DormitoryRoomDetailRespDTO> getStaffRoomInfoList(String staffBadge);
 
-	DormitoryRoomDetailRespDTO getStaffRoomInfoByPhone(String phone,String name);
-
 	Result addDormitory(DormitoryStaffDTO dormitoryStaffDTO);
 
 	/**

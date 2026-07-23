@@ -44,16 +44,16 @@ public interface RemoteDormitoryService {
 	 * @return
 	 */
 	@GetMapping("/dormitory/staff/internal/roomDetail/{staffBadge}")
-	Result<DormitoryRoomDetailRespDTO> getStaffRoomInfo(@PathVariable("staffBadge") String staffBadge, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<DormitoryRoomDetailRespDTO> getStaffRoomInfo(
+			@PathVariable("staffBadge") String staffBadge,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	@GetMapping("/dormitory/staff/roomList/{staffBadge}")
 	Result<List<DormitoryRoomDetailRespDTO>> getStaffRoomInfoList(@PathVariable("staffBadge") String staffBadge, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/dormitory/staff/roomList/{staffBadge}")
 	Result<List<DormitoryRoomDetailRespDTO>> getSimpleStaffRoomList(@PathVariable("staffBadge") String staffBadge, @RequestHeader(SecurityConstants.FROM) String from);
-
-	@GetMapping("/dormitory/staff/roomDetailByPhone/{phone}/{name}")
-	Result<DormitoryRoomDetailRespDTO> getStaffRoomInfoByPhone(@PathVariable("phone") String phone,@PathVariable("name") String name, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/dor/quit/dealy/quit")
 	Result<Boolean> dealyQuit(@RequestHeader(SecurityConstants.FROM) String from);

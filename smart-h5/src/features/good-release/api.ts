@@ -27,9 +27,9 @@ export interface LiveRoom {
   bedNumber?: number
 }
 
-/** 双层 data 信封，同 dorm-exit 的 roomList。 */
-export function getLiveRooms(badge: string): Promise<Envelope<{ data?: LiveRoom[] }>> {
-  return request({ module: 'app', url: `/appdormitory/roomList/${badge}` })
+/** 生活区物品放行只读取认证主体的房间，避免在 URL 暴露工号。 */
+export function getLiveRooms(): Promise<Envelope<LiveRoom[]>> {
+	return request({ module: 'platform', url: '/dormitory/staff/me/roomList' })
 }
 
 export function saveLiveRelease(data: Record<string, unknown>): Promise<Envelope<unknown>> {

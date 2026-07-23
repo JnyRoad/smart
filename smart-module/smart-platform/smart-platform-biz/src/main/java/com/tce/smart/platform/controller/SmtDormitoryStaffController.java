@@ -6,6 +6,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.req.DormitoryQueryNoStaffDTO;
@@ -230,6 +231,7 @@ public class SmtDormitoryStaffController {
 	 * 仅供携带内部调用标识的 Feign 请求使用；外部流量不可使用该路由绕过园区数据权限。
 	 */
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("内部根据员工工号查询入住信息")
 	@GetMapping("/internal/roomDetail/{staffBadge}")
 	public Result<DormitoryRoomDetailRespDTO> getStaffRoomInfoForInternal(
@@ -249,13 +251,6 @@ public class SmtDormitoryStaffController {
 	@GetMapping("/simple/roomList/{staffBadge}")
 	public Result<List<DormitoryRoomDetailRespDTO>> getSimpleStaffRoomList(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
 		return new Result<>(smtDormitoryStaffService.getSimpleStaffRoomList(staffBadge));
-	}
-
-	@ApiOperation("根据手机号码查询入住信息")
-	@GetMapping("/roomDetailByPhone/{phone}/{name}")
-	public Result<DormitoryRoomDetailRespDTO> getStaffRoomInfoByPhone(@ApiParam(name = "phone",value = "手机号码",required = true) @PathVariable String phone,
-																	  @ApiParam(name = "name",value = "姓名",required = true) @PathVariable String name){
-		return new Result<>(smtDormitoryStaffService.getStaffRoomInfoByPhone(phone,name));
 	}
 
 	@GetMapping("/lock/device/page")

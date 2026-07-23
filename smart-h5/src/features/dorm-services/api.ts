@@ -84,9 +84,9 @@ export interface MyRoom {
   roomName?: string
 }
 
-/** Note the double-data envelope: the room list lives at res.data.data. */
-export function getMyRooms(badge: string): Promise<Envelope<{ data?: MyRoom[] }>> {
-  return request({ module: 'app', url: `/appdormitory/roomList/${badge}` })
+/** 只读取认证主体的房间列表，路径不得携带工号。 */
+export function getMyRooms(): Promise<Envelope<MyRoom[]>> {
+	return request({ module: 'platform', url: '/dormitory/staff/me/roomList' })
 }
 
 export function saveDormExit(data: Record<string, unknown>): Promise<Envelope<unknown>> {

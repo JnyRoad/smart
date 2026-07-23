@@ -120,14 +120,17 @@ export default function CheckInPage() {
     if (!dormitory) return Toast.show('请选择楼栋信息')
     if (!roomType) return Toast.show('请选择房间类型')
     if (mode === 'manual' && !draft) return Toast.show('请选择房间号')
+		const dormitoryId = dormitory.id
+		const roomTypeId = roomType.id
+		if (dormitoryId == null || roomTypeId == null) return Toast.show('楼栋或房型信息无效，请重新选择')
     const profile = identity.data?.data
     if (!profile?.profileComplete) return Toast.show('当前员工资料不完整，无法申请入住')
 
     setSubmitting(true)
     try {
       const res = await submitCheckIn(checkInSelectionToSubmit({
-        dormitoryId: dormitory.id,
-        roomType: roomType.id,
+        dormitoryId,
+        roomType: roomTypeId,
         parkId: config.parkId,
         ...(mode === 'manual' && draft
           ? { floorId: draft.floorId, roomId: draft.roomId, bedId: draft.bedId }

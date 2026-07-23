@@ -46,7 +46,6 @@ import com.tce.smart.platform.core.mapper.*;
 import com.tce.smart.platform.core.service.SmtImageService;
 import com.tce.smart.platform.core.vo.InDormitoryVO;
 import com.tce.smart.platform.core.vo.StaffInDormitoryVO;
-import com.tce.smart.platform.core.vo.StaffInfoVO;
 import com.tce.smart.platform.emun.RoomSexEnum;
 import com.tce.smart.platform.service.*;
 import com.tce.smart.platform.service.dormitoryconfig.SmtDormitoryPersonService;
@@ -877,33 +876,6 @@ public class SmtDormitoryStaffServiceImpl extends ServiceImpl<SmtDormitoryStaffM
 			return dormitoryRoomDetailRespDTOS;
 		}
 		return new ArrayList<>();
-	}
-
-	@Override
-	public DormitoryRoomDetailRespDTO getStaffRoomInfoByPhone(String phone, String name) {
-		StaffInfoVO vo = staffService.getSmtStaffInfoByPhone(phone, name);
-		if (Objects.nonNull(vo.getSmtStaff())) {
-			List<SmtDormitoryStaff> smtDormitoryStaffs = this.list(new LambdaQueryWrapper<SmtDormitoryStaff>().eq(SmtDormitoryStaff::getStaffBadge, vo.getSmtStaff().getBadge())
-					.orderByDesc(SmtDormitoryStaff::getCreateTime));
-			if (CollUtil.isNotEmpty(smtDormitoryStaffs)) {
-				SmtDormitoryStaff smtDormitoryStaff = smtDormitoryStaffs.get(0);
-				SmtDormitoryRoom smtDormitoryRoom = roomMapper.selectById(smtDormitoryStaff.getRoomId());
-				SmtDormitoryFloor smtDormitoryFloor = floorMapper.selectById(smtDormitoryStaff.getFloorId());
-				return DormitoryRoomDetailRespDTO.builder()
-						.parkName(smtDormitoryStaff.getParkName())
-						.dormitoryName(smtDormitoryStaff.getDormitoryName())
-						.staffBadge(smtDormitoryStaff.getStaffBadge())
-						.floorName(StringUtils.isEmpty(smtDormitoryFloor.getAliasName()) ? smtDormitoryFloor.getFloorName().toString() : smtDormitoryFloor.getAliasName())
-						.roomName(StringUtils.isEmpty(smtDormitoryRoom.getAliasName()) ? smtDormitoryRoom.getRoomName().toString() : smtDormitoryRoom.getAliasName())
-						.dormitoryId(smtDormitoryStaff.getDormitoryId())
-						.floorId(smtDormitoryStaff.getFloorId())
-						.id(smtDormitoryStaff.getBedId())
-						.bedNumber(smtDormitoryStaff.getBedNumber().toString())
-						.roomId(smtDormitoryStaff.getRoomId())
-						.build();
-			}
-		}
-		return null;
 	}
 
 	@Transactional

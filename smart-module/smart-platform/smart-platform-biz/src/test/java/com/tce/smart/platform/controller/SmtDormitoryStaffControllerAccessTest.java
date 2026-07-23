@@ -1,6 +1,7 @@
 package com.tce.smart.platform.controller;
 
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.platform.api.feign.RemoteSmartLockService;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
@@ -60,7 +61,19 @@ public class SmtDormitoryStaffControllerAccessTest {
 		Method method = SmtDormitoryStaffController.class.getMethod("getStaffRoomInfoForInternal", String.class);
 		GetMapping mapping = method.getAnnotation(GetMapping.class);
 		assertNotNull(method.getAnnotation(Inner.class));
+		assertNotNull(method.getAnnotation(OpenApi.class));
+		assertEquals("server", method.getAnnotation(OpenApi.class).value());
 		assertEquals("/internal/roomDetail/{staffBadge}", mapping.value()[0]);
+	}
+
+	@Test
+	public void legacyPhoneAndNameRoomLookupIsNotAnExternalControllerMethod() {
+		try {
+			SmtDormitoryStaffController.class.getMethod("getStaffRoomInfoByPhone", String.class, String.class);
+			fail("手机号和姓名不能作为住宿信息查询凭据");
+		} catch (NoSuchMethodException expected) {
+			// 预期：旧的手机号加姓名查询路由已删除。
+		}
 	}
 
 	private SmtDormitoryStaffController controller(SmtDormitoryStaffService service) {
