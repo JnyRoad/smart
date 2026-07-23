@@ -1,8 +1,14 @@
 security:
+  # ISC Bridge 向 Dispatcher 回传事件仅使用独立服务令牌；缺失即拒绝调用。
+  inner:
+    service-token:
+      client-id: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_SECRET:}"
+      access-token-uri: "${SMART_BRIDGE_ISC_OAUTH_TOKEN_URI:}"
   oauth2:
     client:
-      client-id: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # bridge
-      client-secret: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # bridge
+      client-id: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_ID:}"        # bridge
+      client-secret: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_SECRET:}"    # bridge
       scope: server
       # 放行url
       ignore-urls: []

@@ -1,7 +1,6 @@
 package com.tce.smart.platform.service.impl;
 
 import cn.hutool.core.date.DateUtil;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.app.api.entity.AppUserDevice;
@@ -271,7 +270,8 @@ public class IAppMsgPushServiceImpl implements IAppMsgPushService {
 				BeanUtils.copyProperties(pushMessageDTO, noticeMessageDTO);
 				noticeMessageDTO.setClientId(devicePushId);// 设备token
 
-				log.info("noticeMessageDTO====req====={}", JSONUtil.toJsonPrettyStr(noticeMessageDTO));
+				// 设备 token、标题、正文和 payload 均属于敏感推送数据，日志只保留动作类型。
+				log.info("发起 Android 单播推送");
 				remotePushRs = remotePushService.notice(noticeMessageDTO, SecurityConstants.FROM_IN,
 						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 
@@ -282,7 +282,8 @@ public class IAppMsgPushServiceImpl implements IAppMsgPushService {
 				BeanUtils.copyProperties(pushMessageDTO, apnsMessageDTO);
 				apnsMessageDTO.setDeviceToken(devicePushId);
 
-				log.info("ApnsMessageDTO=====req===={}", JSONUtil.toJsonPrettyStr(apnsMessageDTO));
+				// iOS deviceToken 与推送内容不得写入业务日志。
+				log.info("发起 iOS 单播推送");
 				remotePushRs = remotePushService.transmission(apnsMessageDTO, SecurityConstants.FROM_IN,
 						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			}

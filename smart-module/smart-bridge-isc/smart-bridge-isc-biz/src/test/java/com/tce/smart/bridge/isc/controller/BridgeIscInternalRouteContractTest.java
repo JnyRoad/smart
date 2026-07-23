@@ -8,7 +8,9 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
@@ -33,6 +35,13 @@ public class BridgeIscInternalRouteContractTest {
 		assertFeignContract("dispatch", "/bridge/dispatch");
 		assertFeignContract("getImage", "/bridge/image");
 		assertFeignContract("getThumbnail", "/bridge/thumbnail");
+	}
+
+	@Test
+	public void iscSubscriptionDefaultsToDisabled() throws Exception {
+		Field field = com.tce.smart.bridge.isc.service.impl.BridgeISCServiceImpl.class
+				.getDeclaredField("eventSubscribeEnabled");
+		Assert.assertEquals("${smart.hik.event-subscribe-enabled:false}", field.getAnnotation(Value.class).value());
 	}
 
 	private void assertInternalServerRoute(String methodName, String expectedPath) {
