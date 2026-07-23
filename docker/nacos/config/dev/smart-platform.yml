@@ -6,6 +6,12 @@ security:
       client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:}"
       client-secret: "${SMART_PLATFORM_OAUTH_CLIENT_SECRET:}"
       access-token-uri: "${SMART_PLATFORM_OAUTH_TOKEN_URI:}"
+    # 全园区列表仅允许 App、定时任务两个受管服务 client；未注入配置时控制器必须拒绝调用。
+    park:
+      list-client-ids: "${SMART_PARK_LIST_CLIENT_IDS:}"
+    # 充值定时任务仅允许 Smart Schedule 的受管服务 client；未注入配置时必须拒绝调用。
+    recharge:
+      schedule-client-id: "${SMART_RECHARGE_SCHEDULE_CLIENT_ID:}"
   oauth2:
     client:
       client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # platform
