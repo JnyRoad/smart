@@ -104,7 +104,7 @@ public class GuardTimerTask {
 							}
 							result = remoteLogisticsAppointmentService
 									.save(logisticsAppointmentReqDTO, SecurityConstants.FROM_IN,
-											SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+											SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "logistics-sync");
 							log.info(result.getMsg());
 							try {
 								Thread.sleep(100L);

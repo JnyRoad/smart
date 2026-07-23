@@ -2,6 +2,7 @@ package com.tce.smart.schedule;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,6 +42,16 @@ public class SchedulePublicRouteDenyContractTest {
         assertFalse("定时任务服务不得新增 HTTP 路由，新增入口必须另行完成鉴权与路由库存评审：" + httpRouteSources,
                 !httpRouteSources.isEmpty());
     }
+
+	@Test
+	public void scheduleInternalServiceTokenUsesDedicatedFailClosedEnvironmentVariables() throws IOException {
+		String config = new String(Files.readAllBytes(locateRepositoryRoot()
+				.resolve("docker/nacos/config/dev/smart-schedule.yml")), StandardCharsets.UTF_8);
+
+		assertTrue(config.contains("client-id: \"${SMART_SCHEDULE_OAUTH_CLIENT_ID:}\""));
+		assertTrue(config.contains("client-secret: \"${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:}\""));
+		assertTrue(config.contains("access-token-uri: \"${SMART_SCHEDULE_OAUTH_TOKEN_URI:}\""));
+	}
 
     private void findHttpRouteAnnotations(Path source, List<String> httpRouteSources) {
         try {

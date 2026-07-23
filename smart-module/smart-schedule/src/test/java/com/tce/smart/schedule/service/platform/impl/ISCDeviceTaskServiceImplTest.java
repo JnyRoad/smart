@@ -14,7 +14,7 @@ import com.tce.smart.dispatcher.api.enums.EventEnum;
 import com.tce.smart.dispatcher.api.feign.RemoteDispatcherService;
 import com.tce.smart.platform.api.dto.resp.InternalScheduleIscPersonRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
-import com.tce.smart.platform.api.feign.RemoteParkService;
+import com.tce.smart.platform.api.feign.RemoteParkInternalService;
 import com.tce.smart.platform.api.feign.RemoteSnapPersonService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.platform.core.entity.SmtDevice;
@@ -2362,7 +2362,7 @@ public class ISCDeviceTaskServiceImplTest {
 				Mockito.mock(SmtAdmittanceFellowMapper.class),
 				Mockito.mock(SmtDeviceService.class),
 				Mockito.mock(SmtIscDownRecordService.class),
-				Mockito.mock(RemoteParkService.class),
+				Mockito.mock(RemoteParkInternalService.class),
 				Mockito.mock(SmtVisitorService.class),
 				Mockito.mock(SmtFellowVisitorMapper.class),
 				Mockito.mock(SmtAdmittanceFellowMapper.class),
@@ -2406,7 +2406,7 @@ public class ISCDeviceTaskServiceImplTest {
 				Mockito.mock(SmtAdmittanceFellowMapper.class),
 				deviceService,
 				downRecordService,
-				Mockito.mock(RemoteParkService.class),
+				Mockito.mock(RemoteParkInternalService.class),
 				Mockito.mock(SmtVisitorService.class),
 				Mockito.mock(SmtFellowVisitorMapper.class),
 				Mockito.mock(SmtAdmittanceFellowMapper.class),

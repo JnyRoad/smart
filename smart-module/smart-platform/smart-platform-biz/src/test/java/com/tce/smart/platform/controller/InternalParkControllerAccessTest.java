@@ -129,6 +129,43 @@ public class InternalParkControllerAccessTest {
 		assertEquals(new HashSet<>(Arrays.asList("id", "bridgeUrl")), fieldNames);
 	}
 
+	@Test
+	public void onlyConfiguredServerClientsWithExactPurposeCanReadAllParks() throws Exception {
+		SmtParkService service = Mockito.mock(SmtParkService.class);
+		Mockito.when(service.getUnStrainedParks()).thenReturn(Collections.emptyList());
+		InternalParkController controller = controller(service, new OpenApiAuthenticationAdapter(), "smart-dispatcher");
+		ReflectionTestUtils.setField(controller, "parkListClientIds", "smart-app,smart-schedule");
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
+				.addInterceptors(new OpenApiInterceptor(new OpenApiAuthenticationAdapter()))
+				.setControllerAdvice(new GlobalExceptionHandlerResolver())
+				.build();
+
+		mockMvc.perform(get("/internal/park/all")).andExpect(status().isForbidden());
+
+		SecurityContextHolder.getContext().setAuthentication(
+				new UsernamePasswordAuthenticationToken("ordinary-user", "N/A", Collections.emptyList()));
+		performAllParks(mockMvc, SecurityConstants.FROM_IN, "park-list").andExpect(status().isForbidden());
+
+		SecurityContextHolder.getContext().setAuthentication(serverClientAuthentication("smart-app", "other"));
+		performAllParks(mockMvc, SecurityConstants.FROM_IN, "park-list").andExpect(status().isForbidden());
+
+		SecurityContextHolder.getContext().setAuthentication(serverClientAuthentication("unexpected-client", "server"));
+		performAllParks(mockMvc, SecurityConstants.FROM_IN, "park-list").andExpect(status().isForbidden());
+
+		SecurityContextHolder.getContext().setAuthentication(serverClientAuthentication("smart-app", "server"));
+		performAllParks(mockMvc, null, "park-list").andExpect(status().isForbidden());
+		performAllParks(mockMvc, "N", "park-list").andExpect(status().isForbidden());
+		performAllParks(mockMvc, SecurityConstants.FROM_IN, null).andExpect(status().isForbidden());
+		performAllParks(mockMvc, SecurityConstants.FROM_IN, "wrong-purpose").andExpect(status().isForbidden());
+		performAllParks(mockMvc, SecurityConstants.FROM_IN, "park-list").andExpect(status().isOk());
+
+		SecurityContextHolder.getContext().setAuthentication(serverClientAuthentication("smart-schedule", "server"));
+		performAllParks(mockMvc, SecurityConstants.FROM_IN, "park-list").andExpect(status().isOk());
+
+		ReflectionTestUtils.setField(controller, "parkListClientIds", "");
+		performAllParks(mockMvc, SecurityConstants.FROM_IN, "park-list").andExpect(status().isForbidden());
+	}
+
 	private InternalParkController controller(SmtParkService service, OpenApiAuthenticationAdapter adapter, String clientId) {
 		InternalParkController controller = new InternalParkController(service, adapter);
 		ReflectionTestUtils.setField(controller, "dispatcherServiceClientId", clientId);
@@ -140,5 +177,17 @@ public class InternalParkControllerAccessTest {
 				Collections.emptyList(), true, Collections.singleton(scope), Collections.emptySet(),
 				null, Collections.emptySet(), Collections.emptyMap());
 		return new OAuth2Authentication(request, null);
+	}
+
+	private org.springframework.test.web.servlet.ResultActions performAllParks(MockMvc mockMvc, String from,
+			String purpose) throws Exception {
+		org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request = get("/internal/park/all");
+		if (from != null) {
+			request.header(SecurityConstants.FROM, from);
+		}
+		if (purpose != null) {
+			request.header("X-Smart-Internal-Purpose", purpose);
+		}
+		return mockMvc.perform(request);
 	}
 }
