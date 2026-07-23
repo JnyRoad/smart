@@ -243,7 +243,8 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			register.setDepid(Integer.parseInt(preStaff.getDepId()));
 			register.setJobid(preStaff.getJobId());
 			register.setEID(preStaff.getEId());
-			Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()));
+			Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()),
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (byComId.isSuccess()) {
 				if (byComId.getData() != null) {
 					register.setEzid(byComId.getData().getEZID());
@@ -264,7 +265,8 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 				register.setQsgx(fm.getRelationDetail());
 			}
 			register.setSeqid(preStaff.getSeqId());
-			Result save = ebgeJavoidanceService.save(register);
+			Result save = ebgeJavoidanceService.save(register, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("保持亲属关系:{}", save);
 		}
 	}
@@ -295,7 +297,8 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			//获取code
 			fmRe.setRelation(Integer.parseInt(fm.getRelation()));
 
-			Result<Boolean> feignRs = familyReg.save(fmRe);
+			Result<Boolean> feignRs = familyReg.save(fmRe, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("保存家庭背景:{}", feignRs);
 		}
 	}
@@ -307,7 +310,8 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 		if (Objects.nonNull(applicationId)) {
 			application = applicationService.getById(applicationId);
 		}
-		Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()));
+		Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()),
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("获取公司信息:{}", byComId);
 		OvwYsjobRespDTO ovwYsjob = remoteOvwYsjobService.getByDeptName(Integer.parseInt(preStaff.getJobId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
 
@@ -578,7 +582,8 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			re.setTel(work.getPhone());
 			re.setSeqID(preStaff.getSeqId());
 
-			Result<?> feignRs = workRegister.save(re);
+			Result<?> feignRs = workRegister.save(re, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("保存工作经历:{}", feignRs);
 		}
 	}
@@ -628,7 +633,8 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			edu.setIsHighDegreeType(one.equals(education.getIsHighDegreeType()));
 			edu.setIsHighEdutype(one.equals(education.getIsHighEduType()));
 
-			Result<Boolean> feignRs = eduReg.save(edu);
+			Result<Boolean> feignRs = eduReg.save(edu, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("保存教育经历:{}", feignRs);
 		}
 	}

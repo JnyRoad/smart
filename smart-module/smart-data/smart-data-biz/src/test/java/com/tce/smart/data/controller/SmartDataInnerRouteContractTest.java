@@ -6,7 +6,17 @@ import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.feign.xcc6.RemoteXCRsEmpService;
 import com.tce.smart.data.api.feign.xcvehicle.RemoteXCVehicleService;
 import com.tce.smart.data.api.feign.dhrview.RemoteYutoDhrYsService;
+import com.tce.smart.data.api.feign.temporary.RemoteEbgEducationRegisterService;
+import com.tce.smart.data.api.feign.temporary.RemoteEbgFamilyRegisterService;
+import com.tce.smart.data.api.feign.temporary.RemoteEbgWorkingRegisterService;
+import com.tce.smart.data.api.feign.temporary.RemoteEbgeJavoidanceService;
+import com.tce.smart.data.api.feign.temporary.RemoteOcompanyService;
 import com.tce.smart.data.controller.dhrview.YutoDhrPsndoController;
+import com.tce.smart.data.controller.temporary.EbgEducationRegisterController;
+import com.tce.smart.data.controller.temporary.EbgFamilyRegisterController;
+import com.tce.smart.data.controller.temporary.EbgWorkingRegisterController;
+import com.tce.smart.data.controller.temporary.EbgeJavoidanceController;
+import com.tce.smart.data.controller.temporary.OcompanyController;
 import com.tce.smart.data.controller.xcc6.RsXCEmpController;
 import com.tce.smart.data.controller.xcvehicle.TParkCardController;
 import org.junit.Assert;
@@ -73,6 +83,24 @@ public class SmartDataInnerRouteContractTest {
 		assertFeignContract(RemoteYutoDhrYsService.class, "page", "/empdhr/ys/internal/page", GetMapping.class);
 	}
 
+	@Test
+	public void temporaryStaffSyncRoutesRequireInternalServerScope() {
+		assertInternalServerRoute(OcompanyController.class, "getByComId", "/company/internal/getByComId", GetMapping.class);
+		assertInternalServerRoute(EbgEducationRegisterController.class, "save", "/ebgEducationRegister/internal/save", PostMapping.class);
+		assertInternalServerRoute(EbgFamilyRegisterController.class, "save", "/ebgFamilyRegister/internal/save", PostMapping.class);
+		assertInternalServerRoute(EbgeJavoidanceController.class, "save", "/ebgJavoidanceRegister/internal/save", PostMapping.class);
+		assertInternalServerRoute(EbgWorkingRegisterController.class, "save", "/ebgWorkingRegister/internal/save", PostMapping.class);
+	}
+
+	@Test
+	public void temporaryStaffSyncFeignRoutesRequireServiceTokenMarker() {
+		assertFeignContract(RemoteOcompanyService.class, "getByComId", "/company/internal/getByComId", GetMapping.class);
+		assertFeignContract(RemoteEbgEducationRegisterService.class, "save", "/ebgEducationRegister/internal/save", PostMapping.class);
+		assertFeignContract(RemoteEbgFamilyRegisterService.class, "save", "/ebgFamilyRegister/internal/save", PostMapping.class);
+		assertFeignContract(RemoteEbgeJavoidanceService.class, "save", "/ebgJavoidanceRegister/internal/save", PostMapping.class);
+		assertFeignContract(RemoteEbgWorkingRegisterService.class, "save", "/ebgWorkingRegister/internal/save", PostMapping.class);
+	}
+
 	private void assertInternalServerRoute(Class<?> controllerType, String methodName, String expectedPath,
 			Class<?> mappingType) {
 		Method method = findMethod(controllerType, methodName);
@@ -114,7 +142,13 @@ public class SmartDataInnerRouteContractTest {
 	}
 
 	private String expectedBasePath(String expectedPath) {
-		return expectedPath.substring(0, expectedPath.indexOf("/inner"));
+		int innerPathIndex = expectedPath.indexOf("/inner");
+		int internalPathIndex = expectedPath.indexOf("/internal");
+		int pathIndex = innerPathIndex >= 0 ? innerPathIndex : internalPathIndex;
+		if (pathIndex < 0) {
+			throw new IllegalArgumentException("内部路由必须包含 /inner 或 /internal：" + expectedPath);
+		}
+		return expectedPath.substring(0, pathIndex);
 	}
 
 	private Method findMethod(Class<?> type, String methodName) {
