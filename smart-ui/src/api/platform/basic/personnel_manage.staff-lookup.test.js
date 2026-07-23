@@ -58,4 +58,27 @@ describe('api/platform/basic/personnel_manage 员工最小搜索契约', () => {
       departmentName: '生产'
     }])
   })
+
+  it('批量离职查询不再传递 compId，并只保留操作确认字段', async () => {
+    request.mockResolvedValueOnce({
+      data: {
+        data: [{
+          staffId: 1,
+          badge: 'A100',
+          name: '测试员工',
+          certno: '不得保留',
+          phone: '不得保留'
+        }]
+      }
+    })
+
+    const response = await api.getTemporaryStaffByBadgeBatch({ badges: 'A100', compId: '伪造值' })
+
+    expect(request).toHaveBeenCalledWith({
+      url: '/platform/staff/admin/temporary/by-badges',
+      method: 'get',
+      params: { badges: 'A100' }
+    })
+    expect(response.data.data).toEqual([{ id: 1, badge: 'A100', name: '测试员工' }])
+  })
 })

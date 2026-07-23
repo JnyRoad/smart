@@ -20,6 +20,7 @@ import com.tce.smart.dispatcher.api.dto.req.DispatcherDTO;
 import com.tce.smart.dispatcher.api.enums.EventEnum;
 import com.tce.smart.dispatcher.api.feign.RemoteDispatcherService;
 import com.tce.smart.platform.api.dto.*;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.platform.core.entity.SmtDevice;
 import com.tce.smart.platform.core.entity.SmtDeviceTask;
@@ -472,7 +473,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		String base64Img = smtImageService.getImageBase64ByCode(smtDeviceTask.getImageId());
 		cardDTO.setFaceImage(base64Img);
 		cardDTO.setCardNo(smtDeviceTask.getCardNo());
-		Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffById(smtDeviceTask.getCardNo(), SecurityConstants.FROM_IN);
+		Result<InternalScheduleStaffIdentityRespDTO> staffInfo = remoteStaffService.getScheduleIdentityStaff(smtDeviceTask.getCardNo(),
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (staffInfo.isSuccess() && Objects.nonNull(staffInfo.getData()) && staffInfo.getData().getStatus() != -1) {
 			String badge = staffInfo.getData().getBadge();
 			if (NumberUtil.isNumber(badge)) {

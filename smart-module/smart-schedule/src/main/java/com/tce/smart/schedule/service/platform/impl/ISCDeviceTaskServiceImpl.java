@@ -27,7 +27,8 @@ import com.tce.smart.dispatcher.api.enums.EventEnum;
 import com.tce.smart.dispatcher.api.feign.RemoteDispatcherService;
 import com.tce.smart.platform.api.dto.IscTemperatureDTO;
 import com.tce.smart.platform.api.dto.SmtParkDTO;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleIscPersonRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
 import com.tce.smart.platform.api.feign.RemoteParkService;
 import com.tce.smart.platform.api.feign.RemoteSnapPersonService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
@@ -376,16 +377,16 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			Map<String, Object> params = new HashMap<>(10);
 			String personId;
 
-			Result<SmtStaffDTO> staffInfo = null;
+			Result<InternalScheduleIscPersonRespDTO> staffInfo = null;
 			if (!isTemporaryAuthorizationTask(task)) {
-				staffInfo = remoteStaffService.getSimpleSttaffById(task.getCardNo(), SecurityConstants.FROM_IN);
+				staffInfo = remoteStaffService.getScheduleIscPersonStaff(task.getCardNo(), SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			}
-			log.info("event=isc_staff_lookup task_id={} park_id={} staff_id={} staff_payload={}",
-					task.getId(), task.getParkId(), task.getCardNo(),
-					staffInfo == null ? "null" : IscLogPayloadFormatter.format(staffInfo.getData()));
+			log.info("event=isc_staff_lookup task_id={} park_id={} staff_lookup_success={}",
+					task.getId(), task.getParkId(), staffInfo != null && staffInfo.isSuccess() && staffInfo.getData() != null);
 			if (staffInfo != null && staffInfo.isSuccess() && Objects.nonNull(staffInfo.getData())) {
 				// 获取员工信息
-				SmtStaffDTO staff = staffInfo.getData();
+				InternalScheduleIscPersonRespDTO staff = staffInfo.getData();
 				// 将员工编号放入params中
 				params.put("personId", staff.getBadge());
 				// 将员工姓名放入params中
@@ -396,10 +397,6 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				params.put("orgIndexCode", Objects.equals(xcParkId, task.getParkId()) ? xcHpoOrgIndexCode : hfOrgIndexCode);
 				// 将员工生日放入params中
 				params.put("birthday", staff.getBirth());
-				// 将员工电话放入params中
-				params.put("phoneNo", staff.getPhone());
-				// 将员工邮箱放入params中
-				params.put("email", staff.getEmail());
 				// 固定为身份证类型
 				params.put("certificateType", "111");
 				// 将员工身份证号放入params中
@@ -521,7 +518,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			if (isTemporaryAuthorizationTask(task)) {
 				taskCertNo = resolveTemporaryAccessCertNo(task);
 			} else {
-				Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffById(task.getCardNo(), SecurityConstants.FROM_IN);
+				Result<InternalScheduleStaffIdentityRespDTO> staffInfo = remoteStaffService.getScheduleIdentityStaff(task.getCardNo(),
+						SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if (staffInfo != null && staffInfo.isSuccess() && Objects.nonNull(staffInfo.getData())) {
 					taskBadge = staffInfo.getData().getBadge();
 					taskCertNo = staffInfo.getData().getCertno();
@@ -1451,7 +1449,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			}
 		} else {
 			try {
-				Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffById(task.getCardNo(), SecurityConstants.FROM_IN);
+				Result<InternalScheduleStaffIdentityRespDTO> staffInfo = remoteStaffService.getScheduleIdentityStaff(task.getCardNo(),
+						SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if (staffInfo != null && staffInfo.isSuccess() && staffInfo.getData() != null) {
 					badge = staffInfo.getData().getBadge();
 					certNo = staffInfo.getData().getCertno();
@@ -1807,7 +1806,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			return;
 		}
 		try {
-			Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffById(cardNo, SecurityConstants.FROM_IN);
+			Result<InternalScheduleStaffIdentityRespDTO> staffInfo = remoteStaffService.getScheduleIdentityStaff(cardNo,
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (staffInfo != null && staffInfo.isSuccess() && staffInfo.getData() != null) {
 				addLocalPersonIdentifier(identifiers, staffInfo.getData().getBadge());
 			}
@@ -2826,7 +2826,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			}
 			String badge = task.getBadge();
 			if (StrUtil.isBlank(badge)) {
-				Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffById(task.getCardNo(), SecurityConstants.FROM_IN);
+				Result<InternalScheduleStaffIdentityRespDTO> staffInfo = remoteStaffService.getScheduleIdentityStaff(task.getCardNo(),
+						SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if (staffInfo != null && staffInfo.isSuccess() && staffInfo.getData() != null) {
 					badge = staffInfo.getData().getBadge();
 				}

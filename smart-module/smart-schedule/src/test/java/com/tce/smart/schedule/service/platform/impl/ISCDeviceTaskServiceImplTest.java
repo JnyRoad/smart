@@ -12,7 +12,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.dispatcher.api.dto.req.DispatcherDTO;
 import com.tce.smart.dispatcher.api.enums.EventEnum;
 import com.tce.smart.dispatcher.api.feign.RemoteDispatcherService;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleIscPersonRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
 import com.tce.smart.platform.api.feign.RemoteParkService;
 import com.tce.smart.platform.api.feign.RemoteSnapPersonService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
@@ -361,8 +362,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
@@ -374,6 +374,8 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals(DeviceTaskStatusEnum.SUCCESS.getCode(), task.getStatus());
 		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getCode(), task.getCode());
 		Assert.assertEquals("isc-person-current", task.getPersonId());
+		Mockito.verify(remoteStaffService, Mockito.atLeastOnce()).getScheduleIdentityStaff("2059164347547275265",
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
 		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
@@ -406,8 +408,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
 		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(downRecord);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
@@ -1420,7 +1421,7 @@ public class ISCDeviceTaskServiceImplTest {
 
 		service.downAccess();
 
-		Mockito.verify(remoteStaffService, Mockito.never()).getSimpleSttaffById(Mockito.anyString(), Mockito.anyString());
+		verifyNoScheduleStaffLookup(remoteStaffService);
 		Mockito.verify(staffOtherService, Mockito.never()).getOne(Mockito.any());
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
 		Mockito.verify(dispatcherService, Mockito.times(4)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
@@ -1557,8 +1558,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(staffOtherService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
 		Mockito.when(imageService.getImageBinaryByCode("image-current")).thenReturn(new byte[20 * 1024]);
 		Mockito.when(imageService.getByCode("image-current")).thenReturn(image);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
@@ -1617,8 +1617,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(staffOtherService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
 		Mockito.when(imageService.getByCode("image-current")).thenReturn(image);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
@@ -1676,7 +1675,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Map personInfo = (Map) personDatas[0];
 		Assert.assertEquals(Collections.singletonList("person-del"), personInfo.get("indexCodes"));
 		Mockito.verify(downRecordService, Mockito.never()).getOne(Mockito.any());
-		Mockito.verify(remoteStaffService, Mockito.never()).getSimpleSttaffById(Mockito.anyString(), Mockito.anyString());
+		verifyNoScheduleStaffLookup(remoteStaffService);
 		Mockito.verify(staffOtherService, Mockito.never()).getOne(Mockito.any());
 	}
 
@@ -1705,8 +1704,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
@@ -1764,8 +1762,7 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(downRecord);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
@@ -1821,8 +1818,7 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(downRecord);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
@@ -2093,8 +2089,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(pageWith(task));
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		// ISC按工号、证件号查询均为空：人员已被ISC删除，权限已级联清理
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success("{\"list\":[]}"));
@@ -2126,8 +2121,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		// ISC返回的人员全部处于删除状态（status<0）：等同人员已删除
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(deletedOnlyPersonList("isc-person-deleted", "JA26079")));
@@ -2155,8 +2149,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		// ISC查询失败：不能判定人员已删除，必须保留重试
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.fail("ISC平台查询超时"));
@@ -2184,8 +2177,7 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		// 工号查询为空，但证件号复查命中在册人员：不能误判删除，按正常删除流程下发
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
@@ -2229,8 +2221,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
 		// ISC返回了记录但personId缺失：疑似响应结构异常，不得误判人员已删除
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success("{\"list\":[{\"jobNo\":\"JA26079\",\"status\":1}]}"));
@@ -2258,8 +2249,7 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		// 本地员工记录没有工号：只能按证件号单标识判定
-		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(staffDto(null, "411082199108142426")));
+		stubScheduleStaff(remoteStaffService, null, "411082199108142426");
 		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success("{\"list\":[]}"));
 
@@ -2304,13 +2294,40 @@ public class ISCDeviceTaskServiceImplTest {
 		return JSONUtil.toJsonStr(body);
 	}
 
-	private SmtStaffDTO staffDto(String badge, String certNo) {
-		SmtStaffDTO staff = new SmtStaffDTO();
+	/**
+	 * 统一声明 Smart Schedule 需要的两类内部员工资料，防止测试回退到通用员工实体契约。
+	 */
+	private void stubScheduleStaff(RemoteStaffService remoteStaffService, String badge, String certNo) {
+		Mockito.when(remoteStaffService.getScheduleIdentityStaff("2059164347547275265", SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED))
+				.thenReturn(Result.success(scheduleIdentityStaff(badge, certNo)));
+		Mockito.when(remoteStaffService.getScheduleIscPersonStaff("2059164347547275265", SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED))
+				.thenReturn(Result.success(scheduleIscPersonStaff(badge, certNo)));
+	}
+
+	private InternalScheduleStaffIdentityRespDTO scheduleIdentityStaff(String badge, String certNo) {
+		InternalScheduleStaffIdentityRespDTO staff = new InternalScheduleStaffIdentityRespDTO();
+		staff.setBadge(badge);
+		staff.setCertno(certNo);
+		staff.setStatus(0);
+		return staff;
+	}
+
+	private InternalScheduleIscPersonRespDTO scheduleIscPersonStaff(String badge, String certNo) {
+		InternalScheduleIscPersonRespDTO staff = new InternalScheduleIscPersonRespDTO();
 		staff.setBadge(badge);
 		staff.setName("张倩瑜");
-		staff.setCertno(certNo);
 		staff.setSex(1);
+		staff.setCertno(certNo);
 		return staff;
+	}
+
+	private void verifyNoScheduleStaffLookup(RemoteStaffService remoteStaffService) {
+		Mockito.verify(remoteStaffService, Mockito.never()).getScheduleIdentityStaff(Mockito.anyString(), Mockito.anyString(),
+				Mockito.anyString());
+		Mockito.verify(remoteStaffService, Mockito.never()).getScheduleIscPersonStaff(Mockito.anyString(), Mockito.anyString(),
+				Mockito.anyString());
 	}
 
 	private ISCDeviceTaskServiceImpl service(RemoteDispatcherService dispatcherService,

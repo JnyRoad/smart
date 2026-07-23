@@ -241,14 +241,50 @@ export function delFamily(id) {
   })
 }
 /**
- * 根据工号 查询 任职关系内的信息
- * @param {*} param
+ * 根据工号查询任职关系所需的最小员工资料。
+ *
+ * 先通过受权限和园区范围约束的工号检索取得主键，再读取受控详情；不能再请求
+ * 会返回完整员工实体的历史接口。此处保留旧页面的 smtStaff 外层结构，避免影响
+ * 任职关系弹窗的既有渲染逻辑。
+ *
+ * @param {string} badge 员工工号
+ * @returns {Promise<{data: {data: {smtStaff: object|null}}>}>
  */
-export function selectStaffInfo (badge) {
-  return request({
-    url: '/platform/staff/getFullByBadge/'+badge,
+export async function selectStaffInfo (badge) {
+  const normalizedBadge = String(badge || '').trim()
+  const lookupResponse = await request({
+    url: '/platform/staff/lookup',
+    method: 'get',
+    params: { badge: normalizedBadge }
+  })
+  const candidates = (lookupResponse.data && lookupResponse.data.data) || []
+  const matchedStaff = candidates.find(item => item.badge === normalizedBadge)
+  if (!matchedStaff) {
+    return { data: { data: { smtStaff: null } } }
+  }
+
+  const detailResponse = await request({
+    url: '/platform/staff/admin/' + matchedStaff.staffId,
     method: 'get'
   })
+  const detail = detailResponse.data && detailResponse.data.data
+  if (!detail) {
+    return { data: { data: { smtStaff: null } } }
+  }
+  return {
+    data: {
+      data: {
+        smtStaff: {
+          badge: detail.badge,
+          name: detail.name,
+          sex: detail.sex,
+          compName: detail.companyName,
+          depName: detail.departmentName,
+          jobName: detail.jobName
+        }
+      }
+    }
+  }
 }
 
 /**

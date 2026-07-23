@@ -60,6 +60,8 @@ import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminStaffDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
@@ -504,73 +506,13 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		return this.baseMapper.getStaffPage(page, reqDTO);
 	}
 
-	/**
-	 * 获取员工的详细信息
-	 */
 	@Override
-	public Result getSmtStaffInfoById(String id) {
-		StaffInfoVO staffInfoVO = new StaffInfoVO();
-		SmtStaff selectById = this.baseMapper.selectById(id);
-		staffInfoVO.setSmtStaff(selectById);
-		//根据图片id去获取图片base64
-		try {
-			if (!Objects.isNull(selectById.getFacePicId())) {
-				String facePicUrl = imageService.buildImageUrl(selectById.getFacePicId());
-				staffInfoVO.setFacePic(facePicUrl);
-			}
-		} catch (Exception e) {
-			// TODO: handle exception
-			log.info("获取图片异常");
-		}
-		List<SmtPark> parkList = smtParkBuService.getParkListByBu(Long.parseLong(selectById.getCompId()));
-		String parkName = "";
-		for (SmtPark smtPark : parkList) {
-			parkName += smtPark.getParkName() + ",";
-		}
-
-		if (!"".equals(parkName)) {
-			parkName = parkName.substring(0, parkName.length() - 1);
-		}
-
-		if (StringUtils.isBlank(parkName)) {
-			//查询临时BU信息
-			OrganizeRelationDTO orgRelation = smtOrganizeRelationMapper.getOrgRelation(Long.parseLong(selectById.getCompId()));
-			parkName = orgRelation.getParkName();
-		}
-
-		staffInfoVO.setParkName(parkName);
-		//获取紧急联系人
-		List<SysDict> findByType = remoteDictService.findByType(DictConstants.REALTION_TYPE, SecurityConstants.FROM_IN).data();
-
-		List<SmtStaffEmergency> emergencyList = staffEmergencyService.list(Wrappers.<SmtStaffEmergency>query().lambda().eq(SmtStaffEmergency::getStaffId, id));
-		if (emergencyList.size() > 0) {
-			for (int j = 0; j < findByType.size(); j++) {
-				if (emergencyList.get(0).getRelation().equals(findByType.get(j).getValue())) {
-					emergencyList.get(0).setRelation(findByType.get(j).getLabel());
-					break;
-				}
-			}
-			staffInfoVO.setSmtStaffEmergency(emergencyList);
-		}
-		return new Result<>(staffInfoVO);
-	}
-
-	@Override
-	public List<SmtStaffDTO> queryMobile(String mobile) {
-		List<SmtStaffDTO> staffDTOS = new ArrayList<>();
-		List<SmtStaff> selectByIds = this.baseMapper.selectList(Wrappers.<SmtStaff>query().lambda()
+	public List<SmtStaff> findStaffByMobileForLogin(String mobile) {
+		return this.baseMapper.selectList(Wrappers.<SmtStaff>query().lambda()
 				.eq(SmtStaff::getPhone, mobile)
 				.ne(SmtStaff::getStatus, StaffStatusEnum.STAFF_STATUS_QUIT.getCode())
 				.ne(SmtStaff::getStatus, StaffStatusEnum.UNKNOWN.getCode())
 		);
-		for (SmtStaff staff : selectByIds) {
-			SmtStaffDTO staffDTO = new SmtStaffDTO();
-			staffDTO.setName(staff.getName());
-			staffDTO.setBadge(staff.getBadge());
-			staffDTO.setCertno(staff.getCertno());
-			staffDTOS.add(staffDTO);
-		}
-		return staffDTOS;
 	}
 
 	@Override
@@ -970,18 +912,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 			return Collections.emptyList();
 		}
 
-		List<SmtParkBu> parkBus = smtParkBuService.list(Wrappers.<SmtParkBu>query().lambda()
-				.in(SmtParkBu::getParkId, parkIds));
-		Set<String> visibleCompIds = parkBus.stream()
-				.map(SmtParkBu::getCompId)
-				.filter(StrUtil::isNotBlank)
-				.collect(Collectors.toSet());
-		// 临时员工通过组织关系绑定园区，需与常规 BU 关系一并纳入权限范围。
-		smtOrganizeRelationService.list(Wrappers.<SmtOrganizeRelation>query().lambda()
-				.in(SmtOrganizeRelation::getParkId, parkIds)).stream()
-				.map(SmtOrganizeRelation::getCompId)
-				.filter(StrUtil::isNotBlank)
-				.forEach(visibleCompIds::add);
+		Set<String> visibleCompIds = visibleCompIds(parkIds);
 		if (visibleCompIds.isEmpty()) {
 			return Collections.emptyList();
 		}
@@ -991,6 +922,49 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 				.in(SmtStaff::getCompId, visibleCompIds)
 				.last("and rownum <= 20"));
 		return staffs.stream().limit(20).map(this::toStaffLookupResp).collect(Collectors.toList());
+	}
+
+	@Override
+	public AdminStaffDetailRespDTO getAdminStaffDetail(Long staffId, List<Integer> parkIds) {
+		if (staffId == null || CollectionUtil.isEmpty(parkIds)) {
+			return null;
+		}
+		Set<String> visibleCompIds = visibleCompIds(parkIds);
+		if (visibleCompIds.isEmpty()) {
+			return null;
+		}
+		SmtStaff staff = this.baseMapper.selectById(staffId);
+		if (staff == null || !visibleCompIds.contains(staff.getCompId())) {
+			return null;
+		}
+		return toAdminStaffDetailResp(staff);
+	}
+
+	@Override
+	public List<AdminTemporaryStaffRespDTO> searchTemporaryStaffForAdmin(List<String> badges, List<Integer> parkIds) {
+		if (CollectionUtil.isEmpty(badges) || CollectionUtil.isEmpty(parkIds)) {
+			return Collections.emptyList();
+		}
+		Set<String> visibleCompIds = visibleCompIds(parkIds);
+		if (visibleCompIds.isEmpty()) {
+			return Collections.emptyList();
+		}
+		List<String> normalizedBadges = badges.stream()
+				.filter(StrUtil::isNotBlank)
+				.map(String::trim)
+				.distinct()
+				.limit(200)
+				.collect(Collectors.toList());
+		if (normalizedBadges.isEmpty()) {
+			return Collections.emptyList();
+		}
+		return this.baseMapper.selectList(Wrappers.<SmtStaff>query().lambda()
+				.in(SmtStaff::getCompId, visibleCompIds)
+				.in(SmtStaff::getBadge, normalizedBadges)
+				.eq(SmtStaff::getStatus, StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode()))
+				.stream()
+				.map(this::toAdminTemporaryStaffResp)
+				.collect(Collectors.toList());
 	}
 
 	@Override
@@ -1047,6 +1021,46 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		response.setBadge(staff.getBadge());
 		response.setName(staff.getName());
 		response.setDepartmentName(staff.getDepName());
+		return response;
+	}
+
+	/** 汇总管理员可见园区的常规 BU 与临时员工组织关系，所有员工查询均复用这一边界。 */
+	private Set<String> visibleCompIds(List<Integer> parkIds) {
+		List<SmtParkBu> parkBus = smtParkBuService.list(Wrappers.<SmtParkBu>query().lambda()
+				.in(SmtParkBu::getParkId, parkIds));
+		Set<String> visibleCompIds = parkBus.stream()
+				.map(SmtParkBu::getCompId)
+				.filter(StrUtil::isNotBlank)
+				.collect(Collectors.toSet());
+		// 临时员工通过组织关系绑定园区，需与常规 BU 关系一并纳入权限范围。
+		smtOrganizeRelationService.list(Wrappers.<SmtOrganizeRelation>query().lambda()
+				.in(SmtOrganizeRelation::getParkId, parkIds)).stream()
+				.map(SmtOrganizeRelation::getCompId)
+				.filter(StrUtil::isNotBlank)
+				.forEach(visibleCompIds::add);
+		return visibleCompIds;
+	}
+
+	/** 显式投影后台详情，禁止 BeanUtils 将新增敏感实体字段意外返回给客户端。 */
+	private AdminStaffDetailRespDTO toAdminStaffDetailResp(SmtStaff staff) {
+		AdminStaffDetailRespDTO response = new AdminStaffDetailRespDTO();
+		response.setStaffId(staff.getId());
+		response.setBadge(staff.getBadge());
+		response.setName(staff.getName());
+		response.setSex(staff.getSex());
+		response.setCompanyName(staff.getCompName());
+		response.setDepartmentName(staff.getDepName());
+		response.setJobName(staff.getJobName());
+		response.setStatus(staff.getStatus());
+		return response;
+	}
+
+	/** 批量离职确认只投影页面实际使用的主键、工号与姓名。 */
+	private AdminTemporaryStaffRespDTO toAdminTemporaryStaffResp(SmtStaff staff) {
+		AdminTemporaryStaffRespDTO response = new AdminTemporaryStaffRespDTO();
+		response.setStaffId(staff.getId());
+		response.setBadge(staff.getBadge());
+		response.setName(staff.getName());
 		return response;
 	}
 

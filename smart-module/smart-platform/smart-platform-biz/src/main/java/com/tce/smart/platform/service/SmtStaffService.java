@@ -9,6 +9,8 @@ import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminStaffDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffSelfCheckInProfileRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
@@ -31,9 +33,7 @@ public interface SmtStaffService extends IService<SmtStaff> {
 
 	MyDormitoryVO myDormitory(SmtStaff smtStaff);
 
-	Result getSmtStaffInfoById(String id);
-
-	List<SmtStaffDTO> queryMobile(String mobile);
+	List<SmtStaff> findStaffByMobileForLogin(String mobile);
 
 	SmtStaff getByPhoneAndName(String phone, String name);
 
@@ -117,6 +117,24 @@ public interface SmtStaffService extends IService<SmtStaff> {
 	 * @return 不含个人敏感信息的员工列表
 	 */
 	List<StaffLookupRespDTO> searchStaffForAdmin(String badge, List<Integer> parkIds);
+
+	/**
+	 * 按管理员可见园区查询员工受控详情。
+	 *
+	 * @param staffId 员工主键
+	 * @param parkIds 当前管理员可见园区
+	 * @return 不含证件、联系方式、地址和人脸资料的员工详情；越园区或不存在时返回空
+	 */
+	AdminStaffDetailRespDTO getAdminStaffDetail(Long staffId, List<Integer> parkIds);
+
+	/**
+	 * 查询当前管理员园区内可批量离职的临时员工最小资料。
+	 *
+	 * @param badges 工号集合
+	 * @param parkIds 当前管理员可见园区
+	 * @return 仅含主键、工号和姓名的临时员工记录
+	 */
+	List<AdminTemporaryStaffRespDTO> searchTemporaryStaffForAdmin(List<String> badges, List<Integer> parkIds);
 
 	/**
 	 * 查询当前员工入住流程可展示的资料摘要。

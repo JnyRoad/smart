@@ -329,30 +329,30 @@ export function getSearchStaff({
 }
 
 /**
- * 批量离职，根据工号查询员工信息
+ * 批量离职前查询当前管理员园区内的临时员工。
+ *
+ * 园区范围由后端认证主体确定，前端不能再传入可伪造的 compId，也不会保留
+ * 身份证、手机号等历史响应字段。
  */
-export function getStaffByBadge(obj) {
+export function getTemporaryStaffByBadgeBatch(obj) {
   return request({
-    url: `/platform/staff/staffByBadge`,
+    url: `/platform/staff/admin/temporary/by-badges`,
     method: 'get',
     params: {
-      badge: obj.badge,
-      compId: obj.compId
+      badges: obj.badges
     }
-  })
-}
-
-/**
- * 批量离职，根据多个工号 批量查询员工信息
- */
- export function getStaffByBadgeBatch(obj) {
-  return request({
-    url: `/platform/staff/staffByBadges`,
-    method: 'get',
-    params: {
-      badges: obj.badges,
-      compId: obj.compId
-    }
+  }).then(response => {
+    const body = response && response.data ? response.data : {}
+    const records = Array.isArray(body.data) ? body.data : []
+    return Object.assign({}, response, {
+      data: Object.assign({}, body, {
+        data: records.map(staff => ({
+          id: staff.staffId,
+          badge: staff.badge,
+          name: staff.name
+        }))
+      })
+    })
   })
 }
 

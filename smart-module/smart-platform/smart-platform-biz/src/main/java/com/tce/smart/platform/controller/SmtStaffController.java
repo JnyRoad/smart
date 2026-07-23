@@ -11,7 +11,6 @@ import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
@@ -92,22 +91,6 @@ public class SmtStaffController extends BaseController {
 	}
 
 	/**
-	 * 通过id查询员工的基本信息
-	 *
-	 * @param id
-	 *            id
-	 * @return Result
-	 */
-	@GetMapping("/{id}")
-	public Result getById(@PathVariable("id") String id) {
-		return smtStaffService.getSmtStaffInfoById(id);
-	}
-
-	@GetMapping("/query/{mobile}")
-	public Result<List<SmtStaffDTO>> queryMobile(@PathVariable("mobile") String mobile) {
-		return success(smtStaffService.queryMobile(mobile));
-	}
-	/**
 	 * 新增员工表
 	 *
 	 * @param smtStaff
@@ -154,7 +137,20 @@ public class SmtStaffController extends BaseController {
 	@GetMapping("/lookup")
 	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
 	public Result<List<StaffLookupRespDTO>> lookup(@RequestParam("badge") String badge) {
-		return success(smtStaffService.searchStaffForAdmin(badge, SecurityUtils.getUser().getParkIdList()));
+		return success(smtStaffService.searchStaffForAdmin(badge, currentAuthenticatedUser().getParkIdList()));
+	}
+
+	/**
+	 * 后台按员工主键查询经园区范围过滤的最小详情。
+	 *
+	 * 该接口不能替代敏感人员档案查询：响应只包含当前 Smart UI 人员识别与组织展示
+	 * 实际需要的非敏感字段，认证主体也不能越过其已授权园区。
+	 */
+	@ApiOperation("后台查询员工受控详情")
+	@GetMapping("/admin/{staffId}")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result<AdminStaffDetailRespDTO> adminStaffDetail(@PathVariable("staffId") Long staffId) {
+		return success(smtStaffService.getAdminStaffDetail(staffId, currentAuthenticatedUser().getParkIdList()));
 	}
 
 	/**
@@ -165,15 +161,21 @@ public class SmtStaffController extends BaseController {
 	@ApiOperation("查询本人入住资料摘要")
 	@GetMapping("/me/check-in-profile")
 	public Result<StaffSelfCheckInProfileRespDTO> myCheckInProfile() {
+		SmartUser currentUser = currentAuthenticatedUser();
+		return success(smtStaffService.getCheckInProfileForBadge(currentUser.getUsername()));
+	}
+
+	/** 只接受网关解析出的 SmartUser，缺失认证主体时 fail-closed。 */
+	private SmartUser currentAuthenticatedUser() {
 		Authentication authentication = SecurityUtils.getAuthentication();
 		if (authentication == null || !authentication.isAuthenticated()) {
-			throw new AccessDeniedException("未认证用户不可查询入住资料");
+			throw new AccessDeniedException("未认证用户不可查询员工资料");
 		}
 		SmartUser currentUser = SecurityUtils.getUser(authentication);
 		if (currentUser == null) {
-			throw new AccessDeniedException("未认证用户不可查询入住资料");
+			throw new AccessDeniedException("未认证用户不可查询员工资料");
 		}
-		return success(smtStaffService.getCheckInProfileForBadge(currentUser.getUsername()));
+		return currentUser;
 	}
 
 	@SysLog("临时人员列表")
@@ -269,16 +271,6 @@ public class SmtStaffController extends BaseController {
 
 
 	/**
-	 * 通过员工号查询员工的全部信息
-	 * @param badge
-	 * @return
-	 */
-	@SysLog("app端通过员工号查询员工详细信息")
-	@GetMapping("/getFullByBadge/{badge}")
-	public Result<StaffInfoRespDTO> getFullByBadge(@PathVariable("badge") String badge) {
-		return success(smtStaffService.getSmtStaffInfoByBadge(badge),StaffInfoRespDTO.class);
-	}
-	/**
 	 * 从视图中同步员工信息
 	 * @param empHr
 	 * @return
@@ -299,48 +291,19 @@ public class SmtStaffController extends BaseController {
 
 
 	/**
-	 * 我的基本信息
-	 * @param  badge
-	 * @return
+	 * 后台批量离职前查询当前管理员园区内的临时员工。
+	 *
+	 * 调用方不能提交或伪造 BU 编号；园区范围始终从已认证管理主体取得。
 	 */
-	@Inner
-	@SysLog("app端通过员工号查询员工基本信息")
-	@GetMapping("/baseInfo/{badge}")
-	public Result getBaseinfoByBadge(@PathVariable("badge") String badge) {
-		return new Result<>(smtStaffService.getBaseinfoById(badge));
-	}
-
-	@GetMapping("/staffByBadge")
-	public Result getStaffByBadge(@RequestParam("badge") String badge, @RequestParam("compId") String compId){
-		return success(smtStaffService.getStaffByBadge(badge, compId), TempStaffEditRespDTO.class);
-	}
-
-	@ApiOperation("批量工号查询")
-	@GetMapping("/staffByBadges")
-	public Result getStaffByBadges(@RequestParam("badges") String badges, @RequestParam("compId") String compId){
-		List<String> badgeList = Arrays.asList(badges.split(","));
-		return success(smtStaffService.getStaffByBadges(badgeList, compId), TempStaffEditRespDTO.class);
-	}
-
-	/**
-	 * 根据员工ID查询员工实体信息
-	 * @param staffId 员工ID
-	 * @return 员工信息
-	 */
-	@GetMapping("/simple/get")
-	public Result<SmtStaff> getSimpleSttaffById(@RequestParam("staffId") String staffId){
-		return new Result<>(smtStaffService.getSimpleSttaffById(staffId));
-	}
-
-	/**
-	 * 根据员工ID列表 查询员工实体信息
-	 * @param staffIds 员工IDs
-	 * @return 员工信息
-	 */
-	@Inner
-	@GetMapping("/simple/get-list")
-	public Result<List<SmtStaff>> getSimpleSttaffListByIds(@RequestParam("staffIds") ArrayList<String> staffIds){
-		return new Result<>(smtStaffService.getSimpleSttaffByIds(staffIds));
+	@ApiOperation("后台批量查询临时员工最小资料")
+	@GetMapping("/admin/temporary/by-badges")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result<List<AdminTemporaryStaffRespDTO>> temporaryStaffByBadges(@RequestParam("badges") String badges) {
+		List<String> badgeList = Arrays.stream(badges.split(","))
+				.map(String::trim)
+				.filter(StrUtil::isNotBlank)
+				.collect(java.util.stream.Collectors.toList());
+		return success(smtStaffService.searchTemporaryStaffForAdmin(badgeList, currentAuthenticatedUser().getParkIdList()));
 	}
 
 	/**
@@ -396,19 +359,6 @@ public class SmtStaffController extends BaseController {
 		BeanUtils.copyProperties(smtVehicle, smtVehicleRespDTO);
 		return success(smtVehicleRespDTO);
 	}
-
-	/**
-	 * 修改手机号
-	 * @param smtStaff
-	 * @return
-	 */
-	@SysLog("app调用接口修改手机号")
-	@Inner
-	@PostMapping("updatePhone")
-	public Result updatePhone(@RequestBody SmtStaff smtStaff) {
-		return smtStaffService.updatePhone(smtStaff);
-	}
-
 
 	@SysLog("app调用接口添加车辆")
 	@Inner
@@ -475,16 +425,6 @@ public class SmtStaffController extends BaseController {
 	@PostMapping("/auth/login/init")
 	public Result<Boolean> inintLoginAuth(@RequestParam("badge") String badge){
 		return new Result<Boolean>(smtAppStaffAuthService.initLoginAuth(badge));
-	}
-
-	/**
-	 * 人脸登录-人脸搜索员工信息
-	 *
-	 * @return
-	 */
-	@PostMapping("/face/search/login")
-	public Result<SmtStaff> faceSearchForLogin(@RequestBody StaffPerfectDTO staffPerfectDTO){
-		return new Result<SmtStaff>(smtStaffService.faceSearchForLogin(staffPerfectDTO.getFacePic(),staffPerfectDTO.getDeviceNo()));
 	}
 
 	/**

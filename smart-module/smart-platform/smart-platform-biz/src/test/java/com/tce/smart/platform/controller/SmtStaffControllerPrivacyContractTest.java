@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.tce.smart.common.security.service.SmartUser;
+import com.tce.smart.platform.api.dto.resp.AdminStaffDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffSelfCheckInProfileRespDTO;
 import com.tce.smart.platform.core.entity.SmtOrganizeRelation;
@@ -35,6 +37,7 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -74,10 +77,67 @@ public class SmtStaffControllerPrivacyContractTest {
 	}
 
 	@Test
+	public void adminStaffDetailDtoDoesNotExposePersonalSensitiveProperties() {
+		Set<String> names = Arrays.stream(AdminStaffDetailRespDTO.class.getDeclaredFields())
+				.map(Field::getName)
+				.collect(Collectors.toSet());
+
+		assertEquals(new HashSet<>(Arrays.asList("staffId", "badge", "name", "sex", "companyName",
+				"departmentName", "jobName", "status")), names);
+		assertFalse(names.contains("certno"));
+		assertFalse(names.contains("phone"));
+		assertFalse(names.contains("homeAddress"));
+		assertFalse(names.contains("facePicId"));
+	}
+
+	@Test
+	public void temporaryStaffBatchDtoDoesNotExposePersonalSensitiveProperties() {
+		Set<String> names = Arrays.stream(AdminTemporaryStaffRespDTO.class.getDeclaredFields())
+				.map(Field::getName)
+				.collect(Collectors.toSet());
+
+		assertEquals(new HashSet<>(Arrays.asList("staffId", "badge", "name")), names);
+	}
+
+	@Test
+	public void adminStaffDetailRejectsAnonymousRequest() {
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+
+		try {
+			staffController(staffService).adminStaffDetail(101L);
+			fail("匿名请求必须被拒绝，不能读取员工详情");
+		} catch (AccessDeniedException expected) {
+			Mockito.verifyZeroInteractions(staffService);
+		}
+	}
+
+	@Test
+	public void adminStaffDetailUsesOnlyAuthenticatedAdministratorsParkScope() {
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmartUser user = new SmartUser(1, 1, "admin", Arrays.asList(10, 20), "N/A",
+				true, true, true, true, Collections.emptyList());
+		SecurityContextHolder.getContext().setAuthentication(
+				new UsernamePasswordAuthenticationToken(user, "N/A", Collections.emptyList()));
+		AdminStaffDetailRespDTO detail = new AdminStaffDetailRespDTO();
+		detail.setStaffId(101L);
+		Mockito.when(staffService.getAdminStaffDetail(101L, Arrays.asList(10, 20))).thenReturn(detail);
+
+		assertEquals(detail, staffController(staffService).adminStaffDetail(101L).getData());
+		Mockito.verify(staffService).getAdminStaffDetail(101L, Arrays.asList(10, 20));
+	}
+
+	@Test
 	public void legacyBadgeHandlersAreNotPublicApiHandlers() {
+		assertMethodDoesNotExist("getById");
 		assertMethodDoesNotExist("getByBadge");
 		assertMethodDoesNotExist("getOneByBadge");
 		assertMethodDoesNotExist("getSimpleSttaffByBadge");
+		assertMethodDoesNotExist("getSimpleSttaffById");
+		assertMethodDoesNotExist("queryMobile");
+		assertMethodDoesNotExist("faceSearchForLogin");
+		assertMethodDoesNotExist("getFullByBadge");
+		assertMethodDoesNotExist("getBaseinfoByBadge");
+		assertMethodDoesNotExist("updatePhone");
 	}
 
 	@Test
@@ -117,6 +177,91 @@ public class SmtStaffControllerPrivacyContractTest {
 		Set<Object> relationQueryValues = queryValues(relationQueryCaptor.getValue());
 		assertTrue(relationQueryValues.contains(10));
 		assertFalse(relationQueryValues.contains(11));
+	}
+
+	@Test
+	public void adminStaffDetailRejectsStaffOutsideAdministratorsParkScope() {
+		SmtParkBuService parkBuService = Mockito.mock(SmtParkBuService.class);
+		SmtOrganizeRelationService organizeRelationService = Mockito.mock(SmtOrganizeRelationService.class);
+		SmtStaffMapper staffMapper = Mockito.mock(SmtStaffMapper.class);
+		SmtStaffServiceImpl service = new SmtStaffServiceImpl();
+		ReflectionTestUtils.setField(service, "smtParkBuService", parkBuService);
+		ReflectionTestUtils.setField(service, "smtOrganizeRelationService", organizeRelationService);
+		ReflectionTestUtils.setField(service, "baseMapper", staffMapper);
+
+		SmtParkBu authorizedParkBu = new SmtParkBu();
+		authorizedParkBu.setCompId("AUTHORIZED-COMP");
+		SmtStaff outsideStaff = new SmtStaff();
+		outsideStaff.setId(101L);
+		outsideStaff.setCompId("OUTSIDE-COMP");
+		Mockito.when(parkBuService.list(Mockito.any())).thenReturn(Collections.singletonList(authorizedParkBu));
+		Mockito.when(organizeRelationService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(staffMapper.selectById(101L)).thenReturn(outsideStaff);
+
+		assertEquals(null, service.getAdminStaffDetail(101L, Collections.singletonList(10)));
+	}
+
+	@Test
+	public void adminStaffDetailProjectsOnlyDedicatedNonSensitiveFields() {
+		SmtParkBuService parkBuService = Mockito.mock(SmtParkBuService.class);
+		SmtOrganizeRelationService organizeRelationService = Mockito.mock(SmtOrganizeRelationService.class);
+		SmtStaffMapper staffMapper = Mockito.mock(SmtStaffMapper.class);
+		SmtStaffServiceImpl service = new SmtStaffServiceImpl();
+		ReflectionTestUtils.setField(service, "smtParkBuService", parkBuService);
+		ReflectionTestUtils.setField(service, "smtOrganizeRelationService", organizeRelationService);
+		ReflectionTestUtils.setField(service, "baseMapper", staffMapper);
+
+		SmtParkBu authorizedParkBu = new SmtParkBu();
+		authorizedParkBu.setCompId("AUTHORIZED-COMP");
+		SmtStaff staff = new SmtStaff();
+		staff.setId(101L);
+		staff.setCompId("AUTHORIZED-COMP");
+		staff.setBadge("EMP-101");
+		staff.setName("员工");
+		staff.setCertno("sensitive-cert-no");
+		staff.setPhone("sensitive-phone");
+		staff.setHomeAddress("sensitive-address");
+		staff.setFacePicId("sensitive-face");
+		Mockito.when(parkBuService.list(Mockito.any())).thenReturn(Collections.singletonList(authorizedParkBu));
+		Mockito.when(organizeRelationService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(staffMapper.selectById(101L)).thenReturn(staff);
+
+		AdminStaffDetailRespDTO response = service.getAdminStaffDetail(101L, Collections.singletonList(10));
+		assertEquals(Long.valueOf(101L), response.getStaffId());
+		assertEquals("EMP-101", response.getBadge());
+		assertEquals("员工", response.getName());
+	}
+
+	@Test
+	public void temporaryStaffBatchLookupUsesAuthenticatedParkCompanyScope() {
+		SmtParkBuService parkBuService = Mockito.mock(SmtParkBuService.class);
+		SmtOrganizeRelationService organizeRelationService = Mockito.mock(SmtOrganizeRelationService.class);
+		SmtStaffMapper staffMapper = Mockito.mock(SmtStaffMapper.class);
+		SmtStaffServiceImpl service = new SmtStaffServiceImpl();
+		ReflectionTestUtils.setField(service, "smtParkBuService", parkBuService);
+		ReflectionTestUtils.setField(service, "smtOrganizeRelationService", organizeRelationService);
+		ReflectionTestUtils.setField(service, "baseMapper", staffMapper);
+
+		SmtParkBu authorizedParkBu = new SmtParkBu();
+		authorizedParkBu.setCompId("AUTHORIZED-COMP");
+		SmtStaff staff = new SmtStaff();
+		staff.setId(101L);
+		staff.setBadge("TEMP-001");
+		staff.setName("临时员工");
+		Mockito.when(parkBuService.list(Mockito.any())).thenReturn(Collections.singletonList(authorizedParkBu));
+		Mockito.when(organizeRelationService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(staffMapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(staff));
+
+		List<AdminTemporaryStaffRespDTO> response = service.searchTemporaryStaffForAdmin(
+				Collections.singletonList(" TEMP-001 "), Collections.singletonList(10));
+		assertEquals(1, response.size());
+		assertEquals(Long.valueOf(101L), response.get(0).getStaffId());
+
+		ArgumentCaptor<Wrapper<SmtStaff>> queryCaptor = ArgumentCaptor.forClass(Wrapper.class);
+		Mockito.verify(staffMapper).selectList(queryCaptor.capture());
+		Set<Object> queryValues = queryValues(queryCaptor.getValue());
+		assertTrue(queryValues.contains("AUTHORIZED-COMP"));
+		assertTrue(queryValues.contains("TEMP-001"));
 	}
 
 	@Test
@@ -161,11 +306,10 @@ public class SmtStaffControllerPrivacyContractTest {
 	}
 
 	private void assertMethodDoesNotExist(String methodName) {
-		try {
-			SmtStaffController.class.getMethod(methodName, String.class);
-			fail("历史员工实体查询入口不应继续暴露：" + methodName);
-		} catch (NoSuchMethodException expected) {
-			// 预期：已删除历史公开入口。
+		for (java.lang.reflect.Method method : SmtStaffController.class.getMethods()) {
+			if (methodName.equals(method.getName())) {
+				fail("历史员工实体查询入口不应继续暴露：" + methodName);
+			}
 		}
 	}
 }

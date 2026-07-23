@@ -7,7 +7,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.*;
 import com.tce.smart.platform.api.dto.resp.MyDormitoryRespDTO;
-import com.tce.smart.platform.api.dto.resp.StaffInfoRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleIscPersonRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.stereotype.Service;
@@ -26,44 +27,23 @@ import java.util.List;
 public interface RemoteStaffService {
 
 	/**
-	 * 根据员员工工号获取员工基本信息
-	 * @param badge
-	 * @return
+	 * ISC 人员创建专用资料，完整证件号只限服务端下发流程使用。
 	 */
-	@GetMapping("/staff/baseInfo/{badge}")
-	Result<StaffInfoRespDTO> getBaseinfoByBadge(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
+	@GetMapping("/internal/staff/schedule/isc-person/{staffId}")
+	Result<InternalScheduleIscPersonRespDTO> getScheduleIscPersonStaff(
+			@PathVariable("staffId") String staffId,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
-	 * 根据员工ID查询员工实体信息
-	 *
-	 * @param staffId 员工ID
-	 * @param from 调用来源
-	 *
-	 * @return 员工信息
+	 * ISC 查询、删除与卡片下发专用资料，禁止使用通用员工实体接口。
 	 */
-	@GetMapping("/staff/simple/get")
-	Result<SmtStaffDTO> getSimpleSttaffById(@RequestParam("staffId") String staffId, @RequestHeader(SecurityConstants.FROM) String from);
+	@GetMapping("/internal/staff/schedule/identity/{staffId}")
+	Result<InternalScheduleStaffIdentityRespDTO> getScheduleIdentityStaff(
+			@PathVariable("staffId") String staffId,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
-	@GetMapping("/staff/simple/get-list")
-	Result<List<SmtStaffDTO>> getSimpleSttaffListByIds(@RequestParam("staffIds") ArrayList<String> staffIds, @RequestHeader(SecurityConstants.FROM) String from);
-
-
-	/**
-	 * 根据员工工号查询员工实体信息
-	 *
-	 * @param badge 员工工号
-	 * @return 员工信息
-	 */
-	@GetMapping("/staff/simple/get/badge")
-	Result<SmtStaffDTO> getSimpleSttaffByBadge(@RequestParam("badge") String badge);
-
-	/**
-	 * 根据员工工号获取员工的详细信息
-	 * @param badge
-	 * @return
-	 */
-	@GetMapping("/staff/getFullByBadge/{badge}")
-	Result<StaffInfoRespDTO> getFullByBadge(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 同步员工信息
@@ -153,23 +133,6 @@ public interface RemoteStaffService {
 	Result<Boolean> inintLoginAuth(@RequestParam("badge") String badge);
 
 	/**
-	 * 人脸登陆-人脸搜索
-	 *
-	 * @return
-	 */
-	@PostMapping("/staff/face/search/login")
-	Result<SmtStaffDTO> faceSearchForLogin(@RequestBody StaffPerfectReqDTO staffPerfectDTO);
-
-
-	/**
-	 * 修改员工手机号
-	 * @param smtStaff
-	 * @return
-	 */
-	@PostMapping("/staff/updatePhone")
-	Result<Boolean> updatePhone(@RequestBody SmtStaffDTO smtStaff);
-
-	/**
 	 * 同步员工头像到C6
 	 * @param badge 员工工号
 	 */
@@ -217,9 +180,6 @@ public interface RemoteStaffService {
 	 */
 	@GetMapping("/staff/sync/list")
 	Result<Page<EmpHrReqDTO>> getStaffList(@RequestParam("current") Long current, @RequestParam("size") Long size, @RequestHeader(SecurityConstants.FROM) String from);
-
-	@GetMapping("/staff/query/{mobile}")
-	Result<List<SmtStaffDTO>> queryMobile(@PathVariable("mobile") String mobile, @RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 远程添加设备任务
