@@ -30,3 +30,22 @@ Schedule 的创建人员路径不再发送历史 `phoneNo`、`email`，也不再
 ## 发布依赖
 
 Schedule 新 Feign 路径依赖同分支的 `InternalStaffController` 服务令牌端点先于或同时部署；生产 Nacos、部署、推送和 PR 均未执行。
+
+## 复审阻塞项整改
+
+- 已实现 `GET /internal/staff/schedule/isc-person/{staffId}` 与
+  `GET /internal/staff/schedule/identity/{staffId}`。两个路径均使用 `@Inner`、
+  `@OpenApi("server")`，并额外校验受管的 Schedule `client_id`；未认证、非
+  Schedule 服务令牌和未配置客户端均拒绝。路由参数保持 Feign 已发布的字符串契约，
+  服务端仅按主键读取并投影 Schedule 专用最小 DTO。
+- 删除 `/staff/getTempList` 与 `/staff/getTempById`，替换为
+  `/staff/admin/temporary/page`、`/staff/admin/temporary/{staffId}`。二者均要求
+  `platform_staff_lookup`，范围来自认证管理员园区；新的临时人员响应没有身份证、
+  手机号、人脸或图片链接。Smart UI 已同步迁移并在客户端再次丢弃任何意外附带的
+  敏感字段。
+- 删除接收完整 `SmtStaff` 的 `/staff/updateStaff` 与 `/staff/outDormitory`；手机号
+  修改与基础资料修改替换为 `/staff/admin/update-phone`、`/staff/admin/update`，要求
+  `platform_staff_manage`，只接收最小请求且在服务端验证目标员工园区。基础资料修改
+  不接受证件号、电话、地址、人脸、组织归属字段。
+- Smart Data 许昌 C6 三个员工 Feign 调用（入职、离职、复职）已追加
+  `INTERNAL_SERVICE_AUTH_REQUIRED`，与新的内部服务令牌契约一致。

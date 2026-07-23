@@ -13,6 +13,9 @@ import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffUpdateStatusReqDTO;
 import com.tce.smart.platform.api.dto.resp.*;
@@ -178,26 +181,22 @@ public class SmtStaffController extends BaseController {
 		return currentUser;
 	}
 
-	@SysLog("临时人员列表")
-	@ApiOperation("临时人员列表")
-	@PostMapping("/getTempList")
-	public Result<IPage<TempStaffEditRespDTO>> getTempList(Page page, @RequestBody TempStaffEditReqDTO smtStaff) {
-		return success(smtStaffService.getTempList(page, smtStaff), TempStaffEditRespDTO.class);
+	@SysLog("后台临时人员最小列表")
+	@ApiOperation("后台临时人员最小列表")
+	@PostMapping("/admin/temporary/page")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result temporaryStaffPage(Page page, @RequestBody AdminTemporaryStaffQueryReqDTO request) {
+		return success(smtStaffService.getTemporaryStaffPageForAdmin(page, request,
+				currentAuthenticatedUser().getParkIdList()));
 	}
 
-	@SysLog("查询临时员工")
-	@ApiOperation("查询临时员工")
-	@GetMapping("/getTempById")
-	public Result getTempById(@RequestParam("staffId") Long staffId) {
-		SmtStaff staff = smtStaffService.getById(staffId);
-		if(null != staff){
-			Result<TempStaffEditRespDTO> success = success(smtStaffService.getById(staffId), TempStaffEditRespDTO.class);
-			if(!StringUtils.isEmpty(staff.getFacePicId())) {
-				success.getData().setFaceImg(smtImageService.getImageBase64ByCode(staff.getFacePicId()));
-			}
-			return success;
-		}
-		return success();
+	@SysLog("后台临时人员最小详情")
+	@ApiOperation("后台临时人员最小详情")
+	@GetMapping("/admin/temporary/{staffId}")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result temporaryStaffDetail(@PathVariable("staffId") Long staffId) {
+		return success(smtStaffService.getTemporaryStaffDetailForAdmin(staffId,
+				currentAuthenticatedUser().getParkIdList()));
 	}
 
 	@SysLog("新增临时员工")
@@ -225,9 +224,10 @@ public class SmtStaffController extends BaseController {
 	}
 
 	@ApiOperation("后台修改员工手机号")
-	@PostMapping("/updateStaffPhone")
-	public Result<Boolean> updateStaffPhone(@RequestParam("staffId") String staffId,@RequestParam("newPhone")String newPhone) {
-		return success(smtStaffService.updateStaffPhone(Long.parseLong(staffId),newPhone));
+	@PostMapping("/admin/update-phone")
+	@PreAuthorize("@pms.hasPermission('platform_staff_manage')")
+	public Result<Boolean> updateStaffPhone(@RequestBody AdminStaffPhoneUpdateReqDTO request) {
+		return success(smtStaffService.updateStaffPhoneForAdmin(request, currentAuthenticatedUser().getParkIdList()));
 	}
 
 	@SysLog("新增员工到hr中间表")
@@ -242,10 +242,11 @@ public class SmtStaffController extends BaseController {
 	 *            员工表
 	 * @return Result
 	 */
-	@SysLog("修改员工表")
-	@PostMapping("updateStaff")
-	public Result updateById(@RequestBody SmtStaff smtStaff) {
-		return new Result<>(smtStaffService.updateById(smtStaff));
+	@SysLog("后台修改员工基础资料")
+	@PostMapping("/admin/update")
+	@PreAuthorize("@pms.hasPermission('platform_staff_manage')")
+	public Result<Boolean> updateStaff(@RequestBody AdminStaffUpdateReqDTO request) {
+		return success(smtStaffService.updateStaffForAdmin(request, currentAuthenticatedUser().getParkIdList()));
 	}
 
 
@@ -257,16 +258,6 @@ public class SmtStaffController extends BaseController {
 	@PostMapping("myDormitory")
 	public Result<MyDormitoryRespDTO> myDormitory(@RequestBody SmtStaff smtStaff) {
 		return success(smtStaffService.myDormitory(smtStaff), MyDormitoryRespDTO.class);
-	}
-
-
-	/**
-	 * 员工，外宿信息
-	 */
-	@SysLog("我的外宿")
-	@PostMapping("outDormitory")
-	public Result outDormitory(@RequestBody SmtStaff smtStaff) {
-		return smtStaffService.outDormitory(smtStaff);
 	}
 
 

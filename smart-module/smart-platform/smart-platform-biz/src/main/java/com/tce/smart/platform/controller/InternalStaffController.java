@@ -271,7 +271,7 @@ public class InternalStaffController extends BaseController {
 	@Inner
 	@OpenApi("server")
 	@GetMapping("/schedule/isc-person/{staffId}")
-	public Result<InternalScheduleIscPersonRespDTO> getScheduleIscPersonStaff(@PathVariable("staffId") Long staffId,
+	public Result<InternalScheduleIscPersonRespDTO> getScheduleIscPersonStaff(@PathVariable("staffId") String staffId,
 			@RequestHeader(SecurityConstants.FROM) String from) {
 		assertInternalFrom(from);
 		assertScheduleCaller();
@@ -285,7 +285,7 @@ public class InternalStaffController extends BaseController {
 	@Inner
 	@OpenApi("server")
 	@GetMapping("/schedule/identity/{staffId}")
-	public Result<InternalScheduleStaffIdentityRespDTO> getScheduleIdentityStaff(@PathVariable("staffId") Long staffId,
+	public Result<InternalScheduleStaffIdentityRespDTO> getScheduleIdentityStaff(@PathVariable("staffId") String staffId,
 			@RequestHeader(SecurityConstants.FROM) String from) {
 		assertInternalFrom(from);
 		assertScheduleCaller();
@@ -359,8 +359,8 @@ public class InternalStaffController extends BaseController {
 		return StrUtil.isBlank(badge) ? null : smtStaffService.getSimpleSttaffByBadge(badge);
 	}
 
-	private SmtStaff findStaffById(Long staffId) {
-		return staffId == null ? null : smtStaffService.getById(staffId);
+	private SmtStaff findStaffById(String staffId) {
+		return StrUtil.isBlank(staffId) ? null : smtStaffService.getSimpleSttaffById(staffId);
 	}
 
 	private InternalScheduleIscPersonRespDTO toScheduleIscPersonResponse(SmtStaff staff) {

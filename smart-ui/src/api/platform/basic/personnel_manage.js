@@ -236,12 +236,9 @@ export function getStaff({
   staffId
 }) {
   return request({
-    url: '/platform/staff/getTempById',
+    url: '/platform/staff/admin/temporary/' + staffId,
     method: 'get',
-    params: {
-      staffId: staffId
-    },
-  })
+  }).then(response => normalizeTemporaryStaffResponse(response))
 }
 
 /**
@@ -272,18 +269,53 @@ export function getStaffPage(query, {
   isFace,
   status
 }) {
-  const sendData = Object.assign({}, query, {
-    depId,
-    badge,
-    name,
-    isFace,
-    status
+  const sendData = Object.assign({}, query)
+  ;[
+    ['depId', depId],
+    ['badge', badge],
+    ['name', name],
+    ['isFace', isFace],
+    ['status', status]
+  ].forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      sendData[key] = value
+    }
   })
   return request({
-    url: '/platform/staff/getTempList',
+    url: '/platform/staff/admin/temporary/page',
     method: 'post',
-    data: sendData,
-    params: sendData
+    data: sendData
+  }).then(response => normalizeTemporaryStaffResponse(response))
+}
+
+/**
+ * 临时人员接口只在前端保留页面编辑和组织展示所需字段。
+ *
+ * 即使服务端将来错误附带身份证、手机号或人脸，客户端也不能把它们带入页面状态。
+ */
+export function normalizeTemporaryStaff(staff) {
+  const normalized = { id: staff.staffId }
+  ;['badge', 'name', 'sex', 'jobName', 'depId', 'depName', 'jcheId', 'jcheName', 'status', 'entryTime', 'dispatch']
+    .forEach(key => {
+      if (staff[key] !== undefined) {
+        normalized[key] = staff[key]
+      }
+    })
+  return normalized
+}
+
+function normalizeTemporaryStaffResponse(response) {
+  const body = response && response.data ? response.data : {}
+  const data = body.data
+  if (data && Array.isArray(data.records)) {
+    return Object.assign({}, response, {
+      data: Object.assign({}, body, {
+        data: Object.assign({}, data, { records: data.records.map(normalizeTemporaryStaff) })
+      })
+    })
+  }
+  return Object.assign({}, response, {
+    data: Object.assign({}, body, { data: data ? normalizeTemporaryStaff(data) : data })
   })
 }
 
@@ -377,10 +409,10 @@ export function delStaffBatch(data) {
  */
  export function searchPersonList (data) {
   return request({
-    url: `/platform/staff/getTempList`,
+    url: `/platform/staff/admin/temporary/page`,
     method: 'post',
     data: data
-  })
+  }).then(response => normalizeTemporaryStaffResponse(response))
 }
 
 export function reinstatementSave (data) {

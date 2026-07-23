@@ -7,10 +7,14 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminStaffDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffSelfCheckInProfileRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
@@ -75,8 +79,6 @@ public interface SmtStaffService extends IService<SmtStaff> {
 
 	StaffInfoVO getSmtStaffInfoByBadge(String badge);
 
-	Result outDormitory(SmtStaff smtStaff);
-
 	Result addVehicle(AddVehicleDTO addVehicleDTO);
 
 	void synDeleteUserInfo(SmtStaff smtStaff);
@@ -135,6 +137,19 @@ public interface SmtStaffService extends IService<SmtStaff> {
 	 * @return 仅含主键、工号和姓名的临时员工记录
 	 */
 	List<AdminTemporaryStaffRespDTO> searchTemporaryStaffForAdmin(List<String> badges, List<Integer> parkIds);
+
+	/** 按管理员园区范围分页查询临时人员的最小资料。 */
+	IPage<AdminTemporaryStaffDetailRespDTO> getTemporaryStaffPageForAdmin(Page page,
+			AdminTemporaryStaffQueryReqDTO request, List<Integer> parkIds);
+
+	/** 按管理员园区范围查询一名临时人员的最小资料。 */
+	AdminTemporaryStaffDetailRespDTO getTemporaryStaffDetailForAdmin(Long staffId, List<Integer> parkIds);
+
+	/** 后台修改手机号前验证目标员工属于当前管理员园区。 */
+	Boolean updateStaffPhoneForAdmin(AdminStaffPhoneUpdateReqDTO request, List<Integer> parkIds);
+
+	/** 后台仅能修改最小基础字段，并在服务端验证目标员工园区。 */
+	Boolean updateStaffForAdmin(AdminStaffUpdateReqDTO request, List<Integer> parkIds);
 
 	/**
 	 * 查询当前员工入住流程可展示的资料摘要。

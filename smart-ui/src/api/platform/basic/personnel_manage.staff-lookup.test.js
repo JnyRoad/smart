@@ -81,4 +81,39 @@ describe('api/platform/basic/personnel_manage 员工最小搜索契约', () => {
     })
     expect(response.data.data).toEqual([{ id: 1, badge: 'A100', name: '测试员工' }])
   })
+
+  it('临时人员列表改走受权限保护的最小资料接口，并剔除个人敏感字段', async () => {
+    request.mockResolvedValueOnce({
+      data: {
+        data: {
+          records: [{
+            staffId: 1,
+            badge: 'A100',
+            name: '测试员工',
+            sex: 1,
+            jobName: '操作员',
+            certno: '不得保留',
+            phone: '不得保留',
+            faceImg: '不得保留'
+          }],
+          total: 1
+        }
+      }
+    })
+
+    const response = await api.getStaffPage({ current: 1, size: 10 }, { badge: 'A100' })
+
+    expect(request).toHaveBeenCalledWith({
+      url: '/platform/staff/admin/temporary/page',
+      method: 'post',
+      data: { current: 1, size: 10, badge: 'A100' }
+    })
+    expect(response.data.data.records).toEqual([{
+      id: 1,
+      badge: 'A100',
+      name: '测试员工',
+      sex: 1,
+      jobName: '操作员'
+    }])
+  })
 })

@@ -58,10 +58,14 @@ import com.tce.smart.dispatcher.api.feign.RemoteDispatcherService;
 import com.tce.smart.platform.api.dto.FaceSnapDTO;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminStaffDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
@@ -968,6 +972,75 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	}
 
 	@Override
+	public IPage<AdminTemporaryStaffDetailRespDTO> getTemporaryStaffPageForAdmin(Page page,
+			AdminTemporaryStaffQueryReqDTO request, List<Integer> parkIds) {
+		AdminTemporaryStaffQueryReqDTO query = request == null ? new AdminTemporaryStaffQueryReqDTO() : request;
+		Set<String> visibleCompIds = visibleCompIds(parkIds);
+		if (visibleCompIds.isEmpty()) {
+			return new Page<>(page.getCurrent(), page.getSize(), 0);
+		}
+		List<String> badges = StrUtil.isBlank(query.getBadges()) ? Collections.emptyList()
+				: Arrays.stream(query.getBadges().split(","))
+				.filter(StrUtil::isNotBlank).map(String::trim).distinct().limit(200).collect(Collectors.toList());
+		IPage<SmtStaff> staffPage = this.page(new Page<>(page.getCurrent(), page.getSize()),
+				Wrappers.<SmtStaff>query().lambda()
+						.in(SmtStaff::getCompId, visibleCompIds)
+						.eq(query.getStatus() != null, SmtStaff::getStatus, query.getStatus())
+						.like(StrUtil.isNotBlank(query.getBadge()), SmtStaff::getBadge, query.getBadge())
+						.like(StrUtil.isNotBlank(query.getName()), SmtStaff::getName, query.getName())
+						.in(!badges.isEmpty(), SmtStaff::getBadge, badges)
+						.isNotNull(Boolean.TRUE.equals(query.getIsFace()), SmtStaff::getFacePicId)
+						.isNull(Boolean.FALSE.equals(query.getIsFace()), SmtStaff::getFacePicId)
+						.eq(query.getDepId() != null, SmtStaff::getDepId, String.valueOf(query.getDepId()))
+						.orderByDesc(SmtStaff::getCreateTime).orderByDesc(SmtStaff::getId));
+		Page<AdminTemporaryStaffDetailRespDTO> response = new Page<>(staffPage.getCurrent(), staffPage.getSize(), staffPage.getTotal());
+		response.setRecords(staffPage.getRecords().stream()
+				.map(this::toAdminTemporaryStaffDetailResp).collect(Collectors.toList()));
+		return response;
+	}
+
+	@Override
+	public AdminTemporaryStaffDetailRespDTO getTemporaryStaffDetailForAdmin(Long staffId, List<Integer> parkIds) {
+		SmtStaff staff = getStaffWithinAdminScope(staffId, parkIds);
+		return staff == null ? null : toAdminTemporaryStaffDetailResp(staff);
+	}
+
+	@Override
+	public Boolean updateStaffPhoneForAdmin(AdminStaffPhoneUpdateReqDTO request, List<Integer> parkIds) {
+		if (request == null || request.getStaffId() == null || StrUtil.isBlank(request.getNewPhone())) {
+			throw new TCEException("员工和新手机号不能为空");
+		}
+		if (getStaffWithinAdminScope(request.getStaffId(), parkIds) == null) {
+			throw new TCEException("无权修改该员工手机号");
+		}
+		return updateStaffPhone(request.getStaffId(), request.getNewPhone());
+	}
+
+	@Override
+	public Boolean updateStaffForAdmin(AdminStaffUpdateReqDTO request, List<Integer> parkIds) {
+		if (request == null || request.getStaffId() == null) {
+			throw new TCEException("员工不能为空");
+		}
+		SmtStaff staff = getStaffWithinAdminScope(request.getStaffId(), parkIds);
+		if (staff == null) {
+			throw new TCEException("无权修改该员工");
+		}
+		if (request.getName() != null) {
+			staff.setName(request.getName());
+		}
+		if (request.getSex() != null) {
+			staff.setSex(request.getSex());
+		}
+		if (request.getJobName() != null) {
+			staff.setJobName(request.getJobName());
+		}
+		if (request.getStatus() != null) {
+			staff.setStatus(request.getStatus());
+		}
+		return this.updateById(staff);
+	}
+
+	@Override
 	public StaffSelfCheckInProfileRespDTO getCheckInProfileForBadge(String badge) {
 		if (StrUtil.isBlank(badge)) {
 			return null;
@@ -1026,6 +1099,9 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 
 	/** 汇总管理员可见园区的常规 BU 与临时员工组织关系，所有员工查询均复用这一边界。 */
 	private Set<String> visibleCompIds(List<Integer> parkIds) {
+		if (CollectionUtil.isEmpty(parkIds)) {
+			return Collections.emptySet();
+		}
 		List<SmtParkBu> parkBus = smtParkBuService.list(Wrappers.<SmtParkBu>query().lambda()
 				.in(SmtParkBu::getParkId, parkIds));
 		Set<String> visibleCompIds = parkBus.stream()
@@ -1039,6 +1115,19 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 				.filter(StrUtil::isNotBlank)
 				.forEach(visibleCompIds::add);
 		return visibleCompIds;
+	}
+
+	/** 统一校验管理员目标员工是否属于认证主体可见园区。 */
+	private SmtStaff getStaffWithinAdminScope(Long staffId, List<Integer> parkIds) {
+		if (staffId == null || CollectionUtil.isEmpty(parkIds)) {
+			return null;
+		}
+		Set<String> visibleCompIds = visibleCompIds(parkIds);
+		if (visibleCompIds.isEmpty()) {
+			return null;
+		}
+		SmtStaff staff = this.baseMapper.selectById(staffId);
+		return staff != null && visibleCompIds.contains(staff.getCompId()) ? staff : null;
 	}
 
 	/** 显式投影后台详情，禁止 BeanUtils 将新增敏感实体字段意外返回给客户端。 */
@@ -1061,6 +1150,24 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		response.setStaffId(staff.getId());
 		response.setBadge(staff.getBadge());
 		response.setName(staff.getName());
+		return response;
+	}
+
+	/** 临时人员列表和详情均通过显式投影，禁止实体字段随响应扩散。 */
+	private AdminTemporaryStaffDetailRespDTO toAdminTemporaryStaffDetailResp(SmtStaff staff) {
+		AdminTemporaryStaffDetailRespDTO response = new AdminTemporaryStaffDetailRespDTO();
+		response.setStaffId(staff.getId());
+		response.setBadge(staff.getBadge());
+		response.setName(staff.getName());
+		response.setSex(staff.getSex());
+		response.setJobName(staff.getJobName());
+		response.setDepId(staff.getDepId());
+		response.setDepName(staff.getDepName());
+		response.setJcheId(staff.getJcheId());
+		response.setJcheName(staff.getJcheName());
+		response.setStatus(staff.getStatus());
+		response.setEntryTime(staff.getCreateTime() == null ? null : DateUtil.formatDateTime(staff.getCreateTime()));
+		response.setDispatch(staff.getDispatch());
 		return response;
 	}
 
@@ -1088,17 +1195,6 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	public List<SmtStaff> getSimpleSttaffByIds(List<String> staffIds) {
 		List<Long> ids = staffIds.stream().map(Long::parseLong).collect(Collectors.toList());
 		return this.baseMapper.selectBatchIds(ids);
-	}
-
-	@Override
-	public Result outDormitory(SmtStaff smtStaff) {
-		// TODO Auto-generated method stub
-		SmtOutDormitoryStaff selectOne = null;
-		List<SmtOutDormitoryStaff> list = outDormitoryStaffMapper.selectList(Wrappers.<SmtOutDormitoryStaff>query().lambda().eq(SmtOutDormitoryStaff::getStaffBadge, smtStaff.getBadge()).eq(SmtOutDormitoryStaff::getIsDelete, 0).orderByDesc(SmtOutDormitoryStaff::getCreateTime));
-		if (list.size() > 0) {
-			selectOne = list.get(0);
-		}
-		return new Result<>(selectOne);
 	}
 
 	/**
@@ -2204,8 +2300,22 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	@Transactional
 	@Override
 	public Boolean updateTemporaryStaff(TempStaffEditReqDTO tempStaff) {
-		SmtStaff smtStaff = BeanUtils.transform(SmtStaff.class, tempStaff);
 		SmtStaff reStaff = this.getSimpleSttaffByBadge(tempStaff.getBadge());
+		if (Objects.isNull(reStaff)) {
+			throw new SmartException("员工不存在！");
+		}
+		// 查询接口不再下发个人敏感数据；编辑时未重新填写的敏感字段必须由服务端保留，
+		// 不能因为前端拿不到旧值而意外清空。
+		if (StrUtil.isBlank(tempStaff.getPhone())) {
+			tempStaff.setPhone(reStaff.getPhone());
+		}
+		if (StrUtil.isBlank(tempStaff.getCertno())) {
+			tempStaff.setCertno(reStaff.getCertno());
+		}
+		if (StrUtil.isBlank(tempStaff.getEntryTime()) && reStaff.getCreateTime() != null) {
+			tempStaff.setEntryTime(DateUtil.formatDateTime(reStaff.getCreateTime()));
+		}
+		SmtStaff smtStaff = BeanUtils.transform(SmtStaff.class, tempStaff);
 		if (Objects.nonNull(reStaff) && !reStaff.getId().equals(smtStaff.getId())) {
 			throw new SmartException("该工号已存在！");
 		}
@@ -2499,7 +2609,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 					//许昌C6
 					remoteXCRsEmpService.leaveEmp(RsEmpSaveReqDto.builder()
 							.empNo(staff.getBadge())
-							.build(), SecurityConstants.FROM_IN);
+							.build(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				}
 			}
 		}
@@ -2527,7 +2637,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 					//许昌C6
 					remoteXCRsEmpService.intoEmp(RsEmpSaveReqDto.builder()
 							.empNo(staff.getBadge())
-							.build(), SecurityConstants.FROM_IN);
+							.build(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				}
 			}
 		}
@@ -2563,7 +2673,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 							.empIDNo(staff.getCertno())
 							.dptNo(exDeptC6.getC6DptNo())
 							.grpDate(staff.getCreateTime())
-							.build(), SecurityConstants.FROM_IN);
+							.build(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				}
 
 			}
