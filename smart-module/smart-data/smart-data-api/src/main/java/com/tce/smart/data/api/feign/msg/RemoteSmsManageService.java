@@ -1,128 +1,141 @@
 package com.tce.smart.data.api.feign.msg;
 
+import com.tce.smart.common.core.constant.SecurityConstants;
+import com.tce.smart.common.core.constant.ServiceNameConstants;
+import com.tce.smart.common.core.model.Result;
 import com.tce.smart.data.api.dto.msg.req.*;
 import com.tce.smart.data.api.vo.msg.SendSmsVo;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import com.tce.smart.common.core.constant.ServiceNameConstants;
-import com.tce.smart.common.core.model.Result;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.util.List;
 
 /**
- * 短信服务
+ * 短信服务内部调用契约。
  *
- * @author mingkai.wu
- * @date 2019-05-15 18:54:18
+ * <p>每个默认门面均固定附加内部来源和服务令牌，确保 App、Platform 的受控业务流程无需自行拼装安全头。</p>
  */
 @FeignClient(value = ServiceNameConstants.SMART_DATA)
 public interface RemoteSmsManageService {
 
-	/**
-	 * 发送预约通知短信
-	 *
-	 * @param appointmentMsgAo 预约通知
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/appointment")
-	Result<SendSmsVo> sendAppointmentSms(@RequestBody AppointmentMsgReqDTO appointmentMsgAo);
+	@PostMapping("/smsmanage/internal/send/appointment")
+	Result<SendSmsVo> sendAppointmentSms(@RequestBody AppointmentMsgReqDTO appointmentMsgAo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
-	/**
-	 * 发送预约通知短信
-	 *
-	 * @param appointmentMsgAo 预约通知
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/visitor/proxy")
-	Result<SendSmsVo> sendVisitorProxySms(@RequestBody AppointmentMsgReqDTO appointmentMsgAo);
-	/**
-	 * 发送招聘通知短信
-	 *
-	 * @param recruitMsgAo 招聘通知短信Ao
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/recruit")
-	Result<SendSmsVo> sendRecruitSms(@RequestBody RecruitMsgReqDTO recruitMsgAo);
+	default Result<SendSmsVo> sendAppointmentSms(AppointmentMsgReqDTO appointmentMsgAo) {
+		return sendAppointmentSms(appointmentMsgAo, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
 
-	/**
-	 * 发送离职通知短信
-	 *
-	 * @param dimissionMsgAo 离职通知短信Ao
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/dimission")
-	Result<SendSmsVo> sendDimissionSms(@RequestBody DimissionMsgReqDTO dimissionMsgAo);
+	@PostMapping("/smsmanage/internal/send/visitor/proxy")
+	Result<SendSmsVo> sendVisitorProxySms(@RequestBody AppointmentMsgReqDTO appointmentMsgAo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
-	/**
-	 * 物流车预约通知
-	 * @param guardMsgAo 物流车预约通知信息
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/guard")
-	Result<SendSmsVo> sendGuardSms(@RequestBody GuardMsgReqDTO guardMsgAo);
+	default Result<SendSmsVo> sendVisitorProxySms(AppointmentMsgReqDTO appointmentMsgAo) {
+		return sendVisitorProxySms(appointmentMsgAo, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
 
-	/**
-	 * 发送短信验证码
-	 *
-	 * @param smsCodeMsgAo 短信发送Ao
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/smsCode")
-	Result<SendSmsVo> sendSmsCode(@RequestBody SendSmsCodeMsgReqDTO smsCodeMsgAo);
+	@PostMapping("/smsmanage/internal/send/recruit")
+	Result<SendSmsVo> sendRecruitSms(@RequestBody RecruitMsgReqDTO recruitMsgAo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
+	default Result<SendSmsVo> sendRecruitSms(RecruitMsgReqDTO recruitMsgAo) {
+		return sendRecruitSms(recruitMsgAo, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
 
-	/**
-	 * 发送短信验证码
-	 *
-	 * @param sendSmsErrorAo 短信发送Ao
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/smsError")
-	Result<SendSmsVo> sendSmsError(@RequestBody SendSmsErrorReqDTO sendSmsErrorAo);
+	@PostMapping("/smsmanage/internal/send/dimission")
+	Result<SendSmsVo> sendDimissionSms(@RequestBody DimissionMsgReqDTO dimissionMsgAo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
-	/**
-	 * 厂牌补领申请同意短信发送
-	 * @param req
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/badge/agree")
-	Result<SendSmsVo> sendBadgeAgree(@RequestBody BadgeAgreeMsgReqDTO req);
+	default Result<SendSmsVo> sendDimissionSms(DimissionMsgReqDTO dimissionMsgAo) {
+		return sendDimissionSms(dimissionMsgAo, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
 
-	/**
-	 * 厂牌补领申请拒绝发送
-	 * @param req
-	 * @return
-	 */
-	@PostMapping("/smsmanage/send/badge/refuse")
-	Result<SendSmsVo> sendBadgeRefuse(@RequestBody BadgeRefuseMsgReqDTO req);
+	@PostMapping("/smsmanage/internal/send/guard")
+	Result<SendSmsVo> sendGuardSms(@RequestBody GuardMsgReqDTO guardMsgAo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
-	/**
-	 * 考勤汇总确认提醒
-	 * @param signMsgReqDTO
-	 * @return
-	 */
-	@GetMapping("/smsmanage/send/attendance/sign")
-	Result sendAttendanceSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO);
+	default Result<SendSmsVo> sendGuardSms(GuardMsgReqDTO guardMsgAo) {
+		return sendGuardSms(guardMsgAo, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
 
-	/**
-	 * 工资签收提醒
-	 * @param signMsgReqDTO
-	 * @return
-	 */
-	@GetMapping("/smsmanage/send/wage/sign")
-	Result sendWageSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO);
+	@PostMapping("/smsmanage/internal/send/smsCode")
+	Result<SendSmsVo> sendSmsCode(@RequestBody SendSmsCodeMsgReqDTO smsCodeMsgAo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
-	/**
-	 *  临时人员物品放行
-	 * @param articlesReleaseMsgReqDTO
-	 * @return
-	 */
-	@GetMapping("/smsmanage/send/articlesrelease/smscode")
-	Result sendArticlesRelease(@RequestBody ArticlesReleaseMsgReqDTO articlesReleaseMsgReqDTO);
+	default Result<SendSmsVo> sendSmsCode(SendSmsCodeMsgReqDTO smsCodeMsgAo) {
+		return sendSmsCode(smsCodeMsgAo, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
 
-	@GetMapping("/smsmanage/send/msg")
-	Result sendMessage(@RequestBody  SendMsgReqDTO reqDTO);
+	@PostMapping("/smsmanage/internal/send/smsError")
+	Result<SendSmsVo> sendSmsError(@RequestBody SendSmsErrorReqDTO sendSmsErrorAo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+
+	default Result<SendSmsVo> sendSmsError(SendSmsErrorReqDTO sendSmsErrorAo) {
+		return sendSmsError(sendSmsErrorAo, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
+
+	@PostMapping("/smsmanage/internal/send/badge/agree")
+	Result<SendSmsVo> sendBadgeAgree(@RequestBody BadgeAgreeMsgReqDTO req,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+
+	default Result<SendSmsVo> sendBadgeAgree(BadgeAgreeMsgReqDTO req) {
+		return sendBadgeAgree(req, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
+
+	@PostMapping("/smsmanage/internal/send/badge/refuse")
+	Result<SendSmsVo> sendBadgeRefuse(@RequestBody BadgeRefuseMsgReqDTO req,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+
+	default Result<SendSmsVo> sendBadgeRefuse(BadgeRefuseMsgReqDTO req) {
+		return sendBadgeRefuse(req, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
+
+	@GetMapping("/smsmanage/internal/send/attendance/sign")
+	Result sendAttendanceSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+
+	default Result sendAttendanceSign(List<SignMsgReqDTO> signMsgReqDTO) {
+		return sendAttendanceSign(signMsgReqDTO, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
+
+	@GetMapping("/smsmanage/internal/send/wage/sign")
+	Result sendWageSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+
+	default Result sendWageSign(List<SignMsgReqDTO> signMsgReqDTO) {
+		return sendWageSign(signMsgReqDTO, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
+
+	@GetMapping("/smsmanage/internal/send/articlesrelease/smscode")
+	Result sendArticlesRelease(@RequestBody ArticlesReleaseMsgReqDTO articlesReleaseMsgReqDTO,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+
+	default Result sendArticlesRelease(ArticlesReleaseMsgReqDTO articlesReleaseMsgReqDTO) {
+		return sendArticlesRelease(articlesReleaseMsgReqDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
+
+	@GetMapping("/smsmanage/internal/send/msg")
+	Result sendMessage(@RequestBody SendMsgReqDTO reqDTO,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+
+	default Result sendMessage(SendMsgReqDTO reqDTO) {
+		return sendMessage(reqDTO, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
 }
