@@ -9,6 +9,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.EvwEmphrYsDTO;
 import com.tce.smart.data.api.dto.ehrview.req.EvwEmphrYsBlackReqDTO;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwEmphrYsBlackRespDTO;
@@ -50,6 +51,7 @@ public class EvwEmphrYsController extends BaseController {
      * @return
      */
     @Inner
+    @OpenApi("server")
     @GetMapping("/info")
     public Result<EvwEmphrYsRespDTO> info(@RequestParam("badge") String badge) {
         YutoDhrPsndo evwEmphrYs = yutoDhrPsndoService.getByBadge(badge);
@@ -61,6 +63,7 @@ public class EvwEmphrYsController extends BaseController {
      * @return
      */
     @Inner
+    @OpenApi("server")
     @GetMapping("/leave")
     public Result<YsLeaveRespDTO> leave(@RequestParam("badge") String badge) {
         YutoDhrPsndo evwEmphrYs = yutoDhrPsndoService.getByBadge(badge);
@@ -72,6 +75,7 @@ public class EvwEmphrYsController extends BaseController {
      * @return
      */
     @Inner
+    @OpenApi("server")
     @GetMapping("/getByCompId")
     public Result<List<EvwEmphrYsDTO>> getByCompId(@RequestParam("compId") Integer compId) {
         List<YutoDhrPsndo> evwEmphrYs = yutoDhrPsndoService.getByCompId(compId);
@@ -83,6 +87,7 @@ public class EvwEmphrYsController extends BaseController {
      * @return
      */
     @Inner
+    @OpenApi("server")
     @GetMapping("/getInStaffByCompId")
     public Result<List<EvwEmphrYsDTO>> getInStaffByCompId(@RequestParam("compId") Integer compId) {
         List<YutoDhrPsndo> evwEmphrYs = yutoDhrPsndoService.getInStaffByCompId(compId);
@@ -93,6 +98,7 @@ public class EvwEmphrYsController extends BaseController {
      * @return
      */
     @Inner
+    @OpenApi("server")
     @GetMapping("/getBlack")
     public Result getBlack(Page page,EvwEmphrYsBlackReqDTO req) {
 //    	IPage<EvwEmphrYs> evwEmphrYsList = iEvwEmphrYsService.getBlack(page,req.getCerNo(),req.getName());

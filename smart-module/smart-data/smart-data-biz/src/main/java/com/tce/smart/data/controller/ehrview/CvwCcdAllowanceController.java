@@ -4,6 +4,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.CvwCcdAllowanceDTO;
 import com.tce.smart.ehrview.core.entity.CvwCcdAllowance;
 import com.tce.smart.ehrview.core.service.CvwCcdAllowanceService;
@@ -32,6 +33,7 @@ public class CvwCcdAllowanceController  extends BaseController {
 
 		@SysLog("根基补贴名称查询补贴信息")
 		@Inner
+		@OpenApi("server")
 	    @GetMapping("/get")
 	    public Result<CvwCcdAllowanceDTO> getByName(@RequestParam("allowanceName") String allowanceName){
 			CvwCcdAllowance cvwCcdAllowance = cvwCcdAllowanceService.getByName(allowanceName);

@@ -6,6 +6,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.EvwAshiftRunNoDTO;
 import com.tce.smart.ehrview.core.entity.EvwAshiftRunNo;
 import com.tce.smart.ehrview.core.service.IEvwAshiftRunNoService;
@@ -31,6 +32,7 @@ public class EvwAshiftRunNoController extends BaseController {
     private IEvwAshiftRunNoService ivwAshiftRunNoService;
 
     @Inner
+    @OpenApi("server")
     @GetMapping("/info")
     public Result<EvwAshiftRunNoDTO> info(@RequestParam("badge") String badge, @RequestParam("empRunDate") String empRunDate){
 	EvwAshiftRunNo evwAshiftRunNo = ivwAshiftRunNoService.getOne(Wrappers. <EvwAshiftRunNo>query().lambda()

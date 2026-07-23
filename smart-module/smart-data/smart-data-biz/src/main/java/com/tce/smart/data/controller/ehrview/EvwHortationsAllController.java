@@ -3,6 +3,7 @@ package com.tce.smart.data.controller.ehrview;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwHortationsAllRespDTO;
 import com.tce.smart.ehrview.core.entity.EvwHortationsAll;
 import com.tce.smart.ehrview.core.service.IEvwHortationsAllService;
@@ -30,6 +31,7 @@ public class EvwHortationsAllController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/list")
 	public Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth){
 		List<EvwHortationsAll> evwHortationsAllList = iEvwHortationsAllService.list(badge, queryMonth);
