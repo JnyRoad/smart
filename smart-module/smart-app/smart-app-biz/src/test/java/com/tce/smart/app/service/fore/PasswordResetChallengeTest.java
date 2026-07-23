@@ -63,6 +63,25 @@ public class PasswordResetChallengeTest {
 	}
 
 	@Test
+	public void concurrentSmsRequestsOnlyReserveOneProviderSend() {
+		StringRedisTemplate redis = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		AppSmsService smsService = Mockito.mock(AppSmsService.class);
+		PasswordServiceImpl service = passwordService(redis, values, Mockito.mock(RemoteStaffInternalService.class));
+		ReflectionTestUtils.setField(service, "appSmsService", smsService);
+		Mockito.when(redis.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString()))
+				.thenReturn("{\"purpose\":\"password-reset\",\"phone\":\"13800138000\",\"active\":true,\"sendAttempts\":1}")
+				.thenReturn(null);
+
+		assertTrue(service.sendSmsCode("opaque-challenge"));
+		assertTrue(service.sendSmsCode("opaque-challenge"));
+
+		Mockito.verify(smsService, Mockito.times(1)).sendSmsCode("13800138000");
+		Mockito.verify(redis, Mockito.times(2)).execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString());
+	}
+
+	@Test
 	public void concurrentChallengeLoserCannotExchangeAnotherRequestsVerifiedChallenge() {
 		StringRedisTemplate redis = Mockito.mock(StringRedisTemplate.class);
 		@SuppressWarnings("unchecked")

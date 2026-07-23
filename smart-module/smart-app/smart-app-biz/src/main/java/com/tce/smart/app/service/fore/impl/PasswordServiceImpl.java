@@ -65,6 +65,17 @@ public class PasswordServiceImpl implements PasswordService {
 	private static final DefaultRedisScript<Long> COMPARE_AND_DELETE = new DefaultRedisScript<>(
 			"local value = redis.call('get', KEYS[1]); if value == ARGV[1] then redis.call('del', KEYS[1]); return 1; end; return 0;",
 			Long.class);
+	private static final DefaultRedisScript<String> RESERVE_SMS_SEND_ATTEMPT = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); "
+					+ "if not value then return nil; end; "
+					+ "local challenge = cjson.decode(value); "
+					+ "if challenge['purpose'] ~= ARGV[1] or challenge['active'] ~= true "
+					+ "or (tonumber(challenge['sendAttempts']) or 0) >= tonumber(ARGV[2]) then return nil; end; "
+					+ "challenge['sendAttempts'] = (tonumber(challenge['sendAttempts']) or 0) + 1; "
+					+ "local updated = cjson.encode(challenge); local ttl = redis.call('ttl', KEYS[1]); "
+					+ "if ttl > 0 then redis.call('setex', KEYS[1], ttl, updated); else redis.call('set', KEYS[1], updated); end; "
+					+ "return updated;",
+			String.class);
 
 	@Autowired
 	private AppSmsService appSmsService;
@@ -116,12 +127,11 @@ public class PasswordServiceImpl implements PasswordService {
 
 	@Override
 	public Boolean sendSmsCode(String challengeId) {
-		Map<String, Object> challenge = readChallenge(challengeId);
-		if (!isActivePasswordChallenge(challenge) || number(challenge, "sendAttempts") >= MAX_SMS_SEND_ATTEMPTS) {
+		String reservedChallengeSource = reserveSmsSendAttempt(challengeId);
+		Map<String, Object> challenge = parseChallenge(reservedChallengeSource);
+		if (challenge == null) {
 			return Boolean.TRUE;
 		}
-		challenge.put("sendAttempts", number(challenge, "sendAttempts") + 1);
-		writeChallenge(challengeId, challenge);
 		try {
 			// 手机号只在服务端 challenge 中使用，客户端既不能提交，也不会得到脱敏或完整值。
 			appSmsService.sendSmsCode(String.valueOf(challenge.get("phone")));
@@ -130,6 +140,24 @@ public class PasswordServiceImpl implements PasswordService {
 			log.warn("找回密码短信下发失败 scene=password-reset");
 		}
 		return Boolean.TRUE;
+	}
+
+	/**
+	 * 通过 Lua 原子预占一次短信下发次数，避免多个并发请求同时读取旧计数后重复下发。
+	 */
+	private String reserveSmsSendAttempt(String challengeId) {
+		if (StringUtils.isBlank(challengeId)) {
+			return null;
+		}
+		try {
+			return stringRedisTemplate.execute(RESERVE_SMS_SEND_ATTEMPT,
+					Collections.singletonList(CHALLENGE_KEY_PREFIX + challengeId), PASSWORD_RESET_PURPOSE,
+					String.valueOf(MAX_SMS_SEND_ATTEMPTS));
+		} catch (Exception e) {
+			// Redis 不可用时不下发短信，防止跳过次数控制而放大短信轰炸风险。
+			log.warn("找回密码短信预占失败 scene=password-reset");
+			return null;
+		}
 	}
 
 	@Override

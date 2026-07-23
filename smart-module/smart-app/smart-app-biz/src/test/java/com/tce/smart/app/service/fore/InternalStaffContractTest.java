@@ -99,6 +99,7 @@ public class InternalStaffContractTest {
 		assertFalse("找回密码接口不得接收客户端回传的完整手机号", passwordController.contains("@RequestParam(value = \"mobile\""));
 		assertFalse("银行实名接口不得回传 HTML 表单", icbcController.contains("ResponseEntity<String>"));
 		assertFalse("银行实名接口不得向客户端构造包含身份证的表单", icbcService.contains("buildPostForm("));
+		assertFalse("已停用的银行实名模式不得读取身份证投影", icbcService.contains("getIdentityStaff("));
 	}
 
 	@Test
@@ -113,6 +114,14 @@ public class InternalStaffContractTest {
 		assertTrue("challenge 必须绑定用途、过期时间和有限重试次数", passwordService.contains("PASSWORD_RESET_PURPOSE")
 				&& passwordService.contains("CHALLENGE_TTL_SECONDS") && passwordService.contains("MAX_VERIFY_ATTEMPTS"));
 		assertTrue("密码更新授权必须标明已验证 challenge 来源", passwordService.contains("verifiedChallengeId"));
+		assertTrue("短信发送必须使用 POST 最小请求体", passwordController.contains("@PostMapping(\"/sms/send\")")
+				&& passwordController.contains("PasswordSmsSendReqDTO"));
+		assertTrue("短信校验必须使用 POST 最小请求体", passwordController.contains("@PostMapping(\"/verify\")")
+				&& passwordController.contains("PasswordSmsVerifyReqDTO"));
+		assertFalse("找回密码短信端点不得继续通过 GET 查询串传参", passwordController.contains("@GetMapping(\"/sms/send\")")
+				|| passwordController.contains("@GetMapping(\"/verify\")"));
+		assertTrue("短信次数预占必须使用 Redis Lua 原子脚本", passwordService.contains("RESERVE_SMS_SEND_ATTEMPT")
+				&& passwordService.contains("stringRedisTemplate.execute(RESERVE_SMS_SEND_ATTEMPT"));
 	}
 
 	@Test
@@ -125,6 +134,8 @@ public class InternalStaffContractTest {
 		assertTrue("改密端点必须接收最小 JSON 请求体", userController.contains("@RequestBody"));
 		assertTrue("改密端点必须使用 PUT", userController.contains("@PutMapping(\"/password/update\")"));
 		assertFalse("前端不得把密码或授权码拼到 URL", passwordApi.contains("?username=${obj.username}"));
+		assertFalse("前端不得把 challenge 或短信验证码拼到 URL", passwordApi.contains("?challengeId=${challengeId}")
+				|| passwordApi.contains("?smsCode=${obj.smsCode}"));
 		assertFalse("员工服务日志不得记录工号", employeeService.contains("Badge={}") || employeeService.contains("StaffBadge={}"));
 		assertFalse("岗位服务日志不得记录姓名或对象字段", jobService.contains("EmergencyName={}")
 				|| jobService.contains("Company={}") || jobService.contains("Email={}"));

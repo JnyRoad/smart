@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tce.smart.app.ao.fore.PerfectInfoAo;
+import com.tce.smart.app.ao.fore.PasswordSmsSendReqDTO;
+import com.tce.smart.app.ao.fore.PasswordSmsVerifyReqDTO;
 import com.tce.smart.app.service.fore.PasswordService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
@@ -46,9 +48,9 @@ public class PasswordController extends BaseController {
 	 * @param challengeId 一次性 challenge
 	 * @return
 	 */
-	@GetMapping("/sms/send")
-	public Result<?> sendSmsCode(@RequestParam(value = "challengeId", required = true) String challengeId) {
-		return success(passwordService.sendSmsCode(challengeId));
+	@PostMapping("/sms/send")
+	public Result<?> sendSmsCode(@RequestBody PasswordSmsSendReqDTO request) {
+		return success(passwordService.sendSmsCode(request == null ? null : request.getChallengeId()));
 	}
 
 	/**
@@ -58,10 +60,10 @@ public class PasswordController extends BaseController {
 	 * @param smsCode 短信验证码
 	 * @return
 	 */
-	@GetMapping("/verify")
-	public Result<?> verifySmsCode(@RequestParam(value = "challengeId", required = true) String challengeId,
-			@RequestParam(value = "smsCode", required = true) String smsCode) {
-		return success(passwordService.verifySmsCode(challengeId, smsCode));
+	@PostMapping("/verify")
+	public Result<?> verifySmsCode(@RequestBody PasswordSmsVerifyReqDTO request) {
+		return success(passwordService.verifySmsCode(request == null ? null : request.getChallengeId(),
+				request == null ? null : request.getSmsCode()));
 	}
 
 	/**

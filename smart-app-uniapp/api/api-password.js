@@ -14,11 +14,11 @@ import {
 export default {
 	// 发送短息验证码
 	sendSms (challengeId) {
-		return axios.get(`${API_SMS_SEND}?challengeId=${challengeId}`)
+		return axios.post(API_SMS_SEND, { challengeId })
 	},
 	// 校验短信验证码
 	verifySms (obj) {
-		return axios.get(`${API_SMS_VERIFY}?smsCode=${obj.smsCode}&challengeId=${obj.challengeId}`)
+		return axios.post(API_SMS_VERIFY, obj)
 	},
 	// 设置密码
 	updatePassword (obj) {
