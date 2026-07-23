@@ -26,6 +26,7 @@
 | 发布前 MD5 / 历史版本号 |  |
 | 发布后 MD5 / 历史版本号 |  |
 | 兼容代码 commit / 镜像 |  |
+| 服务 OAuth 发布前门槛证据（不含秘密） |  |
 | 灰度实例数 / 全量实例数 |  |
 | 开始时间 / 结束时间 / 执行人 |  |
 | 网关日志观察窗口 |  |
@@ -45,17 +46,20 @@
 5. 合法 Smart App、UPMS、Feign 和定时任务：成功且日志不含完整员工对象。
 6. 设备、厂商回调：仅在有效签名、时间窗和 nonce 条件下成功。
 
-## `security.inner.mode=ENFORCE` 前置条件
+## 兼容代码部署前的服务 OAuth 硬门槛
 
-以下项目全部完成前，保持 `AUDIT`，不得在真实 Nacos 写入 `ENFORCE`：
+以下项目必须在部署任何含 `INTERNAL_SERVICE_AUTH_REQUIRED` 调用方的生产兼容镜像**之前**完成并留存不含秘密的证据：
 
 1. 每个存在 `INTERNAL_SERVICE_AUTH_REQUIRED` Feign 契约的调用服务，均在对应 Data ID 配置独立
    `security.inner.service-token.client-id`、`client-secret` 与 `access-token-uri`；不得复用
    `security.oauth2.client` 的用户 OAuth 资源。密钥仅通过受管环境变量或密钥系统注入，不写入本清单。
-2. 授权服务器为这些独立客户端仅授予 `client_credentials` 的 `server` scope；错误 scope、过期令牌、
-   缺失配置或授权服务器不可用时，调用必须在 Feign 拦截器阶段失败，不能发送下游 HTTP 请求。
-3. 在单实例灰度中验证内部 Feign 成功、错误客户端/错误 scope 拒绝，以及应用日志不记录
-   Authorization 或访问令牌；再按本清单的发布记录完成回滚点登记。
+2. 授权服务器已登记独立客户端，仅授予 `client_credentials` 的 `server` scope；在预发或隔离灰度用同一不可变镜像和受管密钥来源验证能获取该 token。
+3. 预发或隔离灰度已验证标记的 App/Feign 调用成功、错误客户端/错误 scope/缺失配置拒绝，以及应用日志不记录 Authorization 或访问令牌。
+4. 错误 scope、过期令牌、缺失配置或授权服务器不可用时，调用必须在 Feign 拦截器阶段失败，不能发送下游 HTTP 请求。任一项未完成时，不得部署标记调用方，也不得以 `AUDIT`、`ENFORCE` 或放宽匿名路由绕过。
+
+## `security.inner.mode=ENFORCE` 后置收口
+
+仅在上述服务 OAuth 硬门槛、兼容代码灰度和单 Data ID Nacos 精确收口均通过后，才允许从 `AUDIT` 切换 `ENFORCE`。`ENFORCE` 只负责对 `@Inner` 端点执行内部调用语义的硬拒绝；它不负责准备服务 OAuth 客户端、注入密钥或验证 token。
 
 ## 回滚规则
 

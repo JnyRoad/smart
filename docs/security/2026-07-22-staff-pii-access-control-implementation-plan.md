@@ -33,7 +33,7 @@
 | `docker/nacos/config/dev/` | 本地 Nacos 安全基线，生产发布的可审计参照 | 6、7 |
 | `docs/security/` | Nacos 清单、灰度记录、验收与回滚材料 | 1、6、7 |
 
-任务 1 至 5 先形成兼容版；任务 6、7 只能在兼容版部署并通过灰度验证后执行。任务 8 是最终发布门禁。
+任务 1 至 5、7 先形成兼容版；但 Task 6 的独立服务 OAuth 客户端登记、受管密钥注入和预发/隔离灰度探针必须先完成。未通过该硬门槛不得向生产部署任何包含 `INTERNAL_SERVICE_AUTH_REQUIRED` 调用的兼容镜像。兼容代码生产灰度通过后，才执行 Nacos 精确收口；`security.inner.mode=ENFORCE` 最后仅负责 `@Inner` 硬收口，不能替代服务令牌就绪。任务 8 是最终发布门禁。
 
 ### Task 1：建立配置基线、禁止规则检查与生产发布清单
 
@@ -514,8 +514,11 @@ git commit -m "fix(feign): replace staff entity lookup contracts"
 - Modify: `smart/smart-gateway/src/main/java/com/tce/smart/gateway/filter/SmartRequestGlobalFilter.java:40-68`
 - Create: `smart/smart-gateway/src/test/java/com/tce/smart/gateway/filter/SmartRequestGlobalFilterTest.java`
 
-**消耗：** Task 5 的 `FROM_IN` Feign 契约和已有 OAuth 客户端配置。  
-**产出：** 无 HTTP 请求上下文的 Feign 调用仍携带服务令牌；外部请求不能借 `from` 伪造内部访问。
+**消耗：** Task 5 的 `FROM_IN` Feign 契约、独立服务 OAuth 客户端登记和受管密钥注入。
+
+**产出：** 显式标记 Feign 调用仅使用独立 `client_credentials/server` 服务令牌；外部请求不能借 `from` 伪造内部访问。
+
+> **兼容代码发布前硬门槛：** 在任何包含 `INTERNAL_SERVICE_AUTH_REQUIRED` 调用方的生产镜像部署前，必须先在预发或隔离灰度环境使用同一不可变镜像、同一受管密钥来源完成：独立 OAuth 客户端登记、`security.inner.service-token.*` 注入、`client_credentials` 获取 `server` scope token、已标记 App/Feign 调用成功以及错误客户端/错误 scope 拒绝。任一项未完成时，不得部署该调用方；不得依赖 `AUDIT` 或 `ENFORCE` 绕过此门槛。
 
 - [ ] **步骤 1：写失败测试。**
 
@@ -542,7 +545,7 @@ Expected: 当前无请求上下文分支直接返回，新的服务令牌断言�
 
 - [ ] **步骤 3：实现服务令牌回退和 fail-closed 行为。**
 
-将 `SmartFeignClientInterceptor.apply` 改为：有入站请求时复制安全白名单头、保留显式 `FROM_IN`；没有入站请求时仍调用 OAuth 客户端凭据获取逻辑。若服务令牌不可获得，内部调用必须明确失败并记录不含秘密的调用服务、目标服务和路径，不能静默匿名请求。
+将 `SmartFeignClientInterceptor.apply` 改为：显式标记调用使用独立 OAuth 上下文与 `client_credentials/server` resource；其他历史调用才保留既有 relay 行为。有入站请求时标记调用必须在复制任何入站 `Authorization` 前进入服务令牌分支。若服务令牌不可获得，内部调用必须明确失败，不能静默匿名请求或复用用户令牌。
 
 `SmartSecurityInnerAspect` 保持默认 `AUDIT`，仅在 Nacos 发布任务确认所有目标服务审计日志为零缺失后改为 `ENFORCE`。测试必须保留 `OFF` 紧急回滚、`AUDIT` 零中断和 `ENFORCE` 无 `FROM_IN` 拒绝三种行为。
 
@@ -769,23 +772,37 @@ git commit -m "fix(nacos): require auth for platform and upms routes"
 
 在生产 Nacos `yuto_prod / dev` 读取每个目标 Data ID 的当前 MD5、历史版本和 `ignore-urls`；在网关日志按完整路径统计旧接口、`/internal/**`、设备回调与 `from` 伪造请求。记录统计周期、实例数和日志覆盖窗口，不保存请求参数和响应体。
 
-- [ ] **步骤 2：部署兼容版本。**
+- [ ] **步骤 2：兼容代码发布前服务身份硬门槛。**
 
-先仅部署 Tasks 2 至 7 的代码版本，不修改 Nacos。验证 Smart UI、当前 H5、App、UPMS、Feign、定时任务和设备回调；发生异常只回滚镜像，不修改安全白名单。
+在预发或隔离灰度环境（同一不可变镜像、同一受管密钥来源）先完成独立 OAuth 客户端登记；注入
+`security.inner.service-token.client-id`、`client-secret`、`access-token-uri`；验证 client_credentials 能取得仅含
+`server` scope 的 token；运行已标记的 App/Feign 调用探针，并验证错误客户端、错误 scope、缺失配置均 fail-closed。
+密钥和 token 不得写入日志、清单或 Git。任一项失败或未记录证据时，**不得部署**含
+`INTERNAL_SERVICE_AUTH_REQUIRED` 调用方的生产兼容代码。
 
-- [ ] **步骤 3：按 Data ID 单项灰度 Nacos。**
+- [ ] **步骤 3：部署兼容版本。**
+
+仅在步骤 2 通过后，灰度部署 Tasks 2 至 7 的代码版本；此阶段保持 Nacos 匿名白名单与
+`security.inner.mode=AUDIT` 不变。验证 Smart UI、当前 H5、App、UPMS、Feign、定时任务和设备回调；发生异常只回滚镜像，不通过降低服务令牌要求恢复业务。
+
+- [ ] **步骤 4：按 Data ID 单项灰度 Nacos。**
 
 每次只发布一个 Data ID 到一个灰度实例。执行：无 Token 访问旧路径、伪造 `from=Y`、跨园区人员 ID、不同员工工号、内部 Feign、当前 H5 入住、当前 H5 门锁、物品放行、UI 搜索、App 绑定、UPMS 初始化。所有外部拒绝应为 401/403，所有合法业务流应成功。
 
-- [ ] **步骤 4：观察和扩大。**
+- [ ] **步骤 5：观察和扩大。**
 
 观察窗口内记录错误率、5xx、401/403、Feign 失败、任务失败、设备回调失败和旧路由访问量。达到发布清单定义的基线后扩大至全部实例；任何未分类调用、业务错误或回调失败均停止扩大并回滚当前 Data ID 到记录的历史版本。
 
-- [ ] **步骤 5：删除旧接口。**
+- [ ] **步骤 6：在 Nacos 精确收口后启用 `ENFORCE`。**
+
+仅当兼容代码、独立服务令牌和单项 Nacos 灰度均已通过，且目标服务 `@Inner` 审计日志无缺失时，才按服务将
+`security.inner.mode` 从 `AUDIT` 切至 `ENFORCE`。该步骤只负责拒绝未带合法内部调用语义的 `@Inner` 请求；它不创建、不修复也不替代服务 OAuth 客户端和 token 探针。
+
+- [ ] **步骤 7：删除旧接口。**
 
 仅当旧路径 QPS 连续观察窗口为零、仓外调用方完成书面确认、全量回归通过时，删除旧 Controller 映射、旧 Feign 方法、兼容 DTO 和无用前端适配。再次运行 `rg -n 'simple/get/badge|define/badge|simple/badge' smart smart-module smart-ui smart-h5`，预期无生产代码命中。
 
-- [ ] **步骤 6：最终验收。**
+- [ ] **步骤 8：最终验收。**
 
 Run: `node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev`  
 Expected: exit `0`。
