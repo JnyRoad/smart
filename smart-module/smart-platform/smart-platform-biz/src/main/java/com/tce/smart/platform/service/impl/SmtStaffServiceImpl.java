@@ -1012,6 +1012,16 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	}
 
 	@Override
+	public SmtStaff getActiveStaffByBadge(String badge) {
+		if (StrUtil.isBlank(badge)) {
+			return null;
+		}
+		return this.baseMapper.selectOne(Wrappers.<SmtStaff>query().lambda()
+				.eq(SmtStaff::getBadge, badge)
+				.ne(SmtStaff::getStatus, StaffStatusEnum.STAFF_STATUS_QUIT.getCode()));
+	}
+
+	@Override
 	public InternalStaffAccountRespDTO getInternalAccountByBadge(String badge) {
 		if (StrUtil.isBlank(badge)) {
 			return null;

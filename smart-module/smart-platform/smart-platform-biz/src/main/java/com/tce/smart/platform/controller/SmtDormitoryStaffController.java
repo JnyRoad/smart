@@ -6,10 +6,13 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.req.DorStaffPerfectDTO;
 import com.tce.smart.platform.api.dto.req.DormitoryQueryNoStaffDTO;
 import com.tce.smart.platform.api.dto.req.LockPwdUpdateDTO;
+import com.tce.smart.platform.api.dto.req.SelfLockPwdRefreshReqDTO;
+import com.tce.smart.platform.api.dto.req.SelfLockPwdUpdateReqDTO;
 import com.tce.smart.platform.api.dto.req.lock.*;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryStaffRespDTO;
@@ -22,6 +25,8 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.models.auth.In;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -404,22 +409,53 @@ public class SmtDormitoryStaffController {
 		return new Result<>(smtDormitoryStaffService.faceCompare(perfectDTO));
 	}
 
-	@ApiOperation("根据工号获取动态码")
-	@GetMapping("/get/pwd")
-	public Result<String> getPwdByBadge(@RequestParam("badge") String badge){
-		return new Result<>(smtDormitoryStaffService.getPwdByBadge(badge));
+	/**
+	 * 读取当前认证员工的门锁动态码，工号不接受查询参数指定。
+	 */
+	@ApiOperation("获取本人门锁动态码")
+	@GetMapping("/me/pwd")
+	public Result<String> getPwdForCurrentUser() {
+		return new Result<>(smtDormitoryStaffService.getPwdForAuthenticatedStaff(currentAuthenticatedBadge()));
 	}
 
-	@ApiOperation("根据工号更新动态码")
-	@PostMapping("/update/pwd")
-	public Result<String> updatePwdByBadge(@RequestBody DorStaffPerfectDTO perfectDTO){
-		return new Result<>(smtDormitoryStaffService.updatePwdByBadge(perfectDTO));
+	/**
+	 * 当前认证员工通过人脸核验刷新动态码。
+	 */
+	@ApiOperation("刷新本人门锁动态码")
+	@PostMapping("/me/pwd")
+	public Result<String> refreshPwdForCurrentUser(@RequestBody @Valid SelfLockPwdRefreshReqDTO request) {
+		return new Result<>(smtDormitoryStaffService.refreshPwdForAuthenticatedStaff(currentAuthenticatedBadge(), request));
 	}
 
-	@ApiOperation("根据工号修改门锁密码")
-	@PostMapping("/update/lock/pwd")
-	public Result<String> updateLockPwdByBadge(@RequestBody LockPwdUpdateDTO lockPwdUpdateDTO){
-		return new Result<>(smtDormitoryStaffService.updateLockPwdByBadge(lockPwdUpdateDTO));
+	/**
+	 * 当前认证员工修改门锁动态码。
+	 */
+	@ApiOperation("修改本人门锁动态码")
+	@PostMapping("/me/lock/pwd")
+	public Result<String> updateLockPwdForCurrentUser(@RequestBody @Valid SelfLockPwdUpdateReqDTO request) {
+		return new Result<>(smtDormitoryStaffService.updateLockPwdForAuthenticatedStaff(
+				currentAuthenticatedBadge(), request.getNewPwd()));
+	}
+
+	/**
+	 * 当前认证员工的入住记录。路径不再携带工号，避免枚举他人入住信息。
+	 */
+	@ApiOperation("查询本人入住记录")
+	@GetMapping("/me/roomList")
+	public Result<List<DormitoryRoomDetailRespDTO>> getRoomListForCurrentUser() {
+		return new Result<>(smtDormitoryStaffService.getStaffRoomInfoList(currentAuthenticatedBadge()));
+	}
+
+	private String currentAuthenticatedBadge() {
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			throw new AccessDeniedException("未认证用户不可操作门锁动态码");
+		}
+		SmartUser currentUser = SecurityUtils.getUser(authentication);
+		if (currentUser == null || StringUtils.isEmpty(currentUser.getUsername())) {
+			throw new AccessDeniedException("未认证用户不可操作门锁动态码");
+		}
+		return currentUser.getUsername();
 	}
 
 	@ApiOperation("修改入住备注")

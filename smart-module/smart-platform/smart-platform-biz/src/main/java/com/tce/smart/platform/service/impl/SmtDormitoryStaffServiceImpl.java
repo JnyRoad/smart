@@ -33,6 +33,7 @@ import com.tce.smart.data.api.feign.ehrview.RemoteOvwYsCallOwanceDetailsService;
 import com.tce.smart.platform.api.dto.DormitoryStaffExcelDTO;
 import com.tce.smart.platform.api.dto.req.DorStaffPerfectDTO;
 import com.tce.smart.platform.api.dto.req.LockPwdUpdateDTO;
+import com.tce.smart.platform.api.dto.req.SelfLockPwdRefreshReqDTO;
 import com.tce.smart.platform.api.dto.req.remoteLock.LockDormitoryStaffDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryStaffRespDTO;
@@ -66,6 +67,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -1570,6 +1572,46 @@ public class SmtDormitoryStaffServiceImpl extends ServiceImpl<SmtDormitoryStaffM
 			return pwd;
 		}
 		throw new TCEException("今天修改次数已达到上限");
+	}
+
+	@Override
+	public String getPwdForAuthenticatedStaff(String badge) {
+		requireDormitoryStaff(badge);
+		return getPwdByBadge(badge);
+	}
+
+	@Override
+	public String updateLockPwdForAuthenticatedStaff(String badge, String newPwd) {
+		requireDormitoryStaff(badge);
+		LockPwdUpdateDTO request = new LockPwdUpdateDTO();
+		request.setBadge(badge);
+		request.setNewPwd(newPwd);
+		return updateLockPwdByBadge(request);
+	}
+
+	@Override
+	public String refreshPwdForAuthenticatedStaff(String badge, SelfLockPwdRefreshReqDTO request) {
+		requireDormitoryStaff(badge);
+		DorStaffPerfectDTO faceRequest = new DorStaffPerfectDTO();
+		faceRequest.setBadge(badge);
+		faceRequest.setFacePic(request.getFacePic());
+		faceRequest.setDeviceNo(request.getDeviceNo());
+		return updatePwdByBadge(faceRequest);
+	}
+
+	/**
+	 * 门锁能力只允许当前仍有有效入住关系的员工使用。
+	 */
+	private SmtDormitoryStaff requireDormitoryStaff(String badge) {
+		if (!StringUtils.hasLength(badge)) {
+			throw new AccessDeniedException("未认证用户不可操作门锁动态码");
+		}
+		SmtDormitoryStaff record = this.getOne(Wrappers.<SmtDormitoryStaff>query().lambda()
+				.eq(SmtDormitoryStaff::getStaffBadge, badge));
+		if (record == null || record.getParkId() == null || record.getRoomId() == null) {
+			throw new AccessDeniedException("当前用户没有有效入住关系");
+		}
+		return record;
 	}
 
 	@Override

@@ -127,6 +127,14 @@ public interface SmtStaffService extends IService<SmtStaff> {
 	StaffSelfCheckInProfileRespDTO getCheckInProfileForBadge(String badge);
 
 	/**
+	 * 查询可用于本人入住的在职员工资料。
+	 *
+	 * @param badge 已认证主体的工号
+	 * @return 在职员工，不存在或已离职时返回空
+	 */
+	SmtStaff getActiveStaffByBadge(String badge);
+
+	/**
 	 * 按工号查询内部账号识别信息。
 	 *
 	 * @param badge 工号

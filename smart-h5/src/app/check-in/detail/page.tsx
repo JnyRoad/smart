@@ -5,7 +5,6 @@ import { StatusIcon } from '@/components/app-icon'
 import { PageShell } from '@/components/page-shell'
 import { SegmentTabs } from '@/components/segment-tabs'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
-import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { getLockPwd } from '@/features/dorm/api'
 import { getCheckInRecords } from '@/features/dorm-services/api'
 import { decryptFromHex } from '@/lib/crypto/aes'
@@ -37,22 +36,15 @@ function safeDecrypt(cipher: string): string {
 export default function CheckInDetailPage() {
   const authorized = useRequireAuth()
 
-  const baseInfo = useQuery({
-    queryKey: ['employee', 'baseinfo'],
-    queryFn: getEmployeeBaseInfo,
+  const records = useQuery({
+    queryKey: ['my-check-in-records'],
+    queryFn: getCheckInRecords,
     enabled: authorized,
   })
-  const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
-
-  const records = useQuery({
-    queryKey: ['check-in-records', badge],
-    queryFn: () => getCheckInRecords(badge as string),
-    enabled: authorized && badge !== undefined,
-  })
   const pwd = useQuery({
-    queryKey: ['lock-pwd', badge],
-    queryFn: () => getLockPwd(badge as string),
-    enabled: authorized && badge !== undefined,
+    queryKey: ['my-lock-pwd'],
+    queryFn: getLockPwd,
+    enabled: authorized,
   })
 
   if (!authorized) return null
@@ -79,7 +71,7 @@ export default function CheckInDetailPage() {
             description={records.data?.message ?? '分配记录获取失败'}
             className="py-8"
           />
-        ) : badge === undefined || records.isPending ? (
+        ) : records.isPending ? (
           <div className="flex justify-center py-16">
             <SpinLoading color="primary" />
           </div>

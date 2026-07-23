@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   availableBeds,
+	checkInSelectionToSubmit,
   clearFormDraft,
   clearRoomDraft,
   floorsFromConditionTree,
-  identityToSubmitFields,
   loadFormDraft,
   loadRoomDraft,
   saveFormDraft,
@@ -49,31 +49,26 @@ describe('floorsFromConditionTree', () => {
   })
 })
 
-describe('identityToSubmitFields', () => {
-  it('按旧版键名映射（birth→birthday、homeAddress→address、validDate→start/end）', () => {
-    expect(
-      identityToSubmitFields({
-        name: '王建国',
-        sex: 1,
-        nation: '汉',
-        certno: '410101199001011234',
-        birth: '1990-01-01',
-        homeAddress: '河南省许昌市',
-        validDate: '2020-01-01',
-        validDateFm: '2040-01-01',
-      }),
-    ).toEqual({
-      name: '王建国',
-      sex: 1,
-      nation: '汉',
-      certno: '410101199001011234',
-      birthday: '1990-01-01',
-      address: '河南省许昌市',
-      signOrg: null,
-      validDateStart: '2020-01-01',
-      validDateEnd: '2040-01-01',
-    })
-  })
+describe('checkInSelectionToSubmit', () => {
+	it('仅提交宿舍选择，不携带员工身份、证件或工号', () => {
+		expect(
+			checkInSelectionToSubmit({
+				parkId: 1,
+				dormitoryId: 'D1',
+				roomType: 2,
+				floorId: 'F1',
+				roomId: 'R301',
+				bedId: 'B4',
+			}),
+		).toEqual({
+			parkId: 1,
+			dormitoryId: 'D1',
+			roomType: 2,
+			floorId: 'F1',
+			roomId: 'R301',
+			bedId: 'B4',
+		})
+	})
 })
 
 describe('room draft (sessionStorage)', () => {

@@ -8,10 +8,9 @@ import { PageShell } from '@/components/page-shell'
 import { SegmentTabs } from '@/components/segment-tabs'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
-import { getEmployeeBaseInfo } from '@/features/employee/api'
 import {
+  getMyCheckInProfile,
   getRoomTypes,
-  getStaffIdentity,
   queryDormitories,
   submitCheckIn,
   type Dormitory,
@@ -20,7 +19,7 @@ import {
 import {
   clearFormDraft,
   clearRoomDraft,
-  identityToSubmitFields,
+  checkInSelectionToSubmit,
   loadFormDraft,
   loadRoomDraft,
   saveFormDraft,
@@ -53,22 +52,15 @@ export default function CheckInPage() {
   const [typeVisible, setTypeVisible] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const baseInfo = useQuery({
-    queryKey: ['employee', 'baseinfo'],
-    queryFn: getEmployeeBaseInfo,
-    enabled: authorized,
-  })
-  const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
-
   const dorms = useQuery({
     queryKey: ['check-in-dorms'],
     queryFn: () => queryDormitories(config.parkId),
     enabled: authorized,
   })
   const identity = useQuery({
-    queryKey: ['staff-identity', badge],
-    queryFn: () => getStaffIdentity(badge as string),
-    enabled: authorized && badge !== undefined,
+    queryKey: ['my-check-in-profile'],
+    queryFn: getMyCheckInProfile,
+    enabled: authorized,
   })
   const identityFailed =
     identity.isError || (identity.isSuccess && (identity.data.code !== 0 || !identity.data.data))
@@ -128,21 +120,19 @@ export default function CheckInPage() {
     if (!dormitory) return Toast.show('请选择楼栋信息')
     if (!roomType) return Toast.show('请选择房间类型')
     if (mode === 'manual' && !draft) return Toast.show('请选择房间号')
-    const person = identity.data?.data
-    if (!person || !badge) return Toast.show('获取用户信息失败！')
+    const profile = identity.data?.data
+    if (!profile?.profileComplete) return Toast.show('当前员工资料不完整，无法申请入住')
 
     setSubmitting(true)
     try {
-      const res = await submitCheckIn({
-        ...identityToSubmitFields(person),
+      const res = await submitCheckIn(checkInSelectionToSubmit({
         dormitoryId: dormitory.id,
         roomType: roomType.id,
-        badge,
         parkId: config.parkId,
         ...(mode === 'manual' && draft
           ? { floorId: draft.floorId, roomId: draft.roomId, bedId: draft.bedId }
           : {}),
-      })
+      }))
       if (res.code === 0) {
         clearRoomDraft()
         clearFormDraft()

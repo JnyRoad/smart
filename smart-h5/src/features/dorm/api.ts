@@ -31,21 +31,21 @@ export function getWaterElecRecords(params: {
 }
 
 /** Returns the door-lock dynamic code as HEX ciphertext (empty = not checked in). */
-export function getLockPwd(badge: string): Promise<Envelope<string>> {
-  return request({ module: 'platform', url: '/dormitory/staff/get/pwd', params: { badge } })
+export function getLockPwd(): Promise<Envelope<string>> {
+  return request({ module: 'platform', url: '/dormitory/staff/me/pwd' })
 }
 
-/** newPwd is sent in plaintext — verified against the legacy edit-code.vue. */
-export function updateLockPwd(data: { badge: string; newPwd: string }): Promise<Envelope<unknown>> {
+/** newPwd is sent in plaintext — the server binds it to the current authenticated user. */
+export function updateLockPwd(data: { newPwd: string }): Promise<Envelope<unknown>> {
   return request({
     module: 'platform',
-    url: '/dormitory/staff/update/lock/pwd',
+    url: '/dormitory/staff/me/lock/pwd',
     method: 'POST',
     data,
   })
 }
 
 /** Regenerates the lock code after a face check; facePic is the uploaded base64 image. */
-export function refreshLockPwd(data: { badge: string; facePic: string }): Promise<Envelope<unknown>> {
-  return request({ module: 'platform', url: '/dormitory/staff/update/pwd', method: 'POST', data })
+export function refreshLockPwd(data: { facePic: string }): Promise<Envelope<unknown>> {
+  return request({ module: 'platform', url: '/dormitory/staff/me/pwd', method: 'POST', data })
 }
