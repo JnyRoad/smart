@@ -54,14 +54,14 @@ public interface SmtArticlesReleaseService extends IService<SmtArticlesRelease> 
 	 * @param reqDTO
 	 * @return
 	 */
-	Boolean securityUpdate(GuardReleaseConfirmReqDTO reqDTO);
+	Boolean securityUpdateForGuard(String guardBadge, GuardReleaseConfirmReqDTO reqDTO);
 
 	/**
 	 * 保安确认返厂
 	 * @param releaseId
 	 * @return
 	 */
-	Boolean securityBackConfirm(Long releaseId);
+	Boolean securityBackConfirmForGuard(String guardBadge, Long releaseId);
 
 	/**
 	 * 保存APP生活区物品放行

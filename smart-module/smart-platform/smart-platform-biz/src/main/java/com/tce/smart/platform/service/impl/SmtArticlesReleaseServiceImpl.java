@@ -158,7 +158,8 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 	@Override
 	public ReleaseStaffLookupRespDTO lookupStaffForRelease(String currentBadge, List<Integer> currentParkIds,
 			Long releaseId, String badge) {
-		getReleaseForAuthorizedUser(currentBadge, currentParkIds, releaseId);
+		// 人员选择仅属于申请人自己的未提交办公区草稿；审批/保安场景不得复用此搜索接口。
+		getOfficeDraftForOwner(currentBadge, currentParkIds, releaseId);
 		if (StrUtil.isBlank(badge)) {
 			throw new SmartException("员工工号不能为空");
 		}
@@ -496,19 +497,27 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public Boolean securityUpdate(GuardReleaseConfirmReqDTO reqDTO) {
+	public Boolean securityUpdateForGuard(String guardBadge, GuardReleaseConfirmReqDTO reqDTO) {
+		if (StrUtil.isBlank(guardBadge) || reqDTO == null || reqDTO.getId() == null) {
+			throw new AccessDeniedException("未授权保安不能确认物品放行");
+		}
 		SmtArticlesRelease articlesRelease = this.getById(reqDTO.getId());
+		if (!ArticlesReleaseStatusEnum.APPROVED.getCode().equals(articlesRelease.getStatus())
+				|| (!ArticlesReleaseStatusEnum.DEPARTURE.getCode().equals(reqDTO.getStatus())
+				&& !ArticlesReleaseStatusEnum.REFUSE.getCode().equals(reqDTO.getStatus()))) {
+			throw new AccessDeniedException("物品放行状态不允许保安确认");
+		}
+		Integer parkId = articlesRelease.getParkId();
 		if (StringUtils.isNotEmpty(reqDTO.getGuardOneImg())) {
-			articlesRelease.setOneImg(smtImageService.saveImage(reqDTO.getParkId(), reqDTO.getGuardOneImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			articlesRelease.setOneImg(smtImageService.saveImage(parkId, reqDTO.getGuardOneImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
 		if (StringUtils.isNotEmpty(reqDTO.getGuardTwoImg())) {
-			articlesRelease.setTwoImg(smtImageService.saveImage(reqDTO.getParkId(), reqDTO.getGuardTwoImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			articlesRelease.setTwoImg(smtImageService.saveImage(parkId, reqDTO.getGuardTwoImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
 		if (StringUtils.isNotEmpty(reqDTO.getGuardThreeImg())) {
-			articlesRelease.setThreeImg(smtImageService.saveImage(reqDTO.getParkId(), reqDTO.getGuardThreeImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			articlesRelease.setThreeImg(smtImageService.saveImage(parkId, reqDTO.getGuardThreeImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
-		String badge = StrUtil.isNotBlank(reqDTO.getBadge()) ? reqDTO.getBadge() : SecurityUtils.getUser().getUsername();
-		articlesRelease.setSecurityStaff(badge);
+		articlesRelease.setSecurityStaff(guardBadge);
 		articlesRelease.setDepartureTime(DateUtils.date());
 		articlesRelease.setStatus(reqDTO.getStatus());
 		articlesRelease.setRemark(reqDTO.getRemark());
@@ -530,12 +539,17 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public Boolean securityBackConfirm(Long releaseId) {
+	public Boolean securityBackConfirmForGuard(String guardBadge, Long releaseId) {
 		SmtArticlesRelease articlesRelease = this.getById(releaseId);
+		if (StrUtil.isBlank(guardBadge)
+				|| !ArticlesReleaseStatusEnum.DEPARTURE.getCode().equals(articlesRelease.getStatus())
+				|| !BackFactoryEnum.YES.getCode().equals(articlesRelease.getIsBack())
+				|| articlesRelease.getBackTime() != null) {
+			throw new AccessDeniedException("物品放行状态不允许确认返厂");
+		}
 		Date backDate = new Date();
 		articlesRelease.setBackTime(backDate);
-		String badge = SecurityUtils.getUser().getUsername();
-		articlesRelease.setGuardBadge(badge);
+		articlesRelease.setGuardBadge(guardBadge);
 		boolean update = this.updateById(articlesRelease);
 		if (update) {
 			String backDateStr = DateUtil.formatDate(backDate);

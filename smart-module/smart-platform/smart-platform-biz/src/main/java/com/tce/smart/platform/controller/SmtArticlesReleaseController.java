@@ -22,6 +22,7 @@ import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -109,22 +110,18 @@ public class SmtArticlesReleaseController extends BaseController {
 	 */
 	@PostMapping("/status/security/update")
 	@ApiOperation(value = "保安放行")
+	@PreAuthorize("@pms.hasPermission('platform_articles_release_security_confirm')")
 	public Result<Boolean> securityUpdate(@RequestBody GuardReleaseConfirmReqDTO reqDTO){
 		SmartUser currentUser = currentAuthenticatedUser();
-		SmtArticlesRelease release = smtArticlesReleaseService.getReleaseForAuthorizedUser(
-				currentUser.getUsername(), currentUser.getParkIdList(), reqDTO.getId());
-		// 保安身份与图片所属园区只能由认证主体和持久化申请记录决定。
-		reqDTO.setBadge(currentUser.getUsername());
-		reqDTO.setParkId(release.getParkId());
-		return success(smtArticlesReleaseService.securityUpdate(reqDTO));
+		return success(smtArticlesReleaseService.securityUpdateForGuard(currentUser.getUsername(), reqDTO));
 	}
 
 	@PostMapping("/back/confirm/{releaseId}")
 	@ApiOperation(value = "返厂确认")
+	@PreAuthorize("@pms.hasPermission('platform_articles_release_security_confirm')")
 	public Result<Boolean> securityBackConfirm(@PathVariable("releaseId") Long releaseId) {
 		SmartUser currentUser = currentAuthenticatedUser();
-		smtArticlesReleaseService.getReleaseForAuthorizedUser(currentUser.getUsername(), currentUser.getParkIdList(), releaseId);
-		return success(smtArticlesReleaseService.securityBackConfirm(releaseId));
+		return success(smtArticlesReleaseService.securityBackConfirmForGuard(currentUser.getUsername(), releaseId));
 	}
 
 	/**

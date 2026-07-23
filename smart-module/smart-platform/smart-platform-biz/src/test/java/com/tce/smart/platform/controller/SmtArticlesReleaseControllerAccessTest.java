@@ -4,6 +4,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.data.api.feign.msg.RemoteOaWorkFlowService;
 import com.tce.smart.data.api.vo.msg.QueryOaStaffRespVo;
 import com.tce.smart.platform.api.dto.resp.ReleaseStaffLookupRespDTO;
+import com.tce.smart.platform.api.dto.req.GuardReleaseConfirmReqDTO;
 import com.tce.smart.platform.core.entity.SmtArticlesRelease;
 import com.tce.smart.platform.core.mapper.SmtArticlesReleaseMapper;
 import com.tce.smart.platform.service.ApproveListService;
@@ -11,6 +12,7 @@ import com.tce.smart.platform.service.impl.SmtArticlesReleaseServiceImpl;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Field;
@@ -69,6 +71,63 @@ public class SmtArticlesReleaseControllerAccessTest {
 	}
 
 	@Test
+	public void releaseStaffLookupRejectsSubmittedOrNonOfficeRelease() {
+		SmtArticlesReleaseMapper mapper = Mockito.mock(SmtArticlesReleaseMapper.class);
+		RemoteOaWorkFlowService oaWorkFlowService = Mockito.mock(RemoteOaWorkFlowService.class);
+		SmtArticlesRelease submittedRelease = officeDraft(17L, "owner-badge", 1);
+		submittedRelease.setStatus(1);
+		Mockito.when(mapper.selectById(17L)).thenReturn(submittedRelease);
+		SmtArticlesReleaseServiceImpl service = service(mapper, oaWorkFlowService);
+
+		assertLookupDenied(service, 17L);
+		submittedRelease.setStatus(0);
+		submittedRelease.setArticlesType(3);
+		assertLookupDenied(service, 17L);
+		Mockito.verifyZeroInteractions(oaWorkFlowService);
+	}
+
+	@Test
+	public void securityEndpointsRequireDedicatedGuardPermission() throws Exception {
+		PreAuthorize releaseGuard = SmtArticlesReleaseController.class
+				.getMethod("securityUpdate", GuardReleaseConfirmReqDTO.class)
+				.getAnnotation(PreAuthorize.class);
+		PreAuthorize returnGuard = SmtArticlesReleaseController.class
+				.getMethod("securityBackConfirm", Long.class)
+				.getAnnotation(PreAuthorize.class);
+
+		assertEquals("@pms.hasPermission('platform_articles_release_security_confirm')", releaseGuard.value());
+		assertEquals("@pms.hasPermission('platform_articles_release_security_confirm')", returnGuard.value());
+	}
+
+	@Test
+	public void guardUpdateRejectsNonGuardStatusTransition() {
+		SmtArticlesReleaseMapper mapper = Mockito.mock(SmtArticlesReleaseMapper.class);
+		SmtArticlesRelease release = officeDraft(17L, "owner-badge", 1);
+		release.setStatus(1);
+		Mockito.when(mapper.selectById(17L)).thenReturn(release);
+		SmtArticlesReleaseServiceImpl service = service(mapper, Mockito.mock(RemoteOaWorkFlowService.class));
+		GuardReleaseConfirmReqDTO request = new GuardReleaseConfirmReqDTO();
+		request.setId(17L);
+		request.setStatus(2);
+
+		try {
+			service.securityUpdateForGuard("guard-badge", request);
+			fail("保安不能把待审批申请直接改为已通过");
+		} catch (AccessDeniedException expected) {
+			// 预期：仅已通过申请可转为出厂或拒绝出厂。
+		}
+	}
+
+	private void assertLookupDenied(SmtArticlesReleaseServiceImpl service, Long releaseId) {
+		try {
+			service.lookupStaffForRelease("owner-badge", Collections.singletonList(1), releaseId, "A100");
+			fail("仅办公区 DRAFT 草稿可查询人员");
+		} catch (AccessDeniedException expected) {
+			// 预期：提交申请和非办公区申请不能作为人员查询凭据。
+		}
+	}
+
+	@Test
 	public void legacyOaStaffLookupIsNotAnExternalControllerMethod() {
 		try {
 			SmtArticlesReleaseController.class.getMethod("getOAInfoByBadge", String.class);
@@ -94,6 +153,8 @@ public class SmtArticlesReleaseControllerAccessTest {
 		release.setId(id);
 		release.setBadge(ownerBadge);
 		release.setParkId(parkId);
+		release.setArticlesType(5);
+		release.setStatus(0);
 		return release;
 	}
 }
