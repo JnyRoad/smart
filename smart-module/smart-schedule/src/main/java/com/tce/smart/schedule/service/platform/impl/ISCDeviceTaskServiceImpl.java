@@ -29,7 +29,7 @@ import com.tce.smart.platform.api.dto.IscTemperatureDTO;
 import com.tce.smart.platform.api.dto.SmtParkDTO;
 import com.tce.smart.platform.api.dto.resp.InternalScheduleIscPersonRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
-import com.tce.smart.platform.api.feign.RemoteParkService;
+import com.tce.smart.platform.api.feign.RemoteParkInternalService;
 import com.tce.smart.platform.api.feign.RemoteSnapPersonService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.platform.core.entity.*;
@@ -95,7 +95,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 
 	private final SmtIscDownRecordService smtIscDownRecordService;
 
-	private final RemoteParkService remoteParkService;
+	private final RemoteParkInternalService remoteParkInternalService;
 
 	private final SmtVisitorService smtVisitorService;
 
@@ -2980,8 +2980,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	@Override
 	public void syncDevice() {
 		log.info("开始-ISC设备同步任务，开始时间: {}", DateUtils.now());
-		Result<List<SmtParkDTO>> parkListRes = remoteParkService.getParkList(SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<SmtParkDTO>> parkListRes = remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list");
 		if (!parkListRes.isSuccess() || CollectionUtil.isEmpty(parkListRes.getData())) {
 			log.info("查询园区列表失败：{}", parkListRes.getMessage());
 			return;

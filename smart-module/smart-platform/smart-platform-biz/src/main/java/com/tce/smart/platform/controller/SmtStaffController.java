@@ -9,6 +9,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
@@ -268,6 +269,7 @@ public class SmtStaffController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@PostMapping("/sync")
 	public Result syncStaff(@RequestBody EmpHrVO empHr) {
 		smtStaffService.syncStaff(empHr, dormitoryStaffService);
@@ -275,6 +277,7 @@ public class SmtStaffController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@PostMapping("/sync/img")
 	public Result syncStaffImg() {
 		smtStaffService.syncFaceImg();
@@ -441,6 +444,7 @@ public class SmtStaffController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("同步员工人员和人脸到ISC")
 	@PostMapping("/isc/person/face/sync")
 	public Result<Boolean> syncIscPersonFace(@RequestParam("badge") String badge,
@@ -450,6 +454,7 @@ public class SmtStaffController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("重试ISC员工人员和人脸同步失败任务")
 	@PostMapping("/isc/person/face/retry")
 	public Result<Boolean> retryFailedIscPersonFaceSync() {
@@ -543,6 +548,8 @@ public class SmtStaffController extends BaseController {
 	 * @param page 分页对象
 	 * @return
 	 */
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/sync/list")
 	public Result<IPage<EmpHrReqDTO>> getSmtStaffList(Page page) {
 		return new Result<>(smtStaffService.getStaffList(page));

@@ -73,7 +73,7 @@ public class EHRViewTimerTask {
 	@Autowired
 	private RemoteAttendanceSignService remoteAttendanceSignService;
 	@Autowired
-	private RemoteParkService remoteParkService;
+	private RemoteParkInternalService remoteParkInternalService;
 	@Autowired
 	private RemoteAdmittanceTaskService remoteAdmittanceTaskService;
 	@Autowired
@@ -139,8 +139,8 @@ public class EHRViewTimerTask {
 	public void visitorTask() {
 		if (taskJob.getVisitorType() && iSwitchService.process(TimerTaskEnum.VISITOR_TYPE)) {
 			log.info("Task visitorTask start time:" + DateUtil.date());
-			Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<SmtParkDTO>> result = remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list");
 			if (result.isSuccess()) {
 				List<SmtParkDTO> parkDTOList = result.getData();
 				for (SmtParkDTO smtParkDTO : parkDTOList) {
@@ -222,8 +222,8 @@ public class EHRViewTimerTask {
 	public void visitorNoLeaveTask() {
 		if (taskJob.getVisitorNoLeave() && iSwitchService.process(TimerTaskEnum.VISITOR_NO_LEAVE)) {
 			log.info("Task visitorNoLeaveTask start time:" + DateUtil.date());
-			Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<SmtParkDTO>> result = remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list");
 			if (result.isSuccess()) {
 				List<SmtParkDTO> parkDTOList = result.getData();
 				for (SmtParkDTO smtParkDTO : parkDTOList) {
@@ -243,7 +243,7 @@ public class EHRViewTimerTask {
 		if (taskJob.getNewStaffRecharge() && iSwitchService.process(TimerTaskEnum.NEW_STAFF_RECHARGE)) {
 			log.info("新员工充值名单同步任务:" + DateUtil.date());
 			remoteStaffRechargeService.syncNewStaff(SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "recharge-task");
 			log.info("新员工充值名单同步任务:" + DateUtil.date());
 		}
 	}
@@ -270,7 +270,7 @@ public class EHRViewTimerTask {
 		if (taskJob.getSeniorStaffRecharge() && iSwitchService.process(TimerTaskEnum.SENIOR_STAFF_RECHARGE)) {
 			log.info("在职员工充值名单同步任务:" + DateUtil.date());
 			remoteStaffRechargeService.syncSeniorStaff(SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "recharge-task");
 			log.info("在职员工充值名单同步任务:" + DateUtil.date());
 		}
 	}

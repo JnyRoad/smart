@@ -2,6 +2,8 @@ package com.tce.smart.platform.controller.admittance;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.resp.admittance.AdmittanceAuthTypeRespDTO;
 import com.tce.smart.platform.service.admittance.SmtOaAreaTypeService;
 import com.tce.smart.tool.enums.OaSelectItemTypeEnum;
@@ -29,6 +31,8 @@ public class SmtOaAreaTypeController extends BaseController {
 	 * 同步OA区域类型
 	 * @return
 	 */
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/sync/task")
 	@ApiOperation("同步OA区域类型")
 	public Result<Boolean> syncOaArea() {

@@ -44,7 +44,7 @@ import com.tce.smart.platform.api.dto.req.*;
 import com.tce.smart.platform.api.dto.resp.SearchAppSmtVisitorRespDTO;
 import com.tce.smart.platform.api.dto.resp.SearchAppVisitorDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
-import com.tce.smart.platform.api.feign.RemoteParkService;
+import com.tce.smart.platform.api.feign.RemoteParkInternalService;
 import com.tce.smart.platform.api.feign.RemoteSmtImageService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.platform.api.feign.RemoteVisitorService;
@@ -91,7 +91,7 @@ public class VisitorServiceImpl implements VisitorService {
 	private IOcrService ocrService;
 
 	@Autowired
-	private RemoteParkService remoteParkService;
+	private RemoteParkInternalService remoteParkInternalService;
 
 	@Autowired
 	private RemoteStaffService remoteStaffService;
@@ -660,8 +660,8 @@ public class VisitorServiceImpl implements VisitorService {
 
 	@Override
 	public List<SmtParkDTO> getPark() {
-		Result<List<SmtParkDTO>> parkList = remoteParkService.getParkList(SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<SmtParkDTO>> parkList = remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list");
 		if (!parkList.isSuccess()) {
 			throw new TCEException("获取园区失败");
 		}

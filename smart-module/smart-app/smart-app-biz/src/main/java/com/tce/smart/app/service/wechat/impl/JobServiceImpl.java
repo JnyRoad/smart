@@ -70,7 +70,7 @@ public class JobServiceImpl implements JobService {
 	private RemoteDictService remoteDictService;
 
 	@Autowired
-	private RemoteParkService remoteParkService;
+	private RemoteParkInternalService remoteParkInternalService;
 
 	@Autowired
 	private AppSmsService appSmsService;
@@ -95,8 +95,8 @@ public class JobServiceImpl implements JobService {
 	@Override
 	public List<SmtParkDTO> getParkList() {
 		// 调用远程获取园区列表
-		return remoteParkService.getParkList(SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
+		return remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list").data();
 	}
 
 

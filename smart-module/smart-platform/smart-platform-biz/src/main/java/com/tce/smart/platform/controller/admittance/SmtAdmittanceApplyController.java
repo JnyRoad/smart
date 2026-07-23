@@ -9,6 +9,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.SmtVisitorDTO;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.SaveAdmittanceApplyReqDTO;
@@ -295,6 +296,7 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/comeOnTime")
 	public Result visitorComeOnTime() {
 		smtAdmittanceApplyService.visitorComeOnTime();
@@ -302,6 +304,7 @@ public class SmtAdmittanceApplyController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/update/oa")
 	public Result updateOaStatusTask() {
 		smtAdmittanceApplyService.updateOaStatusTask();
@@ -315,6 +318,7 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/overTime")
 	public Result visitorOverTime() {
 		smtAdmittanceApplyService.visitorOverTime();
@@ -327,6 +331,7 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/overTimeNoLeave")
 	public Result overTimeNoLeave() {
 		smtAdmittanceApplyService.visitorOverTimeNoLeave();
@@ -337,6 +342,7 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * 访客未到达时发送提示
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/remind")
 	public Result visitorRemind() {
 		smtAdmittanceApplyService.visitorRemind();
