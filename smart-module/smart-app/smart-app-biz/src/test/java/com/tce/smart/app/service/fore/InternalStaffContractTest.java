@@ -122,6 +122,10 @@ public class InternalStaffContractTest {
 				|| passwordController.contains("@GetMapping(\"/verify\")"));
 		assertTrue("短信次数预占必须使用 Redis Lua 原子脚本", passwordService.contains("RESERVE_SMS_SEND_ATTEMPT")
 				&& passwordService.contains("stringRedisTemplate.execute(RESERVE_SMS_SEND_ATTEMPT"));
+		assertTrue("短信发送必须有 challenge 级预约状态，禁止多个赢家同时下发", passwordService.contains("SMS_SEND_STATE_SENDING")
+				&& passwordService.contains("SMS_SEND_STATE_SENT") && passwordService.contains("sendReservationId"));
+		assertTrue("短信 provider 完成后必须原子提交或释放预约", passwordService.contains("completeSmsSendAttempt")
+				&& passwordService.contains("COMPLETE_SMS_SEND_ATTEMPT"));
 	}
 
 	@Test

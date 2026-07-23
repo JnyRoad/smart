@@ -5,30 +5,9 @@ security:
       client-id: "${SMART_UPMS_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # smart
       client-secret: "${SMART_UPMS_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # smart
       scope: server
-      # 默认放行url,子模块重写时application-dev.yml中的公共配置会被覆盖,所以要把公共配置中的放行url再写一次
-      #      ignore-urls:
-      #        - /**
+      # Open API 与用户资料接口必须由 OAuth 客户端和 scope 鉴权，不能通过匿名白名单整体放行。
       ignore-urls:
-        - /actuator/**
-        - /v2/api-docs
-        - /user/info/*
-        - /user/query/*
-        - /user/verify/*
-        - /user/delete/*
-        - /user/simple
-        - /user/social/simple
-        - /user/password/update/**
-        - /user/park/list/**
-        - /social/info/*
-        - /mobile/*
-        - /log/save
-        - /dict/id
-        - /dict/value
-        - /dict/type
-        - /dict/save
-        - /movetask/list
-        - /user/edit
-        - /api/**
+        - /actuator/health
 
 # 数据源
 spring:

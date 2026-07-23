@@ -13,9 +13,16 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -63,22 +70,52 @@ public class PasswordResetChallengeTest {
 	}
 
 	@Test
-	public void concurrentSmsRequestsOnlyReserveOneProviderSend() {
+	public void concurrentSmsRequestsOnlyReservationWinnerCallsProvider() throws Exception {
 		StringRedisTemplate redis = Mockito.mock(StringRedisTemplate.class);
 		@SuppressWarnings("unchecked")
 		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
 		AppSmsService smsService = Mockito.mock(AppSmsService.class);
 		PasswordServiceImpl service = passwordService(redis, values, Mockito.mock(RemoteStaffInternalService.class));
 		ReflectionTestUtils.setField(service, "appSmsService", smsService);
-		Mockito.when(redis.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString()))
-				.thenReturn("{\"purpose\":\"password-reset\",\"phone\":\"13800138000\",\"active\":true,\"sendAttempts\":1}")
-				.thenReturn(null);
+		AtomicBoolean reserved = new AtomicBoolean(false);
+		AtomicInteger providerCalls = new AtomicInteger();
+		CountDownLatch providerEntered = new CountDownLatch(1);
+		CountDownLatch releaseProvider = new CountDownLatch(1);
+		Mockito.when(redis.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString(),
+				Mockito.anyString(), Mockito.anyString()))
+				.thenAnswer(invocation -> {
+					if (String.class.equals(((org.springframework.data.redis.core.script.DefaultRedisScript<?>) invocation.getArgument(0)).getResultType())) {
+						return reserved.compareAndSet(false, true)
+								? "{\"purpose\":\"password-reset\",\"phone\":\"13800138000\",\"active\":true,\"sendAttempts\":1,\"sendState\":\"SENDING\",\"sendReservationId\":\"reservation\"}"
+								: null;
+					}
+					return 1L;
+				});
+		Mockito.doAnswer(invocation -> {
+			providerCalls.incrementAndGet();
+			providerEntered.countDown();
+			releaseProvider.await(2, TimeUnit.SECONDS);
+			return null;
+		}).when(smsService).sendSmsCode("13800138000");
 
-		assertTrue(service.sendSmsCode("opaque-challenge"));
-		assertTrue(service.sendSmsCode("opaque-challenge"));
-
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		CountDownLatch start = new CountDownLatch(1);
+		Future<Boolean> first = executor.submit(() -> {
+			start.await(2, TimeUnit.SECONDS);
+			return service.sendSmsCode("opaque-challenge");
+		});
+		Future<Boolean> second = executor.submit(() -> {
+			start.await(2, TimeUnit.SECONDS);
+			return service.sendSmsCode("opaque-challenge");
+		});
+		start.countDown();
+		assertTrue("预约赢家必须进入 provider", providerEntered.await(2, TimeUnit.SECONDS));
+		assertEquals("同一 challenge 的并发请求最多一次下发", 1, providerCalls.get());
+		releaseProvider.countDown();
+		assertTrue(first.get(2, TimeUnit.SECONDS));
+		assertTrue(second.get(2, TimeUnit.SECONDS));
+		executor.shutdownNow();
 		Mockito.verify(smsService, Mockito.times(1)).sendSmsCode("13800138000");
-		Mockito.verify(redis, Mockito.times(2)).execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString());
 	}
 
 	@Test

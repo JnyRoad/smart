@@ -62,6 +62,10 @@ public class PasswordServiceImpl implements PasswordService {
 	private static final int MAX_CHALLENGE_REQUESTS_PER_MINUTE = 5;
 	private static final int MAX_SMS_SEND_ATTEMPTS = 3;
 	private static final int MAX_VERIFY_ATTEMPTS = 5;
+	private static final long SMS_SEND_RESERVATION_TIMEOUT_MILLIS = 60_000L;
+	private static final String SMS_SEND_STATE_READY = "READY";
+	private static final String SMS_SEND_STATE_SENDING = "SENDING";
+	private static final String SMS_SEND_STATE_SENT = "SENT";
 	private static final DefaultRedisScript<Long> COMPARE_AND_DELETE = new DefaultRedisScript<>(
 			"local value = redis.call('get', KEYS[1]); if value == ARGV[1] then redis.call('del', KEYS[1]); return 1; end; return 0;",
 			Long.class);
@@ -71,11 +75,24 @@ public class PasswordServiceImpl implements PasswordService {
 					+ "local challenge = cjson.decode(value); "
 					+ "if challenge['purpose'] ~= ARGV[1] or challenge['active'] ~= true "
 					+ "or (tonumber(challenge['sendAttempts']) or 0) >= tonumber(ARGV[2]) then return nil; end; "
+					+ "local state = challenge['sendState'] or 'READY'; "
+					+ "if state == 'SENT' then return nil; end; "
+					+ "local now = redis.call('time'); local nowMillis = now[1] * 1000 + math.floor(now[2] / 1000); "
+					+ "if state == 'SENDING' and nowMillis - (tonumber(challenge['sendReservationAt']) or 0) < tonumber(ARGV[3]) then return nil; end; "
 					+ "challenge['sendAttempts'] = (tonumber(challenge['sendAttempts']) or 0) + 1; "
+					+ "challenge['sendState'] = 'SENDING'; challenge['sendReservationId'] = ARGV[4]; challenge['sendReservationAt'] = nowMillis; "
 					+ "local updated = cjson.encode(challenge); local ttl = redis.call('ttl', KEYS[1]); "
 					+ "if ttl > 0 then redis.call('setex', KEYS[1], ttl, updated); else redis.call('set', KEYS[1], updated); end; "
 					+ "return updated;",
 			String.class);
+	private static final DefaultRedisScript<Long> COMPLETE_SMS_SEND_ATTEMPT = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if not value then return 0; end; "
+					+ "local challenge = cjson.decode(value); "
+					+ "if challenge['sendState'] ~= 'SENDING' or challenge['sendReservationId'] ~= ARGV[1] then return 0; end; "
+					+ "challenge['sendState'] = ARGV[2]; challenge['sendReservationId'] = nil; challenge['sendReservationAt'] = nil; "
+					+ "local updated = cjson.encode(challenge); local ttl = redis.call('ttl', KEYS[1]); "
+					+ "if ttl > 0 then redis.call('setex', KEYS[1], ttl, updated); else redis.call('set', KEYS[1], updated); end; return 1;",
+			Long.class);
 
 	@Autowired
 	private AppSmsService appSmsService;
@@ -132,31 +149,55 @@ public class PasswordServiceImpl implements PasswordService {
 		if (challenge == null) {
 			return Boolean.TRUE;
 		}
+		String reservationId = String.valueOf(challenge.get("sendReservationId"));
+		boolean providerSucceeded = false;
 		try {
-			// 手机号只在服务端 challenge 中使用，客户端既不能提交，也不会得到脱敏或完整值。
+			// 只有 challenge 级预约赢家可到达这里；手机号始终只在服务端状态中使用。
 			appSmsService.sendSmsCode(String.valueOf(challenge.get("phone")));
+			providerSucceeded = true;
 		} catch (Exception e) {
 			// 保持抗枚举响应；告警日志不包含工号、手机号或 challenge。
 			log.warn("找回密码短信下发失败 scene=password-reset");
+		} finally {
+			completeSmsSendAttempt(challengeId, reservationId, providerSucceeded);
 		}
 		return Boolean.TRUE;
 	}
 
 	/**
-	 * 通过 Lua 原子预占一次短信下发次数，避免多个并发请求同时读取旧计数后重复下发。
+	 * 通过 Lua 原子创建 challenge 级 SENDING 预约。只有预约赢家能消耗一次发送计数并调用短信 provider。
 	 */
 	private String reserveSmsSendAttempt(String challengeId) {
 		if (StringUtils.isBlank(challengeId)) {
 			return null;
 		}
 		try {
+			String reservationId = UUID.randomUUID().toString().replace("-", "");
 			return stringRedisTemplate.execute(RESERVE_SMS_SEND_ATTEMPT,
 					Collections.singletonList(CHALLENGE_KEY_PREFIX + challengeId), PASSWORD_RESET_PURPOSE,
-					String.valueOf(MAX_SMS_SEND_ATTEMPTS));
+					String.valueOf(MAX_SMS_SEND_ATTEMPTS), String.valueOf(SMS_SEND_RESERVATION_TIMEOUT_MILLIS), reservationId);
 		} catch (Exception e) {
 			// Redis 不可用时不下发短信，防止跳过次数控制而放大短信轰炸风险。
 			log.warn("找回密码短信预占失败 scene=password-reset");
 			return null;
+		}
+	}
+
+	/**
+	 * provider 成功后标记为 SENT；失败则回到 READY，允许在次数上限内安全重试。
+	 * 只有同一 reservationId 才能完成状态转换，防止超时恢复后的旧请求覆盖新预约。
+	 */
+	private void completeSmsSendAttempt(String challengeId, String reservationId, boolean providerSucceeded) {
+		if (StringUtils.isBlank(challengeId) || StringUtils.isBlank(reservationId)) {
+			return;
+		}
+		try {
+			stringRedisTemplate.execute(COMPLETE_SMS_SEND_ATTEMPT,
+					Collections.singletonList(CHALLENGE_KEY_PREFIX + challengeId), reservationId,
+					providerSucceeded ? SMS_SEND_STATE_SENT : SMS_SEND_STATE_READY);
+		} catch (Exception e) {
+			// 状态落库失败时保留 SENDING，预约超时后可恢复，不能直接放开并发下发。
+			log.warn("找回密码短信预约完成失败 scene=password-reset");
 		}
 	}
 
