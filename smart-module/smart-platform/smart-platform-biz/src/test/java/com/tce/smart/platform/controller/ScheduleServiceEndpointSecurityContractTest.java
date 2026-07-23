@@ -52,6 +52,10 @@ public class ScheduleServiceEndpointSecurityContractTest {
 		assertInternalServerEndpoint("com.tce.smart.platform.controller.OAWorkflowController", "cleanExpiredLogs");
 		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtParkLogisticsController", "list");
 		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtParkLogisticsController", "getByCompanyId");
+		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtLeaveApplicationController", "sysnProcessRecord");
+		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtWageSignController", "syncStaff");
+		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtEhrToStaffSettingController", "getListEHR");
+		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtEhrToStaffSettingController", "getListDHR");
 	}
 
 	private void assertInternalServerEndpoint(String className, String methodName) throws Exception {

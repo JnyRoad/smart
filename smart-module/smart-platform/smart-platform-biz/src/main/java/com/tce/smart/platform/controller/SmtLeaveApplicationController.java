@@ -7,6 +7,8 @@ import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.data.api.dto.consume.resp.WorkTimeDetailDTO;
 import com.tce.smart.data.api.feign.consume.RemoteRsEmpService;
@@ -177,6 +179,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 *  同步OA流程方法
 	 */
 	@SysLog(" 同步OA流程方法")
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/sysn/record")
 	public void sysnProcessRecord(){
 		leaveApplicationService.sysnProcessRecord();
