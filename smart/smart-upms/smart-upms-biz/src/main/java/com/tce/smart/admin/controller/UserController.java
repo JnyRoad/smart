@@ -214,6 +214,7 @@ public class UserController extends BaseController {
      * @return  Result<Boolean> true-成功
      */
     @PutMapping("/password/update")
+    @PreAuthorize("@pms.hasPermission('sys_user_edit')")
     public Result<Boolean> updatePwd(@RequestBody PasswordUpdateReqDTO request) {
         if (request == null) {
             throw new TCEException("修改密码请求不能为空");

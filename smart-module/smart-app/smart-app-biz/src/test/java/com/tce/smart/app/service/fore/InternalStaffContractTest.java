@@ -145,6 +145,8 @@ public class InternalStaffContractTest {
 		assertTrue("密码找回应经 App 精确入口再走内部服务令牌", passwordController.contains("@PostMapping(\"/update\")")
 				&& passwordService.contains("remoteUserInternalService.resetAppPassword"));
 		assertFalse("UniApp 不得直连 UPMS 管理端改密接口", passwordApi.contains("/admin/user/password/update"));
+		assertTrue("UniApp 密码找回必须使用 POST JSON", passwordApi.contains("axios.post(API_PASSWORD_UPDATE, obj)"));
+		assertFalse("UniApp 密码找回不得继续使用旧 PUT 路由", passwordApi.contains("axios.put(API_PASSWORD_UPDATE, obj)"));
 		assertFalse("前端不得把密码或授权码拼到 URL", passwordApi.contains("?username=${obj.username}"));
 		assertFalse("前端不得把 challenge 或短信验证码拼到 URL", passwordApi.contains("?challengeId=${challengeId}")
 				|| passwordApi.contains("?smsCode=${obj.smsCode}"));
