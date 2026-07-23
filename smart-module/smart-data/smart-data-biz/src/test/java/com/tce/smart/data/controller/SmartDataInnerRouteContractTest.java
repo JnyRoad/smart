@@ -9,6 +9,9 @@ import com.tce.smart.data.controller.xcc6.RsXCEmpController;
 import com.tce.smart.data.controller.xcvehicle.TParkCardController;
 import org.junit.Assert;
 import org.junit.Test;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.lang.reflect.Method;
@@ -25,49 +28,74 @@ public class SmartDataInnerRouteContractTest {
 
 	@Test
 	public void xcC6EmployeeRoutesRequireInternalServerScope() {
-		assertInternalServerRoute(RsXCEmpController.class, "saveEmp");
-		assertInternalServerRoute(RsXCEmpController.class, "leaveEmp");
-		assertInternalServerRoute(RsXCEmpController.class, "intoEmp");
-		assertInternalServerRoute(RsXCEmpController.class, "getEmpPhoto");
+		assertInternalServerRoute(RsXCEmpController.class, "saveEmp", "/xc-rsemp/inner/saveEmp", PostMapping.class);
+		assertInternalServerRoute(RsXCEmpController.class, "leaveEmp", "/xc-rsemp/inner/leaveEmp", PostMapping.class);
+		assertInternalServerRoute(RsXCEmpController.class, "intoEmp", "/xc-rsemp/inner/intoEmp", PostMapping.class);
+		assertInternalServerRoute(RsXCEmpController.class, "getEmpPhoto", "/xc-rsemp/inner/get-empPhoto/{empNo}", GetMapping.class);
 	}
 
 	@Test
 	public void xcVehicleRoutesRequireInternalServerScope() {
-		assertInternalServerRoute(TParkCardController.class, "saveVehicle");
-		assertInternalServerRoute(TParkCardController.class, "deleteVehicle");
+		assertInternalServerRoute(TParkCardController.class, "saveVehicle", "/xc-vehicle/inner/saveVehicle", PostMapping.class);
+		assertInternalServerRoute(TParkCardController.class, "deleteVehicle", "/xc-vehicle/inner/deleteVehicle/{cardNo}", PostMapping.class);
 	}
 
 	@Test
 	public void xcC6EmployeeFeignRoutesRequireServiceTokenMarker() {
-		assertServiceTokenHeader(RemoteXCRsEmpService.class, "saveEmp");
-		assertServiceTokenHeader(RemoteXCRsEmpService.class, "leaveEmp");
-		assertServiceTokenHeader(RemoteXCRsEmpService.class, "intoEmp");
-		assertServiceTokenHeader(RemoteXCRsEmpService.class, "getEmpPhoto");
+		assertFeignContract(RemoteXCRsEmpService.class, "saveEmp", "/xc-rsemp/inner/saveEmp", PostMapping.class);
+		assertFeignContract(RemoteXCRsEmpService.class, "leaveEmp", "/xc-rsemp/inner/leaveEmp", PostMapping.class);
+		assertFeignContract(RemoteXCRsEmpService.class, "intoEmp", "/xc-rsemp/inner/intoEmp", PostMapping.class);
+		assertFeignContract(RemoteXCRsEmpService.class, "getEmpPhoto", "/xc-rsemp/inner/get-empPhoto/{empNo}", GetMapping.class);
 	}
 
 	@Test
 	public void xcVehicleFeignRoutesRequireServiceTokenMarker() {
-		assertServiceTokenHeader(RemoteXCVehicleService.class, "saveVehicle");
-		assertServiceTokenHeader(RemoteXCVehicleService.class, "deleteVehicle");
+		assertFeignContract(RemoteXCVehicleService.class, "saveVehicle", "/xc-vehicle/inner/saveVehicle", PostMapping.class);
+		assertFeignContract(RemoteXCVehicleService.class, "deleteVehicle", "/xc-vehicle/inner/deleteVehicle/{cardNo}", PostMapping.class);
 	}
 
-	private void assertInternalServerRoute(Class<?> controllerType, String methodName) {
+	private void assertInternalServerRoute(Class<?> controllerType, String methodName, String expectedPath,
+			Class<?> mappingType) {
 		Method method = findMethod(controllerType, methodName);
+		Assert.assertEquals(controllerType.getName() + " 基础路径不符合内部 C6 契约",
+				expectedBasePath(expectedPath), controllerType.getAnnotation(RequestMapping.class).value()[0]);
+		assertMappingPath(method, expectedPath.substring(expectedBasePath(expectedPath).length()), mappingType);
 		Assert.assertNotNull(methodName + " 必须声明 @Inner", method.getAnnotation(Inner.class));
 		OpenApi openApi = method.getAnnotation(OpenApi.class);
 		Assert.assertNotNull(methodName + " 必须声明 @OpenApi", openApi);
 		Assert.assertEquals(methodName + " 必须只接受 server 服务令牌", "server", openApi.value());
 	}
 
-	private void assertServiceTokenHeader(Class<?> feignType, String methodName) {
+	private void assertFeignContract(Class<?> feignType, String methodName, String expectedPath, Class<?> mappingType) {
 		Method method = findMethod(feignType, methodName);
-		boolean hasServiceTokenMarker = Arrays.stream(method.getParameters())
+		assertMappingPath(method, expectedPath, mappingType);
+		assertRequestHeader(method, SecurityConstants.FROM);
+		assertRequestHeader(method, SecurityConstants.INTERNAL_SERVICE_AUTH);
+	}
+
+	private void assertMappingPath(Method method, String expectedPath, Class<?> mappingType) {
+		String methodPath;
+		if (PostMapping.class.equals(mappingType)) {
+			methodPath = method.getAnnotation(PostMapping.class).value()[0];
+		} else {
+			methodPath = method.getAnnotation(GetMapping.class).value()[0];
+		}
+		Assert.assertEquals(method.getName() + " 路径必须与内部契约精确一致",
+			expectedPath, methodPath);
+	}
+
+	private void assertRequestHeader(Method method, String expectedHeader) {
+		boolean present = Arrays.stream(method.getParameters())
 				.map(Parameter::getAnnotations)
 				.flatMap(Arrays::stream)
 				.filter(RequestHeader.class::isInstance)
 				.map(RequestHeader.class::cast)
-				.anyMatch(header -> SecurityConstants.INTERNAL_SERVICE_AUTH.equals(header.value()));
-		Assert.assertTrue(methodName + " 必须显式声明内部服务令牌标记", hasServiceTokenMarker);
+				.anyMatch(header -> expectedHeader.equals(header.value()));
+		Assert.assertTrue(method.getName() + " 必须显式声明请求头 " + expectedHeader, present);
+	}
+
+	private String expectedBasePath(String expectedPath) {
+		return expectedPath.substring(0, expectedPath.indexOf("/inner"));
 	}
 
 	private Method findMethod(Class<?> type, String methodName) {
