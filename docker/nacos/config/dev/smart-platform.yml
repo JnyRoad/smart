@@ -12,6 +12,9 @@ security:
     # 充值定时任务仅允许 Smart Schedule 的受管服务 client；未注入配置时必须拒绝调用。
     recharge:
       schedule-client-id: "${SMART_RECHARGE_SCHEDULE_CLIENT_ID:}"
+    # 物流同步定时任务仅允许 Smart Schedule 的受管服务 client；未注入配置时必须拒绝调用。
+    logistics:
+      schedule-client-id: "${SMART_LOGISTICS_SCHEDULE_CLIENT_ID:}"
   oauth2:
     client:
       client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # platform
