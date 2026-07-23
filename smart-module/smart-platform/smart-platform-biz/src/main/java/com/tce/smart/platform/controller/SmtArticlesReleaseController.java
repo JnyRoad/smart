@@ -113,7 +113,8 @@ public class SmtArticlesReleaseController extends BaseController {
 	@PreAuthorize("@pms.hasPermission('platform_articles_release_security_confirm')")
 	public Result<Boolean> securityUpdate(@RequestBody GuardReleaseConfirmReqDTO reqDTO){
 		SmartUser currentUser = currentAuthenticatedUser();
-		return success(smtArticlesReleaseService.securityUpdateForGuard(currentUser.getUsername(), reqDTO));
+		return success(smtArticlesReleaseService.securityUpdateForGuard(
+				currentUser.getUsername(), currentUser.getParkIdList(), reqDTO));
 	}
 
 	@PostMapping("/back/confirm/{releaseId}")
@@ -121,7 +122,8 @@ public class SmtArticlesReleaseController extends BaseController {
 	@PreAuthorize("@pms.hasPermission('platform_articles_release_security_confirm')")
 	public Result<Boolean> securityBackConfirm(@PathVariable("releaseId") Long releaseId) {
 		SmartUser currentUser = currentAuthenticatedUser();
-		return success(smtArticlesReleaseService.securityBackConfirmForGuard(currentUser.getUsername(), releaseId));
+		return success(smtArticlesReleaseService.securityBackConfirmForGuard(
+				currentUser.getUsername(), currentUser.getParkIdList(), releaseId));
 	}
 
 	/**

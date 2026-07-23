@@ -497,31 +497,40 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public Boolean securityUpdateForGuard(String guardBadge, GuardReleaseConfirmReqDTO reqDTO) {
+	public Boolean securityUpdateForGuard(String guardBadge, List<Integer> guardParkIds, GuardReleaseConfirmReqDTO reqDTO) {
 		if (StrUtil.isBlank(guardBadge) || reqDTO == null || reqDTO.getId() == null) {
 			throw new AccessDeniedException("未授权保安不能确认物品放行");
 		}
 		SmtArticlesRelease articlesRelease = this.getById(reqDTO.getId());
+		assertGuardParkAccess(guardParkIds, articlesRelease);
 		if (!ArticlesReleaseStatusEnum.APPROVED.getCode().equals(articlesRelease.getStatus())
 				|| (!ArticlesReleaseStatusEnum.DEPARTURE.getCode().equals(reqDTO.getStatus())
 				&& !ArticlesReleaseStatusEnum.REFUSE.getCode().equals(reqDTO.getStatus()))) {
 			throw new AccessDeniedException("物品放行状态不允许保安确认");
 		}
 		Integer parkId = articlesRelease.getParkId();
+		SmtArticlesRelease updateRelease = new SmtArticlesRelease();
+		updateRelease.setId(articlesRelease.getId());
 		if (StringUtils.isNotEmpty(reqDTO.getGuardOneImg())) {
-			articlesRelease.setOneImg(smtImageService.saveImage(parkId, reqDTO.getGuardOneImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			updateRelease.setOneImg(smtImageService.saveImage(parkId, reqDTO.getGuardOneImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
 		if (StringUtils.isNotEmpty(reqDTO.getGuardTwoImg())) {
-			articlesRelease.setTwoImg(smtImageService.saveImage(parkId, reqDTO.getGuardTwoImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			updateRelease.setTwoImg(smtImageService.saveImage(parkId, reqDTO.getGuardTwoImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
 		if (StringUtils.isNotEmpty(reqDTO.getGuardThreeImg())) {
-			articlesRelease.setThreeImg(smtImageService.saveImage(parkId, reqDTO.getGuardThreeImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
+			updateRelease.setThreeImg(smtImageService.saveImage(parkId, reqDTO.getGuardThreeImg(), SmtImageEnum.ARTICLES_RELEASE.getCode()));
 		}
-		articlesRelease.setSecurityStaff(guardBadge);
-		articlesRelease.setDepartureTime(DateUtils.date());
-		articlesRelease.setStatus(reqDTO.getStatus());
-		articlesRelease.setRemark(reqDTO.getRemark());
-		return this.updateById(articlesRelease);
+		updateRelease.setSecurityStaff(guardBadge);
+		updateRelease.setDepartureTime(DateUtils.date());
+		updateRelease.setStatus(reqDTO.getStatus());
+		updateRelease.setRemark(reqDTO.getRemark());
+		boolean updated = this.update(updateRelease, Wrappers.<SmtArticlesRelease>lambdaUpdate()
+				.eq(SmtArticlesRelease::getId, reqDTO.getId())
+				.eq(SmtArticlesRelease::getStatus, ArticlesReleaseStatusEnum.APPROVED.getCode()));
+		if (!updated) {
+			throw new AccessDeniedException("物品放行状态已变化，请刷新后重试");
+		}
+		return Boolean.TRUE;
 //		if (update && ArticlesReleaseTypeEnum.OFFICE_ZONE.getCode().equals(articlesRelease.getArticlesType())) {
 //			// 办公区物品放行，保安放行时，需同步更新OA状态
 //			SendSecurityApprovalReqDTO approvalReqDTO = new SendSecurityApprovalReqDTO();
@@ -539,8 +548,9 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public Boolean securityBackConfirmForGuard(String guardBadge, Long releaseId) {
+	public Boolean securityBackConfirmForGuard(String guardBadge, List<Integer> guardParkIds, Long releaseId) {
 		SmtArticlesRelease articlesRelease = this.getById(releaseId);
+		assertGuardParkAccess(guardParkIds, articlesRelease);
 		if (StrUtil.isBlank(guardBadge)
 				|| !ArticlesReleaseStatusEnum.DEPARTURE.getCode().equals(articlesRelease.getStatus())
 				|| !BackFactoryEnum.YES.getCode().equals(articlesRelease.getIsBack())
@@ -548,9 +558,18 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 			throw new AccessDeniedException("物品放行状态不允许确认返厂");
 		}
 		Date backDate = new Date();
-		articlesRelease.setBackTime(backDate);
-		articlesRelease.setGuardBadge(guardBadge);
-		boolean update = this.updateById(articlesRelease);
+		SmtArticlesRelease updateRelease = new SmtArticlesRelease();
+		updateRelease.setId(articlesRelease.getId());
+		updateRelease.setBackTime(backDate);
+		updateRelease.setGuardBadge(guardBadge);
+		boolean update = this.update(updateRelease, Wrappers.<SmtArticlesRelease>lambdaUpdate()
+				.eq(SmtArticlesRelease::getId, releaseId)
+				.eq(SmtArticlesRelease::getStatus, ArticlesReleaseStatusEnum.DEPARTURE.getCode())
+				.eq(SmtArticlesRelease::getIsBack, BackFactoryEnum.YES.getCode())
+				.isNull(SmtArticlesRelease::getBackTime));
+		if (!update) {
+			throw new AccessDeniedException("物品放行状态已变化，请刷新后重试");
+		}
 		if (update) {
 			String backDateStr = DateUtil.formatDate(backDate);
 			String backTimeStr = DateUtil.format(backDate, "HH:mm");
@@ -579,6 +598,13 @@ public class SmtArticlesReleaseServiceImpl extends ServiceImpl<SmtArticlesReleas
 			}
 		}
 		return update;
+	}
+
+	/** 保安确认必须位于认证账号持有的数据园区内，缺失园区范围时拒绝。 */
+	private void assertGuardParkAccess(List<Integer> guardParkIds, SmtArticlesRelease release) {
+		if (CollUtil.isEmpty(guardParkIds) || release.getParkId() == null || !guardParkIds.contains(release.getParkId())) {
+			throw new AccessDeniedException("无权确认该园区物品放行");
+		}
 	}
 
 	@Override

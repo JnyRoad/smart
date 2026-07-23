@@ -51,17 +51,21 @@ public interface SmtArticlesReleaseService extends IService<SmtArticlesRelease> 
 
 	/**
 	 * 保安放行
+	 * @param guardBadge 认证保安工号
+	 * @param guardParkIds 认证保安可访问园区
 	 * @param reqDTO
 	 * @return
 	 */
-	Boolean securityUpdateForGuard(String guardBadge, GuardReleaseConfirmReqDTO reqDTO);
+	Boolean securityUpdateForGuard(String guardBadge, List<Integer> guardParkIds, GuardReleaseConfirmReqDTO reqDTO);
 
 	/**
 	 * 保安确认返厂
+	 * @param guardBadge 认证保安工号
+	 * @param guardParkIds 认证保安可访问园区
 	 * @param releaseId
 	 * @return
 	 */
-	Boolean securityBackConfirmForGuard(String guardBadge, Long releaseId);
+	Boolean securityBackConfirmForGuard(String guardBadge, List<Integer> guardParkIds, Long releaseId);
 
 	/**
 	 * 保存APP生活区物品放行

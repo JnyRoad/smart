@@ -111,10 +111,68 @@ public class SmtArticlesReleaseControllerAccessTest {
 		request.setStatus(2);
 
 		try {
-			service.securityUpdateForGuard("guard-badge", request);
+			service.securityUpdateForGuard("guard-badge", Collections.singletonList(1), request);
 			fail("保安不能把待审批申请直接改为已通过");
 		} catch (AccessDeniedException expected) {
 			// 预期：仅已通过申请可转为出厂或拒绝出厂。
+		}
+	}
+
+	@Test
+	public void guardUpdateRejectsAReleaseOutsideGuardParks() {
+		SmtArticlesReleaseMapper mapper = Mockito.mock(SmtArticlesReleaseMapper.class);
+		SmtArticlesRelease release = officeDraft(17L, "owner-badge", 1);
+		release.setStatus(2);
+		Mockito.when(mapper.selectById(17L)).thenReturn(release);
+		GuardReleaseConfirmReqDTO request = new GuardReleaseConfirmReqDTO();
+		request.setId(17L);
+		request.setStatus(4);
+
+		try {
+			service(mapper, Mockito.mock(RemoteOaWorkFlowService.class))
+					.securityUpdateForGuard("guard-badge", Collections.singletonList(2), request);
+			fail("保安权限必须受服务端园区范围限制");
+		} catch (AccessDeniedException expected) {
+			Mockito.verify(mapper, Mockito.never()).update(Mockito.any(), Mockito.any());
+		}
+	}
+
+	@Test
+	public void guardUpdateRejectsConcurrentZeroRowUpdate() {
+		SmtArticlesReleaseMapper mapper = Mockito.mock(SmtArticlesReleaseMapper.class);
+		SmtArticlesRelease release = officeDraft(17L, "owner-badge", 1);
+		release.setStatus(2);
+		Mockito.when(mapper.selectById(17L)).thenReturn(release);
+		Mockito.when(mapper.update(Mockito.any(SmtArticlesRelease.class), Mockito.any())).thenReturn(0);
+		GuardReleaseConfirmReqDTO request = new GuardReleaseConfirmReqDTO();
+		request.setId(17L);
+		request.setStatus(4);
+
+		try {
+			service(mapper, Mockito.mock(RemoteOaWorkFlowService.class))
+					.securityUpdateForGuard("guard-badge", Collections.singletonList(1), request);
+			fail("并发状态变化时不能继续确认放行");
+		} catch (AccessDeniedException expected) {
+			Mockito.verify(mapper).update(Mockito.any(SmtArticlesRelease.class), Mockito.any());
+		}
+	}
+
+	@Test
+	public void returnConfirmRejectsConcurrentZeroRowUpdate() {
+		SmtArticlesReleaseMapper mapper = Mockito.mock(SmtArticlesReleaseMapper.class);
+		SmtArticlesRelease release = officeDraft(17L, "owner-badge", 1);
+		release.setStatus(4);
+		release.setIsBack("0");
+		release.setProcessId("10001");
+		Mockito.when(mapper.selectById(17L)).thenReturn(release);
+		Mockito.when(mapper.update(Mockito.any(SmtArticlesRelease.class), Mockito.any())).thenReturn(0);
+
+		try {
+			service(mapper, Mockito.mock(RemoteOaWorkFlowService.class))
+					.securityBackConfirmForGuard("guard-badge", Collections.singletonList(1), 17L);
+			fail("并发状态变化时不能继续返厂确认或回写 OA");
+		} catch (AccessDeniedException expected) {
+			Mockito.verify(mapper).update(Mockito.any(SmtArticlesRelease.class), Mockito.any());
 		}
 	}
 
