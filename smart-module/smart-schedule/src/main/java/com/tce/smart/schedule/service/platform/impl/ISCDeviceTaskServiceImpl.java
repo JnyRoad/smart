@@ -132,8 +132,6 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 
 	private static final String DELETE_NO_AVAILABLE_DOWNLOAD_DATA_REMARK = "删除权限已无可用下发数据，已按删除成功处理";
 
-	private static final String DOWNLOAD_AUTH_ITEM_EXISTS_REMARK = "ISC已存在权限，按幂等成功处理";
-
 	private static final String DELETE_PERSON_GONE_REMARK = "ISC人员已删除，权限已由ISC级联清理，按删除成功处理";
 
 	private static final String AUTH_CONFIG_MAX_RETRY_REMARK = "权限下发失败已达到最大重试次数"
@@ -1480,7 +1478,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	private void markDownloadTaskAsExistingAuthItemSuccess(SmtIscDeviceTask task) {
 		task.setStatus(DeviceTaskStatusEnum.SUCCESS.getCode());
 		task.setCode(ISCDeviceTaskEnum.DEVICE_OK.getCode());
-		task.setRemark(DOWNLOAD_AUTH_ITEM_EXISTS_REMARK);
+		task.setRemark(ISCDeviceTaskEnum.DEVICE_OK.getDesc());
 		task.setUpdateTime(LocalDateTime.now());
 		boolean updated = smtIscDeviceTaskService.updateById(task);
 		if (updated) {
