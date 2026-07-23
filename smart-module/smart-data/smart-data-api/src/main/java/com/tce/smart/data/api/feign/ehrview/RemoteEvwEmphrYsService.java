@@ -28,7 +28,8 @@ public interface RemoteEvwEmphrYsService {
 	 * @return Result
 	 */
 	@GetMapping("/emphr/ys/info")
-    Result<EvwEmphrYsRespDTO> info(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
+    Result<EvwEmphrYsRespDTO> info(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from,
+    @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 	/**
 	 * 根据 员工号badge 获取员工基本信息(离职用)
 	 *
@@ -37,7 +38,8 @@ public interface RemoteEvwEmphrYsService {
 	 * @return Result
 	 */
 	@GetMapping("/emphr/ys/leave")
-    Result<YsLeaveRespDTO> leave(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
+    Result<YsLeaveRespDTO> leave(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from,
+    @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**
@@ -48,7 +50,8 @@ public interface RemoteEvwEmphrYsService {
 	 */
 	@GetMapping("/emphr/ys/getByCompId")
     Result<List<EvwEmphrYsDTO>> getByCompId(@RequestParam("compId") Integer compId,
-										 @RequestHeader(SecurityConstants.FROM) String from);
+										 @RequestHeader(SecurityConstants.FROM) String from,
+										 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**
@@ -59,7 +62,8 @@ public interface RemoteEvwEmphrYsService {
 	 */
 	@GetMapping("/emphr/ys/getInStaffByCompId")
     Result<List<EvwEmphrYsDTO>> getInStaffByCompId(@RequestParam("compId") Integer compId,
-												   @RequestHeader(SecurityConstants.FROM) String from);
+												   @RequestHeader(SecurityConstants.FROM) String from,
+												   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 获取黑名单列表
@@ -69,7 +73,8 @@ public interface RemoteEvwEmphrYsService {
 	 */
 	@GetMapping("/emphr/ys/getBlack")
     Result getBlack(@RequestParam("current") long current,@RequestParam("size") long size,@RequestParam("cerNo") String cerNo,@RequestParam("name") String name,
-										 @RequestHeader(SecurityConstants.FROM) String from);
+										 @RequestHeader(SecurityConstants.FROM) String from,
+										 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**

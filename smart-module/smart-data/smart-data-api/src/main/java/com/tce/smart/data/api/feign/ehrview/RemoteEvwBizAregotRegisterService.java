@@ -24,8 +24,10 @@ public interface RemoteEvwBizAregotRegisterService {
 	 Result<List<EvwBizAregotRegisterRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("otTerm") String otTerm);
 
 	@GetMapping("/evwBizAregotRegister/list")
-	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from);
+	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	@GetMapping("/evwBizAregotRegister/detail")
-	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("otterm") String otterm, @RequestHeader(SecurityConstants.FROM) String from);
+	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("otterm") String otterm, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }
