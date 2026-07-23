@@ -45,6 +45,18 @@
 5. 合法 Smart App、UPMS、Feign 和定时任务：成功且日志不含完整员工对象。
 6. 设备、厂商回调：仅在有效签名、时间窗和 nonce 条件下成功。
 
+## `security.inner.mode=ENFORCE` 前置条件
+
+以下项目全部完成前，保持 `AUDIT`，不得在真实 Nacos 写入 `ENFORCE`：
+
+1. 每个存在 `INTERNAL_SERVICE_AUTH_REQUIRED` Feign 契约的调用服务，均在对应 Data ID 配置独立
+   `security.inner.service-token.client-id`、`client-secret` 与 `access-token-uri`；不得复用
+   `security.oauth2.client` 的用户 OAuth 资源。密钥仅通过受管环境变量或密钥系统注入，不写入本清单。
+2. 授权服务器为这些独立客户端仅授予 `client_credentials` 的 `server` scope；错误 scope、过期令牌、
+   缺失配置或授权服务器不可用时，调用必须在 Feign 拦截器阶段失败，不能发送下游 HTTP 请求。
+3. 在单实例灰度中验证内部 Feign 成功、错误客户端/错误 scope 拒绝，以及应用日志不记录
+   Authorization 或访问令牌；再按本清单的发布记录完成回滚点登记。
+
 ## 回滚规则
 
 回滚优先级为：当前调用方镜像 → 当前 Data ID 历史版本 → 灰度实例下线。禁止通过恢复 `/staff/**`、`/articlesrelease/**`、`/api/**` 或 `/**` 解决故障。若必须临时恢复兼容，恢复的是上一版“认证 + 最小字段”的精确路由配置。

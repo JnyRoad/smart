@@ -1,6 +1,7 @@
 package com.tce.smart.common.security.feign;
 
 import feign.RequestTemplate;
+import feign.RequestInterceptor;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import org.junit.After;
 import org.junit.Test;
@@ -38,8 +39,8 @@ public class SmartFeignClientInterceptorTest {
 		interceptor(context).apply(template);
 
 		assertOnlyServiceAuthorization(template);
-		Mockito.verify(context).setAccessToken(Mockito.isNull(OAuth2AccessToken.class));
-		assertEquals("service-token", context.getAccessToken().getValue());
+		Mockito.verify(context, Mockito.never()).setAccessToken(Mockito.any(OAuth2AccessToken.class));
+		assertEquals("end-user-token", context.getAccessToken().getValue());
 	}
 
 	@Test
@@ -53,8 +54,8 @@ public class SmartFeignClientInterceptorTest {
 		interceptor(context).apply(template);
 
 		assertOnlyServiceAuthorization(template);
-		Mockito.verify(context).setAccessToken(Mockito.isNull(OAuth2AccessToken.class));
-		assertEquals("service-token", context.getAccessToken().getValue());
+		Mockito.verify(context, Mockito.never()).setAccessToken(Mockito.any(OAuth2AccessToken.class));
+		assertEquals("end-user-token", context.getAccessToken().getValue());
 	}
 
 	private OAuth2ClientContext contextWithResidualUserToken() {
@@ -62,10 +63,11 @@ public class SmartFeignClientInterceptorTest {
 	}
 
 	private SmartFeignClientInterceptor interceptor(OAuth2ClientContext context) {
-		return new ServiceTokenInterceptor(
+		return new SmartFeignClientInterceptor(
 				context,
 				Mockito.mock(OAuth2ProtectedResourceDetails.class),
-				Mockito.mock(AccessTokenContextRelay.class));
+				Mockito.mock(AccessTokenContextRelay.class),
+				new ServiceTokenInterceptor());
 	}
 
 	private RequestTemplate serviceTemplate() {
@@ -80,21 +82,11 @@ public class SmartFeignClientInterceptorTest {
 		assertEquals("Bearer service-token", authorizations.iterator().next());
 	}
 
-	/** 测试替身模拟 client_credentials 获取成功，并把服务令牌写回 OAuth 上下文。 */
-	private static class ServiceTokenInterceptor extends SmartFeignClientInterceptor {
-		private final OAuth2ClientContext context;
-
-		private ServiceTokenInterceptor(OAuth2ClientContext context, OAuth2ProtectedResourceDetails resource,
-				AccessTokenContextRelay accessTokenContextRelay) {
-			super(context, resource, accessTokenContextRelay);
-			this.context = context;
-		}
-
+	/** 测试替身模拟独立 client_credentials 服务资源成功写入服务令牌。 */
+	private static class ServiceTokenInterceptor implements RequestInterceptor {
 		@Override
-		public OAuth2AccessToken getToken() {
-			OAuth2AccessToken serviceToken = new DefaultOAuth2AccessToken("service-token");
-			context.setAccessToken(serviceToken);
-			return serviceToken;
+		public void apply(RequestTemplate template) {
+			template.header("Authorization", "Bearer service-token");
 		}
 	}
 }

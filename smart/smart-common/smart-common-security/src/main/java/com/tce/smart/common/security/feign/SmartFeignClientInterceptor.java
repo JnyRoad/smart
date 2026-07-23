@@ -2,6 +2,7 @@ package com.tce.smart.common.security.feign;
 
 import cn.hutool.core.collection.CollUtil;
 import com.tce.smart.common.core.constant.SecurityConstants;
+import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.security.oauth2.client.AccessTokenContextRelay;
@@ -22,6 +23,7 @@ import java.util.Enumeration;
 public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 	private final OAuth2ClientContext oAuth2ClientContext;
 	private final AccessTokenContextRelay accessTokenContextRelay;
+	private final RequestInterceptor internalServiceTokenInterceptor;
 
 	/**
 	 * Default constructor which uses the provided OAuth2ClientContext and Bearer tokens
@@ -33,9 +35,21 @@ public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 	 */
 	public SmartFeignClientInterceptor(OAuth2ClientContext oAuth2ClientContext
 		, OAuth2ProtectedResourceDetails resource, AccessTokenContextRelay accessTokenContextRelay) {
+		this(oAuth2ClientContext, resource, accessTokenContextRelay, template -> {
+			throw new IllegalStateException("内部服务令牌拦截器未配置，拒绝调用下游服务");
+		});
+	}
+
+	/**
+	 * @param internalServiceTokenInterceptor 显式内部调用专用的 client_credentials 拦截器
+	 */
+	public SmartFeignClientInterceptor(OAuth2ClientContext oAuth2ClientContext,
+			OAuth2ProtectedResourceDetails resource, AccessTokenContextRelay accessTokenContextRelay,
+			RequestInterceptor internalServiceTokenInterceptor) {
 		super(oAuth2ClientContext, resource);
 		this.oAuth2ClientContext = oAuth2ClientContext;
 		this.accessTokenContextRelay = accessTokenContextRelay;
+		this.internalServiceTokenInterceptor = internalServiceTokenInterceptor;
 	}
 
 
@@ -88,12 +102,11 @@ public class SmartFeignClientInterceptor extends OAuth2FeignRequestInterceptor {
 	}
 
 	/**
-	 * 清除可能遗留的终端用户凭据后，仅由 OAuth 客户端凭据流程写入服务令牌。
+	 * 服务令牌使用独立 OAuth 上下文；不读取或修改入站用户 OAuth 上下文。
 	 */
 	private void applyServiceToken(RequestTemplate template) {
 		template.header("Authorization");
-		oAuth2ClientContext.setAccessToken(null);
-		super.apply(template);
+		internalServiceTokenInterceptor.apply(template);
 	}
 
 	/**
