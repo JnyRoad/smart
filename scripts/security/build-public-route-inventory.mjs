@@ -347,6 +347,92 @@ function readMethodSource(lines, startIndex) {
 }
 
 /**
+ * 路由语法解析必须只看真实 Java 代码。注释、字符字面量和文本块以空白替换；普通字符串保留，供 Spring 注解读取路径。
+ * 词法状态机同时保证字符串中的 `//`、`/*` 不会误切换到注释状态。
+ */
+function filterJavaSourceForRouteParsing(source) {
+  let output = ''
+  let index = 0
+  let state = 'code'
+  while (index < source.length) {
+    const character = source[index]
+    const next = source[index + 1]
+    const nextTwo = source[index + 2]
+    if (state === 'code') {
+      if (character === '/' && next === '/') {
+        output += '  '
+        index += 2
+        state = 'line-comment'
+      } else if (character === '/' && next === '*') {
+        output += '  '
+        index += 2
+        state = 'block-comment'
+      } else if (character === '"' && next === '"' && nextTwo === '"') {
+        output += '   '
+        index += 3
+        state = 'text-block'
+      } else if (character === '"') {
+        output += character
+        index += 1
+        state = 'string'
+      } else if (character === "'") {
+        output += ' '
+        index += 1
+        state = 'character'
+      } else {
+        output += character
+        index += 1
+      }
+    } else if (state === 'line-comment') {
+      output += character === '\n' ? '\n' : ' '
+      index += 1
+      if (character === '\n') state = 'code'
+    } else if (state === 'block-comment') {
+      if (character === '*' && next === '/') {
+        output += '  '
+        index += 2
+        state = 'code'
+      } else {
+        output += character === '\n' ? '\n' : ' '
+        index += 1
+      }
+    } else if (state === 'text-block') {
+      if (character === '"' && next === '"' && nextTwo === '"') {
+        output += '   '
+        index += 3
+        state = 'code'
+      } else {
+        output += character === '\n' ? '\n' : ' '
+        index += 1
+      }
+    } else if (state === 'string') {
+      output += character
+      if (character === '\\' && index + 1 < source.length) {
+        output += source[index + 1]
+        index += 2
+      } else if (character === '"') {
+        index += 1
+        state = 'code'
+      } else {
+        index += 1
+      }
+    } else {
+      output += character === '\n' ? '\n' : ' '
+      if (character === '\\' && index + 1 < source.length) {
+        output += source[index + 1] === '\n' ? '\n' : ' '
+        index += 2
+      } else if (character === "'") {
+        index += 1
+        state = 'code'
+      } else {
+        index += 1
+      }
+    }
+  }
+  return output
+}
+
+/**
  * 解析控制器中可静态识别的 Spring 路由。解析器故意保守：无法解析的复杂注解不会被臆造成可匿名路由。
  */
 export function parseControllerSourceDetailed(source, sourcePath) {
@@ -356,7 +442,7 @@ export function parseControllerSourceDetailed(source, sourcePath) {
   let classAnnotationDetails = []
   let pendingAnnotationDetails = []
   let pendingMappings = []
-  const lines = source.split(/\r?\n/)
+  const lines = filterJavaSourceForRouteParsing(source).split(/\r?\n/)
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trim()

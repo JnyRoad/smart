@@ -171,6 +171,31 @@ const commentOnlyEvidence = parseControllerSourceDetailed(
 assert.deepEqual(commentOnlyEvidence.signatureEvidence, [])
 assert.equal(classifyRoute(commentOnlyEvidence).exposure, 'external-authenticated')
 
+const blockCommentAnnotations = parseControllerSourceDetailed(
+  [
+    '@RequestMapping("/commented")',
+    'public class BlockCommentController {',
+    '  /*',
+    '  @SignatureVerified',
+    '  @TimestampVerified',
+    '  @NonceReplayProtected',
+    '  @PostMapping("/callback")',
+    '  public void fakeCallback() {',
+    '    signatureVerifier.verifySignature(event);',
+    '    replayGuard.validateTimestamp(event);',
+    '    replayGuard.checkNonce(event);',
+    '  }',
+    '  */',
+    '  @PostMapping("/real")',
+    '  public void real() {}',
+    '}',
+  ].join('\n'),
+  'BlockCommentController.java',
+)
+
+assert.deepEqual(blockCommentAnnotations.routes.map((route) => route.path), ['/commented/real'])
+assert.equal(classifyRoute(blockCommentAnnotations.routes[0]).exposure, 'external-authenticated')
+
 const fixtureRoot = await mkdtemp(path.join(tmpdir(), 'smart-route-inventory-'))
 try {
   const controllerDirectory = path.join(fixtureRoot, 'module', 'src', 'main', 'java')
