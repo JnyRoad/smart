@@ -6,7 +6,6 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.data.api.dto.msg.req.*;
 import com.tce.smart.data.api.vo.msg.SendSmsVo;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -102,7 +101,7 @@ public interface RemoteSmsManageService {
 		return sendBadgeRefuse(req, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
-	@GetMapping("/smsmanage/internal/send/attendance/sign")
+	@PostMapping("/smsmanage/internal/send/attendance/sign")
 	Result sendAttendanceSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO,
 			@RequestHeader(SecurityConstants.FROM) String from,
 			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
@@ -111,7 +110,7 @@ public interface RemoteSmsManageService {
 		return sendAttendanceSign(signMsgReqDTO, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
-	@GetMapping("/smsmanage/internal/send/wage/sign")
+	@PostMapping("/smsmanage/internal/send/wage/sign")
 	Result sendWageSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO,
 			@RequestHeader(SecurityConstants.FROM) String from,
 			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
@@ -120,7 +119,7 @@ public interface RemoteSmsManageService {
 		return sendWageSign(signMsgReqDTO, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
-	@GetMapping("/smsmanage/internal/send/articlesrelease/smscode")
+	@PostMapping("/smsmanage/internal/send/articlesrelease/smscode")
 	Result sendArticlesRelease(@RequestBody ArticlesReleaseMsgReqDTO articlesReleaseMsgReqDTO,
 			@RequestHeader(SecurityConstants.FROM) String from,
 			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
@@ -130,7 +129,7 @@ public interface RemoteSmsManageService {
 				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
-	@GetMapping("/smsmanage/internal/send/msg")
+	@PostMapping("/smsmanage/internal/send/msg")
 	Result sendMessage(@RequestBody SendMsgReqDTO reqDTO,
 			@RequestHeader(SecurityConstants.FROM) String from,
 			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);

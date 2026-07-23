@@ -41,10 +41,10 @@ public class SmartDataMessageRouteContractTest {
 		assertControllerRoute(SmsManageController.class, "sendSmsError", "/internal/send/smsError", PostMapping.class);
 		assertControllerRoute(SmsManageController.class, "sendBadgeAgree", "/internal/send/badge/agree", PostMapping.class);
 		assertControllerRoute(SmsManageController.class, "sendBadgeRefuse", "/internal/send/badge/refuse", PostMapping.class);
-		assertControllerRoute(SmsManageController.class, "sendAttendanceSign", "/internal/send/attendance/sign", GetMapping.class);
-		assertControllerRoute(SmsManageController.class, "sendWageSign", "/internal/send/wage/sign", GetMapping.class);
-		assertControllerRoute(SmsManageController.class, "sendArticlesRelease", "/internal/send/articlesrelease/smscode", GetMapping.class);
-		assertControllerRoute(SmsManageController.class, "sendMessage", "/internal/send/msg", GetMapping.class);
+		assertControllerRoute(SmsManageController.class, "sendAttendanceSign", "/internal/send/attendance/sign", PostMapping.class);
+		assertControllerRoute(SmsManageController.class, "sendWageSign", "/internal/send/wage/sign", PostMapping.class);
+		assertControllerRoute(SmsManageController.class, "sendArticlesRelease", "/internal/send/articlesrelease/smscode", PostMapping.class);
+		assertControllerRoute(SmsManageController.class, "sendMessage", "/internal/send/msg", PostMapping.class);
 	}
 
 	@Test
@@ -66,10 +66,10 @@ public class SmartDataMessageRouteContractTest {
 		assertFeignRoute(RemoteSmsManageService.class, "sendSmsError", "/smsmanage/internal/send/smsError", PostMapping.class);
 		assertFeignRoute(RemoteSmsManageService.class, "sendBadgeAgree", "/smsmanage/internal/send/badge/agree", PostMapping.class);
 		assertFeignRoute(RemoteSmsManageService.class, "sendBadgeRefuse", "/smsmanage/internal/send/badge/refuse", PostMapping.class);
-		assertFeignRoute(RemoteSmsManageService.class, "sendAttendanceSign", "/smsmanage/internal/send/attendance/sign", GetMapping.class);
-		assertFeignRoute(RemoteSmsManageService.class, "sendWageSign", "/smsmanage/internal/send/wage/sign", GetMapping.class);
-		assertFeignRoute(RemoteSmsManageService.class, "sendArticlesRelease", "/smsmanage/internal/send/articlesrelease/smscode", GetMapping.class);
-		assertFeignRoute(RemoteSmsManageService.class, "sendMessage", "/smsmanage/internal/send/msg", GetMapping.class);
+		assertFeignRoute(RemoteSmsManageService.class, "sendAttendanceSign", "/smsmanage/internal/send/attendance/sign", PostMapping.class);
+		assertFeignRoute(RemoteSmsManageService.class, "sendWageSign", "/smsmanage/internal/send/wage/sign", PostMapping.class);
+		assertFeignRoute(RemoteSmsManageService.class, "sendArticlesRelease", "/smsmanage/internal/send/articlesrelease/smscode", PostMapping.class);
+		assertFeignRoute(RemoteSmsManageService.class, "sendMessage", "/smsmanage/internal/send/msg", PostMapping.class);
 	}
 
 	private void assertControllerRoute(Class<?> controllerType, String methodName, String expectedPath,
@@ -95,6 +95,12 @@ public class SmartDataMessageRouteContractTest {
 	}
 
 	private void assertMappingPath(Method method, String expectedPath, Class<?> mappingType) {
+		if (PostMapping.class.equals(mappingType)) {
+			Assert.assertNotNull(method.getName() + " 必须使用 POST，禁止 GET 请求体兼容路径", method.getAnnotation(PostMapping.class));
+		}
+		else {
+			Assert.assertNotNull(method.getName() + " 必须声明 GET 映射", method.getAnnotation(GetMapping.class));
+		}
 		String[] paths = PostMapping.class.equals(mappingType)
 				? method.getAnnotation(PostMapping.class).value()
 				: method.getAnnotation(GetMapping.class).value();

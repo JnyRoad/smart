@@ -148,7 +148,7 @@ public class SmsManageController extends BaseController {
 	 */
 	@Inner
 	@OpenApi("server")
-	@GetMapping("/internal/send/attendance/sign")
+	@PostMapping("/internal/send/attendance/sign")
 	public Result sendAttendanceSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO) {
 		return success(smsManageService.sendAttendanceSign(signMsgReqDTO));
 	}
@@ -160,7 +160,7 @@ public class SmsManageController extends BaseController {
 	 */
 	@Inner
 	@OpenApi("server")
-	@GetMapping("/internal/send/wage/sign")
+	@PostMapping("/internal/send/wage/sign")
 	public Result sendWageSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO) {
 		return success(smsManageService.sendWageSign(signMsgReqDTO));
 	}
@@ -172,14 +172,14 @@ public class SmsManageController extends BaseController {
 	 */
 	@Inner
 	@OpenApi("server")
-	@GetMapping("/internal/send/articlesrelease/smscode")
+	@PostMapping("/internal/send/articlesrelease/smscode")
 	public Result sendArticlesRelease(@RequestBody ArticlesReleaseMsgReqDTO articlesReleaseMsgReqDTO) {
 		return success(smsManageService.sendArticlesRelease(articlesReleaseMsgReqDTO));
 	}
 
 	@Inner
 	@OpenApi("server")
-	@GetMapping("/internal/send/msg")
+	@PostMapping("/internal/send/msg")
 	public Result sendMessage(@RequestBody SendMsgReqDTO reqDTO) {
 		return success(smsManageService.sendMessage(reqDTO));
 	}
