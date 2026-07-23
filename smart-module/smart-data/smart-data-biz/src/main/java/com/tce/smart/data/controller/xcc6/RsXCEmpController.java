@@ -3,6 +3,7 @@ package com.tce.smart.data.controller.xcc6;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.xcc6.core.service.IRsXCEmpService;
 import com.tce.smart.data.api.dto.consume.req.RsEmpSaveReqDto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,8 @@ public class RsXCEmpController extends BaseController {
 	 * @return
 	 */
 	@PostMapping("/inner/saveEmp")
+	@Inner
+	@OpenApi("server")
 	public Result<Boolean> saveEmp(@RequestBody RsEmpSaveReqDto saveReqDto) {
 		return success(rsEmpService.saveEmp(saveReqDto.getEmpNo(),
 				saveReqDto.getEmpName(),
@@ -44,6 +47,8 @@ public class RsXCEmpController extends BaseController {
 	 * @return
 	 */
 	@PostMapping("/inner/leaveEmp")
+	@Inner
+	@OpenApi("server")
 	public Result<Boolean> leaveEmp(@RequestBody RsEmpSaveReqDto reqDto) {
 		return success(rsEmpService.leaveEmp(reqDto.getEmpNo()));
 	}
@@ -54,6 +59,8 @@ public class RsXCEmpController extends BaseController {
 	 * @return
 	 */
 	@PostMapping("/inner/intoEmp")
+	@Inner
+	@OpenApi("server")
 	public Result<Boolean> intoEmp(@RequestBody RsEmpSaveReqDto reqDto) {
 		return success(rsEmpService.intoEmp(reqDto.getEmpNo()));
 	}
@@ -64,6 +71,8 @@ public class RsXCEmpController extends BaseController {
 	 * @return
 	 */
 	@GetMapping("/inner/get-empPhoto/{empNo}")
+	@Inner
+	@OpenApi("server")
 	public Result<Map<String,Object>> getEmpPhoto(@PathVariable("empNo") String empNo) {
 		return success(rsEmpService.queryEmpPhoto(empNo));
 	}

@@ -94,7 +94,8 @@ public class SmtXcVehicleServiceImpl extends ServiceImpl<SmtXcVehicleMapper, Smt
 		xcVehicleAddDTO.setStartDate(DateUtils.format(entity.getStartDate()));
 		xcVehicleAddDTO.setEndDate(DateUtils.format(entity.getEndDate()));
 		xcVehicleAddDTO.setCUser(vehicle.getOptUser());
-		Result<Boolean> result = remoteXCVehicleService.saveVehicle(xcVehicleAddDTO, SecurityConstants.FROM_IN);
+		Result<Boolean> result = remoteXCVehicleService.saveVehicle(xcVehicleAddDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(!result.isSuccess()){
 			throw new TCEException("添加许昌车辆失败");
 		}
@@ -126,7 +127,8 @@ public class SmtXcVehicleServiceImpl extends ServiceImpl<SmtXcVehicleMapper, Smt
 		xcVehicle.setUpdateTime(LocalDateTime.now());
 		this.updateById(xcVehicle);
 
-		Result<Boolean> result = remoteXCVehicleService.deleteVehicle(xcVehicle.getVehiclePlate(), SecurityConstants.FROM_IN);
+		Result<Boolean> result = remoteXCVehicleService.deleteVehicle(xcVehicle.getVehiclePlate(), SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(!result.isSuccess()){
 			throw new TCEException("删除许昌车辆失败");
 		}

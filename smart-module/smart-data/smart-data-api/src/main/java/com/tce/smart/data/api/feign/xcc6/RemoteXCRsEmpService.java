@@ -24,7 +24,9 @@ public interface RemoteXCRsEmpService {
 	 * @return
 	 */
 	@PostMapping("/xc-rsemp/inner/saveEmp")
-	Result<Boolean> saveEmp(@RequestBody RsEmpSaveReqDto saveReqDto,@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> saveEmp(@RequestBody RsEmpSaveReqDto saveReqDto,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 离职Emp员工信息
@@ -32,7 +34,9 @@ public interface RemoteXCRsEmpService {
 	 * @return
 	 */
 	@PostMapping("/xc-rsemp/inner/leaveEmp")
-	Result<Boolean> leaveEmp(@RequestBody RsEmpSaveReqDto saveReqDto,@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> leaveEmp(@RequestBody RsEmpSaveReqDto saveReqDto,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 离职Emp员工信息
@@ -40,8 +44,12 @@ public interface RemoteXCRsEmpService {
 	 * @return
 	 */
 	@PostMapping("/xc-rsemp/inner/intoEmp")
-	Result<Boolean> intoEmp(@RequestBody RsEmpSaveReqDto saveReqDto,@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> intoEmp(@RequestBody RsEmpSaveReqDto saveReqDto,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	@GetMapping("/xc-rsemp/inner/get-empPhoto/{empNo}")
-	Result<Map<String,Object>> getEmpPhoto(@PathVariable("empNo") String empNo, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<Map<String,Object>> getEmpPhoto(@PathVariable("empNo") String empNo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }
