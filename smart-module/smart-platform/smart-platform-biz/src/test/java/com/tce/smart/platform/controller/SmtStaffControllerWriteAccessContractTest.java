@@ -246,7 +246,8 @@ public class SmtStaffControllerWriteAccessContractTest {
 				Mockito.mock(SmtAppStaffAuthService.class),
 				Mockito.mock(SmtImageService.class),
 				Mockito.mock(SmtDormitoryStaffService.class),
-				Mockito.mock(SmtStaffExtService.class));
+				Mockito.mock(SmtStaffExtService.class),
+				Mockito.mock(com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter.class), "");
 	}
 
 	private void assertMethodDoesNotExist(String methodName) {

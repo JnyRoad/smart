@@ -252,8 +252,6 @@ public interface SmtStaffService extends IService<SmtStaff> {
 
 	Page<StaffListVO> getTOStaffPage(Page page, SearchToStaffDTO searchToStaffDTO);
 
-	Result getToStaffInfoById(String id);
-
 	List<SmtPark> getStaffPark(String staffBadge);
 
 	Result addStaffToHR(ApplicationStaffDTO smtStaff);

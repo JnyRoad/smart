@@ -297,7 +297,8 @@ public class SmtStaffControllerPrivacyContractTest {
 				Mockito.mock(SmtAppStaffAuthService.class),
 				Mockito.mock(SmtImageService.class),
 				Mockito.mock(SmtDormitoryStaffService.class),
-				Mockito.mock(SmtStaffExtService.class));
+				Mockito.mock(SmtStaffExtService.class),
+				Mockito.mock(com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter.class), "");
 	}
 
 	private Set<Object> queryValues(Wrapper<?> wrapper) {

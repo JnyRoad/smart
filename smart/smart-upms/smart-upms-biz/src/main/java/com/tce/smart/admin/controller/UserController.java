@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.admin.api.dto.UserInfo;
+import com.tce.smart.admin.api.dto.AncestorUserRespDTO;
 import com.tce.smart.admin.api.dto.AdminUserProfileRespDTO;
 import com.tce.smart.admin.api.dto.PasswordUpdateReqDTO;
 import com.tce.smart.admin.api.dto.SelfUserInfoRespDTO;
@@ -200,7 +201,7 @@ public class UserController extends BaseController {
      */
     @GetMapping("/ancestor/{username}")
     @PreAuthorize("@pms.hasPermission('sys_user_edit')")
-    public Result listAncestorUsers(@PathVariable String username) {
+    public Result<java.util.List<AncestorUserRespDTO>> listAncestorUsers(@PathVariable String username) {
         return success(userService.listAncestorUsers(username));
     }
 

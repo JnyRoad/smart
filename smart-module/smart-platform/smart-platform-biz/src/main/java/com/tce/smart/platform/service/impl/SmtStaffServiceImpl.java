@@ -2896,12 +2896,12 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		return result;
 	}
 
-	@Override
-	public Result getToStaffInfoById(String id) {
-		// TODO Auto-generated method stub
-		StaffInfoVO staffInfoVO = new StaffInfoVO();
-		SmtStaff selectById = this.baseMapper.selectById(id);
-		staffInfoVO.setSmtStaff(selectById);
+	/*
+	 * 原 getToStaffInfoById 直接返回 SmtStaff、人脸、履历、家庭成员与紧急联系人，
+	 * 已由控制器迁移为 getAdminStaffDetail 的园区范围最小投影。保留其余历史实现
+	 * 没有安全价值，且会形成新的误用入口，故整个方法在本次整改中删除。
+	 */
+	/*
 		//根据图片id去获取图片base64
 		try {
 			if (!Objects.isNull(selectById.getFacePicId())) {
@@ -2974,6 +2974,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		staffInfoVO.setRelation(relations);
 		return new Result<>(staffInfoVO);
 	}
+	*/
 
 	@Override
 	public List<SmtPark> getStaffPark(String staffBadge) {

@@ -400,9 +400,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	 * @return Result
 	 */
 	@Override
-	public List<SysUser> listAncestorUsers(String username) {
+	public List<AncestorUserRespDTO> listAncestorUsers(String username) {
 		SysUser sysUser = this.getOne(Wrappers.<SysUser>query().lambda()
 				.eq(SysUser::getUsername, username));
+		if (sysUser == null) {
+			return Collections.emptyList();
+		}
 
 		SysDept sysDept = sysDeptService.getById(sysUser.getDeptId());
 		if (sysDept == null) {
@@ -411,7 +414,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 		Integer parentId = sysDept.getParentId();
 		return this.list(Wrappers.<SysUser>query().lambda()
-				.eq(SysUser::getDeptId, parentId));
+				.eq(SysUser::getDeptId, parentId)).stream().map(this::toAncestorUser).collect(Collectors.toList());
+	}
+
+	/** 上级审批人选择只返回识别与组织字段，避免实体新增敏感字段后被直接序列化。 */
+	private AncestorUserRespDTO toAncestorUser(SysUser user) {
+		AncestorUserRespDTO response = new AncestorUserRespDTO();
+		response.setUserId(user.getUserId());
+		response.setUsername(user.getUsername());
+		response.setFullName(user.getFullName());
+		response.setDeptId(user.getDeptId());
+		return response;
 	}
 
 	/**

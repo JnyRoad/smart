@@ -61,7 +61,8 @@ public class VehicleServiceImpl  implements VehicleService{
 		String userName=SecurityUtils.getUser().getUsername();
 
 		Result<Page<SmtVehicleRespDTO>> result = service.getMyVehicle(MapUtil.getLong(params, PaginationConstants.CURRENT),
-				MapUtil.getLong(params, PaginationConstants.SIZE), userName,SecurityConstants.FROM_IN);
+				MapUtil.getLong(params, PaginationConstants.SIZE), userName,SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
 
 		log.info("remote getMyVehicle result=[{}]", result);
 		IPage<SmtVehicleRespDTO> pageInfo = result.getData();
@@ -126,7 +127,8 @@ public class VehicleServiceImpl  implements VehicleService{
 		// TODO Auto-generated method stub
 		log.info("remote getVehiclePark plateNumber=",ao.getPlateNumber());
 		String plateNumber=ao.getPlateNumber();
-		Result<List<VehicleApplyRespDTO>> result = service.getVehiclePark(plateNumber,SecurityConstants.FROM_IN);
+		Result<List<VehicleApplyRespDTO>> result = service.getVehiclePark(plateNumber,SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
 		log.info("remote getAuthPark result=[{}]", result);
 		List<VehicleApplyRespDTO> list=result.getData();
 		List<AuthParkVo> vehicleList = new ArrayList<AuthParkVo>();
@@ -163,7 +165,8 @@ public class VehicleServiceImpl  implements VehicleService{
 		// TODO Auto-generated method stub
 
 		Integer id= Integer.parseInt(ao.getVehicleAuthkId());
-		Result<SmtVehicleRespDTO> result = service.getVehicleParkById(id,SecurityConstants.FROM_IN);
+		Result<SmtVehicleRespDTO> result = service.getVehicleParkById(id,SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
 		log.info("remote getVehicleParkById result=[{}]", result);
 
 //		Result<List<SysDict>> findByType = remoteDictService.findByType(DictConstants.VEHICLE_TYPE, SecurityConstants.FROM_IN);
@@ -212,7 +215,8 @@ public class VehicleServiceImpl  implements VehicleService{
 		String badge=SecurityUtils.getUser().getUsername();
 		applyAuthDTO.setBadge(badge);
 		log.info("remote addVehiclePark applyAuthDTO=[{}]", applyAuthDTO);
-		Result<?> result = service.addVehiclePark(applyAuthDTO,SecurityConstants.FROM_IN);
+		Result<?> result = service.addVehiclePark(applyAuthDTO,SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
 		log.info("remote addVehiclePark result=[{}]", result);
 		return result;
 	}
@@ -226,7 +230,8 @@ public class VehicleServiceImpl  implements VehicleService{
 		log.info("员工添加车辆: 车牌号:{}  工号:{}", addVehicleDTO.getPlateNumber(),addVehicleDTO.getBadge());
 		String badge = SecurityUtils.getUser().getUsername();
 		addVehicleDTO.setBadge(badge);
-		Result<?> result = service.addVehicle(addVehicleDTO,SecurityConstants.FROM_IN);
+		Result<?> result = service.addVehicle(addVehicleDTO,SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
 		log.info("员工添加车辆处理结果:{}", result);
 		return result;
 	}
@@ -280,7 +285,8 @@ public class VehicleServiceImpl  implements VehicleService{
 	public Result delete(AuthParkAo ao) {
 		log.info("remote delVehicle plateNumber=",ao.getPlateNumber());
 		String plateNumber=ao.getPlateNumber();
-		Result result = service.delVehicle(plateNumber,SecurityConstants.FROM_IN);
+		Result result = service.delVehicle(plateNumber,SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
 		log.info("remote delVehicle result=[{}]", result);
 		return result;
 	}

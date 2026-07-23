@@ -6,10 +6,12 @@ import com.baomidou.mybatisplus.core.toolkit.Assert;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.annotation.OpenApi;
+import com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
@@ -39,6 +41,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -71,6 +74,12 @@ public class SmtStaffController extends BaseController {
 
 	private final SmtStaffExtService smtStaffExtService;
 
+	private final OpenApiAuthenticationAdapter openApiAuthenticationAdapter;
+
+	/** App 车辆代理只能由受管 OAuth 客户端调用；缺少配置时必须拒绝。 */
+	@Value("${security.inner.vehicle.app-client-id:}")
+	private String appVehicleServiceClientId;
+
 	/**
 	 * 后台按认证主体园区范围分页查询员工最小信息。
 	 *
@@ -91,8 +100,10 @@ public class SmtStaffController extends BaseController {
 	 * @return
 	 */
 	@GetMapping("/quetyStaffNODormitory")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
 	public Result getSmtNoStaffPage(Page page,SearchStaffDTO smtStaff) {
-		return new Result<>(smtStaffService.quetyStaffNODormitory( page,smtStaff));
+		// 宿舍分配只需要身份与组织信息，禁止将证件号、手机号透传至管理端。
+		return success(smtStaffService.quetyStaffNODormitory(page, smtStaff), AdminDormitoryCandidateRespDTO.class);
 	}
 
 	/**
@@ -256,13 +267,6 @@ public class SmtStaffController extends BaseController {
 	/**
 	 * 员工，我的宿舍
 	 */
-	@SysLog("我的宿舍")
-	@PostMapping("myDormitory")
-	public Result<MyDormitoryRespDTO> myDormitory(@RequestBody SmtStaff smtStaff) {
-		return success(smtStaffService.myDormitory(smtStaff), MyDormitoryRespDTO.class);
-	}
-
-
 	/**
 	 * 从视图中同步员工信息
 	 * @param empHr
@@ -310,8 +314,12 @@ public class SmtStaffController extends BaseController {
 	@SysLog("app端通过员工号查询员工车辆")
 	@SuppressWarnings("rawtypes")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/myVehicle")
-	public Result<IPage<SmtVehicleRespDTO>> getMyVehicle(Page page, @RequestParam("badge") String badge) {
+	public Result<IPage<SmtVehicleRespDTO>> getMyVehicle(Page page, @RequestParam("badge") String badge,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		return success(smtStaffService.getMyVehicle(page,badge), SmtVehicleRespDTO.class);
 	}
 
@@ -323,8 +331,12 @@ public class SmtStaffController extends BaseController {
 	 */
 	@SysLog("app端添加车辆入园申请")
 	@Inner
+	@OpenApi("server")
 	@PostMapping("addVehiclePark")
-	public Result addVehiclePark(@RequestBody ApplyAuthDTO applyVehicleDTO) {
+	public Result addVehiclePark(@RequestBody ApplyAuthDTO applyVehicleDTO,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		return smtStaffService.addVehiclePark(applyVehicleDTO);
 	}
 
@@ -335,8 +347,12 @@ public class SmtStaffController extends BaseController {
 	 */
 	@SysLog("app端通过车牌号查询车辆可以进出的园区")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/getVehiclePark")
-	public Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber) {
+	public Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		return success(smtStaffService.getVehiclePark(plateNumber),VehicleApplyRespDTO.class);
 	}
 
@@ -347,8 +363,12 @@ public class SmtStaffController extends BaseController {
 	 */
 	@SysLog("app通过入园权限id，查看车辆信息")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/getVehicleParkById/{id}")
-	public Result<SmtVehicleRespDTO> getVehicleParkById(@PathVariable("id") Integer id) {
+	public Result<SmtVehicleRespDTO> getVehicleParkById(@PathVariable("id") Integer id,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		VehicleParkDetailVO smtVehicle = smtStaffService.getVehicleParkById(id);
 		SmtVehicleRespDTO smtVehicleRespDTO = new SmtVehicleRespDTO();
 		BeanUtils.copyProperties(smtVehicle, smtVehicleRespDTO);
@@ -357,18 +377,37 @@ public class SmtStaffController extends BaseController {
 
 	@SysLog("app调用接口添加车辆")
 	@Inner
+	@OpenApi("server")
 	@PostMapping("addVehicle")
-	public Result addVehicle(@RequestBody AddVehicleDTO addVehicleDTO) {
+	public Result addVehicle(@RequestBody AddVehicleDTO addVehicleDTO,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		return smtStaffService.addVehicle(addVehicleDTO);
 	}
 
 	@SysLog("app调用接口移除车辆")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("delVehicle")
-	public Result delVehicle(@RequestParam("plateNumber") String plateNumber) {
+	public Result delVehicle(@RequestParam("plateNumber") String plateNumber,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		SmtVehicle vehicle = smtVehicleService.getOne(Wrappers.<SmtVehicle>query().lambda().eq(SmtVehicle::getVehiclePlate, StrUtil.removeAll(plateNumber, " ").toUpperCase())
 				.eq(SmtVehicle::getIsDelete, VehicleConstants.UNDELETED));
 		return new Result<>(smtVehicleService.deleteVehicle(vehicle.getId(),null));
+	}
+
+	/** 服务端 token 的 server scope 仍需与精确 App client 和车辆用途同时匹配。 */
+	private void assertAppVehicleCaller(String from, String purpose) {
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (!SecurityConstants.FROM_IN.equals(from) || !"app-vehicle".equals(purpose)
+				|| StringUtils.isEmpty(appVehicleServiceClientId) || authentication == null
+				|| !openApiAuthenticationAdapter.isClientOnly(authentication)
+				|| !appVehicleServiceClientId.equals(openApiAuthenticationAdapter.clientId(authentication))) {
+			throw new AccessDeniedException("App 车辆服务调用未获授权");
+		}
 	}
 
 	@SysLog("app调用接口获取员工二维码")
@@ -506,8 +545,9 @@ public class SmtStaffController extends BaseController {
 	 * @return
 	 */
 	@GetMapping("/toStaff/page")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
 	public Result getToStaffPage(Page page, SearchToStaffDTO searchToStaffDTO) {
-		List<Integer> parkIds = SecurityUtils.getUser().getParkIdList();
+		List<Integer> parkIds = currentAuthenticatedUser().getParkIdList();
 		searchToStaffDTO.setParkIds(parkIds);
 		return new Result<>(smtStaffService.getTOStaffPage(page,searchToStaffDTO));
 	}
@@ -517,8 +557,16 @@ public class SmtStaffController extends BaseController {
 	 * @return
 	 */
 	@GetMapping("/toStaff/{id}")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
 	public Result getToStaffInfoById(@PathVariable("id") String id) {
-		return smtStaffService.getToStaffInfoById(id);
+		Long staffId;
+		try {
+			staffId = Long.valueOf(id);
+		} catch (NumberFormatException exception) {
+			throw new AccessDeniedException("员工编号无效");
+		}
+		// 以与后台员工详情相同的园区二次校验和最小 DTO 代替原始履历/家庭成员全量返回。
+		return success(smtStaffService.getAdminStaffDetail(staffId, currentAuthenticatedUser().getParkIdList()));
 	}
 
 	/**

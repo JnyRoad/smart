@@ -29,7 +29,7 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@GetMapping("/staff/myVehicle")
-	Result<Page<SmtVehicleRespDTO>> getMyVehicle(@RequestParam("current") final long current, @RequestParam("size") final long size , @RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<Page<SmtVehicleRespDTO>> getMyVehicle(@RequestParam("current") final long current, @RequestParam("size") final long size , @RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 * 获取车辆入园列表
@@ -37,7 +37,7 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@GetMapping("/staff/getVehiclePark")
-	Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber, @RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 
 	/**
@@ -46,7 +46,7 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@GetMapping("/staff/getVehicleParkById/{id}")
-	Result<SmtVehicleRespDTO> getVehicleParkById(@RequestParam("id") Integer id,@RequestHeader(SecurityConstants.FROM) String from);
+	Result<SmtVehicleRespDTO> getVehicleParkById(@PathVariable("id") Integer id,@RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 * 添加车辆
@@ -54,7 +54,7 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@PostMapping("/staff/addVehicle")
-	Result addVehicle(@RequestBody AddVehicleReqDTO addVehicleDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result addVehicle(@RequestBody AddVehicleReqDTO addVehicleDTO, @RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 
 	/**
@@ -63,7 +63,7 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@PostMapping("/staff/addVehiclePark")
-	Result addVehiclePark(@RequestBody ApplyAuthReqDTO applyAuthReqDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result addVehiclePark(@RequestBody ApplyAuthReqDTO applyAuthReqDTO, @RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 * 删除车辆信息
@@ -71,6 +71,6 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@GetMapping("/staff/delVehicle")
-	Result delVehicle(@RequestParam("plateNumber") String plateNumber,@RequestHeader(SecurityConstants.FROM) String from);
+	Result delVehicle(@RequestParam("plateNumber") String plateNumber,@RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 }
