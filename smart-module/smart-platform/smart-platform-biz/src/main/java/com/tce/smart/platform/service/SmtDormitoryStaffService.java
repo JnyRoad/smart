@@ -214,6 +214,11 @@ public interface SmtDormitoryStaffService extends IService<SmtDormitoryStaff> {
 	String refreshPwdForAuthenticatedStaff(String badge, SelfLockPwdRefreshReqDTO request);
 
 	/**
+	 * 当前认证员工通过人脸核验读取本人门锁动态码。
+	 */
+	String faceCompareForAuthenticatedStaff(String badge, SelfLockPwdRefreshReqDTO request);
+
+	/**
 	 * 修改备注
 	 * @param remark
 	 * @return

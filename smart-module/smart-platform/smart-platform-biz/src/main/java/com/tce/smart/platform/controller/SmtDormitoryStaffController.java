@@ -8,9 +8,7 @@ import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.platform.api.dto.req.DorStaffPerfectDTO;
 import com.tce.smart.platform.api.dto.req.DormitoryQueryNoStaffDTO;
-import com.tce.smart.platform.api.dto.req.LockPwdUpdateDTO;
 import com.tce.smart.platform.api.dto.req.SelfLockPwdRefreshReqDTO;
 import com.tce.smart.platform.api.dto.req.SelfLockPwdUpdateReqDTO;
 import com.tce.smart.platform.api.dto.req.lock.*;
@@ -26,6 +24,7 @@ import io.swagger.models.auth.In;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -209,13 +208,32 @@ public class SmtDormitoryStaffController {
 	}
 
 	/**
-	 * 根据员工工号查询入住信息
+	 * 管理员根据员工工号查询入住信息。
+	 * 返回的园区必须属于当前管理员的数据权限，避免通过工号跨园区定位员工。
 	 * @param staffBadge
 	 * @return
 	 */
-	@ApiOperation("根据员工工号查询入住信息")
+	@ApiOperation("管理员根据员工工号查询入住信息")
 	@GetMapping("/roomDetail/{staffBadge}")
-	public Result<DormitoryRoomDetailRespDTO> getStaffRoomInfo(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
+	@PreAuthorize("@pms.hasPermission('platform_dormitory_staff_lookup')")
+	public Result<DormitoryRoomDetailRespDTO> getStaffRoomInfoForAdmin(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
+		SmartUser currentUser = currentAuthenticatedUser("未认证用户不可查询员工入住信息");
+		DormitoryRoomDetailRespDTO roomDetail = smtDormitoryStaffService.getStaffRoomInfo(staffBadge);
+		if (roomDetail != null && (roomDetail.getParkId() == null || currentUser.getParkIdList() == null
+				|| !currentUser.getParkIdList().contains(roomDetail.getParkId()))) {
+			throw new AccessDeniedException("无权查询该园区员工入住信息");
+		}
+		return new Result<>(roomDetail);
+	}
+
+	/**
+	 * 仅供携带内部调用标识的 Feign 请求使用；外部流量不可使用该路由绕过园区数据权限。
+	 */
+	@Inner
+	@ApiOperation("内部根据员工工号查询入住信息")
+	@GetMapping("/internal/roomDetail/{staffBadge}")
+	public Result<DormitoryRoomDetailRespDTO> getStaffRoomInfoForInternal(
+			@ApiParam(name = "staffBadge", value = "员工工号", required = true) @PathVariable String staffBadge) {
 		return new Result<>(smtDormitoryStaffService.getStaffRoomInfo(staffBadge));
 	}
 
@@ -403,10 +421,13 @@ public class SmtDormitoryStaffController {
 		return remoteSmartLockService.getByNumOrName(queryName);
 	}
 
-	@ApiOperation("人脸比对获取动态码")
-	@PostMapping("/face/compare")
-	public Result<String> faceCompare(@RequestBody DorStaffPerfectDTO perfectDTO){
-		return new Result<>(smtDormitoryStaffService.faceCompare(perfectDTO));
+	/**
+	 * 通过认证身份与人脸图核验获取本人动态码，不接受客户端指定工号。
+	 */
+	@ApiOperation("人脸比对获取本人动态码")
+	@PostMapping("/me/face/compare")
+	public Result<String> faceCompareForCurrentUser(@RequestBody @Valid SelfLockPwdRefreshReqDTO request) {
+		return new Result<>(smtDormitoryStaffService.faceCompareForAuthenticatedStaff(currentAuthenticatedBadge(), request));
 	}
 
 	/**
@@ -447,15 +468,19 @@ public class SmtDormitoryStaffController {
 	}
 
 	private String currentAuthenticatedBadge() {
+		return currentAuthenticatedUser("未认证用户不可操作门锁动态码").getUsername();
+	}
+
+	private SmartUser currentAuthenticatedUser(String denialMessage) {
 		Authentication authentication = SecurityUtils.getAuthentication();
 		if (authentication == null || !authentication.isAuthenticated()) {
-			throw new AccessDeniedException("未认证用户不可操作门锁动态码");
+			throw new AccessDeniedException(denialMessage);
 		}
 		SmartUser currentUser = SecurityUtils.getUser(authentication);
 		if (currentUser == null || StringUtils.isEmpty(currentUser.getUsername())) {
-			throw new AccessDeniedException("未认证用户不可操作门锁动态码");
+			throw new AccessDeniedException(denialMessage);
 		}
-		return currentUser.getUsername();
+		return currentUser;
 	}
 
 	@ApiOperation("修改入住备注")

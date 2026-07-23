@@ -1599,6 +1599,17 @@ public class SmtDormitoryStaffServiceImpl extends ServiceImpl<SmtDormitoryStaffM
 		return updatePwdByBadge(faceRequest);
 	}
 
+	@Override
+	public String faceCompareForAuthenticatedStaff(String badge, SelfLockPwdRefreshReqDTO request) {
+		requireDormitoryStaff(badge);
+		DorStaffPerfectDTO faceRequest = new DorStaffPerfectDTO();
+		// 工号仅来自认证上下文，客户端上传的人脸图不能指定其他员工。
+		faceRequest.setBadge(badge);
+		faceRequest.setFacePic(request.getFacePic());
+		faceRequest.setDeviceNo(request.getDeviceNo());
+		return faceCompare(faceRequest);
+	}
+
 	/**
 	 * 门锁能力只允许当前仍有有效入住关系的员工使用。
 	 */

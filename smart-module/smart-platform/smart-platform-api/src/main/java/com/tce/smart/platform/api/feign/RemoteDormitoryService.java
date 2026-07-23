@@ -43,7 +43,7 @@ public interface RemoteDormitoryService {
 	 * @param staffBadge
 	 * @return
 	 */
-	@GetMapping("/dormitory/staff/roomDetail/{staffBadge}")
+	@GetMapping("/dormitory/staff/internal/roomDetail/{staffBadge}")
 	Result<DormitoryRoomDetailRespDTO> getStaffRoomInfo(@PathVariable("staffBadge") String staffBadge, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/dormitory/staff/roomList/{staffBadge}")

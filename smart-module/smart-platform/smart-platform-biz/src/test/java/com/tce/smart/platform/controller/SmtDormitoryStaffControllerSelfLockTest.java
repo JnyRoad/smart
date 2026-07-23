@@ -37,6 +37,8 @@ public class SmtDormitoryStaffControllerSelfLockTest {
 				.thenReturn("cipher");
 		Mockito.when(service.refreshPwdForAuthenticatedStaff(Mockito.eq("self-badge"), Mockito.any(SelfLockPwdRefreshReqDTO.class)))
 				.thenReturn("cipher");
+		Mockito.when(service.faceCompareForAuthenticatedStaff(Mockito.eq("self-badge"), Mockito.any(SelfLockPwdRefreshReqDTO.class)))
+				.thenReturn("cipher");
 
 		assertEquals("cipher", controller.getPwdForCurrentUser().getData());
 		SelfLockPwdUpdateReqDTO update = new SelfLockPwdUpdateReqDTO();
@@ -45,10 +47,22 @@ public class SmtDormitoryStaffControllerSelfLockTest {
 		SelfLockPwdRefreshReqDTO refresh = new SelfLockPwdRefreshReqDTO();
 		refresh.setFacePic("face-base64");
 		assertEquals("cipher", controller.refreshPwdForCurrentUser(refresh).getData());
+		assertEquals("cipher", controller.faceCompareForCurrentUser(refresh).getData());
 
 		Mockito.verify(service).getPwdForAuthenticatedStaff("self-badge");
 		Mockito.verify(service).updateLockPwdForAuthenticatedStaff("self-badge", "123456");
 		Mockito.verify(service).refreshPwdForAuthenticatedStaff("self-badge", refresh);
+		Mockito.verify(service).faceCompareForAuthenticatedStaff("self-badge", refresh);
+	}
+
+	@Test
+	public void legacyFaceCompareHandlerIsNotPublicApiHandler() {
+		for (java.lang.reflect.Method method : SmtDormitoryStaffController.class.getDeclaredMethods()) {
+			if (!"faceCompare".equals(method.getName())) {
+				continue;
+			}
+			org.junit.Assert.fail("旧的人脸比对入口不能继续由请求体指定员工工号");
+		}
 	}
 
 	@Test
