@@ -2,18 +2,24 @@
 security:
   # Dispatcher 向 Platform 和动态 Bridge 发起的内部 Feign 只使用独立服务令牌；缺失即拒绝调用。
   inner:
+    mode: ENFORCE
     service-token:
       client-id: "${SMART_DISPATCHER_OAUTH_CLIENT_ID:}"
       client-secret: "${SMART_DISPATCHER_OAUTH_CLIENT_SECRET:}"
       access-token-uri: "${SMART_DISPATCHER_OAUTH_TOKEN_URI:}"
+    dispatcher:
+      platform-client-id: "${SMART_DISPATCHER_PLATFORM_CLIENT_ID:}"
+      schedule-client-id: "${SMART_DISPATCHER_SCHEDULE_CLIENT_ID:}"
+      bridge-client-id: "${SMART_DISPATCHER_BRIDGE_CLIENT_ID:}"
+      bridge-isc-client-id: "${SMART_DISPATCHER_BRIDGE_ISC_CLIENT_ID:}"
   # 动态 Bridge 地址来自园区数据；服务令牌仅能发送到此处精确登记的 scheme://host[:port]。
   # 默认空值 fail-closed，发布前由运维按实际园区端点注入，不得使用通配符。
   dispatcher:
     bridge-target-allowlist: "${SMART_DISPATCHER_BRIDGE_TARGET_ALLOWLIST:}"
   oauth2:
     client:
-      client-id: "${SMART_DISPATCHER_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # guard
-      client-secret: "${SMART_DISPATCHER_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # guard
+      client-id: "${SMART_DISPATCHER_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_DISPATCHER_OAUTH_CLIENT_SECRET:}"
       scope: server
       # 放行url
       # 分发业务无匿名入口；设备转发仅允许受控服务令牌调用。
