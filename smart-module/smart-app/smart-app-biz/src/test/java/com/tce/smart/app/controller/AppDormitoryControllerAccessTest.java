@@ -1,6 +1,7 @@
 package com.tce.smart.app.controller;
 
 import com.tce.smart.common.security.service.SmartUser;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.platform.api.feign.RemoteDormitoryService;
 import org.junit.After;
 import org.junit.Test;
@@ -24,12 +25,12 @@ public class AppDormitoryControllerAccessTest {
 	}
 
 	@Test
-	public void roomDetailRejectsAnonymousRequestBeforeFeignCall() {
+	public void myRoomDetailRejectsAnonymousRequestBeforeFeignCall() {
 		RemoteDormitoryService remoteService = Mockito.mock(RemoteDormitoryService.class);
 		AppDormitoryController controller = new AppDormitoryController(remoteService);
 
 		try {
-			controller.getStaffRoomInfo("other-badge");
+			controller.getMyRoomDetail();
 			fail("匿名请求不能被转发到内部住宿详情接口");
 		} catch (AccessDeniedException expected) {
 			Mockito.verifyZeroInteractions(remoteService);
@@ -37,26 +38,42 @@ public class AppDormitoryControllerAccessTest {
 	}
 
 	@Test
-	public void roomDetailRejectsBadgeDifferentFromAuthenticatedUserBeforeFeignCall() {
+	public void myRoomDetailUsesOnlyAuthenticatedSubjectAndServiceTokenContract() {
 		RemoteDormitoryService remoteService = Mockito.mock(RemoteDormitoryService.class);
 		AppDormitoryController controller = new AppDormitoryController(remoteService);
 		authenticate("self-badge");
 
-		try {
-			controller.getStaffRoomInfo("other-badge");
-			fail("客户端工号不能改变内部查询主体");
-		} catch (AccessDeniedException expected) {
-			Mockito.verifyZeroInteractions(remoteService);
-		}
+		controller.getMyRoomDetail();
+
+		Mockito.verify(remoteService).getStaffRoomInfo("self-badge", SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
 	@Test
-	public void legacyPhoneAndNameRoomLookupIsNotForwardedByAppController() {
+	public void myRoomListUsesOnlyAuthenticatedSubjectAndServiceTokenContract() {
+		RemoteDormitoryService remoteService = Mockito.mock(RemoteDormitoryService.class);
+		AppDormitoryController controller = new AppDormitoryController(remoteService);
+		authenticate("self-badge");
+
+		controller.getMyRoomList();
+
+		Mockito.verify(remoteService).getStaffRoomInfoList("self-badge", SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+	}
+
+	@Test
+	public void legacyBadgePathMethodsAreNotExposedByAppController() {
 		try {
-			AppDormitoryController.class.getMethod("getStaffRoomInfoByPhone", String.class, String.class);
-			fail("App 不能再把手机号和姓名转发为住宿查询");
+			AppDormitoryController.class.getMethod("getStaffRoomInfo", String.class);
+			fail("App 不得再暴露路径工号住宿详情接口");
 		} catch (NoSuchMethodException expected) {
-			// 预期：客户端不能通过手机号码和姓名定位员工住宿信息。
+			// 预期：客户端只能由认证主体确定员工工号。
+		}
+		try {
+			AppDormitoryController.class.getMethod("getStaffRoomInfoList", String.class);
+			fail("App 不得再暴露路径工号住宿列表接口");
+		} catch (NoSuchMethodException expected) {
+			// 预期：客户端只能读取本人的入住记录。
 		}
 	}
 

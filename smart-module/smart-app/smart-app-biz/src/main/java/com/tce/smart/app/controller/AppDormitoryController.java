@@ -35,28 +35,39 @@ public class AppDormitoryController extends BaseController {
 		return success(remoteDormitoryService.queryRoom(smtDormitoryRoom, SecurityConstants.FROM_IN));
 	}
 
-	@GetMapping("/roomDetail/{staffBadge}")
-	public Result getStaffRoomInfo(@PathVariable("staffBadge") String staffBadge){
-		return success(remoteDormitoryService.getStaffRoomInfo(currentUserBadge(staffBadge), SecurityConstants.FROM_IN,
+	/**
+	 * 查询当前登录员工的宿舍详情。
+	 *
+	 * 工号只能从认证上下文取得，客户端不得再通过路径参数指定任意员工。
+	 */
+	@GetMapping("/me/roomDetail")
+	public Result getMyRoomDetail(){
+		return success(remoteDormitoryService.getStaffRoomInfo(currentAuthenticatedBadge(), SecurityConstants.FROM_IN,
 				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 	}
 
-	@GetMapping("/roomList/{staffBadge}")
-	public Result getStaffRoomInfoList(@PathVariable("staffBadge") String staffBadge){
-		return success(remoteDormitoryService.getSimpleStaffRoomList(currentUserBadge(staffBadge), SecurityConstants.FROM_IN));
+	/**
+	 * 查询当前登录员工的宿舍记录列表。
+	 *
+	 * 内部 Feign 契约显式声明服务令牌标记，避免仅凭可伪造的内部来源头放行。
+	 */
+	@GetMapping("/me/roomList")
+	public Result getMyRoomList(){
+		return success(remoteDormitoryService.getStaffRoomInfoList(currentAuthenticatedBadge(), SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 	}
 
 	/**
-	 * App 仅能通过内部 Feign 查询当前登录员工，路径参数保留用于兼容旧客户端但不能改变查询主体。
+	 * App 仅能通过内部 Feign 查询当前登录员工，不接受客户端提供的工号。
 	 */
-	private String currentUserBadge(String requestedBadge) {
+	private String currentAuthenticatedBadge() {
 		Authentication authentication = SecurityUtils.getAuthentication();
 		if (authentication == null || !authentication.isAuthenticated()) {
 			throw new AccessDeniedException("未认证用户不可查询员工入住信息");
 		}
 		SmartUser currentUser = SecurityUtils.getUser(authentication);
-		if (currentUser == null || currentUser.getUsername() == null || !currentUser.getUsername().equals(requestedBadge)) {
-			throw new AccessDeniedException("不可查询其他员工入住信息");
+		if (currentUser == null || currentUser.getUsername() == null) {
+			throw new AccessDeniedException("未认证用户不可查询员工入住信息");
 		}
 		return currentUser.getUsername();
 	}

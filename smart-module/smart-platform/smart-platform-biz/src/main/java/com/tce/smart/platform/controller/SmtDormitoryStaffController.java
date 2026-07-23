@@ -239,18 +239,15 @@ public class SmtDormitoryStaffController {
 		return new Result<>(smtDormitoryStaffService.getStaffRoomInfo(staffBadge));
 	}
 
+	/**
+	 * 仅供已取得服务令牌的内部调用读取员工入住列表，外部客户端不得访问或指定工号。
+	 */
 	@Inner
-	@ApiOperation("根据员工工号查询入住信息列表")
-	@GetMapping("/roomList/{staffBadge}")
-	public Result<List<DormitoryRoomDetailRespDTO>> getStaffRoomInfoList(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
+	@OpenApi("server")
+	@ApiOperation("内部根据员工工号查询入住信息列表")
+	@GetMapping("/internal/roomList/{staffBadge}")
+	public Result<List<DormitoryRoomDetailRespDTO>> getStaffRoomInfoListForInternal(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
 		return new Result<>(smtDormitoryStaffService.getStaffRoomInfoList(staffBadge));
-	}
-
-	@Inner
-	@ApiOperation("根据员工工号查询入住信息列表")
-	@GetMapping("/simple/roomList/{staffBadge}")
-	public Result<List<DormitoryRoomDetailRespDTO>> getSimpleStaffRoomList(@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge){
-		return new Result<>(smtDormitoryStaffService.getSimpleStaffRoomList(staffBadge));
 	}
 
 	@GetMapping("/lock/device/page")

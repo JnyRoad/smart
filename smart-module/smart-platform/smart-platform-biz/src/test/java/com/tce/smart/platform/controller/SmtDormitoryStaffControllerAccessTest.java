@@ -67,6 +67,16 @@ public class SmtDormitoryStaffControllerAccessTest {
 	}
 
 	@Test
+	public void internalRoomListUsesDedicatedServiceTokenRoute() throws Exception {
+		Method method = SmtDormitoryStaffController.class.getMethod("getStaffRoomInfoListForInternal", String.class);
+		GetMapping mapping = method.getAnnotation(GetMapping.class);
+		assertNotNull(method.getAnnotation(Inner.class));
+		assertNotNull(method.getAnnotation(OpenApi.class));
+		assertEquals("server", method.getAnnotation(OpenApi.class).value());
+		assertEquals("/internal/roomList/{staffBadge}", mapping.value()[0]);
+	}
+
+	@Test
 	public void legacyPhoneAndNameRoomLookupIsNotAnExternalControllerMethod() {
 		try {
 			SmtDormitoryStaffController.class.getMethod("getStaffRoomInfoByPhone", String.class, String.class);
