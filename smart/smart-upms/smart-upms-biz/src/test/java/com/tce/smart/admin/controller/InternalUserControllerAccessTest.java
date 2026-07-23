@@ -1,6 +1,7 @@
 package com.tce.smart.admin.controller;
 
 import com.tce.smart.admin.api.dto.InternalUserLoginRespDTO;
+import com.tce.smart.admin.api.dto.InternalPasswordResetReqDTO;
 import com.tce.smart.admin.api.dto.UserInfo;
 import com.tce.smart.admin.api.entity.SysUser;
 import com.tce.smart.admin.service.SysUserService;
@@ -17,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -101,6 +103,34 @@ public class InternalUserControllerAccessTest {
         assertNotNull(method.getAnnotation(OpenApi.class));
         assertEquals("server", method.getAnnotation(OpenApi.class).value());
         assertEquals("/login/username/{username}", mapping.value()[0]);
+    }
+
+    @Test
+    public void appPasswordResetRequiresOnlyManagedAppClientAndMinimalCommand() throws Exception {
+        SysUserService userService = Mockito.mock(SysUserService.class);
+        OpenApiAuthenticationAdapter adapter = Mockito.mock(OpenApiAuthenticationAdapter.class);
+        Authentication authentication = Mockito.mock(Authentication.class);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        Mockito.when(adapter.isClientOnly(authentication)).thenReturn(true);
+        Mockito.when(adapter.clientId(authentication)).thenReturn("platform-service");
+        InternalUserController controller = configuredController(userService, adapter);
+        InternalPasswordResetReqDTO request = new InternalPasswordResetReqDTO();
+        request.setUsername("employee");
+        request.setPassword("new-password");
+        request.setUpdateAuthCode("one-time-code");
+
+        assertDenied(() -> controller.resetAppPassword(request, SecurityConstants.FROM_IN, "app-password-reset"));
+
+        Mockito.when(adapter.clientId(authentication)).thenReturn("app-service");
+        Mockito.when(userService.updatePwd("employee", "new-password", "one-time-code")).thenReturn(Boolean.TRUE);
+        assertEquals(Boolean.TRUE, controller.resetAppPassword(request, SecurityConstants.FROM_IN, "app-password-reset").getData());
+        assertExactFields(InternalPasswordResetReqDTO.class, "username", "password", "updateAuthCode");
+
+        Method method = InternalUserController.class.getMethod("resetAppPassword", InternalPasswordResetReqDTO.class,
+                String.class, String.class);
+        assertNotNull(method.getAnnotation(Inner.class));
+        assertEquals("server", method.getAnnotation(OpenApi.class).value());
+        assertEquals("/password/app-reset", method.getAnnotation(PostMapping.class).value()[0]);
     }
 
     private InternalUserController configuredController(SysUserService userService, OpenApiAuthenticationAdapter adapter) {

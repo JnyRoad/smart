@@ -1,6 +1,7 @@
 package com.tce.smart.app.service.fore;
 
 import com.tce.smart.app.vo.fore.ChackFacePwdVo;
+import com.tce.smart.app.ao.fore.PasswordResetUpdateReqDTO;
 
 /**
  * 密码服务接口
@@ -43,5 +44,13 @@ public interface PasswordService {
 	 * @return 校验成功授权码
 	 */
 	ChackFacePwdVo verifyFace(String facePhoto,String deviceNo);
+
+	/**
+	 * 通过已核验的一次性授权码完成密码重置。
+	 *
+	 * @param request 不包含任何 URL 查询参数的最小请求体
+	 * @return 是否修改成功
+	 */
+	Boolean resetPassword(PasswordResetUpdateReqDTO request);
 
 }

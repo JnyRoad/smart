@@ -2,6 +2,7 @@ package com.tce.smart.admin.api.feign;
 
 import com.tce.smart.admin.api.dto.InternalParkAdminProvisionReqDTO;
 import com.tce.smart.admin.api.dto.InternalParkAdminUpdateReqDTO;
+import com.tce.smart.admin.api.dto.InternalPasswordResetReqDTO;
 import com.tce.smart.admin.api.dto.InternalUserLoginRespDTO;
 import com.tce.smart.admin.api.dto.InternalUserPhoneSyncReqDTO;
 import com.tce.smart.admin.api.dto.InternalUserSummaryRespDTO;
@@ -27,6 +28,7 @@ public interface RemoteUserInternalService {
     String PURPOSE_AUTHENTICATION = "user-authentication";
     String PURPOSE_PLATFORM_MANAGEMENT = "platform-user-management";
     String PURPOSE_APP_PHONE_SYNC = "app-user-phone-sync";
+    String PURPOSE_APP_PASSWORD_RESET = "app-password-reset";
     String PURPOSE_PLATFORM_PHONE_SYNC = "platform-user-phone-sync";
     String PURPOSE_PLATFORM_OFFBOARD = "platform-user-offboard";
 
@@ -138,6 +140,17 @@ public interface RemoteUserInternalService {
     default Result<Boolean> syncAppPhone(InternalUserPhoneSyncReqDTO request) {
         return syncAppPhone(request, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
                 PURPOSE_APP_PHONE_SYNC);
+    }
+
+    @PostMapping("/internal/user/password/app-reset")
+    Result<Boolean> resetAppPassword(@RequestBody InternalPasswordResetReqDTO request,
+            @RequestHeader(SecurityConstants.FROM) String from,
+            @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+            @RequestHeader("X-Smart-Internal-Purpose") String purpose);
+
+    default Result<Boolean> resetAppPassword(InternalPasswordResetReqDTO request) {
+        return resetAppPassword(request, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
+                PURPOSE_APP_PASSWORD_RESET);
     }
 
     @PostMapping("/internal/user/phone/platform")

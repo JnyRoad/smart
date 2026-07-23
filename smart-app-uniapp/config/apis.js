@@ -16,7 +16,7 @@ export const API_PASSWORD_MOBILE_QUERY = '/app/password/mobile/query' // 通过�
 export const API_SMS_SEND = '/app/password/sms/send' // 发送短信验证码
 export const API_SMS_VERIFY = '/app/password/verify' // 效验短信验证码
 export const API_PASSWORD_VERIFY_FACE = '/app/password/verify/face' // 人脸识别效验修改密码
-export const API_PASSWORD_UPDATE = '/admin/user/password/update' // 设置密码
+export const API_PASSWORD_UPDATE = '/app/password/update' // 设置密码
 
 // 完善信息
 export const API_PERFECT_CHECK_FACE = '/app/perfect/check/face' // 信息完整信息检测

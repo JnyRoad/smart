@@ -134,12 +134,17 @@ public class InternalStaffContractTest {
 	@Test
 	public void appDoesNotPutPasswordAuthorizationOrEmployeeIdentityInUrlsOrLogs() throws IOException {
 		String userController = read("../../../smart/smart-upms/smart-upms-biz/src/main/java/com/tce/smart/admin/controller/UserController.java");
+		String passwordController = read("src/main/java/com/tce/smart/app/controller/fore/PasswordController.java");
+		String passwordService = read(APP_SOURCE_ROOT + "/fore/impl/PasswordServiceImpl.java");
 		String passwordApi = read("../../../smart-app-uniapp/api/api-password.js");
 		String employeeService = read(APP_SOURCE_ROOT + "/fore/impl/EmployeeServiceImpl.java");
 		String jobService = read(APP_SOURCE_ROOT + "/wechat/impl/JobServiceImpl.java");
 
 		assertTrue("改密端点必须接收最小 JSON 请求体", userController.contains("@RequestBody"));
 		assertTrue("改密端点必须使用 PUT", userController.contains("@PutMapping(\"/password/update\")"));
+		assertTrue("密码找回应经 App 精确入口再走内部服务令牌", passwordController.contains("@PostMapping(\"/update\")")
+				&& passwordService.contains("remoteUserInternalService.resetAppPassword"));
+		assertFalse("UniApp 不得直连 UPMS 管理端改密接口", passwordApi.contains("/admin/user/password/update"));
 		assertFalse("前端不得把密码或授权码拼到 URL", passwordApi.contains("?username=${obj.username}"));
 		assertFalse("前端不得把 challenge 或短信验证码拼到 URL", passwordApi.contains("?challengeId=${challengeId}")
 				|| passwordApi.contains("?smsCode=${obj.smsCode}"));

@@ -7,6 +7,7 @@ import com.tce.smart.admin.api.dto.InternalUserPhoneSyncReqDTO;
 import com.tce.smart.admin.api.dto.InternalUserSummaryRespDTO;
 import com.tce.smart.admin.api.dto.InternalParkAdminProvisionReqDTO;
 import com.tce.smart.admin.api.dto.InternalParkAdminUpdateReqDTO;
+import com.tce.smart.admin.api.dto.InternalPasswordResetReqDTO;
 import com.tce.smart.admin.api.dto.RoleDTO;
 import com.tce.smart.admin.api.dto.UserDTO;
 import com.tce.smart.admin.api.dto.UserInfo;
@@ -52,6 +53,7 @@ public class InternalUserController extends BaseController {
     private static final String AUTHENTICATION_PURPOSE = "user-authentication";
     private static final String PLATFORM_MANAGEMENT_PURPOSE = "platform-user-management";
     private static final String APP_PHONE_SYNC_PURPOSE = "app-user-phone-sync";
+    private static final String APP_PASSWORD_RESET_PURPOSE = "app-password-reset";
     private static final String PLATFORM_PHONE_SYNC_PURPOSE = "platform-user-phone-sync";
     private static final String PLATFORM_OFFBOARD_PURPOSE = "platform-user-offboard";
 
@@ -215,6 +217,19 @@ public class InternalUserController extends BaseController {
             @RequestHeader("X-Smart-Internal-Purpose") String purpose) {
         assertManagedCaller(from, purpose, APP_PHONE_SYNC_PURPOSE, appServiceClientId);
         return syncPhone(request);
+    }
+
+    /**
+     * App 密码找回只允许受管 App 服务客户端提交；UPMS 仍负责校验并原子消费一次性授权码。
+     */
+    @Inner
+    @OpenApi("server")
+    @PostMapping("/password/app-reset")
+    public Result<Boolean> resetAppPassword(@Valid @RequestBody InternalPasswordResetReqDTO request,
+            @RequestHeader(SecurityConstants.FROM) String from,
+            @RequestHeader("X-Smart-Internal-Purpose") String purpose) {
+        assertManagedCaller(from, purpose, APP_PASSWORD_RESET_PURPOSE, appServiceClientId);
+        return success(userService.updatePwd(request.getUsername(), request.getPassword(), request.getUpdateAuthCode()));
     }
 
     /** Platform 的员工资料同步使用独立用途，避免 App client 横向更新其他员工账号。 */

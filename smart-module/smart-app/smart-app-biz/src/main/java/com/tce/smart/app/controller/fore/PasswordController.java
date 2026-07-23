@@ -12,6 +12,7 @@ import com.tce.smart.app.ao.fore.PerfectInfoAo;
 import com.tce.smart.app.ao.fore.PasswordResetChallengeReqDTO;
 import com.tce.smart.app.ao.fore.PasswordSmsSendReqDTO;
 import com.tce.smart.app.ao.fore.PasswordSmsVerifyReqDTO;
+import com.tce.smart.app.ao.fore.PasswordResetUpdateReqDTO;
 import com.tce.smart.app.service.fore.PasswordService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
@@ -65,6 +66,14 @@ public class PasswordController extends BaseController {
 	public Result<?> verifySmsCode(@RequestBody PasswordSmsVerifyReqDTO request) {
 		return success(passwordService.verifySmsCode(request == null ? null : request.getChallengeId(),
 				request == null ? null : request.getSmsCode()));
+	}
+
+	/**
+	 * 完成密码找回。公开入口只代理最小请求体，实际改密由 App 服务令牌调用 UPMS 内部接口完成。
+	 */
+	@PostMapping("/update")
+	public Result<Boolean> resetPassword(@Valid @RequestBody PasswordResetUpdateReqDTO request) {
+		return success(passwordService.resetPassword(request));
 	}
 
 	/**

@@ -10,6 +10,7 @@ import com.tce.smart.algorithm.api.enums.AlgorithmTypeEnum;
 import com.tce.smart.algorithm.api.enums.FaceTypeEnum;
 import com.tce.smart.algorithm.api.feign.RemoteAlgorithmService;
 import com.tce.smart.app.api.entity.AppUserDevice;
+import com.tce.smart.app.ao.fore.PasswordResetUpdateReqDTO;
 import com.tce.smart.app.service.AppSmsService;
 import com.tce.smart.app.service.fore.DeviceManageService;
 import com.tce.smart.app.service.fore.PasswordService;
@@ -20,6 +21,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.common.core.util.EncDecryUtils;
 import com.tce.smart.common.core.util.UUIDUtils;
+import com.tce.smart.admin.api.dto.InternalPasswordResetReqDTO;
+import com.tce.smart.admin.api.feign.RemoteUserInternalService;
 import com.tce.smart.platform.api.dto.resp.InternalStaffPasswordRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffPhoneRespDTO;
 import com.tce.smart.platform.api.feign.RemoteSmtImageService;
@@ -107,6 +110,9 @@ public class PasswordServiceImpl implements PasswordService {
 	private RemoteSmtImageService remoteSmtImageService;
 
 	@Autowired
+	private RemoteUserInternalService remoteUserInternalService;
+
+	@Autowired
 	private DeviceManageService deviceManageService;
 
 	@Value("${spring.face.forget-password}")
@@ -114,6 +120,19 @@ public class PasswordServiceImpl implements PasswordService {
 
 	@Value("${security.auth-code.encode-key:}")
 	private String authCodeEncodeKey;
+
+	@Override
+	public Boolean resetPassword(PasswordResetUpdateReqDTO request) {
+		InternalPasswordResetReqDTO internalRequest = new InternalPasswordResetReqDTO();
+		internalRequest.setUsername(request.getUsername());
+		internalRequest.setPassword(request.getPassword());
+		internalRequest.setUpdateAuthCode(request.getUpdateAuthCode());
+		Result<Boolean> result = remoteUserInternalService.resetAppPassword(internalRequest);
+		if (result == null || !result.isSuccess()) {
+			throw new TCEException("密码修改失败");
+		}
+		return Boolean.TRUE.equals(result.getData());
+	}
 
 	@Override
 	public String createPasswordResetChallenge(String badge) {
