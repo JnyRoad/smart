@@ -133,7 +133,8 @@ public class PlatformTimerTask {
 	@Scheduled(fixedDelay = 2000 * 60 * 60)
 	public void syncOaAreaType() {
 		if (taskJob.getAdmittanceOaAreaType() && switchService.process(TimerTaskEnum.ADMITTANCE_OA_AREA_TYPE)) {
-			remoteOaAreaTypeSyncService.syncTask(SecurityConstants.FROM_IN);
+			remoteOaAreaTypeSyncService.syncTask(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		}
 	}
 
@@ -143,7 +144,8 @@ public class PlatformTimerTask {
 	@Scheduled(cron = "0 0 00 * * ?")
 	public void autoDeleteTask() {
 		if (taskJob.getSupplierAutoAuthDelete() && switchService.process(TimerTaskEnum.SUPPLIER_AUTO_AUTH_DELETE)) {
-			remoteSecurityAuthService.syncTask(SecurityConstants.FROM_IN);
+			remoteSecurityAuthService.syncTask(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		}
 	}
 
@@ -153,7 +155,8 @@ public class PlatformTimerTask {
 	@Scheduled(fixedDelay = 1000 * 60 * 20)
 	public void securitySendMessage() {
 		if (taskJob.getSupplierAuthMsg() && switchService.process(TimerTaskEnum.SUPPLIER_AUTH_MSG)) {
-			remoteSecurityAuthService.sendMessage(SecurityConstants.FROM_IN);
+			remoteSecurityAuthService.sendMessage(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		}
 	}
 
@@ -185,7 +188,8 @@ public class PlatformTimerTask {
 			return;
 		}
 		try {
-			remoteSecurityAuthService.updateOaStatusTask(SecurityConstants.FROM_IN);
+			remoteSecurityAuthService.updateOaStatusTask(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		} finally {
 			switchService.release(TimerTaskEnum.SECURITY_AUTH_UPDATE_OA, lockToken);
 		}
@@ -199,7 +203,8 @@ public class PlatformTimerTask {
 		if (taskJob.getOaCallbackLogClean() != null && taskJob.getOaCallbackLogClean()
 				&& switchService.process(TimerTaskEnum.OA_CALLBACK_LOG_CLEAN)) {
 			try {
-				remoteOaCallbackLogService.cleanTask(SecurityConstants.FROM_IN);
+				remoteOaCallbackLogService.cleanTask(SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			} catch (Exception e) {
 				log.error("OA回调日志过期清理任务异常", e);
 			}

@@ -212,14 +212,16 @@ public class AppEmployeeNoteServiceImpl extends ServiceImpl<AppEmployeeNoteMappe
 	 */
 	@Override
 	public List<AppParkSubject> prakIdArray() {
-		Result<?> result = remoteParkService.getParkList(SecurityConstants.FROM_IN);
+		Result<?> result = remoteParkService.getParkList(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		List smtParklist = (List) result.getData();
 		return smtParklist;
 	}
 
 	@Override
 	public List<SmtParkDTO> getParkList() {
-		Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN);
+		Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		List<SmtParkDTO> smtParklist = result.getData();
 		List<Integer> parkIdList = SecurityUtils.getUser().getParkIdList();
 		//返回当前登录用户关联的园区信息

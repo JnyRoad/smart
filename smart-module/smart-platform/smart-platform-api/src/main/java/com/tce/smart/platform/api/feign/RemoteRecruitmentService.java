@@ -64,7 +64,8 @@ public interface RemoteRecruitmentService {
 	 * @return
 	 */
 	@GetMapping("/recruitment/refreshRecruitment")
-	Result refreshRecruitmentById( @RequestHeader(SecurityConstants.FROM) String fromIn);
+	Result refreshRecruitmentById(@RequestHeader(SecurityConstants.FROM) String fromIn,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 定时更新组织信息
@@ -72,6 +73,7 @@ public interface RemoteRecruitmentService {
 	 * @return
 	 */
 	@GetMapping("/recruitment/refreshComp")
-	Result refreshComp( @RequestHeader(SecurityConstants.FROM) String fromIn);
+	Result refreshComp(@RequestHeader(SecurityConstants.FROM) String fromIn,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

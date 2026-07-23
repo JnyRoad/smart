@@ -23,7 +23,8 @@ public interface RemoteSecurityAuthService {
 	 * @return
 	 */
 	@GetMapping("/security/auth/delete/task")
-	Result syncTask(@RequestHeader(SecurityConstants.FROM) String from);
+	Result syncTask(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 下发提示信息推送
@@ -31,7 +32,8 @@ public interface RemoteSecurityAuthService {
 	 * @return
 	 */
 	@GetMapping("/security/auth/apply/msg")
-	Result sendMessage(@RequestHeader(SecurityConstants.FROM) String from);
+	Result sendMessage(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 保密门禁申请 OA 审批状态对账任务（spec §3.1.3/§3.1.4，PR2 定时补偿入口）
@@ -39,5 +41,6 @@ public interface RemoteSecurityAuthService {
 	 * @return
 	 */
 	@GetMapping("/security/auth/apply/oa/status/task")
-	Result updateOaStatusTask(@RequestHeader(SecurityConstants.FROM) String from);
+	Result updateOaStatusTask(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }

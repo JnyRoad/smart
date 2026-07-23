@@ -45,7 +45,8 @@ public class VcallCarServiceImpl implements IVcallCarService {
 	public IPage getVcallCarPage(Page page) {
 		List<QueryParkLogisticsDTO> queryDtoList = new ArrayList<>();
 
-		Result<List<SmtParkLogisticsDTO>> result = remoteParkLogisticsService.list(SecurityConstants.FROM_IN);
+		Result<List<SmtParkLogisticsDTO>> result = remoteParkLogisticsService.list(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (result.isSuccess() && CollectionUtils.isNotEmpty(result.getData())) {
 			QueryParkLogisticsDTO queryParkLogisticsDTO;
 			for (SmtParkLogisticsDTO elemenet : result.getData()) {

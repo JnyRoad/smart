@@ -86,6 +86,7 @@ public interface RemoteLeaveApplicationService {
 
     // 同步OA流程方法
     @GetMapping("/leave/application/sysn/record")
-    void sysnProcessRecord(@RequestHeader(SecurityConstants.FROM) String from);
+    void sysnProcessRecord(@RequestHeader(SecurityConstants.FROM) String from,
+            @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

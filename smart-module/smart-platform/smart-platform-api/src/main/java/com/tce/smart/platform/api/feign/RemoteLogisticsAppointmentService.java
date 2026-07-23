@@ -24,7 +24,9 @@ public interface RemoteLogisticsAppointmentService {
 	 * @return
 	 */
 	@PostMapping("/logistics/appointment/save")
-	Result save(@RequestBody LogisticsAppointmentReqDTO logisticsAppointmentDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result save(@RequestBody LogisticsAppointmentReqDTO logisticsAppointmentDTO,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**

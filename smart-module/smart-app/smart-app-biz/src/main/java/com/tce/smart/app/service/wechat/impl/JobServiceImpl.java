@@ -95,7 +95,8 @@ public class JobServiceImpl implements JobService {
 	@Override
 	public List<SmtParkDTO> getParkList() {
 		// 调用远程获取园区列表
-		return remoteParkService.getParkList(SecurityConstants.FROM_IN).data();
+		return remoteParkService.getParkList(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
 	}
 
 

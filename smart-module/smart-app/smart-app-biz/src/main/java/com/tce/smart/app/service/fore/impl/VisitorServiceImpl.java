@@ -660,7 +660,8 @@ public class VisitorServiceImpl implements VisitorService {
 
 	@Override
 	public List<SmtParkDTO> getPark() {
-		Result<List<SmtParkDTO>> parkList = remoteParkService.getParkList(SecurityConstants.FROM_IN);
+		Result<List<SmtParkDTO>> parkList = remoteParkService.getParkList(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (!parkList.isSuccess()) {
 			throw new TCEException("获取园区失败");
 		}

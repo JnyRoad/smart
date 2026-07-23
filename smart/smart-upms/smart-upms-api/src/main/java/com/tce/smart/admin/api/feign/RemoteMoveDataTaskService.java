@@ -30,5 +30,6 @@ public interface RemoteMoveDataTaskService {
 	 */
 	@GetMapping("/movetask/list")
 	Result<List<SysMoveDataTask>> getTaskTableList(@RequestParam("moduleType") Integer moduleType,
-			@RequestHeader(SecurityConstants.FROM) String from);
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }

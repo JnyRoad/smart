@@ -72,6 +72,7 @@ public interface RemoteDormitoryService {
 			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@GetMapping("/dor/quit/dealy/quit")
-	Result<Boolean> dealyQuit(@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> dealyQuit(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

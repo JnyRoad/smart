@@ -20,7 +20,8 @@ public interface RemoteStaffRechargeService {
 	 * @return
 	 */
 	@GetMapping("/recharge/new/recharge")
-	Result<Boolean> syncNewStaff(@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> syncNewStaff(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**
@@ -29,6 +30,7 @@ public interface RemoteStaffRechargeService {
 	 * @return
 	 */
 	@GetMapping("/recharge/senior/recharge")
-	Result<Boolean> syncSeniorStaff(@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> syncSeniorStaff(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

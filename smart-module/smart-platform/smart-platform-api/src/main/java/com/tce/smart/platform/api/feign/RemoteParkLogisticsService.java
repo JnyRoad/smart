@@ -26,8 +26,11 @@ public interface RemoteParkLogisticsService {
 	 * @return
 	 */
 	@GetMapping("/parklogistics/list")
-	Result<List<SmtParkLogisticsDTO>> list(@RequestHeader(SecurityConstants.FROM) String from);
+	Result<List<SmtParkLogisticsDTO>> list(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	@GetMapping("/parklogistics/companyId/{companyId}")
-	Result<SmtParkLogisticsDTO> getByCompanyId(@PathVariable("companyId") String companyId, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<SmtParkLogisticsDTO> getByCompanyId(@PathVariable("companyId") String companyId,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }

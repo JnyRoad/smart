@@ -91,7 +91,8 @@ public class EHRViewTimerTask {
 			List<EvwEcdLeavereason> evwEcdLeaveReasonList = iEvwEcdLeavereasonService.list();
 			if (CollectionUtils.isNotEmpty(evwEcdLeaveReasonList)) {
 				evwEcdLeaveReasonList.forEach(e -> remoteDictService.saveDict(DictConstants.LEAVE_APPLICATION_REASON,
-						e.getTitle(), String.valueOf(e.getId()), SecurityConstants.FROM_IN));
+				e.getTitle(), String.valueOf(e.getId()), SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 			}
 			log.info("Task leaveReasonTask end time:" + DateUtil.date());
 		}
@@ -107,7 +108,8 @@ public class EHRViewTimerTask {
 			List<EvwEcdLeavetype> evwEcdLeaveTypeList = iEvwEcdLeavetypeService.list();
 			if (CollectionUtils.isNotEmpty(evwEcdLeaveTypeList)) {
 				evwEcdLeaveTypeList.forEach(e -> remoteDictService.saveDict(DictConstants.LEAVE_APPLICATION_TYPE,
-						e.getTitle(), String.valueOf(e.getId()), SecurityConstants.FROM_IN));
+				e.getTitle(), String.valueOf(e.getId()), SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 			}
 			log.info("Task leaveTypeTask end time:" + DateUtil.date());
 		}
@@ -123,7 +125,8 @@ public class EHRViewTimerTask {
 			List<EvwEcdLeaintent> evwEcdLeaintentList = iEvwEcdLeaintentService.list();
 			if (CollectionUtils.isNotEmpty(evwEcdLeaintentList)) {
 				evwEcdLeaintentList.forEach(e -> remoteDictService.saveDict(DictConstants.LEAINTENT_TYPE, e.getTitle()
-						, String.valueOf(e.getId()), SecurityConstants.FROM_IN));
+						, String.valueOf(e.getId()), SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 			}
 			log.info("Task leaintentTask end time:" + DateUtil.date());
 		}
@@ -136,12 +139,15 @@ public class EHRViewTimerTask {
 	public void visitorTask() {
 		if (taskJob.getVisitorType() && iSwitchService.process(TimerTaskEnum.VISITOR_TYPE)) {
 			log.info("Task visitorTask start time:" + DateUtil.date());
-			Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN);
+			Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (result.isSuccess()) {
 				List<SmtParkDTO> parkDTOList = result.getData();
 				for (SmtParkDTO smtParkDTO : parkDTOList) {
-					remoteVisitorTaskService.visitorOverTime(smtParkDTO.getId(), SecurityConstants.FROM_IN);
-					remoteVisitorTaskService.visitorRemind(smtParkDTO.getId(), SecurityConstants.FROM_IN);
+					remoteVisitorTaskService.visitorOverTime(smtParkDTO.getId(), SecurityConstants.FROM_IN,
+							SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					remoteVisitorTaskService.visitorRemind(smtParkDTO.getId(), SecurityConstants.FROM_IN,
+							SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				}
 			}
 			log.info("Task visitorTask end time:" + DateUtil.date());
@@ -155,7 +161,8 @@ public class EHRViewTimerTask {
 	public void admittanceTask() {
 		if (taskJob.getAdmittanceRemind() && iSwitchService.process(TimerTaskEnum.ADMITTANCE_REMIND)) {
 			log.info("Task admittanceTask start time:" + DateUtil.date());
-			remoteAdmittanceTaskService.visitorRemind(SecurityConstants.FROM_IN);
+			remoteAdmittanceTaskService.visitorRemind(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task visitorTask end time:" + DateUtil.date());
 		}
 	}
@@ -175,7 +182,8 @@ public class EHRViewTimerTask {
 		}
 		try {
 			log.info("Task admittance_update_oa_task start time:" + DateUtil.date());
-			remoteAdmittanceTaskService.updateOaStatusTask(SecurityConstants.FROM_IN);
+			remoteAdmittanceTaskService.updateOaStatusTask(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task admittance_update_oa_task end time:" + DateUtil.date());
 		} finally {
 			iSwitchService.release(TimerTaskEnum.ADMITTANCE_UPDATE_OA, lockToken);
@@ -189,7 +197,8 @@ public class EHRViewTimerTask {
 	public void admittanceComeTask() {
 		if (taskJob.getAdmittanceComeOntime() && iSwitchService.process(TimerTaskEnum.ADMITTANCE_COME_ONTIME)) {
 			log.info("Task admittanceTask start time:" + DateUtil.date());
-			remoteAdmittanceTaskService.visitorComeOnTime(SecurityConstants.FROM_IN);
+			remoteAdmittanceTaskService.visitorComeOnTime(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task visitorTask end time:" + DateUtil.date());
 		}
 	}
@@ -198,8 +207,10 @@ public class EHRViewTimerTask {
 	public void admittanceOverTask() {
 		if (taskJob.getAdmittanceOvertime() && iSwitchService.process(TimerTaskEnum.ADMITTANCE_OVERTIME)) {
 			log.info("Task admittanceTask start time:" + DateUtil.date());
-			remoteAdmittanceTaskService.visitorOverTime(SecurityConstants.FROM_IN);
-			remoteAdmittanceTaskService.overTimeNoLeave(SecurityConstants.FROM_IN);
+			remoteAdmittanceTaskService.visitorOverTime(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			remoteAdmittanceTaskService.overTimeNoLeave(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task visitorTask end time:" + DateUtil.date());
 		}
 	}
@@ -211,11 +222,13 @@ public class EHRViewTimerTask {
 	public void visitorNoLeaveTask() {
 		if (taskJob.getVisitorNoLeave() && iSwitchService.process(TimerTaskEnum.VISITOR_NO_LEAVE)) {
 			log.info("Task visitorNoLeaveTask start time:" + DateUtil.date());
-			Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN);
+			Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (result.isSuccess()) {
 				List<SmtParkDTO> parkDTOList = result.getData();
 				for (SmtParkDTO smtParkDTO : parkDTOList) {
-					remoteVisitorTaskService.overTimeNoLeave(smtParkDTO.getId(), SecurityConstants.FROM_IN);
+					remoteVisitorTaskService.overTimeNoLeave(smtParkDTO.getId(), SecurityConstants.FROM_IN,
+							SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				}
 			}
 			log.info("Task visitorNoLeaveTask end time:" + DateUtil.date());
@@ -229,7 +242,8 @@ public class EHRViewTimerTask {
 	public void newStaffRecharge() {
 		if (taskJob.getNewStaffRecharge() && iSwitchService.process(TimerTaskEnum.NEW_STAFF_RECHARGE)) {
 			log.info("新员工充值名单同步任务:" + DateUtil.date());
-			remoteStaffRechargeService.syncNewStaff(SecurityConstants.FROM_IN);
+			remoteStaffRechargeService.syncNewStaff(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("新员工充值名单同步任务:" + DateUtil.date());
 		}
 	}
@@ -241,7 +255,8 @@ public class EHRViewTimerTask {
 	public void newsCheck() {
 		if (taskJob.getNewsTerminalCheck() && iSwitchService.process(TimerTaskEnum.NEWS_TERMINAL_CHECK)) {
 			log.info("终端消息发布检查任务:" + DateUtil.date());
-			remoteNewsInfoService.check(SecurityConstants.FROM_IN);
+			remoteNewsInfoService.check(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("终端消息发布检查任务:" + DateUtil.date());
 		}
 	}
@@ -254,7 +269,8 @@ public class EHRViewTimerTask {
 	public void seniorStaffRecharge() {
 		if (taskJob.getSeniorStaffRecharge() && iSwitchService.process(TimerTaskEnum.SENIOR_STAFF_RECHARGE)) {
 			log.info("在职员工充值名单同步任务:" + DateUtil.date());
-			remoteStaffRechargeService.syncSeniorStaff(SecurityConstants.FROM_IN);
+			remoteStaffRechargeService.syncSeniorStaff(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("在职员工充值名单同步任务:" + DateUtil.date());
 		}
 	}
@@ -267,7 +283,8 @@ public class EHRViewTimerTask {
 	public void refreshOutDormitory() {
 		if (taskJob.getOutdormitoryType() && iSwitchService.process(TimerTaskEnum.OUTDORMITORY_TYPE)) {
 			log.info("Task refreshOutDormitory start time:" + DateUtil.date());
-			remoteOutDormitoryStaffService.refreshOutDormitory(SecurityConstants.FROM_IN);
+			remoteOutDormitoryStaffService.refreshOutDormitory(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task refreshOutDormitory end time:" + DateUtil.date());
 		}
 	}
@@ -279,7 +296,8 @@ public class EHRViewTimerTask {
 	public void dealyQuit() {
 		if (taskJob.getDormitoryDealyQuit() && iSwitchService.process(TimerTaskEnum.DORMITORY_DEALY_QUIT)) {
 			log.info("退宿申请延迟退宿:" + DateUtil.date());
-			remoteDormitoryService.dealyQuit(SecurityConstants.FROM_IN);
+			remoteDormitoryService.dealyQuit(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("退宿申请延迟退宿:" + DateUtil.date());
 		}
 	}
@@ -291,7 +309,8 @@ public class EHRViewTimerTask {
 	public void pushVisitorToEmail() {
 		if (taskJob.getPushVisitorEmail() && iSwitchService.process(TimerTaskEnum.PUSH_VISITOR_EMAIL)) {
 			log.info("推送访客信息给指定人员email:" + DateUtil.date());
-			remoteVisitorTaskService.toEmail(SecurityConstants.FROM_IN);
+			remoteVisitorTaskService.toEmail(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("推送访客信息给指定人员email:" + DateUtil.date());
 		}
 	}
@@ -303,7 +322,8 @@ public class EHRViewTimerTask {
 	public void attendanceNotice() {
 		if (taskJob.getReplaceType() && iSwitchService.process(TimerTaskEnum.REPLACE_TYPE)) {
 			log.info("Task replaceErrorTask start time:" + DateUtil.date());
-			remoteAttendanceApplicationService.patchErrorPushMsg(SecurityConstants.FROM_IN);
+			remoteAttendanceApplicationService.patchErrorPushMsg(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task replaceErrorTask end time:" + DateUtil.date());
 		}
 	}
@@ -315,7 +335,8 @@ public class EHRViewTimerTask {
 	public void refreshRecruit() {
 		if (taskJob.getRefreshRecruit() && iSwitchService.process(TimerTaskEnum.REFRESH_RECRUIT)) {
 			log.info("Task refreshRecruit start time:" + DateUtil.date());
-			remoteRecruitmentService.refreshRecruitmentById(SecurityConstants.FROM_IN);
+			remoteRecruitmentService.refreshRecruitmentById(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task refreshRecruit end time:" + DateUtil.date());
 		}
 	}
@@ -328,7 +349,8 @@ public class EHRViewTimerTask {
 	public void refreshComp() {
 		if (taskJob.getRefreshComp() && iSwitchService.process(TimerTaskEnum.REFRESH_COMP)) {
 			log.info("Task refreshComp start time:" + DateUtil.date());
-			remoteRecruitmentService.refreshComp(SecurityConstants.FROM_IN);
+			remoteRecruitmentService.refreshComp(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task refreshComp end time:" + DateUtil.date());
 		}
 	}
@@ -341,7 +363,8 @@ public class EHRViewTimerTask {
 		if (taskJob.getWageSignInfo() && iSwitchService.process(TimerTaskEnum.WAGE_SIGN_INFO)) {
 			log.info("Task genWageSign start time:" + DateUtil.date());
 			//员工工资签单列表初始化
-			remoteWageSignService.syncTask(SecurityConstants.FROM_IN);
+			remoteWageSignService.syncTask(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task genWageSign end time:" + DateUtil.date());
 		}
 	}
@@ -354,7 +377,8 @@ public class EHRViewTimerTask {
 		if (taskJob.getAttendanceSignInfo() && iSwitchService.process(TimerTaskEnum.ATTENDANCE_SIGN_INFO)) {
 			log.info("Task genAttendanceSign start time:" + DateUtil.date());
 			//员工考勤签单列表初始化
-			remoteAttendanceSignService.syncTask(SecurityConstants.FROM_IN);
+			remoteAttendanceSignService.syncTask(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task genAttendanceSign end time:" + DateUtil.date());
 		}
 	}
@@ -367,8 +391,10 @@ public class EHRViewTimerTask {
 	public void sendNotice() {
 		if (taskJob.getEhrSetSendMsg() && iSwitchService.process(TimerTaskEnum.EHR_SET_SEND_MSG)) {
 			log.info("Task sendNotice start time:" + DateUtil.date());
-			remoteEhrSetUpService.sendMsg(SecurityConstants.FROM_IN);
-			remoteEhrSetUpService.autoConfirm(SecurityConstants.FROM_IN);
+			remoteEhrSetUpService.sendMsg(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			remoteEhrSetUpService.autoConfirm(SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("Task sendNotice end time:" + DateUtil.date());
 		}
 	}

@@ -52,7 +52,8 @@ public interface RemoteStaffService {
 	 * @return
 	 */
 	@PostMapping("/staff/sync")
-	Result syncStaff(@RequestBody EmpHrReqDTO empHr, @RequestHeader(SecurityConstants.FROM) String from);
+	Result syncStaff(@RequestBody EmpHrReqDTO empHr, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 同步员工信息
@@ -60,7 +61,8 @@ public interface RemoteStaffService {
 	 * @return
 	 */
 	@PostMapping("/staff/sync/img")
-	Result syncStaffImg(@RequestHeader(SecurityConstants.FROM) String from);
+	Result syncStaffImg(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 修改我的紧急联系人
@@ -146,13 +148,15 @@ public interface RemoteStaffService {
 	Result<Boolean> syncIscPersonFace(@RequestParam("badge") String badge,
 									  @RequestParam("parkId") Integer parkId,
 									  @RequestParam(value = "imageId", required = false) String imageId,
-									  @RequestHeader(SecurityConstants.FROM) String from);
+								  @RequestHeader(SecurityConstants.FROM) String from,
+								  @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 重试ISC员工人员和人脸同步失败任务
 	 */
 	@PostMapping("/staff/isc/person/face/retry")
-	Result<Boolean> retryFailedIscPersonFaceSync(@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> retryFailedIscPersonFaceSync(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 根据员工号查询空余床位
@@ -179,7 +183,9 @@ public interface RemoteStaffService {
 	 * @return
 	 */
 	@GetMapping("/staff/sync/list")
-	Result<Page<EmpHrReqDTO>> getStaffList(@RequestParam("current") Long current, @RequestParam("size") Long size, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<Page<EmpHrReqDTO>> getStaffList(@RequestParam("current") Long current, @RequestParam("size") Long size,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 远程添加设备任务

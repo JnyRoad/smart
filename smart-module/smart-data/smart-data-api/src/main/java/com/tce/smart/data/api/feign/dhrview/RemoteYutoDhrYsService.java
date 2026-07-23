@@ -30,7 +30,8 @@ public interface RemoteYutoDhrYsService {
     Result<Page<YutoDhrPsndoDTO>> page(@RequestParam("current") Long current,
 									   @RequestParam("size") Long size,
 									   @RequestParam("buIds") List<Integer> buIds,
-									   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 根据员工工号获得员工性质

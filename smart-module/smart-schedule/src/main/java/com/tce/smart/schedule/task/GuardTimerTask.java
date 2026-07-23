@@ -72,7 +72,8 @@ public class GuardTimerTask {
 		if (CollectionUtils.isNotEmpty(data)) {
 			for (VcallCar vcallCar : data) {
 				Result<SmtParkLogisticsDTO> result = remoteParkLogisticsService
-						.getByCompanyId(vcallCar.getCompanyId(), SecurityConstants.FROM_IN);
+						.getByCompanyId(vcallCar.getCompanyId(), SecurityConstants.FROM_IN,
+								SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if (result.isSuccess() && Objects.nonNull(result.getData())) {
 					LogisticsAppointmentReqDTO logisticsAppointmentReqDTO = new LogisticsAppointmentReqDTO();
 					logisticsAppointmentReqDTO.setParkId(result.getData().getParkId());
@@ -102,7 +103,8 @@ public class GuardTimerTask {
 								}
 							}
 							result = remoteLogisticsAppointmentService
-									.save(logisticsAppointmentReqDTO, SecurityConstants.FROM_IN);
+									.save(logisticsAppointmentReqDTO, SecurityConstants.FROM_IN,
+											SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 							log.info(result.getMsg());
 							try {
 								Thread.sleep(100L);

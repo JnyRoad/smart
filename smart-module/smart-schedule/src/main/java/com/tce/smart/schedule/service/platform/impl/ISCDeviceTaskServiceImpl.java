@@ -2849,7 +2849,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				log.warn("ISC人脸失败重试记录缺少人员标识，taskId={}, cardNo={}", task.getId(), task.getCardNo());
 				return;
 			}
-			Result<Boolean> result = remoteStaffService.syncIscPersonFace(badge, task.getParkId(), task.getImageId(), SecurityConstants.FROM_IN);
+			Result<Boolean> result = remoteStaffService.syncIscPersonFace(badge, task.getParkId(), task.getImageId(),
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (result == null || !result.isSuccess() || !Boolean.TRUE.equals(result.getData())) {
 				log.warn("ISC人脸失败已提交平台侧重试，badge={}, taskId={}, result={}", badge, task.getId(), result);
 			}
@@ -2979,7 +2980,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	@Override
 	public void syncDevice() {
 		log.info("开始-ISC设备同步任务，开始时间: {}", DateUtils.now());
-		Result<List<SmtParkDTO>> parkListRes = remoteParkService.getParkList(SecurityConstants.FROM_IN);
+		Result<List<SmtParkDTO>> parkListRes = remoteParkService.getParkList(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (!parkListRes.isSuccess() || CollectionUtil.isEmpty(parkListRes.getData())) {
 			log.info("查询园区列表失败：{}", parkListRes.getMessage());
 			return;
@@ -3136,7 +3138,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			return;
 		}
 		//log.info("读取温度{}：",temperatureList.toString());
-		remoteSnapPersonService.checkTemperature(temperatureList, SecurityConstants.FROM_IN);
+		remoteSnapPersonService.checkTemperature(temperatureList, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
 	private List<IscTemperatureDTO> getTemp(Integer current, String startTime, String endTime) {
