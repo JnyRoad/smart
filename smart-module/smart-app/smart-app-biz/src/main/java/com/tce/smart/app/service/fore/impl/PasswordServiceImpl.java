@@ -30,6 +30,7 @@ import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.Collections;
 
 /**
  * 密码服务实现类
@@ -60,6 +62,9 @@ public class PasswordServiceImpl implements PasswordService {
 	private static final int MAX_CHALLENGE_REQUESTS_PER_MINUTE = 5;
 	private static final int MAX_SMS_SEND_ATTEMPTS = 3;
 	private static final int MAX_VERIFY_ATTEMPTS = 5;
+	private static final DefaultRedisScript<Long> COMPARE_AND_DELETE = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if value == ARGV[1] then redis.call('del', KEYS[1]); return 1; end; return 0;",
+			Long.class);
 
 	@Autowired
 	private AppSmsService appSmsService;
@@ -129,7 +134,8 @@ public class PasswordServiceImpl implements PasswordService {
 
 	@Override
 	public String verifySmsCode(String challengeId, String smsCode) {
-		Map<String, Object> challenge = readChallenge(challengeId);
+		String challengeSource = readChallengeSource(challengeId);
+		Map<String, Object> challenge = parseChallenge(challengeSource);
 		if (!isActivePasswordChallenge(challenge) || number(challenge, "verifyAttempts") >= MAX_VERIFY_ATTEMPTS) {
 			throw new TCEException("验证码校验失败");
 		}
@@ -145,8 +151,12 @@ public class PasswordServiceImpl implements PasswordService {
 			throw new TCEException("验证码校验失败");
 		}
 
-		// 验证成功后立刻销毁 challenge；仅把来源标识写入下一跳的一次性改密授权记录。
-		stringRedisTemplate.delete(CHALLENGE_KEY_PREFIX + challengeId);
+		// 比较后删除：验证码错误不会消耗合法 challenge；并发成功请求中仅一个能兑换授权。
+		Long consumed = stringRedisTemplate.execute(COMPARE_AND_DELETE, Collections.singletonList(CHALLENGE_KEY_PREFIX + challengeId),
+				challengeSource);
+		if (!Long.valueOf(1L).equals(consumed)) {
+			throw new TCEException("验证码校验失败");
+		}
 		String verifySuccessCode = saveRedisCode(String.valueOf(challenge.get("badge")), PASSWORD_RESET_PURPOSE, challengeId);
 		return URLEncoder.encode(EncDecryUtils.encryptByJasypt(verifySuccessCode, authCodeEncodeKey));
 	}
@@ -279,10 +289,17 @@ public class PasswordServiceImpl implements PasswordService {
 	}
 
 	private Map<String, Object> readChallenge(String challengeId) {
+		return parseChallenge(readChallengeSource(challengeId));
+	}
+
+	private String readChallengeSource(String challengeId) {
 		if (StringUtils.isBlank(challengeId)) {
 			return null;
 		}
-		String source = stringRedisTemplate.opsForValue().get(CHALLENGE_KEY_PREFIX + challengeId);
+		return stringRedisTemplate.opsForValue().get(CHALLENGE_KEY_PREFIX + challengeId);
+	}
+
+	private Map<String, Object> parseChallenge(String source) {
 		if (StringUtils.isBlank(source)) {
 			return null;
 		}

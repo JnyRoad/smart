@@ -3,6 +3,7 @@ package com.tce.smart.app.service.fore;
 import com.tce.smart.app.service.AppSmsService;
 import com.tce.smart.app.service.fore.impl.PasswordServiceImpl;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.platform.api.dto.resp.InternalStaffPhoneRespDTO;
 import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import org.junit.Test;
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * 密码找回 challenge 的抗枚举回归测试。
@@ -58,6 +60,28 @@ public class PasswordResetChallengeTest {
 
 		assertTrue(service.sendSmsCode("opaque-challenge"));
 		Mockito.verifyZeroInteractions(smsService);
+	}
+
+	@Test
+	public void concurrentChallengeLoserCannotExchangeAnotherRequestsVerifiedChallenge() {
+		StringRedisTemplate redis = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		AppSmsService smsService = Mockito.mock(AppSmsService.class);
+		PasswordServiceImpl service = passwordService(redis, values, Mockito.mock(RemoteStaffInternalService.class));
+		ReflectionTestUtils.setField(service, "appSmsService", smsService);
+		String state = "{\"purpose\":\"password-reset\",\"badge\":\"8031249\",\"phone\":\"13800138000\",\"active\":true,\"sendAttempts\":0,\"verifyAttempts\":0}";
+		Mockito.when(values.get(Mockito.anyString())).thenReturn(state);
+		Mockito.when(smsService.verifySmsCode("13800138000", "123456")).thenReturn(Boolean.TRUE);
+		Mockito.when(redis.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString())).thenReturn(0L);
+
+		try {
+			service.verifySmsCode("opaque-challenge", "123456");
+			fail("并发输家不得兑换已被另一请求消费的 challenge");
+		} catch (TCEException expected) {
+			// 预期：Lua compare-and-delete 返回 0，不能签发改密授权。
+		}
+		Mockito.verify(redis).execute(Mockito.any(), Mockito.anyList(), Mockito.eq(state));
 	}
 
 	private PasswordServiceImpl passwordService(StringRedisTemplate redis, ValueOperations<String, String> values,

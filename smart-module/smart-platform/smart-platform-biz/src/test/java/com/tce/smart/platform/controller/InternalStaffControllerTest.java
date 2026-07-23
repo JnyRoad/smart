@@ -18,6 +18,7 @@ import org.mockito.Mockito;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -45,9 +46,9 @@ public class InternalStaffControllerTest {
 	public void internalEndpointsAreExplicitlyMarkedAndUseDedicatedPaths() throws Exception {
 		assertEquals("/internal/staff", InternalStaffController.class.getAnnotation(RequestMapping.class).value()[0]);
 		assertInternalEndpoint("getBindingStaff", "/binding/{badge}", InternalStaffBindingRespDTO.class,
-				String.class, String.class);
+				String.class, String.class, String.class);
 		assertInternalEndpoint("getModuleStaff", "/module/{badge}", InternalStaffModuleRespDTO.class,
-				String.class, String.class);
+				String.class, String.class, String.class);
 		assertInternalEndpoint("getPasswordStaff", "/password/{badge}", InternalStaffPasswordRespDTO.class,
 				String.class, String.class, String.class);
 		assertIdentityInternalEndpoint();
@@ -75,6 +76,7 @@ public class InternalStaffControllerTest {
 		staff.setEmail("schedule@example.invalid");
 		Mockito.when(staffService.getSimpleSttaffById("100")).thenReturn(staff);
 		InternalStaffController controller = new InternalStaffController(staffService, adapter);
+		ReflectionTestUtils.setField(controller, "appServiceClientId", "app");
 		setPrivateField(controller, "scheduleServiceClientId", "smart-schedule");
 
 		try {
@@ -124,6 +126,7 @@ public class InternalStaffControllerTest {
 		Mockito.when(staffService.getSimpleSttaffByBadge("self-badge")).thenReturn(staff);
 
 		InternalStaffController controller = new InternalStaffController(staffService, adapter);
+		ReflectionTestUtils.setField(controller, "appServiceClientId", "app");
 		assertEquals("123456789012345678", controller.getIdentityStaff("self-badge", SecurityConstants.FROM_IN, "ocr-compare").getData().getCertno());
 
 		try {
@@ -154,6 +157,10 @@ public class InternalStaffControllerTest {
 		assertTrue("账号开通端点必须声明用途", source.contains("getProvisioningStaff")
 				&& source.contains("PROVISIONING_PURPOSES"));
 		assertTrue("高敏感端点必须复用客户端白名单校验", source.contains("assertCallerAndPurpose"));
+		assertTrue("绑定和模块资料也必须声明用途", source.contains("BINDING_PURPOSES")
+				&& source.contains("MODULE_PURPOSES"));
+		assertTrue("App client-id 必须受管配置且缺失拒绝", source.contains("security.inner.staff.app-client-id")
+				&& source.contains("appServiceClientId"));
 	}
 
 	@Test
@@ -165,6 +172,7 @@ public class InternalStaffControllerTest {
 		Mockito.when(adapter.isClientOnly(authentication)).thenReturn(true);
 		Mockito.when(adapter.clientId(authentication)).thenReturn("app");
 		InternalStaffController controller = new InternalStaffController(staffService, adapter);
+		ReflectionTestUtils.setField(controller, "appServiceClientId", "app");
 
 		try {
 			controller.getPasswordPhone("any-badge", SecurityConstants.FROM_IN, "self-profile");

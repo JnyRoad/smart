@@ -22,7 +22,7 @@ export default {
 	},
 	// 设置密码
 	updatePassword (obj) {
-		return axios.put(`${API_PASSWORD_UPDATE}?username=${obj.username}&password=${obj.password}&updateAuthCode=${obj.updateAuthCode}`)
+		return axios.put(API_PASSWORD_UPDATE, obj)
 	},
 	// 通过工号创建不透明找回 challenge，响应不会携带手机号或员工存在状态
 	mobileQuery (badge) {

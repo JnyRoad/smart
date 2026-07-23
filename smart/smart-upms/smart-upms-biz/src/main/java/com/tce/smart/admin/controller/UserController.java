@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import com.tce.smart.admin.api.dto.UserDTO;
 import com.tce.smart.admin.api.dto.UserInfo;
+import com.tce.smart.admin.api.dto.PasswordUpdateReqDTO;
 import com.tce.smart.admin.api.entity.SysUser;
 import com.tce.smart.admin.service.SysUserService;
 import com.tce.smart.common.core.constant.CommonConstants;
@@ -273,9 +274,12 @@ public class UserController extends BaseController {
      *
      * @return  Result<Boolean> true-成功
      */
-    @PostMapping("/password/update")
-    public Result<Boolean> updatePwd(@RequestParam("username")String username,@RequestParam("password")String password,@RequestParam("updateAuthCode")String updateAuthCode) {
-        return new Result<Boolean>(userService.updatePwd(username,password, updateAuthCode));
+    @PutMapping("/password/update")
+    public Result<Boolean> updatePwd(@RequestBody PasswordUpdateReqDTO request) {
+        if (request == null) {
+            throw new TCEException("修改密码请求不能为空");
+        }
+        return new Result<Boolean>(userService.updatePwd(request.getUsername(), request.getPassword(), request.getUpdateAuthCode()));
     }
 
 	/**

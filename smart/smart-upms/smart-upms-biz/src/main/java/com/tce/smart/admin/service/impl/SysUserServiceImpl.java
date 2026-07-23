@@ -41,6 +41,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -59,6 +60,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder();
 	private static final Set<String> PASSWORD_RESET_AUTH_PURPOSES = new HashSet<>(Arrays.asList(
 			"password-reset", "face-password-reset"));
+	private static final DefaultRedisScript<Long> COMPARE_AND_DELETE = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if value == ARGV[1] then redis.call('del', KEYS[1]); return 1; end; return 0;",
+			Long.class);
     @Autowired
     private CacheManager cacheManager;
 	@Autowired
@@ -622,8 +626,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			throw new TCEException("新密码为非强密码，修改失败");
 		}
 		String redisKey = SecurityConstants.APP_PWD_UPDATE_AUTHCODE + username;
-		// getAndSet 使授权码只能被一个改密请求读取；不保留可重放窗口。
-		String authCodeObject = stringRedisTemplate.opsForValue().getAndSet(redisKey, "");
+		String authCodeObject = stringRedisTemplate.opsForValue().get(redisKey);
 		if (StringUtils.isEmpty(authCodeObject)) {
 			throw new TCEException("本次修改授权失败");
 		}
@@ -643,6 +646,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		}
 		if (!PASSWORD_RESET_AUTH_PURPOSES.contains(authCodeJson.getStr("purpose"))
 				|| StringUtils.isBlank(authCodeJson.getStr("verifiedChallengeId"))) {
+			throw new TCEException("本次修改授权失败");
+		}
+		// 先完成所有校验再比较删除：错误授权码绝不消耗合法授权；并发正确请求仅一个可以继续改密。
+		Long consumed = stringRedisTemplate.execute(COMPARE_AND_DELETE, Collections.singletonList(redisKey), authCodeObject);
+		if (!Long.valueOf(1L).equals(consumed)) {
 			throw new TCEException("本次修改授权失败");
 		}
 

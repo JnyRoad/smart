@@ -401,7 +401,7 @@ public class JobServiceImpl implements JobService {
 				work.setStartTime(ao.getStartTime());
 
 				Result result = remoteApplicationService.addApplicationWork(work, SecurityConstants.FROM_IN);
-				log.info("写入工作经历信息, Company={}, JobName={}, Result={}", work.getCompany(), work.getJobName(), result.isSuccess());
+				log.info("写入工作经历信息完成 success={}", result.isSuccess());
 			}
 		}
 		return new Result<>(true);
@@ -483,7 +483,7 @@ public class JobServiceImpl implements JobService {
 	public void applicationRelationUpdate(ApplicationEmergencyReqDTO applicationEmergencyReqDTO) {
 		// TODO Auto-generated method stub
 		Result<Integer> result = remoteApplicationService.updateByIdApplicationEmergency(applicationEmergencyReqDTO, SecurityConstants.FROM_IN);
-		log.info("修改紧急联系人: ApplicationId={}, Relation={}, EmergencyName={}, Result={}", applicationEmergencyReqDTO.getApplicationId(), applicationEmergencyReqDTO.getRelation(), applicationEmergencyReqDTO.getEmergencyName(), result.isSuccess());
+		log.info("修改紧急联系人完成 applicationId={} success={}", applicationEmergencyReqDTO.getApplicationId(), result.isSuccess());
 	}
 
 	@Override
@@ -512,7 +512,7 @@ public class JobServiceImpl implements JobService {
 			applicationEmergency.setEmergencyName(relationAo.getEmergencyName());
 			applicationEmergency.setTelephont(relationAo.getEmergencyPhone());
 			Result<Boolean> result = remoteApplicationService.addApplicationEmergency(applicationEmergency, SecurityConstants.FROM_IN);
-			log.info("新增紧急联系人: ApplicationId={}, Relation={}, EmergencyName={}, Result={}", applicationEmergency.getApplicationId(), applicationEmergency.getRelation(), applicationEmergency.getEmergencyName(), result.isSuccess());
+			log.info("新增紧急联系人完成 applicationId={} success={}", applicationEmergency.getApplicationId(), result.isSuccess());
 			return result;
 		} else {
 			log.error("员工id不能为空");
@@ -524,7 +524,7 @@ public class JobServiceImpl implements JobService {
 	public void familySave(FamilyMemberAddAO familyMemberAddAO) {
 		String applicationId = familyMemberAddAO.getApplicationId();
 		Result deleteFamily = remoteApplicationService.removeFamilyByApplicationId(Long.parseLong(applicationId), SecurityConstants.FROM_IN);
-		log.info("删除家庭成员: ApplicationId={}, Result={}", applicationId, deleteFamily);
+		log.info("删除家庭成员完成 applicationId={} success={}", applicationId, deleteFamily.isSuccess());
 		if (StringUtils.isNotEmpty(applicationId)) {
 			List<FamilyMemberAO> listFamilyMember = familyMemberAddAO.getFamilyMember();
 			if (CollectionUtils.isNotEmpty(listFamilyMember)) {
@@ -716,7 +716,7 @@ public class JobServiceImpl implements JobService {
 		appEmail.setApplicationId(Long.parseLong(email.getApplicationId()));
 		appEmail.setEmail(email.getEmail());
 		Result result = remoteApplicationService.addApplicationEmailList(appEmail, SecurityConstants.FROM_IN);
-		log.info("添加邮箱: ApplicationId={}, Email={}, Result={}", email.getApplicationId(), email.getEmail(), result.isSuccess());
+		log.info("添加邮箱完成 applicationId={} success={}", email.getApplicationId(), result.isSuccess());
 	}
 
 	@Override
@@ -725,7 +725,7 @@ public class JobServiceImpl implements JobService {
 		appEmail.setApplicationId(Long.parseLong(email.getApplicationId()));
 		appEmail.setEmail(email.getEmail());
 		Result result = remoteApplicationService.updateApplicationEmailList(appEmail, SecurityConstants.FROM_IN);
-		log.info("修改邮箱: ApplicationId={}, Email={}, Result={}", email.getApplicationId(), email.getEmail(), result.isSuccess());
+		log.info("修改邮箱完成 applicationId={} success={}", email.getApplicationId(), result.isSuccess());
 		return result;
 	}
 

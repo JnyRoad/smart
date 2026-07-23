@@ -38,7 +38,7 @@ public class BadgeLossServiceImpl implements BadgeLossService {
 	public BadgeInfoVo getBadgeInfo() {
 		String badge = SecurityUtils.getUser().getUsername();
 		Result<InternalStaffBindingRespDTO> staff = internalStaffService.getBindingStaff(badge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "badge-loss");
 		if (!staff.isSuccess() || Objects.isNull(staff.getData())) {
 			throw new SmartException("员工信息关联失败！");
 		}

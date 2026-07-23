@@ -106,7 +106,7 @@ public class AppWechatBindingServiceImpl extends ServiceImpl<AppWechatBindingMap
 			throw new SmartException("您还未关注公众号,请先关注");
 		}
 		Result<InternalStaffBindingRespDTO> staffInfo = remoteStaffInternalService.getBindingStaff(reqDTO.getBadge(),
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "wechat-binding");
 		if (!staffInfo.isSuccess() || staffInfo.getData() == null) {
 			throw new SmartException("员工信息不存在");
 		}

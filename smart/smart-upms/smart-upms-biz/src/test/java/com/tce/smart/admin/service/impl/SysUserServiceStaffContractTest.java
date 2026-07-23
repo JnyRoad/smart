@@ -44,7 +44,8 @@ public class SysUserServiceStaffContractTest {
 		assertFalse(source.contains("remoteStaffService.getSimpleSttaffByBadge.rs="));
 		assertFalse("手机号登录不得调用公开员工实体查询", source.contains("remoteStaffService.queryMobile("));
 		assertFalse("手机号登录不得消费 SmtStaffDTO", source.contains("SmtStaffDTO"));
-		assertFalse("改密授权不得保留可重放 Redis 值", source.contains("opsForValue().get(redisKey)"));
+		assertTrue("改密授权必须使用原子 compare-and-delete", source.contains("COMPARE_AND_DELETE")
+				&& source.contains("stringRedisTemplate.execute"));
 		assertTrue("改密授权必须拒绝缺少 challenge 来源的记录", source.contains("StringUtils.isBlank(authCodeJson.getStr(\"verifiedChallengeId\"))"));
 	}
 

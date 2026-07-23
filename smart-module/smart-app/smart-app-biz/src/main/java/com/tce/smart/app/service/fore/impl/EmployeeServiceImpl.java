@@ -208,7 +208,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 		em.setEmergencyPhone(relationAo.getEmergencyPhone());
 		em.setRelation(relationType);
 		Result result = remoteStaff.updateByBadge(em, SecurityConstants.FROM_IN);
-		log.info("修改紧急联系人: Badge={}, Relation={}, EmergencyName={}, Result={}", badge, em.getRelation(), em.getEmergencyName(), result.isSuccess());
+		log.info("修改紧急联系人完成 success={}", result.isSuccess());
 		return result;
 	}
 
@@ -223,7 +223,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 		inDormitoryDTO.setBedType(roomApplyVo.getBedType());
 		inDormitoryDTO.setParkId(roomApplyVo.getParkId());
 		Result result = remoteStaff.addInDormitory(inDormitoryDTO, SecurityConstants.FROM_IN);
-		log.info("员工申请内宿: Badge={}, Result={}", badge, result);
+		log.info("员工申请内宿完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -290,7 +290,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			outDormitory.setStaffBadge(badge);
 		}
 		Result result = outDormitoryStaffService.addOutDormitory(outDormitory, SecurityConstants.FROM_IN);
-		log.info("申请外宿: Badge={}, Result={}", outDormitory.getStaffBadge(), result.isSuccess());
+		log.info("申请外宿完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -303,7 +303,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			staffBadge = SecurityUtils.getUser().getUsername();
 		}
 		Result result = outDormitoryStaffService.getAllowance(staffBadge, type, SecurityConstants.FROM_IN);
-		log.info("获取补贴信息: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("获取补贴信息完成 success={}", result.isSuccess());
 		return result;
 	}
 
@@ -313,7 +313,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			staffBadge = SecurityUtils.getUser().getUsername();
 		}
 		Result<List<SmtOutDormitoryStaffDTO>> result = outDormitoryStaffService.getOutDormitoryInfo(staffBadge, type, SecurityConstants.FROM_IN);
-		log.info("外宿信息: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("外宿信息查询完成 success={}", result.isSuccess());
 
 		OutDormitoryVo vo = new OutDormitoryVo();
 		if (result.isSuccess()) {
@@ -461,7 +461,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public Result outRoomApplyDetail(Integer id) {
 		Result result = outDormitoryStaffService.outRoomApplyDetail(id, SecurityConstants.FROM_IN);
-		log.info("获取外宿审批详情: StaffBadge={}, Result={}", id, result.isSuccess());
+		log.info("获取外宿审批详情完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -474,7 +474,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			staffBadge = SecurityUtils.getUser().getUsername();
 		}
 		Result result = remoteCallowanceCancelRecordService.save(staffBadge, backDate, type, SecurityConstants.FROM_IN);
-		log.info("外宿补贴撤销申请: StaffBadge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("外宿补贴撤销申请完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -487,7 +487,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			staffBadge = SecurityUtils.getUser().getUsername();
 		}
 		Result result = remoteCallowanceCancelRecordService.get(staffBadge, SecurityConstants.FROM_IN);
-		log.info("外宿补贴撤销列表查询: StaffBadge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("外宿补贴撤销列表查询完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -510,7 +510,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			staffBadge = SecurityUtils.getUser().getUsername();
 		}
 		Result result = remoteCallowanceCancelRecordService.getOutDormitory(staffBadge, type, SecurityConstants.FROM_IN);
-		log.info("查询员工外宿补贴信息: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("查询员工外宿补贴信息完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -523,7 +523,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			staffBadge = SecurityUtils.getUser().getUsername();
 		}
 		Result result = remoteCallowanceCancelRecordService.callowanceDetail(staffBadge, type, SecurityConstants.FROM_IN);
-		log.info("查询外宿补贴详情: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("查询外宿补贴详情完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -536,7 +536,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 			staffBadge = SecurityUtils.getUser().getUsername();
 		}
 		Result result = remoteStaff.getJcheFreeBed(parkId, staffBadge, SecurityConstants.FROM_IN);
-		log.info("根据员工号查询空余床位: ParkId={}, Badge={}, Result={}", parkId, staffBadge, result.isSuccess());
+		log.info("查询空余床位完成 parkId={} success={}", parkId, result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -563,7 +563,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 				MapUtil.getInt(params, PaginationConstants.SIZE),
 				staffBadge,
 				SecurityConstants.FROM_IN);
-		log.info("查询员工外宿列表: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("查询员工外宿列表完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}

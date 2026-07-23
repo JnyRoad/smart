@@ -78,7 +78,7 @@ public class ForeModuleServiceImpl implements ForeModuleService {
 
 		//查询员工信息
 		Result<InternalStaffModuleRespDTO> moduleStaffResponse = remoteStaffInternalService.getModuleStaff(badge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "fore-module");
 		if (!moduleStaffResponse.isSuccess() || moduleStaffResponse.getData() == null) {
 			throw new TCEException("获取员工模块资料异常");
 		}

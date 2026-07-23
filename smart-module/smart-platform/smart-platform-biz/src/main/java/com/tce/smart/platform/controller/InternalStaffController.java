@@ -54,7 +54,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/internal/staff")
 public class InternalStaffController extends BaseController {
-	private static final String APP_SERVICE_CLIENT_ID = "app";
+	private static final List<String> BINDING_PURPOSES = Arrays.asList("wechat-binding", "badge-loss");
+	private static final List<String> MODULE_PURPOSES = Collections.singletonList("fore-module");
 	private static final List<String> IDENTITY_PURPOSES = Arrays.asList("ocr-compare", "icbc-eaccount");
 	private static final List<String> PASSWORD_STAFF_PURPOSES = Collections.singletonList("password-face-verify");
 	private static final List<String> PASSWORD_PHONE_PURPOSES = Arrays.asList("password-reset", "self-phone-verify");
@@ -75,6 +76,10 @@ public class InternalStaffController extends BaseController {
 	@Value("${security.inner.staff.upms-client-id:}")
 	private String upmsServiceClientId;
 
+	/** App 的服务客户端必须在受管配置中显式指定，空值按 fail-closed 处理。 */
+	@Value("${security.inner.staff.app-client-id:}")
+	private String appServiceClientId;
+
 	/** Smart Schedule 的服务客户端由受管配置提供；未配置时拒绝敏感 ISC 员工资料查询。 */
 	@Value("${security.inner.staff.schedule-client-id:}")
 	private String scheduleServiceClientId;
@@ -83,8 +88,10 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/binding/{badge}")
 	public Result<InternalStaffBindingRespDTO> getBindingStaff(@PathVariable("badge") String badge,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertCallerAndPurpose(purpose, BINDING_PURPOSES);
 		SmtStaff staff = findStaff(badge);
 		InternalStaffBindingRespDTO response = staff == null ? null : toBindingResponse(staff);
 		log.info("内部员工绑定资料查询完成 callerService={} purpose=binding success={}", callerService(), response != null);
@@ -95,8 +102,10 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/module/{badge}")
 	public Result<InternalStaffModuleRespDTO> getModuleStaff(@PathVariable("badge") String badge,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertCallerAndPurpose(purpose, MODULE_PURPOSES);
 		SmtStaff staff = findStaff(badge);
 		InternalStaffModuleRespDTO response = staff == null ? null : toModuleResponse(staff);
 		log.info("内部员工模块资料查询完成 callerService={} purpose=module success={}", callerService(), response != null);
@@ -313,7 +322,10 @@ public class InternalStaffController extends BaseController {
 	 * 并带上端点级用途。目的在于阻止任意 server scope 客户端按工号横向查询。
 	 */
 	private void assertCallerAndPurpose(String purpose, List<String> allowedPurposes) {
-		assertCallerAndPurpose(purpose, allowedPurposes, APP_SERVICE_CLIENT_ID);
+		if (StrUtil.isBlank(appServiceClientId)) {
+			throw new AccessDeniedException("App 内部客户端尚未受管配置");
+		}
+		assertCallerAndPurpose(purpose, allowedPurposes, appServiceClientId);
 	}
 
 	private void assertUpmsCallerAndPurpose(String purpose, List<String> allowedPurposes) {

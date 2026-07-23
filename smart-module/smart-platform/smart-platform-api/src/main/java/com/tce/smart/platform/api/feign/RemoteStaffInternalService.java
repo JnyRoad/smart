@@ -35,13 +35,15 @@ public interface RemoteStaffInternalService {
 	Result<InternalStaffBindingRespDTO> getBindingStaff(
 			@PathVariable("badge") String badge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@GetMapping("/internal/staff/module/{badge}")
 	Result<InternalStaffModuleRespDTO> getModuleStaff(
 			@PathVariable("badge") String badge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@GetMapping("/internal/staff/password/{badge}")
 	Result<InternalStaffPasswordRespDTO> getPasswordStaff(
