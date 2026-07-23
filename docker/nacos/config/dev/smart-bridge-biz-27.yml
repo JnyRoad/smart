@@ -6,8 +6,7 @@ security:
       client-secret: "${SMART_BRIDGE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # bridge
       scope: server
       # 放行url
-      ignore-urls:
-        - /**
+      ignore-urls: []
 
 #设备管理端base URL
 device:

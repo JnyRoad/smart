@@ -161,7 +161,8 @@ public class HandleServiceImpl implements HandleService {
 						bridgeDTO.setEventType(eventTypeEnum.getEventEnum().getCode());
 						bridgeDTO.setParkId(parkId);
 						bridgeDTO.setData(JSONUtil.toJsonStr(paramMap));
-						Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN);
+						Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN,
+								SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 						log.info("处理-ISC平台消息，key：{} - {}，EventId：{}，结果：{}，耗时：{}ms", eventTypeEnum.getEventEnum().getKey(), eventTypeEnum.getEventEnum().getDesc(), bridgeDTO.getEventId(), result.isSuccess(), DateUtils.toEpochMilli() - start);
 						if (!result.isSuccess()) {
 							throw new TCEException("Dispatcher处理失败");

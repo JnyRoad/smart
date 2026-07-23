@@ -5,8 +5,7 @@ security:
       client-secret: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # bridge
       scope: server
       # 放行url
-      ignore-urls:
-        - /**
+      ignore-urls: []
 
 smart:
   image:
@@ -16,6 +15,8 @@ smart:
     app-key: "${SMART_HIK_APP_KEY_ISC:${SMART_HIK_APP_KEY:}}"
     app-secret: "${SMART_HIK_APP_SECRET_ISC:${SMART_HIK_APP_SECRET:}}"
     callback-url: "${SMART_HIK_CALLBACK_URL_ISC:${SMART_HIK_CALLBACK_URL:}}"
+    # 旧回调未提供可验证签名、时间窗或 nonce；完成厂商协议改造前禁止重新订阅。
+    event-subscribe-enabled: "${SMART_HIK_EVENT_SUBSCRIBE_ENABLED_ISC:false}"
     # callback-url: http://10.1.20.110:6089/bridge/handle
 
 hbase:
