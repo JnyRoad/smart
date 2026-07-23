@@ -566,7 +566,8 @@ public class ISCDeviceTaskServiceImplTest {
 
 		Assert.assertEquals(DeviceTaskStatusEnum.SUCCESS.getCode(), task.getStatus());
 		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getCode(), task.getCode());
-		Assert.assertEquals("ISC已存在权限，按幂等成功处理", task.getRemark());
+		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getDesc(), task.getRemark());
+		Assert.assertFalse(task.getRemark().contains("ISC已存在权限"));
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 	}
 
@@ -592,7 +593,8 @@ public class ISCDeviceTaskServiceImplTest {
 
 		Assert.assertEquals(DeviceTaskStatusEnum.SUCCESS.getCode(), task.getStatus());
 		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getCode(), task.getCode());
-		Assert.assertEquals("ISC已存在权限，按幂等成功处理", task.getRemark());
+		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getDesc(), task.getRemark());
+		Assert.assertFalse(task.getRemark().contains("ISC已存在权限"));
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 	}
 
