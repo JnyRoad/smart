@@ -1,14 +1,15 @@
 package com.tce.smart.app.controller.fore;
 
+import javax.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tce.smart.app.ao.fore.PerfectInfoAo;
+import com.tce.smart.app.ao.fore.PasswordResetChallengeReqDTO;
 import com.tce.smart.app.ao.fore.PasswordSmsSendReqDTO;
 import com.tce.smart.app.ao.fore.PasswordSmsVerifyReqDTO;
 import com.tce.smart.app.service.fore.PasswordService;
@@ -37,9 +38,9 @@ public class PasswordController extends BaseController {
 	 * @param badge 员工号
 	 * @return
 	 */
-	@GetMapping("/mobile/query")
-	public Result<?> createChallenge(@RequestParam(value = "badge", required = true) String badge) {
-		return success(passwordService.createPasswordResetChallenge(badge));
+	@PostMapping("/mobile/query")
+	public Result<?> createChallenge(@Valid @RequestBody PasswordResetChallengeReqDTO request) {
+		return success(passwordService.createPasswordResetChallenge(request.getBadge()));
 	}
 
 	/**

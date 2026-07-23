@@ -24,9 +24,9 @@ export default {
 	updatePassword (obj) {
 		return axios.put(API_PASSWORD_UPDATE, obj)
 	},
-	// 通过工号创建不透明找回 challenge，响应不会携带手机号或员工存在状态
+	// 通过 POST JSON 工号创建不透明找回 challenge，响应不会携带手机号或员工存在状态
 	mobileQuery (badge) {
-		return axios.get(`${API_PASSWORD_MOBILE_QUERY}?badge=${badge}`)
+		return axios.post(API_PASSWORD_MOBILE_QUERY, { badge })
 	},
 	// 通过人脸修改密码
 	verifyFaceToPassword (face, deviceNo) {

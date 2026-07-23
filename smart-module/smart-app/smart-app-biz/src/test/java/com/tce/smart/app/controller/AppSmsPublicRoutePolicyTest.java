@@ -42,7 +42,29 @@ public class AppSmsPublicRoutePolicyTest {
 		assertEquals(EXPECTED_SMS_ROUTES, smsIgnoreUrls(testConfig));
 	}
 
+	/**
+	 * App 的匿名入口必须逐项登记。媒体、设备、园区详情和微信业务不能再通过
+	 * 通配符获得匿名权限，否则新增 Controller 会在未经过安全评审的情况下自动暴露。
+	 */
+	@Test
+	public void nacosDoesNotAllowBusinessWildcardRoutes() throws IOException {
+		List<String> routes = allIgnoreUrls(locateRepositoryRoot().resolve("docker/nacos/config/dev/smart-app.yml"));
+		assertFalse("匿名白名单不得保留业务通配符", routes.stream()
+				.anyMatch(route -> route.contains("*")));
+	}
+
 	private List<String> smsIgnoreUrls(Path configPath) throws IOException {
+		List<String> routes = allIgnoreUrls(configPath);
+		List<String> smsRoutes = new ArrayList<>();
+		for (String route : routes) {
+			if (route.startsWith("/sms/")) {
+				smsRoutes.add(route);
+			}
+		}
+		return smsRoutes;
+	}
+
+	private List<String> allIgnoreUrls(Path configPath) throws IOException {
 		List<String> routes = new ArrayList<>();
 		boolean inIgnoreUrls = false;
 		for (String line : Files.readAllLines(configPath, StandardCharsets.UTF_8)) {
@@ -57,7 +79,7 @@ public class AppSmsPublicRoutePolicyTest {
 				continue;
 			}
 			Matcher matcher = LIST_ITEM.matcher(line);
-			if (matcher.matches() && matcher.group(1).startsWith("/sms/")) {
+			if (matcher.matches()) {
 				routes.add(matcher.group(1).replace("\"", ""));
 			}
 		}
