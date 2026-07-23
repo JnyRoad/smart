@@ -150,8 +150,10 @@ public class PasswordServiceImpl implements PasswordService {
 		boolean providerSucceeded = false;
 		try {
 			// 只有 challenge 级预约赢家可到达这里；手机号始终只在服务端状态中使用。
-			appSmsService.sendSmsCode(String.valueOf(challenge.get("phone")));
-			providerSucceeded = true;
+			providerSucceeded = Boolean.TRUE.equals(appSmsService.sendSmsCode(String.valueOf(challenge.get("phone"))));
+			if (!providerSucceeded) {
+				log.warn("找回密码短信下发失败 scene=password-reset");
+			}
 		} catch (Exception e) {
 			// 保持抗枚举响应；告警日志不包含工号、手机号或 challenge。
 			log.warn("找回密码短信下发失败 scene=password-reset");

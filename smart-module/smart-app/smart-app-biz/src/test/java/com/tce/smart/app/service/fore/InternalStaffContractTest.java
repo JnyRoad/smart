@@ -126,6 +126,9 @@ public class InternalStaffContractTest {
 				&& passwordService.contains("SMS_SEND_STATE_SENT") && passwordService.contains("sendReservationId"));
 		assertTrue("短信 provider 完成后必须原子提交或释放预约", passwordService.contains("completeSmsSendAttempt")
 				&& passwordService.contains("COMPLETE_SMS_SEND_ATTEMPT"));
+		assertFalse("慢 provider 期间不得按时间自动接管 SENDING 预约", passwordService.contains("SMS_SEND_RESERVATION_TIMEOUT_MILLIS")
+				|| passwordService.contains("sendReservationAt"));
+		assertTrue("旧预约完成必须比较 reservationId，不能覆盖新预约", passwordService.contains("sendReservationId'] ~= ARGV[1]"));
 	}
 
 	@Test
