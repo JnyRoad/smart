@@ -57,6 +57,8 @@ import java.util.stream.Collectors;
 @Service
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
     private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder();
+	private static final Set<String> PASSWORD_RESET_AUTH_PURPOSES = new HashSet<>(Arrays.asList(
+			"password-reset", "face-password-reset"));
     @Autowired
     private CacheManager cacheManager;
 	@Autowired
@@ -304,7 +306,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		);
 		if (Objects.isNull(users) || users.size() < 1) {
 			Result<List<InternalStaffLoginRespDTO>> listResult = remoteStaffService.getLoginStaffByMobile(mobile,
-					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "upms-mobile-login");
 			if(listResult.isSuccess()){
 				List<InternalStaffLoginRespDTO> data = listResult.getData();
 				if(data.size() > 1){
@@ -614,18 +616,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	public Boolean updatePwd(String username,String password,String updateAuthCode){
 		Boolean isSuccess = false;
 
-		String redisKey = SecurityConstants.APP_PWD_UPDATE_AUTHCODE + username;
-		log.info("updatePwd.fundAuthCode.key={}",redisKey);
-		String authCodeObject = stringRedisTemplate.opsForValue().get(redisKey);
-		if (StringUtils.isEmpty(authCodeObject)) {
-			log.error("获取密码修改授权码异常");
-			throw new TCEException("本次修改授权失败");
-		}
-
 		if(!SecurityUtils.checkPassword(password)){
 			//新密码为非强密码
 			log.warn("新密码为非强密码，修改失败");
 			throw new TCEException("新密码为非强密码，修改失败");
+		}
+		String redisKey = SecurityConstants.APP_PWD_UPDATE_AUTHCODE + username;
+		// getAndSet 使授权码只能被一个改密请求读取；不保留可重放窗口。
+		String authCodeObject = stringRedisTemplate.opsForValue().getAndSet(redisKey, "");
+		if (StringUtils.isEmpty(authCodeObject)) {
+			throw new TCEException("本次修改授权失败");
 		}
 
 		//校验修改授权码
@@ -639,7 +639,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		}
 
 		if (!authCodeJson.getStr(SecurityConstants.PWD_UPDATE_AUTHCODE_SUB_KEY).equals(deUpdateAuthCode)) {
-			throw new TCEException("修改密码失败，人脸识别过于频繁");
+			throw new TCEException("本次修改授权失败");
+		}
+		if (!PASSWORD_RESET_AUTH_PURPOSES.contains(authCodeJson.getStr("purpose"))
+				|| StringUtils.isBlank(authCodeJson.getStr("verifiedChallengeId"))) {
+			throw new TCEException("本次修改授权失败");
 		}
 
 		Boolean isTemp = false;
@@ -699,7 +703,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	 */
 	private InternalStaffProvisioningRespDTO checkStaff(String username) {
 		Result<InternalStaffProvisioningRespDTO> queryStaffRs = remoteStaffService.getProvisioningStaff(username,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "upms-provisioning");
 		InternalStaffProvisioningRespDTO staffInfo = queryStaffRs.getData();
 		if(!queryStaffRs.isSuccess() || Objects.isNull(staffInfo)){
 			log.error("员工信息不存在");

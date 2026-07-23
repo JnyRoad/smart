@@ -14,6 +14,7 @@ import java.nio.file.Paths;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * UPMS 员工账号校验只能消费最小内部绑定契约。
@@ -22,13 +23,17 @@ public class SysUserServiceStaffContractTest {
 
 	@Test
 	public void staffProvisioningFeignRequiresInternalServiceToken() throws Exception {
-		Method method = RemoteStaffService.class.getMethod("getProvisioningStaff", String.class, String.class, String.class);
+		Method method = RemoteStaffService.class.getMethod("getProvisioningStaff", String.class, String.class, String.class,
+				String.class);
 		RequestHeader fromHeader = method.getParameters()[1].getAnnotation(RequestHeader.class);
 		RequestHeader serviceAuthHeader = method.getParameters()[2].getAnnotation(RequestHeader.class);
+		RequestHeader purposeHeader = method.getParameters()[3].getAnnotation(RequestHeader.class);
 		assertNotNull(fromHeader);
 		assertNotNull(serviceAuthHeader);
 		assertEquals(SecurityConstants.FROM, fromHeader.value());
 		assertEquals(SecurityConstants.INTERNAL_SERVICE_AUTH, serviceAuthHeader.value());
+		assertNotNull(purposeHeader);
+		assertEquals("X-Smart-Internal-Purpose", purposeHeader.value());
 	}
 
 	@Test
@@ -39,6 +44,8 @@ public class SysUserServiceStaffContractTest {
 		assertFalse(source.contains("remoteStaffService.getSimpleSttaffByBadge.rs="));
 		assertFalse("手机号登录不得调用公开员工实体查询", source.contains("remoteStaffService.queryMobile("));
 		assertFalse("手机号登录不得消费 SmtStaffDTO", source.contains("SmtStaffDTO"));
+		assertFalse("改密授权不得保留可重放 Redis 值", source.contains("opsForValue().get(redisKey)"));
+		assertTrue("改密授权必须拒绝缺少 challenge 来源的记录", source.contains("StringUtils.isBlank(authCodeJson.getStr(\"verifiedChallengeId\"))"));
 	}
 
 	@Test

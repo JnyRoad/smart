@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * App 到 Platform 的员工内部契约测试。
@@ -41,7 +42,10 @@ public class InternalStaffContractTest {
 	public void internalStaffMethodsRequireFromAndServiceAuthenticationHeaders() throws Exception {
 		assertInternalHeaders("getBindingStaff");
 		assertInternalHeaders("getModuleStaff");
-		assertInternalHeaders("getPasswordStaff");
+		assertPurposeHeaders("getPasswordStaff");
+		assertPurposeHeaders("getPasswordPhone");
+		assertPurposeHeaders("getSelfProfile");
+		assertPurposeHeaders("getMyDormitory");
 		assertIdentityHeaders();
 		assertFaceLoginHeaders();
 	}
@@ -97,6 +101,20 @@ public class InternalStaffContractTest {
 		assertFalse("银行实名接口不得向客户端构造包含身份证的表单", icbcService.contains("buildPostForm("));
 	}
 
+	@Test
+	public void passwordResetUsesOpaqueChallengeInsteadOfReusableBadgeAuthorization() throws IOException {
+		String controllerRoot = "src/main/java/com/tce/smart/app/controller/fore/";
+		String passwordController = read(controllerRoot + "PasswordController.java");
+		String passwordService = read(APP_SOURCE_ROOT + "/fore/impl/PasswordServiceImpl.java");
+
+		assertTrue("短信发送必须只接收一次性 challenge，不得再次接收工号", passwordController.contains("challengeId"));
+		assertFalse("短信发送不得将任意工号直接传入服务", passwordController.contains("sendSmsCode(badge)"));
+		assertFalse("短信校验不得将任意工号直接传入服务", passwordController.contains("verifySmsCode(badge, smsCode)"));
+		assertTrue("challenge 必须绑定用途、过期时间和有限重试次数", passwordService.contains("PASSWORD_RESET_PURPOSE")
+				&& passwordService.contains("CHALLENGE_TTL_SECONDS") && passwordService.contains("MAX_VERIFY_ATTEMPTS"));
+		assertTrue("密码更新授权必须标明已验证 challenge 来源", passwordService.contains("verifiedChallengeId"));
+	}
+
 	private void assertInternalHeaders(String methodName) throws Exception {
 		Method method = RemoteStaffInternalService.class.getMethod(methodName,
 				String.class, String.class, String.class);
@@ -107,6 +125,18 @@ public class InternalStaffContractTest {
 		assertNotNull("服务令牌标记必须显式声明", serviceAuthHeader);
 		assertEquals(SecurityConstants.FROM, fromHeader.value());
 		assertEquals(SecurityConstants.INTERNAL_SERVICE_AUTH, serviceAuthHeader.value());
+	}
+
+	private void assertPurposeHeaders(String methodName) throws Exception {
+		Method method = RemoteStaffInternalService.class.getMethod(methodName,
+				String.class, String.class, String.class, String.class);
+		RequestHeader fromHeader = method.getParameters()[1].getAnnotation(RequestHeader.class);
+		RequestHeader serviceAuthHeader = method.getParameters()[2].getAnnotation(RequestHeader.class);
+		RequestHeader purposeHeader = method.getParameters()[3].getAnnotation(RequestHeader.class);
+		assertNotNull("内部来源头必须显式声明", fromHeader);
+		assertNotNull("服务令牌标记必须显式声明", serviceAuthHeader);
+		assertNotNull("高敏感资料调用必须显式声明用途", purposeHeader);
+		assertEquals("X-Smart-Internal-Purpose", purposeHeader.value());
 	}
 
 	private void assertIdentityHeaders() throws Exception {

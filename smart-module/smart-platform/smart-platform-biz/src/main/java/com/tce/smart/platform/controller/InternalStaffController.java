@@ -19,15 +19,18 @@ import com.tce.smart.platform.api.dto.resp.InternalStaffPhoneRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffProvisioningRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffSelfProfileRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffFaceLoginRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleIscPersonRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
 import com.tce.smart.platform.api.dto.resp.MyDormitoryRespDTO;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.entity.SmtStaffEmergency;
 import com.tce.smart.platform.core.vo.StaffInfoVO;
 import com.tce.smart.platform.service.SmtStaffService;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,14 +51,33 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RequestMapping("/internal/staff")
 public class InternalStaffController extends BaseController {
 	private static final String APP_SERVICE_CLIENT_ID = "app";
 	private static final List<String> IDENTITY_PURPOSES = Arrays.asList("ocr-compare", "icbc-eaccount");
+	private static final List<String> PASSWORD_STAFF_PURPOSES = Collections.singletonList("password-face-verify");
+	private static final List<String> PASSWORD_PHONE_PURPOSES = Arrays.asList("password-reset", "self-phone-verify");
+	private static final List<String> SELF_PROFILE_PURPOSES = Collections.singletonList("self-profile");
+	private static final List<String> PHONE_UPDATE_PURPOSES = Collections.singletonList("phone-update");
+	private static final List<String> PROVISIONING_PURPOSES = Collections.singletonList("upms-provisioning");
+	private static final List<String> MOBILE_LOGIN_PURPOSES = Collections.singletonList("upms-mobile-login");
+	private static final List<String> FACE_LOGIN_PURPOSES = Collections.singletonList("face-login");
+	private static final List<String> DORMITORY_PURPOSES = Collections.singletonList("my-dormitory");
 
 	private final SmtStaffService smtStaffService;
 	private final OpenApiAuthenticationAdapter openApiAuthenticationAdapter;
+
+	/**
+	 * UPMS 的服务客户端由受管配置提供。Nacos 未配置时拒绝账号开通和手机号登录，
+	 * 不能用猜测的 client_id 放宽权限。
+	 */
+	@Value("${security.inner.staff.upms-client-id:}")
+	private String upmsServiceClientId;
+
+	/** Smart Schedule 的服务客户端由受管配置提供；未配置时拒绝敏感 ISC 员工资料查询。 */
+	@Value("${security.inner.staff.schedule-client-id:}")
+	private String scheduleServiceClientId;
 
 	@Inner
 	@OpenApi("server")
@@ -85,8 +107,10 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/password/{badge}")
 	public Result<InternalStaffPasswordRespDTO> getPasswordStaff(@PathVariable("badge") String badge,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertCallerAndPurpose(purpose, PASSWORD_STAFF_PURPOSES);
 		SmtStaff staff = findStaff(badge);
 		InternalStaffPasswordRespDTO response = staff == null ? null : toPasswordResponse(staff);
 		log.info("内部员工密码资料查询完成 callerService={} purpose=password success={}", callerService(), response != null);
@@ -113,8 +137,10 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/login/mobile/{mobile}")
 	public Result<List<InternalStaffLoginRespDTO>> getLoginStaffByMobile(@PathVariable("mobile") String mobile,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertUpmsCallerAndPurpose(purpose, MOBILE_LOGIN_PURPOSES);
 		List<SmtStaff> staffs = smtStaffService.findStaffByMobileForLogin(mobile);
 		if (staffs == null || staffs.isEmpty()) {
 			return success(Collections.emptyList());
@@ -135,8 +161,10 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/password-phone/{badge}")
 	public Result<InternalStaffPhoneRespDTO> getPasswordPhone(@PathVariable("badge") String badge,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertCallerAndPurpose(purpose, PASSWORD_PHONE_PURPOSES);
 		SmtStaff staff = findStaff(badge);
 		InternalStaffPhoneRespDTO response = null;
 		if (staff != null) {
@@ -153,8 +181,10 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/self-profile/{badge}")
 	public Result<InternalStaffSelfProfileRespDTO> getSelfProfile(@PathVariable("badge") String badge,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertCallerAndPurpose(purpose, SELF_PROFILE_PURPOSES);
 		StaffInfoVO baseInfo = smtStaffService.getBaseinfoById(badge);
 		StaffInfoVO fullInfo = smtStaffService.getSmtStaffInfoByBadge(badge);
 		InternalStaffSelfProfileRespDTO response = toSelfProfileResponse(baseInfo, fullInfo);
@@ -167,8 +197,10 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@PostMapping("/phone")
 	public Result<Boolean> updatePhone(@RequestBody InternalStaffPhoneUpdateReqDTO request,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertCallerAndPurpose(purpose, PHONE_UPDATE_PURPOSES);
 		if (request == null || StrUtil.isBlank(request.getBadge()) || StrUtil.isBlank(request.getPhone())) {
 			throw new AccessDeniedException("手机号更新参数不完整");
 		}
@@ -188,8 +220,9 @@ public class InternalStaffController extends BaseController {
 			@RequestHeader(SecurityConstants.FROM) String from,
 			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertCallerAndPurpose(purpose, FACE_LOGIN_PURPOSES);
 		if (request == null || StrUtil.isBlank(request.getFacePic()) || StrUtil.isBlank(request.getDeviceNo())
-				|| !"face-login".equals(purpose)) {
+				|| !FACE_LOGIN_PURPOSES.contains(purpose)) {
 			throw new AccessDeniedException("人脸登录调用未获授权");
 		}
 		SmtStaff staff = smtStaffService.faceSearchForLogin(request.getFacePic().replaceAll("[\\t\\n\\r]", ""), request.getDeviceNo());
@@ -207,8 +240,10 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/dormitory/{badge}")
 	public Result<MyDormitoryRespDTO> getMyDormitory(@PathVariable("badge") String badge,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertCallerAndPurpose(purpose, DORMITORY_PURPOSES);
 		SmtStaff staff = new SmtStaff();
 		staff.setBadge(badge);
 		log.info("内部员工宿舍查询完成 callerService={} purpose=my-dormitory", callerService());
@@ -222,11 +257,41 @@ public class InternalStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/provisioning/{badge}")
 	public Result<InternalStaffProvisioningRespDTO> getProvisioningStaff(@PathVariable("badge") String badge,
-			@RequestHeader(SecurityConstants.FROM) String from) {
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
 		assertInternalFrom(from);
+		assertUpmsCallerAndPurpose(purpose, PROVISIONING_PURPOSES);
 		SmtStaff staff = findStaff(badge);
 		InternalStaffProvisioningRespDTO response = staff == null ? null : toProvisioningResponse(staff);
 		log.info("内部员工账号开通资料查询完成 callerService={} purpose=upms-provisioning success={}", callerService(), response != null);
+		return success(response);
+	}
+
+	/** ISC 人员创建专用资料：完整证件号只能由 Smart Schedule 服务端下发至 ISC。 */
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/schedule/isc-person/{staffId}")
+	public Result<InternalScheduleIscPersonRespDTO> getScheduleIscPersonStaff(@PathVariable("staffId") Long staffId,
+			@RequestHeader(SecurityConstants.FROM) String from) {
+		assertInternalFrom(from);
+		assertScheduleCaller();
+		SmtStaff staff = findStaffById(staffId);
+		InternalScheduleIscPersonRespDTO response = staff == null ? null : toScheduleIscPersonResponse(staff);
+		log.info("Schedule ISC 人员创建资料查询完成 callerService={} purpose=isc-person success={}", callerService(), response != null);
+		return success(response);
+	}
+
+	/** ISC 人员查询、删除和卡片下发专用的身份投影，禁止回传完整员工实体。 */
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/schedule/identity/{staffId}")
+	public Result<InternalScheduleStaffIdentityRespDTO> getScheduleIdentityStaff(@PathVariable("staffId") Long staffId,
+			@RequestHeader(SecurityConstants.FROM) String from) {
+		assertInternalFrom(from);
+		assertScheduleCaller();
+		SmtStaff staff = findStaffById(staffId);
+		InternalScheduleStaffIdentityRespDTO response = staff == null ? null : toScheduleIdentityResponse(staff);
+		log.info("Schedule ISC 身份资料查询完成 callerService={} purpose=isc-identity success={}", callerService(), response != null);
 		return success(response);
 	}
 
@@ -240,11 +305,45 @@ public class InternalStaffController extends BaseController {
 	 * 身份证号属于高敏感资料：除服务令牌外，还必须限定为 App 服务客户端并声明已审核用途。
 	 */
 	private void assertIdentityCallerAndPurpose(String purpose) {
+		assertCallerAndPurpose(purpose, IDENTITY_PURPOSES);
+	}
+
+	/**
+	 * 读取身份证、手机号和本人资料等敏感投影时，服务令牌还必须是受审核的纯 App 客户端，
+	 * 并带上端点级用途。目的在于阻止任意 server scope 客户端按工号横向查询。
+	 */
+	private void assertCallerAndPurpose(String purpose, List<String> allowedPurposes) {
+		assertCallerAndPurpose(purpose, allowedPurposes, APP_SERVICE_CLIENT_ID);
+	}
+
+	private void assertUpmsCallerAndPurpose(String purpose, List<String> allowedPurposes) {
+		if (StrUtil.isBlank(upmsServiceClientId)) {
+			throw new AccessDeniedException("UPMS 内部客户端尚未受管配置");
+		}
+		assertCallerAndPurpose(purpose, allowedPurposes, upmsServiceClientId);
+	}
+
+	/**
+	 * Schedule 身份资料接口不接收可伪造的用途参数，只接受受管 Schedule client_credentials 主体。
+	 * {@link OpenApi} 负责 scope=server 校验，此处把 client_id 再约束为 Schedule 专用配置。
+	 */
+	private void assertScheduleCaller() {
+		if (StrUtil.isBlank(scheduleServiceClientId)) {
+			throw new AccessDeniedException("Schedule 内部客户端尚未受管配置");
+		}
 		Authentication authentication = SecurityUtils.getAuthentication();
 		if (authentication == null || !openApiAuthenticationAdapter.isClientOnly(authentication)
-				|| !APP_SERVICE_CLIENT_ID.equals(openApiAuthenticationAdapter.clientId(authentication))
-				|| !IDENTITY_PURPOSES.contains(purpose)) {
-			throw new AccessDeniedException("身份资料调用未获授权");
+				|| !scheduleServiceClientId.equals(openApiAuthenticationAdapter.clientId(authentication))) {
+			throw new AccessDeniedException("Schedule 身份资料调用未获授权");
+		}
+	}
+
+	private void assertCallerAndPurpose(String purpose, List<String> allowedPurposes, String allowedClientId) {
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (authentication == null || !openApiAuthenticationAdapter.isClientOnly(authentication)
+				|| !allowedClientId.equals(openApiAuthenticationAdapter.clientId(authentication))
+				|| !allowedPurposes.contains(purpose)) {
+			throw new AccessDeniedException("内部敏感资料调用未获授权");
 		}
 	}
 
@@ -258,6 +357,28 @@ public class InternalStaffController extends BaseController {
 
 	private SmtStaff findStaff(String badge) {
 		return StrUtil.isBlank(badge) ? null : smtStaffService.getSimpleSttaffByBadge(badge);
+	}
+
+	private SmtStaff findStaffById(Long staffId) {
+		return staffId == null ? null : smtStaffService.getById(staffId);
+	}
+
+	private InternalScheduleIscPersonRespDTO toScheduleIscPersonResponse(SmtStaff staff) {
+		InternalScheduleIscPersonRespDTO response = new InternalScheduleIscPersonRespDTO();
+		response.setBadge(staff.getBadge());
+		response.setName(staff.getName());
+		response.setSex(staff.getSex());
+		response.setBirth(staff.getBirth());
+		response.setCertno(staff.getCertno());
+		return response;
+	}
+
+	private InternalScheduleStaffIdentityRespDTO toScheduleIdentityResponse(SmtStaff staff) {
+		InternalScheduleStaffIdentityRespDTO response = new InternalScheduleStaffIdentityRespDTO();
+		response.setBadge(staff.getBadge());
+		response.setCertno(staff.getCertno());
+		response.setStatus(staff.getStatus());
+		return response;
 	}
 
 	private InternalStaffBindingRespDTO toBindingResponse(SmtStaff staff) {

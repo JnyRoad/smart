@@ -27,7 +27,8 @@ public interface RemoteStaffService {
 	Result<InternalStaffProvisioningRespDTO> getProvisioningStaff(
 			@PathVariable("badge") String badge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 * 登陆初始化员工权限
@@ -42,5 +43,6 @@ public interface RemoteStaffService {
 	@GetMapping("/internal/staff/login/mobile/{mobile}")
 	Result<List<InternalStaffLoginRespDTO>> getLoginStaffByMobile(@PathVariable("mobile") String mobile,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 }

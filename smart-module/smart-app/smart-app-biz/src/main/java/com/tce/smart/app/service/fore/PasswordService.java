@@ -11,29 +11,29 @@ import com.tce.smart.app.vo.fore.ChackFacePwdVo;
 public interface PasswordService {
 
 	/**
-	 * 获取员工手机号(隐藏处理)
+	 * 创建密码找回 challenge。无论工号是否存在均返回不透明 challenge，避免枚举员工信息。
 	 *
 	 * @param badge 员工工号
 	 * @return 手机号码（已做隐藏处理）
 	 */
-	String queryMobile(String badge);
+	String createPasswordResetChallenge(String badge);
 
 	/**
 	 * 发送短信验证码
 	 *
-	 * @param badge 员工工号
+	 * @param challengeId 一次性 challenge
 	 * @return true-成功
 	 */
-	Boolean sendSmsCode(String badge);
+	Boolean sendSmsCode(String challengeId);
 
 	/**
 	 * 校验短信验证码
 	 *
-	 * @param badge   员工号
+	 * @param challengeId 一次性 challenge
 	 * @param smsCode 短信验证码
 	 * @return 校验成功授权码
 	 */
-	String verifySmsCode(String badge, String smsCode);
+	String verifySmsCode(String challengeId, String smsCode);
 
 	/**
 	 * 人脸识别校验

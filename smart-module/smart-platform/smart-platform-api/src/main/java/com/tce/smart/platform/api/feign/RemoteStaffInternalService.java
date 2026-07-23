@@ -47,7 +47,8 @@ public interface RemoteStaffInternalService {
 	Result<InternalStaffPasswordRespDTO> getPasswordStaff(
 			@PathVariable("badge") String badge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@GetMapping("/internal/staff/ocr/{badge}")
 	Result<InternalStaffIdentityRespDTO> getIdentityStaff(
@@ -60,24 +61,28 @@ public interface RemoteStaffInternalService {
 	Result<List<InternalStaffLoginRespDTO>> getLoginStaffByMobile(
 			@PathVariable("mobile") String mobile,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@GetMapping("/internal/staff/password-phone/{badge}")
 	Result<InternalStaffPhoneRespDTO> getPasswordPhone(
 			@PathVariable("badge") String badge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@GetMapping("/internal/staff/self-profile/{badge}")
 	Result<InternalStaffSelfProfileRespDTO> getSelfProfile(
 			@PathVariable("badge") String badge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@PostMapping("/internal/staff/phone")
 	Result<Boolean> updatePhone(@RequestBody InternalStaffPhoneUpdateReqDTO request,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	@PostMapping("/internal/staff/face-login")
 	Result<InternalStaffFaceLoginRespDTO> faceLogin(@RequestBody InternalStaffFaceLoginReqDTO request,
@@ -88,6 +93,7 @@ public interface RemoteStaffInternalService {
 	@GetMapping("/internal/staff/dormitory/{badge}")
 	Result<MyDormitoryRespDTO> getMyDormitory(@PathVariable("badge") String badge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 }

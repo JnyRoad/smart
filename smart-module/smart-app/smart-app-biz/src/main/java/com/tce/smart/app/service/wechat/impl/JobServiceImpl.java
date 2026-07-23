@@ -741,7 +741,7 @@ public class JobServiceImpl implements JobService {
 		// 获取员工号
 		badge = requireSelfBadge(badge);
 		Result<InternalStaffSelfProfileRespDTO> profileResult = remoteStaffInternalService.getSelfProfile(badge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "self-profile");
 		if (!profileResult.isSuccess() || profileResult.getData() == null) {
 			throw new TCEException("获取员工信息异常");
 		}

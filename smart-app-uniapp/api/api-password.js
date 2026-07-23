@@ -13,18 +13,18 @@ import {
 // 导出 密码找回 接口信息
 export default {
 	// 发送短息验证码
-	sendSms (badge) {
-		return axios.get(`${API_SMS_SEND}?badge=${badge}`)
+	sendSms (challengeId) {
+		return axios.get(`${API_SMS_SEND}?challengeId=${challengeId}`)
 	},
 	// 校验短信验证码
 	verifySms (obj) {
-		return axios.get(`${API_SMS_VERIFY}?smsCode=${obj.smsCode}&badge=${obj.badge}`)
+		return axios.get(`${API_SMS_VERIFY}?smsCode=${obj.smsCode}&challengeId=${obj.challengeId}`)
 	},
 	// 设置密码
 	updatePassword (obj) {
 		return axios.put(`${API_PASSWORD_UPDATE}?username=${obj.username}&password=${obj.password}&updateAuthCode=${obj.updateAuthCode}`)
 	},
-	// 通过工号获取手机号码
+	// 通过工号创建不透明找回 challenge，响应不会携带手机号或员工存在状态
 	mobileQuery (badge) {
 		return axios.get(`${API_PASSWORD_MOBILE_QUERY}?badge=${badge}`)
 	},

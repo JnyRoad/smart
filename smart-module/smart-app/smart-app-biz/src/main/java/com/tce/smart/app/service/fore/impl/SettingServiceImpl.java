@@ -128,7 +128,8 @@ public class SettingServiceImpl implements SettingService {
 	public boolean verifyOldMobile(String mobile, String smsCode) {
 
 		Result<InternalStaffPhoneRespDTO> result = remoteStaffInternalService.getPasswordPhone(
-				SecurityUtils.getUser().getUsername(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityUtils.getUser().getUsername(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
+				"self-phone-verify");
 		if (!result.isSuccess() || Objects.isNull(result.getData())) {
 			throw new TCEException("获取员工信息异常");
 		}
@@ -171,7 +172,7 @@ public class SettingServiceImpl implements SettingService {
 				staff.setBadge(user.getUsername());
 				staff.setPhone(mobile);
 				Result<Boolean> staffUpdate = remoteStaffInternalService.updatePhone(staff,
-						SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+						SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "phone-update");
 				if (!staffUpdate.isSuccess() || !Boolean.TRUE.equals(staffUpdate.getData())) {
 					throw new TCEException("员工手机号更新失败");
 				}

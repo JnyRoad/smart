@@ -1,6 +1,8 @@
 package com.tce.smart.app.service.fore.impl;
 
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.crypto.digest.DigestUtil;
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.tce.smart.algorithm.api.dto.req.CompareDTO;
 import com.tce.smart.algorithm.api.dto.req.CompareImageDTO;
@@ -32,6 +34,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.net.URLEncoder;
+import java.util.UUID;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +50,16 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class PasswordServiceImpl implements PasswordService {
+
+	private static final String PASSWORD_RESET_PURPOSE = "password-reset";
+	private static final String FACE_PASSWORD_RESET_PURPOSE = "face-password-reset";
+	private static final String CHALLENGE_KEY_PREFIX = "smart_app:auth:password:challenge:";
+	private static final String CHALLENGE_RATE_KEY_PREFIX = "smart_app:auth:password:challenge:rate:";
+	private static final long CHALLENGE_TTL_SECONDS = 600;
+	private static final long CHALLENGE_RATE_TTL_SECONDS = 60;
+	private static final int MAX_CHALLENGE_REQUESTS_PER_MINUTE = 5;
+	private static final int MAX_SMS_SEND_ATTEMPTS = 3;
+	private static final int MAX_VERIFY_ATTEMPTS = 5;
 
 	@Autowired
 	private AppSmsService appSmsService;
@@ -73,25 +86,68 @@ public class PasswordServiceImpl implements PasswordService {
 	private String authCodeEncodeKey;
 
 	@Override
-	public String queryMobile(String badge) {
-		return passwordPhone(badge).getMaskedPhone();
+	public String createPasswordResetChallenge(String badge) {
+		String challengeId = UUID.randomUUID().toString().replace("-", "");
+		Map<String, Object> challenge = new HashMap<>();
+		challenge.put("purpose", PASSWORD_RESET_PURPOSE);
+		challenge.put("badge", StringUtils.defaultString(badge));
+		challenge.put("sendAttempts", 0);
+		challenge.put("verifyAttempts", 0);
+
+		Long requests = stringRedisTemplate.opsForValue().increment(CHALLENGE_RATE_KEY_PREFIX
+				+ DigestUtil.sha256Hex(StringUtils.defaultString(badge)), 1);
+		if (Long.valueOf(1L).equals(requests)) {
+			stringRedisTemplate.expire(CHALLENGE_RATE_KEY_PREFIX + DigestUtil.sha256Hex(StringUtils.defaultString(badge)),
+					CHALLENGE_RATE_TTL_SECONDS, TimeUnit.SECONDS);
+		}
+		InternalStaffPhoneRespDTO phone = requests != null && requests <= MAX_CHALLENGE_REQUESTS_PER_MINUTE
+				? findPasswordPhone(badge) : null;
+		// active 只保存在服务端。对客户端而言，无论工号是否存在和是否触发限流，响应完全一致。
+		challenge.put("active", phone != null && StringUtils.isNotBlank(phone.getPhone()));
+		challenge.put("phone", phone == null ? "" : phone.getPhone());
+		writeChallenge(challengeId, challenge);
+		return challengeId;
 	}
 
 	@Override
-	public Boolean sendSmsCode(String badge) {
-		// 手机号仅在服务端取得，客户端不得提交或获知完整值。
-		appSmsService.sendSmsCode(passwordPhone(badge).getPhone());
+	public Boolean sendSmsCode(String challengeId) {
+		Map<String, Object> challenge = readChallenge(challengeId);
+		if (!isActivePasswordChallenge(challenge) || number(challenge, "sendAttempts") >= MAX_SMS_SEND_ATTEMPTS) {
+			return Boolean.TRUE;
+		}
+		challenge.put("sendAttempts", number(challenge, "sendAttempts") + 1);
+		writeChallenge(challengeId, challenge);
+		try {
+			// 手机号只在服务端 challenge 中使用，客户端既不能提交，也不会得到脱敏或完整值。
+			appSmsService.sendSmsCode(String.valueOf(challenge.get("phone")));
+		} catch (Exception e) {
+			// 保持抗枚举响应；告警日志不包含工号、手机号或 challenge。
+			log.warn("找回密码短信下发失败 scene=password-reset");
+		}
 		return Boolean.TRUE;
 	}
 
 	@Override
-	public String verifySmsCode(String badge, String smsCode) {
-		// 校验短信验证码
-		appSmsService.verifySmsCode(passwordPhone(badge).getPhone(), smsCode);
+	public String verifySmsCode(String challengeId, String smsCode) {
+		Map<String, Object> challenge = readChallenge(challengeId);
+		if (!isActivePasswordChallenge(challenge) || number(challenge, "verifyAttempts") >= MAX_VERIFY_ATTEMPTS) {
+			throw new TCEException("验证码校验失败");
+		}
+		boolean verified;
+		try {
+			verified = Boolean.TRUE.equals(appSmsService.verifySmsCode(String.valueOf(challenge.get("phone")), smsCode));
+		} catch (Exception e) {
+			verified = false;
+		}
+		if (!verified) {
+			challenge.put("verifyAttempts", number(challenge, "verifyAttempts") + 1);
+			writeChallenge(challengeId, challenge);
+			throw new TCEException("验证码校验失败");
+		}
 
-		// 短信验证校验成功授权码
-		String verifySuccessCode = saveRedisCode(badge);
-
+		// 验证成功后立刻销毁 challenge；仅把来源标识写入下一跳的一次性改密授权记录。
+		stringRedisTemplate.delete(CHALLENGE_KEY_PREFIX + challengeId);
+		String verifySuccessCode = saveRedisCode(String.valueOf(challenge.get("badge")), PASSWORD_RESET_PURPOSE, challengeId);
 		return URLEncoder.encode(EncDecryUtils.encryptByJasypt(verifySuccessCode, authCodeEncodeKey));
 	}
 
@@ -114,7 +170,7 @@ public class PasswordServiceImpl implements PasswordService {
 		try {
 			// 远程调用查询员工信息
 			passwordStaffResponse = remoteStaffInternalService.getPasswordStaff(appUserDevice.getBadge(),
-					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "password-face-verify");
 			if (!passwordStaffResponse.isSuccess() || Objects.isNull(passwordStaffResponse.getData())) {
 				throw new TCEException("查询员工信息异常");
 			}
@@ -158,7 +214,8 @@ public class PasswordServiceImpl implements PasswordService {
 			log.error("获取员工信息异常", e);
 			throw new TCEException("获取员工信息异常");
 		}
-		String verifySuccessCode = saveRedisCode(badge);
+		String verifySuccessCode = saveRedisCode(badge, FACE_PASSWORD_RESET_PURPOSE,
+				"face-verified-" + UUID.randomUUID().toString().replace("-", ""));
 
 		ChackFacePwdVo chackFacePwdVo = new ChackFacePwdVo();
 		chackFacePwdVo.setUsername(badge);
@@ -171,12 +228,14 @@ public class PasswordServiceImpl implements PasswordService {
 	 * @param badge 员工号
 	 * @return 校验码
 	 */
-	private String saveRedisCode(String badge) {
+	private String saveRedisCode(String badge, String purpose, String verifiedChallengeId) {
 		// 授权码
 		String verifySuccessCode = RandomUtil.randomStringUpper(6);
 
 		Map<String, Object> authCodeMap = new HashMap<>();
 		authCodeMap.put(SecurityConstants.PWD_UPDATE_AUTHCODE_SUB_KEY, verifySuccessCode);
+		authCodeMap.put("purpose", purpose);
+		authCodeMap.put("verifiedChallengeId", verifiedChallengeId);
 		String pwdUpdateAuthCodeKey = SecurityConstants.APP_PWD_UPDATE_AUTHCODE + badge;
 
 		// 存放redis
@@ -207,13 +266,47 @@ public class PasswordServiceImpl implements PasswordService {
 		return isBind;
 	}
 
-	private InternalStaffPhoneRespDTO passwordPhone(String badge) {
-		Result<InternalStaffPhoneRespDTO> result = remoteStaffInternalService.getPasswordPhone(badge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
-		if (!result.isSuccess() || Objects.isNull(result.getData()) || StringUtils.isBlank(result.getData().getPhone())) {
-			throw new TCEException("获取员工信息异常");
+	private InternalStaffPhoneRespDTO findPasswordPhone(String badge) {
+		try {
+			Result<InternalStaffPhoneRespDTO> result = remoteStaffInternalService.getPasswordPhone(badge,
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, PASSWORD_RESET_PURPOSE);
+			return result.isSuccess() && result.getData() != null && StringUtils.isNotBlank(result.getData().getPhone())
+					? result.getData() : null;
+		} catch (Exception e) {
+			log.warn("找回密码员工资料查询失败 scene=password-reset");
+			return null;
 		}
-		return result.getData();
+	}
+
+	private Map<String, Object> readChallenge(String challengeId) {
+		if (StringUtils.isBlank(challengeId)) {
+			return null;
+		}
+		String source = stringRedisTemplate.opsForValue().get(CHALLENGE_KEY_PREFIX + challengeId);
+		if (StringUtils.isBlank(source)) {
+			return null;
+		}
+		JSONObject object = JSONUtil.parseObj(source);
+		Map<String, Object> challenge = new HashMap<>();
+		for (String key : object.keySet()) {
+			challenge.put(key, object.get(key));
+		}
+		return challenge;
+	}
+
+	private void writeChallenge(String challengeId, Map<String, Object> challenge) {
+		stringRedisTemplate.opsForValue().set(CHALLENGE_KEY_PREFIX + challengeId, JSONUtil.toJsonStr(challenge),
+				CHALLENGE_TTL_SECONDS, TimeUnit.SECONDS);
+	}
+
+	private boolean isActivePasswordChallenge(Map<String, Object> challenge) {
+		return challenge != null && PASSWORD_RESET_PURPOSE.equals(challenge.get("purpose"))
+				&& Boolean.TRUE.equals(challenge.get("active"));
+	}
+
+	private int number(Map<String, Object> challenge, String key) {
+		Object value = challenge.get(key);
+		return value instanceof Number ? ((Number) value).intValue() : 0;
 	}
 
 }

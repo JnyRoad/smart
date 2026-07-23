@@ -5,10 +5,6 @@
             	<text class="f30pc w200">工号</text>
 				<input class="w300 tr" @blur="getMobile" v-model.trim="employeeId" placeholder="请输入工号" type="text" value="" />
             </view>
-			<view class="hbc pl30 pr30 h110 border-bottom-D">
-				<text class="f30pc w200">预留手机号</text>
-				<text class="f30pc tr w300">{{yuMobile}}</text>
-			</view>
 			<view class="hlc pl30 pr30 h110 border-bottom-D rel">
 				<text class="f30pc w200">验证码</text>
 				<input class="w300 tl" v-model.trim="smsCode" placeholder="请输入短信验证码" type="text" value="" />
@@ -18,7 +14,7 @@
 				<text class="f30pc2">温馨提示</text>
 				<view class="f30pc4 vlc">
 					温馨提示：
-					<text>1.请输入工号，显示您预留的手机号码，为您入职时登记的联系方式。</text>
+					<text>1.请输入工号后，系统会在不展示预留手机号的前提下发起找回验证。</text>
 
 					<text>2.系统会直接向预留手机号发送验证码，输入验证码后进行密码修改。</text>
 
@@ -44,8 +40,7 @@
                 finish:false, //是否设置成功
                 employeeId:'',
                 smsCode:'',
-                yuMobile:'', // 预留号码
-				yuTel: '', // 预留号码数据
+				challengeId: '', // 服务端一次性 challenge，不能用工号替代
                 smsVerifyToken:'', //短信校验通过临时授权码
                 smsCodeCheckValidate:'' ,//验证码是否正确
 				loadingText: '获取验证码',
@@ -54,7 +49,7 @@
             }
         },
         methods: {
-			// 获取预留手机号码
+			// 创建密码找回 challenge；无论工号是否存在，服务端都不会返回手机号或存在状态。
 			async getMobile() {
 				if (!this.employeeId) {
 					this.$ytHint.toast({
@@ -64,7 +59,7 @@
 				}
 				try{
 					const res = await settingPassword.mobileQuery(this.employeeId)
-					this.yuMobile = res.data.data
+					this.challengeId = res.data.data
 					this.username = uni.setStorageSync('USER_NAME',this.employeeId)
 				}catch(e){
 					console.log(e);
@@ -82,7 +77,10 @@
 					return
 				}
 				try{
-					const res = await settingPassword.sendSms(this.employeeId)
+					if (!this.challengeId) {
+						await this.getMobile()
+					}
+					const res = await settingPassword.sendSms(this.challengeId)
 					if (res.data.code == 0) {
 						this.cutTime()
 						this.$ytHint.toast({
@@ -123,7 +121,7 @@
 					return
 				}
                 // 验证短信码是否正确
-				settingPassword.verifySms({ smsCode:this.smsCode,badge: this.employeeId}).then(res => {
+				settingPassword.verifySms({ smsCode:this.smsCode,challengeId: this.challengeId}).then(res => {
 					// 短信码错误
 					if(res.data.code == 1){
 					    this.$ytHint.toast({

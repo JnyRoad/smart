@@ -238,7 +238,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 		// TODO Auto-generated method stub
 		String badge = SecurityUtils.getUser().getUsername(); // 获取员工号
 		Result<MyDormitoryRespDTO> dormitoryResult = remoteStaffInternalService.getMyDormitory(badge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "my-dormitory");
 		if (!dormitoryResult.isSuccess() || dormitoryResult.getData() == null) {
 			throw new TCEException("获取宿舍信息异常");
 		}
@@ -451,7 +451,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	private InternalStaffSelfProfileRespDTO selfProfile(String badge) {
 		Result<InternalStaffSelfProfileRespDTO> result = remoteStaffInternalService.getSelfProfile(badge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "self-profile");
 		if (!result.isSuccess() || result.getData() == null) {
 			throw new TCEException("获取员工信息异常");
 		}

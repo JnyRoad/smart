@@ -30,38 +30,38 @@ public class PasswordController extends BaseController {
 	private PasswordService passwordService;
 
 	/**
-	 * 获取员工手机号(隐藏部分手机号数)
+	 * 创建密码找回 challenge。接口不返回手机号、脱敏手机号或员工是否存在的信号。
 	 *
 	 * @param badge 员工号
 	 * @return
 	 */
 	@GetMapping("/mobile/query")
-	public Result<?> queryMaskedMobile(@RequestParam(value = "badge", required = true) String badge) {
-		return success(passwordService.queryMobile(badge));
+	public Result<?> createChallenge(@RequestParam(value = "badge", required = true) String badge) {
+		return success(passwordService.createPasswordResetChallenge(badge));
 	}
 
 	/**
 	 * 发送短信验证码
 	 *
-	 * @param badge 员工号
+	 * @param challengeId 一次性 challenge
 	 * @return
 	 */
 	@GetMapping("/sms/send")
-	public Result<?> sendSmsCode(@RequestParam(value = "badge", required = true) String badge) {
-		return success(passwordService.sendSmsCode(badge));
+	public Result<?> sendSmsCode(@RequestParam(value = "challengeId", required = true) String challengeId) {
+		return success(passwordService.sendSmsCode(challengeId));
 	}
 
 	/**
 	 * 校验短信验证码
 	 *
-	 * @param badge   员工号
+	 * @param challengeId 一次性 challenge
 	 * @param smsCode 短信验证码
 	 * @return
 	 */
 	@GetMapping("/verify")
-	public Result<?> verifySmsCode(@RequestParam(value = "badge", required = true) String badge,
+	public Result<?> verifySmsCode(@RequestParam(value = "challengeId", required = true) String challengeId,
 			@RequestParam(value = "smsCode", required = true) String smsCode) {
-		return success(passwordService.verifySmsCode(badge, smsCode));
+		return success(passwordService.verifySmsCode(challengeId, smsCode));
 	}
 
 	/**
