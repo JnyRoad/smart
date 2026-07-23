@@ -4,8 +4,8 @@
 
 ## 判定规则
 
-- `internal`：源码存在 `@Inner`；上线前仍必须有 `@OpenApi(server)`、服务令牌与 `FROM_IN`。
-- `callback-signed`：仅当源码同时提供签名、时间窗与 nonce 重放保护的静态证据时，才可作为精确匿名白名单候选。
+- `internal`：源码存在 `@Inner`；上线前仍必须有精确的 `@OpenApi("server")`、服务令牌与 `FROM_IN`。
+- `callback-signed`：仅当对应方法静态识别到签名、时间窗与 nonce 重放保护三项源码证据时，才可作为精确匿名白名单候选。
 - `external-authenticated`：默认目标是用户或客户端认证，不能因当前 `ignore-urls` 而视为匿名安全。
 - `retired`：源码明确标记为废弃，仍需在发布前确认没有调用方。
 - `BLOCKED`：证据不足或当前匿名配置与目标暴露面冲突；尤其未知厂商回调不会被假设为安全。

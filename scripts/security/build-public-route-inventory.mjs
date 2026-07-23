@@ -60,17 +60,142 @@ function normalizePath(value) {
   return combined.length > 1 ? combined.replace(/\/$/, '') : combined
 }
 
-function annotationName(line) {
-  const match = line.match(/^\s*@([A-Za-z_$][\w$]*)\b/)
+const MAPPING_ANNOTATIONS = new Set([
+  'RequestMapping',
+  'GetMapping',
+  'PostMapping',
+  'PutMapping',
+  'DeleteMapping',
+  'PatchMapping',
+])
+
+function annotationName(text) {
+  const match = text.match(/^\s*@([A-Za-z_$][\w$]*)\b/)
   return match?.[1] ?? null
 }
 
-function mappingPath(line) {
-  if (!/@(?:Request|Get|Post|Put|Delete|Patch)Mapping\b/.test(line)) {
-    return null
+function annotationArguments(text) {
+  const start = text.indexOf('(')
+  const end = text.lastIndexOf(')')
+  return start === -1 ? '' : text.slice(start + 1, end)
+}
+
+function parenthesesBalance(text) {
+  let balance = 0
+  let quote = null
+  let escaped = false
+  for (const character of text) {
+    if (quote) {
+      if (!escaped && character === quote) quote = null
+      escaped = !escaped && character === '\\'
+      continue
+    }
+    if (character === '"' || character === "'") {
+      quote = character
+    } else if (character === '(') {
+      balance += 1
+    } else if (character === ')') {
+      balance -= 1
+    }
   }
-  const stringMatch = line.match(/["']([^"']*)["']/)
-  return stringMatch ? stringMatch[1] : ''
+  return balance
+}
+
+function splitTopLevel(text) {
+  const parts = []
+  let start = 0
+  let curlyBalance = 0
+  let parentheses = 0
+  let quote = null
+  let escaped = false
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index]
+    if (quote) {
+      if (!escaped && character === quote) quote = null
+      escaped = !escaped && character === '\\'
+      continue
+    }
+    if (character === '"' || character === "'") {
+      quote = character
+    } else if (character === '{') {
+      curlyBalance += 1
+    } else if (character === '}') {
+      curlyBalance -= 1
+    } else if (character === '(') {
+      parentheses += 1
+    } else if (character === ')') {
+      parentheses -= 1
+    } else if (character === ',' && curlyBalance === 0 && parentheses === 0) {
+      parts.push(text.slice(start, index).trim())
+      start = index + 1
+    }
+  }
+  parts.push(text.slice(start).trim())
+  return parts.filter(Boolean)
+}
+
+function parseLiteralPathExpression(expression) {
+  const value = expression.trim()
+  const literal = value.match(/^(["'])(.*?)\1$/)
+  if (literal) return [literal[2]]
+  if (!value.startsWith('{') || !value.endsWith('}')) return null
+  const entries = splitTopLevel(value.slice(1, -1))
+  if (entries.length === 0) return null
+  const paths = []
+  for (const entry of entries) {
+    const entryLiteral = entry.trim().match(/^(["'])(.*?)\1$/)
+    if (!entryLiteral) return null
+    paths.push(entryLiteral[2])
+  }
+  return paths
+}
+
+function parseMappingPaths(annotation) {
+  const argumentsText = annotationArguments(annotation.text).trim()
+  if (!argumentsText) return { paths: [''] }
+
+  const values = []
+  let hasPathOrValue = false
+  for (const part of splitTopLevel(argumentsText)) {
+    const named = part.match(/^(path|value)\s*=\s*([\s\S]*)$/)
+    if (named) {
+      hasPathOrValue = true
+      const literals = parseLiteralPathExpression(named[2])
+      if (!literals) {
+        return { reason: 'path or value is not a string literal' }
+      }
+      values.push(...literals)
+      continue
+    }
+    if (!part.includes('=')) {
+      const literals = parseLiteralPathExpression(part)
+      if (!literals) return { reason: 'mapping path is not a string literal' }
+      values.push(...literals)
+    }
+  }
+
+  if (!hasPathOrValue && values.length === 0) return { paths: [''] }
+  return { paths: values }
+}
+
+function readAnnotation(lines, startIndex) {
+  const firstLine = lines[startIndex]
+  const name = annotationName(firstLine)
+  if (!name) return null
+  let endIndex = startIndex
+  let text = firstLine.trim()
+  let balance = parenthesesBalance(text)
+  while (balance > 0 && endIndex + 1 < lines.length) {
+    endIndex += 1
+    text += `\n${lines[endIndex].trim()}`
+    balance += parenthesesBalance(lines[endIndex])
+  }
+  return {
+    endIndex,
+    name,
+    text,
+    unclosed: balance !== 0,
+  }
 }
 
 function methodDeclaration(line) {
@@ -87,53 +212,148 @@ function joinPaths(basePath, endpointPath) {
   return normalizePath(`${basePath || ''}/${endpointPath || ''}`)
 }
 
+function collectOpenApiScopes(annotationDetails) {
+  return annotationDetails
+    .filter((annotation) => annotation.name === 'OpenApi')
+    .flatMap((annotation) => {
+      const argumentsText = annotationArguments(annotation.text).trim()
+      if (!argumentsText) return []
+      const parts = splitTopLevel(argumentsText)
+      const valuePart = parts.find((part) => /^value\s*=/.test(part))
+      if (valuePart) {
+        return parseLiteralPathExpression(valuePart.replace(/^value\s*=\s*/, '')) ?? []
+      }
+      if (parts.length === 1 && !parts[0].includes('=')) {
+        return parseLiteralPathExpression(parts[0]) ?? []
+      }
+      return []
+    })
+}
+
+function collectSignatureEvidence(annotationDetails, methodSource) {
+  const annotationNames = new Set(annotationDetails.map((annotation) => annotation.name))
+  const evidence = []
+  const has = (annotation, pattern) => annotationNames.has(annotation) || pattern.test(methodSource)
+  if (has('SignatureVerified', /\b(?:verify|validate)(?:Request)?Signature\s*\(|\b(?:signatureVerifier|signatureValidator)\s*\.\s*verify\s*\(/)) {
+    evidence.push('signature')
+  }
+  if (has('TimestampVerified', /\b(?:verify|validate)(?:Request)?Timestamp\s*\(|\b(?:timestampVerifier|timestampValidator|replayGuard)\s*\.\s*(?:verify|validate)Timestamp\s*\(/)) {
+    evidence.push('timestamp')
+  }
+  if (has('NonceReplayProtected', /\b(?:check|verify|validate)Nonce\s*\(|\b(?:nonceReplayGuard|nonceVerifier|nonceValidator|replayGuard)\s*\.\s*(?:check|verify|validate)Nonce\s*\(/)) {
+    evidence.push('nonce')
+  }
+  return evidence
+}
+
+function readMethodSource(lines, startIndex) {
+  let braceBalance = 0
+  let bodyStarted = false
+  const collected = []
+  for (let index = startIndex; index < lines.length; index += 1) {
+    const line = lines[index]
+    collected.push(line)
+    for (const character of line) {
+      if (character === '{') {
+        braceBalance += 1
+        bodyStarted = true
+      } else if (character === '}') {
+        braceBalance -= 1
+      }
+    }
+    if (bodyStarted && braceBalance === 0) {
+      return { endIndex: index, source: collected.join('\n') }
+    }
+    if (!bodyStarted && line.includes(';')) {
+      return { endIndex: index, source: collected.join('\n') }
+    }
+  }
+  return { endIndex: lines.length - 1, source: collected.join('\n') }
+}
+
 /**
  * 解析控制器中可静态识别的 Spring 路由。解析器故意保守：无法解析的复杂注解不会被臆造成可匿名路由。
  */
-export function parseControllerSource(source, sourcePath) {
+export function parseControllerSourceDetailed(source, sourcePath) {
   const routes = []
-  let classPath = ''
-  let pendingAnnotations = []
+  const unparsedMappings = []
+  let classPaths = ['']
+  let classAnnotationDetails = []
+  let pendingAnnotationDetails = []
   let pendingMappings = []
+  const lines = source.split(/\r?\n/)
 
-  for (const rawLine of source.split(/\r?\n/)) {
-    const line = rawLine.trim()
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim()
     if (!line || line.startsWith('//') || line.startsWith('*') || line.startsWith('/*')) {
       continue
     }
 
-    const annotation = annotationName(line)
+    const annotation = readAnnotation(lines, index)
     if (annotation) {
-      const pathValue = mappingPath(line)
-      if (pathValue !== null) {
-        pendingMappings.push(pathValue)
-      } else if (SECURITY_ANNOTATIONS.has(annotation)) {
-        pendingAnnotations.push(annotation)
+      const annotationStartIndex = index
+      index = annotation.endIndex
+      if (MAPPING_ANNOTATIONS.has(annotation.name)) {
+        const parsedMapping = annotation.unclosed
+          ? { reason: 'mapping annotation is not closed' }
+          : parseMappingPaths(annotation)
+        if (parsedMapping.reason) {
+          unparsedMappings.push({
+            annotation: annotation.name,
+            line: annotationStartIndex + 1,
+            reason: parsedMapping.reason,
+            sourcePath,
+          })
+        } else {
+          pendingMappings.push(...parsedMapping.paths)
+        }
+      } else if (SECURITY_ANNOTATIONS.has(annotation.name)) {
+        pendingAnnotationDetails.push(annotation)
       }
       continue
     }
 
     if (/\bclass\s+\w+/.test(line)) {
-      classPath = pendingMappings.length > 0 ? pendingMappings[0] : ''
-      pendingAnnotations = []
+      classPaths = pendingMappings.length > 0 ? pendingMappings : ['']
+      classAnnotationDetails = pendingAnnotationDetails
+      pendingAnnotationDetails = []
       pendingMappings = []
       continue
     }
 
     if (methodDeclaration(line) && pendingMappings.length > 0) {
+      const method = readMethodSource(lines, index)
+      const annotationDetails = [...classAnnotationDetails, ...pendingAnnotationDetails]
       for (const endpointPath of pendingMappings) {
-        routes.push({
-          annotations: [...pendingAnnotations],
-          path: joinPaths(classPath, endpointPath),
-          sourcePath,
-        })
+        for (const classPath of classPaths) {
+          routes.push({
+            annotationDetails,
+            annotations: annotationDetails.map((annotationDetail) => annotationDetail.name),
+            openApiScopes: collectOpenApiScopes(annotationDetails),
+            path: joinPaths(classPath, endpointPath),
+            signatureEvidence: collectSignatureEvidence(annotationDetails, method.source),
+            sourcePath,
+          })
+        }
       }
-      pendingAnnotations = []
+      pendingAnnotationDetails = []
       pendingMappings = []
+      index = method.endIndex
+      continue
     }
+
+    pendingAnnotationDetails = []
+    pendingMappings = []
   }
 
-  return routes
+  return { routes, unparsedMappings }
+}
+
+/**
+ * 保持简化 API 供路由语义单测使用；完整库存必须使用带未解析映射证据的 detailed 版本。
+ */
+export function parseControllerSource(source, sourcePath) {
+  return parseControllerSourceDetailed(source, sourcePath).routes
 }
 
 /**
@@ -149,8 +369,8 @@ export function classifyRoute(route) {
   }
 
   const signatureEvidence = new Set(route.signatureEvidence ?? [])
-  const verifiedCallback = hasAnnotation(route.annotations ?? [], 'SignatureVerified')
-    && ['signature', 'timestamp', 'nonce'].every((item) => signatureEvidence.has(item))
+  const verifiedCallback = ['signature', 'timestamp', 'nonce'].every((item) => signatureEvidence.has(item))
+    && (hasAnnotation(route.annotations ?? [], 'SignatureVerified') || /(callback|webhook|handle|notify)/i.test(route.path ?? ''))
   if (verifiedCallback) {
     return {
       exposure: 'callback-signed',
@@ -220,6 +440,10 @@ function isInternalPathCandidate(route) {
     && !hasAnnotation(route.annotations, 'Inner')
 }
 
+function hasServerOpenApi(route) {
+  return (route.openApiScopes ?? []).includes('server')
+}
+
 function routeReview(route, ignoreUrls) {
   let base = classifyRoute(route)
   const anonymousMatches = ignoreUrls.filter((ignoreUrl) => matchesIgnoreUrl(route.path, ignoreUrl))
@@ -236,7 +460,7 @@ function routeReview(route, ignoreUrls) {
   }
 
   if (base.exposure === 'internal') {
-    if (!internalCandidate && !hasAnnotation(route.annotations, 'OpenApi')) {
+    if (!internalCandidate && !hasServerOpenApi(route)) {
       blockers.push('内部端点缺少 @OpenApi(server) 静态证据')
     }
     if (anonymousMatches.length > 0) {
@@ -274,8 +498,8 @@ function renderInventoryMarkdown(inventory) {
     '',
     '## 判定规则',
     '',
-    '- `internal`：源码存在 `@Inner`；上线前仍必须有 `@OpenApi(server)`、服务令牌与 `FROM_IN`。',
-    '- `callback-signed`：仅当源码同时提供签名、时间窗与 nonce 重放保护的静态证据时，才可作为精确匿名白名单候选。',
+    '- `internal`：源码存在 `@Inner`；上线前仍必须有精确的 `@OpenApi("server")`、服务令牌与 `FROM_IN`。',
+    '- `callback-signed`：仅当对应方法静态识别到签名、时间窗与 nonce 重放保护三项源码证据时，才可作为精确匿名白名单候选。',
     '- `external-authenticated`：默认目标是用户或客户端认证，不能因当前 `ignore-urls` 而视为匿名安全。',
     '- `retired`：源码明确标记为废弃，仍需在发布前确认没有调用方。',
     '- `BLOCKED`：证据不足或当前匿名配置与目标暴露面冲突；尤其未知厂商回调不会被假设为安全。',
@@ -346,7 +570,14 @@ export async function buildInventory({
     for (const controllerFile of controllerFiles) {
       const source = await readFile(controllerFile, 'utf8')
       const sourcePath = path.relative(REPOSITORY_ROOT, controllerFile)
-      for (const route of parseControllerSource(source, sourcePath)) {
+      const parsedController = parseControllerSourceDetailed(source, sourcePath)
+      for (const unresolvedMapping of parsedController.unparsedMappings) {
+        serviceFindings.push({
+          service: target.service,
+          message: `${unresolvedMapping.sourcePath}:${unresolvedMapping.line} ${unresolvedMapping.annotation}: ${unresolvedMapping.reason}`,
+        })
+      }
+      for (const route of parsedController.routes) {
         serviceRoutes.push({
           ...route,
           service: target.service,
