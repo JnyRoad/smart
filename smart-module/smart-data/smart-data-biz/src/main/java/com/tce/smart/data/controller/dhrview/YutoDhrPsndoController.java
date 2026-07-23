@@ -43,19 +43,29 @@ public class YutoDhrPsndoController extends BaseController {
     }
 
 	/**
-	 * 根据员工工号获得员工性质
-	 * @return
+	 * 由受控服务根据员工工号读取员工性质。
+	 *
+	 * 工号是可枚举的员工标识，不能向已认证外部用户直接开放。
+	 *
+	 * @return 员工性质
 	 */
-	@GetMapping("/get/properties")
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/internal/properties")
 	public Result<String> getProperties(@RequestParam("badge") String badge) {
 		return success(dhrPsndoService.getProperties(badge));
 	}
 
 	/**
-	 * 根据userId获取员工工号
-	 * @return
+	 * 由受控服务根据用户标识读取员工工号。
+	 *
+	 * 用户标识与工号的映射不得作为外网枚举入口。
+	 *
+	 * @return 员工工号
 	 */
-	@GetMapping("/badge/{userId}")
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/internal/badge/{userId}")
 	public Result<String> getBadgeByUserId(@PathVariable("userId") String userId) {
 		return success(dhrPsndoService.getBadgeByUserId(userId));
 	}

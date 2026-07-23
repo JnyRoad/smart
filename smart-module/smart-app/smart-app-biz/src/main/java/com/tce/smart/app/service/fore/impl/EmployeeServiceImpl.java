@@ -132,7 +132,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 		employeeVo.setApplyState(staff.getApplyState());
 		employeeVo.setWelfareLevel(staff.getWelfareLevel());
 		employeeVo.setApplyStateDesc(staff.getApplyStateDesc());
-		Result<String> attribute = remoteYutoDhrYsService.getProperties(employeeVo.getEmployeeBadge(), SecurityConstants.FROM_IN);
+		Result<String> attribute = remoteYutoDhrYsService.getProperties(employeeVo.getEmployeeBadge(), SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(Objects.nonNull(attribute.getData())) {
 			employeeVo.setEmpAttribute(attribute.getData());
 		}

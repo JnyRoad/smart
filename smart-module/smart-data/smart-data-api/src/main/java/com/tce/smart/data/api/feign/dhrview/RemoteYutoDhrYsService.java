@@ -36,23 +36,25 @@ public interface RemoteYutoDhrYsService {
 									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
-	 * 根据员工工号获得员工性质
+	 * 由受控服务根据员工工号获得员工性质。
 	 *
 	 * @param from     调用标志
 	 * @return Result
 	 */
-	@GetMapping("/empdhr/ys/get/properties")
+	@GetMapping("/empdhr/ys/internal/properties")
 	Result<String> getProperties(@RequestParam("badge") String badge,
-									   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
-	 * 根据userId获取员工工号
+	 * 由受控服务根据 userId 获取员工工号。
 	 *
 	 * @param from     调用标志
 	 * @return Result
 	 */
-	@GetMapping("/empdhr/ys/badge/{userId}")
+	@GetMapping("/empdhr/ys/internal/badge/{userId}")
 	Result<String> getBadgeByUserId(@PathVariable("userId") String userId,
-								 @RequestHeader(SecurityConstants.FROM) String from);
+								 @RequestHeader(SecurityConstants.FROM) String from,
+								 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }
