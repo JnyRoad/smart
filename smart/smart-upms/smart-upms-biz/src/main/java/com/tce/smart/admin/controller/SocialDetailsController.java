@@ -6,7 +6,6 @@ import com.tce.smart.admin.api.entity.SysSocialDetails;
 import com.tce.smart.admin.service.SysSocialDetailsService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.log.annotation.SysLog;
-import com.tce.smart.common.security.annotation.Inner;
 import io.swagger.annotations.Api;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -85,18 +84,6 @@ public class SocialDetailsController {
 	@PostMapping("/{id}")
 	public Result removeById(@PathVariable Integer id) {
 		return Result.success(sysSocialDetailsService.removeById(id));
-	}
-
-	/**
-	 * 通过社交账号、手机号查询用户、角色信息
-	 *
-	 * @param inStr appid@code
-	 * @return
-	 */
-	@Inner
-	@GetMapping("/info/{inStr}")
-	public Result getUserInfo(@PathVariable String inStr) {
-		return Result.success(sysSocialDetailsService.getUserInfo(inStr));
 	}
 
 	/**

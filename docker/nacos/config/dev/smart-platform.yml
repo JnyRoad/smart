@@ -1,13 +1,26 @@
 ## spring security 配置
 security:
+  inner:
+    # Platform 到 UPMS 的用户管理调用只使用专属服务令牌。
+    service-token:
+      client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_PLATFORM_OAUTH_CLIENT_SECRET:}"
+      access-token-uri: "${SMART_PLATFORM_OAUTH_TOKEN_URI:}"
   oauth2:
     client:
       client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # platform
       client-secret: "${SMART_PLATFORM_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # platform
       scope: server
-      # 仅保留无敏感信息的存活探针；业务接口、内部接口及第三方回调均必须走认证或完成签名验真后再单独评估。
+      # 仅保留无敏感信息的存活探针；访客人脸三个精确路径由控制器校验微信 code 派生的草稿会话和一次性能力，
+      # 不得扩展为 /admittance/** 或任何通配路径。
       ignore-urls:
         - /actuator/health
+        - /admittance/apply/get/openId
+        - /admittance/visitor-face/capability
+        - /admittance/visitor-face/crop
+        # 简历公开流程仅放行受一次性 HttpOnly capability 约束的两个 POST 路径，禁止使用 /regist/**。
+        - /regist/face/crop
+        - /regist/face/add
 spring:
   #  datasource:
   #    type: com.zaxxer.hikari.HikariDataSource

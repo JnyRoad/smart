@@ -67,7 +67,7 @@ public class UserController extends BaseController {
         return new Result<Boolean>(userService.simpleLogin(username, password));
     }
 
-	// 仅供内部服务调用（认证服务社交登录）：合法入口是 RemoteUserService -> /api/user/social/simple，
+	// 仅供本服务业务逻辑复用；跨服务社交登录必须通过受服务令牌保护的 /internal/user/login/social/{inStr}。
 	// 本 /user/social/simple 为历史遗留副本，补 @Inner 收敛为内部专用，防止无 token 请求直接触发建号/登录
 	@Inner
 	@GetMapping(value = {"/social/simple"})
@@ -288,7 +288,7 @@ public class UserController extends BaseController {
 	 * @param username 用户名
 	 * @return Result
 	 */
-	// 仅供内部服务调用（platform 平台删除用户）：合法入口是 RemoteUserService -> /api/user/delete/{username}，
+	// 仅供本服务业务逻辑复用；跨服务删除必须通过受服务令牌保护的 /internal/user/platform/delete/{username}。
 	// 本 /user/delete/{username} 为历史遗留副本，补 @Inner 收敛为内部专用，防止无 token 请求直接删除任意账号
 	@Inner
 	@HystrixCommand(fallbackMethod = "delUserForPlatformFallback")

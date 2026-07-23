@@ -63,6 +63,18 @@
 5. 合法 Smart App、UPMS、Feign 和定时任务：成功且日志不含完整员工对象。
 6. 设备、厂商回调：仅在有效签名、时间窗和 nonce 条件下成功。
 
+## 全局 Nacos 精确收口硬门槛
+
+每次任何 Data ID 发布前，必须在**拟发布 commit** 的仓库根目录执行：
+
+```bash
+node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev
+```
+
+命令必须以退出码 `0` 结束。它动态扫描当前 Data ID，不以历史“剩余数量”或人工摘录替代；任意通配匿名路由、未知白名单项或脚本失败均阻断发布。完成一项模块整改并不表示可单独绕过仍未收口的其他 Data ID。
+
+公开业务例外必须逐路径登记并具备各自的认证边界：例如简历资料提交 `/regist/save/identification` 与人脸裁剪 `/regist/face/crop` 不得用 `/regist/**` 泛化放行，后者只能使用短时、单用途 capability。例外的协议、调用方和回归证据必须进入本清单的单 Data ID 发布记录。
+
 ## 兼容代码部署前的服务 OAuth 硬门槛
 
 以下项目必须在部署任何含 `INTERNAL_SERVICE_AUTH_REQUIRED` 调用方的生产兼容镜像**之前**完成并留存不含秘密的证据：
@@ -87,6 +99,17 @@
 ## `security.inner.mode=ENFORCE` 后置收口
 
 仅在上述服务 OAuth 硬门槛、兼容代码灰度和单 Data ID Nacos 精确收口均通过后，才允许从 `AUDIT` 切换 `ENFORCE`。`ENFORCE` 只负责对 `@Inner` 端点执行内部调用语义的硬拒绝；它不负责准备服务 OAuth 客户端、注入密钥或验证 token。
+
+## UPMS 用户资料接口分阶段切换
+
+为避免认证、Platform 或 App 在滚动发布期间中断，按以下不可跳过的顺序执行：
+
+1. 先在隔离环境登记 `SMART_AUTH`、`SMART_PLATFORM`、`SMART_APP` 三个独立 client_credentials 客户端，并以对应服务令牌验证 `/internal/user/**` 的 client_id、`server` scope 与 purpose 均匹配；错误 client、用户 token、错误 purpose 必须拒绝。
+2. 发布 UPMS 兼容镜像：新 `/internal/user/**` 已可用，旧 `/api/user/**` 只作为短期观测兼容路径；Nacos 不得再匿名放行旧路径。记录每个旧路径 QPS、调用方服务和响应码。
+3. 依次灰度并全量发布 `smart-auth`、Platform、App 的新 Feign 契约；每批发布后验证登录、手机验证码、组织管理员、员工离职和手机号同步。任何服务令牌失败只能回滚该调用方镜像或 Nacos 历史版本，不能恢复通配匿名白名单。
+4. 旧路径连续一个完整业务观察窗口 QPS 为零、无未知调用方，且新路径探针均通过后，发布最终 UPMS 镜像删除 `/api/user/**`、`/social/info/**` 与旧 Feign 契约。本分支的最终代码对应此阶段。
+
+若第 2 步发现仓外调用方，停止第 4 步，先为该调用方实现最小 DTO、专属 client_id 和 purpose；不得以保留完整 `UserInfo` 响应作为兼容方案。
 
 ## 回滚规则
 

@@ -1,5 +1,11 @@
 ## spring security 配置
 security:
+  inner:
+    user:
+      # 仅接受三个明确服务客户端；空值保持 fail-closed，发布前由受管环境变量提供非共享 client_id。
+      auth-client-id: "${SMART_AUTH_OAUTH_CLIENT_ID:}"
+      platform-client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:}"
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
   oauth2:
     client:
       client-id: "${SMART_UPMS_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # smart

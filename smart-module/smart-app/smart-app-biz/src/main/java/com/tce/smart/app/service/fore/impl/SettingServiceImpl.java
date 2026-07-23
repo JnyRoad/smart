@@ -4,10 +4,10 @@ import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
-import com.tce.smart.admin.api.dto.UserDTO;
+import com.tce.smart.admin.api.dto.InternalUserPhoneSyncReqDTO;
 import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.admin.api.feign.RemoteDictService;
-import com.tce.smart.admin.api.feign.RemoteUserService;
+import com.tce.smart.admin.api.feign.RemoteUserInternalService;
 import com.tce.smart.app.service.AppSmsService;
 import com.tce.smart.app.service.fore.SettingService;
 import com.tce.smart.app.vo.fore.CheckVersionVo;
@@ -76,7 +76,7 @@ public class SettingServiceImpl implements SettingService {
 	private RemoteStaffInternalService remoteStaffInternalService;
 
 	@Autowired
-	private RemoteUserService remoteUserService;
+	private RemoteUserInternalService remoteUserInternalService;
 
 	@Override
 	public CheckVersionVo checkVersion(String appId, String appVersion) {
@@ -177,11 +177,10 @@ public class SettingServiceImpl implements SettingService {
 					throw new TCEException("员工手机号更新失败");
 				}
 				// 修改sys_user 表数据
-				UserDTO  needUpdate = new UserDTO();
+				InternalUserPhoneSyncReqDTO needUpdate = new InternalUserPhoneSyncReqDTO();
 				needUpdate.setUsername(user.getUsername());
 				needUpdate.setPhone(mobile);
-				needUpdate.setRole(SecurityUtils.getRoles());
-				remoteUserService.updateUserInfo(needUpdate,SecurityConstants.FROM_IN);
+				remoteUserInternalService.syncAppPhone(needUpdate);
 				return true;
 			}
 		}

@@ -17,11 +17,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.tce.smart.admin.api.dto.UserDTO;
-import com.tce.smart.admin.api.dto.UserInfo;
+import com.tce.smart.admin.api.dto.InternalUserPhoneSyncReqDTO;
+import com.tce.smart.admin.api.dto.InternalUserSummaryRespDTO;
 import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.admin.api.feign.RemoteDictService;
-import com.tce.smart.admin.api.feign.RemoteUserService;
+import com.tce.smart.admin.api.feign.RemoteUserInternalService;
 import com.tce.smart.algorithm.api.dto.req.CompareDTO;
 import com.tce.smart.algorithm.api.dto.req.CompareImageDTO;
 import com.tce.smart.algorithm.api.enums.AlgorithmTypeEnum;
@@ -182,7 +182,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	private RemoteOvwYsjobService remoteOvwYsjobService;
 
 	@Autowired
-	private RemoteUserService remoteUserService;
+	private RemoteUserInternalService remoteUserInternalService;
 
 	@Autowired
 	private RemoteRsEmpService remoteRsEmpService;
@@ -1911,9 +1911,9 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 			if (null != SecurityUtils.getUser()) {
 				userId = SecurityUtils.getUser().getId();
 			} else {
-				UserInfo userInfo = remoteUserService.info(smtStaff.getBadge(), SecurityConstants.FROM_IN).getData();
+				InternalUserSummaryRespDTO userInfo = remoteUserInternalService.summary(smtStaff.getBadge()).getData();
 				if (null != userInfo) {
-					userId = userInfo.getSysUser().getUserId();
+					userId = userInfo.getUserId();
 				}
 			}
 			if (null != userId) {
@@ -1935,7 +1935,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 
 			try {
 				//删除系统用户
-				Boolean userDelRs = remoteUserService.delUserForPlatform(smtStaff.getBadge(), SecurityConstants.FROM_IN).data();
+				Boolean userDelRs = remoteUserInternalService.deletePlatformUser(smtStaff.getBadge()).data();
 				log.info("删除系统用户:工号：{} 结果:{}", smtStaff.getBadge(), userDelRs);
 			} catch (Exception e) {
 				log.error("离职同步删除登录信息失败,badge={}", smtStaff.getBadge(), e);
@@ -2400,11 +2400,10 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		if (!reStaff.getPhone().equals(tempStaff.getPhone())) {
 			//手机号已修改 更新登录用户表信息
 			// 修改sys_user 表数据
-			UserDTO needUpdate = new UserDTO();
+			InternalUserPhoneSyncReqDTO needUpdate = new InternalUserPhoneSyncReqDTO();
 			needUpdate.setUsername(tempStaff.getBadge());
 			needUpdate.setPhone(tempStaff.getPhone());
-			needUpdate.setRole(SecurityUtils.getRoles());
-			Result<Boolean> booleanResult = remoteUserService.updateUserInfo(needUpdate,SecurityConstants.FROM_IN);
+			Result<Boolean> booleanResult = remoteUserInternalService.syncPlatformPhone(needUpdate);
 			if (!booleanResult.isSuccess()) {
 				throw new TCEException("修改登录信息异常");
 			}
@@ -3120,11 +3119,10 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		this.updateById(staff);
 
 		// 修改sys_user 表数据
-		UserDTO needUpdate = new UserDTO();
+		InternalUserPhoneSyncReqDTO needUpdate = new InternalUserPhoneSyncReqDTO();
 		needUpdate.setUsername(staff.getBadge());
 		needUpdate.setPhone(newPhone);
-		needUpdate.setRole(SecurityUtils.getRoles());
-		remoteUserService.updateUserInfo(needUpdate,SecurityConstants.FROM_IN);
+		remoteUserInternalService.syncPlatformPhone(needUpdate);
 		return true;
 	}
 

@@ -3,11 +3,12 @@ package com.tce.smart.platform.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.tce.smart.admin.api.dto.UserDTO;
-import com.tce.smart.admin.api.dto.UserInfo;
+import com.tce.smart.admin.api.dto.InternalParkAdminProvisionReqDTO;
+import com.tce.smart.admin.api.dto.InternalParkAdminUpdateReqDTO;
+import com.tce.smart.admin.api.dto.InternalUserSummaryRespDTO;
 import com.tce.smart.admin.api.entity.SysRole;
 import com.tce.smart.admin.api.feign.RemoteRoleService;
-import com.tce.smart.admin.api.feign.RemoteUserService;
+import com.tce.smart.admin.api.feign.RemoteUserInternalService;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
@@ -48,7 +49,7 @@ import java.util.stream.Collectors;
 public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelationMapper, SmtOrganizeRelation> implements SmtOrganizeRelationService {
 
 	@Autowired
-	private RemoteUserService remoteUserService;
+	private RemoteUserInternalService remoteUserInternalService;
 	@Autowired
 	private RemoteRoleService remoteRoleService;
 	@Autowired
@@ -73,7 +74,7 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 		LocalDateTime now = LocalDateTime.now();
 		SmtOrganizeRelation relation = BeanUtils.transform(SmtOrganizeRelation.class, relationReqDTO);
 		try {
-			Integer userId = remoteUserService.info(relationReqDTO.getUserName(), SecurityConstants.FROM_IN).getData().getSysUser().getUserId();
+			Integer userId = remoteUserInternalService.summary(relationReqDTO.getUserName()).getData().getUserId();
 			relation.setUserId(userId);
 			relation.setCreateTime(now);
 		} catch (Exception e) {
@@ -97,7 +98,7 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 		//若userId为空，则该数据为ehr同步数据且未关联用户
 		if (Objects.isNull(relationReqDTO.getUserName())) {
 			this.saveUser(relationReqDTO);
-			Integer userId = remoteUserService.info(relationReqDTO.getUserName(), SecurityConstants.FROM_IN).getData().getSysUser().getUserId();
+			Integer userId = remoteUserInternalService.summary(relationReqDTO.getUserName()).getData().getUserId();
 			relation.setUserId(userId);
 			this.updateById(relation);
 			return authAccess(relationReqDTO.getDeviceAuthId(), relation);
@@ -167,7 +168,7 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 			throw new SmartException("请先移除该组织下的部门与人员");
 		}
 		SmtOrganizeRelation relation = this.getById(id);
-		remoteUserService.delUserForPlatform(relation.getUserName(), SecurityConstants.FROM_IN);
+		remoteUserInternalService.deletePlatformUser(relation.getUserName());
 		return this.removeById(id);
 	}
 
@@ -240,12 +241,12 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 	 * @return
 	 */
 	private Boolean saveUser(OrganizeRelationReqDTO relationReqDTO) {
-		UserDTO userDTO = new UserDTO();
+		InternalParkAdminProvisionReqDTO userDTO = new InternalParkAdminProvisionReqDTO();
 		SmtOrganizeRelation smtOrganizeRelation = this.getByUserName(relationReqDTO.getUserName());
 		if (Objects.nonNull(smtOrganizeRelation)) {
 			throw new SmartException("该用户已为其他企业管理员");
 		}
-		UserInfo user = remoteUserService.info(relationReqDTO.getUserName(), SecurityConstants.FROM_IN).getData();
+		InternalUserSummaryRespDTO user = remoteUserInternalService.summary(relationReqDTO.getUserName()).getData();
 		if (Objects.nonNull(user)) {
 			throw new SmartException("该用户已存在");
 		}
@@ -256,15 +257,14 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 		List<SysRole> roleList = resultRole.getData();
 		List<SysRole> role = roleList.stream().filter(r -> r.getRoleDesc().equals("企业管理员")).collect(Collectors.toList());
 		if (CollectionUtils.isNotEmpty(role)) {
-			List<Integer> roleIds = role.stream().map(SysRole::getRoleId).collect(Collectors.toList());
-			userDTO.setRole(roleIds);
+			userDTO.setRoleId(role.get(0).getRoleId());
 		} else {
 			throw new SmartException("企业管理员角色不存在，请联系管理员新增该角色");
 		}
-		userDTO.setPark(Collections.singletonList(relationReqDTO.getParkId()));
+		userDTO.setParkId(relationReqDTO.getParkId());
 		userDTO.setPassword(relationReqDTO.getPassword());
 		userDTO.setUsername(relationReqDTO.getUserName());
-		Result<Boolean> b = remoteUserService.saveUser(userDTO, SecurityConstants.FROM_IN);
+		Result<Boolean> b = remoteUserInternalService.provisionPlatformAdmin(userDTO);
 		if (Objects.isNull(b)) {
 			throw new SmartException("新增用户信息失败");
 		}
@@ -279,21 +279,23 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 	 */
 	private Boolean updateUser(OrganizeRelationReqDTO relationReqDTO) {
 		SmtOrganizeRelation relation = this.getById(relationReqDTO.getId());
-		Result<UserInfo> userResult = remoteUserService.info(relationReqDTO.getUserName(), SecurityConstants.FROM_IN);
+		Result<InternalUserSummaryRespDTO> userResult = remoteUserInternalService.summary(relationReqDTO.getUserName());
 		if(Objects.isNull(userResult.getData())) {
 			throw new SmartException("获取用户信息异常");
 		}
-		UserDTO userDTO = new UserDTO();
-		userDTO.setUserId(userResult.getData().getSysUser().getUserId());
+		InternalParkAdminUpdateReqDTO userDTO = new InternalParkAdminUpdateReqDTO();
+		userDTO.setUserId(userResult.getData().getUserId());
 		if (StringUtils.isNotEmpty(relationReqDTO.getPassword())) {
 			userDTO.setPassword(relationReqDTO.getPassword());
 		}
 		if (!relationReqDTO.getParkId().equals(relation.getParkId())) {
-			userDTO.setPark(Collections.singletonList(relationReqDTO.getParkId()));
+			userDTO.setParkId(relationReqDTO.getParkId());
+		} else {
+			userDTO.setParkId(relation.getParkId());
 		}
 		userDTO.setUsername(relationReqDTO.getUserName());
 		if (Objects.nonNull(userDTO)) {
-			Result<Boolean> b = remoteUserService.updateUser(userDTO, SecurityConstants.FROM_IN);
+			Result<Boolean> b = remoteUserInternalService.updatePlatformAdmin(userDTO);
 			if (Objects.isNull(b)) {
 				throw new SmartException("修改用户信息失败");
 			}
