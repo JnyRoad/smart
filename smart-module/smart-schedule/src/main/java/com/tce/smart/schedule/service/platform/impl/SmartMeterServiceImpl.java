@@ -93,7 +93,8 @@ public class SmartMeterServiceImpl implements SmartMeterService {
 					dispatcherDTO.setParkId(item.getParkId());
 					dispatcherDTO.setDeviceId(item.getConcentratorId().toString());
 					dispatcherDTO.setData(deviceInfo);
-					Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+					Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+							SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 					if (!result.isSuccess()) {
 						throw new SmartException("水表" + item.getId() + "读数请求失败");
 					}
@@ -152,7 +153,8 @@ public class SmartMeterServiceImpl implements SmartMeterService {
 					dispatcherDTO.setParkId(item.getParkId());
 					dispatcherDTO.setDeviceId(item.getConcentratorId().toString());
 					dispatcherDTO.setData(deviceInfo);
-					Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+					Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+							SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 
 					if (!result.isSuccess()) {
 						throw new SmartException("电表" + item.getId() + "读数请求失败");
@@ -213,7 +215,8 @@ public class SmartMeterServiceImpl implements SmartMeterService {
 					dispatcherDTO.setParkId(item.getParkId());
 					dispatcherDTO.setDeviceId(item.getConcentratorId().toString());
 					dispatcherDTO.setData(deviceInfo);
-					Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+					Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+							SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 
 					if (!result.isSuccess()) {
 						throw new SmartException("电表" + item.getId() + "闸门请求失败");
@@ -315,7 +318,8 @@ public class SmartMeterServiceImpl implements SmartMeterService {
 			dispatcherDTO.setParkId(parkId);
 			dispatcherDTO.setDeviceId(deviceId.toString());
 			dispatcherDTO.setData(deviceInfo);
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if(!result.isSuccess()){
 				throw new SmartException("检测集中器(阀门)是否在线失败");
 			}

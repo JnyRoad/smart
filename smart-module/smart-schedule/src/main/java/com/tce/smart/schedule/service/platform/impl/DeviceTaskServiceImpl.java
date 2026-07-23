@@ -299,7 +299,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setDeviceId(carCardDTO.getDeviceCode());
 		dispatcherDTO.setData(carCardDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		DateTime end = DateUtil.date();
 		if (null != result && null != result.getData()) {
 			JSONObject object = JSONUtil.parseObj(result.getData());
@@ -402,7 +403,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setDeviceId(carCardDelDTO.getDeviceCode());
 		dispatcherDTO.setData(carCardDelDTO);
 		//这里需要主要 result的code=0表示成功 和 DeviceTaskEnum.DEVICE_OK 不一致
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (result.isSuccess()) {
 			JSONObject object = JSONUtil.parseObj(result.getData());
 			smtDeviceTask.setCode(object.getInt("code"));
@@ -509,7 +511,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		DateTime start = DateUtil.date();
 		// 园区分发
 		dispatcherDTO.setData(cardDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		//Result(code=0, msg=success, data=true)
 		DateTime end = DateUtil.date();
 		boolean flag = this.downCardResultHandle(smtDeviceTask.getId(), result, DateUtil.betweenMs(start, end));
@@ -545,7 +548,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setDeviceId(cardDelDTO.getDeviceCode());
 		dispatcherDTO.setData(cardDelDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		DateTime end = DateUtil.date();
 		boolean flag = this.delCardResultHandle(smtDeviceTask.getId(), result, DateUtil.betweenMs(start, end));
 		log.info("状态修改-卡片人员删除，修改时间：{}，请求参数：id：{}，result.code：{},返回结果：{}", DateUtil.formatDateTime(DateUtil.date()), smtDeviceTask.getId(), result.getCode(), flag);

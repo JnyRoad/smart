@@ -1,6 +1,8 @@
 package com.tce.smart.push.controller;
 
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.push.constant.PushConstants;
 import com.tce.smart.push.dto.ApnsMessageDTO;
 import com.tce.smart.push.dto.NoticeMessageDTO;
@@ -27,6 +29,8 @@ public class PushController {
     private PushService pushService;
 
     @PostMapping("/notice")
+    @Inner
+    @OpenApi("server")
     public Result notice(@RequestBody NoticeMessageDTO noticeMessageDTO){
         Result result = Result.builder().code(HttpStatus.BAD_REQUEST.value()).data("").build();
         try {
@@ -46,6 +50,8 @@ public class PushController {
     }
 
     @PostMapping("/transmission")
+    @Inner
+    @OpenApi("server")
     @ResponseBody
     public Result transmission(@RequestBody ApnsMessageDTO apnsMessageDTO){
         Result result = Result.builder().code(HttpStatus.BAD_REQUEST.value()).build();
@@ -65,6 +71,8 @@ public class PushController {
     }
 
     @PostMapping("/pushAll")
+    @Inner
+    @OpenApi("server")
     @ResponseBody
     public Result pushAll(@RequestBody PushMessageDTO pushMessageDTO){
         Result result = Result.builder().code(HttpStatus.BAD_REQUEST.value()).build();

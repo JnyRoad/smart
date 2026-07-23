@@ -104,7 +104,8 @@ public class DeviceServiceImpl implements IDeviceService, InitializingBean {
 		dispatcherDTO.setParkId(entity.getParkId());
 		dispatcherDTO.setDeviceId(entity.getId());
 		dispatcherDTO.setData(deviceInfo);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 
 		//log.info("设备添加 result:{}", result);
 		entity.setConnectStatus(DeviceConstants.UNCONNECTED);
@@ -226,7 +227,8 @@ public class DeviceServiceImpl implements IDeviceService, InitializingBean {
 			dispatcherDTO.setParkId(entity.getParkId());
 			dispatcherDTO.setDeviceId(entity.getId());
 			dispatcherDTO.setData(getDeviceInfo(entity.getId()));
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			//log.info("设备删除 result:{}" + result);
 
 			//注意 当相应为 (code=0, msg=success, data={"code":407,"message":"设备不存在"} 也应当作为删除成功处理
@@ -245,7 +247,8 @@ public class DeviceServiceImpl implements IDeviceService, InitializingBean {
 		dispatcherDTO.setParkId(entity.getParkId());
 		dispatcherDTO.setDeviceId(entity.getId());
 		dispatcherDTO.setData(deviceInfo);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("设备添加成功 dispatcherDTO.getDeviceId():{}" + dispatcherDTO.getDeviceId());
 		entity.setConnectStatus(DeviceConstants.UNCONNECTED);
 		if(result.isSuccess()){
@@ -308,7 +311,8 @@ public class DeviceServiceImpl implements IDeviceService, InitializingBean {
 		dispatcherDTO.setParkId(smtDevice.getParkId());
 		dispatcherDTO.setDeviceId(id);
 		dispatcherDTO.setData(getDeviceInfo(id));
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (result.getCode() != DeviceConstants.SUCCESS) {
 			return new Result<Boolean>(false, "设备更新失败");
 		}
@@ -407,7 +411,8 @@ public class DeviceServiceImpl implements IDeviceService, InitializingBean {
 			dispatcherDTO.setEventType(EventEnum.FACE_IMAGE_THERMAL.getCode());
 			dispatcherDTO.setParkId(device.getParkId());
 			dispatcherDTO.setData(param);
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if(!result.isSuccess()){
 				//回滚
 				log.error("设置体温检测异常:({})",result.getData());
@@ -428,7 +433,8 @@ public class DeviceServiceImpl implements IDeviceService, InitializingBean {
 		dispatcherDTO.setEventType(EventEnum.DEVICE_STATUS_LIST_SEARCH.getCode());
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setData(queryDeviceStatusReq);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (result.isSuccess()) {
 			//log.info("业务分发接口返回:{}",result);
 			JSONArray JsonArray = JSONUtil.parseObj(result.data()).getJSONArray("data");

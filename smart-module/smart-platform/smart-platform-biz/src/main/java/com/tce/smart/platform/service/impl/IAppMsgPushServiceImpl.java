@@ -272,7 +272,8 @@ public class IAppMsgPushServiceImpl implements IAppMsgPushService {
 				noticeMessageDTO.setClientId(devicePushId);// 设备token
 
 				log.info("noticeMessageDTO====req====={}", JSONUtil.toJsonPrettyStr(noticeMessageDTO));
-				remotePushRs = remotePushService.notice(noticeMessageDTO, SecurityConstants.FROM_IN);
+				remotePushRs = remotePushService.notice(noticeMessageDTO, SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 
 			}
 			// IOS设备推送
@@ -282,7 +283,8 @@ public class IAppMsgPushServiceImpl implements IAppMsgPushService {
 				apnsMessageDTO.setDeviceToken(devicePushId);
 
 				log.info("ApnsMessageDTO=====req===={}", JSONUtil.toJsonPrettyStr(apnsMessageDTO));
-				remotePushRs = remotePushService.transmission(apnsMessageDTO, SecurityConstants.FROM_IN);
+				remotePushRs = remotePushService.transmission(apnsMessageDTO, SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			}
 
 		} catch (TCEException tce) {

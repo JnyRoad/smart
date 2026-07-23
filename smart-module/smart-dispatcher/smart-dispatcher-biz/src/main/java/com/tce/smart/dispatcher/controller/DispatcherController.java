@@ -3,6 +3,7 @@ package com.tce.smart.dispatcher.controller;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.dispatcher.api.dto.req.DispatcherDTO;
 import com.tce.smart.dispatcher.api.dto.req.ImageDTO;
 import com.tce.smart.dispatcher.api.dto.resp.BridgeDTO;
@@ -44,6 +45,7 @@ public class DispatcherController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("业务分发")
 	@PostMapping("/dispatch")
 	public <T> Result dispatch(@RequestBody DispatcherDTO<T> dispatcherDTO) {
@@ -57,6 +59,7 @@ public class DispatcherController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("园区请求转发")
 	@PostMapping("/handle")
 	public Result handle(@RequestBody BridgeDTO<String> bridgeDTO) {
@@ -70,6 +73,7 @@ public class DispatcherController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("获取园区图片")
 	@PostMapping("/image")
 	public Result getImage(@RequestBody ImageDTO imageDTO) {
@@ -78,6 +82,7 @@ public class DispatcherController extends BaseController {
 
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("获取园区缩略图")
 	@PostMapping("/thumbnail")
 	public Result getThumbnail(@RequestBody ImageDTO imageDTO){

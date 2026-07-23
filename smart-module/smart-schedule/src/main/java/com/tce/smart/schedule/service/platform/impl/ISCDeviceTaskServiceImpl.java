@@ -434,7 +434,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setParkId(task.getParkId());
 			dispatcherDTO.setEventType(isAdd ? EventEnum.ISC_PERSON_ADD.getCode() : EventEnum.ISC_PERSON_UPDATE.getCode());
 			dispatcherDTO.setData(params);
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				String errorMsg = result.getMessage();
 				log.info("添加人员至ISC平台失败：{}", errorMsg);
@@ -554,7 +555,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setParkId(task.getParkId());
 			dispatcherDTO.setEventType(EventEnum.ISC_PERSON_GET.getCode());
 			dispatcherDTO.setData(params);
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				log.info("从ISC平台查询人员[{}]失败：{}", task.getCardNo(), result.getMessage());
 				return null;
@@ -613,7 +615,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setData(params);
 			log.debug("event=isc_person_batch_lookup_request park_id={} payload={}", parkId,
 					IscLogPayloadFormatter.format(params));
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				log.debug("从ISC平台批量查询人员失败：{}", result.getMessage());
 				return null;
@@ -685,7 +688,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setData(params);
 			log.info("event=isc_visitor_batch_lookup_request park_id={} payload={}", dispatcherDTO.getParkId(),
 					IscLogPayloadFormatter.format(params));
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				// 查询失败返回null哨兵，调用方跳过本轮避免误判"人员不存在"而重复建人
 				log.info("从ISC平台批量查询人员失败：{}", result.getMessage());
@@ -773,7 +777,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setParkId(parkId);
 			dispatcherDTO.setEventType(EventEnum.ISC_PERSON_GET.getCode());
 			dispatcherDTO.setData(params);
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("event=isc_person_detail_response park_id={} person_count={} payload={}", parkId, personIds.size(),
 					IscLogPayloadFormatter.format(result == null ? null : result.getData()));
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
@@ -1490,7 +1495,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		dispatcherDTO.setData(params);
 		Result<String> result;
 		try {
-			result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		} catch (Exception e) {
 			log.warn("删除权限任务[{}]按{}查询ISC人员异常，保持重试：{}", task.getId(), paramName, e.getMessage());
 			return DeletePersonLookupResult.queryFailed();
@@ -1663,7 +1669,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		dispatcherDTO.setData(params);
 		Result<String> result;
 		try {
-			result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		} catch (Exception e) {
 			log.warn("删除权限任务[{}]复查ISC权限条目异常，保持重试：{}", task.getId(), e.getMessage());
 			return true;
@@ -2045,7 +2052,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 								dispatcherDTO.getEventId(), parkId, deviceCode, isAdd ? "ADD" : "DELETE", batchTasks.size(), taskIdSummary,
 								IscLogPayloadFormatter.format(dispatcherDTO));
 						try {
-							Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+							Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+									SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 							long elapsedMillis = System.currentTimeMillis() - dispatchStartTime;
 							log.info("event=isc_auth_dispatch_response event_id={} park_id={} device_code={} action={} task_count={} task_ids={} success={} result_code={} elapsed_ms={} payload={}",
 									dispatcherDTO.getEventId(), parkId, deviceCode, isAdd ? "ADD" : "DELETE", batchTasks.size(), taskIdSummary,
@@ -2212,7 +2220,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			configQueryDTO.setParkId(taskList.get(0).getParkId());
 			configQueryDTO.setEventType(EventEnum.ISC_AUTH_CONFIG_PROCESS_GET.getCode());
 			configQueryDTO.setData(configQuery);
-			Result<String> result = remoteDispatcherService.dispatch(configQueryDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(configQueryDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				log.info("查询权限配置[{}]进度失败：{}", taskId, result.getMessage());
 				markTimedOutTaskResultBatch(taskList, ISCDeviceTaskEnum.AUTH_CONFIG_ERROR,
@@ -2256,7 +2265,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			downAuthDTO.setData(downAuth);
 			log.info("event=isc_auth_download_request event_id={} isc_task_id={} park_id={} task_count={} payload={}",
 					downAuthDTO.getEventId(), taskId, downAuthDTO.getParkId(), taskList.size(), IscLogPayloadFormatter.format(downAuthDTO));
-			Result<String> downResult = remoteDispatcherService.dispatch(downAuthDTO, SecurityConstants.FROM_IN);
+			Result<String> downResult = remoteDispatcherService.dispatch(downAuthDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!downResult.isSuccess() || StrUtil.isBlank(downResult.getData())) {
 				log.info("快捷下载权限配置[{}]失败：{}", taskId, downResult.getMessage());
 				markTaskFailureBatch(taskList, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL,
@@ -2331,7 +2341,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setEventType(EventEnum.ISC_TASK_PROCESS_GET.getCode());
 			dispatcherDTO.setData(params);
 			// 发送园区分发请求
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			// 处理请求结果
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				log.info("查询下载权限任务[{}]进度失败：{}", taskId, result.getMessage());
@@ -2470,7 +2481,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setData(detail);
 			Result<String> detailResult;
 			try {
-				detailResult = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+				detailResult = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			} catch (Exception e) {
 				log.warn("查询下载权限任务[{}]明细第{}页异常：{}", taskId, pageNo, e.getMessage());
 				return null;
@@ -2800,7 +2812,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setParkId(task.getParkId());
 			dispatcherDTO.setEventType(EventEnum.ISC_FACE_ADD.getCode());
 			dispatcherDTO.setData(params);
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				// 特殊处理：如果人脸已存在，视为成功
 				if (result.getMessage() != null && result.getMessage().contains("PersonFace Exists")) {
@@ -2865,7 +2878,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			dispatcherDTO.setParkId(task.getParkId());
 			dispatcherDTO.setEventType(EventEnum.ISC_FACE_UPDATE.getCode());
 			dispatcherDTO.setData(params);
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				log.info("更新人脸图片至ISC平台失败, ID:{}, {}", task.getCardNo(), result.getMessage());
 				return false;
@@ -3093,7 +3107,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		}
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setData(params);
-		return remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		return remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
 	/**
@@ -3139,7 +3154,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		dispatcherDTO.setEventType(EventEnum.ISC_TEMPERATURE_GET.getCode());
 		dispatcherDTO.setParkId(hfParkId);
 		dispatcherDTO.setData(params);
-		Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 //		ResponseEntity<String> result1 = new RestTemplate().postForEntity("http://10.0.20.113:8082/dispatcher/dispatch",
 //				dispatcherDTO, String.class);
 //		String result = result1.getBody();
@@ -3189,7 +3205,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		dispatcherDTO.setEventType(EventEnum.ISC_ACCESS_DEVICE_STATUS_GET.getCode());
 		dispatcherDTO.setData(params);
 		try {
-			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+			Result<String> result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (!result.isSuccess() || StrUtil.isBlank(result.getData())) {
 				log.info("获取设备详情信息失败：{}", result.getMessage());
 				return Collections.emptyList();

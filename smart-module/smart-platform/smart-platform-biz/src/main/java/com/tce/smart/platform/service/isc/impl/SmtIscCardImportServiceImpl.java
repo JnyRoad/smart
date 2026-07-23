@@ -440,7 +440,8 @@ public class SmtIscCardImportServiceImpl extends ServiceImpl<SmtIscCardImportBat
 		dispatcherDTO.setParkId(dispatcherParkId);
 		dispatcherDTO.setEventType(eventEnum.getCode());
 		dispatcherDTO.setData(params);
-		return remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		return remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
 	private boolean isCurrentPersonCard(JSONObject card, String personId) {

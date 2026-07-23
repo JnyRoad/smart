@@ -23,7 +23,7 @@ public class ISCPersonServiceImplTest {
 	public void syncISCPersonCardAddsCardToPersonInTargetPark() throws Exception {
 		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
 		ISCPersonServiceImpl service = service(dispatcherService);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO<Map> dto = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(dto.getEventType())) {
@@ -52,7 +52,7 @@ public class ISCPersonServiceImplTest {
 	public void syncISCPersonCardAcceptsHikvisionUppercaseLetterCardNo() throws Exception {
 		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
 		ISCPersonServiceImpl service = service(dispatcherService);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO<Map> dto = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(dto.getEventType())) {
@@ -87,7 +87,7 @@ public class ISCPersonServiceImplTest {
 	public void deleteISCPersonCardRequiresResolvedPersonId() throws Exception {
 		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
 		ISCPersonServiceImpl service = service(dispatcherService);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{\"list\":[]}"));
 
 		Boolean deleted = service.deleteISCPersonCard("JA26086", 5000021, "AB123456");

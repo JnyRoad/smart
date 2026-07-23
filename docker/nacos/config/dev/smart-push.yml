@@ -6,8 +6,8 @@ security:
       password: "${SMART_PUSH_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}" # smart
       scope: server
       # 放行url
-      ignore-urls:
-        - /**
+      # 推送业务无匿名入口；所有发送操作仅允许受控服务令牌调用。
+      ignore-urls: []
 
 uni:
   push:
