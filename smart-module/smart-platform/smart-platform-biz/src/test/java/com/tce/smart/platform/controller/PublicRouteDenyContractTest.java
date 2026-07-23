@@ -32,6 +32,7 @@ public class PublicRouteDenyContractTest {
                 "/admittance/apply/get/openId",
                 "/admittance/visitor-face/capability",
                 "/admittance/visitor-face/crop",
+                "/admittance/visitor-action/capability",
                 "/regist/save/identification",
                 "/regist/face/crop",
                 "/regist/face/add"), ignoreUrls);
