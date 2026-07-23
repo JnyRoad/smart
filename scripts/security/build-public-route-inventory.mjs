@@ -1,0 +1,394 @@
+import { readdir, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { parseDocument } from 'yaml'
+
+const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url))
+const REPOSITORY_ROOT = path.resolve(SCRIPT_DIRECTORY, '../..')
+const SECURITY_ANNOTATIONS = new Set([
+  'Deprecated',
+  'Inner',
+  'NonceReplayProtected',
+  'OpenApi',
+  'SignatureVerified',
+  'TimestampVerified',
+])
+
+/**
+ * Task 8 只盘点可能被匿名放行的服务。这里的目录与 Data ID 显式绑定，避免误把其他业务模块纳入发布门禁。
+ */
+export const DEFAULT_TARGETS = [
+  {
+    service: 'smart-data',
+    configNames: ['smart-data.yml'],
+    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-data/smart-data-biz/src/main/java'),
+  },
+  {
+    service: 'smart-algorithm',
+    configNames: ['smart-algorithm.yml'],
+    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-algorithm/smart-algorithm-biz/src/main/java'),
+  },
+  {
+    service: 'smart-push',
+    configNames: ['smart-push.yml'],
+    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-push/smart-push-biz/src/main/java'),
+  },
+  {
+    service: 'smart-dispatcher',
+    configNames: ['smart-dispatcher.yml'],
+    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-dispatcher/smart-dispatcher-biz/src/main/java'),
+  },
+  {
+    service: 'smart-schedule',
+    configNames: ['smart-schedule.yml'],
+    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-schedule/smart-schedule-biz/src/main/java'),
+  },
+  {
+    service: 'smart-bridge',
+    configNamePattern: /^smart-bridge-biz-.*\.yml$/,
+    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-bridge/smart-bridge-biz/src/main/java'),
+  },
+  {
+    service: 'smart-bridge-isc',
+    configNamePattern: /^smart-bridge-isc.*\.yml$/,
+    controllerDirectory: path.join(REPOSITORY_ROOT, 'smart-module/smart-bridge-isc/smart-bridge-isc-biz/src/main/java'),
+  },
+]
+
+function normalizePath(value) {
+  const combined = `/${value || ''}`.replace(/\/+/g, '/')
+  return combined.length > 1 ? combined.replace(/\/$/, '') : combined
+}
+
+function annotationName(line) {
+  const match = line.match(/^\s*@([A-Za-z_$][\w$]*)\b/)
+  return match?.[1] ?? null
+}
+
+function mappingPath(line) {
+  if (!/@(?:Request|Get|Post|Put|Delete|Patch)Mapping\b/.test(line)) {
+    return null
+  }
+  const stringMatch = line.match(/["']([^"']*)["']/)
+  return stringMatch ? stringMatch[1] : ''
+}
+
+function methodDeclaration(line) {
+  return /\b(public|protected|private)\b/.test(line)
+    && /\(/.test(line)
+    && !/\bclass\b/.test(line)
+}
+
+function hasAnnotation(annotations, annotation) {
+  return annotations.some((value) => value === annotation)
+}
+
+function joinPaths(basePath, endpointPath) {
+  return normalizePath(`${basePath || ''}/${endpointPath || ''}`)
+}
+
+/**
+ * 解析控制器中可静态识别的 Spring 路由。解析器故意保守：无法解析的复杂注解不会被臆造成可匿名路由。
+ */
+export function parseControllerSource(source, sourcePath) {
+  const routes = []
+  let classPath = ''
+  let pendingAnnotations = []
+  let pendingMappings = []
+
+  for (const rawLine of source.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('//') || line.startsWith('*') || line.startsWith('/*')) {
+      continue
+    }
+
+    const annotation = annotationName(line)
+    if (annotation) {
+      const pathValue = mappingPath(line)
+      if (pathValue !== null) {
+        pendingMappings.push(pathValue)
+      } else if (SECURITY_ANNOTATIONS.has(annotation)) {
+        pendingAnnotations.push(annotation)
+      }
+      continue
+    }
+
+    if (/\bclass\s+\w+/.test(line)) {
+      classPath = pendingMappings.length > 0 ? pendingMappings[0] : ''
+      pendingAnnotations = []
+      pendingMappings = []
+      continue
+    }
+
+    if (methodDeclaration(line) && pendingMappings.length > 0) {
+      for (const endpointPath of pendingMappings) {
+        routes.push({
+          annotations: [...pendingAnnotations],
+          path: joinPaths(classPath, endpointPath),
+          sourcePath,
+        })
+      }
+      pendingAnnotations = []
+      pendingMappings = []
+    }
+  }
+
+  return routes
+}
+
+/**
+ * 给出目标暴露面，而不是根据现有匿名配置推测安全性。签名回调只有同时具备三项证据才可进入匿名白名单。
+ */
+export function classifyRoute(route) {
+  if (hasAnnotation(route.annotations ?? [], 'Inner')) {
+    return {
+      exposure: 'internal',
+      nacosIgnoreUrl: false,
+      requires: ['service-token', 'FROM_IN'],
+    }
+  }
+
+  const signatureEvidence = new Set(route.signatureEvidence ?? [])
+  const verifiedCallback = hasAnnotation(route.annotations ?? [], 'SignatureVerified')
+    && ['signature', 'timestamp', 'nonce'].every((item) => signatureEvidence.has(item))
+  if (verifiedCallback) {
+    return {
+      exposure: 'callback-signed',
+      nacosIgnoreUrl: true,
+      requires: ['signature', 'timestamp', 'nonce'],
+    }
+  }
+
+  if (hasAnnotation(route.annotations ?? [], 'Deprecated')) {
+    return { exposure: 'retired', nacosIgnoreUrl: false, requires: [] }
+  }
+
+  return {
+    exposure: 'external-authenticated',
+    nacosIgnoreUrl: false,
+    requires: ['user-or-client-token'],
+  }
+}
+
+async function listFiles(directory) {
+  try {
+    const entries = await readdir(directory, { withFileTypes: true })
+    const nested = await Promise.all(entries.map(async (entry) => {
+      const entryPath = path.join(directory, entry.name)
+      if (entry.isDirectory()) return listFiles(entryPath)
+      return entry.isFile() ? [entryPath] : []
+    }))
+    return nested.flat()
+  } catch (error) {
+    if (error.code === 'ENOENT') return []
+    throw error
+  }
+}
+
+function getObjectPath(value, keys) {
+  return keys.reduce((current, key) => current && typeof current === 'object' ? current[key] : undefined, value)
+}
+
+async function readIgnoreUrls(configDirectory, configName) {
+  const content = await readFile(path.join(configDirectory, configName), 'utf8')
+  const document = parseDocument(content, { merge: true, prettyErrors: false, strict: true, uniqueKeys: true })
+  if (document.errors.length > 0) {
+    throw new Error(`Invalid YAML in ${configName}`)
+  }
+  const ignoreUrls = getObjectPath(document.toJS({ maxAliasCount: 100 }), ['security', 'oauth2', 'client', 'ignore-urls'])
+  if (ignoreUrls === undefined) return []
+  if (!Array.isArray(ignoreUrls) || ignoreUrls.some((item) => typeof item !== 'string')) {
+    throw new Error(`Unsupported ignore-urls value in ${configName}`)
+  }
+  return ignoreUrls
+}
+
+function matchesIgnoreUrl(routePath, ignoreUrl) {
+  if (ignoreUrl.endsWith('/**')) {
+    return routePath === ignoreUrl.slice(0, -3) || routePath.startsWith(ignoreUrl.slice(0, -2))
+  }
+  return routePath === ignoreUrl
+}
+
+function isCallbackCandidate(route) {
+  return /(callback|webhook|handle|notify)/i.test(route.path)
+    && !hasAnnotation(route.annotations, 'Inner')
+}
+
+function isInternalPathCandidate(route) {
+  return /(^|\/)inner(?:\/|$)/i.test(route.path)
+    && !hasAnnotation(route.annotations, 'Inner')
+}
+
+function routeReview(route, ignoreUrls) {
+  let base = classifyRoute(route)
+  const anonymousMatches = ignoreUrls.filter((ignoreUrl) => matchesIgnoreUrl(route.path, ignoreUrl))
+  const blockers = []
+  const internalCandidate = isInternalPathCandidate(route)
+
+  if (internalCandidate) {
+    base = {
+      exposure: 'internal',
+      nacosIgnoreUrl: false,
+      requires: ['service-token', 'FROM_IN'],
+    }
+    blockers.push('内部候选路径缺少 @Inner 与 @OpenApi(server) 静态证据')
+  }
+
+  if (base.exposure === 'internal') {
+    if (!internalCandidate && !hasAnnotation(route.annotations, 'OpenApi')) {
+      blockers.push('内部端点缺少 @OpenApi(server) 静态证据')
+    }
+    if (anonymousMatches.length > 0) {
+      blockers.push('当前 ignore-urls 匹配内部端点')
+    }
+  } else if (isCallbackCandidate(route) && base.exposure !== 'callback-signed') {
+    blockers.push('未知厂商回调：缺少签名、时间窗和 nonce 重放检查证据')
+    if (anonymousMatches.length > 0) blockers.push('当前 ignore-urls 允许匿名访问')
+  } else if (anonymousMatches.length > 0 && base.exposure !== 'callback-signed') {
+    blockers.push('当前 ignore-urls 匹配该路由，尚未证明认证收口')
+  }
+
+  return {
+    ...base,
+    anonymousMatches,
+    blockers,
+    status: blockers.length > 0 ? 'BLOCKED' : 'REVIEW_REQUIRED',
+  }
+}
+
+function escapeCell(value) {
+  return String(value).replaceAll('|', '\\|').replaceAll('\n', '<br>')
+}
+
+function formatRouteRow(route) {
+  const blockers = route.blockers.length === 0 ? '待人工核验调用方与认证链' : route.blockers.join('；')
+  return `| ${escapeCell(route.service)} | \`${escapeCell(route.path)}\` | ${escapeCell(route.exposure)} | ${escapeCell(route.status)} | ${escapeCell(route.annotations.join(', ') || '-')} | ${escapeCell(route.requires.join(', ') || '-')} | ${escapeCell(route.anonymousMatches.join(', ') || '-')} | ${escapeCell(blockers)} | \`${escapeCell(route.sourcePath)}\` |`
+}
+
+function renderInventoryMarkdown(inventory) {
+  const lines = [
+    '# 服务路由静态库存（Task 8 第一阶段）',
+    '',
+    '> 本文由 `node scripts/security/build-public-route-inventory.mjs` 离线生成。它只读取本仓控制器注解与本地 Nacos 基线，不连接生产、不输出任何密钥或个人信息。',
+    '',
+    '## 判定规则',
+    '',
+    '- `internal`：源码存在 `@Inner`；上线前仍必须有 `@OpenApi(server)`、服务令牌与 `FROM_IN`。',
+    '- `callback-signed`：仅当源码同时提供签名、时间窗与 nonce 重放保护的静态证据时，才可作为精确匿名白名单候选。',
+    '- `external-authenticated`：默认目标是用户或客户端认证，不能因当前 `ignore-urls` 而视为匿名安全。',
+    '- `retired`：源码明确标记为废弃，仍需在发布前确认没有调用方。',
+    '- `BLOCKED`：证据不足或当前匿名配置与目标暴露面冲突；尤其未知厂商回调不会被假设为安全。',
+    '',
+    '## 服务汇总',
+    '',
+    '| 服务 | Data ID | 控制器路由数 | 阻断项 |',
+    '| --- | --- | ---: | ---: |',
+  ]
+
+  for (const service of inventory.services) {
+    lines.push(`| ${escapeCell(service.service)} | ${escapeCell(service.configNames.join(', ') || '未找到配置')} | ${service.routeCount} | ${service.blockingCount} |`)
+  }
+
+  lines.push('', '## 路由明细', '', '| 服务 | 路径 | 目标分类 | 状态 | 源码注解 | 上线要求 | 当前匿名匹配 | 阻断或待核验证据 | 来源 |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |')
+  for (const route of inventory.routes) lines.push(formatRouteRow(route))
+
+  if (inventory.serviceFindings.length > 0) {
+    lines.push('', '## 服务级阻断项', '')
+    for (const finding of inventory.serviceFindings) {
+      lines.push(`- **${escapeCell(finding.service)}**：${escapeCell(finding.message)}`)
+    }
+  }
+
+  lines.push('', '## 下一阶段要求', '', '1. 对每个 `BLOCKED` 路由补齐调用方、签名或内部契约证据后再改变本地 Nacos。', '2. 不得因静态盘点通过而删除任一 `/**`；每个 Data ID 需独立完成签名/令牌探针和灰度。', '3. 本库存不证明生产 Nacos 或生产网络隔离状态，生产发布仍按发布清单执行。', '')
+  return lines.join('\n')
+}
+
+async function resolveConfigNames(configDirectory, target) {
+  if (target.configNames) return target.configNames
+  const entries = await readdir(configDirectory, { withFileTypes: true })
+  return entries
+    .filter((entry) => entry.isFile() && target.configNamePattern.test(entry.name))
+    .map((entry) => entry.name)
+    .sort()
+}
+
+/**
+ * 建立可审计库存。返回值包含 Markdown 和结构化阻断项，便于测试与 CI 在不泄漏配置内容的前提下失败关闭。
+ */
+export async function buildInventory({
+  configDirectory = path.join(REPOSITORY_ROOT, 'docker/nacos/config/dev'),
+  targets = DEFAULT_TARGETS,
+} = {}) {
+  const routes = []
+  const services = []
+  const serviceFindings = []
+
+  for (const target of targets) {
+    const configNames = await resolveConfigNames(configDirectory, target)
+    const configIgnoreUrls = []
+    for (const configName of configNames) {
+      const ignoreUrls = await readIgnoreUrls(configDirectory, configName)
+      configIgnoreUrls.push(...ignoreUrls)
+    }
+
+    const controllerFiles = (await listFiles(target.controllerDirectory))
+      .filter((file) => file.endsWith('Controller.java'))
+      .sort()
+    if (controllerFiles.length === 0) {
+      serviceFindings.push({
+        service: target.service,
+        message: '未找到 Controller 源码，无法证明匿名白名单安全，禁止收口配置',
+      })
+    }
+
+    const serviceRoutes = []
+    for (const controllerFile of controllerFiles) {
+      const source = await readFile(controllerFile, 'utf8')
+      const sourcePath = path.relative(REPOSITORY_ROOT, controllerFile)
+      for (const route of parseControllerSource(source, sourcePath)) {
+        serviceRoutes.push({
+          ...route,
+          service: target.service,
+          ...routeReview(route, configIgnoreUrls),
+        })
+      }
+    }
+    serviceRoutes.sort((left, right) => left.path.localeCompare(right.path) || left.sourcePath.localeCompare(right.sourcePath))
+    routes.push(...serviceRoutes)
+    services.push({
+      service: target.service,
+      configNames,
+      routeCount: serviceRoutes.length,
+      blockingCount: serviceRoutes.filter((route) => route.status === 'BLOCKED').length
+        + serviceFindings.filter((finding) => finding.service === target.service).length,
+    })
+  }
+
+  const inventory = {
+    hasBlockingFindings: routes.some((route) => route.status === 'BLOCKED') || serviceFindings.length > 0,
+    routes,
+    serviceFindings,
+    services,
+  }
+  inventory.markdown = renderInventoryMarkdown(inventory)
+  return inventory
+}
+
+async function main() {
+  const outputFile = path.join(REPOSITORY_ROOT, 'docs/security/2026-07-22-service-route-inventory.md')
+  const inventory = await buildInventory()
+  await writeFile(outputFile, inventory.markdown)
+  console.log(`Generated ${path.relative(REPOSITORY_ROOT, outputFile)} with ${inventory.routes.length} routes.`)
+  if (inventory.hasBlockingFindings) {
+    console.error('Route inventory has BLOCKED findings; do not change Nacos anonymous routes.')
+    process.exitCode = 1
+  }
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  main().catch((error) => {
+    console.error(error.message)
+    process.exitCode = 2
+  })
+}
