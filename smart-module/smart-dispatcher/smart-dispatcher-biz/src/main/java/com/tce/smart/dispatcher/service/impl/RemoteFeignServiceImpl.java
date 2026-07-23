@@ -7,8 +7,8 @@ import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.dispatcher.service.RemoteFeignService;
-import com.tce.smart.platform.api.dto.SmtParkDTO;
-import com.tce.smart.platform.api.feign.RemoteParkService;
+import com.tce.smart.platform.api.dto.resp.InternalParkBridgeTargetRespDTO;
+import com.tce.smart.platform.api.feign.RemoteParkInternalService;
 import feign.Feign;
 import feign.Request;
 import feign.RequestInterceptor;
@@ -61,7 +61,7 @@ public class RemoteFeignServiceImpl implements RemoteFeignService {
 	private static final int READ_TIMEOUT = 60000;
 
 	@Autowired
-	private RemoteParkService remoteParkService;
+	private RemoteParkInternalService remoteParkInternalService;
 
 	/**
 	 * 动态 Bridge Feign 也必须使用标准 OpenFeign 内部令牌拦截器，不能绕过服务令牌申请。
@@ -102,12 +102,13 @@ public class RemoteFeignServiceImpl implements RemoteFeignService {
 	private void init() {
 		long start = DateUtils.toEpochMilli();
 		log.info("开始-园区信息同步...");
-		Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN);
+		Result<List<InternalParkBridgeTargetRespDTO>> result = remoteParkInternalService.getBridgeTargets(
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (!result.isSuccess()) {
 			log.error("获取园区信息失败：{} - {}", result.getCode(), result.getMessage());
 			return;
 		}
-		List<SmtParkDTO> parkList = result.getData();
+		List<InternalParkBridgeTargetRespDTO> parkList = result.getData();
 		if (CollectionUtils.isEmpty(parkList)) {
 			log.warn("园区信息为空!");
 			return;
@@ -115,13 +116,13 @@ public class RemoteFeignServiceImpl implements RemoteFeignService {
 		parkList.forEach(park -> {
 			String serviceUrl = park.getBridgeUrl();
 			if(StringUtils.isEmpty(serviceUrl)){
-				log.warn("园区 {} 未配置URL", park.getParkName());
+				log.warn("园区 {} 未配置 Bridge URL", park.getId());
 			} else if (!isAllowedBridgeTarget(serviceUrl, bridgeTargetAllowlist)) {
 				// 地址来自数据库，必须先匹配运维配置的精确 origin，避免把 Bearer 令牌发送到错误目标。
 				log.error("园区 {} 的 Bridge 地址未命中服务令牌白名单，拒绝创建客户端", park.getId());
 			}else {
 				if (!serviceUrl.equals(bridgeUrls.get(park.getId()))) {
-					log.info("更新园区 Bridge 客户端，园区ID：{}，园区名称：{}", park.getId(), park.getParkName());
+					log.info("更新园区 Bridge 客户端，园区ID：{}", park.getId());
 					HttpMessageConverter jsonConverter = new GsonHttpMessageConverter();
 					ObjectFactory<HttpMessageConverters> converter = () -> new HttpMessageConverters(jsonConverter);
 
