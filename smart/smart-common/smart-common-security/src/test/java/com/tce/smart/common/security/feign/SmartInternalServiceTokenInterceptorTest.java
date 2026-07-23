@@ -44,6 +44,38 @@ public class SmartInternalServiceTokenInterceptorTest {
 		}
 	}
 
+	@Test
+	public void incompleteClientCredentialsFailClosedBeforeFeignCanSendUserToken() {
+		RequestTemplate template = new RequestTemplate();
+		template.header("Authorization", "Bearer end-user-token");
+		SmartInternalServiceTokenProperties properties = configuredProperties();
+		properties.setClientSecret("");
+		SmartInternalServiceTokenInterceptor interceptor = new StaticServiceTokenInterceptor(
+				new DefaultOAuth2ClientContext(),
+				new SmartInternalServiceTokenResourceFactory().create(properties));
+
+		try {
+			interceptor.apply(template);
+			fail("缺少 client_secret 时必须拒绝内部服务调用");
+		} catch (IllegalStateException expected) {
+			assertNull("配置错误时不得保留终端用户 Authorization", template.headers().get("Authorization"));
+		}
+	}
+
+	@Test
+	public void validDedicatedClientWritesOnlyItsOwnBearerToken() {
+		RequestTemplate template = new RequestTemplate();
+		template.header("Authorization", "Bearer end-user-token");
+		SmartInternalServiceTokenInterceptor interceptor = new StaticServiceTokenInterceptor(
+				new DefaultOAuth2ClientContext(),
+				new SmartInternalServiceTokenResourceFactory().create(configuredProperties()));
+
+		interceptor.apply(template);
+
+		assertEquals(Collections.singletonList("Bearer server-client-token"),
+				Collections.singletonList(template.headers().get("Authorization").iterator().next()));
+	}
+
 	private SmartInternalServiceTokenProperties configuredProperties() {
 		SmartInternalServiceTokenProperties properties = new SmartInternalServiceTokenProperties();
 		properties.setClientId("internal-client");
@@ -62,6 +94,19 @@ public class SmartInternalServiceTokenInterceptorTest {
 		@Override
 		public org.springframework.security.oauth2.common.OAuth2AccessToken getToken() {
 			throw new OAuth2AccessDeniedException("client_credentials denied");
+		}
+	}
+
+	/** 模拟认证服务器为已配置的独立客户端签发 server 令牌。 */
+	private static class StaticServiceTokenInterceptor extends SmartInternalServiceTokenInterceptor {
+		private StaticServiceTokenInterceptor(DefaultOAuth2ClientContext context,
+				ClientCredentialsResourceDetails resource) {
+			super(context, resource);
+		}
+
+		@Override
+		public org.springframework.security.oauth2.common.OAuth2AccessToken getToken() {
+			return new org.springframework.security.oauth2.common.DefaultOAuth2AccessToken("server-client-token");
 		}
 	}
 }
