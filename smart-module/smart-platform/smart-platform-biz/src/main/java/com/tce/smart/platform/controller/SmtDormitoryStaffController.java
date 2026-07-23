@@ -52,8 +52,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @RequestMapping("/dormitory/staff")
 public class SmtDormitoryStaffController {
-	private static final String APP_SELF_ROOM_LIST_PURPOSE = "app-self-room-list";
-
   private final  SmtDormitoryStaffService smtDormitoryStaffService;
 
   private final RemoteSmartLockService remoteSmartLockService;
@@ -65,6 +63,18 @@ public class SmtDormitoryStaffController {
 	 */
 	@Value("${security.inner.dormitory.app-client-id:}")
 	private String appServiceClientId;
+
+	/** App 读取本人住宿位置的受管用途，缺失或不一致时拒绝。 */
+	@Value("${security.inner.dormitory.app-room-purpose:}")
+	private String appRoomPurpose;
+
+	/** 完整住宿详情只允许专用管理员服务客户端读取。 */
+	@Value("${security.inner.dormitory.admin-room-detail-client-id:}")
+	private String adminRoomDetailClientId;
+
+	/** 完整住宿详情只允许专用管理员服务用途读取。 */
+	@Value("${security.inner.dormitory.admin-room-detail-purpose:}")
+	private String adminRoomDetailPurpose;
 
   /**
    * 分页查询员工内宿列表
@@ -248,8 +258,28 @@ public class SmtDormitoryStaffController {
 	@ApiOperation("内部根据员工工号查询入住信息")
 	@GetMapping("/internal/roomDetail/{staffBadge}")
 	public Result<DormitoryRoomDetailRespDTO> getStaffRoomInfoForInternal(
-			@ApiParam(name = "staffBadge", value = "员工工号", required = true) @PathVariable String staffBadge) {
+			@ApiParam(name = "staffBadge", value = "员工工号", required = true) @PathVariable String staffBadge,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
+		assertManagedInternalCaller(from, adminRoomDetailClientId, adminRoomDetailPurpose, purpose,
+				"内部完整住宿详情调用未获授权");
 		return new Result<>(smtDormitoryStaffService.getStaffRoomInfo(staffBadge));
+	}
+
+	/**
+	 * 受管 App 服务读取指定员工的最小住宿位置投影。
+	 * 调用方必须已在 App 服务侧把员工工号限制为当前认证主体。
+	 */
+	@Inner
+	@OpenApi("server")
+	@ApiOperation("内部查询员工本人最小入住信息")
+	@GetMapping("/internal/self/roomDetail/{staffBadge}")
+	public Result<SelfDormitoryRoomRespDTO> getSelfRoomDetailForInternal(
+			@ApiParam(name = "staffBadge", value = "员工工号", required = true) @PathVariable String staffBadge,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose) {
+		assertAppRoomCaller(from, purpose);
+		return new Result<>(toSelfDormitoryRoom(smtDormitoryStaffService.getStaffRoomInfo(staffBadge)));
 	}
 
 	/**
@@ -263,8 +293,9 @@ public class SmtDormitoryStaffController {
 			@ApiParam(name = "staffBadge",value = "员工工号",required = true) @PathVariable String staffBadge,
 			@RequestHeader(SecurityConstants.FROM) String from,
 			@RequestHeader("X-Smart-Internal-Purpose") String purpose){
-		assertAppRoomListCaller(from, purpose);
-		List<SelfDormitoryRoomRespDTO> rooms = smtDormitoryStaffService.getStaffRoomInfoList(staffBadge).stream()
+		assertAppRoomCaller(from, purpose);
+		List<DormitoryRoomDetailRespDTO> roomDetails = smtDormitoryStaffService.getStaffRoomInfoList(staffBadge);
+		List<SelfDormitoryRoomRespDTO> rooms = (roomDetails == null ? new ArrayList<DormitoryRoomDetailRespDTO>() : roomDetails).stream()
 				.map(this::toSelfDormitoryRoom).collect(Collectors.toList());
 		return new Result<>(rooms);
 	}
@@ -474,8 +505,11 @@ public class SmtDormitoryStaffController {
 	 */
 	@ApiOperation("查询本人入住记录")
 	@GetMapping("/me/roomList")
-	public Result<List<DormitoryRoomDetailRespDTO>> getRoomListForCurrentUser() {
-		return new Result<>(smtDormitoryStaffService.getStaffRoomInfoList(currentAuthenticatedBadge()));
+	public Result<List<SelfDormitoryRoomRespDTO>> getRoomListForCurrentUser() {
+		List<DormitoryRoomDetailRespDTO> roomDetails = smtDormitoryStaffService.getStaffRoomInfoList(currentAuthenticatedBadge());
+		List<SelfDormitoryRoomRespDTO> rooms = (roomDetails == null ? new ArrayList<DormitoryRoomDetailRespDTO>() : roomDetails).stream()
+				.map(this::toSelfDormitoryRoom).collect(Collectors.toList());
+		return new Result<>(rooms);
 	}
 
 	private String currentAuthenticatedBadge() {
@@ -495,21 +529,32 @@ public class SmtDormitoryStaffController {
 	}
 
 	/**
-	 * 内部住宿列表属于员工位置资料：仅受管 App client_credentials 加已审核用途可读取。
+	 * 本人住宿位置属于员工位置资料：仅受管 App client_credentials 加配置中心受管用途可读取。
 	 * 即使请求伪造 from=Y 或持有通用 server scope 令牌也必须拒绝。
 	 */
-	private void assertAppRoomListCaller(String from, String purpose) {
+	private void assertAppRoomCaller(String from, String purpose) {
+		assertManagedInternalCaller(from, appServiceClientId, appRoomPurpose, purpose, "内部本人住宿调用未获授权");
+	}
+
+	/**
+	 * 对内部敏感资料执行客户端与用途双重精确收口；任一配置缺失即失败关闭。
+	 */
+	private void assertManagedInternalCaller(String from, String expectedClientId, String expectedPurpose, String purpose,
+			String denialMessage) {
 		Authentication authentication = SecurityUtils.getAuthentication();
-		if (!SecurityConstants.FROM_IN.equals(from) || StringUtils.isEmpty(appServiceClientId)
-				|| !APP_SELF_ROOM_LIST_PURPOSE.equals(purpose) || authentication == null
+		if (!SecurityConstants.FROM_IN.equals(from) || StringUtils.isEmpty(expectedClientId)
+				|| StringUtils.isEmpty(expectedPurpose) || !expectedPurpose.equals(purpose) || authentication == null
 				|| !openApiAuthenticationAdapter.isClientOnly(authentication)
-				|| !appServiceClientId.equals(openApiAuthenticationAdapter.clientId(authentication))) {
-			throw new AccessDeniedException("内部住宿列表调用未获授权");
+				|| !expectedClientId.equals(openApiAuthenticationAdapter.clientId(authentication))) {
+			throw new AccessDeniedException(denialMessage);
 		}
 	}
 
 	/** 将通用住宿详情映射为本人可见的最小位置投影，禁止向 App 透传工号或门锁动态码。 */
 	private SelfDormitoryRoomRespDTO toSelfDormitoryRoom(DormitoryRoomDetailRespDTO room) {
+		if (room == null) {
+			return null;
+		}
 		return SelfDormitoryRoomRespDTO.builder().id(room.getId()).bedNumber(room.getBedNumber())
 				.parkId(room.getParkId()).parkName(room.getParkName()).dormitoryId(room.getDormitoryId())
 				.dormitoryName(room.getDormitoryName()).floorId(room.getFloorId()).floorName(room.getFloorName())

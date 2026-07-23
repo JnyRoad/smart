@@ -10,6 +10,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.lang.reflect.Field;
 import java.util.Collections;
 
 import static org.junit.Assert.fail;
@@ -41,24 +42,42 @@ public class AppDormitoryControllerAccessTest {
 	public void myRoomDetailUsesOnlyAuthenticatedSubjectAndServiceTokenContract() {
 		RemoteDormitoryService remoteService = Mockito.mock(RemoteDormitoryService.class);
 		AppDormitoryController controller = new AppDormitoryController(remoteService);
+		setPrivateField(controller, "appRoomPurpose", "app-self-room");
 		authenticate("self-badge");
 
 		controller.getMyRoomDetail();
 
-		Mockito.verify(remoteService).getStaffRoomInfo("self-badge", SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Mockito.verify(remoteService).getSelfRoomDetail("self-badge", SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-self-room");
+		Mockito.verify(remoteService, Mockito.never()).getStaffRoomInfo(Mockito.anyString(), Mockito.anyString(),
+				Mockito.anyString(), Mockito.anyString());
 	}
 
 	@Test
 	public void myRoomListUsesOnlyAuthenticatedSubjectAndServiceTokenContract() {
 		RemoteDormitoryService remoteService = Mockito.mock(RemoteDormitoryService.class);
 		AppDormitoryController controller = new AppDormitoryController(remoteService);
+		setPrivateField(controller, "appRoomPurpose", "app-self-room");
 		authenticate("self-badge");
 
 		controller.getMyRoomList();
 
 		Mockito.verify(remoteService).getStaffRoomInfoList("self-badge", SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-self-room-list");
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-self-room");
+	}
+
+	@Test
+	public void myRoomEndpointsRejectMissingManagedPurposeBeforeFeignCall() {
+		RemoteDormitoryService remoteService = Mockito.mock(RemoteDormitoryService.class);
+		AppDormitoryController controller = new AppDormitoryController(remoteService);
+		authenticate("self-badge");
+
+		try {
+			controller.getMyRoomDetail();
+			fail("用途配置缺失时不得发起内部住宿详情调用");
+		} catch (AccessDeniedException expected) {
+			Mockito.verifyZeroInteractions(remoteService);
+		}
 	}
 
 	@Test
@@ -82,5 +101,15 @@ public class AppDormitoryControllerAccessTest {
 				true, true, true, true, Collections.emptyList());
 		SecurityContextHolder.getContext().setAuthentication(
 				new UsernamePasswordAuthenticationToken(user, "N/A", Collections.emptyList()));
+	}
+
+	private void setPrivateField(Object target, String fieldName, String value) {
+		try {
+			Field field = target.getClass().getDeclaredField(fieldName);
+			field.setAccessible(true);
+			field.set(target, value);
+		} catch (ReflectiveOperationException exception) {
+			throw new AssertionError(exception);
+		}
 	}
 }

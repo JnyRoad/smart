@@ -48,7 +48,18 @@ public interface RemoteDormitoryService {
 	Result<DormitoryRoomDetailRespDTO> getStaffRoomInfo(
 			@PathVariable("staffBadge") String staffBadge,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
+
+	/**
+	 * 受管 App 服务读取当前认证员工的最小住宿位置投影，不返回完整员工或门锁资料。
+	 */
+	@GetMapping("/dormitory/staff/internal/self/roomDetail/{staffBadge}")
+	Result<SelfDormitoryRoomRespDTO> getSelfRoomDetail(
+			@PathVariable("staffBadge") String staffBadge,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 * 服务间查询指定员工的入住列表；调用方必须先把外部主体约束为认证用户。

@@ -56,11 +56,16 @@
 2. 授权服务器已登记独立客户端，仅授予 `client_credentials` 的 `server` scope；在预发或隔离灰度用同一不可变镜像和受管密钥来源验证能获取该 token。
 3. 预发或隔离灰度已验证标记的 App/Feign 调用成功、错误客户端/错误 scope/缺失配置拒绝，以及应用日志不记录 Authorization 或访问令牌。
 4. 错误 scope、过期令牌、缺失配置或授权服务器不可用时，调用必须在 Feign 拦截器阶段失败，不能发送下游 HTTP 请求。任一项未完成时，不得部署标记调用方，也不得以 `AUDIT`、`ENFORCE` 或放宽匿名路由绕过。
-5. 对 `GET /dormitory/staff/internal/roomList/{staffBadge}`，`smart-platform.yml` 必须受管配置
-   `security.inner.dormitory.app-client-id`，其值必须精确等于发起该 Feign 调用的 App 服务令牌 client_id。
-   该值缺失、为空、client_id 不匹配、用途头不是 `app-self-room-list`，或 token 不是纯
-   client_credentials 主体时均必须拒绝；灰度探针必须分别留存合法 App 调用成功和通用 `server`
+5. 对 `GET /dormitory/staff/internal/self/roomDetail/{staffBadge}` 和
+   `GET /dormitory/staff/internal/roomList/{staffBadge}`，`smart-platform.yml` 与 App 服务配置必须受管配置
+   `security.inner.dormitory.app-client-id`、`security.inner.dormitory.app-room-purpose`；两项分别精确等于发起
+   Feign 调用的 App 服务令牌 `client_id` 与受审用途。任一值缺失、为空、client_id 或用途不匹配，或 token
+   不是纯 client_credentials 主体时均必须拒绝；灰度探针必须分别留存合法 App 调用成功和通用 `server`
    scope 客户端被拒绝的证据。此项未通过不得发布 App/Platform 兼容镜像。
+6. `GET /dormitory/staff/internal/roomDetail/{staffBadge}` 仍返回完整住宿详情，只能配置
+   `security.inner.dormitory.admin-room-detail-client-id` 和
+   `security.inner.dormitory.admin-room-detail-purpose` 对应的专用管理员服务调用；任何未受管客户端或用途必须
+   拒绝。若生产核查不存在该完整内部接口消费者，应在完整灰度窗口后删除该路由和 Feign 契约，而非向 App 回退。
 
 ## `security.inner.mode=ENFORCE` 后置收口
 

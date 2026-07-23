@@ -67,13 +67,14 @@ public class SmtDormitoryStaffControllerAccessTest {
 	}
 
 	@Test
-	public void internalRoomDetailUsesDedicatedInnerRoute() throws Exception {
-		Method method = SmtDormitoryStaffController.class.getMethod("getStaffRoomInfoForInternal", String.class);
+	public void internalSelfRoomDetailUsesDedicatedMinimalInnerRoute() throws Exception {
+		Method method = SmtDormitoryStaffController.class.getMethod("getSelfRoomDetailForInternal", String.class, String.class,
+				String.class);
 		GetMapping mapping = method.getAnnotation(GetMapping.class);
 		assertNotNull(method.getAnnotation(Inner.class));
 		assertNotNull(method.getAnnotation(OpenApi.class));
 		assertEquals("server", method.getAnnotation(OpenApi.class).value());
-		assertEquals("/internal/roomDetail/{staffBadge}", mapping.value()[0]);
+		assertEquals("/internal/self/roomDetail/{staffBadge}", mapping.value()[0]);
 	}
 
 	@Test
@@ -97,13 +98,14 @@ public class SmtDormitoryStaffControllerAccessTest {
 
 		SmtDormitoryStaffController controller = controller(service, adapter);
 		try {
-			controller.getStaffRoomInfoListForInternal("staff-badge", SecurityConstants.FROM_IN, "app-self-room-list");
+			controller.getStaffRoomInfoListForInternal("staff-badge", SecurityConstants.FROM_IN, "configured-room-purpose");
 			fail("受管 App client_id 配置缺失时不得读取员工住宿列表");
 		} catch (AccessDeniedException expected) {
 			Mockito.verifyZeroInteractions(service);
 		}
 
 		setPrivateField(controller, "appServiceClientId", "app");
+		setPrivateField(controller, "appRoomPurpose", "configured-room-purpose");
 		try {
 			controller.getStaffRoomInfoListForInternal("staff-badge", SecurityConstants.FROM_IN, "other-purpose");
 			fail("未经审核的内部用途不得读取员工住宿列表");
@@ -113,7 +115,7 @@ public class SmtDormitoryStaffControllerAccessTest {
 
 		Mockito.when(adapter.clientId(authentication)).thenReturn("generic-server-client");
 		try {
-			controller.getStaffRoomInfoListForInternal("staff-badge", SecurityConstants.FROM_IN, "app-self-room-list");
+			controller.getStaffRoomInfoListForInternal("staff-badge", SecurityConstants.FROM_IN, "configured-room-purpose");
 			fail("非受管 App client_id 不得读取员工住宿列表");
 		} catch (AccessDeniedException expected) {
 			Mockito.verifyZeroInteractions(service);
@@ -134,9 +136,10 @@ public class SmtDormitoryStaffControllerAccessTest {
 		Mockito.when(service.getStaffRoomInfoList("staff-badge")).thenReturn(Collections.singletonList(room));
 		SmtDormitoryStaffController controller = controller(service, adapter);
 		setPrivateField(controller, "appServiceClientId", "app");
+		setPrivateField(controller, "appRoomPurpose", "configured-room-purpose");
 
 		Object response = controller.getStaffRoomInfoListForInternal("staff-badge", SecurityConstants.FROM_IN,
-				"app-self-room-list").getData().get(0);
+				"configured-room-purpose").getData().get(0);
 		assertEquals(SelfDormitoryRoomRespDTO.class, response.getClass());
 		String json = new ObjectMapper().writeValueAsString(response);
 		assertFalse(json.contains("staffBadge"));
@@ -147,6 +150,72 @@ public class SmtDormitoryStaffControllerAccessTest {
 				.map(Field::getName).collect(Collectors.toSet());
 		assertEquals(new java.util.HashSet<>(Arrays.asList("id", "bedNumber", "parkId", "parkName", "dormitoryId",
 				"dormitoryName", "floorId", "floorName", "roomId", "roomName", "inRecordId")), fields);
+	}
+
+	@Test
+	public void internalSelfRoomDetailReturnsMinimalResponseWithoutSensitiveFields() throws Exception {
+		SmtDormitoryStaffService service = Mockito.mock(SmtDormitoryStaffService.class);
+		OpenApiAuthenticationAdapter adapter = Mockito.mock(OpenApiAuthenticationAdapter.class);
+		org.springframework.security.core.Authentication authentication = Mockito.mock(org.springframework.security.core.Authentication.class);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		Mockito.when(adapter.isClientOnly(authentication)).thenReturn(true);
+		Mockito.when(adapter.clientId(authentication)).thenReturn("app");
+		DormitoryRoomDetailRespDTO room = DormitoryRoomDetailRespDTO.builder().id(1).parkId(2).dormitoryId(3)
+				.dormitoryName("宿舍").floorId(4).floorName("二层").roomId(5).roomName("201")
+				.bedNumber("1").staffBadge("staff-badge").staffName("员工").depName("部门").jobName("岗位").build();
+		Mockito.when(service.getStaffRoomInfo("staff-badge")).thenReturn(room);
+		SmtDormitoryStaffController controller = controller(service, adapter);
+		setPrivateField(controller, "appServiceClientId", "app");
+		setPrivateField(controller, "appRoomPurpose", "configured-room-purpose");
+
+		Object response = controller.getSelfRoomDetailForInternal("staff-badge", SecurityConstants.FROM_IN,
+				"configured-room-purpose").getData();
+		assertEquals(SelfDormitoryRoomRespDTO.class, response.getClass());
+		String json = new ObjectMapper().writeValueAsString(response);
+		assertFalse(json.contains("staffBadge"));
+		assertFalse(json.contains("staffName"));
+		assertFalse(json.contains("depName"));
+		assertFalse(json.contains("jobName"));
+		assertFalse(json.contains("lockPwd"));
+		assertFalse(json.contains("dynamicDesc"));
+	}
+
+	@Test
+	public void currentUserRoomListReturnsMinimalResponseWithoutSensitiveFields() throws Exception {
+		SmtDormitoryStaffService service = Mockito.mock(SmtDormitoryStaffService.class);
+		DormitoryRoomDetailRespDTO room = DormitoryRoomDetailRespDTO.builder().id(1).parkId(2).dormitoryId(3)
+				.dormitoryName("宿舍").floorId(4).floorName("二层").roomId(5).roomName("201")
+				.bedNumber("1").staffBadge("self-badge").staffName("员工").depName("部门").jobName("岗位").build();
+		Mockito.when(service.getStaffRoomInfoList("self-badge")).thenReturn(Collections.singletonList(room));
+		authenticate("self-badge", 2);
+
+		Object response = controller(service).getRoomListForCurrentUser().getData().get(0);
+		assertEquals(SelfDormitoryRoomRespDTO.class, response.getClass());
+		String json = new ObjectMapper().writeValueAsString(response);
+		assertFalse(json.contains("staffBadge"));
+		assertFalse(json.contains("staffName"));
+		assertFalse(json.contains("depName"));
+		assertFalse(json.contains("jobName"));
+		assertFalse(json.contains("lockPwd"));
+		assertFalse(json.contains("dynamicDesc"));
+	}
+
+	@Test
+	public void internalFullRoomDetailRejectsUnmanagedClient() {
+		SmtDormitoryStaffService service = Mockito.mock(SmtDormitoryStaffService.class);
+		OpenApiAuthenticationAdapter adapter = Mockito.mock(OpenApiAuthenticationAdapter.class);
+		org.springframework.security.core.Authentication authentication = Mockito.mock(org.springframework.security.core.Authentication.class);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		Mockito.when(adapter.isClientOnly(authentication)).thenReturn(true);
+		Mockito.when(adapter.clientId(authentication)).thenReturn("generic-server-client");
+
+		try {
+			controller(service, adapter).getStaffRoomInfoForInternal("staff-badge", SecurityConstants.FROM_IN,
+					"unmanaged-purpose");
+			fail("未受管客户端不得读取完整住宿详情");
+		} catch (AccessDeniedException expected) {
+			Mockito.verifyZeroInteractions(service);
+		}
 	}
 
 	@Test
