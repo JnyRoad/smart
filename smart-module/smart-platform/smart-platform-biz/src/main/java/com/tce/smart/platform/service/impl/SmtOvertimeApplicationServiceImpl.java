@@ -199,7 +199,7 @@ public class SmtOvertimeApplicationServiceImpl extends ServiceImpl<SmtOvertimeAp
 		sendExtraworkAo.setReason(addOverApplicationDTO.getExtraworkDesc());
 		sendExtraworkAo.setRemark(addOverApplicationDTO.getExtraworkDesc());
 		//获取人事区域
-		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN);
+		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		OvwYscompRespDTO ovwYscompVO = resultComp.getData();
 		sendExtraworkAo.setEzid(ovwYscompVO.getEzid().toString());
 		sendExtraworkAo.setJchenid(selectOne.getJcheId());

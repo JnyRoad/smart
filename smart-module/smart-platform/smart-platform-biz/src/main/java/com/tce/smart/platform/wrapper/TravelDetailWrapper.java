@@ -50,7 +50,7 @@ public class TravelDetailWrapper extends BaseWrapper<CcdFormtableMainDTO, Travel
 			 StringBuffer confirmName = new StringBuffer();
 			 String[] array = travelDetail.getConfirmName().split(",");//使用字符串逗号 ,切割字符串
 				for (int i = 0; i < array.length; i++) {
-					Result<VwHRMResourceRespDTO> result = remoteFormTableMainService.infoPerson(Integer.parseInt(array[i]), SecurityConstants.FROM_IN);
+					Result<VwHRMResourceRespDTO> result = remoteFormTableMainService.infoPerson(Integer.parseInt(array[i]), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 					if (CommonConstants.SUCCESS == result.getCode()) {
 						VwHRMResourceRespDTO vwHRMResource = result.getData();
 						confirmName.append(vwHRMResource.getLastName()).append(",");
@@ -60,7 +60,7 @@ public class TravelDetailWrapper extends BaseWrapper<CcdFormtableMainDTO, Travel
 		 }
 		 //判断出差代办人是否为空
 		 if(ObjectUtil.isNotNull(travelDetail.getAgentName())) {
-			 Result<VwHRMResourceRespDTO> result = remoteFormTableMainService.infoPerson(Integer.parseInt(travelDetail.getAgentName()), SecurityConstants.FROM_IN);
+			 Result<VwHRMResourceRespDTO> result = remoteFormTableMainService.infoPerson(Integer.parseInt(travelDetail.getAgentName()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if (CommonConstants.SUCCESS == result.getCode()) {
 					VwHRMResourceRespDTO vwHRMResource = result.getData();
 					travelDetail.setAgentName(vwHRMResource.getLastName());

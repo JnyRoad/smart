@@ -309,7 +309,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 		}
 		Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()));
 		log.info("获取公司信息:{}", byComId);
-		OvwYsjobRespDTO ovwYsjob = remoteOvwYsjobService.getByDeptName(Integer.parseInt(preStaff.getJobId()), SecurityConstants.FROM_IN).data();
+		OvwYsjobRespDTO ovwYsjob = remoteOvwYsjobService.getByDeptName(Integer.parseInt(preStaff.getJobId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
 
 		estaff.setBadge(preStaff.getBadge());
 		estaff.setName(preStaff.getName());
@@ -399,7 +399,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			estaff.setNation(1);
 		}
 
-		Result<List<OvwYsdepRespDTO>> parentDep = remoteOvwYsdepService.getParentDep(Integer.parseInt(preStaff.getDepId()), SecurityConstants.FROM_IN);
+		Result<List<OvwYsdepRespDTO>> parentDep = remoteOvwYsdepService.getParentDep(Integer.parseInt(preStaff.getDepId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("获取部门信息：{}", parentDep);
 
 		if (parentDep.isSuccess()) {
@@ -447,7 +447,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 		estaff.setRegDate(DateUtils.parse(dateDay.format(DateUtils.date())));
 		estaff.setJobBeginTime(DateUtils.parse(dateDay.format(DateUtils.date())));
 		String director = null;
-		OvwYsdepRespDTO ovwYsdepRespDTO = remoteOvwYsdepService.getByDepId(Integer.parseInt(preStaff.getDepId()), SecurityConstants.FROM_IN).data();
+		OvwYsdepRespDTO ovwYsdepRespDTO = remoteOvwYsdepService.getByDepId(Integer.parseInt(preStaff.getDepId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
 		if (ObjectUtil.isNotNull(ovwYsdepRespDTO)) {
 			director = ovwYsdepRespDTO.getDirector();
 			log.info("获取部门信息:部门ID:{} 部门名称:{}", ovwYsdepRespDTO.getDepid(), ovwYsdepRespDTO.getDepname());
@@ -726,7 +726,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 					staff.setWelfareLevel(jcheFL.get(tempStaff.getJcheId()));
 				} else {
 					//可能没有对应的福利层级
-					Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN);
+					Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 					staff.setWelfareLevel(flstandardDTOResult.getData().getCode());
 					jcheFL.put(tempStaff.getJcheId(), staff.getWelfareLevel());
 				}
@@ -874,7 +874,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 					staff.setWelfareLevel(jcheFL.get(tempStaff.getJcheId()));
 				} else {
 					//可能没有对应的福利层级
-					Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN);
+					Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 					staff.setWelfareLevel(flstandardDTOResult.getData().getCode());
 					jcheFL.put(tempStaff.getJcheId(), staff.getWelfareLevel());
 				}

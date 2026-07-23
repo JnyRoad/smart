@@ -76,7 +76,7 @@ public class SmtLeaveHandoverServiceImpl extends ServiceImpl<SmtLeaveHandoverMap
     @Override
     @Transactional(rollbackFor=Exception.class)
     public Result initLeaveHandover(SmtLeaveApplication leaveApplication) {
-	Result<List<EvwJjitemRespDTO>> result = remoteEvwJjitemService.info(leaveApplication.getEzid(), SecurityConstants.FROM_IN);
+	Result<List<EvwJjitemRespDTO>> result = remoteEvwJjitemService.info(leaveApplication.getEzid(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(!result.isSuccess() || (result.isSuccess() && CollUtil.isEmpty(result.getData()))) {
 			return new Result(false,"该员工所在的人事区域，没有设置离职交接项，请联系管理员设置");
 		}

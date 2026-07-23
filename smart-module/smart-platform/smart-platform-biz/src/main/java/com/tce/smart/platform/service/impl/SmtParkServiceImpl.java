@@ -676,7 +676,7 @@ public class SmtParkServiceImpl extends ServiceImpl<SmtParkMapper, SmtPark> impl
 			if (smtParkBu.getCompId().length() <= 10) {
 				Integer compId = Integer.parseInt(smtParkBu.getCompId());
 				//根据compid获取部门
-				Result<List<OvwYsdepRespDTO>> depResult = depService.getByCompId(compId, SecurityConstants.FROM_IN);
+				Result<List<OvwYsdepRespDTO>> depResult = depService.getByCompId(compId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if (depResult.isSuccess()) {
 					if (depResult.getData() != null) {
 						List<OvwYsdepRespDTO> depData = depResult.getData();
@@ -684,7 +684,7 @@ public class SmtParkServiceImpl extends ServiceImpl<SmtParkMapper, SmtPark> impl
 
 					}
 				}
-				Result<Integer> jobResult = jobService.getByCompId(compId, SecurityConstants.FROM_IN);
+				Result<Integer> jobResult = jobService.getByCompId(compId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if (jobResult.isSuccess()) {
 					if (jobResult.getData() != null) {
 						Integer jobSize = jobResult.getData();
@@ -717,7 +717,7 @@ public class SmtParkServiceImpl extends ServiceImpl<SmtParkMapper, SmtPark> impl
 			Integer compId = Integer.parseInt(sysDict.getValue());
 			CompStatisticsVO compStatisticsVO = new CompStatisticsVO();
 			compStatisticsVO.setCompName(sysDict.getDescription());
-			Result<List<EvwEmphrYsDTO>> emphrResult = evwEmphrYsService.getInStaffByCompId(compId, SecurityConstants.FROM_IN);
+			Result<List<EvwEmphrYsDTO>> emphrResult = evwEmphrYsService.getInStaffByCompId(compId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (emphrResult.isSuccess()) {
 				if (emphrResult.getData() != null) {
 					List<EvwEmphrYsDTO> emphrData = emphrResult.getData();

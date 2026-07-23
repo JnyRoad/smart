@@ -178,7 +178,7 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 		this.remove(Wrappers.<SmtOrganizeRelation>query().lambda().in(SmtOrganizeRelation::getCompId, buList));
 		buList.forEach(bu -> {
 			SmtOrganizeRelation smtOrganizeRelation = new SmtOrganizeRelation();
-			Result<OvwYsConComanyRespDTO> buInfo = remoteOvwYsConComanyService.getByCompId(Integer.parseInt(bu), SecurityConstants.FROM_IN);
+			Result<OvwYsConComanyRespDTO> buInfo = remoteOvwYsConComanyService.getByCompId(Integer.parseInt(bu), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if (Objects.nonNull(buInfo.getData())) {
 				smtOrganizeRelation.setCompName(buInfo.getData().getTitle());
 				smtOrganizeRelation.setCompId(bu);

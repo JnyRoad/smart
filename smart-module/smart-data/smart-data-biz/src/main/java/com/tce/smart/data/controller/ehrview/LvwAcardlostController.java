@@ -6,6 +6,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.LvwAcardlostDTO;
 import com.tce.smart.ehrview.core.entity.LvwAcardlost;
 import com.tce.smart.ehrview.core.service.ILvwAcardlostService;
@@ -37,6 +38,7 @@ public class LvwAcardlostController extends BaseController {
      * @return
      */
     @Inner
+    @OpenApi("server")
     @GetMapping("/info")
     public Result<LvwAcardlostDTO> getByBadge(@RequestParam("badge") String badge, @RequestParam("startDate") String startDate){
         LvwAcardlost lvwAcardlost = iLvwAcardlostService.getOne(

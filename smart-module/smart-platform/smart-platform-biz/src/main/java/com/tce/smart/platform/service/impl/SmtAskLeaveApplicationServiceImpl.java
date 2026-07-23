@@ -95,7 +95,7 @@ public class SmtAskLeaveApplicationServiceImpl extends ServiceImpl<SmtAskLeaveAp
 			for (int i = 0; i < askLeavePageList.getRecords().size(); i++) {
 				//判断请假类型是否为空
 				if(!StringUtils.isEmpty(askLeavePageList.getRecords().get(i).getType())) {
-					Result<LvwLcdLeavetypeDTO> result = remoteLvwLcdLeavetypeService.info(Integer.parseInt(askLeavePageList.getRecords().get(i).getType()),SecurityConstants.FROM_IN);
+					Result<LvwLcdLeavetypeDTO> result = remoteLvwLcdLeavetypeService.info(Integer.parseInt(askLeavePageList.getRecords().get(i).getType()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 					if (CommonConstants.SUCCESS  == result.getCode()) {
 						if(ObjectUtil.isNotNull(result.getData())) {
 							//根据时长id获取时长单位描述
@@ -141,7 +141,7 @@ public class SmtAskLeaveApplicationServiceImpl extends ServiceImpl<SmtAskLeaveAp
 		{
 			throw new TCEException(ExceptionTypeEnum.SERVER_ERROR.getCode(),registerData.get(0).getBeginTime()+"已在嘉阳PC后台审批中，不能重复申请");
 		}
-		Result<List<EvwLregLeaveAllRespDTO>> infoAll = remoteEvwLregLeaveAllService.info(addAskLeavelApplicationDTO.getStaffBadge(), addAskLeavelApplicationDTO.getStartDate(), addAskLeavelApplicationDTO.getEndDate());
+		Result<List<EvwLregLeaveAllRespDTO>> infoAll = remoteEvwLregLeaveAllService.info(addAskLeavelApplicationDTO.getStaffBadge(), addAskLeavelApplicationDTO.getStartDate(), addAskLeavelApplicationDTO.getEndDate(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("remoteEvwLregLeaveAllService.info {}",infoAll);
 		List<EvwLregLeaveAllRespDTO> allData = infoAll.getData();
 		 if(allData.size()>0)
@@ -276,7 +276,7 @@ public class SmtAskLeaveApplicationServiceImpl extends ServiceImpl<SmtAskLeaveAp
 		sendVacateAo.setStarttime(DateUtils.format(DateUtils.parse(addAskLeavelApplicationDTO.getStartDate()), formatHour));
 		sendVacateAo.setEnddate(DateUtils.format(DateUtils.parse(addAskLeavelApplicationDTO.getEndDate()), formatHour));
 		//根据员工号查年假信息
-	    Result<LvwAyearholidayRespDTO> resultYear = remoteLvwAyearholidayService.info(addAskLeavelApplicationDTO.getStaffBadge(), SecurityConstants.FROM_IN);
+	    Result<LvwAyearholidayRespDTO> resultYear = remoteLvwAyearholidayService.info(addAskLeavelApplicationDTO.getStaffBadge(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	    if (CommonConstants.SUCCESS  == resultYear.getCode()) {
 			LvwAyearholidayRespDTO lvwAyearholidayVO = resultYear.getData();
 		    YearHoliday yearHoliday = new YearHoliday(lvwAyearholidayVO == null ? 0 : ObjectUtil.isNull(lvwAyearholidayVO.getThisbalance()) ? 0 : lvwAyearholidayVO.getThisbalance());
@@ -286,7 +286,7 @@ public class SmtAskLeaveApplicationServiceImpl extends ServiceImpl<SmtAskLeaveAp
 	    }
 
 		//获取人事区域
-		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN);
+		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		OvwYscompRespDTO ovwYscompVO = resultComp.getData();
 		sendVacateAo.setEzid(ovwYscompVO.getEzid().toString());
 		//根据时长单位获取时长value描述
@@ -313,7 +313,7 @@ public class SmtAskLeaveApplicationServiceImpl extends ServiceImpl<SmtAskLeaveAp
 		sendVacateAo.setIn5(addAskLeavelApplicationDTO.getFifthEnter());
 		sendVacateAo.setOut5(addAskLeavelApplicationDTO.getFifthOut());
 		sendVacateAo.setRemark("");
-		Result<LvwLcdLeavetypeDTO> resultType = remoteLvwLcdLeavetypeService.info(Integer.parseInt(addAskLeavelApplicationDTO.getVacateType()),SecurityConstants.FROM_IN);
+		Result<LvwLcdLeavetypeDTO> resultType = remoteLvwLcdLeavetypeService.info(Integer.parseInt(addAskLeavelApplicationDTO.getVacateType()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (CommonConstants.SUCCESS  == resultType.getCode()) {
 			if(ObjectUtil.isNotNull(resultType.getData())) {
 				//根据id获取请假的描述
@@ -465,7 +465,7 @@ public class SmtAskLeaveApplicationServiceImpl extends ServiceImpl<SmtAskLeaveAp
 				//根据字典表查询请假类型数据
 				SearchAskLeaveTypeVO searchAskLeaveTypeVO = new SearchAskLeaveTypeVO ();
 				Integer id=Integer.parseInt(findByType.getData().get(i).getValue());
-				Result<LvwLeavetypeDTO> byId = remoteLvwLeavetypeService.getById(id,SecurityConstants.FROM_IN);
+				Result<LvwLeavetypeDTO> byId = remoteLvwLeavetypeService.getById(id,SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if(byId.isSuccess())
 				{
 					if(byId.getData()!=null)
@@ -660,7 +660,7 @@ public class SmtAskLeaveApplicationServiceImpl extends ServiceImpl<SmtAskLeaveAp
 					//根据字典表查询类型数据
 				    employee.setVacateTypeDesc(findByType.getData().getLabel());
 			}
-			Result<LvwLcdLeavetypeDTO> result = remoteLvwLcdLeavetypeService.info(selectById.getType(),SecurityConstants.FROM_IN);
+			Result<LvwLcdLeavetypeDTO> result = remoteLvwLcdLeavetypeService.info(selectById.getType(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			System.out.println("LvwLcdLeavetypeDTO result"+result);
 			if (CommonConstants.SUCCESS  == result.getCode()) {
 				if(ObjectUtil.isNotNull(result.getData())) {

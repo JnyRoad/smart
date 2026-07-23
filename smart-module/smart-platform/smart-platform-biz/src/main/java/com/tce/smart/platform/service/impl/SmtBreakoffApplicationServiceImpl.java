@@ -217,7 +217,7 @@ public class SmtBreakoffApplicationServiceImpl extends ServiceImpl<SmtBreakoffAp
 		//时间长度
 		sendRestAo.setAmount(addBreakoffApplicationDTO.getRestCount());
 		//获取人事区域
-		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN);
+		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		OvwYscompRespDTO ovwYscompVO = resultComp.getData();
 		sendRestAo.setEzid(ovwYscompVO.getEzid().toString());
 		sendRestAo.setUnit("1");

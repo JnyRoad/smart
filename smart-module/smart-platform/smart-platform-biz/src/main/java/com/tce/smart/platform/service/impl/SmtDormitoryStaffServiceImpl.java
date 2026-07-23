@@ -243,7 +243,7 @@ public class SmtDormitoryStaffServiceImpl extends ServiceImpl<SmtDormitoryStaffM
 			return new Result<>(Boolean.FALSE, "您申请的外宿正在审批中，暂不能进行申请内宿");
 		}
 
-		Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(inDormitory.getStaffBadge(), 11);
+		Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(inDormitory.getStaffBadge(), 11, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (ObjectUtil.isNotNull(callOwanceDetails) && ObjectUtil.isNotNull(callOwanceDetails.getData())) {
 			return new Result<>(Boolean.FALSE, "您申请的外宿补贴还未取消，请在嘉阳系统取消后再申请内宿");
 		}

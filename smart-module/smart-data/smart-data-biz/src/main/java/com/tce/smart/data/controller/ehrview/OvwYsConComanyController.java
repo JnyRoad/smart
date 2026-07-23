@@ -4,6 +4,7 @@ package com.tce.smart.data.controller.ehrview;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.req.OvwYsConComanyReqDTO;
 import com.tce.smart.data.api.dto.ehrview.resp.OvwYsConComanyRespDTO;
 import com.tce.smart.ehrview.core.service.IOvwYsConComanyService;
@@ -32,6 +33,7 @@ public class OvwYsConComanyController extends BaseController {
 	 * @return Result<List < OvwYsConComany>>
 	 */
 	@Inner
+	@OpenApi("server")
 	@PostMapping("/getByTitle")
 	public Result<List<OvwYsConComanyRespDTO>> getByTitle(@RequestBody OvwYsConComanyReqDTO ovwYsConComany) {
 		return success(iOvwYsConComanyService.getByTitle(ovwYsConComany.getTitle()),OvwYsConComanyRespDTO.class);
@@ -44,6 +46,7 @@ public class OvwYsConComanyController extends BaseController {
 	 * @return Result<OvwYsConComany>
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/getByCompId/{compId}")
 	public Result<OvwYsConComanyRespDTO> getByCompId(@PathVariable("compId") Integer compId) {
 		return success(iOvwYsConComanyService.getByCompId(compId),OvwYsConComanyRespDTO.class);

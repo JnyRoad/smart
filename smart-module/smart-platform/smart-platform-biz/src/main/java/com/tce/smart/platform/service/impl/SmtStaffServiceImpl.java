@@ -2560,7 +2560,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		staff.setCompName(organizeRelation.getCompName());
 		try {
 			//可能没有对应的福利层级
-			Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN);
+			Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			staff.setWelfareLevel(flstandardDTOResult.getData().getCode());
 		} catch (Exception e) {
 		}
@@ -2781,7 +2781,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 			throw new TCEException("岗位信息为空，请重新选择岗位");
 		}
 
-		Result<OvwYsjobRespDTO> byDeptName = remoteOvwYsjobService.getByDeptName(Integer.parseInt(staffRegisterDTO.getJobId()), SecurityConstants.FROM_IN);
+		Result<OvwYsjobRespDTO> byDeptName = remoteOvwYsjobService.getByDeptName(Integer.parseInt(staffRegisterDTO.getJobId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (byDeptName.isSuccess()) {
 			if (byDeptName.getData() != null) {
 				OvwYsjobRespDTO ovwYsjob = byDeptName.getData();

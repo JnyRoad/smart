@@ -71,7 +71,7 @@ public class SmtTravelApplicationServiceImpl extends ServiceImpl<SmtTravelApplic
 			throw new TCEException("未找到员工信息");
 		}
 		//查询出差的接口 转义
-		Result<Page<CcdFormtableMainRespDTO>> result = remoteFormTableMainService.info(page.getCurrent(), page.getSize(), searchTravelDTO.getStaffBadge(), SecurityConstants.FROM_IN);
+		Result<Page<CcdFormtableMainRespDTO>> result = remoteFormTableMainService.info(page.getCurrent(), page.getSize(), searchTravelDTO.getStaffBadge(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		IPage<CcdFormtableMainRespDTO> pageInfo = result.getData();
 		// 转换接过来的值
 		if (CommonConstants.SUCCESS == result.getCode()) {
@@ -111,7 +111,7 @@ public class SmtTravelApplicationServiceImpl extends ServiceImpl<SmtTravelApplic
 	 */
 	public String getOATravelCity(Integer id) {
 		String travelCity = "";
-		Result<List<CcdFormtableMainDt1RespDTO>> result = remoteFormTableMainService.infoDay(id,SecurityConstants.FROM_IN);
+		Result<List<CcdFormtableMainDt1RespDTO>> result = remoteFormTableMainService.infoDay(id,SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (CommonConstants.SUCCESS == result.getCode()) {
 			//判断是否为空
 			if(ObjectUtil.isNotNull(result.getData())) {
@@ -197,7 +197,7 @@ public class SmtTravelApplicationServiceImpl extends ServiceImpl<SmtTravelApplic
 	 */
 	public CcdFormtableMainDTO getTravelApplicationById(Integer id) {
 //		CcdFormtableMain ccdFormtableMain =  new CcdFormtableMain ();
-		Result<CcdFormtableMainRespDTO> result = remoteFormTableMainService.infoTravel(id, SecurityConstants.FROM_IN);
+		Result<CcdFormtableMainRespDTO> result = remoteFormTableMainService.infoTravel(id, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (CommonConstants.SUCCESS == result.getCode()) {
 			CcdFormtableMainRespDTO  ccdFormtableMain = result.getData();
 			CcdFormtableMainDTO ccdFormtableMainDTO = new CcdFormtableMainDTO();
@@ -214,7 +214,7 @@ public class SmtTravelApplicationServiceImpl extends ServiceImpl<SmtTravelApplic
 	@Override
 	public List<EmployeeTraveDayVO>  getInfoDay(Integer id) {
 		List<EmployeeTraveDayVO> listDay  = new ArrayList<EmployeeTraveDayVO> ();
-		Result<List<CcdFormtableMainDt1RespDTO>> result = remoteFormTableMainService.infoDay(id,SecurityConstants.FROM_IN);
+		Result<List<CcdFormtableMainDt1RespDTO>> result = remoteFormTableMainService.infoDay(id,SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (CommonConstants.SUCCESS == result.getCode()) {
 			//判断是否为空
 			if(ObjectUtil.isNotNull(result.getData())) {
@@ -244,7 +244,7 @@ public class SmtTravelApplicationServiceImpl extends ServiceImpl<SmtTravelApplic
 	 */
 	@Override
 	public Result<List<CcdFormtableMainDt2RespDTO>> getInfoReport(Integer id) {
-		Result<List<CcdFormtableMainDt2RespDTO>> result = remoteFormTableMainService.infoReport(id,SecurityConstants.FROM_IN);
+		Result<List<CcdFormtableMainDt2RespDTO>> result = remoteFormTableMainService.infoReport(id,SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		return result;
 	}
 
@@ -254,7 +254,7 @@ public class SmtTravelApplicationServiceImpl extends ServiceImpl<SmtTravelApplic
 		List<FlowVO> list = new ArrayList<FlowVO> ();
 		CcdFormtableMainRespDTO ccdFormtableMain =  new CcdFormtableMainRespDTO ();
 		//查询出差的信息
-		Result<CcdFormtableMainRespDTO> result = remoteFormTableMainService.infoTravel(id, SecurityConstants.FROM_IN);
+		Result<CcdFormtableMainRespDTO> result = remoteFormTableMainService.infoTravel(id, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (CommonConstants.SUCCESS == result.getCode()) {
 			 ccdFormtableMain = result.getData();
 		}
