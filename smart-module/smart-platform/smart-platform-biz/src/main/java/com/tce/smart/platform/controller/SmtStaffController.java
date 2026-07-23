@@ -14,6 +14,7 @@ import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPageQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
@@ -70,17 +71,17 @@ public class SmtStaffController extends BaseController {
 	private final SmtStaffExtService smtStaffExtService;
 
 	/**
-	 * 分页查询
+	 * 后台按认证主体园区范围分页查询员工最小信息。
 	 *
-	 * @param page
-	 *            分页对象
-	 * @param smtStaff
-	 *            员工表
-	 * @return
+	 * 原 /page 接口直接返回含手机号、证件号和人脸文件标识的 StaffListVO，已删除。
+	 * 所有后台列表消费者必须迁移至本受权限保护且显式投影的契约。
 	 */
-	@PostMapping("/page")
-	public Result getSmtStaffPage(Page page, @RequestBody SearchStaffDTO smtStaff) {
-		return new Result<>(smtStaffService.getSmtStaffPage(page,smtStaff));
+	@ApiOperation("后台员工最小列表")
+	@PostMapping("/admin/page")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result adminStaffPage(Page page, @RequestBody AdminStaffPageQueryReqDTO request) {
+		return success(smtStaffService.getAdminStaffPage(page, request,
+				currentAuthenticatedUser().getParkIdList()));
 	}
 
 	/**

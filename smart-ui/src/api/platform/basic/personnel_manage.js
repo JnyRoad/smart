@@ -266,16 +266,14 @@ export function getStaffPage(query, {
   depId,
   badge,
   name,
-  isFace,
-  status
+  isFace
 }) {
   const sendData = Object.assign({}, query)
   ;[
     ['depId', depId],
     ['badge', badge],
     ['name', name],
-    ['isFace', isFace],
-    ['status', status]
+    ['isFace', isFace]
   ].forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       sendData[key] = value
@@ -408,10 +406,11 @@ export function delStaffBatch(data) {
  * 批量查询离职员工
  */
  export function searchPersonList (data) {
+  const { status, ...temporaryQuery } = data
   return request({
     url: `/platform/staff/admin/temporary/page`,
     method: 'post',
-    data: data
+    data: temporaryQuery
   }).then(response => normalizeTemporaryStaffResponse(response))
 }
 

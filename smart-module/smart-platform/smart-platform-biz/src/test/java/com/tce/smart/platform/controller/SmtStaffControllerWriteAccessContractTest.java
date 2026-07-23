@@ -3,10 +3,13 @@ package com.tce.smart.platform.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPageQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
+import com.tce.smart.platform.api.dto.resp.AdminStaffPageRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffDetailRespDTO;
 import com.tce.smart.platform.service.SmtAppStaffAuthService;
 import com.tce.smart.platform.service.SmtDormitoryStaffService;
@@ -21,15 +24,19 @@ import com.tce.smart.platform.core.entity.SmtParkBu;
 import com.tce.smart.platform.core.entity.SmtOrganizeRelation;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.mapper.SmtStaffMapper;
+import com.tce.smart.platform.core.dto.SearchStaffDTO;
+import com.tce.smart.platform.core.vo.StaffListVO;
 import com.tce.smart.common.core.exception.TCEException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -44,6 +51,8 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -83,6 +92,8 @@ public class SmtStaffControllerWriteAccessContractTest {
 		assertFalse(fields.contains("faceImg"));
 		assertFalse(fields.contains("faceImgUrl"));
 		assertNoSensitiveRequestFields(AdminTemporaryStaffQueryReqDTO.class);
+		assertFalse("临时人员分页请求不得由调用方选择员工状态", Arrays.stream(AdminTemporaryStaffQueryReqDTO.class.getDeclaredFields())
+				.anyMatch(field -> "status".equals(field.getName())));
 	}
 
 	@Test
@@ -94,6 +105,48 @@ public class SmtStaffControllerWriteAccessContractTest {
 
 		Mockito.verify(service).getTemporaryStaffPageForAdmin(Mockito.any(Page.class),
 				Mockito.any(AdminTemporaryStaffQueryReqDTO.class), Mockito.eq(Arrays.asList(10, 20)));
+	}
+
+	@Test
+	public void adminStaffPageRemovesLegacyPiiRouteAndUsesScopedMinimumContract() throws Exception {
+		assertMethodDoesNotExist("getSmtStaffPage");
+		Method page = SmtStaffController.class.getMethod("adminStaffPage", Page.class, AdminStaffPageQueryReqDTO.class);
+		assertEquals("/admin/page", page.getAnnotation(PostMapping.class).value()[0]);
+		assertEquals("@pms.hasPermission('platform_staff_lookup')", page.getAnnotation(PreAuthorize.class).value());
+		assertNoSensitiveRequestFields(AdminStaffPageQueryReqDTO.class);
+		Set<String> responseFields = Arrays.stream(AdminStaffPageRespDTO.class.getDeclaredFields())
+				.map(Field::getName).collect(Collectors.toSet());
+		assertFalse(responseFields.contains("certno"));
+		assertFalse(responseFields.contains("phone"));
+		assertFalse(responseFields.contains("facePicId"));
+		assertFalse(responseFields.contains("faceImg"));
+
+		SmtStaffService service = Mockito.mock(SmtStaffService.class);
+		authenticateAsAdmin();
+		staffController(service).adminStaffPage(new Page(), new AdminStaffPageQueryReqDTO());
+		Mockito.verify(service).getAdminStaffPage(Mockito.any(Page.class),
+				Mockito.any(AdminStaffPageQueryReqDTO.class), Mockito.eq(Arrays.asList(10, 20)));
+	}
+
+	@Test
+	public void adminStaffPageRejectsAnonymousAccessAndForwardsOnlyAuthenticatedParkScope() {
+		SmtStaffService service = Mockito.mock(SmtStaffService.class);
+		try {
+			staffController(service).adminStaffPage(new Page(), new AdminStaffPageQueryReqDTO());
+			fail("匿名主体不得查询员工列表");
+		} catch (AccessDeniedException expected) {
+			Mockito.verifyZeroInteractions(service);
+		}
+
+		SmtStaffMapper mapper = Mockito.mock(SmtStaffMapper.class);
+		SmtStaffServiceImpl implementation = new SmtStaffServiceImpl();
+		ReflectionTestUtils.setField(implementation, "baseMapper", mapper);
+		Page<StaffListVO> emptyPage = new Page<>(1, 10, 0);
+		Mockito.when(mapper.getSmtStaffPage(Mockito.any(Page.class), Mockito.any(SearchStaffDTO.class), Mockito.anyList()))
+				.thenReturn(emptyPage);
+		implementation.getAdminStaffPage(new Page<>(1, 10), new AdminStaffPageQueryReqDTO(), Collections.singletonList(10));
+		Mockito.verify(mapper).getSmtStaffPage(Mockito.any(Page.class), Mockito.any(SearchStaffDTO.class),
+				Mockito.eq(Collections.singletonList(10)));
 	}
 
 	@Test
@@ -146,6 +199,38 @@ public class SmtStaffControllerWriteAccessContractTest {
 		} catch (TCEException expected) {
 			Mockito.verify(mapper, Mockito.never()).updateById(Mockito.any(SmtStaff.class));
 		}
+	}
+
+	@Test
+	public void temporaryStaffQueriesForceTemporaryStatusAndRejectNormalStaff() {
+		SmtParkBuService parkBuService = Mockito.mock(SmtParkBuService.class);
+		SmtOrganizeRelationService relationService = Mockito.mock(SmtOrganizeRelationService.class);
+		SmtStaffMapper mapper = Mockito.mock(SmtStaffMapper.class);
+		SmtStaffServiceImpl service = new SmtStaffServiceImpl();
+		ReflectionTestUtils.setField(service, "smtParkBuService", parkBuService);
+		ReflectionTestUtils.setField(service, "smtOrganizeRelationService", relationService);
+		ReflectionTestUtils.setField(service, "baseMapper", mapper);
+		SmtParkBu authorizedBu = new SmtParkBu();
+		authorizedBu.setCompId("AUTHORIZED-COMP");
+		Mockito.when(parkBuService.list(Mockito.any())).thenReturn(Collections.singletonList(authorizedBu));
+		Mockito.when(relationService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Page<SmtStaff> emptyPage = new Page<>(1, 10, 0);
+		Mockito.when(mapper.selectPage(Mockito.any(Page.class), Mockito.any(Wrapper.class))).thenReturn(emptyPage);
+		SmtStaff normalStaff = new SmtStaff();
+		normalStaff.setId(101L);
+		normalStaff.setCompId("AUTHORIZED-COMP");
+		normalStaff.setStatus(1);
+		Mockito.when(mapper.selectById(101L)).thenReturn(normalStaff);
+
+		service.getTemporaryStaffPageForAdmin(new Page<>(1, 10), new AdminTemporaryStaffQueryReqDTO(), Collections.singletonList(10));
+		assertNull("普通员工不能通过临时人员详情端点返回", service.getTemporaryStaffDetailForAdmin(101L, Collections.singletonList(10)));
+
+		ArgumentCaptor<Wrapper<SmtStaff>> queryCaptor = ArgumentCaptor.forClass(Wrapper.class);
+		Mockito.verify(mapper).selectPage(Mockito.any(Page.class), queryCaptor.capture());
+		queryCaptor.getValue().getSqlSegment();
+		Set<Object> queryValues = new HashSet<>(((com.baomidou.mybatisplus.core.conditions.AbstractWrapper) queryCaptor.getValue())
+				.getParamNameValuePairs().values());
+		assertTrue("临时人员分页必须固定 STAFF_STATUS_TEMPORARY", queryValues.contains(4));
 	}
 
 	private void authenticateAsAdmin() {

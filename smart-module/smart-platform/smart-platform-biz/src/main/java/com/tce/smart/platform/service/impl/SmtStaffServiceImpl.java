@@ -59,11 +59,13 @@ import com.tce.smart.platform.api.dto.FaceSnapDTO;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPageQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminStaffDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminStaffPageRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
@@ -444,11 +446,23 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	@Override
 	public IPage<StaffListVO> getSmtStaffPage(Page page, SearchStaffDTO smtStaff) {
 		List<Integer> parkIdList = SecurityUtils.getUser().getParkIdList();
+		return getStaffPageWithinParkScope(page, smtStaff, parkIdList);
+	}
+
+	/**
+	 * 复用历史查询的组织和权限补全逻辑，但园区范围必须由调用方显式传入，避免新的
+	 * 管理端接口重新从可伪造的请求条件或隐式线程上下文取得范围。
+	 */
+	private IPage<StaffListVO> getStaffPageWithinParkScope(Page page, SearchStaffDTO smtStaff,
+			List<Integer> parkIdList) {
 		if (StrUtil.isNotEmpty(smtStaff.getBadges())) {
 			smtStaff.setBadgeList(ToolUtils.splitBlankString(smtStaff.getBadges()));
 		}
 		IPage<StaffListVO> smtStaffPage = this.baseMapper.getSmtStaffPage(page, smtStaff, parkIdList);
 		List<StaffListVO> records = smtStaffPage.getRecords();
+		if (CollectionUtil.isEmpty(records)) {
+			return smtStaffPage;
+		}
 		Set<String> compIds = records.stream().map(StaffListVO::getCompId).collect(Collectors.toSet());
 		List<Long> compIdList = compIds.stream().map(Long::parseLong).collect(Collectors.toList());
 		List<SmtOrganizeRelation> organizeRelations = smtOrganizeRelationService.list(new LambdaQueryWrapper<SmtOrganizeRelation>()
@@ -945,6 +959,22 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	}
 
 	@Override
+	public IPage<AdminStaffPageRespDTO> getAdminStaffPage(Page page, AdminStaffPageQueryReqDTO request,
+			List<Integer> parkIds) {
+		if (CollectionUtil.isEmpty(parkIds)) {
+			return new Page<>(page.getCurrent(), page.getSize(), 0);
+		}
+		SearchStaffDTO query = toAdminStaffPageQuery(request);
+		IPage<StaffListVO> staffPage = getStaffPageWithinParkScope(
+				new Page<>(page.getCurrent(), page.getSize()), query, parkIds);
+		Page<AdminStaffPageRespDTO> response = new Page<>(staffPage.getCurrent(), staffPage.getSize(),
+				staffPage.getTotal());
+		response.setRecords(staffPage.getRecords().stream()
+				.map(this::toAdminStaffPageResp).collect(Collectors.toList()));
+		return response;
+	}
+
+	@Override
 	public List<AdminTemporaryStaffRespDTO> searchTemporaryStaffForAdmin(List<String> badges, List<Integer> parkIds) {
 		if (CollectionUtil.isEmpty(badges) || CollectionUtil.isEmpty(parkIds)) {
 			return Collections.emptyList();
@@ -985,7 +1015,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		IPage<SmtStaff> staffPage = this.page(new Page<>(page.getCurrent(), page.getSize()),
 				Wrappers.<SmtStaff>query().lambda()
 						.in(SmtStaff::getCompId, visibleCompIds)
-						.eq(query.getStatus() != null, SmtStaff::getStatus, query.getStatus())
+						.eq(SmtStaff::getStatus, StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode())
 						.like(StrUtil.isNotBlank(query.getBadge()), SmtStaff::getBadge, query.getBadge())
 						.like(StrUtil.isNotBlank(query.getName()), SmtStaff::getName, query.getName())
 						.in(!badges.isEmpty(), SmtStaff::getBadge, badges)
@@ -1002,7 +1032,8 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	@Override
 	public AdminTemporaryStaffDetailRespDTO getTemporaryStaffDetailForAdmin(Long staffId, List<Integer> parkIds) {
 		SmtStaff staff = getStaffWithinAdminScope(staffId, parkIds);
-		return staff == null ? null : toAdminTemporaryStaffDetailResp(staff);
+		return staff == null || !StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode().equals(staff.getStatus())
+				? null : toAdminTemporaryStaffDetailResp(staff);
 	}
 
 	@Override
@@ -1141,6 +1172,45 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		response.setDepartmentName(staff.getDepName());
 		response.setJobName(staff.getJobName());
 		response.setStatus(staff.getStatus());
+		return response;
+	}
+
+	/** 将最小分页查询契约显式映射为历史 SQL 条件，禁止采纳园区、BU、手机号等字段。 */
+	private SearchStaffDTO toAdminStaffPageQuery(AdminStaffPageQueryReqDTO request) {
+		AdminStaffPageQueryReqDTO source = request == null ? new AdminStaffPageQueryReqDTO() : request;
+		SearchStaffDTO query = new SearchStaffDTO();
+		query.setName(source.getName());
+		query.setBadge(source.getBadge());
+		query.setBadges(source.getBadges());
+		query.setDepId(source.getDepId());
+		query.setDepAbbr(source.getDepAbbr());
+		query.setJobId(source.getJobId());
+		query.setJobName(source.getJobName());
+		query.setJcheId(source.getJcheId());
+		query.setStatus(source.getStatus());
+		query.setFacePicId(source.getHasFace() == null ? null : (source.getHasFace() ? "1" : "0"));
+		query.setStartTime(source.getStartTime());
+		query.setEndTime(source.getEndTime());
+		return query;
+	}
+
+	/** 显式投影分页行，禁止历史 StaffListVO 中的 PII 越过管理端响应边界。 */
+	private AdminStaffPageRespDTO toAdminStaffPageResp(StaffListVO staff) {
+		AdminStaffPageRespDTO response = new AdminStaffPageRespDTO();
+		response.setStaffId(Long.valueOf(staff.getId()));
+		response.setBadge(staff.getBadge());
+		response.setName(staff.getName());
+		response.setCompName(staff.getCompName());
+		response.setDepAbbr(staff.getDepAbbr());
+		response.setDepName(staff.getDepName());
+		response.setJcheName(staff.getJcheName());
+		response.setJobName(staff.getJobName());
+		response.setCreateTime(staff.getCreateTime());
+		response.setStatus(staff.getStatus());
+		response.setParkName(staff.getParkName());
+		response.setHasFace(StrUtil.isNotBlank(staff.getFacePicId()));
+		response.setDeviceAuth(staff.getDeviceAuth());
+		response.setAppAuth(staff.getAppAuth());
 		return response;
 	}
 

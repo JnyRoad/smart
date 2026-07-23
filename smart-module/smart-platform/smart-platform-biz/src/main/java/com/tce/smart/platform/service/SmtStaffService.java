@@ -8,11 +8,13 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPageQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
 import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminStaffDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminStaffPageRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffRespDTO;
 import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
@@ -128,6 +130,17 @@ public interface SmtStaffService extends IService<SmtStaff> {
 	 * @return 不含证件、联系方式、地址和人脸资料的员工详情；越园区或不存在时返回空
 	 */
 	AdminStaffDetailRespDTO getAdminStaffDetail(Long staffId, List<Integer> parkIds);
+
+	/**
+	 * 按管理员可见园区分页查询员工最小资料。
+	 *
+	 * @param page 分页参数
+	 * @param request 已限制为非敏感字段的查询条件
+	 * @param parkIds 当前管理员可见园区
+	 * @return 不含手机号、证件及人脸文件标识的员工列表
+	 */
+	IPage<AdminStaffPageRespDTO> getAdminStaffPage(Page page, AdminStaffPageQueryReqDTO request,
+			List<Integer> parkIds);
 
 	/**
 	 * 查询当前管理员园区内可批量离职的临时员工最小资料。

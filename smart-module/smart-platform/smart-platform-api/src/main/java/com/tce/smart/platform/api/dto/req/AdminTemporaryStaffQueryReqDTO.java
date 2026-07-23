@@ -21,9 +21,6 @@ public class AdminTemporaryStaffQueryReqDTO {
 	@ApiModelProperty("是否已上传人脸，仅用于筛选")
 	private Boolean isFace;
 
-	@ApiModelProperty("人员状态")
-	private Integer status;
-
 	@ApiModelProperty("工号集合，使用逗号分隔")
 	private String badges;
 }

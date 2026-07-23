@@ -101,7 +101,7 @@ describe('api/platform/basic/personnel_manage 员工最小搜索契约', () => {
       }
     })
 
-    const response = await api.getStaffPage({ current: 1, size: 10 }, { badge: 'A100' })
+    const response = await api.getStaffPage({ current: 1, size: 10 }, { badge: 'A100', status: 1 })
 
     expect(request).toHaveBeenCalledWith({
       url: '/platform/staff/admin/temporary/page',
