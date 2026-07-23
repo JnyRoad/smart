@@ -11,7 +11,9 @@ import com.tce.smart.platform.service.*;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.AccessDeniedException;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 
 /**
@@ -44,6 +46,9 @@ public class ResumeRegistController extends BaseController {
 
 	@Autowired
 	private SmtApplicationRelationService  smtApplicationRelationService;
+
+	@Autowired
+	private ResumeFaceCropCapabilityService resumeFaceCropCapabilityService;
 	/**
 	 * 获取字典关系
 	 * @return
@@ -88,8 +93,10 @@ public class ResumeRegistController extends BaseController {
 	 */
 	@SysLog("通过其他应聘网站录入招聘数据，保存证件信息")
 	@PostMapping("/save/identification")
-	public Result saveCardInfo(@RequestBody OcrReadCardImgVO ocrReadCardImgVo) {
-		return  new Result<>(service.saveCardInfo(ocrReadCardImgVo));
+	public Result saveCardInfo(@RequestBody OcrReadCardImgVO ocrReadCardImgVo, HttpServletResponse response) {
+		String applicationId = service.saveCardInfo(ocrReadCardImgVo);
+		resumeFaceCropCapabilityService.issueCropCapability(response, Long.valueOf(applicationId));
+		return  new Result<>(applicationId);
 	}
 
 
@@ -101,7 +108,17 @@ public class ResumeRegistController extends BaseController {
 	 */
 	@SysLog("通过其他应聘网站录入招聘数据，提交人脸照片")
 	@PostMapping("/face/add")
-	public Result<Integer> addFaceImg(@RequestBody AddJobFaceDTO addJobFaceDTO) {
+	public Result<Integer> addFaceImg(@CookieValue(value = "resume_face_save", required = false) String capability,
+			@RequestBody AddJobFaceDTO addJobFaceDTO) {
+		if (addJobFaceDTO == null) {
+			throw new AccessDeniedException("简历人脸处理上下文无效或已过期");
+		}
+		try {
+			resumeFaceCropCapabilityService.consumeSaveCapability(capability,
+					Long.valueOf(addJobFaceDTO.getApplicationId()), addJobFaceDTO.getFacePhoto());
+		} catch (NumberFormatException e) {
+			throw new AccessDeniedException("简历人脸处理上下文无效或已过期");
+		}
 		return new Result<>(service.addFaceImg(addJobFaceDTO));
 	}
 

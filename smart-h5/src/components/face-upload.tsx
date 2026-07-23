@@ -2,7 +2,7 @@
 import { SpinLoading, Toast } from 'antd-mobile'
 import Image from 'next/image'
 import { useRef, useState } from 'react'
-import { checkFace, faceCut } from '@/features/visitor/api'
+import { checkFace, faceCut, type VisitorFaceDraft } from '@/features/visitor/api'
 import { extractPhotoId, photoViewUrl } from '@/lib/photo-id'
 
 /** Strips the dataURL prefix; the gateway expects raw base64. */
@@ -22,9 +22,9 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 /**
  * Photo upload returning a gateway photo id.
- * mode 'face': face detection + crop (algorithm:/out/face/cut) before upload —
- * used for visitor/fellow portraits. mode 'plain': direct upload — used for
- * vehicle document photos. Both upload via app:/wechat/visit/checkFace.
+ * mode 'face': visitor flows use an expiring one-time capability; authenticated employee
+ * flows use their own protected endpoint. mode 'plain': direct upload — used for vehicle
+ * document photos. Both upload via app:/wechat/visit/checkFace.
  */
 export interface FaceUploadResponse {
   code: number
@@ -41,6 +41,7 @@ export function FaceUpload({
   mode,
   label = '点击上传照片',
   onUploaded,
+	visitorFaceDraft,
 }: {
   value?: string
   onChange: (photoId: string) => void
@@ -48,6 +49,8 @@ export function FaceUpload({
   label?: string
   /** Raw checkFace response for callers that need more than the photo id. */
   onUploaded?: (raw: FaceUploadResponse, uploadedBase64: string) => void
+	/** 仅访客申请流传入；后端会按此草稿会话签发一次性裁剪能力。 */
+	visitorFaceDraft?: VisitorFaceDraft
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -60,7 +63,7 @@ export function FaceUpload({
       const dataUrl = await readFileAsDataUrl(file)
       let base64 = toRawBase64(dataUrl)
       if (mode === 'face') {
-        const cut = await faceCut(base64)
+        const cut = await faceCut(base64, visitorFaceDraft)
         // 真实响应 data 是裁剪后的图片 base64 字符串本身（不是 {imageData} 嵌套）。
         if (cut.code !== 0 || !cut.data) {
           // 网关成功消息是英文 success，失败兜底用中文提示。

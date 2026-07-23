@@ -139,6 +139,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	@Autowired
 	private StringRedisTemplate stringRedisTemplate;
 	@Autowired
+	private VisitorFaceCropCapabilityService visitorFaceCropCapabilityService;
+	@Autowired
 	private SmtMsgTemplateService smtMsgTemplateService;
 	@Autowired
 	private SmtVisitorMapper smtVisitorMapper;
@@ -291,6 +293,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		VisitorWechatIdentityRespDTO response = new VisitorWechatIdentityRespDTO();
 		response.setOpenId(openId);
 		response.setUnionId(unionId);
+		VisitorFaceDraftCredential credential = visitorFaceCropCapabilityService.issueDraft(openId);
+		response.setVisitorDraftToken(credential.getDraftToken());
+		response.setVisitorDraftId(credential.getDraftId());
 		return response;
 	}
 

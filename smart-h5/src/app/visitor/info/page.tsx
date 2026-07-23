@@ -211,6 +211,9 @@ export default function VisitorInfoPage() {
             value={visitor.visitorPhotoId}
             onChange={(photoId) => patchVisitor({ visitorPhotoId: photoId })}
             label="点击拍摄/上传人脸照片"
+			visitorFaceDraft={host.visitorDraftToken && host.visitorDraftId
+			  ? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
+			  : undefined}
           />
         </div>
 

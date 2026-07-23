@@ -1,9 +1,8 @@
 import { request } from '@/lib/api/http'
 
 /**
- * Visitor-flow gateway APIs. The whole flow is unauthenticated
- * (`auth: 'none'`), matching the legacy app where every visitor request
- * was sent without a bearer token.
+ * Visitor-flow gateway APIs. 访客人脸裁剪不是裸匿名接口：微信 code 换得的短时草稿
+ * 会话只能换取一次性裁剪能力；已登录员工则走独立的 Bearer 认证入口。
  */
 interface Envelope<T> {
   code: number
@@ -24,6 +23,12 @@ export interface AdmittanceNotice {
   noticeContent?: string
 }
 
+/** 微信授权后由服务端签发的短时访客草稿会话。 */
+export interface VisitorFaceDraft {
+  draftToken: string
+  draftId: string
+}
+
 export function admittanceNoticeHtml(notice: AdmittanceNotice | undefined): string {
   if (notice?.isNeedNotice !== 1) return ''
   return (notice.content ?? notice.noticeContent ?? '').trim()
@@ -38,9 +43,11 @@ export function getAdmittanceNotice(parkId: number) {
   })
 }
 
-/** Visitor-side OAuth: exchanges the WeChat code for openId/unionId (not a login token). */
+/** Visitor-side OAuth: exchanges the WeChat code for openId/unionId and a short-lived face draft session. */
 export function getVisitorOpenId(code: string) {
-  return request<Envelope<{ openId?: string; unionId?: string }>>({
+  return request<
+    Envelope<{ openId?: string; unionId?: string; visitorDraftToken?: string; visitorDraftId?: string }>
+  >({
     module: 'platform',
     url: '/admittance/apply/get/openId',
     params: { code },
@@ -161,7 +168,9 @@ export function checkApplyEqual(data: Record<string, unknown>) {
 export function sendVisitorSms(mobile: string) {
   return request<Envelope<unknown>>({
     module: 'app',
-    url: `/sms/send/getCode/${mobile}`,
+    url: '/sms/visitor/send',
+    method: 'POST',
+    data: { mobile },
     auth: 'none',
   })
 }
@@ -169,8 +178,9 @@ export function sendVisitorSms(mobile: string) {
 export function verifyVisitorSms(mobile: string, smsCode: string) {
   return request<Envelope<unknown>>({
     module: 'app',
-    url: '/sms/verify',
-    params: { mobile, smsCode },
+    url: '/sms/visitor/verify',
+    method: 'POST',
+    data: { mobile, smsCode },
     auth: 'none',
   })
 }
@@ -233,16 +243,37 @@ export function getApplyDetail(id: string) {
 }
 
 /**
- * Face detection + crop. Request body is `{ imageData: base64 }`; the response
- * `data` is the cropped image as a raw base64 string (no dataURL prefix).
+ * 人脸裁剪。访客必须传入微信授权派生的草稿会话，后端按草稿换取单次能力；
+ * 已登录员工不接受任何人员标识，仅使用 Bearer 认证入口处理其主动提交的图片。
  */
-export function faceCut(imageData: string) {
-  return request<Envelope<string>>({
-    module: 'algorithm',
-    url: '/out/face/cut',
+export async function faceCut(imageData: string, visitorDraft?: VisitorFaceDraft) {
+  if (!visitorDraft) {
+    return request<Envelope<string>>({
+      module: 'app',
+      url: '/employee/face/crop',
+      method: 'POST',
+      data: { imageData },
+    })
+  }
+
+  const capability = await request<Envelope<{ capability?: string }>>({
+    module: 'platform',
+    url: '/admittance/visitor-face/capability',
     method: 'POST',
-    data: { imageData },
+    data: { draftId: visitorDraft.draftId },
     auth: 'none',
+    headers: { 'X-Visitor-Draft-Token': visitorDraft.draftToken },
+  })
+  if (capability.code !== 0 || !capability.data?.capability) {
+    throw new Error(capability.message ?? '访客人脸授权已失效，请重新进入申请流程')
+  }
+  return request<Envelope<string>>({
+    module: 'platform',
+    url: '/admittance/visitor-face/crop',
+    method: 'POST',
+    data: { draftId: visitorDraft.draftId, imageData },
+    auth: 'none',
+    headers: { 'X-Visitor-Face-Capability': capability.data.capability },
   })
 }
 

@@ -34,7 +34,10 @@ async function seedDraft(page: Page) {
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: { receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
+          host: {
+            receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111',
+            visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id',
+          },
           visitor: {
             visitorName: '王五', visitorPhotoId: 'photo-001', certNo: '11010519491231002X',
             company: '测试公司', cause: { code: 1, desc: '商务洽谈' },
@@ -110,7 +113,10 @@ test('区域选择：配置匹配不到厂区 → 清缓存 + toast', async ({ p
 
 test('随行人员：增 → 列表 → 编辑 → 删除 → 空态；身份证非法拦截', async ({ page }) => {
   await seedDraft(page)
-  await page.route('**/algorithm/out/face/cut', (route) =>
+  await page.route('**/platform/admittance/visitor-face/capability', (route) =>
+    route.fulfill({ json: { code: 0, data: { capability: 'one-time-capability' } } }),
+  )
+  await page.route('**/platform/admittance/visitor-face/crop', (route) =>
     route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } }),
   )
   await page.route('**/app/wechat/visit/checkFace', (route) =>
@@ -213,8 +219,8 @@ test('主链回归：带随行人员与车辆的提交体映射', async ({ page 
       }),
     )
   })
-  await page.route('**/app/sms/send/getCode/**', (route) => route.fulfill({ json: { code: 0 } }))
-  await page.route('**/app/sms/verify*', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/app/sms/visitor/send', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/app/sms/visitor/verify', (route) => route.fulfill({ json: { code: 0 } }))
   await page.route('**/platform/admittance/apply/app/area-options*', (route) =>
     route.fulfill({ json: { code: 0, data: AREA_CONFIG } }),
   )

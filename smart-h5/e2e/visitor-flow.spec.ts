@@ -19,7 +19,12 @@ async function mockEntryApis(page: Page, { needNotice = 0 } = {}) {
     }),
   )
   await page.route('**/platform/admittance/apply/get/openId*', (route) =>
-    route.fulfill({ json: { code: 0, data: { openId: 'oid-1', unionId: 'uid-1' } } }),
+    route.fulfill({
+      json: {
+        code: 0,
+        data: { openId: 'oid-1', unionId: 'uid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id' },
+      },
+    }),
   )
 }
 
@@ -93,7 +98,10 @@ async function mockInfoApis(page: Page) {
   await page.route('**/platform/admittance/apply/app/area-options*', (route) =>
     route.fulfill({ json: { code: 0, data: AREA_CONFIG } }),
   )
-  await page.route('**/algorithm/out/face/cut', (route) =>
+  await page.route('**/platform/admittance/visitor-face/capability', (route) =>
+    route.fulfill({ json: { code: 0, data: { capability: 'one-time-capability' } } }),
+  )
+  await page.route('**/platform/admittance/visitor-face/crop', (route) =>
     route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } }),
   )
   await page.route('**/app/wechat/visit/checkFace', (route) =>
@@ -370,8 +378,8 @@ async function seedFilledDraft(page: Page) {
 }
 
 async function mockTelApis(page: Page) {
-  await page.route('**/app/sms/send/getCode/**', (route) => route.fulfill({ json: { code: 0 } }))
-  await page.route('**/app/sms/verify*', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/app/sms/visitor/send', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/app/sms/visitor/verify', (route) => route.fulfill({ json: { code: 0 } }))
   await page.route('**/platform/admittance/apply/app/area-options*', (route) =>
     route.fulfill({ json: { code: 0, data: AREA_CONFIG } }),
   )
@@ -509,8 +517,8 @@ test('提交链：黑名单校验体与 save 同口径去空格、证件号大�
 test('提交链：获取验证码后端限流(code!=0)时弹后端提示且不启动倒计时', async ({ page }) => {
   await seedFilledDraft(page)
   await mockTelApis(page)
-  // 覆盖默认 getCode mock：HTTP 200 但 code=1（同一号码提交过快），短信其实没发出
-  await page.route('**/app/sms/send/getCode/**', (route) =>
+  // 覆盖默认发送 mock：HTTP 200 但 code=1，客户端必须提示失败且不启动倒计时。
+  await page.route('**/app/sms/visitor/send', (route) =>
     route.fulfill({ json: { code: 1, message: '同一号码验证码提交过快', data: '' } }),
   )
 

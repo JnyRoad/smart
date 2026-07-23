@@ -2,8 +2,11 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export interface HostInfo {
-  openId?: string
-  unionId?: string
+	openId?: string
+	unionId?: string
+	/** 微信授权后签发的短时草稿会话；仅用于换取一次性人脸裁剪能力。 */
+	visitorDraftToken?: string
+	visitorDraftId?: string
   receptionistBadge?: string
   receptionistName?: string
   receptionistPhone?: string

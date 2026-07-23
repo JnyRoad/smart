@@ -64,7 +64,12 @@ function VisitorEntryInner() {
       try {
         const res = await getVisitorOpenId(code)
         if (res.code === 0 && res.data) {
-          patchHost({ openId: res.data.openId, unionId: res.data.unionId })
+		  patchHost({
+			openId: res.data.openId,
+			unionId: res.data.unionId,
+			visitorDraftToken: res.data.visitorDraftToken,
+			visitorDraftId: res.data.visitorDraftId,
+		  })
         }
       } catch (error) {
         // Missing openId surfaces later at submit; do not block the form.

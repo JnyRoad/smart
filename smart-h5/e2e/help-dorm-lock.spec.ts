@@ -207,7 +207,7 @@ test('刷新动态码：人脸比对 → 生成 → 回门锁页', async ({ page
   await mockFrontCamera(page)
   let cutBody: Record<string, unknown> | undefined
   let checkFaceBody: Record<string, unknown> | undefined
-  await page.route('**/algorithm/out/face/cut', async (route) => {
+  await page.route('**/app/employee/face/crop', async (route) => {
     cutBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } })
   })
