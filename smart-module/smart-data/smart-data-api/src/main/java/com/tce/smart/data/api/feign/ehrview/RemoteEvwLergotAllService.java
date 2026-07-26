@@ -21,7 +21,9 @@ import com.tce.smart.data.api.dto.ehrview.resp.EvwLergotAllRespDTO;
 public interface RemoteEvwLergotAllService {
 
 	@GetMapping("/evwLergotAll/info")
-	Result<List<EvwLergotAllRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("otTerm") String otTerm);
+	Result<List<EvwLergotAllRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("otTerm") String otTerm,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	@GetMapping("/evwLergotAll/list")
 	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth,

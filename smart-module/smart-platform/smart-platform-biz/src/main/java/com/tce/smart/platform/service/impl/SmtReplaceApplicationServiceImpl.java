@@ -1248,7 +1248,9 @@ public class SmtReplaceApplicationServiceImpl extends ServiceImpl<SmtReplaceAppl
 				.ge(SmtReplaceApplication::getCreateTime, DateUtil.beginOfMonth(DateUtils.parse(searchPatchDTO.getPatchDate())))
 				.le(SmtReplaceApplication::getCreateTime, DateUtil.endOfMonth(DateUtils.parse(searchPatchDTO.getPatchDate()))));
 		for (SmtReplaceApplication smtReplaceApplication : list) {
-			Result<List<EvwBizLcardlostRespDTO>> infoLost = remoteEvwBizLcardlostService.info(smtReplaceApplication.getStaffBadge(), smtReplaceApplication.getStartTime());
+			Result<List<EvwBizLcardlostRespDTO>> infoLost = remoteEvwBizLcardlostService.info(
+					smtReplaceApplication.getStaffBadge(), smtReplaceApplication.getStartTime(),
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("remoteEvwBizLcardlostService.info {}",infoLost);
 			List<EvwBizLcardlostRespDTO> dataLost = infoLost.getData();
 			if(dataLost.size()>0)

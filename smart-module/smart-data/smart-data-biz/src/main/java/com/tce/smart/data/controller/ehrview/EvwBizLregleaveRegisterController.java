@@ -32,6 +32,8 @@ public class  EvwBizLregleaveRegisterController extends BaseController {
 	 @Autowired
 	 private EvwBizLregleaveRegisterService evwBizLregleaveRegisterService;
 
+    @Inner
+    @OpenApi("server")
     @GetMapping("/info")
     public Result<List<EvwBizLregleaveRegisterRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("beginTime") String beginTime,@RequestParam("endTime") String endTime){
 	List<EvwBizLregleaveRegister> list = evwBizLregleaveRegisterService.list(Wrappers.<EvwBizLregleaveRegister>query().lambda()

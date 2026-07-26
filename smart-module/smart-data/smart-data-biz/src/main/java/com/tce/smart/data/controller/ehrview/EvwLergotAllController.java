@@ -32,6 +32,8 @@ public class EvwLergotAllController  extends BaseController {
 	@Autowired
 	private EvwLergotAllService evwLergotAllService;
 
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/info")
 	public Result<List<EvwLergotAllRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("otTerm") String otTerm){
 

@@ -134,7 +134,10 @@ public class SmtAskLeaveApplicationServiceImpl extends ServiceImpl<SmtAskLeaveAp
             throw new TCEException(exceptionType);
 		}
 
-		Result<List<EvwBizLregleaveRegisterRespDTO>> infoRegister = remoteEvwBizLregleaveRegisterService.info(addAskLeavelApplicationDTO.getStaffBadge(), addAskLeavelApplicationDTO.getStartDate(), addAskLeavelApplicationDTO.getEndDate());
+		Result<List<EvwBizLregleaveRegisterRespDTO>> infoRegister = remoteEvwBizLregleaveRegisterService.info(
+				addAskLeavelApplicationDTO.getStaffBadge(), addAskLeavelApplicationDTO.getStartDate(),
+				addAskLeavelApplicationDTO.getEndDate(), SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("remoteEvwBizLregleaveRegisterService.info {}",infoRegister);
 		List<EvwBizLregleaveRegisterRespDTO> registerData = infoRegister.getData();
 		if(registerData.size()>0)

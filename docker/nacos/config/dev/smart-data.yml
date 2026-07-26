@@ -1,6 +1,10 @@
 ## spring security 配置
 security:
   inner:
+    # 所有 @Inner + @OpenApi(server) SmartData 路由都必须命中精确 OAuth client_id 白名单。
+    # 生产仅填经调用链审计确认的 App/Platform/UPMS 等服务 client_id；空值按拒绝处理。
+    ehr:
+      allowed-client-ids: "${SMART_DATA_EHR_ALLOWED_CLIENT_IDS:}"
     # Platform 的访客黑名单布尔查询只允许专属服务客户端；未注入配置时内部路由拒绝调用。
     visitor-blacklist:
       platform-client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:}"

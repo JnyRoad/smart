@@ -34,6 +34,8 @@ public class EvwBizLcardlostController extends BaseController {
 	@Autowired
 	private EvwBizLcardlostService evwBizLcardlostService;
 
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/info")
 	public Result<List<EvwBizLcardlostRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("kqStartDate") String kqStartDate){
 
