@@ -7,6 +7,7 @@ import com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter;
 import com.tce.smart.data.api.feign.consume.RemoteRsEmpService;
 import com.tce.smart.platform.core.dto.LeaveApplicationDTO;
 import com.tce.smart.platform.core.entity.SmtLeaveApplication;
+import com.tce.smart.platform.core.entity.SmtLeaveHandover;
 import com.tce.smart.platform.core.service.SmtLeaveApplicationService;
 import com.tce.smart.platform.service.ILeaveApplicationService;
 import com.tce.smart.platform.service.SmtLeaveHandoverService;
@@ -91,11 +92,44 @@ public class LegacyLeaveEndpointAccessTest {
 	}
 
 	@Test
-	public void enabledLegacyHandoverAllowsDedicatedActorAndMatchingPark() throws Exception {
+	public void enabledLegacyHandoverRoutesAllowDedicatedActorAndMatchingPark() throws Exception {
 		SmtLeaveHandoverService handoverService = Mockito.mock(SmtLeaveHandoverService.class);
 		SmtLeaveApplicationService applicationService = Mockito.mock(SmtLeaveApplicationService.class);
 		SmtLeaveApplication application = new SmtLeaveApplication();
 		application.setBadge(ACTOR);
+		application.setParkId(7);
+		Mockito.when(applicationService.getLeaveApplicationRecord("P10001")).thenReturn(application);
+		Mockito.when(handoverService.getLeaveHandover("P10001", ACTOR))
+				.thenReturn(Collections.singletonList(new SmtLeaveHandover()));
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SmtLeaveHandoverController(
+				new OpenApiAuthenticationAdapter(), "legacy-leave-migrator", handoverService, Mockito.mock(SmtLbejConfigService.class),
+				Mockito.mock(SmtStaffService.class), applicationService, Mockito.mock(ILeaveApplicationService.class), guard(true)))
+				.setControllerAdvice(new GlobalExceptionHandlerResolver()).build();
+
+		asClient("legacy-leave-migrator");
+		mockMvc.perform(legacyHandoverGet("/leave/handover/start/P10001"))
+				.andExpect(status().isOk());
+		mockMvc.perform(legacyHandoverGet("/leave/handover/get/P10001"))
+				.andExpect(status().isOk());
+		mockMvc.perform(legacyHandoverGet("/leave/handover/end/P10001"))
+				.andExpect(status().isOk());
+		mockMvc.perform(legacyHandoverPost("/leave/handover/commit", "{\"processId\":\"P10001\",\"jjr\":\"SPOOFED\"}"))
+				.andExpect(status().isOk());
+		mockMvc.perform(legacyHandoverPost("/leave/handover/detail", "{\"processId\":\"P10001\"}"))
+				.andExpect(status().isOk());
+		Mockito.verify(handoverService).startLeaveHandover("P10001");
+		Mockito.verify(handoverService).getLeaveHandoverByProcessId("P10001");
+		Mockito.verify(handoverService).closeLeaveHandover("P10001");
+		Mockito.verify(handoverService).endLeaveHandover(Mockito.argThat(request -> ACTOR.equals(request.getJjr())));
+		Mockito.verify(handoverService).getLeaveHandover("P10001");
+	}
+
+	@Test
+	public void enabledLegacyHandoverRejectsActorOutsideApplication() throws Exception {
+		SmtLeaveHandoverService handoverService = Mockito.mock(SmtLeaveHandoverService.class);
+		SmtLeaveApplicationService applicationService = Mockito.mock(SmtLeaveApplicationService.class);
+		SmtLeaveApplication application = new SmtLeaveApplication();
+		application.setBadge("A20002");
 		application.setParkId(7);
 		Mockito.when(applicationService.getLeaveApplicationRecord("P10001")).thenReturn(application);
 		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SmtLeaveHandoverController(
@@ -104,13 +138,8 @@ public class LegacyLeaveEndpointAccessTest {
 				.setControllerAdvice(new GlobalExceptionHandlerResolver()).build();
 
 		asClient("legacy-leave-migrator");
-		mockMvc.perform(get("/leave/handover/start/P10001")
-				.header("X-Smart-Actor-Badge", ACTOR)
-				.header("X-Smart-Actor-Park-Ids", "7")
-				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
-				.header("X-Smart-Internal-Purpose", PURPOSE))
-				.andExpect(status().isOk());
-		Mockito.verify(handoverService).startLeaveHandover("P10001");
+		mockMvc.perform(legacyHandoverGet("/leave/handover/get/P10001")).andExpect(status().isForbidden());
+		Mockito.verify(handoverService, Mockito.never()).getLeaveHandoverByProcessId("P10001");
 	}
 
 	private Fixture fixture(boolean enabled) {
@@ -143,6 +172,24 @@ public class LegacyLeaveEndpointAccessTest {
 			request.header("X-Smart-Internal-Purpose", purpose);
 		}
 		return request;
+	}
+
+	private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder legacyHandoverGet(String path) {
+		return get(path)
+				.header("X-Smart-Actor-Badge", ACTOR)
+				.header("X-Smart-Actor-Park-Ids", "7")
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
+				.header("X-Smart-Internal-Purpose", PURPOSE);
+	}
+
+	private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder legacyHandoverPost(String path, String body) {
+		return post(path)
+				.header("X-Smart-Actor-Badge", ACTOR)
+				.header("X-Smart-Actor-Park-Ids", "7")
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
+				.header("X-Smart-Internal-Purpose", PURPOSE)
+				.contentType("application/json")
+				.content(body);
 	}
 
 	private void asClient(String clientId) {
