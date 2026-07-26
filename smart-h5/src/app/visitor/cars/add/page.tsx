@@ -43,7 +43,14 @@ function CarFormInner() {
   })
   const isEdit = editIndex !== null
 
-  const certEnum = useQuery({ queryKey: ['visitor', 'vehicle-cert-enum'], queryFn: getVehicleCertEnum })
+  const visitorDraft = host.visitorDraftToken && host.visitorDraftId
+    ? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
+    : null
+  const certEnum = useQuery({
+    queryKey: ['visitor', 'vehicle-cert-enum', visitorDraft?.draftId],
+    queryFn: () => getVehicleCertEnum(visitorDraft!),
+    enabled: visitorDraft !== null,
+  })
 
   function handleSubmit() {
     // 先去首尾空格再校验，避免误带空格卡在格式校验。

@@ -45,7 +45,7 @@ public class VisitorActionCapabilityController extends BaseController {
 	@Value("${security.inner.visitor-action.app-client-id:}")
 	private String appServiceClientId;
 
-	/** 公开入口只签发文档上传和黑名单校验，裁剪结果上传票据只能由 crop 服务端派生。 */
+	/** 公开入口只签发与草稿绑定的受限动作，裁剪结果上传票据只能由 crop 服务端派生。 */
 	@PostMapping("/capability")
 	public Result<VisitorActionCapabilityRespDTO> issue(
 			@RequestHeader(value = DRAFT_TOKEN_HEADER, required = false) String draftToken,
@@ -89,12 +89,16 @@ public class VisitorActionCapabilityController extends BaseController {
 	/** 浏览器不可自行签发 FACE_UPLOAD，只有裁剪成功的服务端才可派生该票据。 */
 	private boolean isBrowserIssuableAction(VisitorActionCapabilityAction action) {
 		return action == VisitorActionCapabilityAction.DOCUMENT_UPLOAD
-				|| action == VisitorActionCapabilityAction.BLACKLIST_CHECK;
+				|| action == VisitorActionCapabilityAction.BLACKLIST_CHECK
+				|| action == VisitorActionCapabilityAction.RECEPTIONIST_SEARCH
+				|| action == VisitorActionCapabilityAction.APPLY_SUBMIT;
 	}
 
 	/** App 受管服务消费时还必须允许服务端裁剪流程派生的人脸上传票据。 */
 	private boolean isConsumableAction(VisitorActionCapabilityAction action) {
-		return action == VisitorActionCapabilityAction.FACE_UPLOAD || isBrowserIssuableAction(action);
+		return action == VisitorActionCapabilityAction.FACE_UPLOAD
+				|| action == VisitorActionCapabilityAction.DOCUMENT_UPLOAD
+				|| action == VisitorActionCapabilityAction.BLACKLIST_CHECK;
 	}
 
 	private void assertAppServiceCaller(String from) {

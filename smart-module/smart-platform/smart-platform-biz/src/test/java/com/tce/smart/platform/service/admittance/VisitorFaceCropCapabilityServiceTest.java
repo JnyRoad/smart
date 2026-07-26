@@ -3,6 +3,7 @@ package com.tce.smart.platform.service.admittance.impl;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.platform.api.dto.admittance.VisitorActionCapabilityAction;
 import com.tce.smart.platform.service.admittance.VisitorFaceDraftCredential;
+import com.tce.smart.platform.service.admittance.VisitorFaceCropCapabilityService;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -42,6 +43,28 @@ public class VisitorFaceCropCapabilityServiceTest {
 	}
 
 	@Test
+	public void resolveUnionIdRequiresTheMatchingDraftAndNeverReturnsItToTheBrowserCredential() {
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(values);
+		Mockito.when(values.get(Mockito.contains("draft-token"))).thenAnswer(invocation -> {
+			String key = invocation.getArgument(0);
+			return key.contains(":union:") ? "server-union-id" : "owner-hash|draft-id";
+		});
+		VisitorFaceCropCapabilityServiceImpl service = new VisitorFaceCropCapabilityServiceImpl(redisTemplate,
+				new SequenceTokenSupplier("unused"));
+
+		assertEquals("server-union-id", service.resolveUnionId("draft-token", "draft-id"));
+		try {
+			service.resolveUnionId("draft-token", "other-draft");
+			fail("草稿不匹配时不得解析服务端 unionId");
+		} catch (SmartException expected) {
+			assertNotNull(expected.getMessage());
+		}
+	}
+
+	@Test
 	public void cropCapabilityRequiresMatchingDraftSessionBeforeItIsMinted() {
 		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
 		@SuppressWarnings("unchecked")
@@ -58,6 +81,27 @@ public class VisitorFaceCropCapabilityServiceTest {
 			Mockito.verify(values, Mockito.never()).set(Mockito.contains("crop:"), Mockito.anyString(),
 					Mockito.anyLong(), Mockito.eq(TimeUnit.SECONDS));
 		}
+	}
+
+	@Test
+	public void receptionistSelectionRequiresMatchingDraftAndIsConsumedOnce() {
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(values);
+		Mockito.when(values.get(Mockito.contains("draft-token"))).thenReturn("owner-hash|draft-id");
+		Mockito.when(redisTemplate.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString()))
+				.thenReturn("8031249\u001f张三\u001f13800000000");
+		VisitorFaceCropCapabilityServiceImpl service = new VisitorFaceCropCapabilityServiceImpl(redisTemplate,
+				new SequenceTokenSupplier("unused"));
+
+		VisitorFaceCropCapabilityService.VisitorReceptionistSelection selection = service
+				.consumeReceptionistSelection("draft-token", "draft-id");
+
+		assertEquals("8031249", selection.getReceptionistBadge());
+		assertEquals("张三", selection.getReceptionistName());
+		assertEquals("13800000000", selection.getReceptionistPhone());
+		Mockito.verify(redisTemplate).execute(Mockito.any(), Mockito.anyList(), Mockito.eq(""));
 	}
 
 	@Test

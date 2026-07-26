@@ -26,15 +26,21 @@ import java.util.function.Supplier;
 @Service
 public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapabilityService {
 	private static final String DRAFT_KEY_PREFIX = "smart:admittance:visitor-face:draft:";
+	private static final String DRAFT_UNION_KEY_PREFIX = "smart:admittance:visitor-face:union:";
+	private static final String DRAFT_RECEPTIONIST_KEY_PREFIX = "smart:admittance:visitor-face:receptionist:";
 	private static final String ACTION_KEY_PREFIX = "smart:admittance:visitor-action:";
 	private static final String ACTION_RATE_KEY_PREFIX = "smart:admittance:visitor-action-rate:";
 	private static final long DRAFT_TTL_SECONDS = 30L * 60L;
 	private static final long ACTION_TTL_SECONDS = 2L * 60L;
 	private static final long ACTION_RATE_TTL_SECONDS = 60L;
+	private static final long RECEPTIONIST_SELECTION_TTL_SECONDS = 2L * 60L;
 	private static final long MAX_ACTION_ISSUES_PER_MINUTE = 12L;
 	private static final DefaultRedisScript<Long> CONSUME_ACTION_SCRIPT = new DefaultRedisScript<>(
 			"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
 			Long.class);
+	private static final DefaultRedisScript<String> CONSUME_RECEPTIONIST_SELECTION_SCRIPT = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if value then redis.call('del', KEYS[1]); end; return value",
+			String.class);
 
 	private final StringRedisTemplate redisTemplate;
 	private final Supplier<String> tokenSupplier;
@@ -50,6 +56,11 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 
 	@Override
 	public VisitorFaceDraftCredential issueDraft(String openId) {
+		return issueDraft(openId, null);
+	}
+
+	@Override
+	public VisitorFaceDraftCredential issueDraft(String openId, String unionId) {
 		if (!StringUtils.hasText(openId)) {
 			throw forbidden();
 		}
@@ -57,7 +68,63 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 		String draftId = nextToken();
 		redisTemplate.opsForValue().set(draftKey(draftToken), hashOpenId(openId) + "|" + draftId,
 				DRAFT_TTL_SECONDS, TimeUnit.SECONDS);
+		if (StringUtils.hasText(unionId)) {
+			redisTemplate.opsForValue().set(draftUnionKey(draftToken), unionId, DRAFT_TTL_SECONDS, TimeUnit.SECONDS);
+		}
 		return new VisitorFaceDraftCredential(draftToken, draftId);
+	}
+
+	@Override
+	public String resolveUnionId(String draftToken, String draftId) {
+		String expectedDraftId = draftIdFromSession(draftToken);
+		if (!StringUtils.hasText(draftId) || !draftId.equals(expectedDraftId)) {
+			throw forbidden();
+		}
+		String unionId = redisTemplate.opsForValue().get(draftUnionKey(draftToken));
+		if (!StringUtils.hasText(unionId)) {
+			throw forbidden();
+		}
+		return unionId;
+	}
+
+	@Override
+	public void assertStaticOptionAccess(String draftToken, String draftId) {
+		String expectedDraftId = draftIdFromSession(draftToken);
+		if (!StringUtils.hasText(draftId) || !draftId.equals(expectedDraftId)) {
+			throw forbidden();
+		}
+		// 选项是无敏感数据的只读内容，但仍要限制草稿令牌被脚本反复调用造成的放大流量。
+		assertIssueRate(draftId, VisitorActionCapabilityAction.STATIC_OPTIONS);
+	}
+
+	@Override
+	public void rememberReceptionistSelection(String draftId, String receptionistBadge, String receptionistName,
+			String receptionistPhone) {
+		if (!StringUtils.hasText(draftId) || !StringUtils.hasText(receptionistBadge) || !StringUtils.hasText(receptionistName)
+				|| !StringUtils.hasText(receptionistPhone)) {
+			throw forbidden();
+		}
+		redisTemplate.opsForValue().set(receptionistKey(draftId), selectionValue(receptionistBadge, receptionistName,
+				receptionistPhone), RECEPTIONIST_SELECTION_TTL_SECONDS, TimeUnit.SECONDS);
+	}
+
+	@Override
+	public VisitorReceptionistSelection consumeReceptionistSelection(String draftToken, String draftId) {
+		String expectedDraftId = draftIdFromSession(draftToken);
+		if (!StringUtils.hasText(draftId) || !draftId.equals(expectedDraftId)) {
+			throw forbidden();
+		}
+		String selection = redisTemplate.execute(CONSUME_RECEPTIONIST_SELECTION_SCRIPT,
+				Collections.singletonList(receptionistKey(draftId)), "");
+		if (!StringUtils.hasText(selection)) {
+			throw forbidden();
+		}
+		String[] fields = selection.split("\\u001f", -1);
+		if (fields.length != 3 || !StringUtils.hasText(fields[0]) || !StringUtils.hasText(fields[1])
+				|| !StringUtils.hasText(fields[2])) {
+			throw forbidden();
+		}
+		return new VisitorReceptionistSelection(fields[0], fields[1], fields[2]);
 	}
 
 	@Override
@@ -175,6 +242,18 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 		return DRAFT_KEY_PREFIX + token;
 	}
 
+	private String draftUnionKey(String token) {
+		return DRAFT_UNION_KEY_PREFIX + token;
+	}
+
+	private String receptionistKey(String draftId) {
+		return DRAFT_RECEPTIONIST_KEY_PREFIX + draftId;
+	}
+
+	private String selectionValue(String receptionistBadge, String receptionistName, String receptionistPhone) {
+		return receptionistBadge + "\u001f" + receptionistName + "\u001f" + receptionistPhone;
+	}
+
 	private String actionKey(String capability) {
 		return ACTION_KEY_PREFIX + capability;
 	}
@@ -185,7 +264,8 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 
 	private boolean validPayloadHash(VisitorActionCapabilityAction action, String payloadHash) {
 		if (action != VisitorActionCapabilityAction.FACE_UPLOAD && action != VisitorActionCapabilityAction.DOCUMENT_UPLOAD
-				&& action != VisitorActionCapabilityAction.BLACKLIST_CHECK) {
+				&& action != VisitorActionCapabilityAction.BLACKLIST_CHECK && action != VisitorActionCapabilityAction.RECEPTIONIST_SEARCH
+				&& action != VisitorActionCapabilityAction.APPLY_SUBMIT) {
 			return !StringUtils.hasText(payloadHash);
 		}
 		return payloadHash != null && payloadHash.matches("[0-9a-f]{64}");

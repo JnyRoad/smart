@@ -12,6 +12,7 @@ import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.SmtVisitorDTO;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
+import com.tce.smart.platform.api.dto.req.admittance.VisitorWechatCodeReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.SaveAdmittanceApplyReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.SaveAdmittanceCarApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
@@ -95,9 +96,12 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * @return Result
 	 */
 	@ApiOperation("获得openId")
-	@GetMapping("/get/openId")
-	public Result<VisitorWechatIdentityRespDTO> getOpenId(@RequestParam("code") String code) {
-		return success(smtAdmittanceApplyService.getOpenId(code));
+	@PostMapping("/get/openId")
+	public Result<VisitorWechatIdentityRespDTO> getOpenId(@RequestBody VisitorWechatCodeReqDTO request) {
+		if (request == null || !org.springframework.util.StringUtils.hasText(request.getCode())) {
+			throw new SmartException("微信授权信息已失效，请重新进入申请流程");
+		}
+		return success(smtAdmittanceApplyService.getOpenId(request.getCode()));
 	}
 
 

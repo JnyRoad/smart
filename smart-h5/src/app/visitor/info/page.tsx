@@ -58,10 +58,18 @@ export default function VisitorInfoPage() {
     }
   }, [mounted, router])
 
-  const causeEnum = useQuery({ queryKey: ['visitor', 'cause-enum'], queryFn: getCauseEnum })
+  const visitorDraft = host.visitorDraftToken && host.visitorDraftId
+    ? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
+    : null
+  const causeEnum = useQuery({
+    queryKey: ['visitor', 'cause-enum', visitorDraft?.draftId],
+    queryFn: () => getCauseEnum(visitorDraft!),
+    enabled: visitorDraft !== null,
+  })
   const areaOptions = useQuery({
-    queryKey: ['visitor', 'area-options', config.parkId],
-    queryFn: () => loadAreaOptions(config.parkId),
+    queryKey: ['visitor', 'area-options', config.parkId, visitorDraft?.draftId],
+    queryFn: () => loadAreaOptions(config.parkId, visitorDraft!),
+    enabled: visitorDraft !== null,
   })
 
   const factories: FactoryAreaConfig[] = areaOptions.data ?? []

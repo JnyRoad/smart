@@ -43,31 +43,39 @@ export function getAdmittanceNotice(parkId: number) {
   })
 }
 
-/** Visitor-side OAuth: exchanges the WeChat code for openId/unionId and a short-lived face draft session. */
+/** Visitor-side OAuth: the code stays in the POST body and the browser receives only an opaque draft credential. */
 export function getVisitorOpenId(code: string) {
-  return request<
-    Envelope<{ openId?: string; unionId?: string; visitorDraftToken?: string; visitorDraftId?: string }>
-  >({
+  return request<Envelope<{ visitorDraftToken?: string; visitorDraftId?: string }>>({
     module: 'platform',
     url: '/admittance/apply/get/openId',
-    params: { code },
+    method: 'POST',
+    data: { code },
     auth: 'none',
   })
 }
 
-export function searchReceptionist(data: {
+export async function searchReceptionist(data: {
   parkId: number
   receptionistName: string
   receptionistPhone: string
-}) {
+}, visitorDraft: VisitorFaceDraft) {
+  const capability = await issueVisitorActionCapability(
+    visitorDraft,
+    'RECEPTIONIST_SEARCH',
+    await sha256(receptionistPayload(data)),
+  )
   return request<
     Envelope<{ receptionistBadge?: string; receptionistName?: string; receptionistPhone?: string }>
   >({
     module: 'platform',
-    url: '/admittance/apply/app/searchReceptionist',
+    url: '/admittance/visitor-entry/receptionist',
     method: 'POST',
     data,
     auth: 'none',
+    headers: {
+      'X-Visitor-Action-Capability': capability,
+      'X-Visitor-Draft-Id': visitorDraft.draftId,
+    },
   })
 }
 
@@ -79,19 +87,21 @@ export function getPersonCertEnum() {
   })
 }
 
-export function getCauseEnum() {
+export function getCauseEnum(visitorDraft: VisitorFaceDraft) {
   return request<Envelope<EnumItem[]>>({
     module: 'platform',
-    url: '/admittance/apply/enum/cause',
+    url: '/admittance/visitor-entry/options/cause',
     auth: 'none',
+    headers: visitorDraftHeaders(visitorDraft),
   })
 }
 
-export function getVehicleCertEnum() {
+export function getVehicleCertEnum(visitorDraft: VisitorFaceDraft) {
   return request<Envelope<EnumItem[]>>({
     module: 'platform',
-    url: '/admittance/apply/enum/vehicle/cert',
+    url: '/admittance/visitor-entry/options/vehicle-cert',
     auth: 'none',
+    headers: visitorDraftHeaders(visitorDraft),
   })
 }
 
@@ -136,12 +146,13 @@ export interface AreaOptionsResponse {
   }[]
 }
 
-export function getAreaOptions(parkId: number) {
+export function getAreaOptions(parkId: number, visitorDraft: VisitorFaceDraft) {
   return request<Envelope<AreaOptionsResponse>>({
     module: 'platform',
-    url: '/admittance/apply/app/area-options',
+    url: '/admittance/visitor-entry/options/area-options',
     params: { parkId },
     auth: 'none',
+    headers: visitorDraftHeaders(visitorDraft),
   })
 }
 
@@ -185,7 +196,7 @@ export function verifyVisitorSms(mobile: string, smsCode: string) {
   })
 }
 
-type VisitorAction = 'DOCUMENT_UPLOAD' | 'BLACKLIST_CHECK'
+type VisitorAction = 'DOCUMENT_UPLOAD' | 'BLACKLIST_CHECK' | 'RECEPTIONIST_SEARCH' | 'APPLY_SUBMIT'
 
 interface VisitorFaceCropResult {
   imageData?: string
@@ -212,6 +223,17 @@ async function issueVisitorActionCapability(
   return capability.data.capability
 }
 
+/** 所有匿名入口都必须持有微信 OAuth 绑定的短时草稿，禁止退回裸枚举或区域接口。 */
+function visitorDraftHeaders(visitorDraft: VisitorFaceDraft): Record<string, string> {
+  if (!visitorDraft.draftToken || !visitorDraft.draftId) {
+    throw new Error('访客操作授权已失效，请重新进入申请流程')
+  }
+  return {
+    'X-Visitor-Draft-Token': visitorDraft.draftToken,
+    'X-Visitor-Draft-Id': visitorDraft.draftId,
+  }
+}
+
 async function sha256(value: string): Promise<string> {
   if (!globalThis.crypto?.subtle) throw new Error('访客操作授权已失效，请重新进入申请流程')
   const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
@@ -221,6 +243,11 @@ async function sha256(value: string): Promise<string> {
 /** 与 App 使用完全一致的黑名单查询摘要：姓名和证件号去空白、证件号大写后用分隔符拼接。 */
 function blacklistPayload(data: { visitorName: string; certNo: string; parkId: number }): string {
   return [data.visitorName.replace(/\s+/g, ''), data.certNo.replace(/\s+/g, '').toUpperCase(), String(data.parkId)].join('|')
+}
+
+/** 接待人查询 capability 绑定规范化后的园区、姓名和手机号，避免票据被改作其他员工查询。 */
+function receptionistPayload(data: { parkId: number; receptionistName: string; receptionistPhone: string }): string {
+  return [String(data.parkId), data.receptionistName.replace(/\s+/g, ''), data.receptionistPhone.replace(/\s+/g, '')].join('|')
 }
 
 /** Blacklist check; `data === false` means the visitor is blocked. */
@@ -242,14 +269,55 @@ export async function checkBlackVisitor(
   })
 }
 
-export function saveVisitorApply(data: Record<string, unknown>) {
+export async function saveVisitorApply(data: Record<string, unknown>, visitorDraft: VisitorFaceDraft) {
+  const capability = await issueVisitorActionCapability(visitorDraft, 'APPLY_SUBMIT', await sha256(applyPayload(data)))
   return request<Envelope<unknown>>({
     module: 'platform',
-    url: '/admittance/apply/save/apply',
+    url: '/admittance/visitor-entry/apply',
     method: 'POST',
     data,
     auth: 'none',
+    headers: {
+      'X-Visitor-Action-Capability': capability,
+      'X-Visitor-Draft-Token': visitorDraft.draftToken,
+      'X-Visitor-Draft-Id': visitorDraft.draftId,
+    },
   })
+}
+
+/**
+ * 对提交字段做稳定的长度前缀规范化，供 capability 绑定本次申请。长度前缀避免姓名、
+ * 备注等用户输入中的分隔符产生歧义；字段顺序必须与 Platform 的 VisitorEntryController 一致。
+ */
+function applyPayload(data: Record<string, unknown>): string {
+  const field = (value: unknown) => {
+    const normalized = String(value ?? '').trim().replace(/\s+/g, ' ')
+    return `${normalized.length}:${normalized}`
+  }
+  const objectFields = (value: unknown, fields: string[]) => {
+    const item = value as Record<string, unknown>
+    return fields.map((name) => field(item?.[name])).join('')
+  }
+  const list = (value: unknown, fields: string[]) => {
+    const items = Array.isArray(value) ? value : []
+    return `${items.length}:` + items.map((item) => (
+      fields.length === 0 ? field(item) : objectFields(item, fields)
+    )).join('')
+  }
+  return [
+    'visitor-apply-v1',
+    ...[
+      'parkId', 'visitorName', 'visitorPhotoId', 'visitorPhone', 'startTime', 'endTime',
+      'receptionistBadge', 'receptionistName', 'receptionistPhone', 'remark', 'company',
+      'personType', 'cause', 'thing', 'permitFactoryType', 'permitArea', 'permitOldArea',
+    ].map((name) => field(data[name])),
+    list(data.areaType, []),
+    list(data.fellowList, ['fellowName', 'fellowPhotoId', 'certNo', 'certType', 'nativePlace', 'frontPhotoId', 'isMain']),
+    list(data.vehicleList, [
+      'plate', 'name', 'nativePlace', 'licenseNo', 'emergencyName', 'emergencyPhone', 'modle', 'vehicleType', 'colour',
+      'certImg', 'certType',
+    ]),
+  ].join('')
 }
 
 export function saveTruckApply(data: Record<string, unknown>) {
@@ -258,32 +326,6 @@ export function saveTruckApply(data: Record<string, unknown>) {
     url: '/admittance/apply/save/car/apply',
     method: 'POST',
     data,
-    auth: 'none',
-  })
-}
-
-export interface ApplyDetail {
-  delFlag?: number
-  qrCode?: string
-  smsCode?: string
-  parkName?: string
-  causeDesc?: string
-  receptionistName?: string
-  receptionistPhone?: string
-  visitorName?: string
-  visitorPhone?: string
-  permitFactoryTypeDesc?: string
-  areaType?: Array<string | number> | string
-  permitArea?: string
-  permitOldArea?: string
-  startTime?: string
-  endTime?: string
-}
-
-export function getApplyDetail(id: string) {
-  return request<Envelope<ApplyDetail>>({
-    module: 'platform',
-    url: `/admittance/apply/search/Detail/${id}`,
     auth: 'none',
   })
 }

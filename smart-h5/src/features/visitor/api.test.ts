@@ -4,6 +4,11 @@ import {
   admittanceNoticeHtml,
   checkBlackVisitor,
   cropVisitorFace,
+  getCauseEnum,
+  getAreaOptions,
+  getVisitorOpenId,
+  saveVisitorApply,
+  searchReceptionist,
   uploadVisitorDocument,
   uploadVisitorPhoto,
   type VisitorFaceDraft,
@@ -152,5 +157,115 @@ describe('anonymous visitor action capability', () => {
       'X-Visitor-Draft-Id': 'draft-id',
     })
     expect(checkInit.headers).not.toMatchObject({ 'X-Visitor-Draft-Token': expect.anything() })
+  })
+})
+
+describe('visitor entry capability contract', () => {
+  const draft: VisitorFaceDraft = { draftToken: 'draft-token', draftId: 'draft-id' }
+
+  it('exchanges the OAuth code in a POST body and only retains the opaque draft credential', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: 0, data: { visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id' } })),
+    )
+
+    await expect(getVisitorOpenId('wx-code')).resolves.toEqual({
+      code: 0,
+      data: { visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id' },
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/platform/admittance/apply/get/openId')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ code: 'wx-code' })
+  })
+
+  it('binds receptionist search and visitor submission to one-time draft capabilities', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { capability: 'search-ticket' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { receptionistBadge: '8031249' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { capability: 'submit-ticket' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: {} })))
+
+    await expect(searchReceptionist({ parkId: 1, receptionistName: ' 张 三 ', receptionistPhone: '138 0000 0000' }, draft))
+      .resolves.toMatchObject({ code: 0 })
+    await expect(saveVisitorApply({ parkId: 1, visitorPhone: '13800000000' }, draft)).resolves.toMatchObject({ code: 0 })
+
+    const [searchCapabilityUrl, searchCapabilityInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(searchCapabilityUrl).toBe('/platform/admittance/visitor-action/capability')
+    expect(searchCapabilityInit.headers).toMatchObject({ 'X-Visitor-Draft-Token': 'draft-token' })
+    expect(JSON.parse(searchCapabilityInit.body as string)).toMatchObject({ draftId: 'draft-id', action: 'RECEPTIONIST_SEARCH' })
+
+    const [searchUrl, searchInit] = fetchMock.mock.calls[1] as [string, RequestInit]
+    expect(searchUrl).toBe('/platform/admittance/visitor-entry/receptionist')
+    expect(searchInit.headers).toMatchObject({
+      'X-Visitor-Action-Capability': 'search-ticket',
+      'X-Visitor-Draft-Id': 'draft-id',
+    })
+
+    const [, submitCapabilityInit] = fetchMock.mock.calls[2] as [string, RequestInit]
+    expect(JSON.parse(submitCapabilityInit.body as string)).toMatchObject({
+      draftId: 'draft-id',
+      action: 'APPLY_SUBMIT',
+      payloadHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    })
+    const [submitUrl, submitInit] = fetchMock.mock.calls[3] as [string, RequestInit]
+    expect(submitUrl).toBe('/platform/admittance/visitor-entry/apply')
+    expect(submitInit.headers).toMatchObject({
+      'X-Visitor-Action-Capability': 'submit-ticket',
+      'X-Visitor-Draft-Token': 'draft-token',
+      'X-Visitor-Draft-Id': 'draft-id',
+    })
+  })
+
+  it('uses the stable cross-service payload digest for application submission', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { capability: 'submit-ticket' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: {} })))
+
+    await saveVisitorApply({ parkId: 1 }, draft)
+
+    const [, capabilityInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(capabilityInit.body as string).payloadHash).toBe(
+      'a2d63db45041e64c23f057e4ee196e8dc3e860efebc22a61bd1e32d205d373b0',
+    )
+
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { capability: 'submit-ticket' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: {} })))
+    await saveVisitorApply({ parkId: 1, startTime: '2026-07-25 10:30:00' }, draft)
+    const [, timedCapabilityInit] = fetchMock.mock.calls[2] as [string, RequestInit]
+    expect(JSON.parse(timedCapabilityInit.body as string).payloadHash).toBe(
+      '3fffbee7d8bf442ce98aa4789e0433c5efa80b30deff2066a679b9fe49d520d4',
+    )
+  })
+
+  it('contains no browser-side openId, unionId, or legacy unauthenticated apply route', () => {
+    const source = readFileSync('src/features/visitor/api.ts', 'utf8')
+    expect(source).not.toContain('openId?:')
+    expect(source).not.toContain('unionId?:')
+    expect(source).not.toContain("url: '/admittance/apply/save/apply'")
+    expect(source).not.toContain("url: '/admittance/apply/app/searchReceptionist'")
+  })
+
+  it('reads visitor options only through the OAuth-draft protected entry routes', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: [] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: {} })))
+
+    await getCauseEnum(draft)
+    await getAreaOptions(1, draft)
+
+    const [causeUrl, causeInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(causeUrl).toBe('/platform/admittance/visitor-entry/options/cause')
+    expect(causeInit.headers).toMatchObject({
+      'X-Visitor-Draft-Token': 'draft-token',
+      'X-Visitor-Draft-Id': 'draft-id',
+    })
+    const [areaUrl, areaInit] = fetchMock.mock.calls[1] as [string, RequestInit]
+    expect(areaUrl).toBe('/platform/admittance/visitor-entry/options/area-options?parkId=1')
+    expect(areaInit.headers).toMatchObject({
+      'X-Visitor-Draft-Token': 'draft-token',
+      'X-Visitor-Draft-Id': 'draft-id',
+    })
   })
 })

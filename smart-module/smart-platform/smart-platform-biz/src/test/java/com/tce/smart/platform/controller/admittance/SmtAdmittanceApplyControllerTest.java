@@ -2,6 +2,7 @@ package com.tce.smart.platform.controller.admittance;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
+import com.tce.smart.platform.api.dto.req.admittance.VisitorWechatCodeReqDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyRecordDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApprovalProgressRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorSelfQueryRespDTO;
@@ -43,13 +44,15 @@ public class SmtAdmittanceApplyControllerTest {
 		SmtAdmittanceAreaOptionsService areaOptionsService = Mockito.mock(SmtAdmittanceAreaOptionsService.class);
 		VisitorSelfQueryService visitorSelfQueryService = Mockito.mock(VisitorSelfQueryService.class);
 		VisitorWechatIdentityRespDTO expected = new VisitorWechatIdentityRespDTO();
-		expected.setOpenId("openid-1");
-		expected.setUnionId("unionid-1");
+		expected.setVisitorDraftId("draft-1");
+		expected.setVisitorDraftToken("token-1");
 		Mockito.when(applyService.getOpenId("wx-code")).thenReturn(expected);
+		VisitorWechatCodeReqDTO request = new VisitorWechatCodeReqDTO();
+		request.setCode("wx-code");
 
 		SmtAdmittanceApplyController controller = new SmtAdmittanceApplyController(applyService, visitorService, areaOptionsService,
 				visitorSelfQueryService);
-		Result<VisitorWechatIdentityRespDTO> result = controller.getOpenId("wx-code");
+		Result<VisitorWechatIdentityRespDTO> result = controller.getOpenId(request);
 
 		Assert.assertSame(expected, result.getData());
 		Mockito.verify(applyService).getOpenId("wx-code");

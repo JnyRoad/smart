@@ -39,6 +39,13 @@ security:
         - /admittance/visitor-face/capability
         - /admittance/visitor-face/crop
         - /admittance/visitor-action/capability
+        # 访客入口仅公开这两个 capability 消费路径；旧 apply 路由保持认证，禁止 /admittance/**。
+        - /admittance/visitor-entry/receptionist
+        - /admittance/visitor-entry/apply
+        # 只读选项也必须携带 OAuth 草稿并在服务端限速；不恢复历史 enum/app 等宽泛匿名前缀。
+        - /admittance/visitor-entry/options/cause
+        - /admittance/visitor-entry/options/vehicle-cert
+        - /admittance/visitor-entry/options/area-options
         # 简历公开流程仅放行受一次性 HttpOnly capability 约束的两个 POST 路径，禁止使用 /regist/**。
         - /regist/save/identification
         - /regist/face/crop

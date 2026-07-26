@@ -1,4 +1,4 @@
-import { getAreaOptions, type AreaOptionsResponse, type FactoryAreaConfig } from './api'
+import { getAreaOptions, type AreaOptionsResponse, type FactoryAreaConfig, type VisitorFaceDraft } from './api'
 import type { AreaSelection } from './flow-store'
 
 const cacheKey = (parkId: number) => `visitor-area-options-${parkId}`
@@ -45,9 +45,12 @@ function normalizeAreaOptions(data?: AreaOptionsResponse): FactoryAreaConfig[] {
  * assembled factory would be rejected by the backend. When nothing is available
  * we return an empty list and the caller shows 「配置不可用」.
  */
-export async function loadAreaOptions(parkId: number): Promise<FactoryAreaConfig[]> {
+export async function loadAreaOptions(parkId: number, visitorDraft?: VisitorFaceDraft): Promise<FactoryAreaConfig[]> {
   try {
-    const res = await getAreaOptions(parkId)
+    if (!visitorDraft) {
+      throw new Error('访客操作授权已失效，请重新进入申请流程')
+    }
+    const res = await getAreaOptions(parkId, visitorDraft)
     if (res.code === 0 && res.data) {
       const parsed = normalizeAreaOptions(res.data)
       if (parsed.length > 0) {
