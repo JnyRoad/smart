@@ -4,7 +4,10 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.admin.api.entity.SysSocialDetails;
 import com.tce.smart.admin.api.dto.SocialDetailsSummaryRespDTO;
+import com.tce.smart.admin.api.dto.SocialDetailsSecretRotateReqDTO;
+import com.tce.smart.admin.api.dto.SocialDetailsUpdateReqDTO;
 import com.tce.smart.admin.service.SysSocialDetailsService;
+import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.log.annotation.SysLog;
 import io.swagger.annotations.Api;
@@ -79,9 +82,26 @@ public class SocialDetailsController {
 	@SysLog("修改三方信息")
 	@PostMapping("/update")
 	@PreAuthorize("@pms.hasPermission('sys_client_edit')")
-	public Result updateById(@Valid @RequestBody SysSocialDetails sysSocialDetails) {
-		sysSocialDetailsService.updateById(sysSocialDetails);
+	public Result updateById(@Valid @RequestBody SocialDetailsUpdateReqDTO sysSocialDetails) {
+		SysSocialDetails existing = requireExisting(sysSocialDetails.getId());
+		existing.setType(sysSocialDetails.getType());
+		existing.setRemark(sysSocialDetails.getRemark());
+		existing.setAppId(sysSocialDetails.getAppId());
+		existing.setRedirectUrl(sysSocialDetails.getRedirectUrl());
+		sysSocialDetailsService.updateById(existing);
 		return Result.success(Boolean.TRUE);
+	}
+
+	/**
+	 * 显式轮换第三方 appSecret；普通编辑永远不接收该字段，避免前端脱敏响应把存量密钥覆盖为空。
+	 */
+	@SysLog("轮换三方账号密钥")
+	@PutMapping("/secret/{id}")
+	@PreAuthorize("@pms.hasPermission('sys_client_edit')")
+	public Result rotateSecret(@PathVariable Integer id, @Valid @RequestBody SocialDetailsSecretRotateReqDTO request) {
+		SysSocialDetails existing = requireExisting(id);
+		existing.setAppSecret(request.getAppSecret());
+		return Result.success(sysSocialDetailsService.updateById(existing));
 	}
 
 	/**
@@ -123,6 +143,14 @@ public class SocialDetailsController {
 		response.setCreateTime(source.getCreateTime());
 		response.setUpdateTime(source.getUpdateTime());
 		return response;
+	}
+
+	private SysSocialDetails requireExisting(Integer id) {
+		SysSocialDetails existing = sysSocialDetailsService.getById(id);
+		if (existing == null) {
+			throw new TCEException("三方账号不存在");
+		}
+		return existing;
 	}
 
 

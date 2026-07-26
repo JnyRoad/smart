@@ -29,14 +29,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -60,6 +65,11 @@ public class SettingServiceImpl implements SettingService {
 	 */
 	private final static String APP_REINSTALL_SWITCH_ON = "1";
 
+	/** 旧手机号验证只在当前认证员工的短时换绑流程内有效，不能由客户端伪造或跨账号复用。 */
+	private static final String PHONE_CHANGE_OLD_VERIFIED_KEY = "smart_app:phone-change:old-verified:";
+	private static final long PHONE_CHANGE_OLD_VERIFIED_TTL_SECONDS = 600L;
+	private static final Pattern MOBILE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+
 	@Value("${spring.yuto-secsytem.phone.update-url}")
 	private String phoneUpdateUrl;
 
@@ -77,6 +87,9 @@ public class SettingServiceImpl implements SettingService {
 
 	@Autowired
 	private RemoteUserInternalService remoteUserInternalService;
+
+	@Autowired
+	private StringRedisTemplate stringRedisTemplate;
 
 	@Override
 	public CheckVersionVo checkVersion(String appId, String appVersion) {
@@ -125,38 +138,39 @@ public class SettingServiceImpl implements SettingService {
 	}
 
 	@Override
-	public boolean verifyOldMobile(String mobile, String smsCode) {
-
-		Result<InternalStaffPhoneRespDTO> result = remoteStaffInternalService.getPasswordPhone(
-				SecurityUtils.getUser().getUsername(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
-				"self-phone-verify");
-		if (!result.isSuccess() || Objects.isNull(result.getData())) {
-			throw new TCEException("获取员工信息异常");
-		}
-		String staffPhone = result.getData().getPhone();
-		if (StringUtils.isBlank(staffPhone) || !StringUtils.equals(mobile.trim(),staffPhone.trim())) {
-			throw new TCEException("手机号错误，请联系人资管理员，修改预留手机号");
-		}
-		return appSmsService.verifySmsCode(mobile,smsCode);
-	}
-
-	@Override
-	public boolean sendMobileMsg(String mobile) {
-		// 发送短信验证码
-		appSmsService.sendSmsCode(mobile);
+	public boolean sendOldPhoneCode() {
+		appSmsService.sendSmsCode(currentStaffPhone());
 		return Boolean.TRUE;
 	}
 
 	@Override
-	public boolean updateNewPhone(String mobile, String smsCode) {
+	public boolean verifyOldPhoneCode(String smsCode) {
+		String oldPhone = currentStaffPhone();
+		if (appSmsService.verifySmsCode(oldPhone, smsCode)) {
+			stringRedisTemplate.opsForValue().set(phoneChangeAuthKey(), phoneFingerprint(oldPhone),
+					PHONE_CHANGE_OLD_VERIFIED_TTL_SECONDS, TimeUnit.SECONDS);
+			return Boolean.TRUE;
+		}
+		return Boolean.FALSE;
+	}
 
-		// 校验短信验证码成功
-		if(appSmsService.verifySmsCode(mobile, smsCode)){
+	@Override
+	public boolean sendNewPhoneCode(String mobile) {
+		requireOldPhoneVerified();
+		appSmsService.sendSmsCode(requireMobile(mobile));
+		return Boolean.TRUE;
+	}
+
+	@Override
+	public boolean confirmNewPhone(String mobile, String smsCode) {
+		requireOldPhoneVerified();
+		String newMobile = requireMobile(mobile);
+		if(appSmsService.verifySmsCode(newMobile, smsCode)){
 			SmartUser user = SecurityUtils.getUser();
 			// 更新远端数据
 			Map<String, String> param = new HashMap<>();
 			param.put("UserName", user.getUsername());
-			param.put("NewPhone", mobile);
+			param.put("NewPhone", newMobile);
 			param.put("TokenID",updateToken);
 			String newUri = UriComponentsBuilder.fromHttpUrl(phoneUpdateUrl)
 					.replaceQuery(HttpUtil.toParams(param))
@@ -170,7 +184,7 @@ public class SettingServiceImpl implements SettingService {
 				// 修改本地 smt_staff 数据，使用最小内部更新请求避免透传员工实体。
 				InternalStaffPhoneUpdateReqDTO staff = new InternalStaffPhoneUpdateReqDTO();
 				staff.setBadge(user.getUsername());
-				staff.setPhone(mobile);
+				staff.setPhone(newMobile);
 				Result<Boolean> staffUpdate = remoteStaffInternalService.updatePhone(staff,
 						SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "phone-update");
 				if (!staffUpdate.isSuccess() || !Boolean.TRUE.equals(staffUpdate.getData())) {
@@ -179,12 +193,74 @@ public class SettingServiceImpl implements SettingService {
 				// 修改sys_user 表数据
 				InternalUserPhoneSyncReqDTO needUpdate = new InternalUserPhoneSyncReqDTO();
 				needUpdate.setUsername(user.getUsername());
-				needUpdate.setPhone(mobile);
-				remoteUserInternalService.syncAppPhone(needUpdate);
+				needUpdate.setPhone(newMobile);
+				Result<Boolean> userUpdate = remoteUserInternalService.syncAppPhone(needUpdate);
+				if (!userUpdate.isSuccess() || !Boolean.TRUE.equals(userUpdate.getData())) {
+					throw new TCEException("用户手机号更新失败");
+				}
+				clearOldPhoneVerified();
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/** 当前会话唯一身份是工号，旧手机号必须从受服务令牌保护的内部资料投影读取。 */
+	private String currentStaffPhone() {
+		SmartUser user = SecurityUtils.getUser();
+		if (user == null || StringUtils.isBlank(user.getUsername())) {
+			throw new TCEException("当前登录员工信息缺失");
+		}
+		Result<InternalStaffPhoneRespDTO> result = remoteStaffInternalService.getPasswordPhone(
+				user.getUsername(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
+				"self-phone-verify");
+		if (!result.isSuccess() || result.getData() == null || StringUtils.isBlank(result.getData().getPhone())) {
+			throw new TCEException("获取员工手机号失败，请联系人资管理员");
+		}
+		return requireMobile(result.getData().getPhone());
+	}
+
+	private void requireOldPhoneVerified() {
+		String verifiedPhoneFingerprint = stringRedisTemplate.opsForValue().get(phoneChangeAuthKey());
+		String currentPhoneFingerprint = phoneFingerprint(currentStaffPhone());
+		if (verifiedPhoneFingerprint == null || !MessageDigest.isEqual(
+				verifiedPhoneFingerprint.getBytes(StandardCharsets.UTF_8), currentPhoneFingerprint.getBytes(StandardCharsets.UTF_8))) {
+			throw new TCEException("请先验证原手机号码");
+		}
+	}
+
+	private void clearOldPhoneVerified() {
+		stringRedisTemplate.delete(phoneChangeAuthKey());
+	}
+
+	private String phoneChangeAuthKey() {
+		SmartUser user = SecurityUtils.getUser();
+		if (user == null || user.getId() == null || StringUtils.isBlank(user.getUsername())) {
+			throw new TCEException("当前登录员工信息缺失");
+		}
+		return PHONE_CHANGE_OLD_VERIFIED_KEY + user.getId();
+	}
+
+	/** Redis 只保存旧手机号的 SHA-256 指纹，状态仍会在读取时与当前平台资料重新绑定。 */
+	private String phoneFingerprint(String mobile) {
+		try {
+			byte[] digest = MessageDigest.getInstance("SHA-256").digest(mobile.getBytes(StandardCharsets.UTF_8));
+			StringBuilder fingerprint = new StringBuilder(digest.length * 2);
+			for (byte value : digest) {
+				fingerprint.append(String.format("%02x", value));
+			}
+			return fingerprint.toString();
+		} catch (NoSuchAlgorithmException e) {
+			throw new TCEException("手机号验证状态初始化失败");
+		}
+	}
+
+	private String requireMobile(String mobile) {
+		String normalizedMobile = mobile == null ? null : mobile.trim();
+		if (normalizedMobile == null || !MOBILE_PATTERN.matcher(normalizedMobile).matches()) {
+			throw new TCEException("手机号格式错误");
+		}
+		return normalizedMobile;
 	}
 
 	/**

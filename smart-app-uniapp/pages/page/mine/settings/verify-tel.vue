@@ -2,12 +2,7 @@
 	<view class="bgf mw">
 		<view class="mw">
 			<view class="hbc pl30 pr30 h110 border-bottom-D">
-				<text class="f30pc w200">工号</text>
-				<input class="w300 tr" v-model.trim="badge" placeholder="请输入工号" type="text" value="" />
-			</view>
-			<view class="hbc pl30 pr30 h110 border-bottom-D">
-				<text class="f30pc w200">原手机号码</text>
-				<input class="w300 tr" @blur="checkTel" v-model.trim="tel" placeholder="请输入手机号码" type="text" value="" />
+				<text class="f30pc">验证码将发送至当前账号绑定的原手机号码</text>
 			</view>
 			<view class="hlc pl30 pr30 h110 border-bottom-D rel">
 				<text class="f30pc w200">验证码</text>
@@ -23,8 +18,6 @@
 </template>
 <script>
 	import ytbutton from '@/components/yt-button/index.vue'
-	import {checkPhone} from '@/common/js/util.js'
-	import apiPassword from '@/api/api-password.js'
 	import {setting} from '@/api/api-mine.js'
 	export default {
 		components: {
@@ -32,8 +25,6 @@
 		},
 		data() {
 			return {
-				tel: '',
-				badge: '', // 员工号
 				sms: '', // 短信验证码
 				timerId: null,
 				time: 60,
@@ -43,21 +34,9 @@
 		methods: {
 			async sendSms() {
 				if (this.time != 60) return
-				if (!this.badge) {
-					this.$ytHint.toast({
-						title: '请输入员工号'
-					})
-					return
-				}
-				if (!this.tel || !checkPhone(this.tel)) {
-					this.$ytHint.toast({
-						title: '手机号码不合法'
-					})
-					return
-				}
 				this.cutTime()
 				try{
-					const res = await apiPassword.sendSms(this.badge)
+					const res = await setting.sendOldPhoneCode()
 					if (!res) return
 					this.$ytHint.toast({
 						title: '验证码发送成功',
@@ -72,24 +51,14 @@
 			// 验证
 			async next() {
 				console.log(111);
-				if (!this.tel || !checkPhone(this.tel)) {
-					this.$ytHint.toast({
-						title: '手机号码不合法'
-					})
-					return
-				}
 				if (!this.sms) {
 					this.$ytHint.toast({
 						title: '请输入验证码'
 					})
 					return
 				}
-				const obj = {
-					mobile: this.tel,
-					smsCode: this.sms
-				}
 				try{
-					const res = await setting.verifyOldPhone(obj)
+					const res = await setting.verifyOldPhone(this.sms)
 					if (!res) return
 					this.$ytHint.toast({
 						title: '验证成功'
@@ -101,13 +70,6 @@
 					},1500)
 				}catch(e){
 					//TODO handle the exception
-				}
-			},
-			checkTel () {
-				if (!checkPhone(this.tel)) {
-					this.$ytHint.toast({
-						title: '手机号码不合法'
-					})
 				}
 			},
 			cutTime() {
