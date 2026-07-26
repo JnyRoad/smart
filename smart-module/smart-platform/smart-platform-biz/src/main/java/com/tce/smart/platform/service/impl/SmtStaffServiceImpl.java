@@ -744,8 +744,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		SmtBusinessDeviceAuth businessDeviceAuth = smtBusinessDeviceAuthService.getOne(new LambdaQueryWrapper<SmtBusinessDeviceAuth>().eq(SmtBusinessDeviceAuth::getBusinessCode, jchebusinessCode)
 				.eq(SmtBusinessDeviceAuth::getParkId, smtVehicleApply.getParkId()));
 
-		int total = smtVehicleService.getApplyVehicle(smtVehicleApply.getParkId(),
-				StrUtil.removeAll(ownedVehicle.getVehiclePlate(), " ").toUpperCase(), VehicleConstants.UNDELETED,
+		int total = smtVehicleService.getApplyVehicle(smtVehicleApply.getParkId(), ownedVehicle.getId(),
 				VehicleApplyConstants.REJECTED);
 		if (total != 0) {
 			return new Result(false, "车辆已有入园权限，不能重复申请");
@@ -759,8 +758,13 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		vehicleApply.setStatus(VehicleApplyConstants.APPROVAL);
 		vehicleApply.setAuthorityId(businessDeviceAuth.getAuthId());
 		log.info(vehicleApply.toString());
-		result = vehicleApply.insert();
+		result = persistVehicleParkApplication(vehicleApply);
 		return new Result<>(result);
+	}
+
+	/** 持久化已构造完成的车辆申请；独立出来以便验证入库记录确实使用了已校验的车辆 ID。 */
+	protected boolean persistVehicleParkApplication(SmtVehicleApply vehicleApply) {
+		return vehicleApply.insert();
 	}
 
 	/**

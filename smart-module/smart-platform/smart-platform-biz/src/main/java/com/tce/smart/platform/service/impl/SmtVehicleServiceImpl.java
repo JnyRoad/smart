@@ -691,8 +691,8 @@ public class SmtVehicleServiceImpl extends ServiceImpl<SmtVehicleMapper, SmtVehi
 	}
 
 	@Override
-	public int getApplyVehicle(Integer parkId, String vehiclePlate, Integer isDelete, Integer status) {
-		return this.baseMapper.getApplyVehicle(parkId,vehiclePlate,isDelete,status);
+	public int getApplyVehicle(Integer parkId, Long vehicleId, Integer status) {
+		return this.baseMapper.getApplyVehicle(parkId, vehicleId, status);
 	}
 
 
