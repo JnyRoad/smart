@@ -4,6 +4,7 @@ import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
+import cn.hutool.json.JSONUtil;
 import com.tce.smart.admin.api.dto.InternalUserPhoneSyncReqDTO;
 import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.admin.api.feign.RemoteDictService;
@@ -30,6 +31,7 @@ import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -40,8 +42,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.Collections;
 import java.util.regex.Pattern;
 
 /**
@@ -69,6 +71,27 @@ public class SettingServiceImpl implements SettingService {
 	private static final String PHONE_CHANGE_OLD_VERIFIED_KEY = "smart_app:phone-change:old-verified:";
 	private static final long PHONE_CHANGE_OLD_VERIFIED_TTL_SECONDS = 600L;
 	private static final Pattern MOBILE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+	private static final String PHONE_CHANGE_PURPOSE = "phone-change";
+	private static final String PHONE_CHANGE_STATE_OLD_VERIFIED = "OLD_VERIFIED";
+	private static final String PHONE_CHANGE_STATE_NEW_PHONE_SENT = "NEW_PHONE_SENT";
+	/** 新号短信下发成功后才将新号摘要绑定到已有的旧号验证状态；Redis 不可用时宁可拒绝确认。 */
+	private static final DefaultRedisScript<Long> SET_NEW_PHONE_STATE = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if not value then return 0; end; "
+					+ "local state = cjson.decode(value); "
+					+ "if state['purpose'] ~= ARGV[1] or tostring(state['userId']) ~= ARGV[2] "
+					+ "or state['oldPhoneHash'] ~= ARGV[3] then return 0; end; "
+					+ "state['newPhoneHash'] = ARGV[4]; state['state'] = 'NEW_PHONE_SENT'; "
+					+ "local updated = cjson.encode(state); local ttl = redis.call('ttl', KEYS[1]); "
+					+ "if ttl > 0 then redis.call('setex', KEYS[1], ttl, updated); else return 0; end; return 1;",
+			Long.class);
+	/** 校验通过后以一次 compare-and-delete 领取换绑资格；并发请求仅一个能继续执行外部写入。 */
+	private static final DefaultRedisScript<Long> CONSUME_PHONE_CHANGE = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if not value then return 0; end; "
+					+ "local state = cjson.decode(value); "
+					+ "if state['purpose'] ~= ARGV[1] or tostring(state['userId']) ~= ARGV[2] "
+					+ "or state['oldPhoneHash'] ~= ARGV[3] or state['newPhoneHash'] ~= ARGV[4] "
+					+ "or state['state'] ~= 'NEW_PHONE_SENT' then return 0; end; redis.call('del', KEYS[1]); return 1;",
+			Long.class);
 
 	@Value("${spring.yuto-secsytem.phone.update-url}")
 	private String phoneUpdateUrl;
@@ -147,7 +170,13 @@ public class SettingServiceImpl implements SettingService {
 	public boolean verifyOldPhoneCode(String smsCode) {
 		String oldPhone = currentStaffPhone();
 		if (appSmsService.verifySmsCode(oldPhone, smsCode)) {
-			stringRedisTemplate.opsForValue().set(phoneChangeAuthKey(), phoneFingerprint(oldPhone),
+			Integer userId = currentUserId();
+			Map<String, Object> state = new HashMap<>();
+			state.put("purpose", PHONE_CHANGE_PURPOSE);
+			state.put("userId", userId);
+			state.put("oldPhoneHash", phoneFingerprint(oldPhone));
+			state.put("state", PHONE_CHANGE_STATE_OLD_VERIFIED);
+			stringRedisTemplate.opsForValue().set(phoneChangeAuthKey(userId), JSONUtil.toJsonStr(state),
 					PHONE_CHANGE_OLD_VERIFIED_TTL_SECONDS, TimeUnit.SECONDS);
 			return Boolean.TRUE;
 		}
@@ -156,17 +185,26 @@ public class SettingServiceImpl implements SettingService {
 
 	@Override
 	public boolean sendNewPhoneCode(String mobile) {
-		requireOldPhoneVerified();
-		appSmsService.sendSmsCode(requireMobile(mobile));
+		String newMobile = requireMobile(mobile);
+		Integer userId = currentUserId();
+		String oldPhoneHash = phoneFingerprint(currentStaffPhone());
+		appSmsService.sendSmsCode(newMobile);
+		if (!bindNewPhoneState(userId, oldPhoneHash, phoneFingerprint(newMobile))) {
+			throw new TCEException("请重新验证原手机号码");
+		}
 		return Boolean.TRUE;
 	}
 
 	@Override
 	public boolean confirmNewPhone(String mobile, String smsCode) {
-		requireOldPhoneVerified();
 		String newMobile = requireMobile(mobile);
+		Integer userId = currentUserId();
+		String oldPhoneHash = phoneFingerprint(currentStaffPhone());
 		if(appSmsService.verifySmsCode(newMobile, smsCode)){
-			SmartUser user = SecurityUtils.getUser();
+			if (!consumePhoneChange(userId, oldPhoneHash, phoneFingerprint(newMobile))) {
+				throw new TCEException("换绑授权已失效，请重新验证原手机号码");
+			}
+			SmartUser user = currentSmartUser();
 			// 更新远端数据
 			Map<String, String> param = new HashMap<>();
 			param.put("UserName", user.getUsername());
@@ -198,7 +236,6 @@ public class SettingServiceImpl implements SettingService {
 				if (!userUpdate.isSuccess() || !Boolean.TRUE.equals(userUpdate.getData())) {
 					throw new TCEException("用户手机号更新失败");
 				}
-				clearOldPhoneVerified();
 				return true;
 			}
 		}
@@ -207,10 +244,7 @@ public class SettingServiceImpl implements SettingService {
 
 	/** 当前会话唯一身份是工号，旧手机号必须从受服务令牌保护的内部资料投影读取。 */
 	private String currentStaffPhone() {
-		SmartUser user = SecurityUtils.getUser();
-		if (user == null || StringUtils.isBlank(user.getUsername())) {
-			throw new TCEException("当前登录员工信息缺失");
-		}
+		SmartUser user = currentSmartUser();
 		Result<InternalStaffPhoneRespDTO> result = remoteStaffInternalService.getPasswordPhone(
 				user.getUsername(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
 				"self-phone-verify");
@@ -220,25 +254,48 @@ public class SettingServiceImpl implements SettingService {
 		return requireMobile(result.getData().getPhone());
 	}
 
-	private void requireOldPhoneVerified() {
-		String verifiedPhoneFingerprint = stringRedisTemplate.opsForValue().get(phoneChangeAuthKey());
-		String currentPhoneFingerprint = phoneFingerprint(currentStaffPhone());
-		if (verifiedPhoneFingerprint == null || !MessageDigest.isEqual(
-				verifiedPhoneFingerprint.getBytes(StandardCharsets.UTF_8), currentPhoneFingerprint.getBytes(StandardCharsets.UTF_8))) {
-			throw new TCEException("请先验证原手机号码");
-		}
+	/**
+	 * 将新手机号摘要写入旧号已验证状态。脚本同时校验账号、旧号、用途和剩余 TTL，拒绝跨账号领取。
+	 */
+	boolean bindNewPhoneState(Integer userId, String oldPhoneHash, String newPhoneHash) {
+		Long bound = stringRedisTemplate.execute(SET_NEW_PHONE_STATE, Collections.singletonList(phoneChangeAuthKey(userId)),
+				PHONE_CHANGE_PURPOSE, String.valueOf(userId), oldPhoneHash, newPhoneHash);
+		return Long.valueOf(1L).equals(bound);
 	}
 
-	private void clearOldPhoneVerified() {
-		stringRedisTemplate.delete(phoneChangeAuthKey());
+	/**
+	 * 原子消费已完整绑定的新旧号状态。消费成功即进入终态，后续外部写入失败必须从完整流程重新开始，
+	 * 不能恢复为可重放凭证。
+	 */
+	boolean consumePhoneChange(Integer userId, String oldPhoneHash, String newPhoneHash) {
+		Long consumed = stringRedisTemplate.execute(CONSUME_PHONE_CHANGE, Collections.singletonList(phoneChangeAuthKey(userId)),
+				PHONE_CHANGE_PURPOSE, String.valueOf(userId), oldPhoneHash, newPhoneHash);
+		return Long.valueOf(1L).equals(consumed);
 	}
 
-	private String phoneChangeAuthKey() {
-		SmartUser user = SecurityUtils.getUser();
+	private String phoneChangeAuthKey(Integer userId) {
+		return PHONE_CHANGE_OLD_VERIFIED_KEY + userId;
+	}
+
+	private Integer currentUserId() {
+		SmartUser user = currentSmartUser();
 		if (user == null || user.getId() == null || StringUtils.isBlank(user.getUsername())) {
 			throw new TCEException("当前登录员工信息缺失");
 		}
-		return PHONE_CHANGE_OLD_VERIFIED_KEY + user.getId();
+		return user.getId();
+	}
+
+	/** SecurityUtils 在无认证上下文时会直接解引用 Authentication，统一转换为可控拒绝。 */
+	private SmartUser currentSmartUser() {
+		try {
+			SmartUser user = SecurityUtils.getUser();
+			if (user == null || StringUtils.isBlank(user.getUsername())) {
+				throw new TCEException("当前登录员工信息缺失");
+			}
+			return user;
+		} catch (NullPointerException e) {
+			throw new TCEException("当前登录员工信息缺失");
+		}
 	}
 
 	/** Redis 只保存旧手机号的 SHA-256 指纹，状态仍会在读取时与当前平台资料重新绑定。 */

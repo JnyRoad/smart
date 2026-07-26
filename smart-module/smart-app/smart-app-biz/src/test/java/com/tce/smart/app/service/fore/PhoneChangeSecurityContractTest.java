@@ -35,9 +35,13 @@ public class PhoneChangeSecurityContractTest {
         assertTrue("旧手机号验证必须保存与当前会话绑定的短时授权", service.contains("PHONE_CHANGE_OLD_VERIFIED_KEY"));
         assertTrue("旧手机号授权必须绑定账号 ID 和旧号指纹，不能仅按可变手机号或前端值判断",
                 service.contains("user.getId()") && service.contains("phoneFingerprint(currentStaffPhone())"));
-        assertTrue("新手机号发送前必须检查旧手机号验证", service.contains("requireOldPhoneVerified()"));
-        assertTrue("换绑提交前必须检查旧手机号验证", service.contains("clearOldPhoneVerified()"));
-        assertTrue("换绑成功后必须清除旧手机号验证，避免重放", service.contains("stringRedisTemplate.delete(phoneChangeAuthKey())"));
+        assertTrue("确认换绑必须由 Lua 原子领取并删除完整状态，不能先读后删",
+                service.contains("CONSUME_PHONE_CHANGE") && service.contains("stringRedisTemplate.execute(CONSUME_PHONE_CHANGE"));
+        assertTrue("新手机号验证码必须写入与账号、旧号、新号和用途绑定的状态", service.contains("SET_NEW_PHONE_STATE"));
+        assertFalse("外部写失败不得把已经消费的状态直接恢复为可重放凭证", service.contains("restoreOldPhoneVerified"));
+        assertTrue("原子绑定必须要求旧号状态、新号摘要、账号和用途都匹配", service.contains("state['oldPhoneHash'] ~= ARGV[3]")
+                && service.contains("state['newPhoneHash'] ~= ARGV[4]") && service.contains("state['userId']) ~= ARGV[2]"));
+        assertTrue("领取成功后必须原子删除授权，避免重放", service.contains("redis.call('del', KEYS[1])"));
     }
 
     private String read(String path) throws IOException {
