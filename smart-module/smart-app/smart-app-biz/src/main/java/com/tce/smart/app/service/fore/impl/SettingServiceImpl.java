@@ -205,7 +205,9 @@ public class SettingServiceImpl implements SettingService {
 		if (!reserveNewPhoneSend(userId, oldPhoneHash, newPhoneHash)) {
 			throw new TCEException("请重新验证原手机号码");
 		}
-		appSmsService.sendPhoneChangeSmsCode(userId, PHONE_CHANGE_NEW_SMS_STAGE, newMobile);
+		if (!Boolean.TRUE.equals(appSmsService.sendPhoneChangeSmsCode(userId, PHONE_CHANGE_NEW_SMS_STAGE, newMobile))) {
+			throw new TCEException("短信发送失败，请重新验证原手机号码");
+		}
 		if (!markNewPhoneSent(userId, oldPhoneHash, newPhoneHash)) {
 			throw new TCEException("换绑状态已失效，请重新验证原手机号码");
 		}

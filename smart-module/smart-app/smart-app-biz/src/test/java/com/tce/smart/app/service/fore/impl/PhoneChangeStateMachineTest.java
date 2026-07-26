@@ -75,6 +75,7 @@ public class PhoneChangeStateMachineTest {
 		login(7, "employee-7");
 		Mockito.when(redis.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString(),
 				Mockito.anyString(), Mockito.anyString())).thenReturn(1L);
+		Mockito.when(sms.sendPhoneChangeSmsCode(7, "new", "13900139000")).thenReturn(Boolean.TRUE);
 
 		assertTrue(service.sendNewPhoneCode("13900139000"));
 
@@ -84,6 +85,38 @@ public class PhoneChangeStateMachineTest {
 		assertEquals(Collections.singletonList("smart_app:phone-change:old-verified:7"), keys.getAllValues().get(0));
 		assertEquals(Collections.singletonList("smart_app:phone-change:old-verified:7"), keys.getAllValues().get(1));
 		Mockito.verify(sms).sendPhoneChangeSmsCode(7, "new", "13900139000");
+	}
+
+	@Test
+	public void failedOrThrownNewPhoneSmsNeverMarksStateAsSent() {
+		assertNewPhoneSmsFailureLeavesStateSending(Boolean.FALSE, false);
+		assertNewPhoneSmsFailureLeavesStateSending(null, false);
+		assertNewPhoneSmsFailureLeavesStateSending(null, true);
+	}
+
+	private void assertNewPhoneSmsFailureLeavesStateSending(Boolean providerResult, boolean throwsProviderError) {
+		StringRedisTemplate redis = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		AppSmsService sms = Mockito.mock(AppSmsService.class);
+		SettingServiceImpl service = service(redis, values, sms, staffPhone("employee-7", "13800138000"));
+		login(7, "employee-7");
+		Mockito.when(redis.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString(),
+				Mockito.anyString(), Mockito.anyString())).thenReturn(1L);
+		if (throwsProviderError) {
+			Mockito.when(sms.sendPhoneChangeSmsCode(7, "new", "13900139000"))
+					.thenThrow(new TCEException("provider unavailable"));
+		} else {
+			Mockito.when(sms.sendPhoneChangeSmsCode(7, "new", "13900139000")).thenReturn(providerResult);
+		}
+
+		try {
+			service.sendNewPhoneCode("13900139000");
+			fail("短信未成功受理时不得进入可确认状态");
+		} catch (TCEException expected) {
+			Mockito.verify(redis, Mockito.times(1)).execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(),
+					Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+		}
 	}
 
 	@Test
