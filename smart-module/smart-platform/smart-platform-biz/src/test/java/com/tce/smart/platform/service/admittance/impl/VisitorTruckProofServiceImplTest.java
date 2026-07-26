@@ -12,9 +12,11 @@ import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceApply;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceApplyService;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -80,7 +82,7 @@ public class VisitorTruckProofServiceImplTest {
 	}
 
 	@Test
-	public void applyRejectsMissingProofAndMobileThatDoesNotMatchProof() {
+	public void applyRejectsMissingProof() {
 		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
 		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
 		SmtAdmittanceApplyService applyService = Mockito.mock(SmtAdmittanceApplyService.class);
@@ -88,7 +90,28 @@ public class VisitorTruckProofServiceImplTest {
 		SaveAdmittanceCarApplyReqDTO request = carApply("13900000000");
 
 		expectSmartException(() -> service.apply(null, request));
+		Mockito.verify(applyService, Mockito.never()).saveAdmittanceCarApply(Mockito.any(SaveAdmittanceCarApplyReqDTO.class));
+	}
+
+	@Test
+	public void applyRejectsProofBoundToAnotherMobileWithoutCallingSave() {
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		SmtAdmittanceApplyService applyService = Mockito.mock(SmtAdmittanceApplyService.class);
+		VisitorTruckProofServiceImpl service = service(smsService, redisTemplate, applyService);
+		SaveAdmittanceCarApplyReqDTO request = carApply("13900000000");
+		Mockito.when(redisTemplate.execute(Mockito.any(), Mockito.eq(Collections.singletonList(
+				"smart:admittance:visitor-truck:proof:proof-owner")), Mockito.eq("13900000000")))
+				.thenReturn(null);
+
 		expectSmartException(() -> service.apply("proof-owner", request));
+
+		ArgumentCaptor<DefaultRedisScript> scriptCaptor = ArgumentCaptor.forClass(DefaultRedisScript.class);
+		Mockito.verify(redisTemplate).execute(scriptCaptor.capture(), Mockito.eq(Collections.singletonList(
+				"smart:admittance:visitor-truck:proof:proof-owner")), Mockito.eq("13900000000"));
+		String script = scriptCaptor.getValue().getScriptAsString();
+		Assert.assertTrue("Lua 必须先比对 proof 绑定手机号", script.contains("value == ARGV[1]"));
+		Assert.assertTrue("Lua 只能在手机号相等分支删除 proof", script.contains("then redis.call('del', KEYS[1])"));
 		Mockito.verify(applyService, Mockito.never()).saveAdmittanceCarApply(Mockito.any(SaveAdmittanceCarApplyReqDTO.class));
 	}
 

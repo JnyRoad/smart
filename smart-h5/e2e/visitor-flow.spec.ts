@@ -17,9 +17,15 @@ function expectVisitorDraftHeaders(request: Request, requireCapability = false) 
 }
 
 /** capability 只能由当前草稿换取，测试不得用旧匿名路由掩盖这一约束。 */
-function expectCapabilityIssueRequest(request: Request, action?: string) {
+function expectCapabilityIssueRequest(request: Request, action?: string | string[]) {
   expect(request.headers()['x-visitor-draft-token']).toBe('draft-token')
-  expect(request.postDataJSON()).toMatchObject({ draftId: 'draft-id', ...(action ? { action } : {}) })
+  const body = request.postDataJSON() as Record<string, unknown>
+  expect(body).toMatchObject({ draftId: 'draft-id' })
+  if (Array.isArray(action)) {
+    expect(action).toContain(body.action)
+  } else if (action) {
+    expect(body.action).toBe(action)
+  }
 }
 
 /** 成功主链必须不再向历史裸匿名访客接口发出请求。 */
@@ -140,19 +146,25 @@ async function mockInfoApis(page: Page) {
     expectVisitorDraftHeaders(route.request())
     return route.fulfill({ json: { code: 0, data: AREA_CONFIG } })
   })
-  await page.route('**/platform/admittance/visitor-face/capability', (route) =>
-    route.fulfill({ json: { code: 0, data: { capability: 'one-time-capability' } } }),
-  )
-  await page.route('**/platform/admittance/visitor-face/crop', (route) =>
-    route.fulfill({ json: { code: 0, message: 'success', data: { imageData: 'cut-base64', uploadCapability: 'face-upload-capability' } } }),
-  )
+  await page.route('**/platform/admittance/visitor-face/capability', (route) => {
+    expect(route.request().headers()['x-visitor-draft-token']).toBe('draft-token')
+    expect(route.request().postDataJSON()).toEqual({ draftId: 'draft-id' })
+    return route.fulfill({ json: { code: 0, data: { capability: 'one-time-capability' } } })
+  })
+  await page.route('**/platform/admittance/visitor-face/crop', (route) => {
+    expect(route.request().headers()['x-visitor-face-capability']).toBe('one-time-capability')
+    return route.fulfill({ json: { code: 0, message: 'success', data: { imageData: 'cut-base64', uploadCapability: 'face-upload-capability' } } })
+  })
   await page.route('**/platform/admittance/visitor-action/capability', (route) => {
-    expectCapabilityIssueRequest(route.request())
+    expectCapabilityIssueRequest(route.request(), ['DOCUMENT_UPLOAD', 'APPLY_PRECHECK'])
     return route.fulfill({ json: { code: 0, data: { capability: 'visitor-action-capability' } } })
   })
-  await page.route('**/app/wechat/visit/checkFace', (route) =>
-    route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-001' } } }),
-  )
+  await page.route('**/app/wechat/visit/checkFace', (route) => {
+    const headers = route.request().headers()
+    expect(headers['x-visitor-action-capability']).toBe('visitor-action-capability')
+    expect(headers['x-visitor-draft-id']).toBe('draft-id')
+    return route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-001' } } })
+  })
 }
 
 /** Walks the info form to a fully valid state (without times). */
@@ -251,6 +263,9 @@ test('访客照片上传：嵌套 data.photoId 取值（预览显示 + 存真实
   // 覆盖 checkFace 以断言收到的是 faceCut 裁剪后的 base64（证明没在 cut 步早退）。
   let checkFaceBody: Record<string, unknown> | undefined
   await page.route('**/app/wechat/visit/checkFace', async (route) => {
+    const headers = route.request().headers()
+    expect(headers['x-visitor-action-capability']).toBe('visitor-action-capability')
+    expect(headers['x-visitor-draft-id']).toBe('draft-id')
     checkFaceBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-001' } } })
   })
@@ -439,7 +454,7 @@ async function mockTelApis(page: Page) {
     route.fulfill({ json: { code: 0, data: true } }),
   )
   await page.route('**/platform/admittance/visitor-action/capability', (route) => {
-    expectCapabilityIssueRequest(route.request())
+    expectCapabilityIssueRequest(route.request(), ['BLACKLIST_CHECK', 'APPLY_SUBMIT'])
     return route.fulfill({ json: { code: 0, data: { capability: 'blacklist-capability' } } })
   })
 }

@@ -100,6 +100,7 @@ export default function TruckBookingPage() {
     try {
       const options = await getTruckCauseEnum(proof)
       if (options.code !== 0) {
+        clearSmsProof()
         Toast.show(options.message ?? '来访事由加载失败，请重新验证短信')
         return
       }
@@ -112,6 +113,7 @@ export default function TruckBookingPage() {
       setCauseOptionsLoaded(true)
       setCauseVisible(true)
     } catch (error) {
+      clearSmsProof()
       Toast.show(toUserMessage(error, '来访事由加载失败，请重新验证短信'))
     } finally {
       setLoadingCause(false)
@@ -161,6 +163,8 @@ export default function TruckBookingPage() {
     } catch (error) {
       Toast.show(toUserMessage(error, '提交失败'))
     } finally {
+      // 后端可能已消费或已拒绝该 proof，任一提交结果后都必须重新验证。
+      clearSmsProof()
       setSubmitting(false)
     }
   }
