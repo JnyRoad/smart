@@ -143,9 +143,6 @@ public class VisitorServiceImpl implements VisitorService {
 					visitorVo.setVisitorName(searchAppSmtVisitorVO.getVisitorName());
 					visitorVo.setParkName(searchAppSmtVisitorVO.getParkName());
 					visitorVo.setParkId(searchAppSmtVisitorVO.getParkId());
-					//图片
-					visitorVo.setVisitorPhoto(appCommService.buildHqImageUrl(searchAppSmtVisitorVO.getVisitorPhoto()));
-
 					visitorVo.setVisitState(searchAppSmtVisitorVO.getStatus());
 					visitorVo.setVisitStateDesc(searchAppSmtVisitorVO.getStatusDesc());
 					visitorVo.setStartDate(searchAppSmtVisitorVO.getStartTime());
@@ -188,7 +185,6 @@ public class VisitorServiceImpl implements VisitorService {
 		visitorDetailVo.setParkId(detail.getParkId());
 		visitorDetailVo.setParkName(detail.getParkName());
 		visitorDetailVo.setVisitorName(detail.getVisitorName());
-		visitorDetailVo.setVisitorPhoto(appCommService.buildHqImageUrl(detail.getVisitorPhoto()));
 		visitorDetailVo.setVisitorMobile(detail.getVisitorPhone());
 		visitorDetailVo.setVisitorCompany(detail.getCompany());
 		visitorDetailVo.setVisitReason(detail.getCauseDesc());
@@ -203,7 +199,6 @@ public class VisitorServiceImpl implements VisitorService {
 			for (com.tce.smart.platform.api.dto.resp.AppVisitorFellowRespDTO fellow : detail.getFellowVisitorList()) {
 				MemberDetailVo member = new MemberDetailVo();
 				member.setMemberName(fellow.getFellowName());
-				member.setMemberPhoto(appCommService.buildHqImageUrl(fellow.getFellowPhoto()));
 				members.add(member);
 			}
 			visitorDetailVo.setMember(members);
@@ -236,7 +231,6 @@ public class VisitorServiceImpl implements VisitorService {
 		for (com.tce.smart.platform.api.dto.resp.AppVisitorFellowRespDTO fellow : detail.getFellowVisitorList()) {
 			MemberDetailVo member = new MemberDetailVo();
 			member.setMemberName(fellow.getFellowName());
-			member.setMemberPhoto(appCommService.buildHqImageUrl(fellow.getFellowPhoto()));
 			members.add(member);
 		}
 		memberVo.setRecords(members);

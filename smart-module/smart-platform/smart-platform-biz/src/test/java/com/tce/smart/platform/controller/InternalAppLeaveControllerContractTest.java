@@ -17,6 +17,8 @@ public class InternalAppLeaveControllerContractTest {
 	public void internalLeaveRoutesAreServerOnly() throws Exception {
 		Class<?> controller = Class.forName("com.tce.smart.platform.controller.InternalAppLeaveController");
 		assertServerRoute(controller, "save", PostMapping.class, "/application");
+		assertServerRoute(controller, "yearHoliday", GetMapping.class, "/year-holiday");
+		assertServerRoute(controller, "recordPage", GetMapping.class, "/record/page");
 		assertServerRoute(controller, "application", GetMapping.class, "/application/{processId}");
 		assertServerRoute(controller, "record", GetMapping.class, "/record/{processId}");
 		assertServerRoute(controller, "handover", GetMapping.class, "/handover/{processId}");

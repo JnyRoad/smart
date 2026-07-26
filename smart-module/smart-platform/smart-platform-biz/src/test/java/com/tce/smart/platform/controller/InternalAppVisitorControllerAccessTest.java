@@ -54,13 +54,15 @@ public class InternalAppVisitorControllerAccessTest {
 				.andExpect(jsonPath("$.data.visitorName").value("访客甲"))
 				.andExpect(jsonPath("$.data.visitorPhone").value("138****8000"))
 				.andExpect(jsonPath("$.data.receptionistPhone").value("139****9000"))
+				.andExpect(jsonPath("$.data.visitorPhoto").doesNotExist())
 				.andExpect(jsonPath("$.data.certNo").doesNotExist())
 				.andExpect(jsonPath("$.data.visitorFrontPhoto").doesNotExist())
 				.andExpect(jsonPath("$.data.visitorBackPhoto").doesNotExist())
 				.andExpect(jsonPath("$.data.tripCode").doesNotExist())
 				.andExpect(jsonPath("$.data.healthcode").doesNotExist())
 				.andExpect(jsonPath("$.data.processId").doesNotExist())
-				.andExpect(jsonPath("$.data.processList").doesNotExist());
+				.andExpect(jsonPath("$.data.processList").doesNotExist())
+				.andExpect(jsonPath("$.data.fellowVisitorList[0].fellowPhoto").doesNotExist());
 	}
 
 	@Test
@@ -128,6 +130,7 @@ public class InternalAppVisitorControllerAccessTest {
 		SearchAppVisitorDetailVO detail = new SearchAppVisitorDetailVO();
 		detail.setVisitorId(7L);
 		detail.setVisitorName("访客甲");
+		detail.setVisitorPhoto("visitor-face-photo");
 		detail.setVisitorPhone("13812348000");
 		detail.setReceptionistPhone("13912349000");
 		detail.setCertNo("440101199001010011");
@@ -136,6 +139,11 @@ public class InternalAppVisitorControllerAccessTest {
 		detail.setTripCode("trip-code");
 		detail.setHealthcode("health-code");
 		detail.setProcessId("process-id");
+		com.tce.smart.platform.core.vo.GetSmtFellowVisitorVO fellow = new com.tce.smart.platform.core.vo.GetSmtFellowVisitorVO();
+		fellow.setId(8L);
+		fellow.setFellowName("随行乙");
+		fellow.setFellowPhoto("fellow-face-photo");
+		detail.setFellowVisitorList(Collections.singletonList(fellow));
 		return detail;
 	}
 

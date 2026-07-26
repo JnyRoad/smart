@@ -36,6 +36,14 @@ public interface RemoteLeaveApplicationService {
 			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
 			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
+	/** App 只能读取当前登录员工自己的年假余额。 */
+	@GetMapping("/internal/app-leave/year-holiday")
+	Result getYearHolidayForActor(@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
+
 	/**
      * 获取离职类型
      * @return
@@ -84,6 +92,16 @@ public interface RemoteLeaveApplicationService {
      */
     @GetMapping("/leave/application/record/page")
     Result getProcessRecord(@RequestParam("current") Long current, @RequestParam("size") Long size, @RequestParam("badge") String badge,@RequestParam("leaveStatus") Integer leaveStatus,@RequestHeader(SecurityConstants.FROM) String from);
+
+	/** App 离职记录分页固定绑定认证 actor，不接受浏览器传入 badge。 */
+	@GetMapping("/internal/app-leave/record/page")
+	Result getProcessRecordForActor(@RequestParam("current") Long current, @RequestParam("size") Long size,
+			@RequestParam("leaveStatus") Integer leaveStatus,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
     /**
      * 获取员工离职记录审批流程详情

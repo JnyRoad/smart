@@ -48,6 +48,7 @@ public class VisitorDetailVo extends BaseVO {
 	 * 访客头像
 	 */
 	@ApiModelProperty(value = "来访访客头像",required = true)
+	@JsonIgnore
 	private String visitorPhoto;
 
 	/**

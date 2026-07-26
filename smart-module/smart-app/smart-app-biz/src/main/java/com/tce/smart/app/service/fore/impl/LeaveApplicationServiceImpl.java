@@ -78,9 +78,8 @@ public class LeaveApplicationServiceImpl implements LeaveApplicationService {
 
     @Override
     public Result<?> getYearHoliday() {
-//        String badge = "1";// 获取员工号
-        String badge=SecurityUtils.getUser().getUsername();
-        return remoteLeaveApplicationService.getYearHoliday(badge,SecurityConstants.FROM_IN);
+		return remoteLeaveApplicationService.getYearHolidayForActor(currentActorBadge(), currentActorParkIds(),
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, APP_LEAVE_SELF_PURPOSE);
     }
 
     @Override
@@ -96,8 +95,9 @@ public class LeaveApplicationServiceImpl implements LeaveApplicationService {
 
     @Override
     public Result<?> getProcessRecord(Page page,Integer dimissionApplyType) {
-        String badge=SecurityUtils.getUser().getUsername();
-        return remoteLeaveApplicationService.getProcessRecord(page.getCurrent(),page.getSize(), badge,dimissionApplyType,SecurityConstants.FROM_IN);
+		return remoteLeaveApplicationService.getProcessRecordForActor(page.getCurrent(), page.getSize(), dimissionApplyType,
+				currentActorBadge(), currentActorParkIds(), SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, APP_LEAVE_SELF_PURPOSE);
     }
 
     @Override

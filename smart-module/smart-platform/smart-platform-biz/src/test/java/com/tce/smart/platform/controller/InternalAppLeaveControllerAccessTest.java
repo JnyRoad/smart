@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,6 +95,58 @@ public class InternalAppLeaveControllerAccessTest {
 		ArgumentCaptor<LeaveHandoverDTO> command = ArgumentCaptor.forClass(LeaveHandoverDTO.class);
 		Mockito.verify(fixture.handoverService).endLeaveHandover(command.capture());
 		assertEquals(ACTOR, command.getValue().getJjr());
+	}
+
+	@Test
+	public void yearHolidayRejectsActorWithoutAnyPark() throws Exception {
+		Fixture fixture = fixture(7);
+		asAppClient("smart-app");
+
+		fixture.mockMvc.perform(get("/internal/app-leave/year-holiday")
+				.header("X-Smart-Actor-Badge", ACTOR)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
+				.header("X-Smart-Internal-Purpose", PURPOSE))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	public void savePersistsActorParkForFollowupApplicationAndHandover() throws Exception {
+		SmtLeaveApplicationService applicationService = Mockito.mock(SmtLeaveApplicationService.class);
+		ILeaveApplicationService leaveService = Mockito.mock(ILeaveApplicationService.class);
+		SmtLeaveHandoverService handoverService = Mockito.mock(SmtLeaveHandoverService.class);
+		AtomicReference<SmtLeaveApplication> persisted = new AtomicReference<>();
+		Mockito.when(leaveService.saveLeaveApplication(any(com.tce.smart.platform.core.dto.LeaveApplicationDTO.class)))
+				.thenAnswer(invocation -> {
+					SmtLeaveApplication application = new SmtLeaveApplication();
+					org.springframework.beans.BeanUtils.copyProperties(invocation.getArgument(0), application);
+					application.setProcessId(PROCESS);
+					persisted.set(application);
+					return new com.tce.smart.common.core.model.Result<>(true);
+				});
+		Mockito.when(applicationService.getLeaveApplicationRecord(PROCESS)).thenAnswer(invocation -> persisted.get());
+		Mockito.when(handoverService.getLeaveHandover(PROCESS)).thenReturn(Collections.singletonList(new SmtLeaveHandover()));
+		InternalAppLeaveController controller = new InternalAppLeaveController(applicationService, leaveService,
+				handoverService, new OpenApiAuthenticationAdapter());
+		ReflectionTestUtils.setField(controller, "appServiceClientId", "smart-app");
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
+				.setControllerAdvice(new GlobalExceptionHandlerResolver())
+				.build();
+		asAppClient("smart-app");
+
+		mockMvc.perform(post("/internal/app-leave/application")
+				.header("X-Smart-Actor-Badge", ACTOR)
+				.header("X-Smart-Actor-Park-Ids", "7")
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
+				.header("X-Smart-Internal-Purpose", PURPOSE)
+				.contentType("application/json")
+				.content("{\"badge\":\"A10001\",\"applyBadge\":\"A10001\",\"leaveType\":1,\"leaveReason\":1,\"leaveTime\":\"2026-07-25\",\"leaveStatus\":0}"))
+				.andExpect(status().isOk());
+
+		assertEquals(Integer.valueOf(7), persisted.get().getParkId());
+		mockMvc.perform(authorisedGet("/internal/app-leave/application/" + PROCESS, "7"))
+				.andExpect(status().isOk());
+		mockMvc.perform(authorisedGet("/internal/app-leave/handover/" + PROCESS, "7"))
+				.andExpect(status().isOk());
 	}
 
 	private Fixture fixture(int parkId) {

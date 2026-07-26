@@ -1,6 +1,7 @@
 package com.tce.smart.platform.controller;
 
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
@@ -19,6 +20,8 @@ import com.tce.smart.platform.core.entity.SmtLeaveHandover;
 import com.tce.smart.platform.core.entity.SmtProcessRecord;
 import com.tce.smart.platform.core.model.LeaveHandoverDepJjr;
 import com.tce.smart.platform.core.model.ProcessRecordFlow;
+import com.tce.smart.platform.core.model.YearHoliday;
+import com.tce.smart.platform.core.vo.LeaveRecordVO;
 import com.tce.smart.platform.core.service.SmtLeaveApplicationService;
 import com.tce.smart.platform.core.vo.LeaveApplicationVO;
 import com.tce.smart.platform.service.ILeaveApplicationService;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -76,7 +80,35 @@ public class InternalAppLeaveController extends BaseController {
 		}
 		LeaveApplicationDTO command = new LeaveApplicationDTO();
 		BeanUtils.copyProperties(request, command);
+		// 离职表只有单一园区列；多园区 actor 没有可信的当前园区时，宁可拒绝也不能猜测归属。
+		command.setParkId(resolveSingleActorPark(actorParkIds));
 		return leaveService.saveLeaveApplication(command);
+	}
+
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/year-holiday")
+	public Result yearHoliday(@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppCaller(from, purpose);
+		assertActorParks(actorParkIds);
+		YearHoliday holiday = leaveService.getYearHoliday(actorBadge);
+		return success(holiday);
+	}
+
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/record/page")
+	public Result recordPage(Page page, @RequestParam("leaveStatus") Integer leaveStatus,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppCaller(from, purpose);
+		assertActorParks(actorParkIds);
+		return success(leaveApplicationService.getProcessRecord(page, actorBadge, leaveStatus), LeaveRecordVO.class);
 	}
 
 	@Inner
@@ -226,6 +258,21 @@ public class InternalAppLeaveController extends BaseController {
 			}
 		}
 		return parks;
+	}
+
+	private void assertActorParks(String actorParkIds) {
+		if (parseActorParks(actorParkIds).isEmpty()) {
+			throw new AccessDeniedException("离职申请不存在或无权访问");
+		}
+	}
+
+	/** 创建时必须把记录绑定到唯一、已认证的园区，禁止使用客户端字段或集合顺序猜测。 */
+	private Integer resolveSingleActorPark(String actorParkIds) {
+		Set<Integer> parks = parseActorParks(actorParkIds);
+		if (parks.size() != 1) {
+			throw new AccessDeniedException("离职申请不存在或无权操作");
+		}
+		return parks.iterator().next();
 	}
 
 	private void assertAppCaller(String from, String purpose) {

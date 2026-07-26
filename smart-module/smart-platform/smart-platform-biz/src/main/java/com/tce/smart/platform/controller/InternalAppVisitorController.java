@@ -146,7 +146,6 @@ public class InternalAppVisitorController extends BaseController {
 		target.setParkName(source.getParkName());
 		target.setVisitorId(source.getVisitorId());
 		target.setVisitorName(source.getVisitorName());
-		target.setVisitorPhoto(source.getVisitorPhoto());
 		target.setVisitorPhone(maskPhone(source.getVisitorPhone()));
 		target.setVehiclePlate(maskPlate(source.getVehiclePlate()));
 		target.setCompany(source.getCompany());
@@ -169,7 +168,6 @@ public class InternalAppVisitorController extends BaseController {
 				AppVisitorFellowRespDTO follower = new AppVisitorFellowRespDTO();
 				follower.setId(fellow.getId());
 				follower.setFellowName(fellow.getFellowName());
-				follower.setFellowPhoto(fellow.getFellowPhoto());
 				followers.add(follower);
 			}
 			target.setFellowVisitorList(followers);
