@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.annotation.OpenApi;
@@ -63,6 +64,8 @@ public class SmtLeaveApplicationController extends BaseController{
 
 	private final RemoteRsEmpService remoteRsEmpService;
 
+	private final LegacyLeaveEndpointGuard legacyLeaveEndpointGuard;
+
 
 	/**
 	 * 获取离职记录 分页查询
@@ -115,7 +118,17 @@ public class SmtLeaveApplicationController extends BaseController{
 	@Inner
 	@OpenApi("server")
 	@PostMapping("/save")
-	public Result save(@RequestBody LeaveApplicationDTO leaveApplicationDTO) {
+	public Result save(@RequestBody LeaveApplicationDTO leaveApplicationDTO,
+			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		LegacyLeaveEndpointGuard.ActorScope actor = legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose);
+		if (leaveApplicationDTO == null || !actor.getBadge().equals(leaveApplicationDTO.getBadge())
+				|| !actor.getBadge().equals(leaveApplicationDTO.getApplyBadge()) || leaveApplicationDTO.getParkId() == null
+				|| !actor.getParkIds().contains(leaveApplicationDTO.getParkId())) {
+			throw new org.springframework.security.access.AccessDeniedException("旧离职申请不存在或无权操作");
+		}
 		return leaveApplicationService.saveLeaveApplication(leaveApplicationDTO);
 	}
 

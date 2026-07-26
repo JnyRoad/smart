@@ -84,6 +84,8 @@ public class SmtLeaveHandoverController extends BaseController{
 
   private final ILeaveApplicationService leaveApplicationService;
 
+  private final LegacyLeaveEndpointGuard legacyLeaveEndpointGuard;
+
   /**
    * 开始交接（审批完成触发）
    * @param processId 流程Id
@@ -92,8 +94,13 @@ public class SmtLeaveHandoverController extends BaseController{
 	  @SysLog("开始交接")
 	  @Inner
 	  @OpenApi("server")
-	  @GetMapping("/start/{processId}")
-  public Result startLeaveHandover(@PathVariable("processId") String processId) {
+  @GetMapping("/start/{processId}")
+  public Result startLeaveHandover(@PathVariable("processId") String processId,
+			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+	assertLegacyApplicant(processId, legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose));
 	return new Result<>(smtLeaveHandoverService.startLeaveHandover(processId));
 
   }
@@ -107,7 +114,12 @@ public class SmtLeaveHandoverController extends BaseController{
 	  @Inner
 	  @OpenApi("server")
 	  @GetMapping("/get/{processId}")
-  public Result getLeaveHandoverByProcessId(@PathVariable("processId") String processId) {
+  public Result getLeaveHandoverByProcessId(@PathVariable("processId") String processId,
+			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+	assertLegacyApplicant(processId, legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose));
     SmtLeaveApplication leaveApplication = smtLeaveHandoverService.getLeaveHandoverByProcessId(processId);
 	return success(leaveApplication, LeaveHandoverApplicationVO.class);
   }
@@ -216,7 +228,14 @@ public class SmtLeaveHandoverController extends BaseController{
 	  @Inner
 	  @OpenApi("server")
 	  @PostMapping("/commit")
-  public Result endLeaveHandover(@RequestBody LeaveHandoverDTO leaveHandoverDTO) {
+  public Result endLeaveHandover(@RequestBody LeaveHandoverDTO leaveHandoverDTO,
+			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+	LegacyLeaveEndpointGuard.ActorScope actor = legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose);
+	assertLegacyAssignee(leaveHandoverDTO, actor);
+	leaveHandoverDTO.setJjr(actor.getBadge());
 	return new Result<>(smtLeaveHandoverService.endLeaveHandover(leaveHandoverDTO));
   }
 
@@ -229,7 +248,13 @@ public class SmtLeaveHandoverController extends BaseController{
 	  @Inner
 	  @OpenApi("server")
 	  @PostMapping("/detail")
-  public Result getLeaveHandover(@RequestBody SmtLeaveApplication leaveApplication){
+  public Result getLeaveHandover(@RequestBody SmtLeaveApplication leaveApplication,
+			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose){
+	assertLegacyApplicant(leaveApplication == null ? null : leaveApplication.getProcessId(),
+			legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose));
       List<SmtLeaveHandover> list = smtLeaveHandoverService.getLeaveHandover(leaveApplication.getProcessId());
       return success(list,LeaveHandoverDepJjr.class);
   }
@@ -243,8 +268,35 @@ public class SmtLeaveHandoverController extends BaseController{
 	  @Inner
 	  @OpenApi("server")
 	  @GetMapping("/end/{processId}")
-  public Result closeLeaveHandover(@PathVariable("processId") String processId) {
+  public Result closeLeaveHandover(@PathVariable("processId") String processId,
+			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+	assertLegacyApplicant(processId, legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose));
 	return new Result<>(smtLeaveHandoverService.closeLeaveHandover(processId));
 
   }
+
+	private void assertLegacyApplicant(String processId, LegacyLeaveEndpointGuard.ActorScope actor) {
+		if (StrUtil.isBlank(processId)) {
+			throw new AccessDeniedException("旧离职交接不存在或无权访问");
+		}
+		SmtLeaveApplication application = smtLeaveApplicationService.getLeaveApplicationRecord(processId);
+		if (application == null || application.getParkId() == null || !actor.getParkIds().contains(application.getParkId())
+				|| (!actor.getBadge().equals(application.getBadge()) && !actor.getBadge().equals(application.getApplyBadge()))) {
+			throw new AccessDeniedException("旧离职交接不存在或无权访问");
+		}
+	}
+
+	private void assertLegacyAssignee(LeaveHandoverDTO request, LegacyLeaveEndpointGuard.ActorScope actor) {
+		if (request == null || StrUtil.isBlank(request.getProcessId())) {
+			throw new AccessDeniedException("旧离职交接不存在或无权操作");
+		}
+		SmtLeaveApplication application = smtLeaveApplicationService.getLeaveApplicationRecord(request.getProcessId());
+		if (application == null || application.getParkId() == null || !actor.getParkIds().contains(application.getParkId())
+				|| CollectionUtil.isEmpty(smtLeaveHandoverService.getLeaveHandover(request.getProcessId(), actor.getBadge()))) {
+			throw new AccessDeniedException("旧离职交接不存在或无权操作");
+		}
+	}
 }
