@@ -105,6 +105,24 @@ public class VisitorFaceCropCapabilityServiceTest {
 	}
 
 	@Test
+	public void receptionistSelectionPrecheckReadIsBoundToDraftAndDoesNotConsumeTheFinalSelection() {
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(values);
+		Mockito.when(values.get(Mockito.contains("draft-token"))).thenReturn("owner-hash|draft-id");
+		Mockito.when(values.get(Mockito.contains(":receptionist:draft-id"))).thenReturn("8031249\u001f张三\u001f13800000000");
+		VisitorFaceCropCapabilityServiceImpl service = new VisitorFaceCropCapabilityServiceImpl(redisTemplate,
+				new SequenceTokenSupplier("unused"));
+
+		VisitorFaceCropCapabilityService.VisitorReceptionistSelection selection = service
+				.getReceptionistSelection("draft-token", "draft-id");
+
+		assertEquals("8031249", selection.getReceptionistBadge());
+		Mockito.verify(redisTemplate, Mockito.never()).execute(Mockito.any(), Mockito.anyList(), Mockito.anyString());
+	}
+
+	@Test
 	public void cropCapabilityIsConsumedAtomicallyAndCannotBeReused() {
 		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
 		Mockito.when(redisTemplate.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString()))

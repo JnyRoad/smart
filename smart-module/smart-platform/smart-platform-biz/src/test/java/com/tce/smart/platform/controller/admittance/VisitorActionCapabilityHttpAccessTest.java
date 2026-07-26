@@ -59,6 +59,19 @@ public class VisitorActionCapabilityHttpAccessTest {
 	}
 
 	@Test
+	public void publicCapabilityEndpointAllowsOnlyPayloadBoundApplyPrecheck() throws Exception {
+		mockMvc.perform(post("/admittance/visitor-action/capability")
+				.header("X-Visitor-Draft-Token", "draft-token")
+				.contentType("application/json")
+				.content("{\"draftId\":\"draft-1\",\"action\":\"APPLY_PRECHECK\",\"payloadHash\":\""
+						+ repeat('a', 64) + "\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.code").value(0));
+		Mockito.verify(capabilityService).issueActionCapability("draft-token", "draft-1",
+				com.tce.smart.platform.api.dto.admittance.VisitorActionCapabilityAction.APPLY_PRECHECK, repeat('a', 64));
+	}
+
+	@Test
 	public void internalConsumeEndpointRejectsUnauthenticatedBrowserBeforeCapabilityLookup() throws Exception {
 		mockMvc.perform(post("/admittance/visitor-action/internal/consume")
 				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)

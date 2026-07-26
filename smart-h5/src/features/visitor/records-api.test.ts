@@ -3,6 +3,7 @@ import {
   clearQuerySession,
   fetchApprovalProgress,
   fetchApplyDetail,
+	fetchVisitorPassCode,
   fetchMyApplies,
   getQuerySession,
   saveQuerySession,
@@ -116,6 +117,15 @@ describe('mock 开关', () => {
     expect(url).toBe('/platform/admittance/apply/app/applyDetail?applyId=a-1')
     expect((init.headers as Record<string, string>)['X-Visitor-Query-Token']).toBe('tok-q')
   })
+
+	it('开关关：通行码只通过 queryToken 受保护的精确端点获取', async () => {
+		setMockFlag(false)
+		saveQuerySession({ queryToken: 'tok-q', maskedName: '李明', maskedMobile: '137****1234' })
+		await fetchVisitorPassCode('1001')
+		const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+		expect(url).toBe('/platform/admittance/apply/app/passCode?applyId=1001')
+		expect((init.headers as Record<string, string>)['X-Visitor-Query-Token']).toBe('tok-q')
+	})
 })
 
 describe('query session', () => {

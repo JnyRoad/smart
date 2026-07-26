@@ -91,6 +91,7 @@ public class VisitorActionCapabilityController extends BaseController {
 		return action == VisitorActionCapabilityAction.DOCUMENT_UPLOAD
 				|| action == VisitorActionCapabilityAction.BLACKLIST_CHECK
 				|| action == VisitorActionCapabilityAction.RECEPTIONIST_SEARCH
+				|| action == VisitorActionCapabilityAction.APPLY_PRECHECK
 				|| action == VisitorActionCapabilityAction.APPLY_SUBMIT;
 	}
 

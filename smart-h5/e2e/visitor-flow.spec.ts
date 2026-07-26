@@ -22,7 +22,7 @@ async function mockEntryApis(page: Page, { needNotice = 0 } = {}) {
     route.fulfill({
       json: {
         code: 0,
-        data: { openId: 'oid-1', unionId: 'uid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id' },
+        data: { visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id' },
       },
     }),
   )
@@ -130,9 +130,9 @@ async function fillInfoForm(page: Page) {
   await page.getByRole('button', { name: '办公区', exact: true }).click()
 }
 
-test('访客信息页：填写校验与 equal/check 通过跳 tel', async ({ page }) => {
+test('访客信息页：填写校验与 capability 预校验通过跳 tel', async ({ page }) => {
   await mockInfoApis(page)
-  await page.route('**/platform/admittance/apply/equal/check', async (route) => {
+  await page.route('**/platform/admittance/visitor-entry/precheck', async (route) => {
     const body = route.request().postDataJSON() as Record<string, unknown>
     // 旧版请求体（visitorInfo.vue:304-339）：fellowList（非 visitorList）+ 顶层实名/区域字段，不带 parkId。
     expect(body.parkId).toBeUndefined()
@@ -277,7 +277,7 @@ test('访客信息页：授权区域为空拦截', async ({ page }) => {
 test('访客信息页：访客姓名格式非法当页拦截（不到提交才报）', async ({ page }) => {
   await mockInfoApis(page)
   let equalCalled = false
-  await page.route('**/platform/admittance/apply/equal/check', (route) => {
+  await page.route('**/platform/admittance/visitor-entry/precheck', (route) => {
     equalCalled = true
     return route.fulfill({ json: { code: 0, data: true } })
   })
@@ -307,14 +307,14 @@ test('访客信息页：访客姓名格式非法当页拦截（不到提交才�
   await page.getByRole('button', { name: '下一步' }).click()
   await expect(page.getByText('访客姓名输入汉字、英文、数字及下划线1-30个字符')).toBeVisible()
   await expect(page).toHaveURL(/\/visitor\/info$/)
-  // 不应发起 equal/check（前端先拦下）
+  // 不应发起 capability 预校验（前端先拦下）
   expect(equalCalled).toBe(false)
 })
 
 test('访客信息页：提交时去除姓名/证件号的全部空格（含中间）、单位去首尾', async ({ page }) => {
   await mockInfoApis(page)
   let body: Record<string, unknown> | undefined
-  await page.route('**/platform/admittance/apply/equal/check', async (route) => {
+  await page.route('**/platform/admittance/visitor-entry/precheck', async (route) => {
     body = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0, data: true } })
   })
@@ -547,10 +547,10 @@ test('tel 页：草稿不完整直接进入被守卫回退', async ({ page }) =>
   await page.waitForURL(/visitor(?!\/tel)|open\.weixin/)
 })
 
-test('访客信息页：equal/check 失败 toast、身份证错误 toast、时间清空联动', async ({ page }) => {
+test('访客信息页：预校验失败 toast、身份证错误 toast、时间清空联动', async ({ page }) => {
   await mockInfoApis(page)
   await seedFilledDraft(page)
-  await page.route('**/platform/admittance/apply/equal/check', (route) =>
+  await page.route('**/platform/admittance/visitor-entry/precheck', (route) =>
     route.fulfill({ json: { code: 1, message: '该访客已有进行中的申请' } }),
   )
 
@@ -560,7 +560,7 @@ test('访客信息页：equal/check 失败 toast、身份证错误 toast、时�
   await page.getByRole('button', { name: '下一步' }).click()
   await expect(page.getByText('证件号码校验位不正确')).toBeVisible()
 
-  // 修正后 equal/check 失败 toast
+  // 修正后 capability 预校验失败 toast
   await page.getByPlaceholder('请输入身份证号码').fill('11010519491231002X')
   await page.getByRole('button', { name: '下一步' }).click()
   await expect(page.getByText('该访客已有进行中的申请')).toBeVisible()

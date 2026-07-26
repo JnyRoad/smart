@@ -74,6 +74,28 @@ public class VisitorEntryControllerTest {
 	}
 
 	@Test
+	public void precheckConsumesSeparateCapabilityAndUsesNonConsumingServerReceptionistSelection() {
+		VisitorFaceCropCapabilityService capabilityService = Mockito.mock(VisitorFaceCropCapabilityService.class);
+		SmtAdmittanceApplyService applyService = Mockito.mock(SmtAdmittanceApplyService.class);
+		VisitorEntryController controller = new VisitorEntryController(capabilityService, applyService,
+				Mockito.mock(SmtAdmittanceAreaOptionsService.class));
+		SaveAdmittanceApplyReqDTO request = new SaveAdmittanceApplyReqDTO();
+		request.setReceptionistBadge("browser-badge");
+		Mockito.when(capabilityService.getReceptionistSelection("draft-token", "draft-1"))
+				.thenReturn(new VisitorFaceCropCapabilityService.VisitorReceptionistSelection("8031249", "张三", "13800000000"));
+		Mockito.when(applyService.visitorEqualCheck(request)).thenReturn(Boolean.TRUE);
+
+		Result<Boolean> result = controller.precheckApply("precheck-ticket", "draft-token", "draft-1", request);
+
+		Assert.assertEquals(Boolean.TRUE, result.getData());
+		Assert.assertEquals("8031249", request.getReceptionistBadge());
+		Mockito.verify(capabilityService).consumeActionCapability(Mockito.eq("precheck-ticket"), Mockito.eq("draft-1"),
+				Mockito.eq(VisitorActionCapabilityAction.APPLY_PRECHECK), Mockito.matches("[0-9a-f]{64}"));
+		Mockito.verify(capabilityService).getReceptionistSelection("draft-token", "draft-1");
+		Mockito.verify(capabilityService, Mockito.never()).consumeReceptionistSelection(Mockito.anyString(), Mockito.anyString());
+	}
+
+	@Test
 	public void applicationPayloadDigestMatchesTheBrowserCanonicalContract() {
 		VisitorEntryController controller = new VisitorEntryController(Mockito.mock(VisitorFaceCropCapabilityService.class),
 				Mockito.mock(SmtAdmittanceApplyService.class), Mockito.mock(SmtAdmittanceAreaOptionsService.class));

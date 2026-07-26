@@ -26,6 +26,12 @@ security:
     # App 的访客黑名单校验只允许专属服务客户端；未配置时内部路由拒绝调用。
     visitor-blacklist:
       app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+    # App 访客自助详情和随行人员修改仅接受专属 server client；空值默认拒绝。
+    visitor-app:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+    # App 离职及交接操作仅接受专属 server client；空值默认拒绝。
+    leave-app:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
   oauth2:
     client:
       client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # platform
@@ -41,11 +47,18 @@ security:
         - /admittance/visitor-action/capability
         # 访客入口仅公开这两个 capability 消费路径；旧 apply 路由保持认证，禁止 /admittance/**。
         - /admittance/visitor-entry/receptionist
+        # 预校验同样消费一次性 capability，不允许回退至旧 equal/check。
+        - /admittance/visitor-entry/precheck
         - /admittance/visitor-entry/apply
         # 只读选项也必须携带 OAuth 草稿并在服务端限速；不恢复历史 enum/app 等宽泛匿名前缀。
         - /admittance/visitor-entry/options/cause
         - /admittance/visitor-entry/options/vehicle-cert
         - /admittance/visitor-entry/options/area-options
+        # 短信本人核验后的自助查询：网关只放到 queryToken 归属校验，不允许任何 /app/** 通配。
+        - /admittance/apply/app/listMyApply
+        - /admittance/apply/app/applyDetail
+        - /admittance/apply/app/approvalProgress
+        - /admittance/apply/app/passCode
         # 简历公开流程仅放行受一次性 HttpOnly capability 约束的两个 POST 路径，禁止使用 /regist/**。
         - /regist/save/identification
         - /regist/face/crop

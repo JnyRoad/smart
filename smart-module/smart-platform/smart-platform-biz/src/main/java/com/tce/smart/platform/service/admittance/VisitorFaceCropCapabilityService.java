@@ -22,6 +22,9 @@ public interface VisitorFaceCropCapabilityService {
 	/** 草稿完成接待人精确检索后暂存服务端选中的接待人，提交时不再信任浏览器回传的工号与电话。 */
 	void rememberReceptionistSelection(String draftId, String receptionistBadge, String receptionistName, String receptionistPhone);
 
+	/** 预校验只读取同一草稿的接待人选择，不能消费掉最终提交仍需使用的选择。 */
+	VisitorReceptionistSelection getReceptionistSelection(String draftToken, String draftId);
+
 	/** 消费与草稿绑定的一次性接待人选择，防止把搜索结果替换成任意员工。 */
 	VisitorReceptionistSelection consumeReceptionistSelection(String draftToken, String draftId);
 

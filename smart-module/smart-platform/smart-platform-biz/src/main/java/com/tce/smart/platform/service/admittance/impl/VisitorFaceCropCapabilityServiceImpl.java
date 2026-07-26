@@ -33,7 +33,7 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 	private static final long DRAFT_TTL_SECONDS = 30L * 60L;
 	private static final long ACTION_TTL_SECONDS = 2L * 60L;
 	private static final long ACTION_RATE_TTL_SECONDS = 60L;
-	private static final long RECEPTIONIST_SELECTION_TTL_SECONDS = 2L * 60L;
+	private static final long RECEPTIONIST_SELECTION_TTL_SECONDS = DRAFT_TTL_SECONDS;
 	private static final long MAX_ACTION_ISSUES_PER_MINUTE = 12L;
 	private static final DefaultRedisScript<Long> CONSUME_ACTION_SCRIPT = new DefaultRedisScript<>(
 			"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
@@ -109,6 +109,15 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 	}
 
 	@Override
+	public VisitorReceptionistSelection getReceptionistSelection(String draftToken, String draftId) {
+		String expectedDraftId = draftIdFromSession(draftToken);
+		if (!StringUtils.hasText(draftId) || !draftId.equals(expectedDraftId)) {
+			throw forbidden();
+		}
+		return parseReceptionistSelection(redisTemplate.opsForValue().get(receptionistKey(draftId)));
+	}
+
+	@Override
 	public VisitorReceptionistSelection consumeReceptionistSelection(String draftToken, String draftId) {
 		String expectedDraftId = draftIdFromSession(draftToken);
 		if (!StringUtils.hasText(draftId) || !draftId.equals(expectedDraftId)) {
@@ -116,6 +125,10 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 		}
 		String selection = redisTemplate.execute(CONSUME_RECEPTIONIST_SELECTION_SCRIPT,
 				Collections.singletonList(receptionistKey(draftId)), "");
+		return parseReceptionistSelection(selection);
+	}
+
+	private VisitorReceptionistSelection parseReceptionistSelection(String selection) {
 		if (!StringUtils.hasText(selection)) {
 			throw forbidden();
 		}
@@ -265,7 +278,7 @@ public class VisitorFaceCropCapabilityServiceImpl implements VisitorFaceCropCapa
 	private boolean validPayloadHash(VisitorActionCapabilityAction action, String payloadHash) {
 		if (action != VisitorActionCapabilityAction.FACE_UPLOAD && action != VisitorActionCapabilityAction.DOCUMENT_UPLOAD
 				&& action != VisitorActionCapabilityAction.BLACKLIST_CHECK && action != VisitorActionCapabilityAction.RECEPTIONIST_SEARCH
-				&& action != VisitorActionCapabilityAction.APPLY_SUBMIT) {
+				&& action != VisitorActionCapabilityAction.APPLY_PRECHECK && action != VisitorActionCapabilityAction.APPLY_SUBMIT) {
 			return !StringUtils.hasText(payloadHash);
 		}
 		return payloadHash != null && payloadHash.matches("[0-9a-f]{64}");

@@ -3,6 +3,7 @@ package com.tce.smart.platform.service.admittance;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyRecordDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApprovalProgressRespDTO;
+import com.tce.smart.platform.api.dto.resp.admittance.VisitorPassCodeRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorSelfQueryRespDTO;
 
 public interface VisitorSelfQueryService {
@@ -12,4 +13,6 @@ public interface VisitorSelfQueryService {
 	VisitorApplyRecordDetailRespDTO getApplyDetail(String applyId, String queryToken);
 
 	VisitorApprovalProgressRespDTO getApprovalProgress(String applyId, String queryToken);
+
+	VisitorPassCodeRespDTO getPassCode(String applyId, String queryToken);
 }

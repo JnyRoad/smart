@@ -14,6 +14,7 @@ import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyRecordRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyVehicleRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApprovalNodeRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApprovalProgressRespDTO;
+import com.tce.smart.platform.api.dto.resp.admittance.VisitorPassCodeRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorSelfQueryRespDTO;
 import com.tce.smart.platform.core.entity.ApproveList;
 import com.tce.smart.platform.core.entity.SmtApprovalNode;
@@ -40,6 +41,7 @@ import com.tce.smart.tool.enums.ApplicationEnum;
 import com.tce.smart.tool.enums.ApproveListStateEnum;
 import com.tce.smart.tool.enums.DeviceDownStatusEnum;
 import com.tce.smart.tool.enums.VisitorStatusEnum;
+import com.tce.smart.tool.util.QRCodeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -114,6 +116,28 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		VisitorApprovalProgressRespDTO response = new VisitorApprovalProgressRespDTO();
 		response.setNodes(approvalNodes(apply));
 		return response;
+	}
+
+	@Override
+	public VisitorPassCodeRespDTO getPassCode(String applyId, String queryToken) {
+		SmtAdmittanceApply apply = requireOwnedApply(applyId, queryToken);
+		VisitorPassCodeRespDTO response = new VisitorPassCodeRespDTO();
+		response.setApplyId(String.valueOf(apply.getId()));
+		boolean valid = VisitorStatusEnum.Status_0.getCode().equals(apply.getStatus())
+				&& !DeviceDownStatusEnum.FAIL.getCode().equals(apply.getDeviceStatus())
+				&& StringUtils.hasText(apply.getSmsCode()) && apply.getEndTime() != null
+				&& LocalDateTime.now().isBefore(apply.getEndTime());
+		response.setValid(valid);
+		if (!valid) {
+			return response;
+		}
+		try {
+			response.setQrCode(QRCodeUtils.wordsCreateQRCode(apply.getSmsCode()));
+			response.setSmsCode(apply.getSmsCode());
+			return response;
+		} catch (Exception exception) {
+			throw new SmartException("生成访客通行码失败");
+		}
 	}
 
 	private QueryCredential resolveCredential(VisitorSelfQueryReqDTO request, String queryToken) {

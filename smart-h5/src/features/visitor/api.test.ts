@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import {
   admittanceNoticeHtml,
   checkBlackVisitor,
+	checkApplyEqual,
   cropVisitorFace,
   getCauseEnum,
   getAreaOptions,
@@ -239,12 +240,34 @@ describe('visitor entry capability contract', () => {
     )
   })
 
+	it('moves identity precheck behind a payload-bound draft capability', async () => {
+		fetchMock
+			.mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { capability: 'precheck-ticket' } })))
+			.mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: true })))
+
+		await checkApplyEqual({ visitorName: '王五', fellowList: [] }, draft)
+
+		const [ticketUrl, ticketInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+		expect(ticketUrl).toBe('/platform/admittance/visitor-action/capability')
+		expect(JSON.parse(ticketInit.body as string)).toMatchObject({
+			draftId: 'draft-id', action: 'APPLY_PRECHECK', payloadHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+		})
+		const [precheckUrl, precheckInit] = fetchMock.mock.calls[1] as [string, RequestInit]
+		expect(precheckUrl).toBe('/platform/admittance/visitor-entry/precheck')
+		expect(precheckInit.headers).toMatchObject({
+			'X-Visitor-Action-Capability': 'precheck-ticket',
+			'X-Visitor-Draft-Token': 'draft-token',
+			'X-Visitor-Draft-Id': 'draft-id',
+		})
+	})
+
   it('contains no browser-side openId, unionId, or legacy unauthenticated apply route', () => {
     const source = readFileSync('src/features/visitor/api.ts', 'utf8')
     expect(source).not.toContain('openId?:')
     expect(source).not.toContain('unionId?:')
     expect(source).not.toContain("url: '/admittance/apply/save/apply'")
     expect(source).not.toContain("url: '/admittance/apply/app/searchReceptionist'")
+		expect(source).not.toContain("url: '/admittance/apply/equal/check'")
   })
 
   it('reads visitor options only through the OAuth-draft protected entry routes', async () => {

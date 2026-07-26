@@ -5,6 +5,7 @@ import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorWechatCodeReqDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyRecordDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApprovalProgressRespDTO;
+import com.tce.smart.platform.api.dto.resp.admittance.VisitorPassCodeRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorSelfQueryRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.AdmittanceAreaOptionsRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorWechatIdentityRespDTO;
@@ -15,6 +16,7 @@ import com.tce.smart.platform.service.admittance.VisitorSelfQueryService;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 public class SmtAdmittanceApplyControllerTest {
 
@@ -116,5 +118,25 @@ public class SmtAdmittanceApplyControllerTest {
 		Assert.assertSame(expected, result.getData());
 		Mockito.verify(visitorSelfQueryService).getApprovalProgress("1001", "tok-existing");
 		Mockito.verifyNoMoreInteractions(visitorSelfQueryService);
+	}
+
+	@Test
+	public void passCodeDelegatesToSelfQueryServiceWithQueryTokenHeader() {
+		SmtAdmittanceApplyService applyService = Mockito.mock(SmtAdmittanceApplyService.class);
+		SmtVisitorService visitorService = Mockito.mock(SmtVisitorService.class);
+		SmtAdmittanceAreaOptionsService areaOptionsService = Mockito.mock(SmtAdmittanceAreaOptionsService.class);
+		VisitorSelfQueryService visitorSelfQueryService = Mockito.mock(VisitorSelfQueryService.class);
+		VisitorPassCodeRespDTO expected = new VisitorPassCodeRespDTO();
+		expected.setApplyId("1001");
+		Mockito.when(visitorSelfQueryService.getPassCode("1001", "tok-existing")).thenReturn(expected);
+
+		SmtAdmittanceApplyController controller = new SmtAdmittanceApplyController(applyService, visitorService, areaOptionsService,
+				visitorSelfQueryService);
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		Result<VisitorPassCodeRespDTO> result = controller.passCode("1001", "tok-existing", response);
+
+		Assert.assertSame(expected, result.getData());
+		Assert.assertEquals("private, no-store", response.getHeader("Cache-Control"));
+		Mockito.verify(visitorSelfQueryService).getPassCode("1001", "tok-existing");
 	}
 }

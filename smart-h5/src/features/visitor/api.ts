@@ -166,13 +166,18 @@ export function getFactoryTypeEnum(flag: 0 | 1) {
 }
 
 /** Duplicate-application / identity consistency check before the SMS step. */
-export function checkApplyEqual(data: Record<string, unknown>) {
+export async function checkApplyEqual(data: Record<string, unknown>, visitorDraft: VisitorFaceDraft) {
+  const capability = await issueVisitorActionCapability(visitorDraft, 'APPLY_PRECHECK', await sha256(applyPayload(data)))
   return request<Envelope<unknown>>({
     module: 'platform',
-    url: '/admittance/apply/equal/check',
+    url: '/admittance/visitor-entry/precheck',
     method: 'POST',
     data,
     auth: 'none',
+    headers: {
+      ...visitorDraftHeaders(visitorDraft),
+      'X-Visitor-Action-Capability': capability,
+    },
   })
 }
 
@@ -196,7 +201,7 @@ export function verifyVisitorSms(mobile: string, smsCode: string) {
   })
 }
 
-type VisitorAction = 'DOCUMENT_UPLOAD' | 'BLACKLIST_CHECK' | 'RECEPTIONIST_SEARCH' | 'APPLY_SUBMIT'
+type VisitorAction = 'DOCUMENT_UPLOAD' | 'BLACKLIST_CHECK' | 'RECEPTIONIST_SEARCH' | 'APPLY_PRECHECK' | 'APPLY_SUBMIT'
 
 interface VisitorFaceCropResult {
   imageData?: string

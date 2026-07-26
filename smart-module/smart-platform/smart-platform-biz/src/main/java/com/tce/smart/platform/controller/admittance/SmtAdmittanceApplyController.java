@@ -21,6 +21,7 @@ import com.tce.smart.platform.api.dto.resp.admittance.AdmittanceApplyCodeDetailR
 import com.tce.smart.platform.api.dto.resp.admittance.AdmittanceApplyDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyRecordDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApprovalProgressRespDTO;
+import com.tce.smart.platform.api.dto.resp.admittance.VisitorPassCodeRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorSelfQueryRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorWechatIdentityRespDTO;
 import com.tce.smart.platform.core.dto.*;
@@ -39,6 +40,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -162,6 +165,19 @@ public class SmtAdmittanceApplyController extends BaseController {
 	public Result<VisitorApprovalProgressRespDTO> approvalProgress(@RequestParam("applyId") String applyId,
 			@RequestHeader(value = "X-Visitor-Query-Token", required = false) String queryToken) {
 		return success(visitorSelfQueryService.getApprovalProgress(applyId, queryToken));
+	}
+
+	/**
+	 * 通行码只允许已完成短信核验且归属该手机号的 queryToken 查询。
+	 */
+	@ApiOperation("访客自助查看本人通行码")
+	@GetMapping("/app/passCode")
+	public Result<VisitorPassCodeRespDTO> passCode(@RequestParam("applyId") String applyId,
+			@RequestHeader(value = "X-Visitor-Query-Token", required = false) String queryToken,
+			HttpServletResponse response) {
+		// 通行码是短时敏感凭证，禁止浏览器与中间代理缓存。
+		response.setHeader("Cache-Control", "private, no-store");
+		return success(visitorSelfQueryService.getPassCode(applyId, queryToken));
 	}
 
 	/**

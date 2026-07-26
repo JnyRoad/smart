@@ -34,10 +34,15 @@ public class PublicRouteDenyContractTest {
                 "/admittance/visitor-face/crop",
 				"/admittance/visitor-action/capability",
 				"/admittance/visitor-entry/receptionist",
+				"/admittance/visitor-entry/precheck",
 				"/admittance/visitor-entry/apply",
 				"/admittance/visitor-entry/options/cause",
 				"/admittance/visitor-entry/options/vehicle-cert",
 				"/admittance/visitor-entry/options/area-options",
+				"/admittance/apply/app/listMyApply",
+				"/admittance/apply/app/applyDetail",
+				"/admittance/apply/app/approvalProgress",
+				"/admittance/apply/app/passCode",
                 "/regist/save/identification",
                 "/regist/face/crop",
                 "/regist/face/add"), ignoreUrls);
@@ -55,6 +60,8 @@ public class PublicRouteDenyContractTest {
 		assertFalse(ignoreUrls.contains("/admittance/apply/enum/cause"));
 		assertFalse(ignoreUrls.contains("/admittance/apply/app/area-options"));
 		assertFalse(ignoreUrls.contains("/admittance/apply/search/Detail/**"));
+		assertFalse(ignoreUrls.contains("/admittance/app/**"));
+		assertFalse(ignoreUrls.contains("/admittance/**"));
     }
 
     @Test

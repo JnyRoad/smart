@@ -105,6 +105,28 @@ public class VisitorEntryController extends BaseController {
 		return success(applyService.saveAdmittanceApply(request), AdmittanceApplyDetailRespDTO.class);
 	}
 
+	/**
+	 * 提交前重复/实名一致性校验也必须消费一次性草稿 capability，且接待人只取服务端选择。
+	 */
+	@PostMapping("/precheck")
+	public Result<Boolean> precheckApply(
+			@RequestHeader(value = ACTION_CAPABILITY_HEADER, required = false) String capability,
+			@RequestHeader(value = DRAFT_TOKEN_HEADER, required = false) String draftToken,
+			@RequestHeader(value = DRAFT_ID_HEADER, required = false) String draftId,
+			@RequestBody SaveAdmittanceApplyReqDTO request) {
+		if (request == null) {
+			throw expired();
+		}
+		capabilityService.consumeActionCapability(capability, draftId, VisitorActionCapabilityAction.APPLY_PRECHECK,
+				applyPayloadHash(request));
+		VisitorFaceCropCapabilityService.VisitorReceptionistSelection selection = capabilityService
+				.getReceptionistSelection(draftToken, draftId);
+		request.setReceptionistBadge(selection.getReceptionistBadge());
+		request.setReceptionistName(selection.getReceptionistName());
+		request.setReceptionistPhone(selection.getReceptionistPhone());
+		return success(applyService.visitorEqualCheck(request));
+	}
+
 	/** 只有短时 OAuth 草稿可读取无个人信息的表单枚举，避免恢复广泛匿名白名单。 */
 	@GetMapping("/options/cause")
 	public Result<List<Map<String, Object>>> getCauseOptions(
