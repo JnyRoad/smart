@@ -27,6 +27,15 @@ public interface RemoteLeaveApplicationService {
 	@PostMapping("/leave/application/save")
 	Result save(@RequestBody LeaveApplicationReqDTO leaveApplicationDTO, @RequestHeader(SecurityConstants.FROM) String from);
 
+	/** App 发起离职仅允许当前已认证员工为本人提交。 */
+	@PostMapping("/internal/app-leave/application")
+	Result saveForActor(@RequestBody LeaveApplicationReqDTO request,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
+
 	/**
      * 获取离职类型
      * @return
@@ -55,8 +64,17 @@ public interface RemoteLeaveApplicationService {
      * @param from from
      * @return
      */
-    @GetMapping("/leave/application/{badge}")
-    Result<Map<String, Object>> getByBadge(@PathVariable("badge") String badge,@RequestHeader(SecurityConstants.FROM) String from);
+	@GetMapping("/leave/application/{badge}")
+	Result<Map<String, Object>> getByBadge(@PathVariable("badge") String badge,@RequestHeader(SecurityConstants.FROM) String from);
+
+	/** App 按流程号读取本人离职申请，Platform 以 actor 与记录归属二次校验。 */
+	@GetMapping("/internal/app-leave/application/{processId}")
+	Result getForActor(@PathVariable("processId") String processId,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
     /**
      * 获取员工离职记录
@@ -73,16 +91,34 @@ public interface RemoteLeaveApplicationService {
      * @param from from
      * @return
      */
-    @GetMapping("/leave/application/record/detail/{processId}")
-    Result<List<ProcessRecordFlowDTO>> getLeaveApplicationRecord(@PathVariable("processId") String processId, @RequestHeader(SecurityConstants.FROM) String from);
+	@GetMapping("/leave/application/record/detail/{processId}")
+	Result<List<ProcessRecordFlowDTO>> getLeaveApplicationRecord(@PathVariable("processId") String processId, @RequestHeader(SecurityConstants.FROM) String from);
+
+	/** App 只能读取本人离职流程的审批记录。 */
+	@GetMapping("/internal/app-leave/record/{processId}")
+	Result<List<ProcessRecordFlowDTO>> getRecordForActor(@PathVariable("processId") String processId,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
    /**
     * 查看工作交接
     * @param leaveApplication
     * @return
     */
-    @PostMapping("/leave/handover/detail")
-    Result<List<LeaveHandoverDepJjrDTO>> getLeaveHandover(@RequestBody SmtLeaveApplicationDTO leaveApplication, @RequestHeader(SecurityConstants.FROM) String from);
+	@PostMapping("/leave/handover/detail")
+	Result<List<LeaveHandoverDepJjrDTO>> getLeaveHandover(@RequestBody SmtLeaveApplicationDTO leaveApplication, @RequestHeader(SecurityConstants.FROM) String from);
+
+	/** App 仅能读取本人离职申请的工作交接摘要。 */
+	@GetMapping("/internal/app-leave/handover/{processId}")
+	Result<List<LeaveHandoverDepJjrDTO>> getHandoverForActor(@PathVariable("processId") String processId,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
     // 同步OA流程方法
     @GetMapping("/leave/application/sysn/record")

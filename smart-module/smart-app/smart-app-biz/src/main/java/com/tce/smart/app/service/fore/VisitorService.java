@@ -48,12 +48,18 @@ public interface VisitorService {
 	 */
 	VisitorDetailVo getVisitorListDeatil(VisitorIdAo visitorId);
 
+	/** App 已登录用户查看本人关联的预约详情。 */
+	VisitorDetailVo getAppVisitorListDetail(VisitorIdAo visitorId);
+
 	/**
 	 * 获取随行人员的详情
 	 * @param visitorId
 	 * @return
 	 */
 	MemberVo getMemberListDeatil(VisitorIdAo visitorId);
+
+	/** App 已登录用户查看本人关联预约的随行人员。 */
+	MemberVo getAppMemberListDetail(VisitorIdAo visitorId);
 
 	/**
 	 * 添加访客信息

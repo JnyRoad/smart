@@ -12,7 +12,7 @@ import com.tce.smart.platform.api.dto.req.SaveWechatSmtVisitorReqDTO;
 import com.tce.smart.platform.api.dto.req.VisitorAgainReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorActionCapabilityConsumeReqDTO;
 import com.tce.smart.platform.api.dto.resp.SearchAppSmtVisitorRespDTO;
-import com.tce.smart.platform.api.dto.resp.SearchAppVisitorDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AppVisitorSelfDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
@@ -88,13 +88,25 @@ public interface RemoteVisitorService {
 	Result searchAppVisitorCount(@RequestParam("staffBadge") final String staffBadge,@RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
-	 *查询访客的详细信息
-	 *
-	 * @param id
-	 * @return
+	 * Smart App 按当前登录员工读取其关联的访客详情。
+	 * actorBadge 只能由 App 服务端从已认证会话派生，Platform 会再次核验记录归属。
 	 */
-	@GetMapping("/visitor/app/searchAppVisitorDetail/{id}")
-	Result<SearchAppVisitorDetailRespDTO> searchAppVisitorDetail(@PathVariable("id") Long id, @RequestHeader(SecurityConstants.FROM) String from);
+	@GetMapping("/internal/app-visitor/detail/{visitorId}")
+	Result<AppVisitorSelfDetailRespDTO> getAppVisitorDetailForActor(@PathVariable("visitorId") Long visitorId,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
+
+	/** App 仅能为本人发起或接待的预约补充随行人员。 */
+	@PostMapping("/internal/app-visitor/fellow")
+	Result addAppFellowForActor(@RequestBody AddFellowVisitorReqDTO request,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 *修改

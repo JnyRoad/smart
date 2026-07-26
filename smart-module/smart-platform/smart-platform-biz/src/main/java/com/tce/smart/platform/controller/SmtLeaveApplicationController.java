@@ -97,6 +97,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 * @return Result
 	 */
 	@GetMapping("/{badge}")
+	@Inner
+	@OpenApi("server")
 	public Result getByBadge(@PathVariable("badge") String badge) {
 	    SmtLeaveApplication leaveApplication = smtLeaveApplicationService.getLeaveApplicationRecord(badge);
 		return success(leaveApplication, LeaveApplicationVO.class);
@@ -110,6 +112,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 * @return Result
 	 */
 	@SysLog("新增离职申请表")
+	@Inner
+	@OpenApi("server")
 	@PostMapping("/save")
 	public Result save(@RequestBody LeaveApplicationDTO leaveApplicationDTO) {
 		return leaveApplicationService.saveLeaveApplication(leaveApplicationDTO);
@@ -145,6 +149,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 * @return
 	 */
 	@SysLog("获取剩余年假天数")
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/year/holiday/{badge}")
 	public Result getYearHoliday(@PathVariable("badge") String badge) {
 		return new Result<>(leaveApplicationService.getYearHoliday(badge));
@@ -157,8 +163,10 @@ public class SmtLeaveApplicationController extends BaseController{
      * @param page 分页对象
      * @param leaveApplicationDTO 离职查询信息
      */
-    @SysLog("获取离职记录")
-    @GetMapping("/record/page")
+	@SysLog("获取离职记录")
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/record/page")
     public Result getProcessRecord(Page page,LeaveApplicationDTO leaveApplicationDTO){
         IPage<LeaveRecordVO> list = smtLeaveApplicationService.getProcessRecord(page,leaveApplicationDTO.getBadge(),leaveApplicationDTO.getLeaveStatus());
         return success(list, LeaveRecordList.class);
@@ -169,6 +177,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 * @param processId 流程编号
 	 */
 	@SysLog("获取离职审批记录详情")
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/record/detail/{processId}")
 	public Result getLeaveApplicationRecord(@PathVariable("processId") String processId){
 	    List<SmtProcessRecord> list = smtLeaveApplicationService.getLeaveApplication(processId);

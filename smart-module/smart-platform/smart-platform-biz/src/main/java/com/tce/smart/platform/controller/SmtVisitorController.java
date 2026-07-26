@@ -3,6 +3,7 @@ package com.tce.smart.platform.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.model.Result;
+import org.springframework.beans.BeanUtils;
 import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
@@ -10,13 +11,11 @@ import com.tce.smart.platform.api.dto.SmtVisitorDTO;
 import com.tce.smart.platform.api.dto.req.VisitorAgainReqDTO;
 import com.tce.smart.platform.api.dto.req.VisitorRecordReqDTO;
 import com.tce.smart.platform.api.dto.resp.SearchAppSmtVisitorRespDTO;
-import com.tce.smart.platform.api.dto.resp.SearchAppVisitorDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
 import com.tce.smart.platform.core.dto.*;
 import com.tce.smart.platform.core.entity.SaveSmtVisitor;
 import com.tce.smart.platform.core.entity.SmtVisitor;
 import com.tce.smart.platform.core.vo.SearchAppSmtVisitorVO;
-import com.tce.smart.platform.core.vo.SearchAppVisitorDetailVO;
 import com.tce.smart.platform.core.vo.SearchSmtVisitorVO;
 import com.tce.smart.platform.service.SmtSnapVehicleService;
 import com.tce.smart.platform.service.SmtVisitorService;
@@ -28,7 +27,6 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
@@ -183,26 +181,6 @@ public class SmtVisitorController extends BaseController {
 	 * @param id id
 	 * @return Result
 	 */
-	@SysLog("通过id查询访客的详情")
-	@SuppressWarnings("rawtypes")
-	@GetMapping("/searchVisitorDetail/{id}")
-	public Result searchVisitorDetail(@PathVariable("id") Long id){
-		return new Result<>(smtVisitorService.searchVisitorDetailById(id, smtSnapVehicleService));
-	}
-	/**
-	 * app端通过id查询访客的详情
-	 * @param id id
-	 * @return Result
-	 */
-	@SysLog("app端通过id查询访客的详情")
-	@SuppressWarnings("rawtypes")
-	@GetMapping("/app/searchAppVisitorDetail/{id}")
-	public Result<SearchAppVisitorDetailRespDTO> searchAppVisitorDetail(@PathVariable("id") Long id) {
-		SearchAppVisitorDetailVO searchAppVisitorDetailVO = smtVisitorService.searchAppVisitorDetailById(id);
-		SearchAppVisitorDetailRespDTO searchAppVisitorDetailRespDTO = new SearchAppVisitorDetailRespDTO();
-		BeanUtils.copyProperties(searchAppVisitorDetailVO, searchAppVisitorDetailRespDTO);
-		return success(searchAppVisitorDetailRespDTO);
-	}
 	/**
 	 * app端通过查询访客的信息
 	 * @param searchAppVisitorDTO

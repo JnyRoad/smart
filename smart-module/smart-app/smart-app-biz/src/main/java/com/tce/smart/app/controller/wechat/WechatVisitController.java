@@ -172,10 +172,8 @@ public class WechatVisitController extends BaseController {
 	 * 查询微信公众号预约记录详情
 	 * @return
 	 */
-	@ApiOperation("查询微信公众号预约记录详情")
-	@GetMapping("/record/detail")
 	public Result<VisitorDetailVo> getVisitRecordDetail(WechatVisitorRecordDetailReqDTO wechatVisitorRecordDetailReqDTO){
-		return new Result<>(visitorService.getVisitRecordDetail(wechatVisitorRecordDetailReqDTO));
+		throw new UnsupportedOperationException("旧微信公众号访客详情已下线");
 	}
 
 	/**
@@ -192,9 +190,7 @@ public class WechatVisitController extends BaseController {
 	 * 通过预约记录ID查询预约详情
 	 * @return
 	 */
-	@ApiOperation("通过预约记录ID查询预约详情")
-	@GetMapping("/record/detailById/{id}")
 	public Result<VisitorDetailVo> getVisitRecordDetailById(@ApiParam(name = "id",value = "记录ID",required = true) @RequestParam Long id){
-		return new Result<>(visitorService.getVisitRecordDetailById(id));
+		throw new UnsupportedOperationException("旧微信公众号访客详情已下线");
 	}
 }
