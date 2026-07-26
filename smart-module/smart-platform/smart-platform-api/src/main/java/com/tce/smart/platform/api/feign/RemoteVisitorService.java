@@ -124,23 +124,19 @@ public interface RemoteVisitorService {
 	@PostMapping("/visitor/wechat/searchReceptionist")
 	Result<SmtVisitorDTO> SearchReceptionistForWechat(@RequestBody SmtVisitorDTO smtVisitor,@RequestHeader(SecurityConstants.FROM) String from);
 
-	/**
-	 * 检测车牌号是否是黑名单
-	 * @param smtVisitor
-	 * @param fromIn
-	 * @return
-	 */
-	@PostMapping("/visitor/checkBlackVehicle")
-	Result<?> checkBlackVehicle(@RequestBody SmtVisitorDTO smtVisitor, @RequestHeader(SecurityConstants.FROM) String fromIn);
+	/** 访客身份证黑名单校验仅供 Smart App 服务端调用；结果只能是是否允许预约。 */
+	@PostMapping("/internal/visitor-blacklist/visitor")
+	Result<Boolean> checkVisitorBlacklist(@RequestBody SmtVisitorDTO smtVisitor,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
-	/**
-	 * 检测身份证号是否是黑名单
-	 * @param smtVisitor
-	 * @param fromIn
-	 * @return
-	 */
-	@PostMapping("/visitor/checkBlackVisitor")
-	Result<?> checkBlackVisitor(@RequestBody SmtVisitorDTO smtVisitor, @RequestHeader(SecurityConstants.FROM) String fromIn);
+	/** 访客车牌黑名单校验仅供 Smart App 服务端调用；结果只能是是否允许预约。 */
+	@PostMapping("/internal/visitor-blacklist/vehicle")
+	Result<Boolean> checkVehicleBlacklist(@RequestBody SmtVisitorDTO smtVisitor,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 * App 在执行匿名访客上传或黑名单校验前原子消费 capability。

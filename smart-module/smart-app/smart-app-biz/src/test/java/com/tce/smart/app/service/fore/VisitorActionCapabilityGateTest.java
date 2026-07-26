@@ -20,8 +20,10 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Collections;
+import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 /** 匿名访客上传必须先在 Platform 原子消费与图片摘要绑定的 capability。 */
@@ -108,8 +110,52 @@ public class VisitorActionCapabilityGateTest {
 			assertEquals(VisitorActionCapabilityAction.BLACKLIST_CHECK, consume.getValue().getAction());
 			assertEquals("5b012e396a3e0bc4c43b600a31d30d68b79a1f34f19aadf667e141a3a7c2440c",
 					consume.getValue().getPayloadHash());
-			Mockito.verify(visitorRemote, Mockito.never()).checkBlackVisitor(Mockito.any(), Mockito.anyString());
+			Mockito.verify(visitorRemote, Mockito.never()).checkVisitorBlacklist(Mockito.any(), Mockito.anyString(),
+					Mockito.anyString(), Mockito.anyString());
 		}
+	}
+
+	/**
+	 * 访客黑名单的身份证和车牌检查都必须经专用内部路由，并显式触发独立服务令牌。
+	 */
+	@Test
+	public void blacklistFeignContractsRequireServiceTokenAndExactPurpose() throws Exception {
+		assertBlacklistContract("checkVisitorBlacklist", "/internal/visitor-blacklist/visitor");
+		assertBlacklistContract("checkVehicleBlacklist", "/internal/visitor-blacklist/vehicle");
+	}
+
+	@Test
+	public void blacklistCapabilityUsesDedicatedServiceTokenAndPurpose() {
+		RemoteVisitorService visitorRemote = Mockito.mock(RemoteVisitorService.class);
+		RemoteSmtImageService imageRemote = Mockito.mock(RemoteSmtImageService.class);
+		Mockito.when(visitorRemote.consumeVisitorActionCapability(Mockito.any(VisitorActionCapabilityConsumeReqDTO.class),
+				Mockito.anyString(), Mockito.anyString())).thenReturn(Result.success(Boolean.TRUE));
+		Mockito.when(visitorRemote.checkVisitorBlacklist(Mockito.any(), Mockito.anyString(), Mockito.anyString(),
+				Mockito.anyString())).thenReturn(Result.success(Boolean.TRUE));
+		AddVisitorAo request = new AddVisitorAo();
+		request.setVisitorName("张三");
+		request.setCertNo(" 11010119900101001x ");
+		request.setParkId(1);
+
+		assertEquals(Boolean.TRUE, service(visitorRemote, imageRemote).checkBlackVisitor(request, "ticket", "draft-1").getData());
+		ArgumentCaptor<com.tce.smart.platform.api.dto.SmtVisitorDTO> blacklistRequest = ArgumentCaptor.forClass(
+				com.tce.smart.platform.api.dto.SmtVisitorDTO.class);
+		Mockito.verify(visitorRemote).checkVisitorBlacklist(blacklistRequest.capture(), Mockito.eq(SecurityConstants.FROM_IN),
+				Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED), Mockito.eq("visitor-blacklist"));
+		assertEquals("11010119900101001X", blacklistRequest.getValue().getCertNo());
+	}
+
+	private void assertBlacklistContract(String methodName, String route) throws Exception {
+		Method method = RemoteVisitorService.class.getMethod(methodName, com.tce.smart.platform.api.dto.SmtVisitorDTO.class,
+				String.class, String.class, String.class);
+		assertNotNull(method.getAnnotation(org.springframework.web.bind.annotation.PostMapping.class));
+		assertEquals(route, method.getAnnotation(org.springframework.web.bind.annotation.PostMapping.class).value()[0]);
+		assertEquals(SecurityConstants.FROM,
+				method.getParameters()[1].getAnnotation(org.springframework.web.bind.annotation.RequestHeader.class).value());
+		assertEquals(SecurityConstants.INTERNAL_SERVICE_AUTH,
+				method.getParameters()[2].getAnnotation(org.springframework.web.bind.annotation.RequestHeader.class).value());
+		assertEquals("X-Smart-Internal-Purpose",
+				method.getParameters()[3].getAnnotation(org.springframework.web.bind.annotation.RequestHeader.class).value());
 	}
 
 	private VisitorServiceImpl service(RemoteVisitorService visitorRemote, RemoteSmtImageService imageRemote) {

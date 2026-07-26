@@ -31,7 +31,6 @@ import com.tce.smart.common.core.util.BeanUtils;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.util.WebUtils;
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.data.api.dto.ehrview.resp.EvwEmphrYsBlackRespDTO;
 import com.tce.smart.data.api.dto.msg.req.*;
 import com.tce.smart.data.api.feign.ehrview.RemoteEvwEmphrYsService;
 import com.tce.smart.data.api.feign.msg.RemoteOaWorkFlowService;
@@ -432,13 +431,11 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 				throw new TCEException("此访客已被加入访客黑名单，不能邀请");
 			}
 
-			Result<List<EvwEmphrYsBlackRespDTO>> black = remoteEvwEmphrYsService.getBlackInfo(smtVisitor.getCertNo(), SecurityConstants.FROM_IN);
+			Result<Boolean> black = remoteEvwEmphrYsService.getVisitorBlacklistStatus(smtVisitor.getCertNo(),
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "visitor-blacklist");
 			if (black.isSuccess()) {
-				if (black.getData() != null) {
-					List<EvwEmphrYsBlackRespDTO> data = black.getData();
-					if (data.size() > 0) {
-						throw new TCEException("此访客已被加入访客黑名单，不能邀请");
-					}
+				if (Boolean.TRUE.equals(black.getData())) {
+					throw new TCEException("此访客已被加入访客黑名单，不能邀请");
 				}
 			}
 		}
@@ -2583,17 +2580,15 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 		// TODO Auto-generated method stub
 		//判断此人员是不是 加入黑名单  false-黑名单   true-不是黑名单
 		SmtBlackVisitor smtBlackVisitor = smtBlackVisitorService.getOne(Wrappers.<SmtBlackVisitor>query().lambda().eq(SmtBlackVisitor::getCardNo, smtVisitor.getCertNo()));
-		log.info("smtBlackVisitor:" + smtBlackVisitor);
+		log.info("访客本地黑名单命中={}", Objects.nonNull(smtBlackVisitor));
 		if (Objects.nonNull(smtBlackVisitor)) {
 			return false;
 		}
 
-		Result<List<EvwEmphrYsBlackRespDTO>> black = remoteEvwEmphrYsService.getBlackInfo(smtVisitor.getCertNo(), SecurityConstants.FROM_IN);
+		Result<Boolean> black = remoteEvwEmphrYsService.getVisitorBlacklistStatus(smtVisitor.getCertNo(),
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "visitor-blacklist");
 		if (black.isSuccess()) {
-			if (black.getData() != null) {
-				List<EvwEmphrYsBlackRespDTO> data = black.getData();
-                return data.size() <= 0;
-			}
+			return !Boolean.TRUE.equals(black.getData());
 		}
 
 		return true;

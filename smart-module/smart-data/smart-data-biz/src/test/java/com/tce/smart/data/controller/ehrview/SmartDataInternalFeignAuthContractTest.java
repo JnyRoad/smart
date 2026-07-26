@@ -20,7 +20,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class SmartDataInternalFeignAuthContractTest {
 
-	private static final int EXPECTED_INTERNAL_ROUTE_COUNT = 46;
+	private static final int EXPECTED_INTERNAL_ROUTE_COUNT = 47;
 	private static final Pattern CLASS_MAPPING = Pattern.compile("@RequestMapping\\(\\\"([^\\\"]+)\\\"\\)");
 	private static final Pattern INNER_MAPPING = Pattern.compile(
 			"@Inner\\s+@OpenApi\\(\\\"server\\\"\\)\\s+@(GetMapping|PostMapping)\\(\\\"([^\\\"]+)\\\"\\)");
@@ -57,9 +57,12 @@ public class SmartDataInternalFeignAuthContractTest {
 			new CallerExpectation(
 					"smart-module/smart-app/smart-app-biz/src/main/java/com/tce/smart/app/service/fore/impl/EmployeeServiceImpl.java",
 					"remoteEvwEmphrYsService.info("),
-			new CallerExpectation(
-					"smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/impl/SmtBlackVisitorServiceImpl.java",
-					"remoteEvwEmphrYsService.getBlack("),
+		new CallerExpectation(
+				"smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/impl/SmtBlackVisitorServiceImpl.java",
+				"remoteEvwEmphrYsService.getBlack("),
+		new CallerExpectation(
+				"smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/impl/SmtVisitorServiceImpl.java",
+				"remoteEvwEmphrYsService.getVisitorBlacklistStatus("),
 			new CallerExpectation(
 					"smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/impl/OAWorkflowServiceImpl.java",
 					"remoteEvwEmphrYsService.leave("),
@@ -97,7 +100,7 @@ public class SmartDataInternalFeignAuthContractTest {
 			}
 		}
 
-		assertEquals("A 组应覆盖且只覆盖 46 个 EHR 内部路由", EXPECTED_INTERNAL_ROUTE_COUNT, internalRouteCount);
+		assertEquals("A 组应覆盖且只覆盖 47 个 EHR 内部路由", EXPECTED_INTERNAL_ROUTE_COUNT, internalRouteCount);
 	}
 
 	@Test

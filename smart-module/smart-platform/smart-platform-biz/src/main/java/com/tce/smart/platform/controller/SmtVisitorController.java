@@ -315,16 +315,6 @@ public class SmtVisitorController extends BaseController {
 //		 visitorTimingTaskService.VisitorSengMsg();
 //		  return success();
 //	  }
-	  @PostMapping("/checkBlackVisitor")
-	  public Result checkBlackVisitor(@RequestBody SmtVisitor smtVisitor) {
-		  return new Result<>(smtVisitorService.checkBlackVisitor(smtVisitor));
-	  }
-
-
-	  @PostMapping("/checkBlackVehicle")
-	  public Result checkBlackVehicle(@RequestBody SmtVisitor smtVisitor) {
-		  return new Result<>(smtVisitorService.checkBlackVehicle(smtVisitor));
-	  }
 	  /**
 	   * 查询访客拒绝原因
 	   * @return

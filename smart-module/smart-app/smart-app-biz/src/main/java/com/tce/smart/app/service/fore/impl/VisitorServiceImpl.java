@@ -79,6 +79,7 @@ import java.util.Objects;
 @AllArgsConstructor
 @Slf4j
 public class VisitorServiceImpl implements VisitorService {
+	private static final String VISITOR_BLACKLIST_PURPOSE = "visitor-blacklist";
 	@Autowired
 	private RemoteVisitorService remoteVisitorService;
 
@@ -655,9 +656,10 @@ public class VisitorServiceImpl implements VisitorService {
 				blacklistPayloadHash(addVisitorAo));
 		SmtVisitorDTO smtVisitor = new SmtVisitorDTO();
 		smtVisitor.setVisitorName(addVisitorAo.getVisitorName());
-		smtVisitor.setCertNo(addVisitorAo.getCertNo());
+		smtVisitor.setCertNo(normalizeCertNo(addVisitorAo.getCertNo()));
 		smtVisitor.setParkId(addVisitorAo.getParkId());
-		return remoteVisitorService.checkBlackVisitor(smtVisitor, SecurityConstants.FROM_IN);
+		return remoteVisitorService.checkVisitorBlacklist(smtVisitor, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, VISITOR_BLACKLIST_PURPOSE);
 	}
 
 	/**
@@ -728,8 +730,13 @@ public class VisitorServiceImpl implements VisitorService {
 			return null;
 		}
 		String visitorName = request.getVisitorName().replaceAll("\\s+", "");
-		String certNo = request.getCertNo().replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT);
+		String certNo = normalizeCertNo(request.getCertNo());
 		return sha256(visitorName + "|" + certNo + "|" + request.getParkId());
+	}
+
+	/** capability 摘要与实际查询必须使用同一证件号规范，避免空白或小写 X 绕过黑名单。 */
+	private String normalizeCertNo(String certNo) {
+		return certNo == null ? null : certNo.replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT);
 	}
 
 	/** 缺票、错票、过期和重放统一以 403 失败，不暴露图片存储或黑名单查询状态。 */
@@ -777,7 +784,8 @@ public class VisitorServiceImpl implements VisitorService {
 		SmtVisitorDTO smtVisitor = new SmtVisitorDTO();
 		smtVisitor.setVehiclePlate(addVisitorAo.getPlateNumber());
 		smtVisitor.setParkId(addVisitorAo.getParkId());
-		return remoteVisitorService.checkBlackVehicle(smtVisitor, SecurityConstants.FROM_IN);
+		return remoteVisitorService.checkVehicleBlacklist(smtVisitor, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, VISITOR_BLACKLIST_PURPOSE);
 	}
 
 	@Override

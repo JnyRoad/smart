@@ -4,7 +4,6 @@ import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.constant.ServiceNameConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.data.api.dto.ehrview.EvwEmphrYsDTO;
-import com.tce.smart.data.api.dto.ehrview.resp.EvwEmphrYsBlackRespDTO;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwEmphrYsRespDTO;
 import com.tce.smart.data.api.dto.ehrview.resp.YsLeaveRespDTO;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -77,16 +76,12 @@ public interface RemoteEvwEmphrYsService {
 										 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
-	/**
-	 * 获取黑名单list
-	 * @param cerNo
-	 * @param name
-	 * @param from
-	 * @return
-	 */
-	@GetMapping("/emphr/ys/getBlackInfo")
-    Result<List<EvwEmphrYsBlackRespDTO>> getBlackInfo(@RequestParam("cerNo") String cerNo,
-		@RequestHeader(SecurityConstants.FROM) String from);
+	/** 访客身份证黑名单状态仅供 Platform 服务端读取，禁止返回人员黑名单 DTO。 */
+	@GetMapping("/emphr/ys/internal/visitor-blacklist-status")
+	Result<Boolean> getVisitorBlacklistStatus(@RequestParam("cerNo") String cerNo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 
 

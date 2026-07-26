@@ -20,6 +20,12 @@ security:
     # App 消费访客单次操作能力时，只允许配置的 OAuth client；未配置时内部接口拒绝调用。
     visitor-action:
       app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+    # App 车辆代理必须使用独立的 server token client；空值会拒绝所有车辆代理调用。
+    vehicle:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+    # App 的访客黑名单校验只允许专属服务客户端；未配置时内部路由拒绝调用。
+    visitor-blacklist:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
   oauth2:
     client:
       client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # platform
