@@ -717,14 +717,22 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public Result addVehiclePark(ApplyAuthDTO smtVehicleApply) {
-		boolean result = false;
-
 		SmtStaff staff = this.baseMapper.selectOne(Wrappers.<SmtStaff>query().lambda().eq(SmtStaff::getBadge, smtVehicleApply.getBadge()));
 		if (ObjectUtil.isNull(staff)) {
 			return new Result(false, "未找到员工信息 ");
 		}
 		assertStaffParkAccess(staff, smtVehicleApply.getParkId());
-		requireOwnedVehicle(staff, smtVehicleApply.getPlateNumber());
+		SmtVehicle ownedVehicle = requireOwnedVehicle(staff, smtVehicleApply.getPlateNumber());
+		return addVehicleParkForOwnedVehicle(staff, ownedVehicle, smtVehicleApply);
+	}
+
+	/**
+	 * 使用已校验归属的车辆创建入园申请，后续流程不得按车牌重新查询车辆。
+	 * 同一车牌可能在不同园区存在多条记录，重新按车牌查询会将申请错误绑定到其他员工的车辆。
+	 */
+	protected Result addVehicleParkForOwnedVehicle(SmtStaff staff, SmtVehicle ownedVehicle,
+			ApplyAuthDTO smtVehicleApply) {
+		boolean result = false;
 
 		List<SmtParkVehicleLevel> list = smtParkVehicleLevelService.list(Wrappers.<SmtParkVehicleLevel>query().lambda()
 				.eq(SmtParkVehicleLevel::getParkId, smtVehicleApply.getParkId()).eq(SmtParkVehicleLevel::getJcheId, staff.getJcheId()));
@@ -732,32 +740,26 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 			return new Result(false, "您的职层不符合申请入园条件 ");
 		}
 
-		SmtVehicle selectone = smtVehicleService.getOne(Wrappers.<SmtVehicle>query().lambda()
-				.eq(SmtVehicle::getVehiclePlate, smtVehicleApply.getPlateNumber())
-				.eq(SmtVehicle::getIsDelete, VehicleConstants.UNDELETED));
-		if (ObjectUtil.isNotNull(selectone)) {
-			Integer jchebusinessCode = smtJcheAuthService.getJchebusinessCode(Integer.parseInt(staff.getJcheId()), smtVehicleApply.getParkId());
-			SmtBusinessDeviceAuth businessDeviceAuth = smtBusinessDeviceAuthService.getOne(new LambdaQueryWrapper<SmtBusinessDeviceAuth>().eq(SmtBusinessDeviceAuth::getBusinessCode, jchebusinessCode)
-					.eq(SmtBusinessDeviceAuth::getParkId, smtVehicleApply.getParkId()));
-			//设置车辆的权限
-			//selectone.setAuthorityId(businessDeviceAuth.getAuthId());
-			//smtVehicleService.updateById(selectone);
+		Integer jchebusinessCode = smtJcheAuthService.getJchebusinessCode(Integer.parseInt(staff.getJcheId()), smtVehicleApply.getParkId());
+		SmtBusinessDeviceAuth businessDeviceAuth = smtBusinessDeviceAuthService.getOne(new LambdaQueryWrapper<SmtBusinessDeviceAuth>().eq(SmtBusinessDeviceAuth::getBusinessCode, jchebusinessCode)
+				.eq(SmtBusinessDeviceAuth::getParkId, smtVehicleApply.getParkId()));
 
-			int total = smtVehicleService.getApplyVehicle(smtVehicleApply.getParkId(), StrUtil.removeAll(smtVehicleApply.getPlateNumber(), " ").toUpperCase(), VehicleConstants.UNDELETED, VehicleApplyConstants.REJECTED);
-			if (total == 0) {
-				SmtVehicleApply vehicleApply = new SmtVehicleApply();
-				vehicleApply.setParkId(Integer.toString(smtVehicleApply.getParkId()));
-				vehicleApply.setVehiclePlate(smtVehicleApply.getPlateNumber());
-				vehicleApply.setVehicleId(selectone.getId());
-				vehicleApply.setCreateTime(LocalDateTime.now());
-				vehicleApply.setStatus(VehicleApplyConstants.APPROVAL);
-				vehicleApply.setAuthorityId(businessDeviceAuth.getAuthId());
-				log.info(vehicleApply.toString());
-				result = vehicleApply.insert();
-			} else {
-				return new Result(false, "车辆已有入园权限，不能重复申请");
-			}
+		int total = smtVehicleService.getApplyVehicle(smtVehicleApply.getParkId(),
+				StrUtil.removeAll(ownedVehicle.getVehiclePlate(), " ").toUpperCase(), VehicleConstants.UNDELETED,
+				VehicleApplyConstants.REJECTED);
+		if (total != 0) {
+			return new Result(false, "车辆已有入园权限，不能重复申请");
 		}
+
+		SmtVehicleApply vehicleApply = new SmtVehicleApply();
+		vehicleApply.setParkId(Integer.toString(smtVehicleApply.getParkId()));
+		vehicleApply.setVehiclePlate(ownedVehicle.getVehiclePlate());
+		vehicleApply.setVehicleId(ownedVehicle.getId());
+		vehicleApply.setCreateTime(LocalDateTime.now());
+		vehicleApply.setStatus(VehicleApplyConstants.APPROVAL);
+		vehicleApply.setAuthorityId(businessDeviceAuth.getAuthId());
+		log.info(vehicleApply.toString());
+		result = vehicleApply.insert();
 		return new Result<>(result);
 	}
 
