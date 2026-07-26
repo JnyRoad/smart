@@ -7,11 +7,14 @@ import {
   cropVisitorFace,
   getCauseEnum,
   getAreaOptions,
+  getTruckCauseEnum,
   getVisitorOpenId,
   saveVisitorApply,
+  saveTruckApply,
   searchReceptionist,
   uploadVisitorDocument,
   uploadVisitorPhoto,
+  verifyTruckSms,
   type VisitorFaceDraft,
 } from './api'
 
@@ -290,5 +293,47 @@ describe('visitor entry capability contract', () => {
       'X-Visitor-Draft-Token': 'draft-token',
       'X-Visitor-Draft-Id': 'draft-id',
     })
+  })
+})
+
+describe('truck visitor SMS proof contract', () => {
+  it('uses one SMS proof for truck cause options and application submission', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { proof: 'truck-proof' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: [{ code: '1', desc: '送货' }] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: {} })))
+
+    await expect(verifyTruckSms('13800000000', '123456')).resolves.toEqual({
+      code: 0,
+      data: { proof: 'truck-proof' },
+    })
+    await getTruckCauseEnum('truck-proof')
+    await saveTruckApply({ visitorName: '货车司机' }, 'truck-proof')
+
+    const [verifyUrl, verifyInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(verifyUrl).toBe('/platform/admittance/visitor-truck/verify-sms')
+    expect(verifyInit.method).toBe('POST')
+    expect(JSON.parse(verifyInit.body as string)).toEqual({ mobile: '13800000000', smsCode: '123456' })
+
+    const [optionsUrl, optionsInit] = fetchMock.mock.calls[1] as [string, RequestInit]
+    expect(optionsUrl).toBe('/platform/admittance/visitor-truck/options/cause')
+    expect(optionsInit.headers).toMatchObject({ 'X-Visitor-Truck-Sms-Proof': 'truck-proof' })
+
+    const [applyUrl, applyInit] = fetchMock.mock.calls[2] as [string, RequestInit]
+    expect(applyUrl).toBe('/platform/admittance/visitor-truck/apply')
+    expect(applyInit.method).toBe('POST')
+    expect(applyInit.headers).toMatchObject({ 'X-Visitor-Truck-Sms-Proof': 'truck-proof' })
+    expect(JSON.parse(applyInit.body as string)).toEqual({ visitorName: '货车司机' })
+  })
+
+  it('contains no legacy anonymous truck option or application route', () => {
+    const source = readFileSync('src/features/visitor/api.ts', 'utf8')
+    expect(source).not.toContain("url: '/admittance/apply/enum/car/cause'")
+    expect(source).not.toContain("url: '/admittance/apply/save/car/apply'")
+  })
+
+  it('refuses to call a truck endpoint without an SMS proof', () => {
+    expect(() => getTruckCauseEnum('')).toThrow('短信验证已失效')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

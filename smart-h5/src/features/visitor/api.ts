@@ -79,14 +79,6 @@ export async function searchReceptionist(data: {
   })
 }
 
-export function getPersonCertEnum() {
-  return request<Envelope<EnumItem[]>>({
-    module: 'platform',
-    url: '/admittance/apply/enum/person/cert',
-    auth: 'none',
-  })
-}
-
 export function getCauseEnum(visitorDraft: VisitorFaceDraft) {
   return request<Envelope<EnumItem[]>>({
     module: 'platform',
@@ -105,20 +97,18 @@ export function getVehicleCertEnum(visitorDraft: VisitorFaceDraft) {
   })
 }
 
-export function getTruckCauseEnum() {
-  return request<Envelope<EnumItem[]>>({
-    module: 'platform',
-    url: '/admittance/apply/enum/car/cause',
-    auth: 'none',
-  })
+/** 货车访客短信校验成功后由服务端签发的短时、不可猜测凭证。 */
+export interface TruckSmsVerification {
+  proof?: string
 }
 
-export function getAreaTypeList() {
+/** 货车来访事由只能由已完成手机短信验证的访客查询。 */
+export function getTruckCauseEnum(smsProof: string) {
   return request<Envelope<EnumItem[]>>({
     module: 'platform',
-    url: '/admittance/area/type/list',
-    params: { type: 2 },
+    url: '/admittance/visitor-truck/options/cause',
     auth: 'none',
+    headers: truckSmsProofHeaders(smsProof),
   })
 }
 
@@ -133,7 +123,7 @@ export interface FactoryAreaConfig {
   areas?: { code: string; name: string; isCommon?: number }[]
 }
 
-/** Raw shape returned by /admittance/apply/app/area-options (data is an object). */
+/** 受草稿保护的区域选项接口返回的原始结构（data 是对象）。 */
 export interface AreaOptionsResponse {
   parkId?: number
   inlineAreaLimit?: number
@@ -153,15 +143,6 @@ export function getAreaOptions(parkId: number, visitorDraft: VisitorFaceDraft) {
     params: { parkId },
     auth: 'none',
     headers: visitorDraftHeaders(visitorDraft),
-  })
-}
-
-export function getFactoryTypeEnum(flag: 0 | 1) {
-  return request<Envelope<EnumItem[]>>({
-    module: 'platform',
-    url: '/admittance/apply/enum/factory/type',
-    params: { flag },
-    auth: 'none',
   })
 }
 
@@ -195,6 +176,19 @@ export function verifyVisitorSms(mobile: string, smsCode: string) {
   return request<Envelope<unknown>>({
     module: 'app',
     url: '/sms/visitor/verify',
+    method: 'POST',
+    data: { mobile, smsCode },
+    auth: 'none',
+  })
+}
+
+/**
+ * 货车预约单独换取提交凭证，不能复用普通访客短信校验结果，避免跨流程重放。
+ */
+export function verifyTruckSms(mobile: string, smsCode: string) {
+  return request<Envelope<TruckSmsVerification>>({
+    module: 'platform',
+    url: '/admittance/visitor-truck/verify-sms',
     method: 'POST',
     data: { mobile, smsCode },
     auth: 'none',
@@ -325,14 +319,24 @@ function applyPayload(data: Record<string, unknown>): string {
   ].join('')
 }
 
-export function saveTruckApply(data: Record<string, unknown>) {
+/** 货车申请只接收此前短信校验签发的凭证；凭证仅通过请求头传递，绝不写入请求体。 */
+export function saveTruckApply(data: Record<string, unknown>, smsProof: string) {
   return request<Envelope<unknown>>({
     module: 'platform',
-    url: '/admittance/apply/save/car/apply',
+    url: '/admittance/visitor-truck/apply',
     method: 'POST',
     data,
     auth: 'none',
+    headers: truckSmsProofHeaders(smsProof),
   })
+}
+
+/** 缺失凭证时在浏览器侧提前失败，服务端仍是最终校验边界。 */
+function truckSmsProofHeaders(smsProof: string): Record<string, string> {
+  if (!smsProof.trim()) {
+    throw new Error('短信验证已失效，请重新获取验证码')
+  }
+  return { 'X-Visitor-Truck-Sms-Proof': smsProof }
 }
 
 /** 访客人脸裁剪只允许草稿会话；草稿缺失必须重新 OAuth，绝不降级到员工端点。 */

@@ -59,6 +59,10 @@ security:
         - /admittance/apply/app/applyDetail
         - /admittance/apply/app/approvalProgress
         - /admittance/apply/app/passCode
+        # 货车预约只公开短信核验和持 proof 的最小三端点，禁止放宽旧 apply 路由。
+        - /admittance/visitor-truck/verify-sms
+        - /admittance/visitor-truck/options/cause
+        - /admittance/visitor-truck/apply
         # 简历公开流程仅放行受一次性 HttpOnly capability 约束的两个 POST 路径，禁止使用 /regist/**。
         - /regist/save/identification
         - /regist/face/crop

@@ -1,26 +1,44 @@
 import { expect, test, type Page } from '@playwright/test'
 
+const LEGACY_TRUCK_ENDPOINTS = [
+  '/admittance/apply/enum/car/cause',
+  '/admittance/apply/save/car/apply',
+]
+
+/** 成功货车链路不得回退到无短信 proof 的历史接口。 */
+function observeNoLegacyTruckRequests(page: Page) {
+  const legacyRequests: string[] = []
+  page.on('request', (request) => {
+    const pathname = new URL(request.url()).pathname
+    if (LEGACY_TRUCK_ENDPOINTS.includes(pathname)) legacyRequests.push(pathname)
+  })
+  return () => expect(legacyRequests).toEqual([])
+}
+
 async function mockTruckApis(page: Page) {
-  await page.route('**/platform/admittance/apply/enum/car/cause', (route) =>
-    route.fulfill({ json: { code: 0, data: [{ code: 11, desc: '送货' }, { code: 12, desc: '提货' }] } }),
-  )
   await page.route('**/app/sms/visitor/send', (route) => route.fulfill({ json: { code: 0 } }))
-  await page.route('**/app/sms/visitor/verify', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/platform/admittance/visitor-truck/verify-sms', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ mobile: '13900003333', smsCode: '123456' })
+    await route.fulfill({ json: { code: 0, data: { proof: 'truck-sms-proof' } } })
+  })
+  await page.route('**/platform/admittance/visitor-truck/options/cause', async (route) => {
+    expect(route.request().headers()['x-visitor-truck-sms-proof']).toBe('truck-sms-proof')
+    await route.fulfill({ json: { code: 0, data: [{ code: 11, desc: '送货' }, { code: 12, desc: '提货' }] } })
+  })
 }
 
 test('货车预约：填表 → 短信验证 → 提交体正确 → 结果页', async ({ page }) => {
+  const expectNoLegacyRequests = observeNoLegacyTruckRequests(page)
   await mockTruckApis(page)
   let applyBody: Record<string, unknown> | undefined
-  await page.route('**/platform/admittance/apply/save/car/apply', async (route) => {
+  await page.route('**/platform/admittance/visitor-truck/apply', async (route) => {
+    expect(route.request().headers()['x-visitor-truck-sms-proof']).toBe('truck-sms-proof')
     applyBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0 } })
   })
 
   await page.goto('/visitor/truck')
   await page.getByPlaceholder('请输入车牌号').fill('B88888')
-  await page.getByText('请选择来访事由').click()
-  await page.getByText('送货').last().click()
-  await page.getByRole('button', { name: '确定' }).last().click()
   await page.getByPlaceholder('请输入访客姓名').fill('老司机')
   await page.getByPlaceholder('请输入出发地').fill('郑州中转仓')
   await page.getByText('请选择预约时间').click()
@@ -29,9 +47,14 @@ test('货车预约：填表 → 短信验证 → 提交体正确 → 结果页',
   await page.getByPlaceholder('点击输入手机号').fill('13900003333')
   await page.getByRole('button', { name: '获取验证码' }).click()
   await page.getByPlaceholder('点击输入验证码').fill('123456')
+  // 事由不再以裸匿名枚举预加载；点击后先换短信 proof，再按 proof 拉取可选项。
+  await page.getByText('请选择来访事由').click()
+  await page.getByText('送货').last().click()
+  await page.getByRole('button', { name: '确定' }).last().click()
   await page.getByRole('button', { name: '提交申请' }).click()
 
   await page.waitForURL('**/visitor/truck/result')
+  expectNoLegacyRequests()
   await expect(page.getByText('等待系统审批')).toBeVisible()
 
   const body = applyBody as Record<string, unknown>
@@ -50,11 +73,12 @@ test('货车预约：填表 → 短信验证 → 提交体正确 → 结果页',
 
 test('货车预约：验证码校验失败 toast 且不提交不跳转', async ({ page }) => {
   await mockTruckApis(page)
-  await page.route('**/app/sms/visitor/verify', (route) =>
-    route.fulfill({ json: { code: 1, message: '验证码错误或已过期' } }),
-  )
+  await page.route('**/platform/admittance/visitor-truck/verify-sms', (route) => {
+    expect(route.request().postDataJSON()).toEqual({ mobile: '13900003333', smsCode: '000000' })
+    return route.fulfill({ json: { code: 1, message: '验证码错误或已过期' } })
+  })
   let applyCalled = false
-  await page.route('**/platform/admittance/apply/save/car/apply', async (route) => {
+  await page.route('**/platform/admittance/visitor-truck/apply', async (route) => {
     applyCalled = true
     await route.fulfill({ json: { code: 0 } })
   })
