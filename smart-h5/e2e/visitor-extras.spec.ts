@@ -144,13 +144,9 @@ test('随行人员：增 → 列表 → 编辑 → 删除 → 空态；身份证
     expect(route.request().headers()['x-visitor-face-capability']).toBe('one-time-capability')
     return route.fulfill({ json: { code: 0, message: 'success', data: { imageData: 'cut-base64', uploadCapability: 'face-upload-capability' } } })
   })
-  await page.route('**/platform/admittance/visitor-action/capability', (route) => {
-    expectVisitorActionCapability(route.request(), 'DOCUMENT_UPLOAD')
-    return route.fulfill({ json: { code: 0, data: { capability: 'visitor-action-capability' } } })
-  })
   await page.route('**/app/wechat/visit/checkFace', (route) => {
     const headers = route.request().headers()
-    expect(headers['x-visitor-action-capability']).toBe('visitor-action-capability')
+    expect(headers['x-visitor-action-capability']).toBe('face-upload-capability')
     expect(headers['x-visitor-draft-id']).toBe('draft-id')
     return route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-fellow' } } })
   })

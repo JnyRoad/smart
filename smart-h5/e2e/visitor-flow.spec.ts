@@ -156,12 +156,12 @@ async function mockInfoApis(page: Page) {
     return route.fulfill({ json: { code: 0, message: 'success', data: { imageData: 'cut-base64', uploadCapability: 'face-upload-capability' } } })
   })
   await page.route('**/platform/admittance/visitor-action/capability', (route) => {
-    expectCapabilityIssueRequest(route.request(), ['DOCUMENT_UPLOAD', 'APPLY_PRECHECK'])
+    expectCapabilityIssueRequest(route.request(), 'APPLY_PRECHECK')
     return route.fulfill({ json: { code: 0, data: { capability: 'visitor-action-capability' } } })
   })
   await page.route('**/app/wechat/visit/checkFace', (route) => {
     const headers = route.request().headers()
-    expect(headers['x-visitor-action-capability']).toBe('visitor-action-capability')
+    expect(headers['x-visitor-action-capability']).toBe('face-upload-capability')
     expect(headers['x-visitor-draft-id']).toBe('draft-id')
     return route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-001' } } })
   })
@@ -264,7 +264,7 @@ test('访客照片上传：嵌套 data.photoId 取值（预览显示 + 存真实
   let checkFaceBody: Record<string, unknown> | undefined
   await page.route('**/app/wechat/visit/checkFace', async (route) => {
     const headers = route.request().headers()
-    expect(headers['x-visitor-action-capability']).toBe('visitor-action-capability')
+    expect(headers['x-visitor-action-capability']).toBe('face-upload-capability')
     expect(headers['x-visitor-draft-id']).toBe('draft-id')
     checkFaceBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-001' } } })
