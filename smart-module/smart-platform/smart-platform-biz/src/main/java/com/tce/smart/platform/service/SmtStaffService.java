@@ -63,7 +63,16 @@ public interface SmtStaffService extends IService<SmtStaff> {
 
 	List<VehicleApplyVO> getVehiclePark(String vehiclePlate);
 
+	/** App 本人车辆入园记录，只允许车辆关联的员工读取。 */
+	List<VehicleApplyVO> getVehicleParkForOwner(String vehiclePlate, String badge);
+
 	VehicleParkDetailVO getVehicleParkById(Integer id);
+
+	/** App 本人车辆证照详情，只允许车辆关联的员工读取。 */
+	VehicleParkDetailVO getVehicleParkByIdForOwner(Integer id, String badge);
+
+	/** App 本人删除车辆；车牌必须属于认证员工。 */
+	Result deleteVehicleForOwner(String vehiclePlate, String badge);
 
 	Result updatePhone(SmtStaff smtStaff);
 

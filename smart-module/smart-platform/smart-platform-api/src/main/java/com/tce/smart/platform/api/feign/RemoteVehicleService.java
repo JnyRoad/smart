@@ -8,6 +8,7 @@ import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
 import com.tce.smart.platform.api.dto.req.AddVehicleReqDTO;
 import com.tce.smart.platform.api.dto.req.ApplyAuthReqDTO;
 import com.tce.smart.platform.api.dto.resp.VehicleApplyRespDTO;
+import com.tce.smart.platform.api.dto.resp.VehicleAuthDetailRespDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,7 +38,7 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@GetMapping("/staff/getVehiclePark")
-	Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber, @RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
+	Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber, @RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 
 	/**
@@ -46,7 +47,7 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@GetMapping("/staff/getVehicleParkById/{id}")
-	Result<SmtVehicleRespDTO> getVehicleParkById(@PathVariable("id") Integer id,@RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
+	Result<VehicleAuthDetailRespDTO> getVehicleParkById(@PathVariable("id") Integer id, @RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 * 添加车辆
@@ -71,6 +72,6 @@ public interface RemoteVehicleService {
 	 * @return Result
 	 */
 	@GetMapping("/staff/delVehicle")
-	Result delVehicle(@RequestParam("plateNumber") String plateNumber,@RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
+	Result delVehicle(@RequestParam("plateNumber") String plateNumber, @RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from, @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth, @RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 }

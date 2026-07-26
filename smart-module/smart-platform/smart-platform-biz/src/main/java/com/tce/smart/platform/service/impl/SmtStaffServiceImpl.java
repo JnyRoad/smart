@@ -94,6 +94,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -144,6 +145,8 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	private SmtExternalDeptService smtExternalDeptService;
 	@Autowired
 	private SmtVehicleService smtVehicleService;
+	@Autowired
+	private SmtVehicleApplyService smtVehicleApplyService;
 	@Autowired
 	private RemoteDictService remoteDictService;
 	@Autowired
@@ -720,6 +723,8 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		if (ObjectUtil.isNull(staff)) {
 			return new Result(false, "未找到员工信息 ");
 		}
+		assertStaffParkAccess(staff, smtVehicleApply.getParkId());
+		requireOwnedVehicle(staff, smtVehicleApply.getPlateNumber());
 
 		List<SmtParkVehicleLevel> list = smtParkVehicleLevelService.list(Wrappers.<SmtParkVehicleLevel>query().lambda()
 				.eq(SmtParkVehicleLevel::getParkId, smtVehicleApply.getParkId()).eq(SmtParkVehicleLevel::getJcheId, staff.getJcheId()));
@@ -768,6 +773,19 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	}
 
 	@Override
+	public List<VehicleApplyVO> getVehicleParkForOwner(String vehiclePlate, String badge) {
+		SmtStaff staff = requireStaffByBadge(badge);
+		List<VehicleApplyVO> applications = this.baseMapper.getVehiclePark(requireOwnedVehicle(staff, vehiclePlate).getId());
+		if (applications == null) {
+			return Collections.emptyList();
+		}
+		Set<Integer> authorizedParkIds = getAuthorizedParkIds(staff);
+		return applications.stream()
+				.filter(application -> authorizedParkIds.contains(application.getParkId()))
+				.collect(Collectors.toList());
+	}
+
+	@Override
 	public VehicleParkDetailVO getVehicleParkById(Integer id) {
 		VehicleParkDetailVO smtVehicle = this.baseMapper.getVehicleParkById(id);
 		String driverLicenseId = "";
@@ -776,6 +794,26 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		String drivingLicenseId = smtImageService.getImageBase64ByCode(smtVehicle.getDrivinglLicenseId());
 		smtVehicle.setDrivinglLicenseId(drivingLicenseId);
 		return smtVehicle;
+	}
+
+	@Override
+	public VehicleParkDetailVO getVehicleParkByIdForOwner(Integer id, String badge) {
+		SmtVehicleApply application = smtVehicleApplyService.getById(id);
+		if (application == null) {
+			throw new AccessDeniedException("车辆入园申请不存在或无权访问");
+		}
+		SmtStaff staff = requireStaffByBadge(badge);
+		requireOwnedVehicleById(staff, application.getVehicleId());
+		assertStaffParkAccess(staff, parseParkId(application.getParkId()));
+		return getVehicleParkById(id);
+	}
+
+	@Override
+	public Result deleteVehicleForOwner(String vehiclePlate, String badge) {
+		SmtStaff staff = requireStaffByBadge(badge);
+		SmtVehicle vehicle = requireOwnedVehicle(staff, vehiclePlate);
+		assertAllVehicleApplicationParksAccessible(staff, vehicle.getId());
+		return new Result<>(smtVehicleService.deleteVehicle(vehicle.getId(), null));
 	}
 
 	@Override
@@ -1280,6 +1318,7 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		if (Objects.isNull(selectByBadge)) {
 			throw new TCEException("未找到员工信息");
 		}
+		assertStaffParkAccess(selectByBadge, parseParkId(addVehicleDTO.getParkId()));
 
 		//判断车辆是否已经添加
 		int count = smtVehicleService.count(Wrappers.<SmtVehicle>query().lambda()
@@ -1309,6 +1348,101 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 		/*ve.setParkId(selectByBadge.getParkId());*/  ///需要修改
 		//APP端申请时 只添加一条车辆表的数据和车辆员工关联表的数据
 		return smtVehicleService.saveSmtVehicleOnly(ve);
+	}
+
+	/**
+	 * 车牌不能只按值读取：同一个服务 token 也必须携带经 App 绑定的员工身份，
+	 * 并通过员工车辆关联表二次确认归属。
+	 */
+	private SmtVehicle requireOwnedVehicle(String badge, String vehiclePlate) {
+		return requireOwnedVehicle(requireStaffByBadge(badge), vehiclePlate);
+	}
+
+	private SmtStaff requireStaffByBadge(String badge) {
+		if (StrUtil.isBlank(badge)) {
+			throw new AccessDeniedException("员工不存在或无权访问车辆");
+		}
+		SmtStaff staff = this.baseMapper.selectOne(Wrappers.<SmtStaff>query().lambda().eq(SmtStaff::getBadge, badge));
+		if (staff == null) {
+			throw new AccessDeniedException("员工不存在或无权访问车辆");
+		}
+		return staff;
+	}
+
+	private SmtVehicle requireOwnedVehicle(SmtStaff staff, String vehiclePlate) {
+		if (StrUtil.isBlank(vehiclePlate)) {
+			throw new AccessDeniedException("车辆不存在或不属于当前员工");
+		}
+		String normalizedPlate = StrUtil.removeAll(vehiclePlate, " ").toUpperCase();
+		List<SmtVehicle> vehicles = smtVehicleService.list(Wrappers.<SmtVehicle>query().lambda()
+				.eq(SmtVehicle::getVehiclePlate, normalizedPlate)
+				.eq(SmtVehicle::getIsDelete, VehicleConstants.UNDELETED));
+		for (SmtVehicle vehicle : vehicles) {
+			if (vsService.count(Wrappers.<SmtVehicleStaff>query().lambda()
+					.eq(SmtVehicleStaff::getStaffId, staff.getId())
+					.eq(SmtVehicleStaff::getVehicleId, vehicle.getId())) > 0) {
+				return vehicle;
+			}
+		}
+		throw new AccessDeniedException("车辆不存在或不属于当前员工");
+	}
+
+	private SmtVehicle requireOwnedVehicleById(SmtStaff staff, Long vehicleId) {
+		SmtVehicle vehicle = smtVehicleService.getById(vehicleId);
+		if (vehicle == null || !Objects.equals(VehicleConstants.UNDELETED, vehicle.getIsDelete())) {
+			throw new AccessDeniedException("车辆不存在或无权访问");
+		}
+		if (vsService.count(Wrappers.<SmtVehicleStaff>query().lambda()
+				.eq(SmtVehicleStaff::getStaffId, staff.getId())
+				.eq(SmtVehicleStaff::getVehicleId, vehicleId)) == 0) {
+			throw new AccessDeniedException("车辆不存在或不属于当前员工");
+		}
+		return vehicle;
+	}
+
+	/** App 车辆新增与入园申请只能写入员工所属园区，不能借请求参数跨园区创建数据。 */
+	private void assertStaffParkAccess(SmtStaff staff, Integer parkId) {
+		if (parkId == null || !getAuthorizedParkIds(staff).contains(parkId)) {
+			throw new AccessDeniedException("车辆园区未获授权");
+		}
+	}
+
+	/** 车辆申请详情和删除均以当前员工实时园区范围为准，历史申请不能绕过园区变更继续读取。 */
+	private void assertAllVehicleApplicationParksAccessible(SmtStaff staff, Long vehicleId) {
+		Set<Integer> authorizedParkIds = getAuthorizedParkIds(staff);
+		List<SmtVehicleApply> applications = smtVehicleApplyService.list(Wrappers.<SmtVehicleApply>query().lambda()
+				.eq(SmtVehicleApply::getVehicleId, vehicleId));
+		if (CollUtil.isEmpty(applications)) {
+			return;
+		}
+		for (SmtVehicleApply application : applications) {
+			if (!authorizedParkIds.contains(parseParkId(application.getParkId()))) {
+				throw new AccessDeniedException("车辆园区未获授权");
+			}
+		}
+	}
+
+	private Set<Integer> getAuthorizedParkIds(SmtStaff staff) {
+		if (staff == null || StrUtil.isBlank(staff.getBadge())) {
+			throw new AccessDeniedException("车辆园区未获授权");
+		}
+		List<SmtPark> parks = getStaffPark(staff.getBadge());
+		if (CollUtil.isEmpty(parks)) {
+			return Collections.emptySet();
+		}
+		return parks.stream()
+				.filter(Objects::nonNull)
+				.map(SmtPark::getId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+	}
+
+	private Integer parseParkId(String parkId) {
+		try {
+			return Integer.valueOf(parkId);
+		} catch (NumberFormatException exception) {
+			throw new AccessDeniedException("车辆园区未获授权");
+		}
 	}
 
 

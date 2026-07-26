@@ -37,7 +37,6 @@ import com.tce.smart.tool.enums.StaffStatusEnum;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -350,10 +349,11 @@ public class SmtStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("/getVehiclePark")
 	public Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber,
+			@RequestParam("badge") String badge,
 			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
 			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
 		assertAppVehicleCaller(from, purpose);
-		return success(smtStaffService.getVehiclePark(plateNumber),VehicleApplyRespDTO.class);
+		return success(smtStaffService.getVehicleParkForOwner(plateNumber, badge),VehicleApplyRespDTO.class);
 	}
 
 	/**
@@ -365,14 +365,29 @@ public class SmtStaffController extends BaseController {
 	@Inner
 	@OpenApi("server")
 	@GetMapping("/getVehicleParkById/{id}")
-	public Result<SmtVehicleRespDTO> getVehicleParkById(@PathVariable("id") Integer id,
+	public Result<VehicleAuthDetailRespDTO> getVehicleParkById(@PathVariable("id") Integer id,
+			@RequestParam("badge") String badge,
 			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
 			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
 		assertAppVehicleCaller(from, purpose);
-		VehicleParkDetailVO smtVehicle = smtStaffService.getVehicleParkById(id);
-		SmtVehicleRespDTO smtVehicleRespDTO = new SmtVehicleRespDTO();
-		BeanUtils.copyProperties(smtVehicle, smtVehicleRespDTO);
-		return success(smtVehicleRespDTO);
+		VehicleParkDetailVO smtVehicle = smtStaffService.getVehicleParkByIdForOwner(id, badge);
+		return success(toVehicleAuthDetailResp(smtVehicle));
+	}
+
+	/**
+	 * 将已经完成归属和园区授权校验的领域详情映射为最小对外证照视图。
+	 * 不能使用 BeanUtils，以免领域对象新增敏感字段后被意外透出。
+	 */
+	private VehicleAuthDetailRespDTO toVehicleAuthDetailResp(VehicleParkDetailVO vehicle) {
+		VehicleAuthDetailRespDTO response = new VehicleAuthDetailRespDTO();
+		response.setVehiclePlate(vehicle.getVehiclePlate());
+		response.setVehicleBrand(vehicle.getVehicleBrand());
+		response.setVehicleColor(vehicle.getVehicleColor());
+		response.setVehicleType(vehicle.getVehicleType());
+		response.setDriverLicenseBase64(vehicle.getDriverLicenseId());
+		response.setDrivingLicenseBase64(vehicle.getDrivinglLicenseId());
+		response.setReason(vehicle.getReason());
+		return response;
 	}
 
 	@SysLog("app调用接口添加车辆")
@@ -391,12 +406,11 @@ public class SmtStaffController extends BaseController {
 	@OpenApi("server")
 	@GetMapping("delVehicle")
 	public Result delVehicle(@RequestParam("plateNumber") String plateNumber,
+			@RequestParam("badge") String badge,
 			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
 			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
 		assertAppVehicleCaller(from, purpose);
-		SmtVehicle vehicle = smtVehicleService.getOne(Wrappers.<SmtVehicle>query().lambda().eq(SmtVehicle::getVehiclePlate, StrUtil.removeAll(plateNumber, " ").toUpperCase())
-				.eq(SmtVehicle::getIsDelete, VehicleConstants.UNDELETED));
-		return new Result<>(smtVehicleService.deleteVehicle(vehicle.getId(),null));
+		return smtStaffService.deleteVehicleForOwner(plateNumber, badge);
 	}
 
 	/** 服务端 token 的 server scope 仍需与精确 App client 和车辆用途同时匹配。 */
