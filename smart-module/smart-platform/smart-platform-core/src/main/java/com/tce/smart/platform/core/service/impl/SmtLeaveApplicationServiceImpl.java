@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 离职申请表
@@ -33,12 +34,17 @@ public class SmtLeaveApplicationServiceImpl extends ServiceImpl<SmtLeaveApplicat
 
 	@Override
 	public IPage<LeaveRecordVO> getProcessRecord(Page page, String bagde, Integer leaveStatus) {
+		return getProcessRecord(page, bagde, leaveStatus, null);
+	}
+
+	@Override
+	public IPage<LeaveRecordVO> getProcessRecord(Page page, String bagde, Integer leaveStatus, Set<Integer> parkIds) {
 //		List<SmtLeaveApplication> list = this.list(Wrappers.<SmtLeaveApplication>query().lambda().eq
 //		(SmtLeaveApplication::getApplyBadge, bagde));
 //		if(CollectionUtils.isNotEmpty(list)){
 //			list.forEach(leaveApplication->getOAProcess(leaveApplication.getProcessId()));
 //		}
-		IPage<LeaveRecordVO> recordList = this.baseMapper.getLeaveRecordList(page, bagde, leaveStatus);
+		IPage<LeaveRecordVO> recordList = this.baseMapper.getLeaveRecordList(page, bagde, leaveStatus, parkIds);
 		return recordList;
 	}
 

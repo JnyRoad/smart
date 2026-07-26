@@ -32,6 +32,7 @@ public interface RemoteLeaveApplicationService {
 	Result saveForActor(@RequestBody LeaveApplicationReqDTO request,
 			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
 			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(value = "X-Smart-Actor-Current-Park-Id", required = false) Integer currentParkId,
 			@RequestHeader(SecurityConstants.FROM) String from,
 			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
 			@RequestHeader("X-Smart-Internal-Purpose") String purpose);

@@ -19,6 +19,7 @@ public class LeaveInternalActorContractTest {
 		String handover = source("LeaveHandoverServiceImpl.java");
 
 		assertTrue(application.contains("saveForActor(leaveApplicationDTO, badge"));
+		assertTrue(application.contains("leaveApplicationVO.getParkId()"));
 		assertTrue(application.contains("getYearHolidayForActor(currentActorBadge()"));
 		assertTrue(application.contains("getProcessRecordForActor(page.getCurrent(), page.getSize(), dimissionApplyType"));
 		assertTrue(application.contains("getForActor(processId, currentActorBadge()"));

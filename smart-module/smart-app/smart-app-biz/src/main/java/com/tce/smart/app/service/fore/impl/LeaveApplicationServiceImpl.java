@@ -49,9 +49,9 @@ public class LeaveApplicationServiceImpl implements LeaveApplicationService {
         leaveApplicationDTO.setLeaveType(leaveApplicationVO.getDimissionType());
         leaveApplicationDTO.setYearHoliday(leaveApplicationVO.getYearHoliday());
         leaveApplicationDTO.setLeaveTime(DateUtil.parse(leaveApplicationVO.getDimissionDate(), "yyyy-MM-dd"));
-        leaveApplicationDTO.setLeaveStatus(leaveApplicationVO.getDimissionApplyType());
+		leaveApplicationDTO.setLeaveStatus(leaveApplicationVO.getDimissionApplyType());
 		Result<?> result = remoteLeaveApplicationService.saveForActor(leaveApplicationDTO, badge,
-				currentActorParkIds(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
+				currentActorParkIds(), leaveApplicationVO.getParkId(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
 				APP_LEAVE_SELF_PURPOSE);
         return result;
     }

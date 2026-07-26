@@ -3,6 +3,7 @@ package com.tce.smart.platform.controller;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.constant.SecurityConstants;
+import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
@@ -71,6 +72,7 @@ public class InternalAppLeaveController extends BaseController {
 	public Result save(@RequestBody LeaveApplicationReqDTO request,
 			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
 			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = "X-Smart-Actor-Current-Park-Id", required = false) Integer currentParkId,
 			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
 			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
 		assertAppCaller(from, purpose);
@@ -80,8 +82,8 @@ public class InternalAppLeaveController extends BaseController {
 		}
 		LeaveApplicationDTO command = new LeaveApplicationDTO();
 		BeanUtils.copyProperties(request, command);
-		// 离职表只有单一园区列；多园区 actor 没有可信的当前园区时，宁可拒绝也不能猜测归属。
-		command.setParkId(resolveSingleActorPark(actorParkIds));
+		// 多园区选择仅能落在认证会话派生的园区集合中，不能使用请求体或集合顺序猜测归属。
+		command.setParkId(resolveActorPark(actorParkIds, currentParkId));
 		return leaveService.saveLeaveApplication(command);
 	}
 
@@ -107,8 +109,11 @@ public class InternalAppLeaveController extends BaseController {
 			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
 			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
 		assertAppCaller(from, purpose);
-		assertActorParks(actorParkIds);
-		return success(leaveApplicationService.getProcessRecord(page, actorBadge, leaveStatus), LeaveRecordVO.class);
+		Set<Integer> parks = parseActorParks(actorParkIds);
+		if (parks.isEmpty()) {
+			throw new AccessDeniedException("离职申请不存在或无权访问");
+		}
+		return success(leaveApplicationService.getProcessRecord(page, actorBadge, leaveStatus, parks), LeaveRecordVO.class);
 	}
 
 	@Inner
@@ -266,13 +271,22 @@ public class InternalAppLeaveController extends BaseController {
 		}
 	}
 
-	/** 创建时必须把记录绑定到唯一、已认证的园区，禁止使用客户端字段或集合顺序猜测。 */
-	private Integer resolveSingleActorPark(String actorParkIds) {
+	/** 创建时仅接受认证园区范围内的明确选择；单园区自动派生，避免旧客户端回归。 */
+	private Integer resolveActorPark(String actorParkIds, Integer currentParkId) {
 		Set<Integer> parks = parseActorParks(actorParkIds);
-		if (parks.size() != 1) {
+		if (parks.isEmpty()) {
 			throw new AccessDeniedException("离职申请不存在或无权操作");
 		}
-		return parks.iterator().next();
+		if (parks.size() == 1) {
+			return parks.iterator().next();
+		}
+		if (currentParkId == null) {
+			throw new TCEException("当前员工关联多个园区，请选择离职园区");
+		}
+		if (!parks.contains(currentParkId)) {
+			throw new AccessDeniedException("离职申请不存在或无权操作");
+		}
+		return currentParkId;
 	}
 
 	private void assertAppCaller(String from, String purpose) {

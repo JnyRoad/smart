@@ -7,6 +7,7 @@ import com.tce.smart.platform.core.dto.LeaveHandoverDTO;
 import com.tce.smart.platform.core.entity.SmtLeaveApplication;
 import com.tce.smart.platform.core.entity.SmtLeaveHandover;
 import com.tce.smart.platform.core.service.SmtLeaveApplicationService;
+import com.tce.smart.platform.core.vo.LeaveRecordVO;
 import com.tce.smart.platform.service.ILeaveApplicationService;
 import com.tce.smart.platform.service.SmtLeaveHandoverService;
 import org.junit.After;
@@ -21,12 +22,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** 离职和交接的 processId 不是授权凭据，必须受到 actor 与园区二次校验。 */
@@ -110,6 +114,23 @@ public class InternalAppLeaveControllerAccessTest {
 	}
 
 	@Test
+	public void recordPageForwardsOnlyAuthenticatedActorParksToService() throws Exception {
+		Fixture fixture = fixture(7);
+		Mockito.when(fixture.applicationService.getProcessRecord(any(com.baomidou.mybatisplus.extension.plugins.pagination.Page.class),
+				Mockito.eq(ACTOR), Mockito.eq(0), any(Set.class)))
+				.thenReturn(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<LeaveRecordVO>());
+		asAppClient("smart-app");
+
+		fixture.mockMvc.perform(authorisedGet("/internal/app-leave/record/page?current=1&size=10&leaveStatus=0", "7,8"))
+				.andExpect(status().isOk());
+
+		org.mockito.ArgumentCaptor<Set> parks = org.mockito.ArgumentCaptor.forClass(Set.class);
+		Mockito.verify(fixture.applicationService).getProcessRecord(any(com.baomidou.mybatisplus.extension.plugins.pagination.Page.class),
+				Mockito.eq(ACTOR), Mockito.eq(0), parks.capture());
+		assertEquals(new HashSet<>(java.util.Arrays.asList(7, 8)), parks.getValue());
+	}
+
+	@Test
 	public void savePersistsActorParkForFollowupApplicationAndHandover() throws Exception {
 		SmtLeaveApplicationService applicationService = Mockito.mock(SmtLeaveApplicationService.class);
 		ILeaveApplicationService leaveService = Mockito.mock(ILeaveApplicationService.class);
@@ -149,6 +170,47 @@ public class InternalAppLeaveControllerAccessTest {
 				.andExpect(status().isOk());
 	}
 
+	@Test
+	public void saveBindsValidatedSelectedParkForMultiParkActor() throws Exception {
+		Fixture fixture = fixture(7);
+		Mockito.when(fixture.leaveService.saveLeaveApplication(any(com.tce.smart.platform.core.dto.LeaveApplicationDTO.class)))
+				.thenReturn(new com.tce.smart.common.core.model.Result<>(true));
+		asAppClient("smart-app");
+
+		fixture.mockMvc.perform(authorisedLeaveApplication("7,8")
+				.header("X-Smart-Actor-Current-Park-Id", "8"))
+				.andExpect(status().isOk());
+
+		ArgumentCaptor<com.tce.smart.platform.core.dto.LeaveApplicationDTO> command = ArgumentCaptor
+				.forClass(com.tce.smart.platform.core.dto.LeaveApplicationDTO.class);
+		Mockito.verify(fixture.leaveService).saveLeaveApplication(command.capture());
+		assertEquals(Integer.valueOf(8), command.getValue().getParkId());
+	}
+
+	@Test
+	public void saveRejectsMultiParkActorWithoutExplicitSelection() throws Exception {
+		Fixture fixture = fixture(7);
+		asAppClient("smart-app");
+
+		fixture.mockMvc.perform(authorisedLeaveApplication("7,8"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.msg").value("当前员工关联多个园区，请选择离职园区"));
+
+		Mockito.verify(fixture.leaveService, Mockito.never()).saveLeaveApplication(any());
+	}
+
+	@Test
+	public void saveRejectsSelectedParkOutsideAuthenticatedActorParks() throws Exception {
+		Fixture fixture = fixture(7);
+		asAppClient("smart-app");
+
+		fixture.mockMvc.perform(authorisedLeaveApplication("7,8")
+				.header("X-Smart-Actor-Current-Park-Id", "9"))
+				.andExpect(status().isForbidden());
+
+		Mockito.verify(fixture.leaveService, Mockito.never()).saveLeaveApplication(any());
+	}
+
 	private Fixture fixture(int parkId) {
 		SmtLeaveApplicationService applicationService = Mockito.mock(SmtLeaveApplicationService.class);
 		ILeaveApplicationService leaveService = Mockito.mock(ILeaveApplicationService.class);
@@ -164,7 +226,7 @@ public class InternalAppLeaveControllerAccessTest {
 		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
 				.setControllerAdvice(new GlobalExceptionHandlerResolver())
 				.build();
-		return new Fixture(controller, mockMvc, handoverService);
+		return new Fixture(controller, mockMvc, applicationService, leaveService, handoverService);
 	}
 
 	private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder authorisedGet(String path, String parkIds) {
@@ -173,6 +235,16 @@ public class InternalAppLeaveControllerAccessTest {
 				.header("X-Smart-Actor-Park-Ids", parkIds)
 				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.header("X-Smart-Internal-Purpose", PURPOSE);
+	}
+
+	private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder authorisedLeaveApplication(String parkIds) {
+		return post("/internal/app-leave/application")
+				.header("X-Smart-Actor-Badge", ACTOR)
+				.header("X-Smart-Actor-Park-Ids", parkIds)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
+				.header("X-Smart-Internal-Purpose", PURPOSE)
+				.contentType("application/json")
+				.content("{\"badge\":\"A10001\",\"applyBadge\":\"A10001\",\"leaveType\":1,\"leaveReason\":1,\"leaveTime\":\"2026-07-25\",\"leaveStatus\":0}");
 	}
 
 	private void asAppClient(String clientId) {
@@ -184,11 +256,16 @@ public class InternalAppLeaveControllerAccessTest {
 	private static final class Fixture {
 		private final InternalAppLeaveController controller;
 		private final MockMvc mockMvc;
+		private final SmtLeaveApplicationService applicationService;
+		private final ILeaveApplicationService leaveService;
 		private final SmtLeaveHandoverService handoverService;
 
-		private Fixture(InternalAppLeaveController controller, MockMvc mockMvc, SmtLeaveHandoverService handoverService) {
+		private Fixture(InternalAppLeaveController controller, MockMvc mockMvc, SmtLeaveApplicationService applicationService,
+				ILeaveApplicationService leaveService, SmtLeaveHandoverService handoverService) {
 			this.controller = controller;
 			this.mockMvc = mockMvc;
+			this.applicationService = applicationService;
+			this.leaveService = leaveService;
 			this.handoverService = handoverService;
 		}
 	}

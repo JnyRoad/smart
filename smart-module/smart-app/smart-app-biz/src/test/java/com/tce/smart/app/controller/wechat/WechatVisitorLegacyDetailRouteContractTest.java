@@ -2,6 +2,7 @@ package com.tce.smart.app.controller.wechat;
 
 import org.junit.Test;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.lang.reflect.Method;
 
@@ -19,6 +20,19 @@ public class WechatVisitorLegacyDetailRouteContractTest {
 			for (String route : mapping.value()) {
 				assertFalse("旧公众号详情路由不得恢复", "/record/detail".equals(route));
 				assertFalse("旧公众号详情路由不得恢复", "/record/detailById/{id}".equals(route));
+			}
+		}
+	}
+
+	@Test
+	public void legacyPhotoLookupRouteIsNotMapped() {
+		for (Method method : WechatVisitController.class.getDeclaredMethods()) {
+			PostMapping mapping = method.getAnnotation(PostMapping.class);
+			if (mapping == null) {
+				continue;
+			}
+			for (String route : mapping.value()) {
+				assertFalse("旧公众号不得按任意图片 ID 返回照片 URL", "/getFace".equals(route));
 			}
 		}
 	}

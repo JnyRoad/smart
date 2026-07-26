@@ -10,6 +10,7 @@ import com.tce.smart.platform.core.entity.SmtVisitor;
 import com.tce.smart.platform.core.vo.LeaveRecordVO;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 离职申请表
@@ -45,4 +46,7 @@ public interface SmtLeaveApplicationService extends IService<SmtLeaveApplication
      * @param bagde 员工号
      */
 	IPage<LeaveRecordVO> getProcessRecord(Page page, String bagde, Integer leaveStatus);
+
+	/** App 自助查询必须同时限定当前认证员工的园区范围。 */
+	IPage<LeaveRecordVO> getProcessRecord(Page page, String bagde, Integer leaveStatus, Set<Integer> parkIds);
 }

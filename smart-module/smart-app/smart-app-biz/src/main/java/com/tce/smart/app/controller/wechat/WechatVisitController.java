@@ -60,9 +60,8 @@ public class WechatVisitController extends BaseController {
 	 * @return
 	 */
 	@ApiIgnore
-	@PostMapping("/getFace")
 	public Result<?> getFace(@RequestBody PhotoVisitorVo photoVisitorVo) {
-		return success(visitorService.getFace(photoVisitorVo));
+		throw new UnsupportedOperationException("旧微信公众号照片查询已下线");
 	}
 
 	/**
