@@ -73,16 +73,29 @@ public class SettingServiceImpl implements SettingService {
 	private static final Pattern MOBILE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
 	private static final String PHONE_CHANGE_PURPOSE = "phone-change";
 	private static final String PHONE_CHANGE_STATE_OLD_VERIFIED = "OLD_VERIFIED";
+	private static final String PHONE_CHANGE_STATE_NEW_PHONE_SENDING = "NEW_PHONE_SENDING";
 	private static final String PHONE_CHANGE_STATE_NEW_PHONE_SENT = "NEW_PHONE_SENT";
-	/** 新号短信下发成功后才将新号摘要绑定到已有的旧号验证状态；Redis 不可用时宁可拒绝确认。 */
-	private static final DefaultRedisScript<Long> SET_NEW_PHONE_STATE = new DefaultRedisScript<>(
+	private static final String PHONE_CHANGE_OLD_SMS_STAGE = "old";
+	private static final String PHONE_CHANGE_NEW_SMS_STAGE = "new";
+	/** 外发短信前先原子预约，未验证旧号、跨账号或并发请求都不能触发短信供应商。 */
+	private static final DefaultRedisScript<Long> RESERVE_NEW_PHONE_SEND = new DefaultRedisScript<>(
 			"local value = redis.call('get', KEYS[1]); if not value then return 0; end; "
 					+ "local state = cjson.decode(value); "
 					+ "if state['purpose'] ~= ARGV[1] or tostring(state['userId']) ~= ARGV[2] "
-					+ "or state['oldPhoneHash'] ~= ARGV[3] then return 0; end; "
-					+ "state['newPhoneHash'] = ARGV[4]; state['state'] = 'NEW_PHONE_SENT'; "
+					+ "or state['oldPhoneHash'] ~= ARGV[3] or state['state'] ~= 'OLD_VERIFIED' then return 0; end; "
+					+ "state['newPhoneHash'] = ARGV[4]; state['state'] = 'NEW_PHONE_SENDING'; "
 					+ "local updated = cjson.encode(state); local ttl = redis.call('ttl', KEYS[1]); "
 					+ "if ttl > 0 then redis.call('setex', KEYS[1], ttl, updated); else return 0; end; return 1;",
+			Long.class);
+	/** 供应商受理成功后才能进入可提交状态；发送异常留在 SENDING 终态，必须重新走旧号验证。 */
+	private static final DefaultRedisScript<Long> MARK_NEW_PHONE_SENT = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if not value then return 0; end; "
+					+ "local state = cjson.decode(value); "
+					+ "if state['purpose'] ~= ARGV[1] or tostring(state['userId']) ~= ARGV[2] "
+					+ "or state['oldPhoneHash'] ~= ARGV[3] or state['newPhoneHash'] ~= ARGV[4] "
+					+ "or state['state'] ~= 'NEW_PHONE_SENDING' then return 0; end; "
+					+ "state['state'] = 'NEW_PHONE_SENT'; local updated = cjson.encode(state); "
+					+ "local ttl = redis.call('ttl', KEYS[1]); if ttl > 0 then redis.call('setex', KEYS[1], ttl, updated); else return 0; end; return 1;",
 			Long.class);
 	/** 校验通过后以一次 compare-and-delete 领取换绑资格；并发请求仅一个能继续执行外部写入。 */
 	private static final DefaultRedisScript<Long> CONSUME_PHONE_CHANGE = new DefaultRedisScript<>(
@@ -162,15 +175,15 @@ public class SettingServiceImpl implements SettingService {
 
 	@Override
 	public boolean sendOldPhoneCode() {
-		appSmsService.sendSmsCode(currentStaffPhone());
+		appSmsService.sendPhoneChangeSmsCode(currentUserId(), PHONE_CHANGE_OLD_SMS_STAGE, currentStaffPhone());
 		return Boolean.TRUE;
 	}
 
 	@Override
 	public boolean verifyOldPhoneCode(String smsCode) {
 		String oldPhone = currentStaffPhone();
-		if (appSmsService.verifySmsCode(oldPhone, smsCode)) {
-			Integer userId = currentUserId();
+		Integer userId = currentUserId();
+		if (appSmsService.consumePhoneChangeSmsCode(userId, PHONE_CHANGE_OLD_SMS_STAGE, oldPhone, smsCode)) {
 			Map<String, Object> state = new HashMap<>();
 			state.put("purpose", PHONE_CHANGE_PURPOSE);
 			state.put("userId", userId);
@@ -188,9 +201,13 @@ public class SettingServiceImpl implements SettingService {
 		String newMobile = requireMobile(mobile);
 		Integer userId = currentUserId();
 		String oldPhoneHash = phoneFingerprint(currentStaffPhone());
-		appSmsService.sendSmsCode(newMobile);
-		if (!bindNewPhoneState(userId, oldPhoneHash, phoneFingerprint(newMobile))) {
+		String newPhoneHash = phoneFingerprint(newMobile);
+		if (!reserveNewPhoneSend(userId, oldPhoneHash, newPhoneHash)) {
 			throw new TCEException("请重新验证原手机号码");
+		}
+		appSmsService.sendPhoneChangeSmsCode(userId, PHONE_CHANGE_NEW_SMS_STAGE, newMobile);
+		if (!markNewPhoneSent(userId, oldPhoneHash, newPhoneHash)) {
+			throw new TCEException("换绑状态已失效，请重新验证原手机号码");
 		}
 		return Boolean.TRUE;
 	}
@@ -200,7 +217,7 @@ public class SettingServiceImpl implements SettingService {
 		String newMobile = requireMobile(mobile);
 		Integer userId = currentUserId();
 		String oldPhoneHash = phoneFingerprint(currentStaffPhone());
-		if(appSmsService.verifySmsCode(newMobile, smsCode)){
+		if(appSmsService.consumePhoneChangeSmsCode(userId, PHONE_CHANGE_NEW_SMS_STAGE, newMobile, smsCode)){
 			if (!consumePhoneChange(userId, oldPhoneHash, phoneFingerprint(newMobile))) {
 				throw new TCEException("换绑授权已失效，请重新验证原手机号码");
 			}
@@ -255,12 +272,19 @@ public class SettingServiceImpl implements SettingService {
 	}
 
 	/**
-	 * 将新手机号摘要写入旧号已验证状态。脚本同时校验账号、旧号、用途和剩余 TTL，拒绝跨账号领取。
+	 * 在外发新号短信前，先原子检查并预约旧号授权。预约失败不得触发短信供应商。
 	 */
-	boolean bindNewPhoneState(Integer userId, String oldPhoneHash, String newPhoneHash) {
-		Long bound = stringRedisTemplate.execute(SET_NEW_PHONE_STATE, Collections.singletonList(phoneChangeAuthKey(userId)),
+	boolean reserveNewPhoneSend(Integer userId, String oldPhoneHash, String newPhoneHash) {
+		Long bound = stringRedisTemplate.execute(RESERVE_NEW_PHONE_SEND, Collections.singletonList(phoneChangeAuthKey(userId)),
 				PHONE_CHANGE_PURPOSE, String.valueOf(userId), oldPhoneHash, newPhoneHash);
 		return Long.valueOf(1L).equals(bound);
+	}
+
+	/** 供应商成功受理后才允许确认换绑；SENDING 不可确认，避免旧验证码或发码失败被利用。 */
+	boolean markNewPhoneSent(Integer userId, String oldPhoneHash, String newPhoneHash) {
+		Long marked = stringRedisTemplate.execute(MARK_NEW_PHONE_SENT, Collections.singletonList(phoneChangeAuthKey(userId)),
+				PHONE_CHANGE_PURPOSE, String.valueOf(userId), oldPhoneHash, newPhoneHash);
+		return Long.valueOf(1L).equals(marked);
 	}
 
 	/**

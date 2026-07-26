@@ -37,7 +37,8 @@ public class PhoneChangeSecurityContractTest {
                 service.contains("user.getId()") && service.contains("phoneFingerprint(currentStaffPhone())"));
         assertTrue("确认换绑必须由 Lua 原子领取并删除完整状态，不能先读后删",
                 service.contains("CONSUME_PHONE_CHANGE") && service.contains("stringRedisTemplate.execute(CONSUME_PHONE_CHANGE"));
-        assertTrue("新手机号验证码必须写入与账号、旧号、新号和用途绑定的状态", service.contains("SET_NEW_PHONE_STATE"));
+        assertTrue("新手机号发送必须先预约、成功后才标记可确认状态", service.contains("RESERVE_NEW_PHONE_SEND")
+                && service.contains("MARK_NEW_PHONE_SENT"));
         assertFalse("外部写失败不得把已经消费的状态直接恢复为可重放凭证", service.contains("restoreOldPhoneVerified"));
         assertTrue("原子绑定必须要求旧号状态、新号摘要、账号和用途都匹配", service.contains("state['oldPhoneHash'] ~= ARGV[3]")
                 && service.contains("state['newPhoneHash'] ~= ARGV[4]") && service.contains("state['userId']) ~= ARGV[2]"));

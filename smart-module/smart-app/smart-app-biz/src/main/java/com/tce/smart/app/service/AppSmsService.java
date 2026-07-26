@@ -27,6 +27,17 @@ public interface AppSmsService {
 	Boolean verifySmsCode(String mobile, String smsCode);
 
 	/**
+	 * 向已认证员工的换绑流程发送专用验证码；验证码与账号、阶段、手机号摘要绑定，
+	 * 不复用通用 App/访客短信 Redis 命名空间。
+	 */
+	Boolean sendPhoneChangeSmsCode(Integer userId, String stage, String mobile);
+
+	/**
+	 * 原子校验并消费换绑专用验证码，成功后同一验证码不能再次建立或提交换绑授权。
+	 */
+	Boolean consumePhoneChangeSmsCode(Integer userId, String stage, String mobile, String smsCode);
+
+	/**
 	 * 发送访客自助流程短信验证码。
 	 *
 	 * <p>这是匿名入口专用能力，内部调用不得借此绕过场景限流。</p>

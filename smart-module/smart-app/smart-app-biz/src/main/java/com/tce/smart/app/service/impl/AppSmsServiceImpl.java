@@ -15,8 +15,13 @@ import com.tce.smart.tool.exception.TCEException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +46,15 @@ public class AppSmsServiceImpl implements AppSmsService {
 	private static final String VISITOR_SMS_SEND_RATE_KEY = "smart_app:visitor:sms:send:";
 	private static final String LOGIN_SMS_SEND_RATE_KEY = "smart_app:login:sms:send:";
 	private static final String VISITOR_SMS_VERIFY_RATE_KEY = "smart_app:visitor:sms:verify:";
+	private static final String PHONE_CHANGE_SMS_KEY = "smart_app:phone-change:sms:";
+	private static final String PHONE_CHANGE_OLD_STAGE = "old";
+	private static final String PHONE_CHANGE_NEW_STAGE = "new";
 	private static final Pattern MOBILE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+	/** 专用换绑 OTP 必须 compare-and-delete；任何重放或跨账号/阶段使用均返回失败。 */
+	private static final DefaultRedisScript<Long> CONSUME_PHONE_CHANGE_SMS = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if not value then return 0; end; "
+					+ "local state = cjson.decode(value); if state['smsCode'] ~= ARGV[1] then return 0; end; "
+					+ "redis.call('del', KEYS[1]); return 1;", Long.class);
 
 	@Autowired
 	private StringRedisTemplate stringRedisTemplate;
@@ -52,11 +65,15 @@ public class AppSmsServiceImpl implements AppSmsService {
 	@SuppressWarnings({"rawtypes" })
 	@Override
 	public Boolean sendSmsCode(String mobile) {
+		return sendSmsCodeWithKey(mobile, RedisKeyConstants.SMAT_APP_WECHAT_SMSCODE + mobile);
+	}
 
+	/** 通用及换绑专用短信共享供应商调用，但各自传入隔离的验证码 Redis 键。 */
+	@SuppressWarnings({"rawtypes" })
+	private Boolean sendSmsCodeWithKey(String mobile, String redisKey) {
 		String smsCode = RandomUtil.randomNumbers(MESSAGE_LENGTH);// 短信验证码
 		Map<String, Object> smsCodeMap = new HashMap<>();
 		smsCodeMap.put("smsCode", smsCode);
-		String redisKey = RedisKeyConstants.SMAT_APP_WECHAT_SMSCODE + mobile;
 		stringRedisTemplate.opsForValue().set(redisKey, JSONUtil.toJsonStr(smsCodeMap), 600, TimeUnit.SECONDS);// 10分钟失效
 		SendSmsCodeMsgReqDTO codeMsg = new SendSmsCodeMsgReqDTO();
 		codeMsg.setName(mobile);
@@ -104,6 +121,59 @@ public class AppSmsServiceImpl implements AppSmsService {
 		}
 
 		return Boolean.TRUE;
+	}
+
+	@Override
+	public Boolean sendPhoneChangeSmsCode(Integer userId, String stage, String mobile) {
+		String normalizedMobile = requireMobile(mobile);
+		String redisKey = phoneChangeSmsKey(requirePhoneChangeUserId(userId), requirePhoneChangeStage(stage), normalizedMobile);
+		return sendSmsCodeWithKey(normalizedMobile, redisKey);
+	}
+
+	@Override
+	public Boolean consumePhoneChangeSmsCode(Integer userId, String stage, String mobile, String smsCode) {
+		if (StringUtils.isEmpty(smsCode) || !smsCode.matches("^\\d{6}$")) {
+			throw new TCEException("验证码错误或已过期");
+		}
+		String redisKey = phoneChangeSmsKey(requirePhoneChangeUserId(userId), requirePhoneChangeStage(stage),
+				requireMobile(mobile));
+		Long consumed = stringRedisTemplate.execute(CONSUME_PHONE_CHANGE_SMS, Collections.singletonList(redisKey), smsCode);
+		if (!Long.valueOf(1L).equals(consumed)) {
+			throw new TCEException("验证码错误或已过期");
+		}
+		return Boolean.TRUE;
+	}
+
+	/** 换绑 OTP 的 Redis 键仅保存手机号摘要，避免手机号出现在键空间或运维扫描结果中。 */
+	private String phoneChangeSmsKey(Integer userId, String stage, String mobile) {
+		return PHONE_CHANGE_SMS_KEY + userId + ":" + stage + ":" + phoneFingerprint(mobile);
+	}
+
+	private Integer requirePhoneChangeUserId(Integer userId) {
+		if (userId == null || userId <= 0) {
+			throw new TCEException("当前登录员工信息缺失");
+		}
+		return userId;
+	}
+
+	private String requirePhoneChangeStage(String stage) {
+		if (!PHONE_CHANGE_OLD_STAGE.equals(stage) && !PHONE_CHANGE_NEW_STAGE.equals(stage)) {
+			throw new TCEException("短信验证阶段无效");
+		}
+		return stage;
+	}
+
+	private String phoneFingerprint(String mobile) {
+		try {
+			byte[] digest = MessageDigest.getInstance("SHA-256").digest(mobile.getBytes(StandardCharsets.UTF_8));
+			StringBuilder result = new StringBuilder(digest.length * 2);
+			for (byte value : digest) {
+				result.append(String.format("%02x", value));
+			}
+			return result.toString();
+		} catch (NoSuchAlgorithmException e) {
+			throw new TCEException("验证码状态初始化失败");
+		}
 	}
 
 	/**

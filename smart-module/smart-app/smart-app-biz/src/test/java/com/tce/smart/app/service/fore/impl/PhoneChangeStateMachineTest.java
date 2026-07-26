@@ -52,7 +52,7 @@ public class PhoneChangeStateMachineTest {
 		RemoteStaffInternalService staff = staffPhone("employee-7", "13800138000");
 		SettingServiceImpl service = service(redis, values, sms, staff);
 		login(7, "employee-7");
-		Mockito.when(sms.verifySmsCode("13800138000", "123456")).thenReturn(Boolean.TRUE);
+		Mockito.when(sms.consumePhoneChangeSmsCode(7, "old", "13800138000", "123456")).thenReturn(Boolean.TRUE);
 
 		assertTrue(service.verifyOldPhoneCode("123456"));
 
@@ -79,10 +79,30 @@ public class PhoneChangeStateMachineTest {
 		assertTrue(service.sendNewPhoneCode("13900139000"));
 
 		ArgumentCaptor<List> keys = ArgumentCaptor.forClass(List.class);
-		Mockito.verify(redis).execute(Mockito.any(), keys.capture(), Mockito.eq("phone-change"), Mockito.eq("7"),
+		Mockito.verify(redis, Mockito.times(2)).execute(Mockito.any(), keys.capture(), Mockito.eq("phone-change"), Mockito.eq("7"),
 				Mockito.anyString(), Mockito.anyString());
-		assertEquals(Collections.singletonList("smart_app:phone-change:old-verified:7"), keys.getValue());
-		Mockito.verify(sms).sendSmsCode("13900139000");
+		assertEquals(Collections.singletonList("smart_app:phone-change:old-verified:7"), keys.getAllValues().get(0));
+		assertEquals(Collections.singletonList("smart_app:phone-change:old-verified:7"), keys.getAllValues().get(1));
+		Mockito.verify(sms).sendPhoneChangeSmsCode(7, "new", "13900139000");
+	}
+
+	@Test
+	public void missingOldVerificationNeverCallsNewPhoneSmsProvider() {
+		StringRedisTemplate redis = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		AppSmsService sms = Mockito.mock(AppSmsService.class);
+		SettingServiceImpl service = service(redis, values, sms, staffPhone("employee-7", "13800138000"));
+		login(7, "employee-7");
+		Mockito.when(redis.execute(Mockito.any(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString(),
+				Mockito.anyString(), Mockito.anyString())).thenReturn(0L);
+
+		try {
+			service.sendNewPhoneCode("13900139000");
+			fail("旧手机号未验证时不得下发新手机号验证码");
+		} catch (TCEException expected) {
+			Mockito.verify(sms, Mockito.never()).sendPhoneChangeSmsCode(Mockito.anyInt(), Mockito.eq("new"), Mockito.anyString());
+		}
 	}
 
 	@Test
