@@ -8,6 +8,15 @@
 import request from '@/router/axios'
 
 /**
+ * 人员资料会被下发到 ISC，所有文本字段必须在提交前去除首尾空白。
+ */
+const normalizePersonnelPayload = payload => Object.keys(payload).reduce((normalized, key) => {
+  const value = payload[key]
+  normalized[key] = typeof value === 'string' ? value.trim() : value
+  return normalized
+}, {})
+
+/**
  * 获得APP权限列表
  */
 export function getAppauth() {
@@ -142,7 +151,7 @@ export function getDirector({
  */
 export function postImportStaff(data) {
   const sendData = data.map(item => {
-    return {
+    return normalizePersonnelPayload({
       "badge": item.jobNumber,
       "certno": item.identity,
       "depName": item.department,
@@ -152,7 +161,7 @@ export function postImportStaff(data) {
       "phone": item.phone,
       "entryTime": item.entryTime,
       "dispatch": item.dispatch
-    }
+    })
   })
   return request({
     url: '/platform/staff/addBatchTempStaff',
@@ -186,7 +195,7 @@ export function postAddStaff({
     return request({
       url: '/platform/staff/updateTempStaff',
       method: 'POST',
-      data: {
+      data: normalizePersonnelPayload({
         appAuth,
         badge,
         certno,
@@ -203,13 +212,13 @@ export function postAddStaff({
         entryTime,
         dispatch,
         status
-      }
+      })
     })
   }
   return request({
     url: '/platform/staff/addTempStaff',
     method: 'POST',
-    data: {
+    data: normalizePersonnelPayload({
       appAuth,
       badge,
       certno,
@@ -225,7 +234,7 @@ export function postAddStaff({
       entryTime,
       dispatch,
       status
-    }
+    })
   })
 }
 
