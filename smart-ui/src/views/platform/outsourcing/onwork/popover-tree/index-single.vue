@@ -192,7 +192,13 @@ export default {
         const res = await getSearchStaff({
           badge: value
         })
-        this.searchData = res
+        this.searchData = (res.data.data || []).map(staff => ({
+          id: staff.id,
+          label: `${staff.badge} - ${staff.name}`,
+          badge: staff.badge,
+          name: staff.name,
+          departmentName: staff.departmentName
+        }))
         this.$nextTick(() => {
           this.$nextTick(() => {
             this.$refs.popover && this.$refs.popover.updatePopper()
@@ -203,19 +209,9 @@ export default {
       }
     },
     async getTreePeopleAll() {
-      if (this.loading) {
-        return
-      }
-      try {
-        this.loading = true
-        const res = await getSearchStaff()
-        this.treeData = res
-        // console.log(this.treeData)
-        this.pushTreeDatas = [this.treeData]
-      } catch (error) {
-        // 忽略异常：树数据解析失败时保持现状
-      }
-      this.loading = false
+      // 人员查询必须携带工号关键字，禁止下拉展开时预加载全量员工。
+      this.treeData = []
+      this.pushTreeDatas = []
     },
     /**
      * 下拉框出现/隐藏时触发

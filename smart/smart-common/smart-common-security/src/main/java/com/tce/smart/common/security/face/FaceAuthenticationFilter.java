@@ -2,14 +2,14 @@ package com.tce.smart.common.security.face;
 
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.tce.smart.admin.api.dto.SmtStaffDTO;
-import com.tce.smart.admin.api.dto.StaffPerfectReqDTO;
-import com.tce.smart.admin.api.feign.RemoteStaffService;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.SpringContextHolder;
 import com.tce.smart.common.core.util.StringUtils;
+import com.tce.smart.platform.api.dto.req.InternalStaffFaceLoginReqDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffFaceLoginRespDTO;
+import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -88,20 +88,21 @@ public class FaceAuthenticationFilter extends AbstractAuthenticationProcessingFi
 
 			// 人脸搜索员工信息
 			String userName = null;
-			RemoteStaffService remoteStaffService = SpringContextHolder.getBean(RemoteStaffService.class);
-			StaffPerfectReqDTO staffPerfectDTO = new StaffPerfectReqDTO();
+			RemoteStaffInternalService remoteStaffService = SpringContextHolder.getBean(RemoteStaffInternalService.class);
+			InternalStaffFaceLoginReqDTO staffPerfectDTO = new InternalStaffFaceLoginReqDTO();
 			staffPerfectDTO.setFacePic(faceImage);
 			staffPerfectDTO.setDeviceNo(deviceNo);
 
-			Result<SmtStaffDTO> result = null;
+			Result<InternalStaffFaceLoginRespDTO> result = null;
 			try {
-				result = remoteStaffService.faceSearchForLogin(staffPerfectDTO);
+				result = remoteStaffService.faceLogin(staffPerfectDTO, SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "face-login");
 			}catch(Exception e) {
 				log.error("人脸识别验证未通过",e);
 				throw new TCEException("人脸识别验证未通过");
 			}
 
-			log.info("result remoteStaffService.faceSearchForLogin======={}", result);
+			log.info("人脸登录内部查询完成 success={}", result != null && result.isSuccess());
 			if (!result.isSuccess() || Objects.isNull(result.getData())) {
 				throw new TCEException("人脸识别验证未通过");
 			} else {

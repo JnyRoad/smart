@@ -9,8 +9,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.data.api.dto.consume.resp.TxEmpCardRespDTO;
 import com.tce.smart.data.api.feign.consume.RemoteTxEmpCardService;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
-import com.tce.smart.platform.api.feign.RemoteStaffService;
+import com.tce.smart.platform.api.dto.resp.InternalStaffBindingRespDTO;
+import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import com.tce.smart.platform.api.feign.badge.RemoteBadgeLossService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,13 +32,14 @@ public class BadgeLossServiceImpl implements BadgeLossService {
 	@Autowired
 	private RemoteBadgeLossService remoteBadgeLossService;
 	@Autowired
-	private RemoteStaffService staffService;
+	private RemoteStaffInternalService internalStaffService;
 
 	@Override
 	public BadgeInfoVo getBadgeInfo() {
 		String badge = SecurityUtils.getUser().getUsername();
-		Result<SmtStaffDTO> staff = staffService.getSimpleSttaffByBadge(badge);
-		if (Objects.isNull(staff.getData())) {
+		Result<InternalStaffBindingRespDTO> staff = internalStaffService.getBindingStaff(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "badge-loss");
+		if (!staff.isSuccess() || Objects.isNull(staff.getData())) {
 			throw new SmartException("员工信息关联失败！");
 		}
 		BadgeInfoVo vo = new BadgeInfoVo();

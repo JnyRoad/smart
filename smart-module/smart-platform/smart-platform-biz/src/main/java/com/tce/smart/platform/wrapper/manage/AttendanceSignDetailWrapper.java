@@ -79,7 +79,7 @@ public class AttendanceSignDetailWrapper extends BaseWrapper<SmtAttendanceSign, 
 		//考勤详情
 
 		Result<AvaGetskyPayYSHRDTO> mothInfo = remoteAvaGetskyPayService.info(smtAttendanceSign.getBadge(),
-				smtAttendanceSign.getCheckDate() + "-01 00:00:00", SecurityConstants.FROM_IN);
+				smtAttendanceSign.getCheckDate() + "-01 00:00:00", SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(Objects.nonNull(mothInfo.getData())) {
 			AvaGetskyPayRespDTO payRespDTO = BeanUtils.transform(AvaGetskyPayRespDTO.class, mothInfo.getData());
 			attendanceSign.setAvaGetskyPayYSHRDTO(payRespDTO);

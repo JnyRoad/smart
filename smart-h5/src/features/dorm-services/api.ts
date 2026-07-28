@@ -84,9 +84,9 @@ export interface MyRoom {
   roomName?: string
 }
 
-/** Note the double-data envelope: the room list lives at res.data.data. */
-export function getMyRooms(badge: string): Promise<Envelope<{ data?: MyRoom[] }>> {
-  return request({ module: 'app', url: `/appdormitory/roomList/${badge}` })
+/** 只读取认证主体的房间列表，路径不得携带工号。 */
+export function getMyRooms(): Promise<Envelope<MyRoom[]>> {
+	return request({ module: 'platform', url: '/dormitory/staff/me/roomList' })
 }
 
 export function saveDormExit(data: Record<string, unknown>): Promise<Envelope<unknown>> {
@@ -161,24 +161,28 @@ export function getRoomTypes(parkId: number, dormitoryId: string | number): Prom
   })
 }
 
-/** Raw shape of GET /staff/define/badge — submit body uses different key names. */
-export interface StaffIdentity {
+/** 当前认证员工的入住资料摘要，不包含完整证件资料或工号。 */
+export interface MyCheckInProfile {
   name?: string
-  sex?: string | number
-  nation?: string
-  certno?: string
-  birth?: string
-  homeAddress?: string
-  validDate?: string
-  validDateFm?: string
+  profileComplete?: boolean
+  maskedCertNo?: string
 }
 
-export function getStaffIdentity(badge: string): Promise<Envelope<StaffIdentity>> {
-  return request({ module: 'platform', url: '/staff/define/badge', params: { badge } })
+export function getMyCheckInProfile(): Promise<Envelope<MyCheckInProfile>> {
+  return request({ module: 'platform', url: '/staff/me/check-in-profile' })
 }
 
-export function submitCheckIn(data: Record<string, unknown>): Promise<Envelope<unknown>> {
-  return request({ module: 'platform', url: '/dormitory/room/autoallot', method: 'POST', data })
+export interface SelfCheckInRequest {
+  parkId: number
+  dormitoryId: string | number
+  floorId?: string | number
+  roomId?: string | number
+  bedId?: string | number
+  roomType: string | number
+}
+
+export function submitCheckIn(data: SelfCheckInRequest): Promise<Envelope<unknown>> {
+  return request({ module: 'platform', url: '/dormitory/room/self/autoallot', method: 'POST', data })
 }
 
 export interface ParkTreeNode {
@@ -228,14 +232,8 @@ export interface CheckInRecord {
   dormitoryName?: string
   roomName?: string
   bedNumber?: number
-  lockPwd?: {
-    fingerprintCode?: number
-    fingerprintDesc?: string
-    dynamicCode?: number
-    dynamicDesc?: string
-  }
 }
 
-export function getCheckInRecords(badge: string): Promise<Envelope<CheckInRecord[]>> {
-  return request({ module: 'platform', url: `/dormitory/staff/roomList/${badge}` })
+export function getCheckInRecords(): Promise<Envelope<CheckInRecord[]>> {
+  return request({ module: 'platform', url: '/dormitory/staff/me/roomList' })
 }

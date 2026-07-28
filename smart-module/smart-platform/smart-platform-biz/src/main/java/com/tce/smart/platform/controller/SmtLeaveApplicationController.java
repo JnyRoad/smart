@@ -6,7 +6,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.log.annotation.SysLog;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.data.api.dto.consume.resp.WorkTimeDetailDTO;
 import com.tce.smart.data.api.feign.consume.RemoteRsEmpService;
@@ -61,6 +64,8 @@ public class SmtLeaveApplicationController extends BaseController{
 
 	private final RemoteRsEmpService remoteRsEmpService;
 
+	private final LegacyLeaveEndpointGuard legacyLeaveEndpointGuard;
+
 
 	/**
 	 * 获取离职记录 分页查询
@@ -95,6 +100,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 * @return Result
 	 */
 	@GetMapping("/{badge}")
+	@Inner
+	@OpenApi("server")
 	public Result getByBadge(@PathVariable("badge") String badge) {
 	    SmtLeaveApplication leaveApplication = smtLeaveApplicationService.getLeaveApplicationRecord(badge);
 		return success(leaveApplication, LeaveApplicationVO.class);
@@ -108,8 +115,20 @@ public class SmtLeaveApplicationController extends BaseController{
 	 * @return Result
 	 */
 	@SysLog("新增离职申请表")
+	@Inner
+	@OpenApi("server")
 	@PostMapping("/save")
-	public Result save(@RequestBody LeaveApplicationDTO leaveApplicationDTO) {
+	public Result save(@RequestBody LeaveApplicationDTO leaveApplicationDTO,
+			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
+			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		LegacyLeaveEndpointGuard.ActorScope actor = legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose);
+		if (leaveApplicationDTO == null || !actor.getBadge().equals(leaveApplicationDTO.getBadge())
+				|| !actor.getBadge().equals(leaveApplicationDTO.getApplyBadge()) || leaveApplicationDTO.getParkId() == null
+				|| !actor.getParkIds().contains(leaveApplicationDTO.getParkId())) {
+			throw new org.springframework.security.access.AccessDeniedException("旧离职申请不存在或无权操作");
+		}
 		return leaveApplicationService.saveLeaveApplication(leaveApplicationDTO);
 	}
 
@@ -143,6 +162,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 * @return
 	 */
 	@SysLog("获取剩余年假天数")
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/year/holiday/{badge}")
 	public Result getYearHoliday(@PathVariable("badge") String badge) {
 		return new Result<>(leaveApplicationService.getYearHoliday(badge));
@@ -155,8 +176,10 @@ public class SmtLeaveApplicationController extends BaseController{
      * @param page 分页对象
      * @param leaveApplicationDTO 离职查询信息
      */
-    @SysLog("获取离职记录")
-    @GetMapping("/record/page")
+	@SysLog("获取离职记录")
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/record/page")
     public Result getProcessRecord(Page page,LeaveApplicationDTO leaveApplicationDTO){
         IPage<LeaveRecordVO> list = smtLeaveApplicationService.getProcessRecord(page,leaveApplicationDTO.getBadge(),leaveApplicationDTO.getLeaveStatus());
         return success(list, LeaveRecordList.class);
@@ -167,6 +190,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 * @param processId 流程编号
 	 */
 	@SysLog("获取离职审批记录详情")
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/record/detail/{processId}")
 	public Result getLeaveApplicationRecord(@PathVariable("processId") String processId){
 	    List<SmtProcessRecord> list = smtLeaveApplicationService.getLeaveApplication(processId);
@@ -177,6 +202,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	 *  同步OA流程方法
 	 */
 	@SysLog(" 同步OA流程方法")
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/sysn/record")
 	public void sysnProcessRecord(){
 		leaveApplicationService.sysnProcessRecord();

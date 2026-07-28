@@ -1,6 +1,7 @@
 package com.tce.smart.algorithm.api.feign;
 
 import com.tce.smart.algorithm.api.dto.req.CompareDTO;
+import com.tce.smart.algorithm.api.dto.req.FaceImgCutReq;
 import com.tce.smart.algorithm.api.dto.req.LivenessRecordAddDTO;
 import com.tce.smart.algorithm.api.dto.resp.FaceFeaturesDTO;
 import com.tce.smart.algorithm.api.dto.resp.LivenessDTO;
@@ -36,7 +37,8 @@ public interface RemoteAlgorithmService {
 							  @PathVariable("algorithmType") String algorithmType,
 							  @PathVariable("faceDetectType") String faceDetectType,
 							  @RequestBody @Valid @NotBlank(message = "图片不能为空") String imageBase64,
-							  @RequestHeader(SecurityConstants.FROM) String from);
+							  @RequestHeader(SecurityConstants.FROM) String from,
+							  @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 	/**
 	 * 人脸检测接口
 	 * @param id 请求唯一标识
@@ -51,7 +53,8 @@ public interface RemoteAlgorithmService {
 							  @PathVariable("algorithmType") String algorithmType,
 							  @PathVariable("faceDetectType") String faceDetectType,
 							  @RequestBody @Valid @NotBlank(message = "图片ID不能为空") String imageId,
-							  @RequestHeader(SecurityConstants.FROM) String from);
+							  @RequestHeader(SecurityConstants.FROM) String from,
+							  @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 统一OCR识别接口
@@ -67,7 +70,8 @@ public interface RemoteAlgorithmService {
 						@PathVariable("algorithmType") String algorithmType,
 						@PathVariable("cardType") String cardType,
 						@RequestBody @NotBlank(message = "图片Base64不能为空") String imageBase64,
-						@RequestHeader(SecurityConstants.FROM) String from);
+						@RequestHeader(SecurityConstants.FROM) String from,
+						@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 	/**
 	 * 统一OCR识别接口
 	 * @param id 请求唯一标识
@@ -82,7 +86,8 @@ public interface RemoteAlgorithmService {
 						@PathVariable("algorithmType") String algorithmType,
 						@PathVariable("cardType") String cardType,
 					    @RequestParam("imageId") String imageId,
-						@RequestHeader(SecurityConstants.FROM) String from);
+						@RequestHeader(SecurityConstants.FROM) String from,
+						@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 活体检测算法接口
@@ -96,7 +101,8 @@ public interface RemoteAlgorithmService {
 	Result<LivenessDTO> livenessStatic(@PathVariable("id") String id,
 									   @PathVariable("algorithmType") String algorithmType,
 									   @RequestBody List<String> imageBase64List,
-									   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 活体检测算法接口
@@ -110,7 +116,8 @@ public interface RemoteAlgorithmService {
 	Result<LivenessDTO> livenessStaticByImageId(@PathVariable("id") String id,
 									   @PathVariable("algorithmType") String algorithmType,
 									   @RequestBody List<String> imageIdList,
-									   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**
@@ -125,7 +132,8 @@ public interface RemoteAlgorithmService {
     Result<com.tce.smart.algorithm.api.dto.resp.CompareDTO> compare(@PathVariable("id") String id,
 						   @PathVariable("algorithmType") String algorithmType,
 						   @RequestBody @Valid CompareDTO compareDTO,
-						   @RequestHeader(SecurityConstants.FROM) String from);
+						   @RequestHeader(SecurityConstants.FROM) String from,
+						   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 人像比对算法接口
@@ -137,9 +145,10 @@ public interface RemoteAlgorithmService {
 	 */
 	@PostMapping("/inner/compare/id/{algorithmType}/{id}")
 	Result<com.tce.smart.algorithm.api.dto.resp.CompareDTO> compareByImageId(@PathVariable("id") String id,
-																	@PathVariable("algorithmType") String algorithmType,
-																	@RequestBody @Valid CompareDTO compareDTO,
-																	@RequestHeader(SecurityConstants.FROM) String from);
+															@PathVariable("algorithmType") String algorithmType,
+															@RequestBody @Valid CompareDTO compareDTO,
+															@RequestHeader(SecurityConstants.FROM) String from,
+															@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 活体检测记录提交
@@ -154,7 +163,8 @@ public interface RemoteAlgorithmService {
 	Result<Boolean> addLivenessRecord(@PathVariable("id") String id,
 									  @PathVariable("algorithmType") String algorithmType,
 									  @RequestBody LivenessRecordAddDTO livenessRecordAddDTO,
-									  @RequestHeader(SecurityConstants.FROM) String from);
+									  @RequestHeader(SecurityConstants.FROM) String from,
+									  @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**
@@ -166,6 +176,20 @@ public interface RemoteAlgorithmService {
 	 */
 	@PostMapping("/faceservice/featuresExtract")
 	Result<FaceFeaturesDTO> getFaceFeatures(
-											  @RequestBody String  base64Face,
-											  @RequestHeader(SecurityConstants.FROM) String from);
+												  @RequestBody String  base64Face,
+												  @RequestHeader(SecurityConstants.FROM) String from,
+												  @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+
+	/**
+	 * 人脸图片裁剪仅供已认证的内部服务使用。
+	 *
+	 * @param req 待裁剪图片
+	 * @param from 固定为 {@link SecurityConstants#FROM_IN}
+	 * @param serviceAuth 固定为 {@link SecurityConstants#INTERNAL_SERVICE_AUTH_REQUIRED}
+	 * @return 裁剪后图片
+	 */
+	@PostMapping("/inner/face/cut")
+	Result<String> cutFace(@RequestBody FaceImgCutReq req,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }

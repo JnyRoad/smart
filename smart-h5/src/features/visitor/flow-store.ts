@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export interface HostInfo {
-  openId?: string
-  unionId?: string
+	/** 微信授权后签发的短时草稿会话；仅用于换取一次性访客动作 capability。 */
+	visitorDraftToken?: string
+	visitorDraftId?: string
   receptionistBadge?: string
   receptionistName?: string
   receptionistPhone?: string
@@ -88,7 +89,18 @@ export const useVisitorFlow = create<VisitorFlowState>()(
       fellows: [],
       cars: [],
       phone: '',
-      patchHost: (p) => set((s) => ({ host: { ...s.host, ...p } })),
+      patchHost: (p) =>
+        set((s) => {
+          // 旧版曾把微信 openId/unionId 持久化在同一 key；首次拿到新草稿时必须
+          // 从状态及 localStorage 序列化载荷中移除，不能仅靠 TypeScript 类型隐藏。
+          const host = { ...s.host } as HostInfo & {
+            openId?: string
+            unionId?: string
+          }
+          delete host.openId
+          delete host.unionId
+          return { host: { ...host, ...p } }
+        }),
       patchVisitor: (p) => set((s) => ({ visitor: { ...s.visitor, ...p } })),
       setFactoryAreas: (factoryType, sel) =>
         set((s) => ({ areasByFactory: { ...s.areasByFactory, [factoryType]: sel } })),

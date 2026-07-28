@@ -3,6 +3,8 @@ package com.tce.smart.algorithm.controller;
 import com.tce.smart.algorithm.service.CompareStrategyService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.algorithm.api.dto.req.CompareDTO;
 //import com.tce.smart.file.api.feign.RemoteFileService;
 import io.swagger.annotations.Api;
@@ -32,6 +34,8 @@ public class CompareController extends BaseController {
 	//private final RemoteFileService remoteFileService;
 
 	@ApiOperation("人像比对-图片Base64")
+	@Inner
+	@OpenApi("server")
 	@PostMapping("/{algorithmType}/{id}")
 	public Result<com.tce.smart.algorithm.api.dto.resp.CompareDTO> compare(@PathVariable("id") String id,
 																		   @PathVariable("algorithmType") String algorithmType,
@@ -40,6 +44,8 @@ public class CompareController extends BaseController {
 	}
 
 	@ApiOperation("人像比对-图片ID")
+	@Inner
+	@OpenApi("server")
 	@PostMapping("/id/{algorithmType}/{id}")
 	public Result<com.tce.smart.algorithm.api.dto.resp.CompareDTO> compareByImageId(@PathVariable("id") String id,
 																		   @PathVariable("algorithmType") String algorithmType,

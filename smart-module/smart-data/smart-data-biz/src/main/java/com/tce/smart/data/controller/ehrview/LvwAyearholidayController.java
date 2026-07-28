@@ -4,6 +4,7 @@ package com.tce.smart.data.controller.ehrview;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.LvwAyearholidayRespDTO;
 import com.tce.smart.ehrview.core.entity.LvwAyearholiday;
 import com.tce.smart.ehrview.core.service.ILvwAyearholidayService;
@@ -32,6 +33,7 @@ public class LvwAyearholidayController extends BaseController {
      * @return
      */
     @Inner
+    @OpenApi("server")
     @GetMapping("/info")
     public Result<LvwAyearholidayRespDTO> info(@RequestParam("badge") String badge) {
         LvwAyearholiday lvwAyearholiday = iLvwAyearholidayService.getByBadge(badge);

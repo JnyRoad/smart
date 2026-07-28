@@ -69,6 +69,16 @@ public interface SecurityConstants {
 	String FROM = "from";
 
 	/**
+	 * 指定 Feign 调用必须使用服务客户端凭据，不能复用终端用户令牌。
+	 */
+	String INTERNAL_SERVICE_AUTH = "X-Smart-Internal-Auth";
+
+	/**
+	 * {@link #INTERNAL_SERVICE_AUTH} 的固定标记值，不包含任何秘密。
+	 */
+	String INTERNAL_SERVICE_AUTH_REQUIRED = "required";
+
+	/**
 	 * OAUTH URL
 	 */
 	String OAUTH_TOKEN_URL = "/oauth/token";

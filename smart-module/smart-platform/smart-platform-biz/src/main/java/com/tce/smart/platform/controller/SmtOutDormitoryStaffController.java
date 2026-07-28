@@ -15,6 +15,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.OvwYsCallOwanceDetailsDTO;
 import com.tce.smart.platform.api.dto.req.SearchOutDormitoryReqDTO;
 import com.tce.smart.platform.api.dto.resp.SearchOutDormitoryRespDTO;
@@ -94,6 +95,7 @@ public class SmtOutDormitoryStaffController extends BaseController {
 	@SysLog("清理外宿审批撤销的记录")
 	@GetMapping("refresh")
 	@Inner
+	@OpenApi("server")
 	public void refreshOutDormitory() {
 		 outDormitoryStaffService.refreshOutDormitory();
 	}

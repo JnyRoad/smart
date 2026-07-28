@@ -64,10 +64,13 @@ public class JobServiceImpl implements JobService {
 	private RemoteRecruitmentService remoteRecruit;
 
 	@Autowired
+	private RemoteStaffInternalService remoteStaffInternalService;
+
+	@Autowired
 	private RemoteDictService remoteDictService;
 
 	@Autowired
-	private RemoteParkService remoteParkService;
+	private RemoteParkInternalService remoteParkInternalService;
 
 	@Autowired
 	private AppSmsService appSmsService;
@@ -92,7 +95,8 @@ public class JobServiceImpl implements JobService {
 	@Override
 	public List<SmtParkDTO> getParkList() {
 		// 调用远程获取园区列表
-		return remoteParkService.getParkList(SecurityConstants.FROM_IN).data();
+		return remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list").data();
 	}
 
 
@@ -324,7 +328,8 @@ public class JobServiceImpl implements JobService {
 				UUIDUtils.create(),
 				AlgorithmTypeEnum.COMPARE_FACEALL.getType(),
 				compareDTO,
-				SecurityConstants.FROM_IN)
+				SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)
 				.data();
 
 		if (compare.getSimilarity() < compareValue) {
@@ -398,7 +403,7 @@ public class JobServiceImpl implements JobService {
 				work.setStartTime(ao.getStartTime());
 
 				Result result = remoteApplicationService.addApplicationWork(work, SecurityConstants.FROM_IN);
-				log.info("写入工作经历信息, Company={}, JobName={}, Result={}", work.getCompany(), work.getJobName(), result.isSuccess());
+				log.info("写入工作经历信息完成 success={}", result.isSuccess());
 			}
 		}
 		return new Result<>(true);
@@ -480,7 +485,7 @@ public class JobServiceImpl implements JobService {
 	public void applicationRelationUpdate(ApplicationEmergencyReqDTO applicationEmergencyReqDTO) {
 		// TODO Auto-generated method stub
 		Result<Integer> result = remoteApplicationService.updateByIdApplicationEmergency(applicationEmergencyReqDTO, SecurityConstants.FROM_IN);
-		log.info("修改紧急联系人: ApplicationId={}, Relation={}, EmergencyName={}, Result={}", applicationEmergencyReqDTO.getApplicationId(), applicationEmergencyReqDTO.getRelation(), applicationEmergencyReqDTO.getEmergencyName(), result.isSuccess());
+		log.info("修改紧急联系人完成 applicationId={} success={}", applicationEmergencyReqDTO.getApplicationId(), result.isSuccess());
 	}
 
 	@Override
@@ -509,7 +514,7 @@ public class JobServiceImpl implements JobService {
 			applicationEmergency.setEmergencyName(relationAo.getEmergencyName());
 			applicationEmergency.setTelephont(relationAo.getEmergencyPhone());
 			Result<Boolean> result = remoteApplicationService.addApplicationEmergency(applicationEmergency, SecurityConstants.FROM_IN);
-			log.info("新增紧急联系人: ApplicationId={}, Relation={}, EmergencyName={}, Result={}", applicationEmergency.getApplicationId(), applicationEmergency.getRelation(), applicationEmergency.getEmergencyName(), result.isSuccess());
+			log.info("新增紧急联系人完成 applicationId={} success={}", applicationEmergency.getApplicationId(), result.isSuccess());
 			return result;
 		} else {
 			log.error("员工id不能为空");
@@ -521,7 +526,7 @@ public class JobServiceImpl implements JobService {
 	public void familySave(FamilyMemberAddAO familyMemberAddAO) {
 		String applicationId = familyMemberAddAO.getApplicationId();
 		Result deleteFamily = remoteApplicationService.removeFamilyByApplicationId(Long.parseLong(applicationId), SecurityConstants.FROM_IN);
-		log.info("删除家庭成员: ApplicationId={}, Result={}", applicationId, deleteFamily);
+		log.info("删除家庭成员完成 applicationId={} success={}", applicationId, deleteFamily.isSuccess());
 		if (StringUtils.isNotEmpty(applicationId)) {
 			List<FamilyMemberAO> listFamilyMember = familyMemberAddAO.getFamilyMember();
 			if (CollectionUtils.isNotEmpty(listFamilyMember)) {
@@ -713,7 +718,7 @@ public class JobServiceImpl implements JobService {
 		appEmail.setApplicationId(Long.parseLong(email.getApplicationId()));
 		appEmail.setEmail(email.getEmail());
 		Result result = remoteApplicationService.addApplicationEmailList(appEmail, SecurityConstants.FROM_IN);
-		log.info("添加邮箱: ApplicationId={}, Email={}, Result={}", email.getApplicationId(), email.getEmail(), result.isSuccess());
+		log.info("添加邮箱完成 applicationId={} success={}", email.getApplicationId(), result.isSuccess());
 	}
 
 	@Override
@@ -722,7 +727,7 @@ public class JobServiceImpl implements JobService {
 		appEmail.setApplicationId(Long.parseLong(email.getApplicationId()));
 		appEmail.setEmail(email.getEmail());
 		Result result = remoteApplicationService.updateApplicationEmailList(appEmail, SecurityConstants.FROM_IN);
-		log.info("修改邮箱: ApplicationId={}, Email={}, Result={}", email.getApplicationId(), email.getEmail(), result.isSuccess());
+		log.info("修改邮箱完成 applicationId={} success={}", email.getApplicationId(), result.isSuccess());
 		return result;
 	}
 
@@ -736,27 +741,41 @@ public class JobServiceImpl implements JobService {
 	public EmployeeVo getBaseinfo(String badge) {
 		// TODO Auto-generated method stub
 		// 获取员工号
-		if (StringUtils.isBlank(badge)) {
-			badge = SecurityUtils.getUser().getUsername();
+		badge = requireSelfBadge(badge);
+		Result<InternalStaffSelfProfileRespDTO> profileResult = remoteStaffInternalService.getSelfProfile(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "self-profile");
+		if (!profileResult.isSuccess() || profileResult.getData() == null) {
+			throw new TCEException("获取员工信息异常");
 		}
-		// 远程调用获取员工基本信息
-		StaffInfoRespDTO staff = remoteStaff.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN).data();
+		InternalStaffSelfProfileRespDTO staff = profileResult.getData();
 
 		EmployeeVo employeeVo = new EmployeeVo();
-		employeeVo.setEmployeeName(staff.getSmtStaff().getName());
-		employeeVo.setMobile(staff.getSmtStaff().getPhone());
-		employeeVo.setBuName(staff.getSmtStaff().getCompName());
-		employeeVo.setDeptName(staff.getSmtStaff().getDepName());
-		employeeVo.setEntryDate(staff.getSmtStaff().getCreateTime());
+		employeeVo.setEmployeeName(staff.getName());
+		employeeVo.setMobile(staff.getPhone());
+		employeeVo.setBuName(staff.getCompName());
+		employeeVo.setDeptName(staff.getDepName());
+		employeeVo.setEntryDate(staff.getCreateTime());
 		employeeVo.setDormitoryState(Objects.nonNull(staff.getDormitoryState()) ? String.valueOf(staff.getDormitoryState()) : null);
 		employeeVo.setDormitoryStateDesc(staff.getDormitoryStateDesc());
 		employeeVo.setVehicleState(staff.getVehicleState().toString());
 		employeeVo.setVehicleStateDesc(staff.getVehicleStateDesc());
-		employeeVo.setEmployeeSex(staff.getSmtStaff().getSex());
-		employeeVo.setEmployeeCardNo(staff.getSmtStaff().getCertno());
-		employeeVo.setJobName(staff.getSmtStaff().getJobName());
-		employeeVo.setJcheName(staff.getSmtStaff().getJcheName());
+		employeeVo.setEmployeeSex(staff.getSex());
+		employeeVo.setEmployeeCardNo(staff.getCertno());
+		employeeVo.setJobName(staff.getJobName());
+		employeeVo.setJcheName(staff.getJcheName());
 		return employeeVo;
+	}
+
+	/** 微信端个人资料仅允许读取当前认证员工。 */
+	private String requireSelfBadge(String requestedBadge) {
+		String currentBadge = SecurityUtils.getUser().getUsername();
+		if (StringUtils.isBlank(currentBadge)) {
+			throw new TCEException("当前登录员工信息缺失");
+		}
+		if (StringUtils.isNotBlank(requestedBadge) && !currentBadge.equals(requestedBadge)) {
+			throw new TCEException("无权查询其他员工资料");
+		}
+		return currentBadge;
 	}
 
 

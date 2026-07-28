@@ -20,5 +20,10 @@
 			<groupId>com.tce</groupId>
 			<artifactId>smart-common-core</artifactId>
 		</dependency>
+		<!--员工内部最小资料契约-->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-platform-api</artifactId>
+		</dependency>
 	</dependencies>
 </project>

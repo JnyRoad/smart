@@ -22,6 +22,7 @@ public interface RemoteDailySettlementService {
 	 * @return Result
 	 */
 	@PostMapping("/dormitory/meterread/daily/gen")
-	Result<Boolean> genDailyRecord(@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> genDailyRecord(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

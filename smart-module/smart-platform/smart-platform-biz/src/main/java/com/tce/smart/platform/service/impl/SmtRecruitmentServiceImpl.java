@@ -181,13 +181,13 @@ public class SmtRecruitmentServiceImpl extends ServiceImpl<SmtRecruitmentMapper,
 	@Override
 	public Result getDep(Integer compId) {
 		// TODO Auto-generated method stub
-		return depService.getByCompId(compId, SecurityConstants.FROM_IN);
+		return depService.getByCompId(compId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
 	@Override
 	public Result getJob(Integer depId) {
 		// TODO Auto-generated method stub
-		return jobService.getByDeptId(depId, SecurityConstants.FROM_IN);
+		return jobService.getByDeptId(depId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
 	@Override
@@ -247,7 +247,7 @@ public class SmtRecruitmentServiceImpl extends ServiceImpl<SmtRecruitmentMapper,
 	@Override
 	public Result getJobInfo(Integer jobId) {
 		// TODO Auto-generated method stub
-		Result<OvwYsjobRespDTO> jobInfo = jobService.getByDeptName(jobId, SecurityConstants.FROM_IN);
+		Result<OvwYsjobRespDTO> jobInfo = jobService.getByDeptName(jobId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		return jobInfo;
 	}
 
@@ -257,7 +257,7 @@ public class SmtRecruitmentServiceImpl extends ServiceImpl<SmtRecruitmentMapper,
 		List<SysDict> findByType = remoteDictService.findByType(DictConstants.COMP_ABBR,
 				SecurityConstants.FROM_IN).getData();
 		//更新bu信息
-		List<OvwYscompRespDTO>list = remoteOvwYscompService.getList(SecurityConstants.FROM_IN).getData();
+		List<OvwYscompRespDTO>list = remoteOvwYscompService.getList(SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).getData();
 		for (OvwYscompRespDTO ovwYscompRespDTO : list) {
 
 			List<SmtRecruitment> selectList = this.baseMapper.selectList(Wrappers.<SmtRecruitment> query().lambda().
@@ -272,7 +272,7 @@ public class SmtRecruitmentServiceImpl extends ServiceImpl<SmtRecruitmentMapper,
 		}
 		//更新部门信息
 		for (SysDict sysDict : findByType) {
-			 List<OvwYsjobRespDTO> byCompId = jobService.getListByCompId(Integer.parseInt(sysDict.getValue()), SecurityConstants.FROM_IN).getData();
+			 List<OvwYsjobRespDTO> byCompId = jobService.getListByCompId(Integer.parseInt(sysDict.getValue()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).getData();
 			 if(Objects.nonNull(byCompId)){
 				 for (OvwYsjobRespDTO ovwYsjobRespDTO : byCompId) {
 					 List<SmtRecruitment> selectList = this.baseMapper.selectList(Wrappers.<SmtRecruitment> query().lambda().eq(SmtRecruitment::getJobId, ovwYsjobRespDTO.getJobid()));

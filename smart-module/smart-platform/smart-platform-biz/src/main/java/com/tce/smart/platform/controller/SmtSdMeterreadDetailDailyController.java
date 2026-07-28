@@ -2,6 +2,7 @@ package com.tce.smart.platform.controller;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.req.dailySd.DailyMeterQueryDTO;
 import com.tce.smart.platform.api.dto.resp.dailySd.DailyMeterRespDTO;
 import com.tce.smart.platform.service.settlement.SmtSdMeterreadDetailDailyService;
@@ -36,6 +37,7 @@ public class SmtSdMeterreadDetailDailyController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("每日水电结算")
 	@PostMapping("/gen")
 	public Result genDailyRecord() {

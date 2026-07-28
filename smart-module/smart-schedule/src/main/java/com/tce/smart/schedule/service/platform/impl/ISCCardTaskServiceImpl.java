@@ -219,7 +219,8 @@ public class ISCCardTaskServiceImpl implements ISCCardTaskService {
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setEventType(eventEnum.getCode());
 		dispatcherDTO.setData(params);
-		return remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		return remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 
 	private void markSuccess(SmtIscCardTask task, String personId, long begin) {

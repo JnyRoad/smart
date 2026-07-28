@@ -1,3 +1,17 @@
+# 认证服务调用 UPMS 内部登录投影时必须使用自身的 server scope 客户端凭据。
+security:
+  inner:
+    # 登录投影调用使用独立 client_credentials，不能继承或转发终端用户令牌。
+    service-token:
+      client-id: "${SMART_AUTH_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_AUTH_OAUTH_CLIENT_SECRET:}"
+      access-token-uri: "${SMART_AUTH_OAUTH_TOKEN_URI:}"
+  oauth2:
+    client:
+      client-id: "${SMART_AUTH_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
+      client-secret: "${SMART_AUTH_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+      scope: server
+
 # 数据源
 spring:
   datasource:

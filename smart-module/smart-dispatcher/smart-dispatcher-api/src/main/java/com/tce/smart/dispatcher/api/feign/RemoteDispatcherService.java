@@ -27,7 +27,8 @@ public interface RemoteDispatcherService {
 	 * @return
 	 */
 	@PostMapping("/dispatcher/dispatch")
-	<T> Result<String> dispatch(@RequestBody DispatcherDTO<T> dispatcherDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	<T> Result<String> dispatch(@RequestBody DispatcherDTO<T> dispatcherDTO, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 接收园区服务的请求，转发给集团服务并处理
@@ -37,7 +38,8 @@ public interface RemoteDispatcherService {
 	 * @return
 	 */
 	@PostMapping("/dispatcher/handle")
-	Result<Boolean> handle(@RequestBody BridgeDTO<String> bridgeDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> handle(@RequestBody BridgeDTO<String> bridgeDTO, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 获取园区图片
@@ -47,7 +49,8 @@ public interface RemoteDispatcherService {
 	 * @return
 	 */
 	@PostMapping("/dispatcher/image")
-	Result<String> getImage(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<String> getImage(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 获取园区缩略图
@@ -56,7 +59,8 @@ public interface RemoteDispatcherService {
 	 * @return
 	 */
 	@PostMapping("/dispatcher/thumbnail")
-	Result<String> getThumbnail(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<String> getThumbnail(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 存储园区图片
@@ -66,7 +70,8 @@ public interface RemoteDispatcherService {
 	 * @return
 	 */
 	@PostMapping("/dispatcher/image/save")
-	Result<String> saveImage(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<String> saveImage(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 存储园区缩略图
@@ -75,7 +80,8 @@ public interface RemoteDispatcherService {
 	 * @return
 	 */
 	@PostMapping("/dispatcher/thumbnail/save")
-	Result<String> saveThumbnail(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<String> saveThumbnail(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 接收园区服务的请求，转发给集团服务并处理
@@ -85,5 +91,6 @@ public interface RemoteDispatcherService {
 	 * @return
 	 */
 	@PostMapping("/dispatcher/event/handle")
-	Result<Boolean> eventHandle(@RequestBody String eventData, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> eventHandle(@RequestBody String eventData, @RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }

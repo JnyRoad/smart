@@ -4,10 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
-import com.tce.smart.admin.api.dto.UserDTO;
 import com.tce.smart.admin.api.dto.UserInfo;
+import com.tce.smart.admin.api.dto.AncestorUserRespDTO;
+import com.tce.smart.admin.api.dto.AdminUserProfileRespDTO;
+import com.tce.smart.admin.api.dto.PasswordUpdateReqDTO;
+import com.tce.smart.admin.api.dto.SelfUserInfoRespDTO;
+import com.tce.smart.admin.api.dto.SelfUserProfileRespDTO;
+import com.tce.smart.admin.api.dto.UserDTO;
 import com.tce.smart.admin.api.entity.SysUser;
+import com.tce.smart.admin.api.vo.UserVO;
 import com.tce.smart.admin.service.SysUserService;
 import com.tce.smart.common.core.constant.CommonConstants;
 import com.tce.smart.common.core.constant.enums.ExceptionType;
@@ -15,7 +20,6 @@ import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
-import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.common.security.util.SecurityUtils;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
@@ -26,8 +30,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.List;
-import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -42,7 +45,7 @@ public class UserController extends BaseController {
      * @return 用户信息
      */
     @GetMapping(value = {"/info"})
-    public Result info() {
+    public Result<SelfUserInfoRespDTO> info() {
         String username = SecurityUtils.getUser().getUsername();
         SysUser user = userService.getOne(Wrappers.<SysUser>query()
                 .lambda()
@@ -51,70 +54,8 @@ public class UserController extends BaseController {
         if (user == null) {
             throw new TCEException("获取当前用户信息失败");
         }
-        UserInfo userInfo = userService.findUserInfo(user);
-        return success(userInfo);
+        return success(toSelfUserInfo(userService.findUserInfo(user)));
     }
-
-    /**
-     * 账户名+密码登录
-     *
-     * @return 用户信息
-     */
-    @Inner
-    @GetMapping(value = {"/simple"})
-    public Result<Boolean> simpleLogin(@RequestParam("username") String username, @RequestParam("password") String password) {
-        return new Result<Boolean>(userService.simpleLogin(username, password));
-    }
-
-	// 仅供内部服务调用（认证服务社交登录）：合法入口是 RemoteUserService -> /api/user/social/simple，
-	// 本 /user/social/simple 为历史遗留副本，补 @Inner 收敛为内部专用，防止无 token 请求直接触发建号/登录
-	@Inner
-	@GetMapping(value = {"/social/simple"})
-	public Result<Boolean> socialLogin(@RequestParam("username") String username) {
-		return new Result<>(userService.socialLogin(username));
-	}
-
-    /**
-     * 获取指定用户全部信息
-     *
-     * @return 用户信息
-     */
-	@Inner
-    @GetMapping("/info/{username}")
-    public Result info(@PathVariable String username) {
-        SysUser user = userService.getOne(Wrappers.<SysUser>query()
-                .lambda().eq(SysUser::getUsername, username));
-        if (user == null) {
-            throw new TCEException(String.format("用户信息为空 %s", username));
-        }
-        if (!SecurityUtils.getUser().getId().equals(user.getUserId())) {
-            throw new TCEException(ExceptionType.ROLE_HAVE_NOT);
-        }
-
-        UserInfo userInfo = userService.findUserInfo(user);
-        return success(userInfo);
-    }
-
-    @Inner
-    @GetMapping("/query/{mobile}")
-    public Result queryByMobile(@PathVariable String mobile) {
-        SysUser user = userService.getOne(Wrappers.<SysUser>query()
-                .lambda().eq(SysUser::getPhone, mobile));
-        if (user == null) {
-            throw new TCEException(String.format("用户信息为空 %s", mobile));
-        }
-        if (!SecurityUtils.getUser().getId().equals(user.getUserId())) {
-            throw new TCEException(ExceptionType.ROLE_HAVE_NOT);
-        }
-        UserInfo userInfo = userService.findUserInfo(user);
-        return success(userInfo);
-    }
-
-	@Inner
-	@GetMapping("/verify/{mobile}")
-	public Result verifyMobile(@PathVariable String mobile) {
-		return success(userService.verifyMobile(mobile));
-	}
 
     /**
      * 冻结用户
@@ -153,8 +94,9 @@ public class UserController extends BaseController {
      * @return 用户信息
      */
     @GetMapping("/{id}")
+    @PreAuthorize("@pms.hasPermission('sys_user_edit')")
     public Result user(@PathVariable Integer id) {
-        return success(userService.selectUserVoById(id));
+        return success(toAdminProfile(userService.selectUserVoById(id)));
     }
 
     /**
@@ -164,10 +106,11 @@ public class UserController extends BaseController {
      * @return
      */
     @GetMapping("/details/{username}")
+    @PreAuthorize("@pms.hasPermission('sys_user_edit')")
     public Result user(@PathVariable String username) {
         SysUser condition = new SysUser();
         condition.setUsername(username);
-        return success(userService.getOne(new QueryWrapper<>(condition)));
+        return success(toAdminProfile(userService.getOne(new QueryWrapper<>(condition))));
     }
 
     /**
@@ -212,15 +155,6 @@ public class UserController extends BaseController {
         return success(userService.updateUser(userDto));
     }
 
-    @SysLog("无权限验证更新用户信息")
-    @PostMapping("/inner/user/edit")
-    public Result updateUserPwd(@Valid @RequestBody UserDTO userDto) {
-        if (!SecurityUtils.getUser().getId().equals(userDto.getUserId())) {
-            throw new TCEException(ExceptionType.ROLE_HAVE_NOT);
-        }
-        return success(userService.updateUser(userDto));
-    }
-
     /**
      * 分页查询用户
      *
@@ -229,15 +163,21 @@ public class UserController extends BaseController {
      * @return 用户集合
      */
     @GetMapping("/page")
+    @PreAuthorize("@pms.hasPermission('sys_user_edit')")
     public Result getUserPage(Page page, UserDTO userDTO) {
         log.info("查询用户数据:{}",userDTO.getUsername());
-        IPage pageData = null;
+        IPage<UserVO> pageData = null;
         try {
-            pageData = userService.getUsersWithRolePage(page, userDTO);
+            pageData = (IPage<UserVO>) userService.getUsersWithRolePage(page, userDTO);
         } catch (Exception e) {
             log.warn("查询用户数据出错",e);
         }
-        return success(pageData);
+        if (pageData == null) {
+            return success(null);
+        }
+        Page<AdminUserProfileRespDTO> responsePage = new Page<>(pageData.getCurrent(), pageData.getSize(), pageData.getTotal());
+        responsePage.setRecords(pageData.getRecords().stream().map(this::toAdminProfile).collect(Collectors.toList()));
+        return success(responsePage);
     }
 
     /**
@@ -260,7 +200,8 @@ public class UserController extends BaseController {
      * @return 上级部门用户列表
      */
     @GetMapping("/ancestor/{username}")
-    public Result listAncestorUsers(@PathVariable String username) {
+    @PreAuthorize("@pms.hasPermission('sys_user_edit')")
+    public Result<java.util.List<AncestorUserRespDTO>> listAncestorUsers(@PathVariable String username) {
         return success(userService.listAncestorUsers(username));
     }
 
@@ -273,51 +214,13 @@ public class UserController extends BaseController {
      *
      * @return  Result<Boolean> true-成功
      */
-    @PostMapping("/password/update")
-    public Result<Boolean> updatePwd(@RequestParam("username")String username,@RequestParam("password")String password,@RequestParam("updateAuthCode")String updateAuthCode) {
-        return new Result<Boolean>(userService.updatePwd(username,password, updateAuthCode));
-    }
-
-	/**
-	 * platform平台删除用户信息
-	 *
-	 * @param username 用户名
-	 * @return Result
-	 */
-	// 仅供内部服务调用（platform 平台删除用户）：合法入口是 RemoteUserService -> /api/user/delete/{username}，
-	// 本 /user/delete/{username} 为历史遗留副本，补 @Inner 收敛为内部专用，防止无 token 请求直接删除任意账号
-	@Inner
-	@HystrixCommand(fallbackMethod = "delUserForPlatformFallback")
-	@PostMapping("/delete/{username}")
-	public Result<Boolean> delUserForPlatform(@PathVariable String username) {
-		SysUser user = userService.getOne(Wrappers.<SysUser>query()
-				.lambda().eq(SysUser::getUsername, username));
-		if (Objects.nonNull(user)) {
-			return userService.deleteUserById(user);
-		} else {
-			return fail(String.format("用户信息为空 %s", username));
-		}
-	}
-
-	public Result<Boolean> delUserForPlatformFallback(@PathVariable String username) {
-		log.warn("请求异常，执行回退方式");
-		SysUser user = userService.getOne(Wrappers.<SysUser>query()
-				.lambda().eq(SysUser::getUsername, username));
-		if (Objects.nonNull(user)) {
-			return userService.deleteUserById(user);
-		} else {
-			return fail(String.format("用户信息为空 %s", username));
-		}
-	}
-
-    /**
-     * @param userId 用户ID
-     * @return 用户关联园区列表
-     */
-    @GetMapping("/park/list/{userId}")
-    @Inner
-    public Result<List<Integer>> listUserPark(@PathVariable Integer userId) {
-        return success(userService.listUserPark(userId));
+    @PutMapping("/password/update")
+    @PreAuthorize("@pms.hasPermission('sys_user_edit')")
+    public Result<Boolean> updatePwd(@RequestBody PasswordUpdateReqDTO request) {
+        if (request == null) {
+            throw new TCEException("修改密码请求不能为空");
+        }
+        return new Result<Boolean>(userService.updatePwd(request.getUsername(), request.getPassword(), request.getUpdateAuthCode()));
     }
 
 	/**
@@ -327,4 +230,57 @@ public class UserController extends BaseController {
 	public Result<Integer> loggedCount() {
 		return success(userService.loggedCount());
 	}
+
+    /** 将完整用户实体收敛为当前会话所需投影，避免密码和第三方标识进入浏览器。 */
+    private SelfUserInfoRespDTO toSelfUserInfo(UserInfo userInfo) {
+        SysUser user = userInfo.getSysUser();
+        SelfUserProfileRespDTO profile = new SelfUserProfileRespDTO();
+        profile.setUserId(user.getUserId());
+        profile.setUsername(user.getUsername());
+        profile.setFullName(user.getFullName());
+        profile.setPhone(user.getPhone());
+        profile.setAvatar(user.getAvatar());
+        profile.setDeptId(user.getDeptId());
+
+        SelfUserInfoRespDTO response = new SelfUserInfoRespDTO();
+        response.setProfile(profile);
+        response.setPermissions(userInfo.getPermissions());
+        response.setRoles(userInfo.getRoles());
+        response.setSalaryTypeName(userInfo.getSalaryTypeName());
+        return response;
+    }
+
+    /** 管理端用户视图同样不得返回 UserVO 中的密码、salt 或第三方标识。 */
+    private AdminUserProfileRespDTO toAdminProfile(UserVO source) {
+        if (source == null) {
+            return null;
+        }
+        AdminUserProfileRespDTO response = new AdminUserProfileRespDTO();
+        response.setUserId(source.getUserId());
+        response.setUsername(source.getUsername());
+        response.setFullName(source.getFullName());
+        response.setPhone(source.getPhone());
+        response.setAvatar(source.getAvatar());
+        response.setDeptId(source.getDeptId());
+        response.setDeptName(source.getDeptName());
+        response.setLockFlag(source.getLockFlag());
+        response.setRoleList(source.getRoleList());
+        response.setParkList(source.getParkList());
+        return response;
+    }
+
+    private AdminUserProfileRespDTO toAdminProfile(SysUser source) {
+        if (source == null) {
+            return null;
+        }
+        AdminUserProfileRespDTO response = new AdminUserProfileRespDTO();
+        response.setUserId(source.getUserId());
+        response.setUsername(source.getUsername());
+        response.setFullName(source.getFullName());
+        response.setPhone(source.getPhone());
+        response.setAvatar(source.getAvatar());
+        response.setDeptId(source.getDeptId());
+        response.setLockFlag(source.getLockFlag());
+        return response;
+    }
 }

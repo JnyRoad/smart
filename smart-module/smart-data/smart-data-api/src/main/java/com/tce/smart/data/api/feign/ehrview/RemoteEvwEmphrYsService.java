@@ -4,7 +4,6 @@ import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.constant.ServiceNameConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.data.api.dto.ehrview.EvwEmphrYsDTO;
-import com.tce.smart.data.api.dto.ehrview.resp.EvwEmphrYsBlackRespDTO;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwEmphrYsRespDTO;
 import com.tce.smart.data.api.dto.ehrview.resp.YsLeaveRespDTO;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -28,7 +27,8 @@ public interface RemoteEvwEmphrYsService {
 	 * @return Result
 	 */
 	@GetMapping("/emphr/ys/info")
-    Result<EvwEmphrYsRespDTO> info(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
+    Result<EvwEmphrYsRespDTO> info(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from,
+    @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 	/**
 	 * 根据 员工号badge 获取员工基本信息(离职用)
 	 *
@@ -37,7 +37,8 @@ public interface RemoteEvwEmphrYsService {
 	 * @return Result
 	 */
 	@GetMapping("/emphr/ys/leave")
-    Result<YsLeaveRespDTO> leave(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
+    Result<YsLeaveRespDTO> leave(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from,
+    @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**
@@ -48,7 +49,8 @@ public interface RemoteEvwEmphrYsService {
 	 */
 	@GetMapping("/emphr/ys/getByCompId")
     Result<List<EvwEmphrYsDTO>> getByCompId(@RequestParam("compId") Integer compId,
-										 @RequestHeader(SecurityConstants.FROM) String from);
+										 @RequestHeader(SecurityConstants.FROM) String from,
+										 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	/**
@@ -59,7 +61,8 @@ public interface RemoteEvwEmphrYsService {
 	 */
 	@GetMapping("/emphr/ys/getInStaffByCompId")
     Result<List<EvwEmphrYsDTO>> getInStaffByCompId(@RequestParam("compId") Integer compId,
-												   @RequestHeader(SecurityConstants.FROM) String from);
+												   @RequestHeader(SecurityConstants.FROM) String from,
+												   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 获取黑名单列表
@@ -69,19 +72,16 @@ public interface RemoteEvwEmphrYsService {
 	 */
 	@GetMapping("/emphr/ys/getBlack")
     Result getBlack(@RequestParam("current") long current,@RequestParam("size") long size,@RequestParam("cerNo") String cerNo,@RequestParam("name") String name,
-										 @RequestHeader(SecurityConstants.FROM) String from);
+										 @RequestHeader(SecurityConstants.FROM) String from,
+										 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
-	/**
-	 * 获取黑名单list
-	 * @param cerNo
-	 * @param name
-	 * @param from
-	 * @return
-	 */
-	@GetMapping("/emphr/ys/getBlackInfo")
-    Result<List<EvwEmphrYsBlackRespDTO>> getBlackInfo(@RequestParam("cerNo") String cerNo,
-		@RequestHeader(SecurityConstants.FROM) String from);
+	/** 访客身份证黑名单状态仅供 Platform 服务端读取，禁止返回人员黑名单 DTO。 */
+	@GetMapping("/emphr/ys/internal/visitor-blacklist-status")
+	Result<Boolean> getVisitorBlacklistStatus(@RequestParam("cerNo") String cerNo,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 
 

@@ -77,7 +77,8 @@ public class DevicePersonServiceImpl implements IDevicePersonService {
 				dispatcherDTO.setParkId(smtDevice.getParkId());
 				dispatcherDTO.setDeviceId(smtDevice.getDeviceCode());
 				dispatcherDTO.setData(deviceDataQueryDTO);
-				Result result = remoteDispatcherService.dispatch(dispatcherDTO,SecurityConstants.FROM_IN);
+				Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if(result.isSuccess()){
 					CardDataDTO cardData = JSONUtil.parseObj(result.getData()).toBean(CardDataDTO.class);
 					log.info("获取设备要上人员数据:{}", cardData);
@@ -112,7 +113,8 @@ public class DevicePersonServiceImpl implements IDevicePersonService {
 					dispatcherDTO.setParkId(cardDTO.getParkId());
 					dispatcherDTO.setDeviceId(cardDTO.getDeviceCode());
 					dispatcherDTO.setData(cardDTO);
-					Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+					Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+							SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 					log.info("同步-卡片人员删除，修改时间：{}，请求参数：cardNo：{}，deviceCode：{}，result.code：{}",
 							DateUtil.formatDateTime(DateUtil.date()), cardDelDTO.getCardNo(),
 							cardDelDTO.getDeviceCode(), result.getCode());

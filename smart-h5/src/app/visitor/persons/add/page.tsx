@@ -15,7 +15,7 @@ function FellowFormInner() {
   const router = useRouter()
   const mounted = useMounted()
   const indexParam = useSearchParams().get('index')
-  const { addFellow, updateFellow } = useVisitorFlow()
+  const { addFellow, updateFellow, host } = useVisitorFlow()
 
   // Edit mode only with a valid in-range index; anything else is treated as
   // a new entry (an out-of-range update would silently no-op and lose input).
@@ -75,6 +75,9 @@ function FellowFormInner() {
             value={form.fellowPhotoId}
             onChange={(photoId) => setForm((f) => ({ ...f, fellowPhotoId: photoId }))}
             label="点击拍摄/上传人脸照片"
+			visitorFaceDraft={host.visitorDraftToken && host.visitorDraftId
+			  ? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
+			  : undefined}
           />
         </div>
 

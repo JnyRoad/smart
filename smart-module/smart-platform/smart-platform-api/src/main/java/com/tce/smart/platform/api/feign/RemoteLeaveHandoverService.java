@@ -23,16 +23,34 @@ public interface RemoteLeaveHandoverService {
      * @param processId
      * @return Result
      */
-    @GetMapping("/leave/handover/start/{processId}")
-    Result startLeaveHandover(@PathVariable("processId") String processId,@RequestHeader(SecurityConstants.FROM) String from);
+	@GetMapping("/leave/handover/start/{processId}")
+	Result startLeaveHandover(@PathVariable("processId") String processId,@RequestHeader(SecurityConstants.FROM) String from);
+
+	/** 只有离职申请本人可启动自己的交接流程。 */
+	@GetMapping("/internal/app-leave/handover/start/{processId}")
+	Result startHandoverForActor(@PathVariable("processId") String processId,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
 	 * 获取交接的申請信息
 	 * @param processId processId
 	 * @return from from
 	 */
-    @GetMapping("/leave/handover/get/{processId}")
+	@GetMapping("/leave/handover/get/{processId}")
 	Result<Map<String,Object>> getLeaveHandoverByProcessId(@PathVariable("processId") String processId,@RequestHeader(SecurityConstants.FROM) String from);
+
+	/** 交接人只能按自己的登录工号读取被分配的交接内容。 */
+	@GetMapping("/internal/app-leave/handover/assignee/{processId}")
+	Result<Map<String,Object>> getHandoverForAssignee(@PathVariable("processId") String processId,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
     /**
      * 获取交接内容項
@@ -41,7 +59,13 @@ public interface RemoteLeaveHandoverService {
      * @return from
      */
     @GetMapping("/leave/handover/get/item/{jjr}/{processId}")
-    Result<Map<String,Object>> getLeaveHandoverItemByJjr(@PathVariable("jjr") String jjr,@PathVariable("processId") String processId,@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Map<String,Object>> getLeaveHandoverItemByJjr(@PathVariable("jjr") String jjr,
+			@PathVariable("processId") String processId,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 	/**
      * 确认工作交接
@@ -49,10 +73,28 @@ public interface RemoteLeaveHandoverService {
      * @return
      */
 	@PostMapping("/leave/handover/commit")
-    Result endLeaveHandover(@RequestBody LeaveHandoverReqDTO leaveHandoverDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	Result endLeaveHandover(@RequestBody LeaveHandoverReqDTO leaveHandoverDTO, @RequestHeader(SecurityConstants.FROM) String from);
+
+	/** 交接确认人由 Platform 强制设为 actor，忽略客户端伪造的 jjr。 */
+	@PostMapping("/internal/app-leave/handover/commit")
+	Result endHandoverForActor(@RequestBody LeaveHandoverReqDTO request,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 
-	 @GetMapping("/leave/handover/end/{processId}")
-	 Result closeLeaveHandover(@PathVariable("processId") String processId,@RequestHeader(SecurityConstants.FROM) String from);
+	@GetMapping("/leave/handover/end/{processId}")
+	Result closeLeaveHandover(@PathVariable("processId") String processId,@RequestHeader(SecurityConstants.FROM) String from);
+
+	/** 只有离职申请本人可触发最终提交。 */
+	@GetMapping("/internal/app-leave/handover/close/{processId}")
+	Result closeHandoverForActor(@PathVariable("processId") String processId,
+			@RequestHeader("X-Smart-Actor-Badge") String actorBadge,
+			@RequestHeader("X-Smart-Actor-Park-Ids") String actorParkIds,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 }

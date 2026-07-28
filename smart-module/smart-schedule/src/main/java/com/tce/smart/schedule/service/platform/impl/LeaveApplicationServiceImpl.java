@@ -22,6 +22,7 @@ public class LeaveApplicationServiceImpl implements ILeaveApplicationService {
 
 	@Override
 	public void syncProcessRecord() {
-		remoteLeaveApplicationService.sysnProcessRecord(SecurityConstants.FROM_IN);
+		remoteLeaveApplicationService.sysnProcessRecord(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	}
 }

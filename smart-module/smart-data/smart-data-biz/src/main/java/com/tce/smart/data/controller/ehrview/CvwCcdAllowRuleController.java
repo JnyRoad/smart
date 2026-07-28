@@ -4,6 +4,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.CvwCcdAllowRuleDTO;
 import com.tce.smart.ehrview.core.entity.CvwCcdAllowRule;
 import com.tce.smart.ehrview.core.service.CvwCcdAllowRuleService;
@@ -31,6 +32,7 @@ public class CvwCcdAllowRuleController extends BaseController {
 
 	@SysLog("根据补贴计算规则id查询补贴计算规则")
 	@Inner
+	@OpenApi("server")
     @GetMapping("/get")
     public Result<CvwCcdAllowRuleDTO> getById(@RequestParam("id") String id){
 		CvwCcdAllowRule cvwCcdAllowRule = cvwCcdAllowRuleService.getById(id);
@@ -41,6 +43,7 @@ public class CvwCcdAllowRuleController extends BaseController {
 
 	@SysLog("根据补贴计算规则title查询补贴计算规则")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/get/byTitle")
 	public Result<CvwCcdAllowRuleDTO> getByTitle(@RequestParam("title") String title){
 

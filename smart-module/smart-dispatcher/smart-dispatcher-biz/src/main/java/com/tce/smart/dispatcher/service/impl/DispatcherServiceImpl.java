@@ -50,7 +50,8 @@ public class DispatcherServiceImpl implements DispatcherService {
 			log.error("未找到园区对应的Bridge服务, ParkId：{}", dispatcherDTO.getParkId());
 			throw new TCEException("未找到园区对应的Bridge服务, ParkId：" + dispatcherDTO.getParkId());
 		}
-		Result<String> result = remoteBridgeService.dispatch(convert(dispatcherDTO), SecurityConstants.FROM_IN);
+		Result<String> result = remoteBridgeService.dispatch(convert(dispatcherDTO), SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("向ParkID为{}的bridge服务转发请求，响应为：{}",dispatcherDTO.getParkId(), JSONUtil.toJsonStr(result));
 		if (result == null) {
 			throw new TCEException("Bridge服务响应为空");
@@ -78,7 +79,8 @@ public class DispatcherServiceImpl implements DispatcherService {
 		}
 		ImageDTO imageDTO = new ImageDTO();
 		imageDTO.setId(id);
-		Result<String> result = remoteBridgeService.getImage(imageDTO, SecurityConstants.FROM_IN);
+		Result<String> result = remoteBridgeService.getImage(imageDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		return result.get();
 	}
 
@@ -92,7 +94,8 @@ public class DispatcherServiceImpl implements DispatcherService {
 		}
 		ImageDTO imageDTO = new ImageDTO();
 		imageDTO.setId(id);
-		Result<String> result = remoteBridgeService.getThumbnail(imageDTO, SecurityConstants.FROM_IN);
+		Result<String> result = remoteBridgeService.getThumbnail(imageDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		return result.get();
 	}
 //

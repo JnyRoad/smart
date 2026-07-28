@@ -27,7 +27,9 @@ public interface RemoteOvwYsCallOwanceDetailsService {
 	 * @return
 	 */
     @GetMapping("/ovwYsCallOwanceDetail/get")
-    Result<OvwYsCallOwanceDetailsDTO> getInfo(@RequestParam("badge") String badge, @RequestParam("xtype") Integer xtype);
+    Result<OvwYsCallOwanceDetailsDTO> getInfo(@RequestParam("badge") String badge, @RequestParam("xtype") Integer xtype,
+                                               @RequestHeader(SecurityConstants.FROM) String from,
+                                               @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 补贴查询
@@ -36,7 +38,9 @@ public interface RemoteOvwYsCallOwanceDetailsService {
 	 * @return
 	 */
 	@GetMapping("/ovwYsCallOwanceDetail/time/get")
-	Result<Boolean> getInfoByTime(@RequestParam("badge") String badge, @RequestParam("xtype") Integer xtype);
+	Result<Boolean> getInfoByTime(@RequestParam("badge") String badge, @RequestParam("xtype") Integer xtype,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 补贴查询
@@ -44,13 +48,17 @@ public interface RemoteOvwYsCallOwanceDetailsService {
 	 * @return
 	 */
 	@GetMapping("/ovwYsCallOwanceDetail/time/get/list")
-	Result<List<OvwYsCallOwanceDetailsDTO>> getInfoByTimeList(@RequestParam("xtype") Integer xtype);
+	Result<List<OvwYsCallOwanceDetailsDTO>> getInfoByTimeList(@RequestParam("xtype") Integer xtype,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 餐补查询
 	 * @return
 	 */
 	@GetMapping("/ovwYsCallOwanceDetail/get/byBadge")
-	Result<Boolean> getInfoByBadge(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> getInfoByBadge(@RequestParam("badge") String badge,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

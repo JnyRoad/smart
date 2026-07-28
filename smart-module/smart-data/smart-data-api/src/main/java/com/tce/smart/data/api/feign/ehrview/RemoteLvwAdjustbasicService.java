@@ -27,7 +27,8 @@ public interface RemoteLvwAdjustbasicService {
 	 */
 	@GetMapping("/adjust/basic/info")
 	Result<LvwAdjustbasicRespDTO> info(@RequestParam("badge") String badge, @RequestParam("term") String term,
-									   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 	/**
 	 * 获取员工出勤和可调修天数
 	 *
@@ -37,5 +38,6 @@ public interface RemoteLvwAdjustbasicService {
 	 */
 	@GetMapping("/adjust/basic/getByBadge")
 	Result<List<LvwAdjustbasicFullRespDTO>> getByBadge(@RequestParam("badge") String badge,
-													   @RequestHeader(SecurityConstants.FROM) String from);
+													   @RequestHeader(SecurityConstants.FROM) String from,
+													   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }

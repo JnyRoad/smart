@@ -1,12 +1,15 @@
 package com.tce.smart.platform.service.admittance.impl;
 
+import com.tce.smart.app.api.dto.InternalSmsVerifyReqDTO;
 import com.tce.smart.app.api.feign.RemoteAppSmsService;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyRecordDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyRecordRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApprovalProgressRespDTO;
+import com.tce.smart.platform.api.dto.resp.admittance.VisitorPassCodeRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorSelfQueryRespDTO;
 import com.tce.smart.platform.core.entity.ApproveList;
 import com.tce.smart.platform.core.entity.SmtPark;
@@ -49,6 +52,117 @@ import java.util.function.Supplier;
 public class VisitorSelfQueryServiceImplTest {
 
 	@Test
+	public void passCodeAllowsOnlyTheTokenOwnersUnexpiredApplyAndReturnsMinimalFields() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, values, Mockito.mock(SmtParkService.class),
+				Mockito.mock(SmtAdmittanceFellowService.class), Mockito.mock(SmtAdmittanceVehicleService.class));
+		Mockito.when(values.get("smart:admittance:visitor-query:tok-owner")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1010L, "李明", "13712341234", VisitorStatusEnum.Status_0.getCode());
+		apply.setSmsCode("668866");
+		Mockito.when(mapper.selectById(1010L)).thenReturn(apply);
+
+		VisitorPassCodeRespDTO response = service.getPassCode("1010", "tok-owner");
+
+		Assert.assertEquals("1010", response.getApplyId());
+		Assert.assertEquals(Boolean.TRUE, response.getValid());
+		Assert.assertEquals("668866", response.getSmsCode());
+		Assert.assertNotNull(response.getQrCode());
+		Assert.assertFalse("最小二维码响应不能泄露访客手机号", response.toString().contains("13712341234"));
+	}
+
+	@Test
+	public void passCodeRejectsMissingExpiredAndNonOwnerQueryTokens() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, values, Mockito.mock(SmtParkService.class),
+				Mockito.mock(SmtAdmittanceFellowService.class), Mockito.mock(SmtAdmittanceVehicleService.class));
+		SmtAdmittanceApply apply = apply(1011L, "李明", "13712341234", VisitorStatusEnum.Status_0.getCode());
+		apply.setSmsCode("668866");
+		Mockito.when(mapper.selectById(1011L)).thenReturn(apply);
+
+		expectSmartException(() -> service.getPassCode("1011", null));
+		Mockito.when(values.get("smart:admittance:visitor-query:tok-expired")).thenReturn(null);
+		expectSmartException(() -> service.getPassCode("1011", "tok-expired"));
+		Mockito.when(values.get("smart:admittance:visitor-query:tok-other")).thenReturn("13900000000");
+		expectSmartException(() -> service.getPassCode("1011", "tok-other"));
+	}
+
+	@Test
+	public void passCodeReturnsInvalidWithoutPayloadWhenApplyIsNotApproved() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, values,
+				Mockito.mock(SmtParkService.class), Mockito.mock(SmtAdmittanceFellowService.class),
+				Mockito.mock(SmtAdmittanceVehicleService.class));
+		Mockito.when(values.get("smart:admittance:visitor-query:tok-owner")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1012L, "李明", "13712341234", VisitorStatusEnum.Status_1.getCode());
+		apply.setSmsCode("668866");
+		Mockito.when(mapper.selectById(1012L)).thenReturn(apply);
+
+		assertInvalidPassCode(service.getPassCode("1012", "tok-owner"), "1012");
+	}
+
+	@Test
+	public void passCodeReturnsInvalidWithoutPayloadWhenApplyIsExpired() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, values,
+				Mockito.mock(SmtParkService.class), Mockito.mock(SmtAdmittanceFellowService.class),
+				Mockito.mock(SmtAdmittanceVehicleService.class));
+		Mockito.when(values.get("smart:admittance:visitor-query:tok-owner")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1013L, "李明", "13712341234", VisitorStatusEnum.Status_0.getCode());
+		apply.setSmsCode("668866");
+		apply.setEndTime(LocalDateTime.now().minusMinutes(1));
+		Mockito.when(mapper.selectById(1013L)).thenReturn(apply);
+
+		assertInvalidPassCode(service.getPassCode("1013", "tok-owner"), "1013");
+	}
+
+	@Test
+	public void passCodeReturnsInvalidWithoutPayloadWhenDeviceDispatchFailed() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, values,
+				Mockito.mock(SmtParkService.class), Mockito.mock(SmtAdmittanceFellowService.class),
+				Mockito.mock(SmtAdmittanceVehicleService.class));
+		Mockito.when(values.get("smart:admittance:visitor-query:tok-owner")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1014L, "李明", "13712341234", VisitorStatusEnum.Status_0.getCode());
+		apply.setSmsCode("668866");
+		apply.setDeviceStatus(DeviceDownStatusEnum.FAIL.getCode());
+		Mockito.when(mapper.selectById(1014L)).thenReturn(apply);
+
+		assertInvalidPassCode(service.getPassCode("1014", "tok-owner"), "1014");
+	}
+
+	@Test
+	public void passCodeReturnsInvalidWithoutPayloadWhenSmsCodeIsBlank() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, values,
+				Mockito.mock(SmtParkService.class), Mockito.mock(SmtAdmittanceFellowService.class),
+				Mockito.mock(SmtAdmittanceVehicleService.class));
+		Mockito.when(values.get("smart:admittance:visitor-query:tok-owner")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(1015L, "李明", "13712341234", VisitorStatusEnum.Status_0.getCode());
+		apply.setSmsCode(" ");
+		Mockito.when(mapper.selectById(1015L)).thenReturn(apply);
+
+		assertInvalidPassCode(service.getPassCode("1015", "tok-owner"), "1015");
+	}
+
+	@Test
 	public void listMyApplyVerifiesSmsStoresOneDayTokenAndReturnsFullNames() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
 		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
@@ -60,7 +174,10 @@ public class VisitorSelfQueryServiceImplTest {
 		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
 				fellowService, vehicleService);
 		setField(service, "queryTokenSupplier", (Supplier<String>) () -> "tok-fixed");
-		Mockito.when(smsService.verifySmsCode("13712341234", "123456")).thenReturn(Result.success(Boolean.TRUE));
+		Mockito.when(smsService.verifySmsCode(Mockito.argThat(candidate -> candidate != null
+				&& "13712341234".equals(candidate.getMobile()) && "123456".equals(candidate.getSmsCode())),
+				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+				.thenReturn(Result.success(Boolean.TRUE));
 		SmtPark park = new SmtPark();
 		park.setParkName("裕同科技许昌园区");
 		Mockito.when(parkService.getById(5000021)).thenReturn(park);
@@ -86,7 +203,9 @@ public class VisitorSelfQueryServiceImplTest {
 		Assert.assertEquals("ISSUING", records.get(0).getDispatchStatus());
 		Assert.assertEquals(Integer.valueOf(1), records.get(0).getFellowCount());
 		Assert.assertEquals(Collections.singletonList("豫A12345"), records.get(0).getPlates());
-		Mockito.verify(smsService).verifySmsCode("13712341234", "123456");
+		Mockito.verify(smsService).verifySmsCode(Mockito.argThat(candidate -> candidate != null
+				&& "13712341234".equals(candidate.getMobile()) && "123456".equals(candidate.getSmsCode())),
+				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Mockito.verify(valueOperations).set("smart:admittance:visitor-query:tok-fixed", "13712341234", 1L,
 				TimeUnit.DAYS);
 	}
@@ -110,7 +229,8 @@ public class VisitorSelfQueryServiceImplTest {
 
 		Assert.assertEquals("tok-existing", response.getQueryToken());
 		Assert.assertEquals(1, response.getRecords().size());
-		Mockito.verify(smsService, Mockito.never()).verifySmsCode(Mockito.anyString(), Mockito.anyString());
+		Mockito.verify(smsService, Mockito.never()).verifySmsCode(Mockito.any(InternalSmsVerifyReqDTO.class),
+				Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(valueOperations).get("smart:admittance:visitor-query:tok-existing");
 	}
 
@@ -578,6 +698,13 @@ public class VisitorSelfQueryServiceImplTest {
 		return apply;
 	}
 
+	private void assertInvalidPassCode(VisitorPassCodeRespDTO response, String applyId) {
+		Assert.assertEquals(applyId, response.getApplyId());
+		Assert.assertEquals(Boolean.FALSE, response.getValid());
+		Assert.assertNull("无效通行码不得返回二维码", response.getQrCode());
+		Assert.assertNull("无效通行码不得返回短信通行码", response.getSmsCode());
+	}
+
 	private SmtAdmittanceFellow fellow(String name, Integer isMain) {
 		SmtAdmittanceFellow fellow = new SmtAdmittanceFellow();
 		fellow.setFellowName(name);
@@ -630,6 +757,19 @@ public class VisitorSelfQueryServiceImplTest {
 		Field field = findField(target.getClass(), name);
 		field.setAccessible(true);
 		field.set(target, value);
+	}
+
+	private void expectSmartException(ThrowingRunnable action) throws Exception {
+		try {
+			action.run();
+			Assert.fail("预期拒绝未持有或已失效的 queryToken");
+		} catch (SmartException expected) {
+			// queryToken 缺失、过期和非本人申请均必须在服务端拒绝。
+		}
+	}
+
+	private interface ThrowingRunnable {
+		void run() throws Exception;
 	}
 
 	private Field findField(Class<?> type, String name) throws NoSuchFieldException {

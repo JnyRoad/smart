@@ -1,19 +1,13 @@
 
 import request from '@/router/axios'
 
-export function getById (id) {
+/**
+ * 查询当前管理员园区范围内的员工最小详情。
+ */
+export function getAdminStaffDetail (staffId) {
   return request({
-    url: '/platform/staff/'+id,
-    method: 'get',
-    data: id
-  })
-}
-
-export function editPhone (data) {
-  return request({
-    url: '/platform/staff/updateStaffPhone',
-    method: 'post',
-    params: data
+    url: '/platform/staff/admin/' + staffId,
+    method: 'get'
   })
 }
 

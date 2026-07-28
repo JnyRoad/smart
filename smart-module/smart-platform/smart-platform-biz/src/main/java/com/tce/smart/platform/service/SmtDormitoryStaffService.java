@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.req.DorStaffPerfectDTO;
 import com.tce.smart.platform.api.dto.req.LockPwdUpdateDTO;
+import com.tce.smart.platform.api.dto.req.SelfLockPwdRefreshReqDTO;
 import com.tce.smart.platform.api.dto.req.remoteLock.LockDormitoryStaffDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryStaffRespDTO;
@@ -124,8 +125,6 @@ public interface SmtDormitoryStaffService extends IService<SmtDormitoryStaff> {
 	 */
 	List<DormitoryRoomDetailRespDTO> getStaffRoomInfoList(String staffBadge);
 
-	DormitoryRoomDetailRespDTO getStaffRoomInfoByPhone(String phone,String name);
-
 	Result addDormitory(DormitoryStaffDTO dormitoryStaffDTO);
 
 	/**
@@ -196,6 +195,26 @@ public interface SmtDormitoryStaffService extends IService<SmtDormitoryStaff> {
 	 * @return
 	 */
 	String updateLockPwdByBadge(LockPwdUpdateDTO lockPwdUpdateDTO);
+
+	/**
+	 * 获取当前认证员工的门锁动态码。
+	 */
+	String getPwdForAuthenticatedStaff(String badge);
+
+	/**
+	 * 修改当前认证员工的门锁动态码。
+	 */
+	String updateLockPwdForAuthenticatedStaff(String badge, String newPwd);
+
+	/**
+	 * 通过人脸核验刷新当前认证员工的门锁动态码。
+	 */
+	String refreshPwdForAuthenticatedStaff(String badge, SelfLockPwdRefreshReqDTO request);
+
+	/**
+	 * 当前认证员工通过人脸核验读取本人门锁动态码。
+	 */
+	String faceCompareForAuthenticatedStaff(String badge, SelfLockPwdRefreshReqDTO request);
 
 	/**
 	 * 修改备注

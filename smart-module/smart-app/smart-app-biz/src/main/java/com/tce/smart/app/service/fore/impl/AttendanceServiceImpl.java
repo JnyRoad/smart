@@ -215,7 +215,8 @@ public class AttendanceServiceImpl implements AttendanceService {
 		String badge = SecurityUtils.getUser().getUsername();
 		String kqDate = attendanceAo.getPatchDate();
 		log.info("remoteAvaGetskyPayService.info param-badge:" + badge + "-kqDate:" + kqDate);
-		Result info = remoteAvaGetskyPayService.info(badge, kqDate, SecurityConstants.FROM_IN);
+		Result info = remoteAvaGetskyPayService.info(badge, kqDate, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("remoteKQCardDetailsService.info.result:" + info);
 		return info.getData();
 

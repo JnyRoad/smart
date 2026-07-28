@@ -23,7 +23,7 @@ public class ISCPersonServiceImplTest {
 	public void syncISCPersonCardAddsCardToPersonInTargetPark() throws Exception {
 		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
 		ISCPersonServiceImpl service = service(dispatcherService);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO<Map> dto = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(dto.getEventType())) {
@@ -36,7 +36,8 @@ public class ISCPersonServiceImplTest {
 
 		Assert.assertTrue(synced);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN),
+				Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		DispatcherDTO<Map> cardRequest = captor.getAllValues().get(1);
 		Assert.assertEquals(EventEnum.ISC_CARD_ADD.getCode(), cardRequest.getEventType());
 		Assert.assertEquals(Integer.valueOf(5000021), cardRequest.getParkId());
@@ -52,7 +53,7 @@ public class ISCPersonServiceImplTest {
 	public void syncISCPersonCardAcceptsHikvisionUppercaseLetterCardNo() throws Exception {
 		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
 		ISCPersonServiceImpl service = service(dispatcherService);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO<Map> dto = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(dto.getEventType())) {
@@ -65,7 +66,8 @@ public class ISCPersonServiceImplTest {
 
 		Assert.assertTrue(synced);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN),
+				Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		DispatcherDTO<Map> cardRequest = captor.getAllValues().get(1);
 		List cardList = (List) cardRequest.getData().get("cardList");
 		Map cardItem = (Map) cardList.get(0);
@@ -80,21 +82,22 @@ public class ISCPersonServiceImplTest {
 		Boolean synced = service.syncISCPersonCard("JA26086", 5000021, "9990000001");
 
 		Assert.assertTrue(synced);
-		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString());
+		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString(), Mockito.anyString());
 	}
 
 	@Test
 	public void deleteISCPersonCardRequiresResolvedPersonId() throws Exception {
 		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
 		ISCPersonServiceImpl service = service(dispatcherService);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{\"list\":[]}"));
 
 		Boolean deleted = service.deleteISCPersonCard("JA26086", 5000021, "AB123456");
 
 		Assert.assertFalse(deleted);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
+		Mockito.verify(dispatcherService).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN),
+				Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Assert.assertEquals(EventEnum.ISC_PERSON_GET.getCode(), captor.getValue().getEventType());
 	}
 

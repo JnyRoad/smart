@@ -1,105 +1,72 @@
 ## spring security 配置
 security:
+  inner:
+    # Platform 到 UPMS 的用户管理调用只使用专属服务令牌。
+    service-token:
+      client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_PLATFORM_OAUTH_CLIENT_SECRET:}"
+      access-token-uri: "${SMART_PLATFORM_OAUTH_TOKEN_URI:}"
+    # 全园区列表仅允许 App、定时任务两个受管服务 client；未注入配置时控制器必须拒绝调用。
+    park:
+      # Dispatcher 读取动态 Bridge 目标只能使用专属受管服务 client；未注入配置时必须拒绝调用。
+      dispatcher-client-id: "${SMART_PARK_DISPATCHER_CLIENT_ID:}"
+      list-client-ids: "${SMART_PARK_LIST_CLIENT_IDS:}"
+    # 充值定时任务仅允许 Smart Schedule 的受管服务 client；未注入配置时必须拒绝调用。
+    recharge:
+      schedule-client-id: "${SMART_RECHARGE_SCHEDULE_CLIENT_ID:}"
+    # 物流同步定时任务仅允许 Smart Schedule 的受管服务 client；未注入配置时必须拒绝调用。
+    logistics:
+      schedule-client-id: "${SMART_LOGISTICS_SCHEDULE_CLIENT_ID:}"
+    # App 消费访客单次操作能力时，只允许配置的 OAuth client；未配置时内部接口拒绝调用。
+    visitor-action:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+    # App 车辆代理必须使用独立的 server token client；空值会拒绝所有车辆代理调用。
+    vehicle:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+    # App 的访客黑名单校验只允许专属服务客户端；未配置时内部路由拒绝调用。
+    visitor-blacklist:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+    # App 访客自助详情和随行人员修改仅接受专属 server client；空值默认拒绝。
+    visitor-app:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
+    # App 离职及交接操作仅接受专属 server client；空值默认拒绝。
+    leave-app:
+      app-client-id: "${SMART_APP_OAUTH_CLIENT_ID:}"
   oauth2:
     client:
       client-id: "${SMART_PLATFORM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # platform
       client-secret: "${SMART_PLATFORM_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # platform
       scope: server
-      # 放行url
+      # 仅保留无敏感信息的存活探针；访客能力三个精确路径由控制器校验微信 code 派生的草稿会话和一次性能力，
+      # 不得扩展为 /admittance/** 或任何通配路径。
       ignore-urls:
-        - /alarm/record/save
-        - /application/**
-        - /applicationTask/remind
-        - /appmsg/**
-        - /approve/list/page
-        - /callowance/**
-        - /device/update/status
-        - /device/query/deviceStatus
-        - /device/task/**
-        - /leave/**
-        - /logistics/appointment/**
-        - /out/dormitory/**
-        - /parking/count/**
-        - /park/**
-        - /processRecord/add
-        - /staff/query/**
-        - /recruitment/**
-        - /snap/person/addSnapPerson
-        - /snap/vehicle/save
-        - /staff/**
-        - /dormitory/staff/addInDormitory
-        - /dormitory/staff/roomDetailByPhone/**
-        - /dormitory/room/getJche/freeBed
-        - /visitor/addFellowVisitor
-        - /visitor/addWechatFellowVisitor
-        - /visitor/addWechatVisitor
-        - /visitor/addVisitor
-        - /visitor/app/**
-        - /visitor/wechat/**
-        - /visitor/checkBlackVisitor
-        - /visitor/checkBlackVehicle
-        - /visitorTask/**
-        - /wage/sign/**
-        - /articlesrelease/**
-        - /ehr/to/staff/set/list
-        - /ehr/to/staff/set/list-dhr
-        - /ehr/to/staff/set/list-ehr
-        - /feed/back/add
-        - /inner/**
-        - /paper/status/refresh
-        - /parklogistics/list
-        - /parklogistics/companyId/*
-        - /processRecord/add
-        - /image/**
-        - /social/security/list
-        - /visitor/wechatVisitorAgain
-        - /visitor/refuseType
-        - /visitor/record/list
-        - /badge/**
-        - /attendance/sign/sync/task
-        - /ehr/setup/smg
-        - /recharge/new/recharge
-        - /regist/**
-        - /articlesrelease/**
-        - /dormitory/queryDormitory
-        - /dormitory/room/queryRoom
-        - /bigdata/park/**
-        - /visitor/searchVisitorAnalysisToday
-        - /snap/vehicle/count
-        - /visitor/searchVisitorByCode/**
-        - /visitor/searchVisitorById/**
-        - /visitor/createQRCode/**
-        - /visitor/delSmsCode/**
-        - /visitor/smbPutPhoto/**
-        - /recharge/senior/recharge
-        - /ehr/setup/auto/confirm
-        - /dormitory/staff/remote/to/lock
-        - /park/app/all
-        - /park/tolock/dormitory/allList
-        - /staff/simple/badge
-        - /admittance/**
-        - /common/config/visitor/notice
-        - /common/config/admittance/notice
-        - /oa/workflow/over
-        - "/security/auth/apply/oa/status/task"
-        - "/security/auth/apply/msg"
-        - "/security/auth/delete/task"
-        - "/news/terminal/check"
-        - "/oa/workflow/callback/log/clean"
-        - /wechat/banding/info/**
-        - /wechat/banding/save
-        - /visitor/enum/carry/type
-        - /common/config/visitor/health
-        - /visitor/enum/cause/type
-        - /visitor/hf/saveVisitor
-        - /visitor/hf/record/push
-        - /news/file/stream/**
-        - /websocket/**
-        - /snap/person/check/temp
-        - /dor/quit/dealy/quit
-        - /settlement/count
-        - /dormitory/meterread/daily/gen
-        # 数据源配置
+        - /actuator/health
+        - /admittance/apply/get/openId
+        - /admittance/visitor-face/capability
+        - /admittance/visitor-face/crop
+        - /admittance/visitor-action/capability
+        # 访客入口仅公开这两个 capability 消费路径；旧 apply 路由保持认证，禁止 /admittance/**。
+        - /admittance/visitor-entry/receptionist
+        # 预校验同样消费一次性 capability，不允许回退至旧 equal/check。
+        - /admittance/visitor-entry/precheck
+        - /admittance/visitor-entry/apply
+        # 只读选项也必须携带 OAuth 草稿并在服务端限速；不恢复历史 enum/app 等宽泛匿名前缀。
+        - /admittance/visitor-entry/options/cause
+        - /admittance/visitor-entry/options/vehicle-cert
+        - /admittance/visitor-entry/options/area-options
+        # 短信本人核验后的自助查询：网关只放到 queryToken 归属校验，不允许任何 /app/** 通配。
+        - /admittance/apply/app/listMyApply
+        - /admittance/apply/app/applyDetail
+        - /admittance/apply/app/approvalProgress
+        - /admittance/apply/app/passCode
+        # 货车预约只公开短信核验和持 proof 的最小三端点，禁止放宽旧 apply 路由。
+        - /admittance/visitor-truck/verify-sms
+        - /admittance/visitor-truck/options/cause
+        - /admittance/visitor-truck/apply
+        # 简历公开流程仅放行受一次性 HttpOnly capability 约束的两个 POST 路径，禁止使用 /regist/**。
+        - /regist/save/identification
+        - /regist/face/crop
+        - /regist/face/add
 spring:
   #  datasource:
   #    type: com.zaxxer.hikari.HikariDataSource

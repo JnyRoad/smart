@@ -3,6 +3,8 @@ package com.tce.smart.data.controller.temporary;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.temporary.req.EleaveJjitemReqDTO;
 import com.tce.smart.temporary.core.entity.EleaveJjitem;
 import com.tce.smart.temporary.core.service.IEleaveJjitemService;
@@ -38,7 +40,9 @@ public class EleaveJjitemController extends BaseController {
      * @param eleaveJjitemReqDTO
      * @return
      */
-    @PostMapping("/save")
+    @Inner
+    @OpenApi("server")
+    @PostMapping("/internal/save")
     @ResponseBody
     private Result<Boolean> save(@Valid @RequestBody EleaveJjitemReqDTO eleaveJjitemReqDTO){
 		EleaveJjitem queryBean = new EleaveJjitem();
@@ -51,7 +55,9 @@ public class EleaveJjitemController extends BaseController {
      * @param entityList
      * @return
      */
-    @PostMapping("/save/batch")
+    @Inner
+    @OpenApi("server")
+    @PostMapping("/internal/save/batch")
     @ResponseBody
     private Result<Boolean> save(@RequestBody List<EleaveJjitemReqDTO> entityList){
 

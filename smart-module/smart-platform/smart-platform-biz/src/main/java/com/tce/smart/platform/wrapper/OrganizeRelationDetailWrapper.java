@@ -1,8 +1,7 @@
 package com.tce.smart.platform.wrapper;
 
-import com.tce.smart.admin.api.dto.RoleDTO;
-import com.tce.smart.admin.api.dto.UserInfo;
-import com.tce.smart.admin.api.feign.RemoteUserService;
+import com.tce.smart.admin.api.dto.InternalUserSummaryRespDTO;
+import com.tce.smart.admin.api.feign.RemoteUserInternalService;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.BeanUtils;
@@ -31,17 +30,16 @@ public class OrganizeRelationDetailWrapper extends BaseWrapper<SmtOrganizeRelati
 	@Autowired
 	private SmtParkService parkService;
 	@Autowired
-	private RemoteUserService userService;
+	private RemoteUserInternalService userService;
     @Autowired
 	private SmtOrganizeAccessService organizeAccessService;
 	@Override
     protected OrganizeRelationRespDTO warp(SmtOrganizeRelation smtOrganizeRelation) throws IOException {
 		OrganizeRelationRespDTO respDTO = BeanUtils.transform(OrganizeRelationRespDTO.class, smtOrganizeRelation);
 		SmtPark park = parkService.getById(smtOrganizeRelation.getParkId());
-		Result<UserInfo> result = userService.info(smtOrganizeRelation.getUserName(), SecurityConstants.FROM_IN);
+		Result<InternalUserSummaryRespDTO> result = userService.summary(smtOrganizeRelation.getUserName());
 		if(Objects.nonNull(result.getData())) {
-			List<RoleDTO> roles = result.getData().getRoleList();
-			List<String> strings = roles.stream().map(RoleDTO::getRoleName).collect(Collectors.toList());
+			List<String> strings = result.getData().getRoleNames();
 			respDTO.setUserRole(strings.toString());
 		}
 		respDTO.setParkName(park.getParkName());

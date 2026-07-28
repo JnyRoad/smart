@@ -154,7 +154,7 @@ public class SmtStaffTaskServiceImplTest {
 		Mockito.verify(imageService).getImageBase64ByCode("old-face");
 		Mockito.verify(imageService, Mockito.never()).saveImage(Mockito.anyInt(), Mockito.anyString(), Mockito.anyInt());
 		Mockito.verify(remoteStaffService, Mockito.never()).syncIscPersonFace(
-				Mockito.anyString(), Mockito.anyInt(), Mockito.anyString(), Mockito.anyString());
+				Mockito.anyString(), Mockito.anyInt(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(remoteStaffService, Mockito.never()).addDeviceTask(Mockito.any(SmtStaffDTO.class), Mockito.anyInt());
 		Assert.assertNull(service.updatedStaff);
 	}
@@ -178,7 +178,7 @@ public class SmtStaffTaskServiceImplTest {
 		Assert.assertEquals("new-face", service.updatedStaff.getFacePicId());
 		Mockito.verify(imageService).saveImage(0, "new-face-data", SmtImageEnum.TYPE_STAFF_FACE.getCode());
 		Mockito.verify(remoteStaffService, Mockito.never()).syncIscPersonFace(
-				Mockito.anyString(), Mockito.anyInt(), Mockito.anyString(), Mockito.anyString());
+				Mockito.anyString(), Mockito.anyInt(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
 		ArgumentCaptor<SmtStaffDTO> staffCaptor = ArgumentCaptor.forClass(SmtStaffDTO.class);
 		Mockito.verify(remoteStaffService).addDeviceTask(staffCaptor.capture(),
 				Mockito.eq(DeviceTaskActionEnum.UPDATE.getCode()));

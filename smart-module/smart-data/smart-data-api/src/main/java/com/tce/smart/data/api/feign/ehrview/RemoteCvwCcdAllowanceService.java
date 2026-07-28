@@ -27,6 +27,7 @@ public interface RemoteCvwCcdAllowanceService {
 	 */
 	@GetMapping("/cd/allowance/get")
 	Result<CvwCcdAllowanceDTO> getByName(@RequestParam("allowanceName") String allowanceName,
-										 @RequestHeader(SecurityConstants.FROM) String from);
+										 @RequestHeader(SecurityConstants.FROM) String from,
+										 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

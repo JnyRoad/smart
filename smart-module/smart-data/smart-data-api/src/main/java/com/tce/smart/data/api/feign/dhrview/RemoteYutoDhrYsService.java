@@ -21,35 +21,40 @@ import java.util.List;
 public interface RemoteYutoDhrYsService {
 
 	/**
-	 * 根据 bu列表 获取DHR员工信息
+	 * 受控服务读取 BU 列表对应的 DHR 员工信息。
+	 *
+	 * 响应包含员工敏感信息，调用方必须通过服务令牌，不得复用旧通用分页路径。
 	 *
 	 * @param from     调用标志
 	 * @return Result
 	 */
-	@GetMapping("/empdhr/ys/page")
+	@GetMapping("/empdhr/ys/internal/page")
     Result<Page<YutoDhrPsndoDTO>> page(@RequestParam("current") Long current,
 									   @RequestParam("size") Long size,
 									   @RequestParam("buIds") List<Integer> buIds,
-									   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
-	 * 根据员工工号获得员工性质
+	 * 由受控服务根据员工工号获得员工性质。
 	 *
 	 * @param from     调用标志
 	 * @return Result
 	 */
-	@GetMapping("/empdhr/ys/get/properties")
+	@GetMapping("/empdhr/ys/internal/properties")
 	Result<String> getProperties(@RequestParam("badge") String badge,
-									   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
-	 * 根据userId获取员工工号
+	 * 由受控服务根据 userId 获取员工工号。
 	 *
 	 * @param from     调用标志
 	 * @return Result
 	 */
-	@GetMapping("/empdhr/ys/badge/{userId}")
+	@GetMapping("/empdhr/ys/internal/badge/{userId}")
 	Result<String> getBadgeByUserId(@PathVariable("userId") String userId,
-								 @RequestHeader(SecurityConstants.FROM) String from);
+								 @RequestHeader(SecurityConstants.FROM) String from,
+								 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

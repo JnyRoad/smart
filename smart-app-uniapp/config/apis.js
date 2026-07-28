@@ -16,7 +16,7 @@ export const API_PASSWORD_MOBILE_QUERY = '/app/password/mobile/query' // 通过�
 export const API_SMS_SEND = '/app/password/sms/send' // 发送短信验证码
 export const API_SMS_VERIFY = '/app/password/verify' // 效验短信验证码
 export const API_PASSWORD_VERIFY_FACE = '/app/password/verify/face' // 人脸识别效验修改密码
-export const API_PASSWORD_UPDATE = '/admin/user/password/update' // 设置密码
+export const API_PASSWORD_UPDATE = '/app/password/update' // 设置密码
 
 // 完善信息
 export const API_PERFECT_CHECK_FACE = '/app/perfect/check/face' // 信息完整信息检测
@@ -188,9 +188,10 @@ export const API_GUIDE_HELP_QUESTION_ANSWER = '/app/guide/help/question/answer' 
 export const API_SETTING_SUGGEST = '/app/setting/suggest' // 意见反馈
 export const API_SETTING_ABOUTUS = '/app/setting/aboutus' // 关于我们
 export const API_SETTING_VERSION_CHECK = '/app/setting/version/check' // 版本检查
-export const API_SETTING_VERIFY_OLDPHONE = '/app/setting/updatephone/verify/oldmobile/smscode' // 验证原手机号码
-export const API_SETTING_NEWPHONE_SENDSMS = '/app/setting/updatephone/send/smscode' // 获取新手机号码的验证码
-export const API_SETTING_UPDATAPHONE = '/app/setting/updatephone/update' // 更换手机号码
+export const API_SETTING_OLDPHONE_SEND = '/app/setting/phone/old/send' // 向当前会话绑定的旧手机发送验证码
+export const API_SETTING_OLDPHONE_VERIFY = '/app/setting/phone/old/verify' // 验证旧手机并建立服务端换绑授权
+export const API_SETTING_NEWPHONE_SEND = '/app/setting/phone/new/send' // 向新手机发送验证码
+export const API_SETTING_NEWPHONE_CONFIRM = '/app/setting/phone/new/confirm' // 双重验证后更换手机号码
 // 删除消息
 export const API_MESSAGE_DELETE = '/app/message/delete' //删除消息
 // 消费记录 

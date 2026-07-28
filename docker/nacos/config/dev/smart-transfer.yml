@@ -1,0 +1,8 @@
+# 历史数据迁移程序的内部算法调用凭据。
+# 所有值只从运行环境或受管密钥注入，仓库和 Nacos 模板不得出现真实客户端密钥。
+security:
+  inner:
+    service-token:
+      client-id: "${SMART_TRANSFER_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_TRANSFER_OAUTH_CLIENT_SECRET:}"
+      access-token-uri: "${SMART_TRANSFER_OAUTH_TOKEN_URI:}"

@@ -6,11 +6,10 @@ import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONObject;
-import com.tce.smart.admin.api.dto.UserInfo;
+import com.tce.smart.admin.api.dto.InternalUserLoginRespDTO;
 import com.tce.smart.admin.api.entity.SysDict;
-import com.tce.smart.admin.api.entity.SysUser;
 import com.tce.smart.admin.api.feign.RemoteDictService;
-import com.tce.smart.admin.api.feign.RemoteUserService;
+import com.tce.smart.admin.api.feign.RemoteUserInternalService;
 import com.tce.smart.common.core.constant.AuthConstants;
 import com.tce.smart.common.core.constant.CommonConstants;
 import com.tce.smart.common.core.constant.SecurityConstants;
@@ -46,7 +45,7 @@ import java.util.*;
 public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
     private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder();
     @Resource
-    private RemoteUserService remoteUserService;
+    private RemoteUserInternalService remoteUserInternalService;
     @Resource
     private CacheManager cacheManager;
     @Resource
@@ -101,16 +100,16 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 		//如果是后台账号 还需要在这里判断密码是否正确
 		if(isCheckOk){
 			isCheckOk = false;	//先置为false
-			Result<UserInfo> userInfo = remoteUserService.info(username, SecurityConstants.FROM_IN);
+			Result<InternalUserLoginRespDTO> userInfo = remoteUserInternalService.loginUserByUsername(username);
 			if(userInfo.isSuccess()){
 				Map<String, String> paramMap = HttpUtil.decodeParamMap(WebUtils.getRequest().getQueryString(), CharsetUtil.UTF_8);
 				String password = paramMap.get(SecurityConstants.PASSWORD);
 
-				if(ENCODER.matches(password,userInfo.getData().getSysUser().getPassword())){
+				if(ENCODER.matches(password,userInfo.getData().getPasswordHash())){
 					//如果密码能匹配 则继续登录流程
 					isCheckOk = true;
 				} else {
-					Result<UserInfo> result = remoteUserService.info(username, SecurityConstants.FROM_IN);
+					Result<InternalUserLoginRespDTO> result = remoteUserInternalService.loginUserByUsername(username);
 					if (!result.isSuccess() || Objects.isNull(result.getData())) {
 						throw new TCEException("登陆失败,用户信息为空");
 					}
@@ -129,7 +128,7 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 
 		UserDetails userDetails;
 		if (isCheckOk) {
-			Result<UserInfo> result = remoteUserService.info(username, SecurityConstants.FROM_IN);
+			Result<InternalUserLoginRespDTO> result = remoteUserInternalService.loginUserByUsername(username);
 			if (!result.isSuccess() || Objects.isNull(result.getData())) {
 				throw new TCEException("登陆失败,用户信息为空");
 			}
@@ -165,7 +164,7 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 	@Override
 	//@SneakyThrows
 	public UserDetails loadUserBySocial(String inStr) {
-		return getUserDetails(remoteUserService.social(inStr, SecurityConstants.FROM_IN),true);
+		return getUserDetails(remoteUserInternalService.loginUserBySocial(inStr),true);
 	}
 
 	/**
@@ -177,7 +176,7 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 	 */
 	@Override
 	public UserDetails loadUserByFace(String userName) {
-		UserDetails userDetails = getUserDetails(remoteUserService.info(userName, SecurityConstants.FROM_IN), true);
+		UserDetails userDetails = getUserDetails(remoteUserInternalService.loginUserByUsername(userName), true);
 		Cache cache = cacheManager.getCache("user_details");
 		Objects.requireNonNull(cache).put(userDetails.getUsername(), userDetails);
 		return userDetails;
@@ -185,7 +184,7 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 
 	@Override
 	public UserDetails loadUserByMobile(String mobile){
-		UserDetails userDetails = getUserDetails(remoteUserService.queryByMobile(mobile, SecurityConstants.FROM_IN), true);
+		UserDetails userDetails = getUserDetails(remoteUserInternalService.loginUserByMobile(mobile), true);
 		Cache cache = cacheManager.getCache("user_details");
 		Objects.requireNonNull(cache).put(userDetails.getUsername(), userDetails);
 		return userDetails;
@@ -193,11 +192,11 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 
 	@Override
 	public UserDetails loadUserByBadge(String badge) {
-		Result<Boolean> result = remoteUserService.socialLogin(badge, SecurityConstants.FROM_IN);
+		Result<Boolean> result = remoteUserInternalService.provisionBadgeLogin(badge);
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
-		Result<UserInfo> userRes = remoteUserService.info(badge, SecurityConstants.FROM_IN);
+		Result<InternalUserLoginRespDTO> userRes = remoteUserInternalService.loginUserByUsername(badge);
 		if (!userRes.isSuccess() || Objects.isNull(userRes.getData())) {
 			throw new TCEException("登陆失败,用户信息为空");
 		}
@@ -214,40 +213,29 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 	 * @param result 用户信息
 	 * @return
 	 */
-	private UserDetails getUserDetails(Result<UserInfo> result,boolean isStrongPwd) {
+	private UserDetails getUserDetails(Result<InternalUserLoginRespDTO> result,boolean isStrongPwd) {
 		if (result == null || result.getData() == null) {
 			throw new UsernameNotFoundException("用户不存在");
 		}
 
-		UserInfo info = result.getData();
+		InternalUserLoginRespDTO info = result.getData();
 		Set<String> dbAuthsSet = new HashSet<>();
-		if (ArrayUtil.isNotEmpty(info.getRoles())) {
+		if (ArrayUtil.isNotEmpty(info.getRoleIds())) {
 			// 获取角色
-			Arrays.stream(info.getRoles()).forEach(roleId -> dbAuthsSet.add(SecurityConstants.ROLE + roleId));
+			Arrays.stream(info.getRoleIds()).forEach(roleId -> dbAuthsSet.add(SecurityConstants.ROLE + roleId));
 			// 获取资源
 			dbAuthsSet.addAll(Arrays.asList(info.getPermissions()));
 
 		}
 		Collection<? extends GrantedAuthority> authorities
 				= AuthorityUtils.createAuthorityList(dbAuthsSet.toArray(new String[0]));
-		SysUser user = info.getSysUser();
-		boolean enabled = StrUtil.equals(user.getLockFlag(), CommonConstants.STATUS_NORMAL);
-
-		//查询用户园区配置
-		List<Integer> parkIdList = new ArrayList<>();
-		try{
-			Result<List<Integer>> listUserParkRs = remoteUserService.listUserPark(user.getUserId(), SecurityConstants.FROM_IN);
-			log.debug("remoteUserService.listUserPark=====params[{}]======rs===>{}",user.getUserId(),listUserParkRs);
-			if(listUserParkRs.isSuccess() && Objects.nonNull(listUserParkRs.getData())){
-				parkIdList.addAll(listUserParkRs.getData());
-			}
-		}catch (Exception e){
-			log.error("查询用户园区配置异常",e);
-		}
+		boolean enabled = StrUtil.equals(info.getLockFlag(), CommonConstants.STATUS_NORMAL);
+		List<Integer> parkIdList = info.getParkIds() == null ? Collections.emptyList() : info.getParkIds();
 
 		// 构造security用户
-		return new SmartUser(user.getUserId(), user.getDeptId(), user.getUsername(),parkIdList, SecurityConstants.BCRYPT + user.getPassword(), enabled,
-				true, true, !CommonConstants.STATUS_LOCK.equals(user.getLockFlag()), authorities,isStrongPwd,info.getSalaryTypeName());
+		return new SmartUser(info.getUserId(), info.getDeptId(), info.getUsername(),parkIdList,
+				SecurityConstants.BCRYPT + info.getPasswordHash(), enabled,
+				true, true, !CommonConstants.STATUS_LOCK.equals(info.getLockFlag()), authorities,isStrongPwd,info.getSalaryTypeName());
 	}
 
 	private Result simpleLogin(String username){
@@ -258,7 +246,7 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 		if (StringUtils.containsAnyIgnoreCase(uri, SecurityConstants.OAUTH_TOKEN_URL)) {
 			Map<String, String> paramMap = HttpUtil.decodeParamMap(request.getQueryString(), CharsetUtil.UTF_8);
 			String password = paramMap.get(SecurityConstants.PASSWORD);
-			Result<Boolean> loginRs = remoteUserService.simpleLogin(username, password, SecurityConstants.FROM_IN);
+			Result<Boolean> loginRs = remoteUserInternalService.verifyPasswordLogin(username, password);
 // 			if(!loginRs.isSuccess() ||  Objects.isNull(loginRs.getData()) || !loginRs.getData()) {
 // 				rs =JSONUtil.toBean(loginRs.getMsg(),Result.class);
 // //				throw new com.tce.smart.common.core.exception.TCEException(-1,rs.getMsg());

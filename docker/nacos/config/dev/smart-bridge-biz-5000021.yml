@@ -1,13 +1,21 @@
 ## spring security 配置
 security:
+  # 园区 Bridge 向 Dispatcher 回传事件仅使用独立服务令牌；缺失即拒绝调用。
+  inner:
+    service-token:
+      client-id: "${SMART_BRIDGE_OAUTH_CLIENT_ID:}"
+      client-secret: "${SMART_BRIDGE_OAUTH_CLIENT_SECRET:}"
+      access-token-uri: "${SMART_BRIDGE_OAUTH_TOKEN_URI:}"
+    # Dispatcher 调用 Bridge 必须在部署时显式列入精确 client_id 白名单；空值拒绝全部调用。
+    bridge:
+      allowed-client-ids: "${SMART_BRIDGE_ALLOWED_CLIENT_IDS:}"
   oauth2:
     client:
       client-id: "${SMART_BRIDGE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # bridge
       client-secret: "${SMART_BRIDGE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # bridge
       scope: server
       # 放行url
-      ignore-urls:
-        - /**
+      ignore-urls: []
 
 #设备管理端base URL
 device:
@@ -46,6 +54,8 @@ smart:
     app-key: "${SMART_HIK_APP_KEY_5000021:${SMART_HIK_APP_KEY:}}"
     app-secret: "${SMART_HIK_APP_SECRET_5000021:${SMART_HIK_APP_SECRET:}}"
     callback-url: "${SMART_HIK_CALLBACK_URL_5000021:${SMART_HIK_CALLBACK_URL:http://host.docker.internal:6060/bridge/handle}}"
+    # 旧回调未提供可验证签名、时间窗或 nonce；完成厂商协议改造前禁止重新订阅。
+    event-subscribe-enabled: "${SMART_HIK_EVENT_SUBSCRIBE_ENABLED_5000021:false}"
     
 #  park-id: 1                                                # 园区ID
   image:

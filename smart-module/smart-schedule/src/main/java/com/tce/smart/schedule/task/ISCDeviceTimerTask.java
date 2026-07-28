@@ -96,7 +96,8 @@ public class ISCDeviceTimerTask {
 			long startTime = System.currentTimeMillis();
 			log.info("event=isc_scheduler_run job_name=person_face_retry outcome=started");
 			try {
-				Result<Boolean> result = remoteStaffService.retryFailedIscPersonFaceSync(SecurityConstants.FROM_IN);
+				Result<Boolean> result = remoteStaffService.retryFailedIscPersonFaceSync(SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 				if (result == null || !result.isSuccess()) {
 					log.warn("event=isc_scheduler_run job_name=person_face_retry outcome=remote_failure elapsed_ms={} result_message={}",
 							System.currentTimeMillis() - startTime, result == null ? "无响应" : result.getMessage());
