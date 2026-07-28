@@ -6,6 +6,9 @@ security:
       client-id: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_ID:}"
       client-secret: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_SECRET:}"
       access-token-uri: "${SMART_BRIDGE_ISC_OAUTH_TOKEN_URI:}"
+    # Dispatcher 调用 ISC Bridge 必须在部署时显式列入精确 client_id 白名单；空值拒绝全部调用。
+    bridge:
+      allowed-client-ids: "${SMART_BRIDGE_ISC_ALLOWED_CLIENT_IDS:}"
   oauth2:
     client:
       client-id: "${SMART_BRIDGE_ISC_OAUTH_CLIENT_ID:}"        # bridge

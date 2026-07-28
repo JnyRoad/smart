@@ -30,6 +30,43 @@ export const INVALID_TOKEN = 'invalid_token'
 
 const SESSION_KEYS = ['access_token', 'refresh_token', 'expires_in'] as const
 
+/**
+ * 仅表示会话是否变化的递增代际，绝不携带或派生 bearer token。
+ * QueryProvider 用它在换人或登出时丢弃旧身份的内存缓存。
+ */
+let sessionGeneration = 0
+const sessionChangeListeners = new Set<(generation: number) => void>()
+
+function notifySessionChanged(): void {
+  sessionGeneration += 1
+  sessionChangeListeners.forEach((listener) => listener(sessionGeneration))
+}
+
+/** 同源其他标签页改写 token 或执行 clear() 时，令本标签页丢弃身份相关缓存。 */
+function handleStorageChange(event: StorageEvent): void {
+  if (
+    event.storageArea === localStorage &&
+    (event.key === KEY_PREFIX + 'access_token' || event.key === null)
+  ) {
+    notifySessionChanged()
+  }
+}
+
+/** 订阅会话代际变化；回调参数不包含任何认证秘密。 */
+export function subscribeToSessionChanges(listener: (generation: number) => void): () => void {
+  sessionChangeListeners.add(listener)
+  if (sessionChangeListeners.size === 1 && typeof window !== 'undefined') {
+    window.addEventListener('storage', handleStorageChange)
+  }
+
+  return () => {
+    sessionChangeListeners.delete(listener)
+    if (sessionChangeListeners.size === 0 && typeof window !== 'undefined') {
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }
+}
+
 function write(name: string, content: string | number) {
   localStorage.setItem(
     KEY_PREFIX + name,
@@ -64,9 +101,13 @@ export interface AuthSession {
 }
 
 export function saveSession(session: AuthSession): void {
+  const previousAccessToken = getAccessToken()
   write('access_token', session.accessToken)
   if (session.refreshToken !== undefined) write('refresh_token', session.refreshToken)
   if (session.expiresIn !== undefined) write('expires_in', session.expiresIn)
+
+  // 同一登录态刷新附属字段不应丢失正常的短时查询缓存。
+  if (previousAccessToken !== session.accessToken) notifySessionChanged()
 }
 
 export function getAccessToken(): string | null {
@@ -80,9 +121,12 @@ export function hasValidToken(): boolean {
 
 /** Legacy behavior on 401 invalid_token: overwrite the token with a marker. */
 export function markTokenInvalid(): void {
+  const previousAccessToken = getAccessToken()
   write('access_token', INVALID_TOKEN)
+  if (previousAccessToken !== INVALID_TOKEN) notifySessionChanged()
 }
 
 export function clearSession(): void {
   for (const key of SESSION_KEYS) localStorage.removeItem(KEY_PREFIX + key)
+  notifySessionChanged()
 }

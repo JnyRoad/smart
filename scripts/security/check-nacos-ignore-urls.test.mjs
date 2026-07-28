@@ -12,13 +12,36 @@ import {
 
 assert.deepEqual(
   findForbiddenIgnoreUrls(['/**', '/staff/**', '/articlesrelease/**', '/api/**', '/actuator/**']),
-  ['/**', '/staff/**', '/articlesrelease/**', '/api/**'],
+  ['/**', '/staff/**', '/articlesrelease/**', '/api/**', '/actuator/**'],
 )
-assert.deepEqual(findForbiddenIgnoreUrls(['/actuator/**', '/v2/api-docs']), [])
+assert.deepEqual(findForbiddenIgnoreUrls(['/guide/welcome'], 'smart-app.yml'), [])
+assert.deepEqual(findForbiddenIgnoreUrls(['/actuator/health'], 'smart-platform.yml'), [])
+assert.deepEqual(findForbiddenIgnoreUrls(['/actuator/health'], 'smart-upms-biz.yml'), [])
+assert.deepEqual(findForbiddenIgnoreUrls(['/v2/api-docs']), ['/v2/api-docs'])
 assert.deepEqual(
   findForbiddenIgnoreUrls(['/actuator/**', '/wechat/**', '/password/verify/**']),
-  ['/wechat/**', '/password/verify/**'],
+  ['/actuator/**', '/wechat/**', '/password/verify/**'],
 )
+// 未登记的精确业务路径会被运行时 permitAll，必须按 Data ID 默认拒绝。
+assert.deepEqual(
+  findForbiddenIgnoreUrls(['/actuator/**', '/guide/welcome', '/staff/export'], 'smart-app.yml'),
+  ['/actuator/**', '/staff/export'],
+)
+// 当前基线未登记 actuator 通配，不能成为跨服务匿名豁免。
+assert.deepEqual(findForbiddenIgnoreUrls(['/actuator/**'], 'smart-data.yml'), ['/actuator/**'])
+assert.deepEqual(
+  findForbiddenIgnoreUrls([
+    '/admittance/apply/app/passCode',
+    '/admittance/visitor-truck/verify-sms',
+    '/admittance/visitor-truck/options/cause',
+    '/admittance/visitor-truck/apply',
+    '/regist/save/identification',
+    '/regist/face/crop',
+    '/regist/face/add',
+  ], 'smart-platform.yml'),
+  [],
+)
+assert.deepEqual(findForbiddenIgnoreUrls(['/guide/welcome'], 'smart-upms-biz.yml'), ['/guide/welcome'])
 
 const scannerScriptPath = fileURLToPath(new URL('./check-nacos-ignore-urls.mjs', import.meta.url))
 
@@ -74,8 +97,20 @@ try {
     {
       dataId: 'smart-platform.yml',
       fileName: 'smart-platform.yml',
+      line: 5,
+      path: '/actuator/**',
+    },
+    {
+      dataId: 'smart-platform.yml',
+      fileName: 'smart-platform.yml',
       line: 6,
       path: '/staff/**',
+    },
+    {
+      dataId: 'smart-upms-biz.yml',
+      fileName: 'smart-upms-biz.yml',
+      line: 4,
+      path: '/actuator/**',
     },
     {
       dataId: 'smart-upms-biz.yml',
@@ -88,6 +123,8 @@ try {
   const cliResult = runScannerCli(fixtureDirectory)
   assert.equal(cliResult.status, 1)
   assert.match(cliResult.stderr, /smart-data\.yml:5 ignore-urls \/api\/\*\*/)
+  assert.match(cliResult.stderr, /smart-platform\.yml:5 ignore-urls \/actuator\/\*\*/)
+  assert.match(cliResult.stderr, /smart-upms-biz\.yml:4 ignore-urls \/actuator\/\*\*/)
   assert.match(cliResult.stderr, /smart-upms-biz\.yml:4 ignore-urls \/api\/\*\*/)
 } finally {
   await rm(fixtureDirectory, { force: true, recursive: true })

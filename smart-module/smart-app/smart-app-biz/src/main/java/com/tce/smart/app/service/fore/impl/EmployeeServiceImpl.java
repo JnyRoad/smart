@@ -1,7 +1,7 @@
 package com.tce.smart.app.service.fore.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.admin.api.feign.RemoteDictService;
@@ -286,10 +286,11 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result outRoomApply(SmtOutDormitoryStaffDTO outDormitory) {
-		if (StringUtils.isBlank(outDormitory.getStaffBadge())) {
-			String badge = SecurityUtils.getUser().getUsername();
-			outDormitory.setStaffBadge(badge);
+		if (outDormitory == null) {
+			throw new TCEException("外宿申请信息不能为空");
 		}
+		// 外宿申请只能以当前认证员工为主体，不能信任客户端提交的工号。
+		outDormitory.setStaffBadge(requireSelfBadge(null));
 		Result result = outDormitoryStaffService.addOutDormitory(outDormitory, SecurityConstants.FROM_IN);
 		log.info("申请外宿完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
@@ -300,9 +301,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result getAllowance(String staffBadge, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = outDormitoryStaffService.getAllowance(staffBadge, type, SecurityConstants.FROM_IN);
 		log.info("获取补贴信息完成 success={}", result.isSuccess());
 		return result;
@@ -310,9 +309,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result outRoomDetaol(String staffBadge, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result<List<SmtOutDormitoryStaffDTO>> result = outDormitoryStaffService.getOutDormitoryInfo(staffBadge, type, SecurityConstants.FROM_IN);
 		log.info("外宿信息查询完成 success={}", result.isSuccess());
 
@@ -423,11 +420,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public EmployeeSalayType getSalayType(String badge) {
 		EmployeeSalayType employeeSalayType = new EmployeeSalayType();
-		if (ObjectUtil.isNull(badge)) {
-			throw new TCEException("员工号缺失");
-		}
+		badge = requireSelfBadge(badge);
 		//临时人员不查询薪资
-		InternalStaffSelfProfileRespDTO staff = selfProfile(requireSelfBadge(badge));
+		InternalStaffSelfProfileRespDTO staff = selfProfile(badge);
 		if(Objects.nonNull(staff)) {
 			if (staff.getStatus().equals(StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode())) {
 				return null;
@@ -464,18 +459,13 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public Result outRoomApplyDetail(Integer id) {
 		Result result = outDormitoryStaffService.outRoomApplyDetail(id, SecurityConstants.FROM_IN);
-		log.info("获取外宿审批详情完成 success={}", result.isSuccess());
-		if (!result.isSuccess()) {
-			throw new TCEException(result.getMessage());
-		}
-		return result;
+		log.info("获取外宿审批详情完成 success={}", result != null && result.isSuccess());
+		return requireOwnedRecord(result, "staffBadge", "无权查看其他员工外宿记录");
 	}
 
 	@Override
 	public Result addCallowanceCancel(String staffBadge, String backDate, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteCallowanceCancelRecordService.save(staffBadge, backDate, type, SecurityConstants.FROM_IN);
 		log.info("外宿补贴撤销申请完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
@@ -486,9 +476,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result callowanceCancelList(String staffBadge) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteCallowanceCancelRecordService.get(staffBadge, SecurityConstants.FROM_IN);
 		log.info("外宿补贴撤销列表查询完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
@@ -500,18 +488,13 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public Result callowanceCancelDetail(Integer id) {
 		Result result = remoteCallowanceCancelRecordService.detail(id, SecurityConstants.FROM_IN);
-		log.info("外宿补贴撤销记录详情: Id={}, Result={}", id, result.isSuccess());
-		if (!result.isSuccess()) {
-			throw new TCEException(result.getMessage());
-		}
-		return result;
+		log.info("外宿补贴撤销记录详情: Id={}, Result={}", id, result != null && result.isSuccess());
+		return requireOwnedRecord(result, "badge", "无权查看其他员工外宿补贴记录");
 	}
 
 	@Override
 	public Result callowanceUInfo(String staffBadge, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteCallowanceCancelRecordService.getOutDormitory(staffBadge, type, SecurityConstants.FROM_IN);
 		log.info("查询员工外宿补贴信息完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
@@ -522,9 +505,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result callowanceDetail(String staffBadge, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteCallowanceCancelRecordService.callowanceDetail(staffBadge, type, SecurityConstants.FROM_IN);
 		log.info("查询外宿补贴详情完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
@@ -535,9 +516,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result getFreeBed(Integer parkId, String staffBadge) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteStaff.getJcheFreeBed(parkId, staffBadge, SecurityConstants.FROM_IN);
 		log.info("查询空余床位完成 parkId={} success={}", parkId, result.isSuccess());
 		if (!result.isSuccess()) {
@@ -558,9 +537,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result outRoomList(Map<String, Object> params, String staffBadge) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = outDormitoryStaffService.getOutDormitoryPageList(
 				MapUtil.getInt(params, PaginationConstants.CURRENT),
 				MapUtil.getInt(params, PaginationConstants.SIZE),
@@ -576,22 +553,44 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public Result outRoomListDetail(Integer id) {
 		Result result = outDormitoryStaffService.getOutDormitoryDetailById(id, SecurityConstants.FROM_IN);
-		log.info("查询员工外宿详情: Id={}, Result={}", id, result.isSuccess());
-		if (!result.isSuccess()) {
-			throw new TCEException(result.getMessage());
-		}
-		return result;
+		log.info("查询员工外宿详情: Id={}, Result={}", id, result != null && result.isSuccess());
+		return requireOwnedRecord(result, "staffBadge", "无权查看其他员工外宿记录");
 	}
 
 
 	@Override
 	public Result outRoomDetailById(String recordId) {
 		Result result = outDormitoryStaffService.outRoomDetailById(recordId, SecurityConstants.FROM_IN);
-		log.info("查询房间详情: RecordId={}, Result={}", recordId, result.isSuccess());
-		if (!result.isSuccess()) {
-			throw new TCEException(result.getMessage());
+		log.info("查询房间详情: RecordId={}, Result={}", recordId, result != null && result.isSuccess());
+		return requireOwnedRecord(result, "staffBadge", "无权查看其他员工外宿记录");
+	}
+
+	/**
+	 * 详情接口必须从内部服务返回的归属字段确认记录属于当前员工；字段缺失也拒绝返回，
+	 * 兼容 Feign 反序列化后的 DTO 与 Map 两种载荷形态。
+	 */
+	private Result requireOwnedRecord(Result result, String ownerField, String deniedMessage) {
+		if (result == null || !result.isSuccess()) {
+			throw new TCEException(result == null ? "查询员工记录失败" : result.getMessage());
+		}
+		String currentBadge = requireSelfBadge(null);
+		String ownerBadge = extractOwnerBadge(result.getData(), ownerField);
+		if (StringUtils.isBlank(ownerBadge) || !currentBadge.equals(ownerBadge)) {
+			throw new TCEException(deniedMessage);
 		}
 		return result;
+	}
+
+	private String extractOwnerBadge(Object record, String ownerField) {
+		if (record == null) {
+			return null;
+		}
+		if (record instanceof Map) {
+			Object owner = ((Map) record).get(ownerField);
+			return owner == null ? null : String.valueOf(owner);
+		}
+		Object owner = BeanUtil.getProperty(record, ownerField);
+		return owner == null ? null : String.valueOf(owner);
 	}
 
 }

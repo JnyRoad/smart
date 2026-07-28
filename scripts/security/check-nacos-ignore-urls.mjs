@@ -3,29 +3,71 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { LineCounter, isMap, isScalar, isSeq, parseDocument } from 'yaml'
 
-export const FORBIDDEN_ANONYMOUS_PATTERNS = new Set([
-  '/**',
-  '/staff/**',
-  '/articlesrelease/**',
-  '/api/**',
+/**
+ * 允许表来源是 docker/nacos/config/dev 中已审计的 Data ID 基线。没有跨 Data ID 的全局 permit；新增匿名路由必须同时更新此表并完成安全审查。
+ */
+export const ALLOWED_IGNORE_URLS_BY_DATA_ID = new Map([
+  ['smart-app.yml', new Set([
+    '/guide/welcome',
+    '/sms/visitor/send',
+    '/sms/visitor/verify',
+    '/sms/login/send',
+    '/password/mobile/query',
+    '/password/sms/send',
+    '/password/verify',
+    '/password/verify/face',
+    '/password/update',
+    '/park/location/auto',
+    '/park/list',
+    '/wechat/xc/banging/badge',
+    '/wechat/visit/checkBlackVisitor',
+    '/wechat/visit/checkFace',
+    '/agreement/service',
+    '/setting/version/check',
+    '/yht/user/badge',
+  ])],
+  ['smart-platform.yml', new Set([
+    '/actuator/health',
+    '/admittance/apply/get/openId',
+    '/admittance/visitor-face/capability',
+    '/admittance/visitor-face/crop',
+    '/admittance/visitor-action/capability',
+    '/admittance/visitor-entry/receptionist',
+    '/admittance/visitor-entry/precheck',
+    '/admittance/visitor-entry/apply',
+    '/admittance/visitor-entry/options/cause',
+    '/admittance/visitor-entry/options/vehicle-cert',
+    '/admittance/visitor-entry/options/area-options',
+    '/admittance/apply/app/listMyApply',
+    '/admittance/apply/app/applyDetail',
+    '/admittance/apply/app/approvalProgress',
+    '/admittance/apply/app/passCode',
+    '/admittance/visitor-truck/verify-sms',
+    '/admittance/visitor-truck/options/cause',
+    '/admittance/visitor-truck/apply',
+    '/regist/save/identification',
+    '/regist/face/crop',
+    '/regist/face/add',
+  ])],
+  ['smart-upms-biz.yml', new Set(['/actuator/health'])],
 ])
 
 /**
- * 匿名白名单中的业务通配会让后续新增端点自动绕过认证；仅健康探针允许使用精确的 actuator 通配。
+ * 判断一条匿名路由是否是对应 Data ID 已登记的公开入口。未知 Data ID 没有精确路径豁免。
  */
-export function isForbiddenBusinessWildcard(url) {
-  return typeof url === 'string' && url.includes('*') && url !== '/actuator/**'
+export function isAllowedIgnoreUrl(dataId, url) {
+  return ALLOWED_IGNORE_URLS_BY_DATA_ID.get(dataId)?.has(url) === true
 }
 
 /**
- * 返回匿名白名单中禁止出现的精确路径，避免把正常的精确回调路径误报为风险项。
+ * 返回未被公开路由策略明确允许的路径，避免运行时 permitAll 放行未知业务端点。
  */
-export function findForbiddenIgnoreUrls(urls) {
+export function findForbiddenIgnoreUrls(urls, dataId) {
   if (!Array.isArray(urls) || urls.some((url) => typeof url !== 'string')) {
     throw new TypeError('ignore-urls must be an array of strings')
   }
 
-  return urls.filter((url) => FORBIDDEN_ANONYMOUS_PATTERNS.has(url) || isForbiddenBusinessWildcard(url))
+  return urls.filter((url) => !isAllowedIgnoreUrl(dataId, url))
 }
 
 function getLineNumber(node, lineCounter) {
@@ -145,8 +187,7 @@ export async function scanConfigDirectory(directory) {
     const ignoreUrlsEntries = getIgnoreUrlsEntries(content, fileName)
 
     for (const ignoreUrlsEntry of ignoreUrlsEntries) {
-      if (!FORBIDDEN_ANONYMOUS_PATTERNS.has(ignoreUrlsEntry.path)
-        && !isForbiddenBusinessWildcard(ignoreUrlsEntry.path)) {
+      if (isAllowedIgnoreUrl(fileName, ignoreUrlsEntry.path)) {
         continue
       }
 

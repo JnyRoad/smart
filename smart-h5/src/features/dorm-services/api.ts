@@ -232,12 +232,6 @@ export interface CheckInRecord {
   dormitoryName?: string
   roomName?: string
   bedNumber?: number
-  lockPwd?: {
-    fingerprintCode?: number
-    fingerprintDesc?: string
-    dynamicCode?: number
-    dynamicDesc?: string
-  }
 }
 
 export function getCheckInRecords(): Promise<Envelope<CheckInRecord[]>> {

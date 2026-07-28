@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs'
 import {
   admittanceNoticeHtml,
   checkBlackVisitor,
-	checkApplyEqual,
+  checkApplyEqual,
+  checkFace,
+  cropEmployeeFace,
   cropVisitorFace,
   getCauseEnum,
   getAreaOptions,
@@ -17,12 +19,14 @@ import {
   verifyTruckSms,
   type VisitorFaceDraft,
 } from './api'
+import { saveSession } from '@/lib/auth/token'
 
 const fetchMock = vi.fn()
 
 beforeEach(() => {
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
+	localStorage.clear()
 })
 
 afterEach(() => {
@@ -81,6 +85,30 @@ describe('cropVisitorFace', () => {
     expect(source).not.toContain("url: '/out/face/cut'")
     expect(source).toContain("url: '/admittance/visitor-face/crop'")
   })
+})
+
+describe('employee face route contract', () => {
+	it('uses authenticated App routes instead of anonymous visitor routes', async () => {
+		saveSession({ accessToken: 'employee-token' })
+		fetchMock
+			.mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: 'cut-base64' })))
+			.mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { photoId: 'photo-1' } })))
+
+		await expect(cropEmployeeFace('camera-raw-base64')).resolves.toEqual({ code: 0, data: 'cut-base64' })
+		await expect(checkFace('cut-base64')).resolves.toEqual({ code: 0, data: { photoId: 'photo-1' } })
+
+		const [cropUrl, cropInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+		expect(cropUrl).toBe('/app/employee/face/crop')
+		expect(cropInit.headers).toMatchObject({ Authorization: 'Bearer employee-token' })
+		expect(cropInit.headers).not.toMatchObject({ 'X-Visitor-Face-Capability': expect.anything() })
+		expect(JSON.parse(cropInit.body as string)).toEqual({ imageData: 'camera-raw-base64' })
+
+		const [uploadUrl, uploadInit] = fetchMock.mock.calls[1] as [string, RequestInit]
+		expect(uploadUrl).toBe('/app/employee/photo/upload')
+		expect(uploadInit.headers).toMatchObject({ Authorization: 'Bearer employee-token' })
+		expect(uploadInit.headers).not.toMatchObject({ 'X-Visitor-Action-Capability': expect.anything() })
+		expect(JSON.parse(uploadInit.body as string)).toEqual({ visitorPhoto: 'cut-base64' })
+	})
 })
 
 describe('anonymous visitor action capability', () => {

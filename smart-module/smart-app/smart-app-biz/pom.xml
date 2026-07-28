@@ -31,6 +31,12 @@
 			<groupId>com.tce</groupId>
 			<artifactId>smart-platform-api</artifactId>
 		</dependency>
+		<!-- 仅用于验证 App 对 Platform 详情 DTO 的归属字段处理，不进入运行时依赖。 -->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-platform-core</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<!--bridge api、vo 模块-->
 <!--		<dependency>
 			<groupId>com.tce</groupId>
