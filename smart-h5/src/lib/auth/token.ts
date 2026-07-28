@@ -25,6 +25,7 @@
  *   不改动下方任何 token 的实际存取逻辑。
  */
 const KEY_PREFIX = 'xc-'
+const SESSION_GENERATION_KEY = `${KEY_PREFIX}session-generation`
 
 export const INVALID_TOKEN = 'invalid_token'
 
@@ -37,18 +38,44 @@ const SESSION_KEYS = ['access_token', 'refresh_token', 'expires_in'] as const
 let sessionGeneration = 0
 const sessionChangeListeners = new Set<(generation: number) => void>()
 
-function notifySessionChanged(): void {
-  sessionGeneration += 1
-  sessionChangeListeners.forEach((listener) => listener(sessionGeneration))
+function readPersistedSessionGeneration(): number {
+  if (typeof window === 'undefined') return 0
+  const value = Number(localStorage.getItem(SESSION_GENERATION_KEY))
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0
+}
+
+function publishSessionChanged(generation: number): void {
+  sessionChangeListeners.forEach((listener) => listener(generation))
+}
+
+/**
+ * 会话代际只记录身份切换次数，不包含 token 或其派生值。持久化后新页面可拒绝
+ * 上一登录会话留下的草稿；同源标签页收到 token 存储事件时可读取相同代际。
+ */
+function advanceSessionGeneration(): void {
+  sessionGeneration = Math.max(sessionGeneration, readPersistedSessionGeneration()) + 1
+  localStorage.setItem(SESSION_GENERATION_KEY, String(sessionGeneration))
+  publishSessionChanged(sessionGeneration)
+}
+
+function synchronizeSessionGeneration(advanceWhenUnchanged: boolean): void {
+  const persistedGeneration = readPersistedSessionGeneration()
+  if (persistedGeneration > sessionGeneration) {
+    sessionGeneration = persistedGeneration
+    publishSessionChanged(sessionGeneration)
+    return
+  }
+  if (advanceWhenUnchanged) advanceSessionGeneration()
 }
 
 /** 同源其他标签页改写 token 或执行 clear() 时，令本标签页丢弃身份相关缓存。 */
 function handleStorageChange(event: StorageEvent): void {
   if (
     event.storageArea === localStorage &&
-    (event.key === KEY_PREFIX + 'access_token' || event.key === null)
+    (event.key === KEY_PREFIX + 'access_token' || event.key === SESSION_GENERATION_KEY || event.key === null)
   ) {
-    notifySessionChanged()
+    // 代际 key 自己的跨标签通知已包含新值；再次递增会造成一次切换被重复计数。
+    synchronizeSessionGeneration(event.key !== SESSION_GENERATION_KEY)
   }
 }
 
@@ -65,6 +92,11 @@ export function subscribeToSessionChanges(listener: (generation: number) => void
       window.removeEventListener('storage', handleStorageChange)
     }
   }
+}
+
+/** 返回当前登录会话的无敏感代际，供持久化草稿校验归属。 */
+export function getSessionGeneration(): number {
+  return Math.max(sessionGeneration, readPersistedSessionGeneration())
 }
 
 function write(name: string, content: string | number) {
@@ -107,7 +139,7 @@ export function saveSession(session: AuthSession): void {
   if (session.expiresIn !== undefined) write('expires_in', session.expiresIn)
 
   // 同一登录态刷新附属字段不应丢失正常的短时查询缓存。
-  if (previousAccessToken !== session.accessToken) notifySessionChanged()
+  if (previousAccessToken !== session.accessToken) advanceSessionGeneration()
 }
 
 export function getAccessToken(): string | null {
@@ -123,10 +155,10 @@ export function hasValidToken(): boolean {
 export function markTokenInvalid(): void {
   const previousAccessToken = getAccessToken()
   write('access_token', INVALID_TOKEN)
-  if (previousAccessToken !== INVALID_TOKEN) notifySessionChanged()
+  if (previousAccessToken !== INVALID_TOKEN) advanceSessionGeneration()
 }
 
 export function clearSession(): void {
   for (const key of SESSION_KEYS) localStorage.removeItem(KEY_PREFIX + key)
-  notifySessionChanged()
+  advanceSessionGeneration()
 }

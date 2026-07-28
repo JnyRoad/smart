@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import React, { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { clearSession, getAccessToken, saveSession } from '@/lib/auth/token'
+import { saveQuerySession } from '@/features/visitor/records-api'
 import { QueryProvider } from './query-provider'
 
 function QueryClientCapture({ onReady }: { onReady: (client: QueryClient) => void }) {
@@ -113,6 +114,35 @@ describe('会话切换时的 Query 缓存隔离', () => {
 
     expect(client.getQueryData(['my-lock-pwd'])).toBe('A 的门锁动态码')
     expect(client.getQueryData(['my-check-in-records'])).toEqual([{ roomName: 'A 的房间' }])
+  })
+
+  it('本标签切换访客查询凭证后不保留上一位访客的通行码缓存', () => {
+    saveQuerySession({ queryToken: 'visitor-A-token', maskedName: '访客甲', maskedMobile: '137****0001' })
+    const client = renderQueryProvider()
+    client.setQueryData(['visitor-pass-code', 'apply-1'], '访客甲的通行码')
+
+    saveQuerySession({ queryToken: 'visitor-B-token', maskedName: '访客乙', maskedMobile: '137****0002' })
+
+    expect(client.getQueryData(['visitor-pass-code', 'apply-1'])).toBeUndefined()
+  })
+
+  it('其他标签切换访客查询凭证后不保留上一位访客的通行码缓存', () => {
+    saveQuerySession({ queryToken: 'visitor-A-token', maskedName: '访客甲', maskedMobile: '137****0001' })
+    const client = renderQueryProvider()
+    client.setQueryData(['visitor-pass-code', 'apply-1'], '访客甲的通行码')
+
+    localStorage.setItem(
+      'visitor-query-session',
+      JSON.stringify({
+        queryToken: 'visitor-B-token',
+        maskedName: '访客乙',
+        maskedMobile: '137****0002',
+        savedAt: Date.now(),
+      }),
+    )
+    window.dispatchEvent(new StorageEvent('storage', { key: 'visitor-query-session', storageArea: localStorage }))
+
+    expect(client.getQueryData(['visitor-pass-code', 'apply-1'])).toBeUndefined()
   })
 
   it('已挂载的门锁查询在切换到 B 后重新读取 B 的数据', async () => {

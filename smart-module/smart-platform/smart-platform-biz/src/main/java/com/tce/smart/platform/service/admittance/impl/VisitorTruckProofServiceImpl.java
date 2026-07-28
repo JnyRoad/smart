@@ -67,7 +67,7 @@ public class VisitorTruckProofServiceImpl implements VisitorTruckProofService {
 		InternalSmsVerifyReqDTO verifyRequest = new InternalSmsVerifyReqDTO();
 		verifyRequest.setMobile(mobile);
 		verifyRequest.setSmsCode(smsCode);
-		Result<Boolean> result = remoteAppSmsService.verifySmsCode(verifyRequest, SecurityConstants.FROM_IN,
+		Result<Boolean> result = remoteAppSmsService.verifyVisitorSmsCode(verifyRequest, SecurityConstants.FROM_IN,
 				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (result == null || !result.isSuccess() || !Boolean.TRUE.equals(result.getData())) {
 			throw proofInvalid();

@@ -162,7 +162,7 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		InternalSmsVerifyReqDTO request = new InternalSmsVerifyReqDTO();
 		request.setMobile(mobile);
 		request.setSmsCode(smsCode);
-		Result<Boolean> result = remoteAppSmsService.verifySmsCode(request, SecurityConstants.FROM_IN,
+		Result<Boolean> result = remoteAppSmsService.verifyVisitorSmsCode(request, SecurityConstants.FROM_IN,
 				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (result == null || !result.isSuccess() || !Boolean.TRUE.equals(result.getData())) {
 			throw new SmartException("验证码错误或已过期");
