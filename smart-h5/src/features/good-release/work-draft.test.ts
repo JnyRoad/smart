@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { clearSession, getSessionGeneration, saveSession } from '@/lib/auth/token'
 import { useWorkDraft } from './work-draft'
 
 const PERSON = { gh: 'YT2', xm: 9, name: '李四', lcsy: '出差', lcDate: '2026-06-20 09:30' }
@@ -18,6 +19,7 @@ const GOOD = {
 
 describe('work 草稿 store', () => {
   beforeEach(() => {
+    clearSession()
     useWorkDraft.getState().clearAll()
   })
 
@@ -58,5 +60,40 @@ describe('work 草稿 store', () => {
     expect(after.persons).toEqual([])
 	expect(after.goods).toEqual([])
 	expect(after.releaseId).toBeUndefined()
+  })
+
+  it('账号从 A 切换到 B 后不复用 A 的办公物品放行草稿', () => {
+    saveSession({ accessToken: 'employee-A-token' })
+    useWorkDraft.getState().patchApplyMain({ fxqc: 1 })
+    useWorkDraft.getState().addGood(GOOD)
+
+    saveSession({ accessToken: 'employee-B-token' })
+
+    expect(useWorkDraft.getState().applyMain).toEqual({})
+    expect(useWorkDraft.getState().goods).toEqual([])
+  })
+
+  it('重新打开页面时不恢复其他会话代际持久化的草稿', async () => {
+    saveSession({ accessToken: 'employee-B-token' })
+    const currentGeneration = getSessionGeneration()
+    // 模拟浏览器持久化层遗留的 A 账号草稿；它不是当前内存 store 写出的内容。
+    localStorage.setItem('goods-work-draft', JSON.stringify({
+      state: {
+        ownerSessionGeneration: currentGeneration - 1,
+        releaseId: 18,
+        applyMain: { fxqc: 1 },
+        persons: [PERSON],
+        goods: [GOOD],
+      },
+      version: 0,
+    }))
+
+    await useWorkDraft.persist.rehydrate()
+
+    expect(useWorkDraft.getState().releaseId).toBeUndefined()
+    expect(useWorkDraft.getState().applyMain).toEqual({})
+    expect(useWorkDraft.getState().persons).toEqual([])
+    expect(useWorkDraft.getState().goods).toEqual([])
+    expect(useWorkDraft.getState().ownerSessionGeneration).toBe(currentGeneration)
   })
 })

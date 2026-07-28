@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +46,9 @@ public class AppSmsServiceImpl implements AppSmsService {
 	private static final long VISITOR_SMS_VERIFY_WINDOW_SECONDS = 600L;
 	private static final String VISITOR_SMS_SEND_RATE_KEY = "smart_app:visitor:sms:send:";
 	private static final String LOGIN_SMS_SEND_RATE_KEY = "smart_app:login:sms:send:";
-	private static final String VISITOR_SMS_VERIFY_RATE_KEY = "smart_app:visitor:sms:verify:";
+	/** 访客 OTP 与通用、登录 OTP 分开存储，避免跨匿名场景重放。 */
+	private static final String VISITOR_SMS_CODE_KEY = "smart_app:visitor:sms:code:";
+	private static final String VISITOR_SMS_VERIFY_FAILURE_KEY = "smart_app:visitor:sms:verify-failure:";
 	private static final String PHONE_CHANGE_SMS_KEY = "smart_app:phone-change:sms:";
 	private static final String PHONE_CHANGE_OLD_STAGE = "old";
 	private static final String PHONE_CHANGE_NEW_STAGE = "new";
@@ -55,6 +58,20 @@ public class AppSmsServiceImpl implements AppSmsService {
 			"local value = redis.call('get', KEYS[1]); if not value then return 0; end; "
 					+ "local state = cjson.decode(value); if state['smsCode'] ~= ARGV[1] then return 0; end; "
 					+ "redis.call('del', KEYS[1]); return 1;", Long.class);
+	/**
+	 * 在单个 Redis 原子操作中检查失败阈值、比对 OTP、消费成功 OTP 并记录失败。
+	 * 先检查计数可防止攻击者在第六次尝试使用正确验证码绕过上限；成功时同时清理失败计数，
+	 * 新的验证码生命周期不会继承旧验证码的错误尝试。
+	 */
+	private static final DefaultRedisScript<Long> VERIFY_AND_CONSUME_VISITOR_SMS = new DefaultRedisScript<>(
+			"local failures = tonumber(redis.call('get', KEYS[2]) or '0'); "
+					+ "if failures >= tonumber(ARGV[2]) then return -1; end; "
+					+ "local value = redis.call('get', KEYS[1]); "
+					+ "if value then local parsed, payload = pcall(cjson.decode, value); "
+					+ "if parsed and payload['smsCode'] == ARGV[1] then redis.call('del', KEYS[1]); "
+					+ "redis.call('del', KEYS[2]); return 1; end; end; "
+					+ "local next = redis.call('incr', KEYS[2]); "
+					+ "if next == 1 then redis.call('expire', KEYS[2], tonumber(ARGV[3])); end; return 0;", Long.class);
 
 	@Autowired
 	private StringRedisTemplate stringRedisTemplate;
@@ -182,7 +199,8 @@ public class AppSmsServiceImpl implements AppSmsService {
 	 */
 	@Override
 	public Boolean sendVisitorSmsCode(String mobile) {
-		return sendPublicSmsCode(mobile, VISITOR_SMS_SEND_RATE_KEY);
+		return sendPublicSmsCode(mobile, VISITOR_SMS_SEND_RATE_KEY, VISITOR_SMS_CODE_KEY,
+				VISITOR_SMS_VERIFY_FAILURE_KEY);
 	}
 
 	/**
@@ -190,13 +208,14 @@ public class AppSmsServiceImpl implements AppSmsService {
 	 */
 	@Override
 	public Boolean sendLoginSmsCode(String mobile) {
-		return sendPublicSmsCode(mobile, LOGIN_SMS_SEND_RATE_KEY);
+		return sendPublicSmsCode(mobile, LOGIN_SMS_SEND_RATE_KEY, RedisKeyConstants.SMAT_APP_WECHAT_SMSCODE, null);
 	}
 
 	/**
 	 * 所有匿名发送场景共用的受理逻辑。调用方只能传入代码常量，不能由外部请求指定场景或 Redis 键。
 	 */
-	private Boolean sendPublicSmsCode(String mobile, String rateKeyPrefix) {
+	private Boolean sendPublicSmsCode(String mobile, String rateKeyPrefix, String smsCodeKeyPrefix,
+			String verifyFailureKeyPrefix) {
 		String normalizedMobile = requireMobile(mobile);
 		String rateKey = rateKeyPrefix + normalizedMobile;
 		Boolean accepted = stringRedisTemplate.opsForValue().setIfAbsent(
@@ -205,7 +224,12 @@ public class AppSmsServiceImpl implements AppSmsService {
 			return Boolean.TRUE;
 		}
 		try {
-			return sendSmsCode(normalizedMobile);
+			Boolean sent = sendSmsCodeWithKey(normalizedMobile, smsCodeKeyPrefix + normalizedMobile);
+			if (verifyFailureKeyPrefix != null) {
+				// 仅在实际下发新 OTP 后清除旧 OTP 的失败计数，冷却期内请求不能借机重置计数。
+				stringRedisTemplate.delete(verifyFailureKeyPrefix + normalizedMobile);
+			}
+			return sent;
 		} catch (RuntimeException e) {
 			// 供应商同步失败时释放本次预约，合法访客可重试；成功或超时不释放，不能放大下发量。
 			stringRedisTemplate.delete(rateKey);
@@ -222,20 +246,14 @@ public class AppSmsServiceImpl implements AppSmsService {
 		if (StringUtils.isEmpty(smsCode) || !smsCode.matches("^\\d{6}$")) {
 			throw new TCEException("验证码错误或已过期");
 		}
-		Long attempts = stringRedisTemplate.opsForValue().increment(VISITOR_SMS_VERIFY_RATE_KEY + normalizedMobile, 1L);
-		if (attempts != null && attempts == 1L) {
-			stringRedisTemplate.expire(VISITOR_SMS_VERIFY_RATE_KEY + normalizedMobile,
-					VISITOR_SMS_VERIFY_WINDOW_SECONDS, TimeUnit.SECONDS);
-		}
-		if (attempts != null && attempts > VISITOR_SMS_MAX_VERIFY_ATTEMPTS) {
+		Long verified = stringRedisTemplate.execute(VERIFY_AND_CONSUME_VISITOR_SMS,
+				Arrays.asList(VISITOR_SMS_CODE_KEY + normalizedMobile, VISITOR_SMS_VERIFY_FAILURE_KEY + normalizedMobile),
+				smsCode, VISITOR_SMS_MAX_VERIFY_ATTEMPTS, VISITOR_SMS_VERIFY_WINDOW_SECONDS);
+		if (!Long.valueOf(1L).equals(verified)) {
+			// 对匿名调用统一错误，不能区分手机号、验证码、有效期和失败次数状态。
 			throw new TCEException("验证码错误或已过期");
 		}
-		try {
-			return verifySmsCode(normalizedMobile, smsCode);
-		} catch (TCEException e) {
-			// 对匿名调用统一错误，不能区分手机号、验证码和有效期的具体状态。
-			throw new TCEException("验证码错误或已过期");
-		}
+		return Boolean.TRUE;
 	}
 
 	@Override

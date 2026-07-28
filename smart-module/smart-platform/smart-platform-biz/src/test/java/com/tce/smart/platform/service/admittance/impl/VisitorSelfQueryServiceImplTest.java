@@ -39,8 +39,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -50,6 +52,33 @@ import java.util.function.Supplier;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class VisitorSelfQueryServiceImplTest {
+
+	/**
+	 * 访客自助查询同样属于匿名入口；它只能委托可限次、成功即消费的访客专用校验，
+	 * 不得回退到通用内部 OTP 查询接口。
+	 */
+	@Test
+	public void listMyApplyUsesVisitorOnlyVerificationContract() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		List<String> invokedMethods = new ArrayList<>();
+		RemoteAppSmsService smsService = visitorOnlySmsService(invokedMethods);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations,
+				Mockito.mock(SmtParkService.class), Mockito.mock(SmtAdmittanceFellowService.class),
+				Mockito.mock(SmtAdmittanceVehicleService.class));
+		setField(service, "queryTokenSupplier", (Supplier<String>) () -> "tok-visitor-only");
+		Mockito.when(mapper.selectList(Mockito.any())).thenReturn(Collections.emptyList());
+		VisitorSelfQueryReqDTO request = new VisitorSelfQueryReqDTO();
+		request.setMobile("13712341234");
+		request.setSmsCode("123456");
+
+		VisitorSelfQueryRespDTO response = service.listMyApply(request, null);
+
+		Assert.assertEquals("tok-visitor-only", response.getQueryToken());
+		Assert.assertEquals(Collections.singletonList("verifyVisitorSmsCode"), invokedMethods);
+	}
 
 	@Test
 	public void passCodeAllowsOnlyTheTokenOwnersUnexpiredApplyAndReturnsMinimalFields() throws Exception {
@@ -174,7 +203,7 @@ public class VisitorSelfQueryServiceImplTest {
 		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
 				fellowService, vehicleService);
 		setField(service, "queryTokenSupplier", (Supplier<String>) () -> "tok-fixed");
-		Mockito.when(smsService.verifySmsCode(Mockito.argThat(candidate -> candidate != null
+		Mockito.when(smsService.verifyVisitorSmsCode(Mockito.argThat(candidate -> candidate != null
 				&& "13712341234".equals(candidate.getMobile()) && "123456".equals(candidate.getSmsCode())),
 				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success(Boolean.TRUE));
@@ -203,7 +232,7 @@ public class VisitorSelfQueryServiceImplTest {
 		Assert.assertEquals("ISSUING", records.get(0).getDispatchStatus());
 		Assert.assertEquals(Integer.valueOf(1), records.get(0).getFellowCount());
 		Assert.assertEquals(Collections.singletonList("豫A12345"), records.get(0).getPlates());
-		Mockito.verify(smsService).verifySmsCode(Mockito.argThat(candidate -> candidate != null
+		Mockito.verify(smsService).verifyVisitorSmsCode(Mockito.argThat(candidate -> candidate != null
 				&& "13712341234".equals(candidate.getMobile()) && "123456".equals(candidate.getSmsCode())),
 				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Mockito.verify(valueOperations).set("smart:admittance:visitor-query:tok-fixed", "13712341234", 1L,
@@ -229,7 +258,7 @@ public class VisitorSelfQueryServiceImplTest {
 
 		Assert.assertEquals("tok-existing", response.getQueryToken());
 		Assert.assertEquals(1, response.getRecords().size());
-		Mockito.verify(smsService, Mockito.never()).verifySmsCode(Mockito.any(InternalSmsVerifyReqDTO.class),
+		Mockito.verify(smsService, Mockito.never()).verifyVisitorSmsCode(Mockito.any(InternalSmsVerifyReqDTO.class),
 				Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(valueOperations).get("smart:admittance:visitor-query:tok-existing");
 	}
@@ -679,6 +708,20 @@ public class VisitorSelfQueryServiceImplTest {
 		setField(service, "smtAdmittanceFellowService", fellowService);
 		setField(service, "smtAdmittanceVehicleService", vehicleService);
 		return service;
+	}
+
+	private RemoteAppSmsService visitorOnlySmsService(List<String> invokedMethods) {
+		return (RemoteAppSmsService) Proxy.newProxyInstance(RemoteAppSmsService.class.getClassLoader(),
+				new Class<?>[] {RemoteAppSmsService.class}, (proxy, method, arguments) -> {
+					if ("verifyVisitorSmsCode".equals(method.getName())) {
+						invokedMethods.add(method.getName());
+						return Result.success(Boolean.TRUE);
+					}
+					if ("toString".equals(method.getName())) {
+						return "visitor-only-sms-service";
+					}
+					return Result.success(Boolean.FALSE);
+				});
 	}
 
 	private SmtAdmittanceApply apply(Long id, String visitorName, String mobile, Integer status) {

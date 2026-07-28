@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { getSessionGeneration, subscribeToSessionChanges } from '@/lib/auth/token'
 
 /** 主表单字段（提交体 applyMain 的来源，编码取字典 value）。 */
 export interface WorkApplyMain {
@@ -39,6 +40,8 @@ export interface WorkGood {
 }
 
 interface WorkDraftState {
+	/** 持久化草稿所属的无敏感会话代际，防止账号切换后恢复上一账号的内容。 */
+	ownerSessionGeneration: number
 	/** 服务端持久化草稿标识，人员查询与提交均以此验证归属。 */
 	releaseId?: string | number
 	applyMain: WorkApplyMain
@@ -63,6 +66,7 @@ interface WorkDraftState {
 export const useWorkDraft = create<WorkDraftState>()(
   persist(
     (set) => ({
+		ownerSessionGeneration: getSessionGeneration(),
 		applyMain: {},
 		releaseId: undefined,
       persons: [],
@@ -75,8 +79,30 @@ export const useWorkDraft = create<WorkDraftState>()(
       addGood: (g) => set((s) => ({ goods: [...s.goods, g] })),
       updateGood: (i, g) => set((s) => ({ goods: s.goods.map((x, n) => (n === i ? g : x)) })),
       removeGood: (i) => set((s) => ({ goods: s.goods.filter((_, n) => n !== i) })),
-		clearAll: () => set({ releaseId: undefined, applyMain: {}, persons: [], goods: [] }),
+		clearAll: () => set({
+			ownerSessionGeneration: getSessionGeneration(),
+			releaseId: undefined,
+			applyMain: {},
+			persons: [],
+			goods: [],
+		}),
     }),
-    { name: 'goods-work-draft' },
+		{
+			name: 'goods-work-draft',
+			merge: (persistedState, currentState) => {
+				const persistedDraft = persistedState as Partial<WorkDraftState>
+				const currentGeneration = getSessionGeneration()
+				// 老版本草稿没有归属代际，按不可信内容处理，不能恢复给当前登录账号。
+				if (persistedDraft.ownerSessionGeneration !== currentGeneration) {
+					return { ...currentState, ownerSessionGeneration: currentGeneration }
+				}
+				return { ...currentState, ...persistedDraft }
+			},
+		},
   ),
 )
+
+/** 登录账号切换或登出时立即清空内存和持久化草稿。 */
+subscribeToSessionChanges(() => {
+	useWorkDraft.getState().clearAll()
+})

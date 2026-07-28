@@ -2,9 +2,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { subscribeToSessionChanges } from '@/lib/auth/token'
+import { subscribeToQuerySessionChanges } from '@/features/visitor/records-api'
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const [sessionGeneration, setSessionGeneration] = useState(0)
+  const [cacheEpoch, setCacheEpoch] = useState(0)
   const [client] = useState(
     () =>
       new QueryClient({
@@ -15,12 +16,18 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   )
 
   useEffect(() => {
-    // 会话代际变化不含 token；清缓存并重挂载观察者，避免固定 queryKey 保留旧身份结果。
-    return subscribeToSessionChanges((generation) => {
+    // 两类会话代际都不含 token；清缓存并重挂载观察者，避免固定 queryKey 保留旧身份结果。
+    const resetIdentityCache = () => {
       client.clear()
-      setSessionGeneration(generation)
-    })
+      setCacheEpoch((currentEpoch) => currentEpoch + 1)
+    }
+    const unsubscribeSession = subscribeToSessionChanges(resetIdentityCache)
+    const unsubscribeQuerySession = subscribeToQuerySessionChanges(resetIdentityCache)
+    return () => {
+      unsubscribeSession()
+      unsubscribeQuerySession()
+    }
   }, [client])
 
-  return <QueryClientProvider client={client} key={sessionGeneration}>{children}</QueryClientProvider>
+  return <QueryClientProvider client={client} key={cacheEpoch}>{children}</QueryClientProvider>
 }

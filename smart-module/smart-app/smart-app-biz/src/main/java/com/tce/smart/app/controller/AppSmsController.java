@@ -87,4 +87,20 @@ public class AppSmsController extends BaseController {
 				request == null ? null : request.getSmsCode()));
 	}
 
+	/**
+	 * 匿名访客链路专用的服务间校验入口。
+	 *
+	 * <p>平台的记录查询和货车预约都必须走该接口，使其共享失败上限和一次性消费语义。</p>
+	 *
+	 * @param request 手机号与短信验证码
+	 * @return 校验结果
+	 */
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/visitor/verify")
+	public Result<Boolean> verifyVisitorSmsCodeInternal(@RequestBody InternalSmsVerifyReqDTO request) {
+		return success(smsService.verifyVisitorSmsCode(request == null ? null : request.getMobile(),
+				request == null ? null : request.getSmsCode()));
+	}
+
 }

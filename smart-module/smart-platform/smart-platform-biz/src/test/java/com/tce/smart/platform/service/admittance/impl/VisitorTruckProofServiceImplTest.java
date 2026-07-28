@@ -18,12 +18,39 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 
+import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class VisitorTruckProofServiceImplTest {
+
+	/**
+	 * 货车预约是匿名访客入口，必须使用访客专用的可消费校验契约；
+	 * 通用内部校验成功不能再被当成可重放的预约凭据来源。
+	 */
+	@Test
+	public void verifySmsUsesVisitorOnlyVerificationContract() {
+		List<String> invokedMethods = new ArrayList<>();
+		RemoteAppSmsService smsService = visitorOnlySmsService(invokedMethods);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		@SuppressWarnings("unchecked")
+		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(values);
+		VisitorTruckProofServiceImpl service = service(smsService, redisTemplate,
+				Mockito.mock(SmtAdmittanceApplyService.class));
+		VisitorTruckSmsVerifyReqDTO request = new VisitorTruckSmsVerifyReqDTO();
+		request.setMobile("13712341234");
+		request.setSmsCode("123456");
+
+		VisitorTruckProofRespDTO response = service.verifySms(request);
+
+		Assert.assertEquals("proof-fixed", response.getProof());
+		Assert.assertEquals(Collections.singletonList("verifyVisitorSmsCode"), invokedMethods);
+	}
 
 	@Test
 	public void verifySmsIssuesShortLivedProofBoundToNormalizedMobile() {
@@ -31,7 +58,7 @@ public class VisitorTruckProofServiceImplTest {
 		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
 		ValueOperations<String, String> values = Mockito.mock(ValueOperations.class);
 		Mockito.when(redisTemplate.opsForValue()).thenReturn(values);
-		Mockito.when(smsService.verifySmsCode(Mockito.any(InternalSmsVerifyReqDTO.class),
+		Mockito.when(smsService.verifyVisitorSmsCode(Mockito.any(InternalSmsVerifyReqDTO.class),
 				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success(Boolean.TRUE));
 		VisitorTruckProofServiceImpl service = service(smsService, redisTemplate, Mockito.mock(SmtAdmittanceApplyService.class));
@@ -43,7 +70,7 @@ public class VisitorTruckProofServiceImplTest {
 
 		Assert.assertEquals("proof-fixed", response.getProof());
 		Assert.assertFalse(response.toString().contains("13712341234"));
-		Mockito.verify(smsService).verifySmsCode(Mockito.argThat(candidate -> candidate != null
+		Mockito.verify(smsService).verifyVisitorSmsCode(Mockito.argThat(candidate -> candidate != null
 				&& "13712341234".equals(candidate.getMobile()) && "123456".equals(candidate.getSmsCode())),
 				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Mockito.verify(values).set("smart:admittance:visitor-truck:proof:proof-fixed", "13712341234", 5L,
@@ -54,7 +81,7 @@ public class VisitorTruckProofServiceImplTest {
 	public void verifySmsRejectsInvalidRemoteVerification() {
 		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
 		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
-		Mockito.when(smsService.verifySmsCode(Mockito.any(InternalSmsVerifyReqDTO.class), Mockito.anyString(), Mockito.anyString()))
+		Mockito.when(smsService.verifyVisitorSmsCode(Mockito.any(InternalSmsVerifyReqDTO.class), Mockito.anyString(), Mockito.anyString()))
 				.thenReturn(Result.success(Boolean.FALSE));
 		VisitorTruckProofServiceImpl service = service(smsService, redisTemplate, Mockito.mock(SmtAdmittanceApplyService.class));
 		VisitorTruckSmsVerifyReqDTO request = new VisitorTruckSmsVerifyReqDTO();
@@ -138,6 +165,20 @@ public class VisitorTruckProofServiceImplTest {
 			SmtAdmittanceApplyService applyService) {
 		return new VisitorTruckProofServiceImpl(smsService, redisTemplate, applyService,
 				(Supplier<String>) () -> "proof-fixed");
+	}
+
+	private RemoteAppSmsService visitorOnlySmsService(List<String> invokedMethods) {
+		return (RemoteAppSmsService) Proxy.newProxyInstance(RemoteAppSmsService.class.getClassLoader(),
+				new Class<?>[] {RemoteAppSmsService.class}, (proxy, method, arguments) -> {
+					if ("verifyVisitorSmsCode".equals(method.getName())) {
+						invokedMethods.add(method.getName());
+						return Result.success(Boolean.TRUE);
+					}
+					if ("toString".equals(method.getName())) {
+						return "visitor-only-sms-service";
+					}
+					return Result.success(Boolean.FALSE);
+				});
 	}
 
 	private SaveAdmittanceCarApplyReqDTO carApply(String mobile) {
