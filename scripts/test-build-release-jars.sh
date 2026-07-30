@@ -23,10 +23,18 @@ assert_not_dir() {
   [[ ! -d "$1" ]] || fail "unexpected directory $1"
 }
 
+assert_executable() {
+  [[ -x "$1" ]] || fail "expected executable file $1"
+}
+
 assert_contains() {
   local file="$1"
   local expected="$2"
-  grep -Fq "$expected" "$file" || fail "expected $file to contain: $expected"
+
+  if ! grep -Fq "$expected" "$file"; then
+    sed -n '1,20p' "$file" >&2 || true
+    fail "expected $file to contain: $expected"
+  fi
 }
 
 assert_line_before() {
@@ -140,14 +148,18 @@ test_collects_manifest_jars_and_writes_release_metadata() {
   local source_dir="$test_dir/source"
   local output_dir="$test_dir/output"
   local manifest_file="$test_dir/release-jars.manifest"
+  local installed_root="$test_dir/installed"
+  local preflight_error="$test_dir/runtime-preflight.err"
 
   mkdir -p "$source_dir"
   make_boot_jar "$source_dir/smart-good.jar"
+  make_boot_jar "$source_dir/smart-other.jar"
   make_jar_with_manifest "$source_dir/plain-library.jar" $'Manifest-Version: 1.0\nCreated-By: Maven JAR Plugin'
 
   cat > "$manifest_file" <<EOF
 # service|jar path
 smart-good|$source_dir/smart-good.jar
+smart-other|$source_dir/smart-other.jar
 EOF
 
   "$script_path" --skip-build --manifest "$manifest_file" --output "$output_dir"
@@ -157,10 +169,49 @@ EOF
   assert_file "$output_dir/manifest.csv"
   assert_file "$output_dir/sha256sums.txt"
   assert_file "$output_dir/build-info.txt"
+  assert_executable "$output_dir/runtime/restartService.sh"
+  assert_executable "$output_dir/runtime/verify-watchdog-stopped.sh"
+  assert_executable "$output_dir/runtime/verify-release-runtime.sh"
   assert_contains "$output_dir/manifest.csv" "smart-good"
   assert_contains "$output_dir/manifest.csv" "$source_dir/smart-good.jar"
   assert_contains "$output_dir/sha256sums.txt" "smart-jar/smart-good.jar"
+  assert_contains "$output_dir/sha256sums.txt" "runtime/restartService.sh"
+  assert_contains "$output_dir/sha256sums.txt" "runtime/verify-watchdog-stopped.sh"
+  assert_contains "$output_dir/sha256sums.txt" "runtime/verify-release-runtime.sh"
   assert_contains "$output_dir/build-info.txt" "Build mode: skipped"
+  assert_contains "$output_dir/build-info.txt" "Runtime controls: runtime/"
+
+  mkdir -p "$installed_root/smart-jar"
+  printf '%s\n' '#!/usr/bin/env bash' 'exit 0' >"$installed_root/app.sh"
+  chmod +x "$installed_root/app.sh"
+  cp "$output_dir/smart-jar/smart-good.jar" "$installed_root/smart-jar/smart-good.jar"
+  "$output_dir/runtime/verify-release-runtime.sh" --app-root "$installed_root" --service smart-good
+
+  if "$output_dir/runtime/verify-release-runtime.sh" --app-root "$installed_root" --service does-not-exist 2>"$preflight_error"; then
+    fail "expected runtime preflight to reject an unknown selected service"
+  fi
+  assert_contains "$preflight_error" "Requested service is missing"
+
+  if "$output_dir/runtime/verify-release-runtime.sh" --app-root "$installed_root" 2>"$preflight_error"; then
+    fail "expected an all-service preflight to reject a node missing another packaged jar"
+  fi
+  assert_contains "$preflight_error" "smart-other.jar"
+  cp "$output_dir/smart-jar/smart-other.jar" "$installed_root/smart-jar/smart-other.jar"
+  "$output_dir/runtime/verify-release-runtime.sh" --app-root "$installed_root"
+
+  cp "$output_dir/sha256sums.txt" "$output_dir/sha256sums.txt.original"
+  grep -Fv 'runtime/restartService.sh' "$output_dir/sha256sums.txt.original" >"$output_dir/sha256sums.txt"
+  if "$output_dir/runtime/verify-release-runtime.sh" --app-root "$installed_root" 2>"$preflight_error"; then
+    fail "expected runtime preflight to reject a missing runtime checksum entry"
+  fi
+  assert_contains "$preflight_error" "Missing required checksum"
+  mv "$output_dir/sha256sums.txt.original" "$output_dir/sha256sums.txt"
+
+  printf 'tampered\n' >>"$installed_root/smart-jar/smart-good.jar"
+  if "$output_dir/runtime/verify-release-runtime.sh" --app-root "$installed_root" 2>"$preflight_error"; then
+    fail "expected runtime preflight to reject a tampered installed jar"
+  fi
+  assert_contains "$preflight_error" "Checksum mismatch"
 }
 
 test_missing_manifest_jar_fails_fast() {
