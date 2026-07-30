@@ -102,18 +102,6 @@ public class SmtDormitoryStaffController {
 		return new Result<>(smtDormitoryStaffService.deleteNotRegister(ids.getIds()));
 	}
 
-	/**
-	 * 员工同步至智能锁平台
-	 *
-	 * @param
-	 * @return
-	 */
-	@GetMapping("/remote/to/lock")
-	public Result remoteSyncStaffInfo(@RequestParam("parkId") Integer parkId,
-														 @RequestParam(value = "createTime", required = false) String createTime) {
-		return new Result<>(smtDormitoryStaffService.getSmtDormitoryStaffToLock(parkId, createTime));
-	}
-
   /**
    * 通过id查询员工宿舍信息表
    * @param id id
