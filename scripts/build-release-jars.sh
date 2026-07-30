@@ -23,6 +23,7 @@ Environment:
 
 Generated files:
   smart-jar/            Copied release jars.
+  runtime/              Controlled restart, watchdog, and release-preflight scripts.
   manifest.csv          service, source, artifact, sha256, and size metadata.
   sha256sums.txt        Checksums for copied jars.
   build-info.txt        Git revision and build mode.
@@ -109,6 +110,7 @@ output_dir="$(canonicalize_path "$output_dir")"
 release_artifacts_root="$repo_root/release-artifacts"
 staging_dir=""
 jar_output_dir=""
+runtime_output_dir=""
 manifest_csv=""
 checksum_file=""
 build_info_file=""
@@ -155,10 +157,11 @@ prepare_output_dir() {
 
   staging_dir="$(mktemp -d "$output_parent/.build-release-jars.XXXXXX")"
   jar_output_dir="$staging_dir/smart-jar"
+  runtime_output_dir="$staging_dir/runtime"
   manifest_csv="$staging_dir/manifest.csv"
   checksum_file="$staging_dir/sha256sums.txt"
   build_info_file="$staging_dir/build-info.txt"
-  mkdir -p "$jar_output_dir"
+  mkdir -p "$jar_output_dir" "$runtime_output_dir"
 }
 
 finalize_output_dir() {
@@ -329,6 +332,7 @@ write_build_info() {
     echo "Repository root: $repo_root"
     echo "Manifest: $manifest_file"
     echo "Output: $output_dir"
+    echo "Runtime controls: runtime/"
     echo "Git SHA: $(git -C "$repo_root" rev-parse HEAD 2>/dev/null || echo unknown)"
     for project_dir in smart smart-module smart-ui smart-h5; do
       if [[ -e "$repo_root/$project_dir" ]]; then
@@ -368,6 +372,25 @@ collect_release_jars() {
   echo "Collected ${#release_services[@]} release jars into $output_dir"
 }
 
+collect_runtime_controls() {
+  local runtime_script
+  local source_path
+  local artifact_path
+  local checksum
+
+  # 三个脚本必须保持同目录：restartService.sh 只调用同目录的特权 watchdog
+  # 检查器，发布前校验器也以此目录的校验和验证安装结果；漏拷任一文件都会失败关闭。
+  for runtime_script in restartService.sh verify-watchdog-stopped.sh verify-release-runtime.sh; do
+    source_path="$repo_root/scripts/$runtime_script"
+    artifact_path="$runtime_output_dir/$runtime_script"
+    [ -x "$source_path" ] || fail "Missing executable runtime control: $source_path"
+    cp "$source_path" "$artifact_path"
+    chmod 0755 "$artifact_path"
+    checksum="$(sha256_for "$artifact_path")"
+    printf '%s  %s\n' "$checksum" "runtime/$runtime_script" >> "$checksum_file"
+  done
+}
+
 main() {
   check_build_inputs
   check_output_target
@@ -375,6 +398,7 @@ main() {
   load_release_manifest
   prepare_output_dir
   collect_release_jars
+  collect_runtime_controls
   write_build_info
   finalize_output_dir
 
