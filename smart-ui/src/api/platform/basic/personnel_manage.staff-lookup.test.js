@@ -82,7 +82,7 @@ describe('api/platform/basic/personnel_manage 员工最小搜索契约', () => {
     expect(response.data.data).toEqual([{ id: 1, badge: 'A100', name: '测试员工' }])
   })
 
-  it('在职和离职列表通过正式员工分页接口保留 status 筛选条件', async () => {
+  it('临时人员列表改走受权限保护的最小资料接口，并剔除个人敏感字段', async () => {
     request.mockResolvedValueOnce({
       data: {
         data: {
@@ -104,49 +104,16 @@ describe('api/platform/basic/personnel_manage 员工最小搜索契约', () => {
     const response = await api.getStaffPage({ current: 1, size: 10 }, { badge: 'A100', status: 1 })
 
     expect(request).toHaveBeenCalledWith({
-      url: '/platform/staff/admin/page',
+      url: '/platform/staff/admin/temporary/page',
       method: 'post',
-      params: { current: 1, size: 10 },
-      data: {
-        name: undefined,
-        badge: 'A100',
-        badges: undefined,
-        depId: undefined,
-        depAbbr: undefined,
-        jobId: undefined,
-        jobName: undefined,
-        jcheId: undefined,
-        status: 1,
-        hasFace: undefined,
-        startTime: undefined,
-        endTime: undefined
-      }
+      data: { current: 1, size: 10, badge: 'A100' }
     })
     expect(response.data.data.records).toEqual([{
       id: 1,
       badge: 'A100',
       name: '测试员工',
-      compName: undefined,
-      depAbbr: undefined,
-      depName: undefined,
-      jcheName: undefined,
-      jobName: '操作员',
-      createTime: undefined,
-      status: undefined,
-      parkName: undefined,
-      hasFace: undefined,
-      deviceAuth: undefined,
-      appAuth: undefined
+      sex: 1,
+      jobName: '操作员'
     }])
-  })
-
-  it('临时员工专用分页继续使用临时员工接口', async () => {
-    await api.getTemporaryStaffPage({ current: 1, size: 10 }, { badge: 'TEMP100' })
-
-    expect(request).toHaveBeenCalledWith({
-      url: '/platform/staff/admin/temporary/page',
-      method: 'post',
-      data: { current: 1, size: 10, badge: 'TEMP100' }
-    })
   })
 })

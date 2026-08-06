@@ -22,10 +22,4 @@ public interface RemoteAppSmsService {
 	Result<Boolean> verifySmsCode(@RequestBody InternalSmsVerifyReqDTO request,
 			@RequestHeader(SecurityConstants.FROM) String from,
 			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
-
-	/** 匿名访客专用 OTP 校验，服务端会限制失败次数并在成功后原子消费验证码。 */
-	@PostMapping("/sms/internal/visitor/verify")
-	Result<Boolean> verifyVisitorSmsCode(@RequestBody InternalSmsVerifyReqDTO request,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }

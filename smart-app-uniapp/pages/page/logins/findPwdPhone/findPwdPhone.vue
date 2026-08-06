@@ -8,7 +8,7 @@
 			<view class="hlc pl30 pr30 h110 border-bottom-D rel">
 				<text class="f30pc w200">验证码</text>
 				<input class="w300 tl" v-model.trim="smsCode" placeholder="请输入短信验证码" type="text" value="" />
-				<view @click.stop="getCode" :class="{ 'smsbtn-disabled': isSendingSms }" class="abs f28pc2 smsbtn right30">{{loadingText}}</view>
+				<view @click.stop="getCode" class="abs f28pc2 smsbtn right30">{{loadingText}}</view>
 			</view>
 			<view class=" pr30 pl30 mt20">
 				<text class="f30pc2">温馨提示</text>
@@ -35,99 +35,52 @@
     export default {
         components: {
         },
-		data() {
-			return {
+        data() {
+            return {
                 finish:false, //是否设置成功
                 employeeId:'',
                 smsCode:'',
 				challengeId: '', // 服务端一次性 challenge，不能用工号替代
-				challengeEmployeeId: '', // 当前 challenge 所属员工号
-				challengeRequest: null, // 当前员工号唯一的 challenge 创建请求
-				challengeVersion: 0, // 工号变化时递增，避免旧响应覆盖当前状态
                 smsVerifyToken:'', //短信校验通过临时授权码
                 smsCodeCheckValidate:'' ,//验证码是否正确
 				loadingText: '获取验证码',
 				loadingTime: 60,
 				timeID: null,
-				isSendingSms: false, // challenge 创建或短信发送期间阻止重复点击
-			}
+            }
         },
-		watch: {
-			// 编辑工号后立即作废旧 challenge，避免用错员工号的找回凭证。
-			employeeId(newEmployeeId, oldEmployeeId) {
-				if (newEmployeeId !== oldEmployeeId) {
-					this.invalidateChallenge(newEmployeeId)
-				}
-			}
-		},
         methods: {
-			// 工号变化后清除本地 challenge；已发出的请求不能取消，但其响应会因版本不匹配被忽略。
-			invalidateChallenge(employeeId) {
-				this.challengeId = ''
-				this.challengeEmployeeId = employeeId
-				this.challengeRequest = null
-				this.challengeVersion++
-			},
-			// 确保当前工号只有一个创建中的 challenge 请求，供 blur 与获取验证码共用。
-			ensureChallenge() {
+			// 创建密码找回 challenge；无论工号是否存在，服务端都不会返回手机号或存在状态。
+			async getMobile() {
 				if (!this.employeeId) {
 					this.$ytHint.toast({
 						title: '请输入员工号'
 					})
-					return Promise.resolve('')
+					return
 				}
-				if (this.challengeEmployeeId !== this.employeeId) {
-					this.invalidateChallenge(this.employeeId)
+				try{
+					const res = await settingPassword.mobileQuery(this.employeeId)
+					this.challengeId = res.data.data
+					this.username = uni.setStorageSync('USER_NAME',this.employeeId)
+				}catch(e){
+					console.log(e);
+					throw e
+					//TODO handle the exception
 				}
-				if (this.challengeId) return Promise.resolve(this.challengeId)
-				if (this.challengeRequest) return this.challengeRequest
-
-				const employeeId = this.employeeId
-				const challengeVersion = this.challengeVersion
-				const request = settingPassword.mobileQuery(employeeId)
-					.then(res => {
-						const challengeId = res.data.data
-						if (this.challengeEmployeeId !== employeeId || this.challengeVersion !== challengeVersion) {
-							return ''
-						}
-						this.challengeId = challengeId
-						uni.setStorageSync('USER_NAME', employeeId)
-						return challengeId
-					})
-					.catch(() => {
-						if (this.challengeEmployeeId === employeeId && this.challengeVersion === challengeVersion) {
-							this.$ytHint.toast({
-								title: '获取验证码失败，请重试'
-							})
-						}
-						return ''
-					})
-					.finally(() => {
-						if (this.challengeRequest === request) {
-							this.challengeRequest = null
-						}
-					})
-				this.challengeRequest = request
-				return request
-			},
-			// 输入框失焦时预创建 challenge，后续点击获取验证码会复用同一请求。
-			getMobile() {
-				return this.ensureChallenge()
 			},
             // 获取验证码
 			async getCode(){
-				if (this.loadingTime != 60 || this.isSendingSms) return
+				if (this.loadingTime != 60) return
 				if (!this.employeeId) {
 					this.$ytHint.toast({
 						title: '请输入工号'
 					})
 					return
 				}
-				this.isSendingSms = true
 				try{
-					const challengeId = await this.ensureChallenge()
-					if (!challengeId || challengeId !== this.challengeId || this.employeeId !== this.challengeEmployeeId) return
-					const res = await settingPassword.sendSms(challengeId)
+					if (!this.challengeId) {
+						await this.getMobile()
+					}
+					const res = await settingPassword.sendSms(this.challengeId)
 					if (res.data.code == 0) {
 						this.cutTime()
 						this.$ytHint.toast({
@@ -135,11 +88,8 @@
 						})
 					}
 				}catch(e){
-					this.$ytHint.toast({
-						title: '获取验证码失败，请重试'
-					})
-				} finally {
-					this.isSendingSms = false
+					console.log(e);
+					throw e
 				}
                 
             },
@@ -202,11 +152,6 @@
 	padding: 10upx;
 	border: 1upx solid #ddd;
 	border-radius: 20upx;
-}
-
-.smsbtn-disabled {
-	opacity: 0.5;
-	pointer-events: none;
 }
 
 button[type=primary] {

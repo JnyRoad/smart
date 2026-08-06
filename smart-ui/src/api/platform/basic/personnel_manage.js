@@ -6,7 +6,6 @@
  */
 
 import request from '@/router/axios'
-import { fetchList as fetchAdminStaffPage } from './staff_info'
 
 /**
  * 人员资料会被下发到 ISC，所有文本字段必须在提交前去除首尾空白。
@@ -269,10 +268,10 @@ export function postDelStaff({
 
 
 /**
- * 临时人员专用列表
+ * 临时人员列表
  * @param {*} data
  */
-export function getTemporaryStaffPage(query, {
+export function getStaffPage(query, {
   depId,
   badge,
   name,
@@ -294,16 +293,6 @@ export function getTemporaryStaffPage(query, {
     method: 'post',
     data: sendData
   }).then(response => normalizeTemporaryStaffResponse(response))
-}
-
-/**
- * 在职和离职列表必须查询正式员工资料；状态筛选由正式员工接口处理。
- * 临时员工页面应使用 getTemporaryStaffPage，避免两类人员数据混用。
- */
-export function getStaffPage(query, filters = {}) {
-  const { isFace, ...staffFilters } = filters
-  const hasFace = isFace === '' || isFace === null ? undefined : isFace
-  return fetchAdminStaffPage(Object.assign({}, query, staffFilters, { hasFace }))
 }
 
 /**

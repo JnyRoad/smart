@@ -37,14 +37,12 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import oracle.jdbc.proxy.annotation.Post;
 import org.springframework.beans.BeanUtils;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -182,18 +180,8 @@ public class SmtLeaveApplicationController extends BaseController{
 	@Inner
 	@OpenApi("server")
 	@GetMapping("/record/page")
-    public Result getProcessRecord(Page page, LeaveApplicationDTO leaveApplicationDTO,
-			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
-			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
-			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
-			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
-		LegacyLeaveEndpointGuard.ActorScope actor = legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose);
-		if (leaveApplicationDTO == null || !actor.getBadge().equals(leaveApplicationDTO.getBadge())) {
-			throw new AccessDeniedException("旧离职记录不存在或无权访问");
-		}
-		// 旧兼容路由也必须把认证 actor 的园区集合传入 Mapper，不能退回无园区条件的旧重载。
-        IPage<LeaveRecordVO> list = smtLeaveApplicationService.getProcessRecord(page, actor.getBadge(),
-				leaveApplicationDTO.getLeaveStatus(), actor.getParkIds());
+    public Result getProcessRecord(Page page,LeaveApplicationDTO leaveApplicationDTO){
+        IPage<LeaveRecordVO> list = smtLeaveApplicationService.getProcessRecord(page,leaveApplicationDTO.getBadge(),leaveApplicationDTO.getLeaveStatus());
         return success(list, LeaveRecordList.class);
     }
 
@@ -205,31 +193,9 @@ public class SmtLeaveApplicationController extends BaseController{
 	@Inner
 	@OpenApi("server")
 	@GetMapping("/record/detail/{processId}")
-	public Result getLeaveApplicationRecord(@PathVariable("processId") String processId,
-			@RequestHeader(value = "X-Smart-Actor-Badge", required = false) String actorBadge,
-			@RequestHeader(value = "X-Smart-Actor-Park-Ids", required = false) String actorParkIds,
-			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
-			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
-		assertLegacyRecordAccess(processId, legacyLeaveEndpointGuard.assertCaller(actorBadge, actorParkIds, from, purpose));
+	public Result getLeaveApplicationRecord(@PathVariable("processId") String processId){
 	    List<SmtProcessRecord> list = smtLeaveApplicationService.getLeaveApplication(processId);
         return success(list, ProcessRecordFlow.class);
-	}
-
-	/** 详情的 processId 只是定位键，必须重新以申请人和园区校验认证 actor。 */
-	private void assertLegacyRecordAccess(String processId, LegacyLeaveEndpointGuard.ActorScope actor) {
-		if (processId == null || processId.trim().isEmpty()) {
-			throw new AccessDeniedException("旧离职记录不存在或无权访问");
-		}
-		try {
-			SmtLeaveApplication application = smtLeaveApplicationService.getLeaveApplicationRecord(processId);
-			Set<Integer> parkIds = actor.getParkIds();
-			if (application == null || application.getParkId() == null || !parkIds.contains(application.getParkId())
-					|| (!actor.getBadge().equals(application.getBadge()) && !actor.getBadge().equals(application.getApplyBadge()))) {
-				throw new AccessDeniedException("旧离职记录不存在或无权访问");
-			}
-		} catch (RuntimeException ignored) {
-			throw new AccessDeniedException("旧离职记录不存在或无权访问");
-		}
 	}
 
 	/**

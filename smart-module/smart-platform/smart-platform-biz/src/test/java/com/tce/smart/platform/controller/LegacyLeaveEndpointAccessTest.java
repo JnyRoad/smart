@@ -9,12 +9,10 @@ import com.tce.smart.platform.core.dto.LeaveApplicationDTO;
 import com.tce.smart.platform.core.entity.SmtLeaveApplication;
 import com.tce.smart.platform.core.entity.SmtLeaveHandover;
 import com.tce.smart.platform.core.service.SmtLeaveApplicationService;
-import com.tce.smart.platform.core.vo.LeaveRecordVO;
 import com.tce.smart.platform.service.ILeaveApplicationService;
 import com.tce.smart.platform.service.SmtLeaveHandoverService;
 import com.tce.smart.platform.service.SmtLbejConfigService;
 import com.tce.smart.platform.service.SmtStaffService;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.After;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -144,73 +142,12 @@ public class LegacyLeaveEndpointAccessTest {
 		Mockito.verify(handoverService, Mockito.never()).getLeaveHandoverByProcessId("P10001");
 	}
 
-	@Test
-	public void enabledLegacyRecordPageRejectsGenericClientAndMissingActor() throws Exception {
-		Fixture fixture = fixture(true);
-		asClient("generic-server");
-		fixture.mockMvc.perform(legacyRecordPage(ACTOR, ACTOR, "7")).andExpect(status().isForbidden());
-
-		asClient("legacy-leave-migrator");
-		fixture.mockMvc.perform(legacyRecordPage(ACTOR, null, "7")).andExpect(status().isForbidden());
-		Mockito.verify(fixture.applicationService, Mockito.never()).getProcessRecord(
-				Mockito.any(Page.class), Mockito.anyString(), Mockito.anyInt(), Mockito.anySet());
-	}
-
-	@Test
-	public void enabledLegacyRecordPageRejectsForeignRequestedBadge() throws Exception {
-		Fixture fixture = fixture(true);
-		asClient("legacy-leave-migrator");
-
-		fixture.mockMvc.perform(legacyRecordPage("A20002", ACTOR, "7")).andExpect(status().isForbidden());
-		Mockito.verify(fixture.applicationService, Mockito.never()).getProcessRecord(
-				Mockito.any(Page.class), Mockito.anyString(), Mockito.anyInt(), Mockito.anySet());
-	}
-
-	@Test
-	public void enabledLegacyRecordDetailRejectsActorOutsideRecordPark() throws Exception {
-		Fixture fixture = fixture(true);
-		SmtLeaveApplication application = new SmtLeaveApplication();
-		application.setBadge(ACTOR);
-		application.setParkId(8);
-		Mockito.when(fixture.applicationService.getLeaveApplicationRecord("P10001")).thenReturn(application);
-		asClient("legacy-leave-migrator");
-
-		fixture.mockMvc.perform(legacyRecordDetail("P10001", ACTOR, "7")).andExpect(status().isForbidden());
-		Mockito.verify(fixture.applicationService, Mockito.never()).getLeaveApplication("P10001");
-	}
-
-	@Test
-	public void enabledLegacyRecordPageUsesDedicatedActorAndParkScope() throws Exception {
-		Fixture fixture = fixture(true);
-		Mockito.when(fixture.applicationService.getProcessRecord(Mockito.any(Page.class), Mockito.eq(ACTOR),
-				Mockito.eq(1), Mockito.anySet())).thenReturn(new Page<LeaveRecordVO>());
-		asClient("legacy-leave-migrator");
-
-		fixture.mockMvc.perform(legacyRecordPage(ACTOR, ACTOR, "7")).andExpect(status().isOk());
-		Mockito.verify(fixture.applicationService).getProcessRecord(Mockito.any(Page.class), Mockito.eq(ACTOR),
-				Mockito.eq(1), Mockito.argThat(parks -> parks.size() == 1 && parks.contains(7)));
-	}
-
-	@Test
-	public void enabledLegacyRecordDetailAllowsDedicatedActorAndMatchingPark() throws Exception {
-		Fixture fixture = fixture(true);
-		SmtLeaveApplication application = new SmtLeaveApplication();
-		application.setBadge(ACTOR);
-		application.setParkId(7);
-		Mockito.when(fixture.applicationService.getLeaveApplicationRecord("P10001")).thenReturn(application);
-		Mockito.when(fixture.applicationService.getLeaveApplication("P10001")).thenReturn(Collections.emptyList());
-		asClient("legacy-leave-migrator");
-
-		fixture.mockMvc.perform(legacyRecordDetail("P10001", ACTOR, "7")).andExpect(status().isOk());
-		Mockito.verify(fixture.applicationService).getLeaveApplication("P10001");
-	}
-
 	private Fixture fixture(boolean enabled) {
 		SmtLeaveApplicationService applicationService = Mockito.mock(SmtLeaveApplicationService.class);
 		ILeaveApplicationService leaveService = Mockito.mock(ILeaveApplicationService.class);
 		SmtLeaveApplicationController controller = new SmtLeaveApplicationController(applicationService, leaveService,
 				Mockito.mock(RemoteRsEmpService.class), guard(enabled));
-		return new Fixture(applicationService, leaveService, MockMvcBuilders.standaloneSetup(controller)
+		return new Fixture(leaveService, MockMvcBuilders.standaloneSetup(controller)
 				.setControllerAdvice(new GlobalExceptionHandlerResolver()).build());
 	}
 
@@ -255,34 +192,6 @@ public class LegacyLeaveEndpointAccessTest {
 				.content(body);
 	}
 
-	private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder legacyRecordPage(String badge, String actor, String parks) {
-		org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request = get("/leave/application/record/page")
-				.param("badge", badge)
-				.param("leaveStatus", "1")
-				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
-				.header("X-Smart-Internal-Purpose", PURPOSE);
-		if (actor != null) {
-			request.header("X-Smart-Actor-Badge", actor);
-		}
-		if (parks != null) {
-			request.header("X-Smart-Actor-Park-Ids", parks);
-		}
-		return request;
-	}
-
-	private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder legacyRecordDetail(String processId, String actor, String parks) {
-		org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request = get("/leave/application/record/detail/{processId}", processId)
-				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
-				.header("X-Smart-Internal-Purpose", PURPOSE);
-		if (actor != null) {
-			request.header("X-Smart-Actor-Badge", actor);
-		}
-		if (parks != null) {
-			request.header("X-Smart-Actor-Park-Ids", parks);
-		}
-		return request;
-	}
-
 	private void asClient(String clientId) {
 		OAuth2Request request = new OAuth2Request(Collections.emptyMap(), clientId, Collections.emptyList(), true,
 				Collections.singleton("server"), Collections.emptySet(), null, Collections.emptySet(), Collections.emptyMap());
@@ -294,12 +203,10 @@ public class LegacyLeaveEndpointAccessTest {
 	}
 
 	private static final class Fixture {
-		private final SmtLeaveApplicationService applicationService;
 		private final ILeaveApplicationService leaveService;
 		private final MockMvc mockMvc;
 
-		private Fixture(SmtLeaveApplicationService applicationService, ILeaveApplicationService leaveService, MockMvc mockMvc) {
-			this.applicationService = applicationService;
+		private Fixture(ILeaveApplicationService leaveService, MockMvc mockMvc) {
 			this.leaveService = leaveService;
 			this.mockMvc = mockMvc;
 		}
