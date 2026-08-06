@@ -32,8 +32,7 @@ public interface RemoteAvaGetskyPayService {
 	 */
 	  @GetMapping("/ava/getskypay/info")
 	  Result<AvaGetskyPayYSHRDTO> info(@RequestParam("badge") String badge, @RequestParam("kqDate") String kqDate,
-									   @RequestHeader(SecurityConstants.FROM) String from,
-									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+									   @RequestHeader(SecurityConstants.FROM) String from);
 	/**
 	 * 获得范围时间内考勤数据
 	 * @param startTime
@@ -42,8 +41,7 @@ public interface RemoteAvaGetskyPayService {
 	@GetMapping("/ava/getskypay/list")
 	Result<List<AvaGetskyPayYSHRDTO>> monthList(@RequestParam("startTime") LocalDateTime startTime,
 												@RequestParam("buIds") List<String> buIds,
-												@RequestHeader(SecurityConstants.FROM) String from,
-												@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+												@RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 获得范围时间内考勤数据
@@ -52,7 +50,6 @@ public interface RemoteAvaGetskyPayService {
 	 */
 	@GetMapping("/ava/getskypay/byBadge")
 	Result<List<AvaGetskyPayYSHRDTO>> monthListByBadge(@RequestBody AvaGetskyPayYSHRReqDTO dto,
-												@RequestHeader(SecurityConstants.FROM) String from,
-												@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+												@RequestHeader(SecurityConstants.FROM) String from);
 
 }

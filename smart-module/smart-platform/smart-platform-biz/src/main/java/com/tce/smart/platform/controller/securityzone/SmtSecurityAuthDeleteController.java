@@ -3,8 +3,6 @@ package com.tce.smart.platform.controller.securityzone;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthDeleteReqDTO;
 import com.tce.smart.platform.api.dto.resp.securityzone.SecurityAuthDeleteRespDTO;
@@ -57,8 +55,6 @@ public class SmtSecurityAuthDeleteController extends BaseController {
 	 * @return
 	 */
 	@ApiOperation("自动删除任务")
-	@Inner
-	@OpenApi("server")
 	@GetMapping("/task")
 	public Result getConfig() {
 		smtSecurityAuthDeleteService.deleteAuthTask();

@@ -2,8 +2,6 @@ package com.tce.smart.data.controller.temporary;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.temporary.req.EbgeJavoidanceRegisterReqDTO;
 import com.tce.smart.temporary.core.entity.EbgeJavoidanceRegister;
 import com.tce.smart.temporary.core.service.IEbgeJavoidanceService;
@@ -33,9 +31,7 @@ public class EbgeJavoidanceController extends BaseController {
      * @param ebgeJavoidanceRegisterReqDTO
      * @return
      */
-    @Inner
-    @OpenApi("server")
-    @PostMapping("/internal/save")
+    @PostMapping("/save")
     @ResponseBody
     private Result<Boolean> save(@RequestBody EbgeJavoidanceRegisterReqDTO ebgeJavoidanceRegisterReqDTO){
 		EbgeJavoidanceRegister queryBean = new EbgeJavoidanceRegister();

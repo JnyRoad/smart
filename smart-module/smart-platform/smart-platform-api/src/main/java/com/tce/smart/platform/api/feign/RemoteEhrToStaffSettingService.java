@@ -25,10 +25,8 @@ public interface RemoteEhrToStaffSettingService {
 	Result<List<SmtEhrToStaffSettingDTO>> getList(@RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/ehr/to/staff/set/list-dhr")
-	Result<List<SmtEhrToStaffSettingDTO>> getDhrList(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<SmtEhrToStaffSettingDTO>> getDhrList(@RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/ehr/to/staff/set/list-ehr")
-	Result<List<SmtEhrToStaffSettingDTO>> getEhrList(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<SmtEhrToStaffSettingDTO>> getEhrList(@RequestHeader(SecurityConstants.FROM) String from);
 }

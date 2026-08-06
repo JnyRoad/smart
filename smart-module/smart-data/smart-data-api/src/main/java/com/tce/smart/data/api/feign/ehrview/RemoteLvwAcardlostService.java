@@ -23,7 +23,6 @@ public interface RemoteLvwAcardlostService {
 	 */
 	@GetMapping("/lvw/acardlost/info")
 	Result<LvwAcardlostDTO> getByBadge(@RequestParam("badge") String badge, @RequestParam("startDate") String startDate,
-										   @RequestHeader(SecurityConstants.FROM) String from,
-										   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+									   @RequestHeader(SecurityConstants.FROM) String from);
 
 }

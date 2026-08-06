@@ -20,40 +20,35 @@ public interface RemoteAdmittanceTaskService {
 	 * @return
 	 */
 	@GetMapping("/admittance/apply/overTime")
-	Result visitorOverTime(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result visitorOverTime(@RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 访客超时未离开
 	 * @return
 	 */
 	@GetMapping("/admittance/apply/overTimeNoLeave")
-	Result overTimeNoLeave(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result overTimeNoLeave(@RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 访客已经到达
 	 * @return
 	 */
 	@GetMapping("/admittance/apply/comeOnTime")
-	Result visitorComeOnTime(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result visitorComeOnTime(@RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 访客提醒
 	 * @return
 	 */
 	@GetMapping("/admittance/apply/remind")
-	Result visitorRemind(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result visitorRemind(@RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 访客提醒
 	 * @return
 	 */
 	@GetMapping("/admittance/apply/update/oa")
-	Result updateOaStatusTask(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result updateOaStatusTask(@RequestHeader(SecurityConstants.FROM) String from);
 
 
 }

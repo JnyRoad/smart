@@ -19,6 +19,5 @@ public interface RemoteOaCallbackLogService {
 	 * @return 删除行数
 	 */
 	@GetMapping("/oa/workflow/callback/log/clean")
-	Result cleanTask(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result cleanTask(@RequestHeader(SecurityConstants.FROM) String from);
 }

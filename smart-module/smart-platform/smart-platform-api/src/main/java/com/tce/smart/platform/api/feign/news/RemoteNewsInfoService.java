@@ -23,6 +23,5 @@ public interface RemoteNewsInfoService {
 	 * @return
 	 */
 	@GetMapping("/news/terminal/check")
-	void check(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	void check(@RequestHeader(SecurityConstants.FROM) String from);
 }

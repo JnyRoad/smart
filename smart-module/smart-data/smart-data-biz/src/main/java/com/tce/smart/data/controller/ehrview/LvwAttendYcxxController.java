@@ -6,7 +6,6 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.LvwAttendYcxxFullRespDTO;
 import com.tce.smart.data.api.dto.ehrview.resp.LvwAttendYcxxSimpleRespDTO;
 import com.tce.smart.ehrview.core.entity.LvwAttendYcxx;
@@ -33,7 +32,6 @@ public class LvwAttendYcxxController extends BaseController {
     @Autowired
     private ILvwAttendYcxxService iLvwAttendYcxxService;
 	@Inner
-    @OpenApi("server")
     @GetMapping("/info")
     public Result<LvwAttendYcxxSimpleRespDTO> info(@RequestParam("badge") String badge, @RequestParam("startDate") String startDate, @RequestParam("endDate") String endDate){
         LvwAttendYcxx lvwAttendYcxx = iLvwAttendYcxxService.getOne(Wrappers. <LvwAttendYcxx>query().lambda()
@@ -45,7 +43,6 @@ public class LvwAttendYcxxController extends BaseController {
     }
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/infoAll")
 	public Result<List<LvwAttendYcxxFullRespDTO>>  infoAll(@RequestParam("startDate") String startDate, @RequestParam("endDate") String endDate){
 		List<LvwAttendYcxx> list = iLvwAttendYcxxService.list(Wrappers. <LvwAttendYcxx>query().lambda()

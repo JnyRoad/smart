@@ -35,8 +35,7 @@ public interface RemoteFormTableMainService {
 	 */
 	@GetMapping("/formtableMain/info")
 	Result<Page<CcdFormtableMainRespDTO>> info(@RequestParam("current") final long current, @RequestParam("size") final long size, @RequestParam(
-			"pedestrianBadge") final String pedestrianBadge, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			"pedestrianBadge") final String pedestrianBadge, @RequestHeader(SecurityConstants.FROM) String from);
 
 
 
@@ -47,9 +46,7 @@ public interface RemoteFormTableMainService {
 	 * @return
 	 */
 	@GetMapping("/formtableMain/infoTravel")
-	Result<CcdFormtableMainRespDTO> infoTravel(@RequestParam("mainId") final Integer mainId,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<CcdFormtableMainRespDTO> infoTravel(@RequestParam("mainId") final Integer mainId, @RequestHeader(SecurityConstants.FROM) String from);
 	/**
 	 * 查询出差日程
 	 * @param mainId
@@ -57,9 +54,7 @@ public interface RemoteFormTableMainService {
 	 * @return
 	 */
 	@GetMapping("/formtableMain/infoDay")
-	Result<List<CcdFormtableMainDt1RespDTO>> infoDay(@RequestParam("mainId") final Integer mainId,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<CcdFormtableMainDt1RespDTO>> infoDay(@RequestParam("mainId") final Integer mainId, @RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 查询出差报告
@@ -68,9 +63,7 @@ public interface RemoteFormTableMainService {
 	 * @return
 	 */
 	@GetMapping("/formtableMain/infoReport")
-	Result<List<CcdFormtableMainDt2RespDTO>> infoReport(@RequestParam("mainId") final Integer mainId,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<CcdFormtableMainDt2RespDTO>> infoReport(@RequestParam("mainId") final Integer mainId, @RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 查询员工
@@ -79,7 +72,5 @@ public interface RemoteFormTableMainService {
 	 * @return
 	 */
 	@GetMapping("/formtable/infoPerson")
-	Result<VwHRMResourceRespDTO> infoPerson(@RequestParam("id") final Integer id,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<VwHRMResourceRespDTO> infoPerson(@RequestParam("id") final Integer id, @RequestHeader(SecurityConstants.FROM) String from);
 }

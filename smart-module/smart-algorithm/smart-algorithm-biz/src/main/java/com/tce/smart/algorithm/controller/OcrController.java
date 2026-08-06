@@ -3,8 +3,6 @@ package com.tce.smart.algorithm.controller;
 import com.tce.smart.algorithm.service.OcrStrategyService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 // import com.tce.smart.file.api.feign.RemoteFileService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -33,8 +31,6 @@ public class OcrController extends BaseController {
 	// private final RemoteFileService remoteFileService;
 
 	@ApiOperation("OCR识别-图片Base64")
-	@Inner
-	@OpenApi("server")
 	@PostMapping("/{algorithmType}/{cardType}/{id}")
 	public Result<String> ocr (@PathVariable("id") String id,
 					   @PathVariable("algorithmType") String algorithmType,
@@ -44,8 +40,6 @@ public class OcrController extends BaseController {
 	}
 
 	@ApiOperation("OCR识别-图片ID")
-	@Inner
-	@OpenApi("server")
 	@PostMapping("/id/{algorithmType}/{cardType}/{id}")
 	public Result<String> ocrByImageId (@PathVariable("id") String id,
 							   @PathVariable("algorithmType") String algorithmType,

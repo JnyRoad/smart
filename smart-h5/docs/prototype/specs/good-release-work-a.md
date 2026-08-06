@@ -8,8 +8,6 @@
 
 主表单与人员 / 物品子流程之间通过 localStorage 草稿互通：
 
-- `releaseId`：首次进入人员/物品子流程前由 `POST /articlesrelease/office/draft` 创建的服务端草稿标识；本地草稿只缓存该标识，所有权、园区和申请人均以后端持久化记录为准。
-
 - `applyGoodsWorkInfo`：主表单字段草稿（任何跳出前保存，回来后回填）。
 - `goodsPersonInfo`：已添加的放行人员数组（添加人员页写入，主表单与人员列表页读取）。
 - `releaseGoodsInfo`：已添加的放行物品数组（添加物品页写入，本批不含）。
@@ -58,8 +56,7 @@
 **交互与校验**
 
 - 任何跳出（切 Tab / 进子列表 / 提交前）先把表单草稿写入 `applyGoodsWorkInfo`；进入页面时回填草稿与两个子列表。
-- 进入人员/物品子流程：若本地没有 `releaseId`，先调 `POST /articlesrelease/office/draft`，成功后缓存响应的 `releaseId` 再跳转；失败则停留当前页并提示。
-- 点「申请」：整表校验 → 按 fxsx 分支组装 personList（gh、xm、name、lcsy、lcrq=离厂日期、lcsj=离厂时间，由 lcDate 拆分）或 thingList（wpbm、wpmc、wpdw、wpsl、jsdw、fxrq、bz、ysfs、xm、name、cph）→ 提交 `applyMain` + `releaseId` + parkId + status=1（固定）+ personList + thingList；申请人工号由认证主体确定，客户端不得提交 `badge`。
+- 点「申请」：整表校验 → 按 fxsx 分支组装 personList（gh、xm、name、lcsy、lcrq=离厂日期、lcsj=离厂时间，由 lcDate 拆分）或 thingList（wpbm、wpmc、wpdw、wpsl、jsdw、fxrq、bz、ysfs、xm、name、cph）→ 提交 `applyMain` + badge（当前用户工号）+ parkId + status=1（固定）+ personList + thingList。
 - 成功：清空三个草稿 key，跳 `/xuchang/goodReleaseWork/list`；失败：toast 错误信息。
 
 **页面状态**：人员分支（含已添加 / 空）、物品分支（含已添加 / 空）。
@@ -130,12 +127,12 @@
   - 姓名（只读入口行，同上，由查询结果回填）
   - 离厂事由 lcsy（文本输入，必填，提示「请输入离厂事由」）
   - 离厂日期 lcDate（日期时间选择器，必填，含日期+时间）
-- 工号查询弹窗（search-by-staff）：标题「输入员工工号查询」+ 工号输入框 + 「确定」；仅当已有 `releaseId` 时查询并回填姓名 name、人员 id（存入 xm 字段）、工号 gh；失败 toast。
+- 工号查询弹窗（search-by-staff）：标题「输入员工工号查询」+ 工号输入框 + 「确定」；确定后调员工信息接口回填姓名 name、人员 id（存入 xm 字段）、工号 gh；失败 toast。
 - 底部按钮：新增模式「确认添加放行人员」/ 编辑模式「确认修改放行人员」。
 
 **交互**：进入时读 `goodsPersonInfo` 草稿；编辑模式由 query 传 itemInfo（JSON）、itemIndex、isEdit=true 并回填。提交：校验 → 新增 push / 编辑按 itemIndex 替换 → 写回 `goodsPersonInfo` → 跳回添加人员-列表页。
 
-**接口**：GET `/articlesrelease/{releaseId}/staff/lookup?badge={badge}`（仅在当前认证用户拥有的服务端草稿上按工号查询，响应仅含 name、id）。
+**接口**：GET `/articlesrelease/oa/staff/info/{badge}`（按工号查员工，返回 name、id）。
 
 **跳转**：→ addPersonList（提交后）。
 
@@ -166,10 +163,9 @@
 | 接口 | 方法 | 用途 | 页面 |
 |---|---|---|---|
 | `/articlesrelease/office/save` | POST | 提交放行申请 | 主表单 |
-| `/articlesrelease/office/draft` | POST | 创建当前认证用户的办公区草稿，返回 releaseId | 进入人员/物品子流程 |
 | `/articlesrelease/office/page` | GET | 分页列表（badge、type=5、current、size=10） | 放行记录 |
 | `/articlesrelease/detail/{id}` | GET | 申请详情（与生活区共用） | 放行详情 |
-| `/articlesrelease/{releaseId}/staff/lookup?badge={badge}` | GET | 在受权草稿中按工号查询最小人员信息 | 添加人员 |
+| `/articlesrelease/oa/staff/info/{badge}` | GET | 按工号查员工信息 | 添加人员 |
 
 ## 不确定点
 

@@ -9,7 +9,6 @@ import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyPageQuer
 import com.tce.smart.platform.api.dto.req.securityzone.SecurityAuthApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.securityzone.SecurityAuthApplyDetailRespDTO;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.core.service.SmtSecurityAreaService;
 import com.tce.smart.platform.service.securityzone.SmtSecurityAuthApplyService;
 import io.swagger.annotations.Api;
@@ -109,7 +108,6 @@ public class SmtSecurityAuthApplyController extends BaseController {
      * @return
      */
     @Inner
-    @OpenApi("server")
     @GetMapping("/msg")
     @ApiOperation("下发提示信息推送")
     public void sendMessage() {
@@ -123,7 +121,6 @@ public class SmtSecurityAuthApplyController extends BaseController {
      * @return Result
      */
     @Inner
-    @OpenApi("server")
     @GetMapping("/oa/status/task")
     public Result updateOaStatusTask() {
         smtSecurityAuthApplyService.updateOaStatusTask();

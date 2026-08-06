@@ -1,6 +1,5 @@
 package com.tce.smart.app.vo.fore;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Date;
 
 import com.tce.smart.common.core.vo.BaseVO;
@@ -32,9 +31,8 @@ public class VisitorVo extends BaseVO {
 	 */
 	private String visitorName;
 	/**
-	 * 来访访客图片信息。图片仅用于受控上传或审批，列表响应禁止返回。
+	 * 来访访客图片信息
 	 */
-	@JsonIgnore
 	private String visitorPhoto;
 	/**
 	 * 来访状态 0:已通过1:已驳回2:未处理3:已到达4超时未到

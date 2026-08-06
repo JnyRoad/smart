@@ -3,7 +3,6 @@ package com.tce.smart.platform.controller;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.service.VisitorTaskService;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +38,6 @@ public class VisitorTaskController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/overTime")
 	public Result visitorOverTime(@RequestParam("parkId") Integer parkId) {
 		visitorTaskService.visitorOverTime(parkId);
@@ -50,7 +48,6 @@ public class VisitorTaskController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/overTimeNoLeave")
 	public Result overTimeNoLeave(@RequestParam("parkId") Integer parkId) {
 		visitorTaskService.visitorOverTimeNoLeave(parkId);
@@ -62,7 +59,6 @@ public class VisitorTaskController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/remind")
 	public Result visitorRemind(@RequestParam("parkId") Integer parkId) {
 		visitorTaskService.visitorRemind(parkId);
@@ -71,7 +67,6 @@ public class VisitorTaskController extends BaseController {
 	}
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/toEmail")
 	public Result toEmail() {
 		visitorTaskService.toEmail();

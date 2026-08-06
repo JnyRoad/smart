@@ -302,7 +302,7 @@ public class SmtReplaceApplicationServiceImpl extends ServiceImpl<SmtReplaceAppl
 		sendAttendancePatchkAo.setFJ("");
 		sendAttendancePatchkAo.setERRMSG("提示信息");
 		//获取人事区域
-		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN);
 		OvwYscompRespDTO ovwYscompVO = resultComp.getData();
 		sendAttendancePatchkAo.setEzid(ovwYscompVO.getEzid().toString());
 		sendAttendancePatchkAo.setSeqid(id.toString());
@@ -502,7 +502,7 @@ public class SmtReplaceApplicationServiceImpl extends ServiceImpl<SmtReplaceAppl
 				String classDesc ="";
 				//根据时间查询考勤异常数据，调用考勤异常接口
 /*				Result<LvwAttendYcxxVO> info = remoteLvwAttendYcxxService.info("019541", "2017-09-15", selectPage.getRecords().get(i).getPatchDate(), SecurityConstants.FROM_IN);
-*/				Result<LvwAttendYcxxSimpleRespDTO> info = remoteLvwAttendYcxxService.info(smtReplaceApplication.getStaffBadge(), selectPage.getRecords().get(i).getPatchDate(), selectPage.getRecords().get(i).getPatchDate(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+*/				Result<LvwAttendYcxxSimpleRespDTO> info = remoteLvwAttendYcxxService.info(smtReplaceApplication.getStaffBadge(), selectPage.getRecords().get(i).getPatchDate(), selectPage.getRecords().get(i).getPatchDate(), SecurityConstants.FROM_IN);
 				//查班次
 				Result<KQShiftDetailsRespDTO> result = remoteKQShiftDetailsService.info(smtReplaceApplication.getStaffBadge(), selectPage.getRecords().get(i).getPatchDate(), SecurityConstants.FROM_IN);
 
@@ -694,7 +694,7 @@ public class SmtReplaceApplicationServiceImpl extends ServiceImpl<SmtReplaceAppl
 			throw new TCEException(ExceptionTypeEnum.REPLACE_PATCH_DATE_NULL);
 		}
 
-		Result<LvwAttendYcxxSimpleRespDTO> info = remoteLvwAttendYcxxService.info(searchPatchDTO.getStaffBadge(), searchPatchDTO.getPatchDate(), searchPatchDTO.getPatchDate(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<LvwAttendYcxxSimpleRespDTO> info = remoteLvwAttendYcxxService.info(searchPatchDTO.getStaffBadge(), searchPatchDTO.getPatchDate(), searchPatchDTO.getPatchDate(), SecurityConstants.FROM_IN);
 		if(info.isSuccess())
 		{
 			if(ObjectUtil.isNotNull(info.getData()))
@@ -775,7 +775,7 @@ public class SmtReplaceApplicationServiceImpl extends ServiceImpl<SmtReplaceAppl
 				}
 				}
 				//判断是否有考勤异常的数据，如果有则为异常没有则正常
-				Result<LvwAttendYcxxSimpleRespDTO> info = remoteLvwAttendYcxxService.info(searchAttendanceDTO.getStaffBadge(), dayByMonth.get(i),dayByMonth.get(i), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				Result<LvwAttendYcxxSimpleRespDTO> info = remoteLvwAttendYcxxService.info(searchAttendanceDTO.getStaffBadge(), dayByMonth.get(i),dayByMonth.get(i), SecurityConstants.FROM_IN);
 				log.info("remoteLvwAttendYcxxService.info-Result={}"+info);
 				//判断异常数据是否存在
 				searchAttendanceVO.setIsRecord(String.valueOf(AttendanceEnum.Is_CHECK_STATE.getCode()));
@@ -967,7 +967,7 @@ public class SmtReplaceApplicationServiceImpl extends ServiceImpl<SmtReplaceAppl
 		String employeeName = "";
 		String classDesc = "";
 		//根据时间查询考勤异常数据，调用考勤异常接口
-		Result<LvwAttendYcxxSimpleRespDTO> info = remoteLvwAttendYcxxService.info(searchAttendanceDTO.getStaffBadge(),searchAttendanceDTO.getQueryDay(),searchAttendanceDTO.getQueryDay(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<LvwAttendYcxxSimpleRespDTO> info = remoteLvwAttendYcxxService.info(searchAttendanceDTO.getStaffBadge(),searchAttendanceDTO.getQueryDay(),searchAttendanceDTO.getQueryDay(), SecurityConstants.FROM_IN);
 		if(info.getCode()==CommonConstants.SUCCESS.intValue()) {
 
 			//判断是否补卡,如果补卡了则正常显示
@@ -1248,9 +1248,7 @@ public class SmtReplaceApplicationServiceImpl extends ServiceImpl<SmtReplaceAppl
 				.ge(SmtReplaceApplication::getCreateTime, DateUtil.beginOfMonth(DateUtils.parse(searchPatchDTO.getPatchDate())))
 				.le(SmtReplaceApplication::getCreateTime, DateUtil.endOfMonth(DateUtils.parse(searchPatchDTO.getPatchDate()))));
 		for (SmtReplaceApplication smtReplaceApplication : list) {
-			Result<List<EvwBizLcardlostRespDTO>> infoLost = remoteEvwBizLcardlostService.info(
-					smtReplaceApplication.getStaffBadge(), smtReplaceApplication.getStartTime(),
-					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<EvwBizLcardlostRespDTO>> infoLost = remoteEvwBizLcardlostService.info(smtReplaceApplication.getStaffBadge(), smtReplaceApplication.getStartTime());
 			log.info("remoteEvwBizLcardlostService.info {}",infoLost);
 			List<EvwBizLcardlostRespDTO> dataLost = infoLost.getData();
 			if(dataLost.size()>0)
@@ -1320,7 +1318,7 @@ public class SmtReplaceApplicationServiceImpl extends ServiceImpl<SmtReplaceAppl
 
 			log.info("考勤异常消息推送");
 			//查询昨天异常
-			Result<List<LvwAttendYcxxFullRespDTO>> result = remoteLvwAttendYcxxService.infoAll(DateUtils.formatDateTime(DateUtils.offsetDay(DateUtils.date(), -1)), DateUtils.now(),SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<LvwAttendYcxxFullRespDTO>> result = remoteLvwAttendYcxxService.infoAll(DateUtils.formatDateTime(DateUtils.offsetDay(DateUtils.date(), -1)), DateUtils.now(),SecurityConstants.FROM_IN);
 				//转换接过来的值
 			SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 				if (CommonConstants.SUCCESS  == result.getCode()) {

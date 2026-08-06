@@ -8,9 +8,7 @@ import java.io.Serializable;
 public class VisitorWechatIdentityRespDTO implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	/** 短时访客草稿会话，仅用于换取一次性动作 capability。 */
-	private String visitorDraftToken;
+	private String openId;
 
-	/** 与微信身份绑定的服务端草稿标识。 */
-	private String visitorDraftId;
+	private String unionId;
 }

@@ -2,7 +2,7 @@
 import { Popup, SpinLoading, Toast } from 'antd-mobile'
 import { useState } from 'react'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
-import { getReleaseStaffInfo } from './api'
+import { getOaStaffInfo } from './api'
 
 /**
  * 「输入员工工号查询」弹窗（旧 search-by-staff）：确定后查 OA 员工信息，
@@ -10,12 +10,10 @@ import { getReleaseStaffInfo } from './api'
  */
 export function StaffSearchPopup({
   visible,
-	  releaseId,
   onClose,
   onPicked,
 }: {
   visible: boolean
-	  releaseId?: string | number
   onClose: () => void
   onPicked: (staff: { gh: string; name: string; id: string | number }) => void
 }) {
@@ -24,11 +22,10 @@ export function StaffSearchPopup({
 
   async function handleConfirm() {
     if (loading) return
-	if (!badge) return Toast.show('请输入工号')
-	if (releaseId === undefined || releaseId === null) return Toast.show('请先创建放行草稿')
+    if (!badge) return Toast.show('请输入工号')
     setLoading(true)
     try {
-		const res = await getReleaseStaffInfo(releaseId, badge)
+      const res = await getOaStaffInfo(badge)
       if (res.code === 0 && res.data) {
         onPicked({ gh: badge, name: res.data.name ?? '', id: res.data.id ?? '' })
         onClose()

@@ -2,17 +2,11 @@ package com.tce.smart.app.controller;
 
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
-import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
-import com.tce.smart.common.security.service.SmartUser;
-import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.req.SmtDormitoryReqDTO;
 import com.tce.smart.platform.api.dto.req.dormitorymange.SearchDormitoryRoomDetailReqDTO;
 import com.tce.smart.platform.api.feign.RemoteDormitoryService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -22,14 +16,10 @@ import org.springframework.web.bind.annotation.*;
  * @Date: 2020-10-14 21:26
  */
 @RestController
-@RequiredArgsConstructor
+@AllArgsConstructor
 @RequestMapping("/appdormitory")
 public class AppDormitoryController extends BaseController {
 	private final RemoteDormitoryService remoteDormitoryService;
-
-	/** App 查询本人住宿信息的受管内部用途；缺失时必须拒绝，不能回退到默认用途。 */
-	@Value("${security.inner.dormitory.app-room-purpose:}")
-	private String appRoomPurpose;
 
 	@PostMapping("/queryDormitory")
 	public Result queryDormitory(@RequestBody SmtDormitoryReqDTO smtDormitory){
@@ -41,50 +31,18 @@ public class AppDormitoryController extends BaseController {
 		return success(remoteDormitoryService.queryRoom(smtDormitoryRoom, SecurityConstants.FROM_IN));
 	}
 
-	/**
-	 * 查询当前登录员工的宿舍详情。
-	 *
-	 * 工号只能从认证上下文取得，客户端不得再通过路径参数指定任意员工。
-	 */
-	@GetMapping("/me/roomDetail")
-	public Result getMyRoomDetail(){
-		return success(remoteDormitoryService.getSelfRoomDetail(currentAuthenticatedBadge(), SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, managedAppRoomPurpose()));
+	@GetMapping("/roomDetail/{staffBadge}")
+	public Result getStaffRoomInfo(@PathVariable("staffBadge") String staffBadge){
+		return success(remoteDormitoryService.getStaffRoomInfo(staffBadge, SecurityConstants.FROM_IN));
 	}
 
-	/**
-	 * 查询当前登录员工的宿舍记录列表。
-	 *
-	 * 内部 Feign 契约显式声明服务令牌标记，避免仅凭可伪造的内部来源头放行。
-	 */
-	@GetMapping("/me/roomList")
-	public Result getMyRoomList(){
-		return success(remoteDormitoryService.getStaffRoomInfoList(currentAuthenticatedBadge(), SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, managedAppRoomPurpose()));
+	@GetMapping("/roomList/{staffBadge}")
+	public Result getStaffRoomInfoList(@PathVariable("staffBadge") String staffBadge){
+		return success(remoteDormitoryService.getSimpleStaffRoomList(staffBadge, SecurityConstants.FROM_IN));
 	}
 
-	/**
-	 * 配置中心未精确收口时拒绝内部调用，避免硬编码用途被无意复用或放宽。
-	 */
-	private String managedAppRoomPurpose() {
-		if (StringUtils.isEmpty(appRoomPurpose)) {
-			throw new AccessDeniedException("App 住宿内部用途未受管配置");
-		}
-		return appRoomPurpose;
-	}
-
-	/**
-	 * App 仅能通过内部 Feign 查询当前登录员工，不接受客户端提供的工号。
-	 */
-	private String currentAuthenticatedBadge() {
-		Authentication authentication = SecurityUtils.getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()) {
-			throw new AccessDeniedException("未认证用户不可查询员工入住信息");
-		}
-		SmartUser currentUser = SecurityUtils.getUser(authentication);
-		if (currentUser == null || currentUser.getUsername() == null) {
-			throw new AccessDeniedException("未认证用户不可查询员工入住信息");
-		}
-		return currentUser.getUsername();
+	@GetMapping("/roomDetailByPhone/{phone}/{name}")
+	public Result getStaffRoomInfoByPhone(@PathVariable("phone") String phone,@PathVariable("name") String name){
+		return success(remoteDormitoryService.getStaffRoomInfoByPhone(phone,name, SecurityConstants.FROM_IN));
 	}
 }

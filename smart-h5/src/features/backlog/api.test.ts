@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { saveSession } from '@/lib/auth/token'
-import { getWorkApprovalPage, securityUpdateRelease } from './api'
+import { getWorkApprovalPage } from './api'
 
 const fetchMock = vi.fn()
 
@@ -38,28 +38,4 @@ describe('backlog approval APIs', () => {
       '/platform/articlesrelease/office/approval/page?approvalStatus=0&current=1&size=10&badge=YT9&releaseItem=1',
     )
   })
-
-	 it('sends only guard business fields for security confirmation', async () => {
-		 saveSession({ accessToken: 'tok' })
-
-		 await securityUpdateRelease({
-			 id: 17,
-			 status: 4,
-			 guardOneImg: 'image-1',
-			 guardTwoImg: '',
-			 guardThreeImg: '',
-			 remark: '已核验',
-		 })
-
-		 const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-		 expect(url).toBe('/platform/articlesrelease/status/security/update')
-		 expect(JSON.parse(String(init.body))).toEqual({
-			 id: 17,
-			 status: 4,
-			 guardOneImg: 'image-1',
-			 guardTwoImg: '',
-			 guardThreeImg: '',
-			 remark: '已核验',
-		 })
-	 })
 })

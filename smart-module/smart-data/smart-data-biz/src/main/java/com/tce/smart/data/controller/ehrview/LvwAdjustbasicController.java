@@ -6,7 +6,6 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.LvwAdjustbasicFullRespDTO;
 import com.tce.smart.data.api.dto.ehrview.resp.LvwAdjustbasicRespDTO;
 import com.tce.smart.ehrview.core.entity.LvwAdjustbasic;
@@ -34,7 +33,6 @@ public class LvwAdjustbasicController extends BaseController {
     private ILvwAdjustbasicService iLvwAdjustbasicService;
 
     @Inner
-    @OpenApi("server")
     @GetMapping("/info")
     public Result<LvwAdjustbasicRespDTO> info(@RequestParam("badge") String badge,@RequestParam("term") String term){
         LvwAdjustbasic lvwAdjustbasic = iLvwAdjustbasicService.getOne(Wrappers.<LvwAdjustbasic>query().lambda()
@@ -45,7 +43,6 @@ public class LvwAdjustbasicController extends BaseController {
     }
 
     @Inner
-    @OpenApi("server")
     @GetMapping("/getByBadge")
     public Result<List<LvwAdjustbasicFullRespDTO>> getByBadge(@RequestParam("badge") String badge) {
 /*		List<SmtSnapPerson> smtSnapList = smtSnapPersonMapper.selectList(Wrappers.<SmtSnapPerson> query().lambda()

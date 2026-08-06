@@ -13,7 +13,7 @@ const routerMock = vi.hoisted(() => ({
 
 const visitorApiMock = vi.hoisted(() => ({
   checkFace: vi.fn(),
-  cropEmployeeFace: vi.fn(),
+  faceCut: vi.fn(),
 }))
 
 const dormApiMock = vi.hoisted(() => ({
@@ -49,9 +49,15 @@ vi.mock('@/features/auth/use-require-auth', () => ({
   useRequireAuth: () => true,
 }))
 
+vi.mock('@/features/employee/api', () => ({
+  getEmployeeBaseInfo: vi.fn(() =>
+    Promise.resolve({ code: 0, data: { employeeName: '李明轩', employeeBadge: 'YT027468' } }),
+  ),
+}))
+
 vi.mock('@/features/visitor/api', () => ({
   checkFace: visitorApiMock.checkFace,
-  cropEmployeeFace: visitorApiMock.cropEmployeeFace,
+  faceCut: visitorApiMock.faceCut,
 }))
 
 vi.mock('@/features/dorm/api', () => ({
@@ -80,7 +86,7 @@ function renderGetCodePage() {
 }
 
 beforeEach(() => {
-  visitorApiMock.cropEmployeeFace.mockResolvedValue({ code: 0, data: 'cut-face-base64' })
+  visitorApiMock.faceCut.mockResolvedValue({ code: 0, data: 'cut-face-base64' })
   visitorApiMock.checkFace.mockResolvedValue({ code: 0, data: { photoId: 'photo-1' } })
   dormApiMock.refreshLockPwd.mockResolvedValue({ code: 0 })
   stopTrack.mockClear()
@@ -121,7 +127,7 @@ afterEach(() => {
   routerMock.back.mockClear()
   routerMock.push.mockClear()
   routerMock.replace.mockClear()
-  visitorApiMock.cropEmployeeFace.mockReset()
+  visitorApiMock.faceCut.mockReset()
   visitorApiMock.checkFace.mockReset()
   dormApiMock.refreshLockPwd.mockReset()
   getUserMedia.mockReset()
@@ -133,8 +139,8 @@ describe('门锁动态码刷新人脸采集', () => {
 
     expect(await screen.findByTestId('lock-face-page')).toBeTruthy()
     expect(screen.getByRole('heading', { name: '刷新动态码' })).toBeTruthy()
-    expect(await screen.findByText('当前员工')).toBeTruthy()
-    expect(screen.queryByText(/工号/)).toBeNull()
+    expect(await screen.findByText('李明轩')).toBeTruthy()
+    expect(await screen.findByText('工号 YT027468')).toBeTruthy()
     expect(screen.getByText('动态码刷新')).toBeTruthy()
     expect(await screen.findByTestId('lock-face-camera-start')).toBeTruthy()
     expect(screen.getByTestId('lock-face-camera-stage')).toBeTruthy()
@@ -144,7 +150,7 @@ describe('门锁动态码刷新人脸采集', () => {
     expect(container.querySelector('input[type="file"]')).toBeNull()
   })
 
-  it('generates the lock code with the captured face only', async () => {
+  it('generates the lock code with the captured face and employee badge', async () => {
     renderGetCodePage()
 
     fireEvent.click(await screen.findByTestId('lock-face-camera-start'))
@@ -156,6 +162,7 @@ describe('门锁动态码刷新人脸采集', () => {
 
     await waitFor(() =>
       expect(dormApiMock.refreshLockPwd).toHaveBeenCalledWith({
+        badge: 'YT027468',
         facePic: 'cut-face-base64',
       }),
     )

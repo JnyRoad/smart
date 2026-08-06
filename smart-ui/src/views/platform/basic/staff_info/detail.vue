@@ -13,7 +13,23 @@
         </div>
         <p class="box-orange">员工信息</p>
         <el-row>
-          <el-col :span="12">
+          <el-col :span="6">
+            <dl class="img-info">
+              <dt class="img-outer">
+                <i class="corner cn-top"></i>
+                <i class="corner cn-rit"></i>
+                <i class="corner cn-btm"></i>
+                <i class="corner cn-lft"></i>
+                <div class="img-inner">
+                  <viewer>
+                    <img :src="staffResult.facePic || errorImgPeaple()" :onerror="errorImgPeaple()" />
+                  </viewer>
+                </div>
+              </dt>
+              <dd class="desc-info"></dd>
+            </dl>
+          </el-col>
+          <el-col :span="8">
             <table class="dot-list">
               <tr>
                 <td>
@@ -42,10 +58,38 @@
               <tr>
                 <td>
                   <div class="my-dot-label">
+                    <tce-label-justify label="手机号"></tce-label-justify>
+                  </div>
+                </td>
+                <td>
+                  <div class="phone-outer">
+                    <template v-if="editPhone">
+                      <el-input v-model="newPhone" placeholder="请输入手机号"></el-input>
+                      <el-button type="text" size="mini" @click="doSave">保存 </el-button>
+                      <el-button type="text" size="mini" @click="doCancel">取消 </el-button>
+                    </template>
+                    <template v-if="!editPhone && personInfo.phone">
+                      <span class="phone">{{personInfo.phone}}</span>
+                      <el-button type="text" size="mini" @click="doEdit">编辑 </el-button>
+                    </template>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
                     <tce-label-justify label="BU"></tce-label-justify>
                   </div>
                 </td>
-                <td>{{personInfo.companyName}}</td>
+                <td>{{personInfo.compName}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="中心"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.depAbbr}}</td>
               </tr>
               <tr>
                 <td>
@@ -53,7 +97,7 @@
                     <tce-label-justify label="部门"></tce-label-justify>
                   </div>
                 </td>
-                <td>{{personInfo.departmentName}}</td>
+                <td>{{personInfo.depName}}</td>
               </tr>
               <tr>
                 <td>
@@ -66,11 +110,128 @@
               <tr>
                 <td>
                   <div class="my-dot-label">
+                    <tce-label-justify label="职层"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.jcheName}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="所属园区"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{staffResult.parkName}}</td>
+              </tr>
+            </table>
+          </el-col>
+          <el-col :span="10">
+            <table class="dot-list dotlist2">
+              <!-- <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="员工类型"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.name}}</td>
+              </tr>-->
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="民族"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.nation}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="身份证地址"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.residentaddress}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="上级领导"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.reportTo}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
                     <tce-label-justify label="员工状态"></tce-label-justify>
                   </div>
                 </td>
                 <td>{{personInfo.status | staffStatusInit}}</td>
               </tr>
+              <tr v-if="personInfo.status == 0">
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="离职类型"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.leaType}}</td>
+              </tr>
+              <tr v-if="personInfo.status == 0">
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="离职日期"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.leaDate}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="入职日期"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.createTime}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="福利层级"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.welfareLevel}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="工作邮箱"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{personInfo.email}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="紧急联系人关系"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{smtStaffEmergency.relation}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="紧急联系人姓名"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{smtStaffEmergency.emergencyName}}</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="my-dot-label">
+                    <tce-label-justify label="紧急联系人手机"></tce-label-justify>
+                  </div>
+                </td>
+                <td>{{smtStaffEmergency.telephont}}</td>
+              </tr>
+
             </table>
           </el-col>
         </el-row>
@@ -133,12 +294,15 @@
   </div>
 </template>
 <script>
-import { getAdminStaffDetail, fetchIscStaffCards, saveIscStaffCard, deleteIscStaffCard, fetchIscParkConfigs } from "@/api/platform/basic/staff_info_detail";
+import { getById, editPhone, fetchIscStaffCards, saveIscStaffCard, deleteIscStaffCard, fetchIscParkConfigs } from "@/api/platform/basic/staff_info_detail";
 import { mapGetters } from "vuex";
+import { isMobile } from '@/util/validate'
 
 export default {
   data() {
     return {
+      newPhone: '',
+      editPhone: false,
       iscCards: [],
       iscCardLoading: false,
       iscCardSaving: false,
@@ -150,33 +314,69 @@ export default {
         cardNo: ''
       },
       iscParkOptions: [],
-      personInfo: {}
+      personInfo: {},
+      staffResult: {},
+      smtStaffEmergency: {}
     };
   },
   created() {
-    this.loadStaffDetail()
+    this.getById()
   },
   computed: {
     ...mapGetters(["permissions"])
   },
 
   methods: {
-    loadStaffDetail(){
-      getAdminStaffDetail(this.$route.params.id).then(response => {
+    getById(){
+      getById(this.$route.params.id).then(response => {
         if (!this.validatenull(response.data.data)) {
-          this.personInfo = response.data.data;
+          this.staffResult = response.data.data;
+          this.personInfo = response.data.data.smtStaff;
+          this.editPhone = false
           this.loadIscCards()
           this.loadIscParkOptions()
+          if (!this.validatenull(response.data.data.smtStaffEmergency)) {
+            this.smtStaffEmergency = response.data.data.smtStaffEmergency[0];
+          }
         }
       });
     },
+    doCancel(){
+      this.editPhone = false
+    },
+    doEdit(){
+      this.newPhone = this.personInfo.phone
+      this.editPhone = true
+    },
+    async doSave(){
+      let r = isMobile(this.newPhone)
+      if (!r) {
+        this.$message({
+          message: `${this.newPhone} 手机号格式错误`,
+          type: "warning"
+        });
+        return
+      }
+      const res = await editPhone({
+        staffId: this.personInfo.id,
+        newPhone: this.newPhone
+      })
+      if(res.data.data){
+        this.$notify({
+          title: '成功',
+          message: '修改手机号成功',
+          type: 'success'
+        });
+        this.getById()
+      }
+    },
     loadIscCards(){
-      if (!this.personInfo.staffId) {
+      if (!this.personInfo.id) {
         this.iscCards = []
         return
       }
       this.iscCardLoading = true
-      fetchIscStaffCards(this.personInfo.staffId).then(response => {
+      fetchIscStaffCards(this.personInfo.id).then(response => {
         this.iscCards = response.data.data || []
       }).finally(() => {
         this.iscCardLoading = false
@@ -194,7 +394,7 @@ export default {
     openCreateIscCard(){
       this.iscCardForm = {
         id: null,
-        staffId: this.personInfo.staffId,
+        staffId: this.personInfo.id,
         parkId: null,
         cardNo: ''
       }
@@ -249,7 +449,7 @@ export default {
       try {
         const res = await saveIscStaffCard({
           id: this.iscCardForm.id,
-          staffId: this.personInfo.staffId,
+          staffId: this.personInfo.id,
           parkId: this.iscCardForm.parkId,
           cardNo
         })
@@ -340,11 +540,48 @@ export default {
 .staff-info{
   min-width: 1120px;
 }
+.phone-outer,
+.card-outer {
+  min-height: 20px;
+}
+.phone-outer ::v-deep,
+.card-outer ::v-deep {
+  .el-input{
+    width: auto;
+  }
+  .el-input__inner{
+    padding: 0 10px 0 0;
+    height: 20px;
+    line-height: 20px;
+    width: 110px;
+    border: none;
+    border-bottom: 1px solid #eee;
+    border-radius: 0;;
+  }
+  .el-button{
+    padding: 0;
+  }
+  .phone,
+  .card{
+    width: 110px;
+    padding: 0 10px 0 0;
+    display: inline-block;
+  }
+}
+.img-info {
+  width: 60%;
+  margin: 0 auto;
+}
 .dot-list {
   float: left;
   width: 80%;
   min-width: 320px;
   margin-right: 50px;
+}
+.dotlist2 {
+  .my-dot-label{
+    width: 160px;
+  }
 }
 .isc-card-title {
   margin-top: 20px;

@@ -1,8 +1,9 @@
 package com.tce.smart.platform.service.badge.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.tce.smart.admin.api.dto.InternalUserSummaryRespDTO;
-import com.tce.smart.admin.api.feign.RemoteUserInternalService;
+import com.tce.smart.admin.api.dto.RoleDTO;
+import com.tce.smart.admin.api.dto.UserInfo;
+import com.tce.smart.admin.api.feign.RemoteUserService;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
 public class SmtBadgeRecordServiceImpl extends ServiceImpl<SmtBadgeRecordMapper, SmtBadgeRecord> implements SmtBadgeRecordService {
 
 	@Autowired
-	private RemoteUserInternalService remoteUserInternalService;
+	private RemoteUserService remoteUserService;
 
 	@Override
 	public Boolean insertRecord(String badge, Long applyId, Integer status) {
@@ -44,17 +45,19 @@ public class SmtBadgeRecordServiceImpl extends ServiceImpl<SmtBadgeRecordMapper,
 			//获取登录用户
 			username = SecurityUtils.getUser().getUsername();
 		}
-		Result<InternalUserSummaryRespDTO> result = remoteUserInternalService.summary(username);
-		InternalUserSummaryRespDTO user = result.getData();
+		Result<UserInfo> result = remoteUserService.info(username, SecurityConstants.FROM_IN);
+		UserInfo user = result.getData();
 		if(Objects.isNull(user)) {
 			throw new SmartException("用户信息关联失败");
 		}
 		SmtBadgeRecord record = new SmtBadgeRecord();
-		record.setCreaterId(user.getUserId());
+		record.setCreaterId(user.getSysUser().getUserId());
 		record.setCreaterName(username);
 		//设置用户角色信息
-		if(CollectionUtils.isNotEmpty(user.getRoleNames())) {
-			List<String> roleIds = user.getRoleNames();
+		if(CollectionUtils.isNotEmpty(user.getRoleList())) {
+			List<String> roleIds = user.getRoleList().stream()
+					.map(RoleDTO::getRoleName)
+					.collect(Collectors.toList());
 			String roleStr = StringUtils.join(roleIds, SymbolConstants.COMMA);
 			record.setCreateRole(roleStr);
 		}

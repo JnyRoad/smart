@@ -5,25 +5,24 @@ security:
       client-id: ENC(FW4Hcu2nG5zWMwPCKA9Z2g==)        # app
       client-secret: ENC(LbJpWwabMw90fSaWjMuBqA==)    # app
       scope: server
-      # 测试环境必须与 dev 保持相同的最小匿名面，禁止用通配符掩盖新增路由。
+      # 放行url
       ignore-urls:
+        - /v2/api-docs
         - /guide/welcome
-        - /sms/visitor/send
-        - /sms/visitor/verify
-        - /sms/login/send
-        - /password/mobile/query
-        - /password/sms/send
-        - /password/verify
-        - /password/verify/face
-        - /password/update
-        - /park/location/auto
-        - /park/list
-        - /wechat/xc/banging/badge
-        - /wechat/visit/checkBlackVisitor
-        - /wechat/visit/checkFace
-        - /agreement/service
-        - /setting/version/check
-        - /yht/user/badge
+        - /login/face
+        - /sms/send/**
+        - /sms/verify/**
+        - /common/image/view/**
+        - /common/download/**
+        - /password/mobile/query/**
+        - /password/sms/send/**
+        - /password/verify/**
+        - /password/update/**
+        - /park/location/auto/**
+        - /wechat/**
+        - /device/query/list/bind/**
+        - /device/query/list/**
+        - /website/**
 
 # 数据源配置
 spring:

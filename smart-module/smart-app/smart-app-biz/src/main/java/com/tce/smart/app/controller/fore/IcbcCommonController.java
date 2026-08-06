@@ -1,10 +1,13 @@
 package com.tce.smart.app.controller.fore;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tce.smart.app.service.fore.IcbcCommonService;
-import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 
 import lombok.AllArgsConstructor;
@@ -23,13 +26,18 @@ public class IcbcCommonController extends BaseController {
 	private final IcbcCommonService icbcCommonService;
 
 	/**
-	 * 初始化 e 钱包实名请求。
+	 * 构造e钱包html请求
 	 *
-	 * @return 服务端受理结果，不返回银行 HTML 或身份证号
+	 * @return html表单信息
+	 * @throws Exception
 	 */
-	@RequestMapping("/eaccount")
-	public Result<Boolean> initializeEaccount() {
-		return success(icbcCommonService.initializeEaccount());
+	@RequestMapping(value = "/eaccount", produces = MediaType.TEXT_HTML_VALUE)
+	public ResponseEntity<String> viewModuleImage() throws Exception {
+		String buildFormHtml = icbcCommonService.buildFormHtml();
+		final HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.TEXT_HTML);
+		headers.set("charset", "utf-8");
+		return new ResponseEntity<>(buildFormHtml, headers, HttpStatus.OK);
 	}
 
 }

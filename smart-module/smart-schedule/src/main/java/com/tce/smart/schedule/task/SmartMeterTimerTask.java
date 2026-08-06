@@ -107,8 +107,7 @@ public class SmartMeterTimerTask {
 		if (taskJob.getGenSettlementDaily() && iSwitchService.process(TimerTaskEnum.GEN_SETTLEMENT_DAILY)) {
 			try {
 				log.info("水电日结算开始,{}", DateUtil.now());
-				remoteDailySettlementService.genDailyRecord(SecurityConstants.FROM_IN,
-						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				remoteDailySettlementService.genDailyRecord(SecurityConstants.FROM_IN);
 			} catch (Exception e) {
 				log.error("水电日结算执行异常", e);
 			}

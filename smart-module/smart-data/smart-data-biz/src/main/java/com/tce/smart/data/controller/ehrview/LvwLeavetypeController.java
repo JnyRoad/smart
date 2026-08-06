@@ -4,7 +4,6 @@ package com.tce.smart.data.controller.ehrview;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.LvwLeavetypeDTO;
 import com.tce.smart.ehrview.core.entity.LvwLeavetype;
 import com.tce.smart.ehrview.core.service.ILvwLeavetypeService;
@@ -33,7 +32,6 @@ public class LvwLeavetypeController extends BaseController {
 	private  ILvwLeavetypeService iLvwLeavetypeService;
 
     @Inner
-    @OpenApi("server")
     @GetMapping("/info")
     public Result<LvwLeavetypeDTO> getById(@RequestParam("id") Integer id){
         LvwLeavetype byId = iLvwLeavetypeService.getById(id);

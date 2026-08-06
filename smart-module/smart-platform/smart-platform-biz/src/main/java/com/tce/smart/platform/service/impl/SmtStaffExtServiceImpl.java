@@ -243,8 +243,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			register.setDepid(Integer.parseInt(preStaff.getDepId()));
 			register.setJobid(preStaff.getJobId());
 			register.setEID(preStaff.getEId());
-			Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()),
-					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()));
 			if (byComId.isSuccess()) {
 				if (byComId.getData() != null) {
 					register.setEzid(byComId.getData().getEZID());
@@ -265,8 +264,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 				register.setQsgx(fm.getRelationDetail());
 			}
 			register.setSeqid(preStaff.getSeqId());
-			Result save = ebgeJavoidanceService.save(register, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result save = ebgeJavoidanceService.save(register);
 			log.info("保持亲属关系:{}", save);
 		}
 	}
@@ -297,8 +295,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			//获取code
 			fmRe.setRelation(Integer.parseInt(fm.getRelation()));
 
-			Result<Boolean> feignRs = familyReg.save(fmRe, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<Boolean> feignRs = familyReg.save(fmRe);
 			log.info("保存家庭背景:{}", feignRs);
 		}
 	}
@@ -310,10 +307,9 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 		if (Objects.nonNull(applicationId)) {
 			application = applicationService.getById(applicationId);
 		}
-		Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()),
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<OcompanyRespDTO> byComId = remoteCompanyService.getByComId(Integer.parseInt(preStaff.getCompId()));
 		log.info("获取公司信息:{}", byComId);
-		OvwYsjobRespDTO ovwYsjob = remoteOvwYsjobService.getByDeptName(Integer.parseInt(preStaff.getJobId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
+		OvwYsjobRespDTO ovwYsjob = remoteOvwYsjobService.getByDeptName(Integer.parseInt(preStaff.getJobId()), SecurityConstants.FROM_IN).data();
 
 		estaff.setBadge(preStaff.getBadge());
 		estaff.setName(preStaff.getName());
@@ -403,7 +399,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			estaff.setNation(1);
 		}
 
-		Result<List<OvwYsdepRespDTO>> parentDep = remoteOvwYsdepService.getParentDep(Integer.parseInt(preStaff.getDepId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<OvwYsdepRespDTO>> parentDep = remoteOvwYsdepService.getParentDep(Integer.parseInt(preStaff.getDepId()), SecurityConstants.FROM_IN);
 		log.info("获取部门信息：{}", parentDep);
 
 		if (parentDep.isSuccess()) {
@@ -451,13 +447,13 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 		estaff.setRegDate(DateUtils.parse(dateDay.format(DateUtils.date())));
 		estaff.setJobBeginTime(DateUtils.parse(dateDay.format(DateUtils.date())));
 		String director = null;
-		OvwYsdepRespDTO ovwYsdepRespDTO = remoteOvwYsdepService.getByDepId(Integer.parseInt(preStaff.getDepId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
+		OvwYsdepRespDTO ovwYsdepRespDTO = remoteOvwYsdepService.getByDepId(Integer.parseInt(preStaff.getDepId()), SecurityConstants.FROM_IN).data();
 		if (ObjectUtil.isNotNull(ovwYsdepRespDTO)) {
 			director = ovwYsdepRespDTO.getDirector();
 			log.info("获取部门信息:部门ID:{} 部门名称:{}", ovwYsdepRespDTO.getDepid(), ovwYsdepRespDTO.getDepname());
 		}
 		if (director != null) {
-			EvwEmphrYsRespDTO info = remoteEvwEmphrYsService.info(director, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
+			EvwEmphrYsRespDTO info = remoteEvwEmphrYsService.info(director, SecurityConstants.FROM_IN).data();
 			estaff.setReportto(info.getEId());
 		}
 
@@ -476,8 +472,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 				estaff.setTelephone(em.getTelephont());
 			}
 		}
-		Result<?> feignRs = staffRegister.save(estaff, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<?> feignRs = staffRegister.save(estaff);
 		log.info("保持入职信息:{}", feignRs);
 	}
 
@@ -583,8 +578,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			re.setTel(work.getPhone());
 			re.setSeqID(preStaff.getSeqId());
 
-			Result<?> feignRs = workRegister.save(re, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<?> feignRs = workRegister.save(re);
 			log.info("保存工作经历:{}", feignRs);
 		}
 	}
@@ -634,8 +628,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 			edu.setIsHighDegreeType(one.equals(education.getIsHighDegreeType()));
 			edu.setIsHighEdutype(one.equals(education.getIsHighEduType()));
 
-			Result<Boolean> feignRs = eduReg.save(edu, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<Boolean> feignRs = eduReg.save(edu);
 			log.info("保存教育经历:{}", feignRs);
 		}
 	}
@@ -733,7 +726,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 					staff.setWelfareLevel(jcheFL.get(tempStaff.getJcheId()));
 				} else {
 					//可能没有对应的福利层级
-					Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN);
 					staff.setWelfareLevel(flstandardDTOResult.getData().getCode());
 					jcheFL.put(tempStaff.getJcheId(), staff.getWelfareLevel());
 				}
@@ -881,7 +874,7 @@ public class SmtStaffExtServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff
 					staff.setWelfareLevel(jcheFL.get(tempStaff.getJcheId()));
 				} else {
 					//可能没有对应的福利层级
-					Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					Result<EvwCcdFlstandardDTO> flstandardDTOResult = remoteEvwCcdFlstandardService.getById(tempStaff.getJcheId(), null, SecurityConstants.FROM_IN);
 					staff.setWelfareLevel(flstandardDTOResult.getData().getCode());
 					jcheFL.put(tempStaff.getJcheId(), staff.getWelfareLevel());
 				}

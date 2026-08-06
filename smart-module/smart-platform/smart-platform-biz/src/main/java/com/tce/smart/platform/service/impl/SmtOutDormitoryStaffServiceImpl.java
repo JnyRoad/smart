@@ -100,7 +100,7 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 
 	@Override
 	public AllowanceStatusRespDTO status(String staffBadge) {
-		Result<EvwEmphrYsRespDTO> info = remoteEvwEmphrYsService.info(staffBadge, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<EvwEmphrYsRespDTO> info = remoteEvwEmphrYsService.info(staffBadge, SecurityConstants.FROM_IN);
 		if (!info.getData().getStatus().equals(1) || !info.getData().getEmpType().equals(1)) {
 			throw new TCEException("只有在职的正式工，才可申请");
 		}
@@ -130,7 +130,7 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 		if (apply.getStaffBadge() == null || apply.getStaffBadge().equals("")) {
 			return new Result<>(Boolean.FALSE, "员工号不能为空，申请失败");
 		}
-		Result<EvwEmphrYsRespDTO> info = remoteEvwEmphrYsService.info(apply.getStaffBadge(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<EvwEmphrYsRespDTO> info = remoteEvwEmphrYsService.info(apply.getStaffBadge(), SecurityConstants.FROM_IN);
 		log.info("remote  remoteEvwEmphrYsService info Result=[]" + info);
 		if (!info.getData().getStatus().equals(1) || !info.getData().getEmpType().equals(1)) {
 			return new Result<>(Boolean.FALSE, "只有在职的正式工，才可申请");
@@ -268,7 +268,7 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 		} else {
 			sendOutDormitoryAo.setEID("");
 		}
-		Result<CvwCcdAllowRuleDTO> byTitle = remoteCvwCcdAllowRuleService.getByTitle(apply.getComputaionRule(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<CvwCcdAllowRuleDTO> byTitle = remoteCvwCcdAllowRuleService.getByTitle(apply.getComputaionRule(), SecurityConstants.FROM_IN);
 		if (!byTitle.isSuccess()) {
 			JSONObject errorInfoOjb = JSONUtil.parseObj(byTitle.getMsg());
 			String errInfo = StringUtils.isNotBlank(errorInfoOjb.getStr("msg")) ? errorInfoOjb.getStr("msg")
@@ -277,7 +277,7 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 		}
 		CvwCcdAllowRuleDTO data = byTitle.getData();
 		sendOutDormitoryAo.setCOMPUTATIONRULE(data.getId());
-		Result<CvwCcdAllowanceDTO> byName = remoteCvwCcdAllowanceService.getByName(apply.getAllowanceType(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<CvwCcdAllowanceDTO> byName = remoteCvwCcdAllowanceService.getByName(apply.getAllowanceType(), SecurityConstants.FROM_IN);
 		if (!byName.isSuccess()) {
 			JSONObject errorInfoOjb = JSONUtil.parseObj(byName.getMsg());
 			String errInfo = StringUtils.isNotBlank(errorInfoOjb.getStr("msg")) ? errorInfoOjb.getStr("msg")
@@ -287,7 +287,7 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 		CvwCcdAllowanceDTO data2 = byName.getData();
 		sendOutDormitoryAo.setXtype(data2.getId());
 
-		Result<EvwEmphrYsRespDTO> info = remoteEvwEmphrYsService.info(apply.getStaffBadge(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<EvwEmphrYsRespDTO> info = remoteEvwEmphrYsService.info(apply.getStaffBadge(), SecurityConstants.FROM_IN);
 		log.info("======remoteEvwEmphrYsService result{} ======:" + info);
 		if (!info.isSuccess()) {
 			JSONObject errorInfoOjb = JSONUtil.parseObj(info.getMsg());
@@ -315,18 +315,18 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 		if (type == 10) {
 			allowancename = "外餐补贴";
 		}
-		Result<CvwCcdAllowanceDTO> byName = remoteCvwCcdAllowanceService.getByName(allowancename, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<CvwCcdAllowanceDTO> byName = remoteCvwCcdAllowanceService.getByName(allowancename, SecurityConstants.FROM_IN);
 		CvwCcdAllowanceDTO data = byName.getData();
 		log.info("remote  remoteCvwCcdAllowanceService getByName Result=[]" + byName);
 		Integer computationRule = data.getComputationRule();
-		Result<CvwCcdAllowRuleDTO> byId = remoteCvwCcdAllowRuleService.getById(computationRule.toString(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<CvwCcdAllowRuleDTO> byId = remoteCvwCcdAllowRuleService.getById(computationRule.toString(), SecurityConstants.FROM_IN);
 		log.info("remote  remoteCvwCcdAllowRuleService getById Result=[]" + byId);
 		String title = byId.getData().getTitle();
 		String jcheId = selectOne.getJcheId();
 		//根据员工号查询pzid
-		Result<EvwEmphrYsRespDTO> info = remoteEvwEmphrYsService.info(staffBadge, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<EvwEmphrYsRespDTO> info = remoteEvwEmphrYsService.info(staffBadge, SecurityConstants.FROM_IN);
 		log.info("remote  remoteEvwEmphrYsService info Result=[]" + info);
-		Result<EvwCcdFlstandardDTO> byId2 = remoteEvwCcdFlstandardService.getById(jcheId, info.getData().getPzid(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<EvwCcdFlstandardDTO> byId2 = remoteEvwCcdFlstandardService.getById(jcheId, info.getData().getPzid(), SecurityConstants.FROM_IN);
 		log.info("remote  remoteEvwCcdFlstandardService getById Result=[]" + byId2);
 		AllowanceInfoVO vo = new AllowanceInfoVO();
 		if (type == 10) {
@@ -566,7 +566,7 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 	@Override
 	public void refreshOutDormitory() {
 		String allowancename = DormitoryConstans.allowanceName;
-		Result<CvwCcdAllowanceDTO> byName = remoteCvwCcdAllowanceService.getByName(allowancename, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<CvwCcdAllowanceDTO> byName = remoteCvwCcdAllowanceService.getByName(allowancename, SecurityConstants.FROM_IN);
 		CvwCcdAllowanceDTO data = byName.getData();
 		log.info("remote  remoteCvwCcdAllowanceService getByName Result=[]" + byName);
 		Integer computationRule = data.getComputationRule();
@@ -576,7 +576,7 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 		for (SmtOutDormitoryStaff oStaff : selectList) {
 			SmtStaff selectOne = staffService.getOne(Wrappers.<SmtStaff>query().lambda()
 					.eq(SmtStaff::getBadge, oStaff.getStaffBadge()));
-			Result<List<OvwYsCallOwanceCancelAllRespDTO>> info = remoteOvwYsCallOwanceCancelService.getInfo(oStaff.getStaffBadge(), computationRule, oStaff.getStartTime(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<OvwYsCallOwanceCancelAllRespDTO>> info = remoteOvwYsCallOwanceCancelService.getInfo(oStaff.getStaffBadge(), computationRule, oStaff.getStartTime());
 			if (info.isSuccess()) {
 				if (ObjectUtil.isNotNull(info.getData())) {
 					if (info.getData().size() > 0) {
@@ -686,7 +686,7 @@ public class SmtOutDormitoryStaffServiceImpl extends ServiceImpl<SmtOutDormitory
 			situation.setRooms(rooms);
 		}
 		//查询外宿状态
-		Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(staffBadge, type, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(staffBadge, type);
 		if (Objects.isNull(callOwanceDetails.getData())) {
 			situation.setIsOutDormitory(OneOrZeroEnum.ZERO.getCode());
 			return situation;

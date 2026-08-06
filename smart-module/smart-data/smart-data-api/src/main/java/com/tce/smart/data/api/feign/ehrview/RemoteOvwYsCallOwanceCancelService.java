@@ -1,13 +1,11 @@
 package com.tce.smart.data.api.feign.ehrview;
 
 
-import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.constant.ServiceNameConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.data.api.dto.ehrview.resp.OvwYsCallOwanceCancelAllRespDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
@@ -30,9 +28,7 @@ public interface RemoteOvwYsCallOwanceCancelService {
 	 */
     @GetMapping("/ovwYsCallOwanceCancel/get")
     Result<List<OvwYsCallOwanceCancelAllRespDTO>> getInfo(@RequestParam("badge") String badge,
-										  @RequestParam("xtype") Integer xtype,
-										  @RequestParam("begindate") String begindate,
-										  @RequestHeader(SecurityConstants.FROM) String from,
-										  @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+														  @RequestParam("xtype") Integer xtype,
+														  @RequestParam("begindate") String begindate);
 
 }

@@ -7,6 +7,7 @@ import { toUserMessage } from '@/lib/format/error-message'
 import { PageShell } from '@/components/page-shell'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
+import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { getLockPwd, updateLockPwd } from '@/features/dorm/api'
 import { decryptFromHex } from '@/lib/crypto/aes'
 
@@ -45,10 +46,17 @@ export default function LockPage() {
   const [submitting, setSubmitting] = useState(false)
   const notCheckedInRef = useRef(false)
 
-  const pwd = useQuery({
-    queryKey: ['my-lock-pwd'],
-    queryFn: getLockPwd,
+  const baseInfo = useQuery({
+    queryKey: ['employee', 'baseinfo'],
+    queryFn: getEmployeeBaseInfo,
     enabled: authorized,
+  })
+  const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
+
+  const pwd = useQuery({
+    queryKey: ['lock-pwd', badge],
+    queryFn: () => getLockPwd(badge as string),
+    enabled: authorized && badge !== undefined,
   })
 
   const pwdFailed = pwd.isError || (pwd.isSuccess && pwd.data.code !== 0)
@@ -82,7 +90,7 @@ export default function LockPage() {
     }
     setSubmitting(true)
     try {
-      const res = await updateLockPwd({ newPwd })
+      const res = await updateLockPwd({ badge: badge as string, newPwd })
       if (res.code === 0) {
         setEditVisible(false)
         setNewPwd('')
@@ -99,14 +107,18 @@ export default function LockPage() {
 
   if (!authorized) return null
 
+  const baseInfoFailed = baseInfo.isError || (baseInfo.isSuccess && baseInfo.data.code !== 0)
+
   return (
     <PageShell title="门锁动态码">
-      {pwdFailed ? (
+      {baseInfoFailed ? (
+        <RetryBlock description="员工信息获取失败" onRetry={() => void baseInfo.refetch()} />
+      ) : pwdFailed ? (
         <RetryBlock
           description={pwd.data?.message ?? pwd.data?.msg ?? '动态码获取失败'}
           onRetry={() => void pwd.refetch()}
         />
-      ) : pwd.isPending ? (
+      ) : baseInfo.isPending || pwd.isPending ? (
         <div className="flex justify-center py-16">
           <SpinLoading color="primary" />
         </div>

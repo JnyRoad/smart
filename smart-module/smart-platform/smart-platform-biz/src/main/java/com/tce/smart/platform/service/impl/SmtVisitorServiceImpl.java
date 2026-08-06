@@ -31,6 +31,7 @@ import com.tce.smart.common.core.util.BeanUtils;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.util.WebUtils;
 import com.tce.smart.common.security.util.SecurityUtils;
+import com.tce.smart.data.api.dto.ehrview.resp.EvwEmphrYsBlackRespDTO;
 import com.tce.smart.data.api.dto.msg.req.*;
 import com.tce.smart.data.api.feign.ehrview.RemoteEvwEmphrYsService;
 import com.tce.smart.data.api.feign.msg.RemoteOaWorkFlowService;
@@ -431,11 +432,13 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 				throw new TCEException("此访客已被加入访客黑名单，不能邀请");
 			}
 
-			Result<Boolean> black = remoteEvwEmphrYsService.getVisitorBlacklistStatus(smtVisitor.getCertNo(),
-					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "visitor-blacklist");
+			Result<List<EvwEmphrYsBlackRespDTO>> black = remoteEvwEmphrYsService.getBlackInfo(smtVisitor.getCertNo(), SecurityConstants.FROM_IN);
 			if (black.isSuccess()) {
-				if (Boolean.TRUE.equals(black.getData())) {
-					throw new TCEException("此访客已被加入访客黑名单，不能邀请");
+				if (black.getData() != null) {
+					List<EvwEmphrYsBlackRespDTO> data = black.getData();
+					if (data.size() > 0) {
+						throw new TCEException("此访客已被加入访客黑名单，不能邀请");
+					}
 				}
 			}
 		}
@@ -1691,8 +1694,7 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 //		dispatcherDTO.setParkId(parkId);
 //		dispatcherDTO.setData(queryFeatureReq);
 //		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
-		Result<FaceFeaturesDTO> result = remoteAlgorithmService.getFaceFeatures(encodePhoto, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<FaceFeaturesDTO> result = remoteAlgorithmService.getFaceFeatures(encodePhoto, SecurityConstants.FROM_IN);
 		log.info("获取人脸特征值 result:{}", result);
 /*		JsonObject data = bodyObject.getAsJsonObject("data");
 		if(null!=data){
@@ -2580,15 +2582,17 @@ public class SmtVisitorServiceImpl extends ServiceImpl<SmtVisitorMapper, SmtVisi
 		// TODO Auto-generated method stub
 		//判断此人员是不是 加入黑名单  false-黑名单   true-不是黑名单
 		SmtBlackVisitor smtBlackVisitor = smtBlackVisitorService.getOne(Wrappers.<SmtBlackVisitor>query().lambda().eq(SmtBlackVisitor::getCardNo, smtVisitor.getCertNo()));
-		log.info("访客本地黑名单命中={}", Objects.nonNull(smtBlackVisitor));
+		log.info("smtBlackVisitor:" + smtBlackVisitor);
 		if (Objects.nonNull(smtBlackVisitor)) {
 			return false;
 		}
 
-		Result<Boolean> black = remoteEvwEmphrYsService.getVisitorBlacklistStatus(smtVisitor.getCertNo(),
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "visitor-blacklist");
+		Result<List<EvwEmphrYsBlackRespDTO>> black = remoteEvwEmphrYsService.getBlackInfo(smtVisitor.getCertNo(), SecurityConstants.FROM_IN);
 		if (black.isSuccess()) {
-			return !Boolean.TRUE.equals(black.getData());
+			if (black.getData() != null) {
+				List<EvwEmphrYsBlackRespDTO> data = black.getData();
+                return data.size() <= 0;
+			}
 		}
 
 		return true;

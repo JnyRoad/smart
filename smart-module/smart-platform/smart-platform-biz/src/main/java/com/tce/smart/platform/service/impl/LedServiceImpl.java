@@ -50,8 +50,7 @@ public class LedServiceImpl implements LedService {
 		dispatcherDTO.setDeviceId(led.getDeviceCode());
 		dispatcherDTO.setParkId(led.getParkId());
 		dispatcherDTO.setData(led);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO,SecurityConstants.FROM_IN);
 		return result;
 	}
 
@@ -68,8 +67,7 @@ public class LedServiceImpl implements LedService {
 		dispatcherDTO.setDeviceId(queryLedDTO.getDeviceCode());
 		dispatcherDTO.setParkId(queryLedDTO.getParkId());
 		dispatcherDTO.setData(queryLedDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 		log.info("LetResult:{}",result);
 		Led led = new Led();
 		if(result.isSuccess() && ObjectUtil.isNotNull(result.getData())){

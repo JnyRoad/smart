@@ -66,10 +66,8 @@ public class MoveImageServiceImpl implements IMoveImageService {
 				ImageDTO imageDTO = new ImageDTO();
 				imageDTO.setParkId(element.getParkId());
 				imageDTO.setId(element.getImageCode());
-				Result<String> imageRs = remoteDispatcherService.getImage(imageDTO, SecurityConstants.FROM_IN,
-						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
-				Result<String> smallImageRs = remoteDispatcherService.getThumbnail(imageDTO, SecurityConstants.FROM_IN,
-						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				Result<String> imageRs = remoteDispatcherService.getImage(imageDTO, SecurityConstants.FROM_IN);
+				Result<String> smallImageRs = remoteDispatcherService.getThumbnail(imageDTO, SecurityConstants.FROM_IN);
 				if (imageRs.isSuccess()) {
 					//Hbase库图片不为空，则更新
 					if(!StringUtil.isNullOrEmpty(imageRs.getData())) {

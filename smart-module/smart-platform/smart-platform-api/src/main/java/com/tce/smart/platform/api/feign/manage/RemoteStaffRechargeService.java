@@ -19,10 +19,8 @@ public interface RemoteStaffRechargeService {
 	 * @param from
 	 * @return
 	 */
-	@GetMapping("/internal/recharge/new")
-	Result<Boolean> syncNewStaff(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
-			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
+	@GetMapping("/recharge/new/recharge")
+	Result<Boolean> syncNewStaff(@RequestHeader(SecurityConstants.FROM) String from);
 
 
 	/**
@@ -30,9 +28,7 @@ public interface RemoteStaffRechargeService {
 	 * @param from
 	 * @return
 	 */
-	@GetMapping("/internal/recharge/senior")
-	Result<Boolean> syncSeniorStaff(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
-			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
+	@GetMapping("/recharge/senior/recharge")
+	Result<Boolean> syncSeniorStaff(@RequestHeader(SecurityConstants.FROM) String from);
 
 }

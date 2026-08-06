@@ -4,8 +4,6 @@ import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.log.annotation.SysLog;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.req.manage.EditEhrSetUpReqDTO;
 import com.tce.smart.platform.api.dto.req.manage.QueryEhrSetUpReqDTO;
@@ -71,8 +69,6 @@ public class SmtEhrSetUpController extends BaseController {
   }
 
 	@SysLog("发送信息")
-	@Inner
-	@OpenApi("server")
 	@GetMapping("/smg")
 	public void smg(){
 		smtEhrSetUpService.sendMessage();
@@ -80,8 +76,6 @@ public class SmtEhrSetUpController extends BaseController {
 
 
 	@SysLog("定时自动确认")
-	@Inner
-	@OpenApi("server")
 	@GetMapping("/auto/confirm")
 	public void autoSignTask(){
 		smtEhrSetUpService.autoSignTask();

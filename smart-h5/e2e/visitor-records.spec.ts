@@ -59,9 +59,8 @@ const LIST_RESULT = {
 }
 
 async function mockListApis(page: Page) {
-  await page.route('**/app/sms/visitor/send', async (route) => {
-    expect(route.request().method()).toBe('POST')
-    expect(route.request().postDataJSON()).toEqual({ mobile: '13712341234' })
+  await page.route('**/app/sms/send/getCode/13712341234', async (route) => {
+    expect(route.request().method()).toBe('GET')
     await route.fulfill({ json: { code: 0 } })
   })
   await page.route('**/platform/admittance/apply/app/listMyApply', (route) =>
@@ -192,10 +191,9 @@ test('mock 开关冒烟：显式开启后列表走 fixture，但短信仍真实�
     }),
   )
   let smsRequestCount = 0
-  await page.route('**/app/sms/visitor/send', async (route) => {
+  await page.route('**/app/sms/send/getCode/13700000000', async (route) => {
     smsRequestCount += 1
-    expect(route.request().method()).toBe('POST')
-    expect(route.request().postDataJSON()).toEqual({ mobile: '13700000000' })
+    expect(route.request().method()).toBe('GET')
     await route.fulfill({ json: { code: 0 } })
   })
 
@@ -263,19 +261,21 @@ test('详情：审批中态渲染 + token 头', async ({ page }) => {
   expect(headers()?.['x-visitor-query-token']).toBe('tok-e2e')
 })
 
-test('详情：通过·下发成功 → 进入 queryToken 保护的通行码展示', async ({ page }) => {
+test('详情：通过·下发成功 → 通行码跳转', async ({ page }) => {
   await disableMock(page)
   await seedSession(page)
   await mockDetail(page, { ...DETAIL_BASE, applyStatus: 'PASSED', dispatchStatus: 'SUCCESS' }, [DONE])
-	await page.route('**/platform/admittance/apply/app/passCode*', (route) =>
-		route.fulfill({ json: { code: 0, data: { applyId: 'a-1', valid: true, qrCode: 'aGk=', smsCode: '668866' } } }),
-	)
+  await page.route('**/platform/admittance/apply/search/Detail/*', (route) =>
+    route.fulfill({ json: { code: 0, data: { delFlag: 0, qrCode: 'aGk=', smsCode: '668866', parkName: '裕同科技许昌园区' } } }),
+  )
+  await page.route('**/platform/admittance/apply/enum/factory/type*', (route) =>
+    route.fulfill({ json: { code: 0, data: [] } }),
+  )
 
   await page.goto('/visitor/records/a-1')
   await expect(page.getByText('审批已通过 · 权限已下发')).toBeVisible()
   await page.getByRole('button', { name: '查看入园通行码' }).click()
   await page.waitForURL('**/visitor/code?id=a-1')
-	await expect(page.getByAltText('访客通行二维码')).toBeVisible()
 })
 
 test('详情：已拒绝 → 拒绝意见 + 重新预约预填', async ({ page }) => {

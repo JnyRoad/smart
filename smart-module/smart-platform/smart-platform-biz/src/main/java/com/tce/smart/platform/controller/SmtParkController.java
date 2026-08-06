@@ -202,6 +202,11 @@ public class SmtParkController extends BaseController{
 		return smtParkService.dormitoryAllList(dormitoryStaffService);
 	}
 
+	@GetMapping("/tolock/dormitory/allList")
+	public Result dormitoryToLockAllList(@RequestParam(value = "parkId",required = false) Integer parkId) {
+		return smtParkService.dormitoryAllListToLock(dormitoryStaffService, parkId);
+	}
+
 
 	/**
 	 * 修改园区表

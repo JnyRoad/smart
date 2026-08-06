@@ -8,10 +8,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
-import com.tce.smart.common.security.service.SmartUser;
-import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.req.AutoAllotRoomReqDTO;
-import com.tce.smart.platform.api.dto.req.SelfCheckInReqDTO;
 import com.tce.smart.platform.api.dto.req.dormitorymange.DormitoryRoomReqDTO;
 import com.tce.smart.platform.api.dto.req.dormitorymange.FloorCountQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.dormitorymange.FloorStatisticsQueryReqDTO;
@@ -33,12 +30,8 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -303,32 +296,8 @@ public class SmtDormitoryRoomController extends BaseController {
 	 */
 	@ApiOperation("自动分配宿舍")
 	@PostMapping("/autoallot")
-	@PreAuthorize("@pms.hasPermission('platform_dormitory_autoallot')")
 	public Result<List<DormitoryQuickStaffRespDTO>> autoAllot(@RequestBody AutoAllotRoomReqDTO autoAllotRoomReqDTO) {
 		return new Result<>(smtDormitoryRoomService.autoAllot(autoAllotRoomReqDTO, smtDormitoryBedService));
-	}
-
-	/**
-	 * 当前认证员工的入住申请。员工身份只从认证主体读取，禁止浏览器回传。
-	 */
-	@ApiOperation("当前员工自动分配宿舍")
-	@PostMapping("/self/autoallot")
-	public Result<List<DormitoryQuickStaffRespDTO>> autoAllotForCurrentUser(
-			@RequestBody @Valid SelfCheckInReqDTO request) {
-		return success(smtDormitoryRoomService.autoAllotForAuthenticatedStaff(
-				currentAuthenticatedBadge(), request, smtDormitoryBedService));
-	}
-
-	private String currentAuthenticatedBadge() {
-		Authentication authentication = SecurityUtils.getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()) {
-			throw new AccessDeniedException("未认证用户不可申请入住");
-		}
-		SmartUser currentUser = SecurityUtils.getUser(authentication);
-		if (currentUser == null || StringUtils.isEmpty(currentUser.getUsername())) {
-			throw new AccessDeniedException("未认证用户不可申请入住");
-		}
-		return currentUser.getUsername();
 	}
 
 	@ApiOperation("补打凭条")

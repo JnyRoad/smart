@@ -51,6 +51,7 @@ public class EnergyProjectionControllerTest {
 		Method method = EnergyProjectionController.class.getMethod("daily", String.class, boolean.class, boolean.class);
 		assertEquals("/inner/energy/projection/daily/{businessDate}", method.getAnnotation(PostMapping.class).value()[0]);
 		assertEquals("server", method.getAnnotation(OpenApi.class).value());
+		assertEquals(Inner.class, method.getAnnotation(Inner.class).annotationType());
 		assertEquals(3, method.getParameterTypes().length);
 	}
 

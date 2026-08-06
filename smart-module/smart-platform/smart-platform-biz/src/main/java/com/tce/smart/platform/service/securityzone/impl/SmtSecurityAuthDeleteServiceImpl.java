@@ -262,7 +262,7 @@ public class SmtSecurityAuthDeleteServiceImpl extends ServiceImpl<SmtSecurityAut
 		}
 		//计算请假
 		if (OneOrZeroEnum.ONE.getCode().equals(config.getIsLeave())) {
-			Result<List<EvwLregLeaveAllRespDTO>> infoAll = remoteEvwLregLeaveAllService.info(badge, DateUtil.formatDateTime(startTime), DateUtil.formatDateTime(endTime), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<EvwLregLeaveAllRespDTO>> infoAll = remoteEvwLregLeaveAllService.info(badge, DateUtil.formatDateTime(startTime), DateUtil.formatDateTime(endTime));
 			if (CollUtil.isNotEmpty(infoAll.getData())) {
 				infoAll.getData().forEach(leave -> {
 					List<DateTime> tripTime = DateUtil.rangeToList(leave.getBeginDate(), leave.getEndDate(), DateField.DAY_OF_YEAR);
@@ -272,9 +272,7 @@ public class SmtSecurityAuthDeleteServiceImpl extends ServiceImpl<SmtSecurityAut
 		}
 		//计算调休
 		if (OneOrZeroEnum.ONE.getCode().equals(config.getIsCompensatory())) {
-			Result<List<EvwLdxRegLeaveAllRespDTO>> reg = remoteEvwLdxRegLeaveAllService.listByDay(badge,
-					DateUtil.formatDate(startTime), SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<EvwLdxRegLeaveAllRespDTO>> reg = remoteEvwLdxRegLeaveAllService.listByDay(badge, DateUtil.formatDate(startTime), SecurityConstants.FROM_IN);
 			if (CollUtil.isNotEmpty(reg.getData())) {
 				List<DateTime> regTime = new ArrayList<>();
 				reg.getData().forEach(leave -> {

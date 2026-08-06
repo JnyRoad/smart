@@ -36,8 +36,7 @@ public class MoveHisDataServiceImpl implements IMoveHisDataService {
 	@Override
 	public void moveHisData() {
 		Result<List<SysMoveDataTask>> rsList = remoteMoveDataTaskService
-				.getTaskTableList(DateMoveModuleEnum.PLATFORM.getCode(), SecurityConstants.FROM_IN,
-						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				.getTaskTableList(DateMoveModuleEnum.PLATFORM.getCode(), SecurityConstants.FROM_IN);
 		log.info("remoteMoveDataTaskService.getTaskTableList rs={}", rsList);
 		if (rsList.isSuccess() && CollectionUtil.isNotEmpty(rsList.getData())) {
 			List<SysMoveDataTask> tableTaskList = rsList.getData();

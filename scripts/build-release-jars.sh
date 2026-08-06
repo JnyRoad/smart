@@ -191,18 +191,6 @@ run_maven_builds() {
     return
   fi
 
-  echo "Building smart shared dependencies required by smart-platform-api..."
-  (
-    cd "$repo_root/smart"
-    "${MAVEN_CMD:-mvn}" --projects smart-common/smart-common-bom,smart-common/smart-common-core,smart-common/smart-common-swagger --also-make clean install -DskipTests ${MAVEN_ARGS:-}
-  )
-
-  echo "Building smart-platform API required by smart-upms..."
-  (
-    cd "$repo_root/smart-module"
-    "${MAVEN_CMD:-mvn}" --projects smart-platform/smart-platform-api --also-make clean install -DskipTests ${MAVEN_ARGS:-}
-  )
-
   echo "Building smart backend modules..."
   (
     cd "$repo_root/smart"

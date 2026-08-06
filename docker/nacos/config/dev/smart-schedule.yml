@@ -1,18 +1,13 @@
 ## spring security 配置
 security:
-  inner:
-    # 物流等 Feign 内部调用只使用定时任务专属 client_credentials，缺失任一变量即拒绝调用。
-    service-token:
-      client-id: "${SMART_SCHEDULE_OAUTH_CLIENT_ID:}"
-      client-secret: "${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:}"
-      access-token-uri: "${SMART_SCHEDULE_OAUTH_TOKEN_URI:}"
   oauth2:
     client:
       client-id: "${SMART_SCHEDULE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # data
       client-secret: "${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # data
       scope: server
-      # 定时任务不提供 HTTP 触发入口，禁止匿名绕过资源服务器。
-      ignore-urls: []
+      # 放行url
+      ignore-urls:
+        - /**
 
 spring:
   # C6-刷卡消费数据源，默认数据源

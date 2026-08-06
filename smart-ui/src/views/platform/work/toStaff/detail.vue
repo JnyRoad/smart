@@ -7,10 +7,46 @@
           <el-button type="primary" icon="el-icon-back" plain @click="goBack">返回</el-button>
         </div>
         <div class="info-cont">
+          <div class="right-menu">
+            <el-button type="primary" plain>
+              <a href="#rzzxx">入职主信息</a>
+            </el-button>
+            <el-button type="primary" plain>
+              <a href="#jyjl">教育经历</a>
+            </el-button>
+            <el-button type="primary" plain>
+              <a href="#gzjy">工作经验</a>
+            </el-button>
+            <el-button type="primary" plain>
+              <a href="#jtcy">家庭成员</a>
+            </el-button>
+            <el-button type="primary" plain>
+              <a href="#rzgx">任职关系</a>
+            </el-button>
+          </div>
           <div class="info3" id="rzzxx">
             <p class="box-orange">入职主信息</p>
             <el-row>
-              <el-col :span="24">
+              <el-col :span="6">
+                <dl class="img-info">
+                  <dt class="img-outer">
+                    <i class="corner cn-top"></i>
+                    <i class="corner cn-rit"></i>
+                    <i class="corner cn-btm"></i>
+                    <i class="corner cn-lft"></i>
+                    <div class="img-inner">
+                      <viewer>
+                        <img
+                          :src="staffResult.facePic || errorImgPeaple()"
+                          :onerror="errorImgPeaple()"
+                        />
+                      </viewer>
+                    </div>
+                  </dt>
+                  <dd class="desc-info"></dd>
+                </dl>
+              </el-col>
+              <el-col :span="17">
                 <table class="dot-list dotlist2">
                   <tr>
                     <td>
@@ -56,6 +92,25 @@
                 </table>
               </el-col>
             </el-row>
+          </div>
+          <div class="info3" id="jyjl">
+            <p class="box-orange">教育经历</p>
+            <template>
+              <div
+                class="info-inner clear"
+                v-for="data_education in education"
+                :key="data_education.educationHisId"
+              >
+                <p class="circle-white">起始时间：{{data_education.startTime}}</p>
+                <p class="circle-white">截止时间：{{data_education.endTime}}</p>
+                <p class="circle-white">学校名称：{{data_education.schoolName}}</p>
+                <p class="circle-white">专业：{{data_education.major}}</p>
+                <p class="circle-white">学历：{{data_education.education}}</p>
+                <p class="circle-white">是否为最高学历：{{data_education.isHighEduType==1 ? '是':'否'}}</p>
+                <p class="circle-white">学位：{{data_education.degree}}</p>
+                <p class="circle-white">是否为最高学位：{{data_education.isHighDegreeType==1 ? '是':'否'}}</p>
+              </div>
+            </template>
           </div>
           <div class="info3" id="gzjy">
             <p class="box-orange">工作经验</p>
@@ -111,7 +166,11 @@ export default {
   data() {
     return {
       personInfo: {},
-      staffResult: {}
+      staffResult: {},
+      education: [],
+      family: [],
+      work: [],
+      relation: []
     };
   },
   created() {
@@ -121,8 +180,19 @@ export default {
     getById(id).then(response => {
       if (!this.validatenull(response.data.data)) {
         this.staffResult = response.data.data;
-        // 后端仅返回园区范围内的最小员工投影，页面不再渲染人脸、履历和家庭成员等敏感资料。
-        this.personInfo = response.data.data;
+        this.personInfo = response.data.data.smtStaff;
+        if (!this.validatenull(response.data.data.education)) {
+          this.education = response.data.data.education;
+        }
+        if (!this.validatenull(response.data.data.family)) {
+          this.family = response.data.data.family;
+        }
+        if (!this.validatenull(response.data.data.work)) {
+          this.work = response.data.data.work;
+        }
+        if (!this.validatenull(response.data.data.relation)) {
+          this.relation = response.data.data.relation;
+        }
       }
     });
   },

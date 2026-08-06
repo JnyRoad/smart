@@ -58,7 +58,7 @@ public class SmtParkBuServiceImpl extends ServiceImpl<SmtParkBuMapper, SmtParkBu
 		List<OvwYscompRespDTO>  listOvwYscompVO = new ArrayList<>();
 		// 查询裕同视图中的全部bu
 		parkBus.forEach(bu->{
-			Result<OvwYscompRespDTO> result = remoteOvwYscompService.getByCompId(bu.getCompId(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<OvwYscompRespDTO> result = remoteOvwYscompService.getByCompId(bu.getCompId(), SecurityConstants.FROM_IN);
 			if(result.isSuccess() && Objects.nonNull(result.getData())) {
 				listOvwYscompVO.add(result.getData());
 			}

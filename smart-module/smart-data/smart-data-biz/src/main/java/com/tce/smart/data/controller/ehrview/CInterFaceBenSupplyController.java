@@ -3,7 +3,6 @@ package com.tce.smart.data.controller.ehrview;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.req.CInterFaceBenSupplyReqDTO;
 import com.tce.smart.ehrview.core.entity.CInterFaceBenSupply;
 import com.tce.smart.ehrview.core.service.CInterFaceBenSupplyService;
@@ -31,7 +30,6 @@ public class CInterFaceBenSupplyController extends BaseController {
 	 * @throws ParseException
 	 */
     @Inner
-    @OpenApi("server")
     @PostMapping("/save")
     public Result<Boolean> save(@RequestBody CInterFaceBenSupplyReqDTO cInterFaceBenSupplyReqDTO) throws ParseException{
 		CInterFaceBenSupply cInterFaceBenSupply = new CInterFaceBenSupply();

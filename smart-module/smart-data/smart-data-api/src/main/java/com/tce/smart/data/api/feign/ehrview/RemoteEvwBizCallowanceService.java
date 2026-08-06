@@ -15,10 +15,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(value = ServiceNameConstants.SMART_DATA)
 public interface RemoteEvwBizCallowanceService {
 	@GetMapping("/evwBizCallowance/list")
-	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/evwBizCallowance/detail")
-	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginDate") String beginDate, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginDate") String beginDate, @RequestHeader(SecurityConstants.FROM) String from);
 }

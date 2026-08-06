@@ -48,9 +48,7 @@ export function bindEmployeeBadge(input: {
 export function sendSmsCode(mobile: string): Promise<GatewayResult> {
   return request<GatewayResult>({
     module: 'app',
-    url: '/sms/login/send',
-    method: 'POST',
-    data: { mobile },
+    url: `/sms/send/getCode/${mobile}`,
     auth: 'none',
   })
 }

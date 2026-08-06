@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwCotherAllowanceAllRespDTO;
 import com.tce.smart.ehrview.core.entity.EvwCotherAllowanceAll;
 import com.tce.smart.ehrview.core.service.IEvwCotherAllowanceAllService;
@@ -34,7 +33,6 @@ public class EvwCotherAllowanceAllController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/list")
 	public Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth){
 		List<EvwCotherAllowanceAll> evwCotherAllowanceAllList = iEvwCotherAllowanceAllService.list(badge, queryMonth);
@@ -42,7 +40,6 @@ public class EvwCotherAllowanceAllController extends BaseController {
 	}
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/detail")
 	public Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginDate") String beginDate){
 		EvwCotherAllowanceAll evwCotherAllowanceAll = iEvwCotherAllowanceAllService.getOne(Wrappers.<EvwCotherAllowanceAll>query().lambda()

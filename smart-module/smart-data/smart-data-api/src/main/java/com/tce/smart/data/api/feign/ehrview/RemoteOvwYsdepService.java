@@ -1,5 +1,6 @@
 package com.tce.smart.data.api.feign.ehrview;
 
+
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.constant.ServiceNameConstants;
 import com.tce.smart.common.core.model.Result;
@@ -28,20 +29,17 @@ public interface RemoteOvwYsdepService {
      */
     @GetMapping("/ys/dep/comp")
     Result<List<OvwYsdepRespDTO>> getByCompId(@RequestParam("compId") Integer compId,
-                                              @RequestHeader(SecurityConstants.FROM) String from,
-                                              @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
-
+											  @RequestHeader(SecurityConstants.FROM) String from);
     /**
      * 根据depId获取部门信息
      * @return
      */
     @GetMapping("/ys/dep/info")
-    Result<OvwYsdepRespDTO> getByDepId(@RequestParam("depId") Integer depId,
-                                       @RequestHeader(SecurityConstants.FROM) String from,
-                                       @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result<OvwYsdepRespDTO> getByDepId(@RequestParam("depId") Integer depId, @RequestHeader(SecurityConstants.FROM) String from);
 
     @GetMapping("/ys/dep/parentDep")
     Result<List<OvwYsdepRespDTO>> getParentDep(@RequestParam("depId") Integer depId,
-                                               @RequestHeader(SecurityConstants.FROM) String from,
-                                               @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+                                               @RequestHeader(SecurityConstants.FROM) String from);
+
+
 }
