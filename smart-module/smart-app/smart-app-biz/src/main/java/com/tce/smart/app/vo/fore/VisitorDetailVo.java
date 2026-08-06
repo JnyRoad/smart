@@ -1,6 +1,7 @@
 package com.tce.smart.app.vo.fore;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.tce.smart.common.core.vo.BaseVO;
 import com.tce.smart.platform.api.dto.SmtVisitorProcessRecordDTO;
 import io.swagger.annotations.ApiModelProperty;
@@ -47,6 +48,7 @@ public class VisitorDetailVo extends BaseVO {
 	 * 访客头像
 	 */
 	@ApiModelProperty(value = "来访访客头像",required = true)
+	@JsonIgnore
 	private String visitorPhoto;
 
 	/**
@@ -77,6 +79,7 @@ public class VisitorDetailVo extends BaseVO {
      * 访客身份证号
      */
 	@ApiModelProperty(value = "访客身份证号",required = true)
+	@JsonIgnore
     private String visitorCertNo;
 
 	/**
@@ -115,12 +118,14 @@ public class VisitorDetailVo extends BaseVO {
 	 * 访客身份证正面照
 	 */
 	@ApiModelProperty(value = "访客身份证正面照",required = true)
+	@JsonIgnore
 	private String visitorFrontPhoto;
 
 	/**
 	 * 身份证背面照
 	 */
 	@ApiModelProperty(value = "身份证背面照",required = true)
+	@JsonIgnore
 	private String visitorBackPhoto;
 
     /**
@@ -133,16 +138,19 @@ public class VisitorDetailVo extends BaseVO {
      * 访客审批流程
      */
 	@ApiModelProperty(value = "访客的跟随人员信息",required = true)
+	@JsonIgnore
     private List<SmtVisitorProcessRecordDTO> processList;
 
 	/**
 	 * 行程二维码
 	 */
+	@JsonIgnore
 	private String tripCode;
 
 	/**
 	 * 健康二维码
 	 */
+	@JsonIgnore
 	private String healthcode;
 
 	/**
@@ -158,6 +166,7 @@ public class VisitorDetailVo extends BaseVO {
 	/**
 	 * 流程编号
 	 */
+	@JsonIgnore
 	private String processId;
 
 

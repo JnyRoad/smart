@@ -5,6 +5,7 @@ import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.feign.RemoteSmtImageService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -33,6 +34,7 @@ public class OcrApiController extends BaseController {
 	private final RemoteSmtImageService remoteSmtImageService;
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("OCR识别-图片Base64")
 	@PostMapping("/{algorithmType}/{cardType}/{id}")
 	public Result<String> ocr (@PathVariable("id") String id,
@@ -43,6 +45,7 @@ public class OcrApiController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("OCR识别-图片ID")
 	@PostMapping("/id/{algorithmType}/{cardType}/{id}")
 	public Result<String> ocrByImageId (@PathVariable("id") String id,

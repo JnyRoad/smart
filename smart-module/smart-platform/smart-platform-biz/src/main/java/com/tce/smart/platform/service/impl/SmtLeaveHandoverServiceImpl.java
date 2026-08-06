@@ -76,7 +76,7 @@ public class SmtLeaveHandoverServiceImpl extends ServiceImpl<SmtLeaveHandoverMap
     @Override
     @Transactional(rollbackFor=Exception.class)
     public Result initLeaveHandover(SmtLeaveApplication leaveApplication) {
-	Result<List<EvwJjitemRespDTO>> result = remoteEvwJjitemService.info(leaveApplication.getEzid(), SecurityConstants.FROM_IN);
+	Result<List<EvwJjitemRespDTO>> result = remoteEvwJjitemService.info(leaveApplication.getEzid(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(!result.isSuccess() || (result.isSuccess() && CollUtil.isEmpty(result.getData()))) {
 			return new Result(false,"该员工所在的人事区域，没有设置离职交接项，请联系管理员设置");
 		}
@@ -316,7 +316,8 @@ public class SmtLeaveHandoverServiceImpl extends ServiceImpl<SmtLeaveHandoverMap
             eleaveJjitem.setEid(eid);
             eleaveJjitemList.add(eleaveJjitem);
         }
-        Result<Boolean> result = remoteEleaveJjitemService.save(eleaveJjitemList,SecurityConstants.FROM_IN);
+        Result<Boolean> result = remoteEleaveJjitemService.save(eleaveJjitemList, SecurityConstants.FROM_IN,
+                SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
         if(!result.isSuccess()) {
 	throw new TCEException("同步离职交接项目异常");
         }
@@ -324,7 +325,7 @@ public class SmtLeaveHandoverServiceImpl extends ServiceImpl<SmtLeaveHandoverMap
     }
 
     private Integer getEid(String badge) {
-	Result<EvwEmphrYsRespDTO> result = remoteEvwEmphrYsService.info(badge, SecurityConstants.FROM_IN);
+	Result<EvwEmphrYsRespDTO> result = remoteEvwEmphrYsService.info(badge, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 	Integer eid = 0;
 		if(result.isSuccess() && ObjectUtil.isNotNull(result.getData())) {
 			eid = result.getData().getEId();

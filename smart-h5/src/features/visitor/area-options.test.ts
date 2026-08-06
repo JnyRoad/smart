@@ -36,10 +36,12 @@ const RAW = {
   ],
 }
 
+const DRAFT = { draftToken: 'draft-token', draftId: 'draft-id' }
+
 describe('loadAreaOptions', () => {
   it('解析真实结构：保留后端 factoryType、areaCode 转字符串、按 sort 排序、塞全局 inlineAreaLimit', async () => {
     mocked.getAreaOptions.mockResolvedValue({ code: 0, data: RAW })
-    const result = await loadAreaOptions(5000021)
+    const result = await loadAreaOptions(5000021, DRAFT)
     // sort：新工厂(sort1) 在前、老工厂(sort2) 在后
     expect(result.map((f) => f.factoryType)).toEqual(['15', '16'])
     expect(result[0]?.factoryName).toBe('新工厂')
@@ -58,19 +60,19 @@ describe('loadAreaOptions', () => {
       JSON.stringify([{ factoryType: '15', factoryName: '新工厂', areaFlag: 1, areas: [{ code: '3', name: '外围' }] }]),
     )
     mocked.getAreaOptions.mockRejectedValue(new Error('boom'))
-    const result = await loadAreaOptions(5000021)
+    const result = await loadAreaOptions(5000021, DRAFT)
     expect(result[0]?.factoryType).toBe('15')
   })
 
   it('接口失败且无缓存：返回空配置（不编造工厂）', async () => {
     mocked.getAreaOptions.mockRejectedValue(new Error('boom'))
-    const result = await loadAreaOptions(5000021)
+    const result = await loadAreaOptions(5000021, DRAFT)
     expect(result).toEqual([])
   })
 
   it('接口返回空 factories：返回空配置', async () => {
     mocked.getAreaOptions.mockResolvedValue({ code: 0, data: { parkId: 5000021, factories: [] } })
-    const result = await loadAreaOptions(5000021)
+    const result = await loadAreaOptions(5000021, DRAFT)
     expect(result).toEqual([])
   })
 
@@ -79,7 +81,7 @@ describe('loadAreaOptions', () => {
       code: 0,
       data: { factories: [{ factoryName: '无类型', areaFlag: 1, areas: [{ areaCode: 1, areaName: 'X' }] }] },
     })
-    const result = await loadAreaOptions(5000021)
+    const result = await loadAreaOptions(5000021, DRAFT)
     expect(result).toEqual([])
   })
 })

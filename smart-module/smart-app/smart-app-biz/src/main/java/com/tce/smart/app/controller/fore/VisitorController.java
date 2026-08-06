@@ -45,7 +45,7 @@ public class VisitorController extends BaseController {
 	 */
 	@PostMapping("/detail")
 	public Result<?> getVisitorListDeatil(@RequestBody VisitorIdAo visitorId) {
-		return success(visitorService.getVisitorListDeatil(visitorId));
+		return success(visitorService.getAppVisitorListDetail(visitorId));
 	}
 
 	/**
@@ -55,7 +55,7 @@ public class VisitorController extends BaseController {
 	 */
 	@PostMapping("/member/list")
 	public Result<?> getMemberListDeatil(@RequestBody VisitorIdAo visitorId) {
-		return success(visitorService.getMemberListDeatil(visitorId));
+		return success(visitorService.getAppMemberListDetail(visitorId));
 	}
 	/**
 	 * 添加访客预约

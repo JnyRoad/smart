@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwBizCallowanceFoodRespDTO;
 import com.tce.smart.ehrview.core.entity.EvwBizCallowanceFood;
 import com.tce.smart.ehrview.core.service.IEvwBizCallowanceFoodService;
@@ -32,6 +33,7 @@ public class EvwBizCallowanceFoodController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/list")
 	public Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth){
 		List<EvwBizCallowanceFood> evwCallowanceAllList = iEvwCallowanceAllService.list(badge, queryMonth);
@@ -39,6 +41,7 @@ public class EvwBizCallowanceFoodController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/detail")
 	public Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginDate") String beginDate){
 		EvwBizCallowanceFood evwBizCallowanceFood = iEvwCallowanceAllService.getOne(Wrappers.<EvwBizCallowanceFood>query().lambda()

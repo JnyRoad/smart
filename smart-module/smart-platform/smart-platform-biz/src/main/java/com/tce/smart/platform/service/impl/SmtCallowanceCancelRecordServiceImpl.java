@@ -130,7 +130,7 @@ public class SmtCallowanceCancelRecordServiceImpl extends ServiceImpl<SmtCallowa
 			}
 		}
 
-	    Result<EvwEmphrYsRespDTO> info = evwEmphrYsService.info(badge,  SecurityConstants.FROM_IN);
+	    Result<EvwEmphrYsRespDTO> info = evwEmphrYsService.info(badge,  SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(ObjectUtil.isNull(info)||ObjectUtil.isNull(info.getData()))
 		{
 			throw new TCEException("未找到员工信息");
@@ -145,7 +145,7 @@ public class SmtCallowanceCancelRecordServiceImpl extends ServiceImpl<SmtCallowa
 			throw new TCEException("您之前没有申请过外宿补贴，不需要取消");
 		}*/
 
-		Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(badge, 11);
+		Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(badge, 11, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("ovwYsCallOwanceDetailsService.getInfo result{}",callOwanceDetails);
 		if(ObjectUtil.isNull(callOwanceDetails) ||  ObjectUtil.isNull(callOwanceDetails.getData()))
 		{
@@ -461,7 +461,7 @@ public class SmtCallowanceCancelRecordServiceImpl extends ServiceImpl<SmtCallowa
 		@Override
 		public Result getOutDormitory(String badge, Integer type) {
 			// TODO Auto-generated method stub
-			Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(badge, type);
+			Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(badge, type, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("ovwYsCallOwanceDetailsService.getInfo result{}",callOwanceDetails);
 			if(ObjectUtil.isNull(callOwanceDetails) || ObjectUtil.isNull(callOwanceDetails.getData()))
 			{
@@ -489,7 +489,7 @@ public class SmtCallowanceCancelRecordServiceImpl extends ServiceImpl<SmtCallowa
 		public Result getCallowanceDetail(String badge, Integer type) {
 			// TODO Auto-generated method stub
 			//存在外宿补贴
-			Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(badge, type);
+			Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(badge, type, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("ovwYsCallOwanceDetailsService.getInfo result{}",callOwanceDetails);
 			return callOwanceDetails;
 		}

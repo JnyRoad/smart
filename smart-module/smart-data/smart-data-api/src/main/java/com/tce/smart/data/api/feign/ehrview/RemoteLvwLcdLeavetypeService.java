@@ -22,7 +22,9 @@ public interface RemoteLvwLcdLeavetypeService {
 	 * @param from
 	 * @return
 	 */
-	@GetMapping("/lvw/lvwLcdLeavetype/info")
-	Result<LvwLcdLeavetypeDTO> info(@RequestParam("id") Integer id, @RequestHeader(SecurityConstants.FROM) String from);
+    @GetMapping("/lvw/lvwLcdLeavetype/info")
+    Result<LvwLcdLeavetypeDTO> info(@RequestParam("id") Integer id,
+                                    @RequestHeader(SecurityConstants.FROM) String from,
+                                    @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

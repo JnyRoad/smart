@@ -9,6 +9,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.platform.core.entity.SmtLeaveApplication;
 import com.tce.smart.platform.core.vo.LeaveRecordVO;
 
+import java.util.Set;
+
 /**
  * 离职申请表
  *
@@ -19,7 +21,8 @@ public interface SmtLeaveApplicationMapper extends BaseMapper<SmtLeaveApplicatio
 
 //    SmtLeaveApplication getLeaveApplication(@Param("badge") String badge);
 
-    IPage<LeaveRecordVO> getLeaveRecordList(Page page,@Param("badge") String badge,@Param("leaveStatus") Integer leaveStatus);
+    IPage<LeaveRecordVO> getLeaveRecordList(Page page, @Param("badge") String badge,
+			@Param("leaveStatus") Integer leaveStatus, @Param("parkIds") Set<Integer> parkIds);
 
     SmtLeaveApplication getLeaveApplicationByProcessId(@Param("processId") String processId);
 

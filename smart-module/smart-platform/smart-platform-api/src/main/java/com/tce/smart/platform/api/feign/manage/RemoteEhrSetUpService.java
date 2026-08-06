@@ -21,7 +21,8 @@ public interface RemoteEhrSetUpService {
 	 * @return
 	 */
 	@GetMapping("/ehr/setup/smg")
-	Result<Boolean> sendMsg(@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> sendMsg(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 	/**
 	 * 考勤汇总提醒设置与工资签收提醒设置
@@ -29,6 +30,7 @@ public interface RemoteEhrSetUpService {
 	 * @return
 	 */
 	@GetMapping("/ehr/setup/auto/confirm")
-	Result<Boolean> autoConfirm(@RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> autoConfirm(@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

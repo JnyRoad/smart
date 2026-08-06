@@ -1,26 +1,44 @@
 import { expect, test, type Page } from '@playwright/test'
 
+const LEGACY_TRUCK_ENDPOINTS = [
+  '/admittance/apply/enum/car/cause',
+  '/admittance/apply/save/car/apply',
+]
+
+/** 成功货车链路不得回退到无短信 proof 的历史接口。 */
+function observeNoLegacyTruckRequests(page: Page) {
+  const legacyRequests: string[] = []
+  page.on('request', (request) => {
+    const pathname = new URL(request.url()).pathname
+    if (LEGACY_TRUCK_ENDPOINTS.includes(pathname)) legacyRequests.push(pathname)
+  })
+  return () => expect(legacyRequests).toEqual([])
+}
+
 async function mockTruckApis(page: Page) {
-  await page.route('**/platform/admittance/apply/enum/car/cause', (route) =>
-    route.fulfill({ json: { code: 0, data: [{ code: 11, desc: '送货' }, { code: 12, desc: '提货' }] } }),
-  )
-  await page.route('**/app/sms/send/getCode/**', (route) => route.fulfill({ json: { code: 0 } }))
-  await page.route('**/app/sms/verify*', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/app/sms/visitor/send', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/platform/admittance/visitor-truck/verify-sms', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ mobile: '13900003333', smsCode: '123456' })
+    await route.fulfill({ json: { code: 0, data: { proof: 'truck-sms-proof' } } })
+  })
+  await page.route('**/platform/admittance/visitor-truck/options/cause', async (route) => {
+    expect(route.request().headers()['x-visitor-truck-sms-proof']).toBe('truck-sms-proof')
+    await route.fulfill({ json: { code: 0, data: [{ code: 11, desc: '送货' }, { code: 12, desc: '提货' }] } })
+  })
 }
 
 test('货车预约：填表 → 短信验证 → 提交体正确 → 结果页', async ({ page }) => {
+  const expectNoLegacyRequests = observeNoLegacyTruckRequests(page)
   await mockTruckApis(page)
   let applyBody: Record<string, unknown> | undefined
-  await page.route('**/platform/admittance/apply/save/car/apply', async (route) => {
+  await page.route('**/platform/admittance/visitor-truck/apply', async (route) => {
+    expect(route.request().headers()['x-visitor-truck-sms-proof']).toBe('truck-sms-proof')
     applyBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0 } })
   })
 
   await page.goto('/visitor/truck')
   await page.getByPlaceholder('请输入车牌号').fill('B88888')
-  await page.getByText('请选择来访事由').click()
-  await page.getByText('送货').last().click()
-  await page.getByRole('button', { name: '确定' }).last().click()
   await page.getByPlaceholder('请输入访客姓名').fill('老司机')
   await page.getByPlaceholder('请输入出发地').fill('郑州中转仓')
   await page.getByText('请选择预约时间').click()
@@ -29,9 +47,14 @@ test('货车预约：填表 → 短信验证 → 提交体正确 → 结果页',
   await page.getByPlaceholder('点击输入手机号').fill('13900003333')
   await page.getByRole('button', { name: '获取验证码' }).click()
   await page.getByPlaceholder('点击输入验证码').fill('123456')
+  // 事由不再以裸匿名枚举预加载；点击后先换短信 proof，再按 proof 拉取可选项。
+  await page.getByText('请选择来访事由').click()
+  await page.getByText('送货').last().click()
+  await page.getByRole('button', { name: '确定' }).last().click()
   await page.getByRole('button', { name: '提交申请' }).click()
 
   await page.waitForURL('**/visitor/truck/result')
+  expectNoLegacyRequests()
   await expect(page.getByText('等待系统审批')).toBeVisible()
 
   const body = applyBody as Record<string, unknown>
@@ -50,11 +73,12 @@ test('货车预约：填表 → 短信验证 → 提交体正确 → 结果页',
 
 test('货车预约：验证码校验失败 toast 且不提交不跳转', async ({ page }) => {
   await mockTruckApis(page)
-  await page.route('**/app/sms/verify*', (route) =>
-    route.fulfill({ json: { code: 1, message: '验证码错误或已过期' } }),
-  )
+  await page.route('**/platform/admittance/visitor-truck/verify-sms', (route) => {
+    expect(route.request().postDataJSON()).toEqual({ mobile: '13900003333', smsCode: '000000' })
+    return route.fulfill({ json: { code: 1, message: '验证码错误或已过期' } })
+  })
   let applyCalled = false
-  await page.route('**/platform/admittance/apply/save/car/apply', async (route) => {
+  await page.route('**/platform/admittance/visitor-truck/apply', async (route) => {
     applyCalled = true
     await route.fulfill({ json: { code: 0 } })
   })
@@ -77,68 +101,41 @@ test('货车预约：验证码校验失败 toast 且不提交不跳转', async (
   await expect(page).toHaveURL(/\/visitor\/truck$/)
 })
 
-const DETAIL_BASE = {
-  parkName: '裕同科技许昌园区',
-  causeDesc: '商务洽谈',
-  receptionistName: '赵经理',
-  receptionistPhone: '13800001111',
-  visitorName: '王五',
-  visitorPhone: '13900002222',
-  permitFactoryTypeDesc: '新工厂',
-  permitArea: 'A1,A2',
-  permitOldArea: '',
-  startTime: '2026-06-15 09:00:00',
-  endTime: '2026-06-15 18:00:00',
-  smsCode: '668866',
-  qrCode: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+async function seedQueryToken(page: Page, token = 'query-token') {
+  await page.addInitScript((value) => {
+    localStorage.setItem('visitor-query-session', JSON.stringify({ queryToken: value, maskedName: '王五', maskedMobile: '139****2222', savedAt: Date.now() }))
+  }, token)
 }
 
-async function mockCodeApis(page: Page, delFlag: number) {
-  await page.route('**/platform/admittance/apply/search/Detail/*', (route) =>
-    route.fulfill({ json: { code: 0, data: { ...DETAIL_BASE, delFlag } } }),
-  )
-  await page.route('**/platform/admittance/apply/enum/factory/type*', (route) => {
-    const url = new URL(route.request().url())
-    const flag = url.searchParams.get('flag')
-    return route.fulfill({
-      json: {
-        code: 0,
-        data: flag === '1' ? [{ code: 'A1', desc: '办公区' }, { code: 'A2', desc: '生产一区' }] : [],
-      },
-    })
+test('二维码页：仅携带 queryToken 调用最小通行码端点并渲染二维码', async ({ page }) => {
+  await seedQueryToken(page)
+  await page.route('**/platform/admittance/apply/app/passCode*', async (route) => {
+    expect(route.request().headers()['x-visitor-query-token']).toBe('query-token')
+    await route.fulfill({ json: { code: 0, data: { applyId: '1001', valid: true, smsCode: '668866', qrCode: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' } } })
   })
-}
-
-test('二维码页：有效态（delFlag=0）完整渲染', async ({ page }) => {
-  await mockCodeApis(page, 0)
-  await page.goto('/visitor/code?id=apply-1')
-
-  await expect(page.getByText('裕同科技许昌园区欢迎您')).toBeVisible()
+  await page.goto('/visitor/code?id=1001')
   await expect(page.getByAltText('访客通行二维码')).toBeVisible()
   await expect(page.getByText('668866')).toBeVisible()
-  await expect(page.getByText('首次扫码，打印有效')).toBeVisible()
-  await expect(page.getByText('赵经理 13800001111（被访人）')).toBeVisible()
-  await expect(page.getByText('王五 13900002222（访客）')).toBeVisible()
-  // 区域 code → 名称映射
-  await expect(page.getByText('办公区，生产一区')).toBeVisible()
-  await expect(page.getByText('使用指引')).toBeVisible()
-})
-
-test('二维码页：已删除（delFlag=1）失效但保留预约信息', async ({ page }) => {
-  await mockCodeApis(page, 1)
-  await page.goto('/visitor/code?id=apply-1')
-
-  await expect(page.getByText('二维码已失效')).toBeVisible()
-  await expect(page.getByAltText('访客通行二维码')).not.toBeVisible()
-  await expect(page.getByText('赵经理 13800001111（被访人）')).toBeVisible()
-  await expect(page.getByText('使用指引')).not.toBeVisible()
-})
-
-test('二维码页：已过期（delFlag=2）仅失效占位', async ({ page }) => {
-  await mockCodeApis(page, 2)
-  await page.goto('/visitor/code?id=apply-1')
-
-  await expect(page.getByText('二维码已失效')).toBeVisible()
   await expect(page.getByText('赵经理', { exact: false })).not.toBeVisible()
-  await expect(page.getByText('使用指引')).not.toBeVisible()
+})
+
+test('二维码页：无 token 不请求通行码并进入短信验证', async ({ page }) => {
+  let called = false
+  await page.route('**/platform/admittance/apply/app/passCode*', (route) => {
+    called = true
+    return route.fulfill({ json: { code: 0 } })
+  })
+  await page.goto('/visitor/code?id=1001')
+  await page.waitForURL('**/visitor/records?redirect=1001')
+  expect(called).toBe(false)
+})
+
+test('二维码页：过期或非本人 token 被拒绝后清凭证并进入短信验证', async ({ page }) => {
+  await seedQueryToken(page, 'expired-token')
+  await page.route('**/platform/admittance/apply/app/passCode*', (route) =>
+    route.fulfill({ status: 403, json: { code: 403, message: 'forbidden' } }),
+  )
+  await page.goto('/visitor/code?id=1001')
+  await page.waitForURL('**/visitor/records?redirect=1001')
+  expect(await page.evaluate(() => localStorage.getItem('visitor-query-session'))).toBeNull()
 })

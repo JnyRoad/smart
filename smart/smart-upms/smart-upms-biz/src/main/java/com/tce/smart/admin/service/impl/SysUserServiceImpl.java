@@ -31,6 +31,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.model.ResultData;
 import com.tce.smart.common.core.util.*;
 import com.tce.smart.common.security.util.SecurityUtils;
+import com.tce.smart.platform.api.dto.resp.InternalStaffProvisioningRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffLoginRespDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +41,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -55,6 +58,11 @@ import java.util.stream.Collectors;
 @Service
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
     private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder();
+	private static final Set<String> PASSWORD_RESET_AUTH_PURPOSES = new HashSet<>(Arrays.asList(
+			"password-reset", "face-password-reset"));
+	private static final DefaultRedisScript<Long> COMPARE_AND_DELETE = new DefaultRedisScript<>(
+			"local value = redis.call('get', KEYS[1]); if value == ARGV[1] then redis.call('del', KEYS[1]); return 1; end; return 0;",
+			Long.class);
     @Autowired
     private CacheManager cacheManager;
 	@Autowired
@@ -181,7 +189,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		}
 
 		//查询员工计薪类型
-		Result<EvwEmphrYsRespDTO> dataResult = remoteEvwEmphrYsService.info(sysUser.getUsername(), SecurityConstants.FROM_IN);
+		Result<EvwEmphrYsRespDTO> dataResult = remoteEvwEmphrYsService.info(sysUser.getUsername(),
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(dataResult.isSuccess() && Objects.nonNull(dataResult.getData())){
 			userInfo.setSalaryTypeName(dataResult.getData().getSalarytypeName());
 		}
@@ -301,15 +310,19 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				.lambda().eq(SysUser::getPhone, mobile).eq(SysUser::getDelFlag,0)
 		);
 		if (Objects.isNull(users) || users.size() < 1) {
-			Result<List<SmtStaffDTO>> listResult = remoteStaffService.queryMobile(mobile, SecurityConstants.FROM_IN);
+			Result<List<InternalStaffLoginRespDTO>> listResult = remoteStaffService.getLoginStaffByMobile(mobile,
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "upms-mobile-login");
 			if(listResult.isSuccess()){
-				List<SmtStaffDTO> data = listResult.getData();
+				List<InternalStaffLoginRespDTO> data = listResult.getData();
 				if(data.size() > 1){
 					throw new TCEException("验证码登录失败，此手机号码关联多个员工信息");
 				}else if(data.size() == 1){
 					SysUser sysUser = new SysUser();
 					sysUser.setUsername(data.get(0).getBadge());
-					String pwd = data.get(0).getCertno().substring(data.get(0).getCertno().length() - 6);
+					String pwd = data.get(0).getCertNoLast6();
+					if (StrUtil.isBlank(pwd)) {
+						throw new TCEException("员工证件信息不完整，无法初始化账号");
+					}
 					sysUser.setPassword(ENCODER.encode(pwd));
 					sysUser.setCreateTime(LocalDateTime.now());
 					sysUser.setUpdateTime(LocalDateTime.now());
@@ -387,9 +400,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	 * @return Result
 	 */
 	@Override
-	public List<SysUser> listAncestorUsers(String username) {
+	public List<AncestorUserRespDTO> listAncestorUsers(String username) {
 		SysUser sysUser = this.getOne(Wrappers.<SysUser>query().lambda()
 				.eq(SysUser::getUsername, username));
+		if (sysUser == null) {
+			return Collections.emptyList();
+		}
 
 		SysDept sysDept = sysDeptService.getById(sysUser.getDeptId());
 		if (sysDept == null) {
@@ -398,7 +414,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 		Integer parentId = sysDept.getParentId();
 		return this.list(Wrappers.<SysUser>query().lambda()
-				.eq(SysUser::getDeptId, parentId));
+				.eq(SysUser::getDeptId, parentId)).stream().map(this::toAncestorUser).collect(Collectors.toList());
+	}
+
+	/** 上级审批人选择只返回识别与组织字段，避免实体新增敏感字段后被直接序列化。 */
+	private AncestorUserRespDTO toAncestorUser(SysUser user) {
+		AncestorUserRespDTO response = new AncestorUserRespDTO();
+		response.setUserId(user.getUserId());
+		response.setUsername(user.getUsername());
+		response.setFullName(user.getFullName());
+		response.setDeptId(user.getDeptId());
+		return response;
 	}
 
 	/**
@@ -462,7 +488,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				}
 				//检测是否为临时人员，临时人员不同通过裕同接口检测
 				Boolean isTemp = false;
-				SmtStaffDTO queryStaffRs = this.checkStaff(username);
+				InternalStaffProvisioningRespDTO queryStaffRs = this.checkStaff(username);
 				if(queryStaffRs.getStatus() == 4) {
 					isTemp = Boolean.TRUE;
 				}
@@ -505,7 +531,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 						sysUser.setUsername(username);
 						sysUser.setPassword(ENCODER.encode(password));
 						if(queryStaffRs.getStatus().equals(4)) {
-							String pwd = queryStaffRs.getCertno().substring(queryStaffRs.getCertno().length() - 6);
+							String pwd = requiredCertNoLast6(queryStaffRs);
 							if(!password.equals(pwd) ) {
 								throw new TCEException("账号或密码错误");
 							}
@@ -539,7 +565,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 					try {
 						// 初始化帐号App权限
 						Result<Boolean> inintLoginAuthRs = remoteStaffService.inintLoginAuth(username);
-						log.info("remoteStaffService.inintLoginAuth result=[{}],username={}", inintLoginAuthRs,username);
+						log.info("员工 App 权限初始化完成 scene=simple-login success={}", inintLoginAuthRs != null && inintLoginAuthRs.isSuccess());
 
 					}catch(Exception e) {
 						log.error("初始化员工App权限异常",e);
@@ -567,7 +593,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			if (cache != null && cache.get(username) != null) {
 				return Boolean.TRUE;
 			}
-			SmtStaffDTO queryStaffRs = this.checkStaff(username);
+			InternalStaffProvisioningRespDTO queryStaffRs = this.checkStaff(username);
 			SysUser sysUser = this.baseMapper
 					.selectOne(Wrappers.<SysUser>query().lambda().eq(SysUser::getUsername, username));
 			if (Objects.isNull(sysUser)) {
@@ -577,7 +603,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				sysUser.setUpdateTime(LocalDateTime.now());
 				sysUser.setDelFlag(CommonConstants.STATUS_NORMAL);
 				sysUser.setLockFlag(CommonConstants.STATUS_NORMAL);
-				String pwd = queryStaffRs.getCertno().substring(queryStaffRs.getCertno().length() - 6);
+				String pwd = requiredCertNoLast6(queryStaffRs);
 				sysUser.setPassword(ENCODER.encode(pwd));
 				sysUser.setPhone(queryStaffRs.getPhone());
 				this.baseMapper.insert(sysUser);
@@ -590,7 +616,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			try {
 				// 初始化帐号App权限
 				Result<Boolean> inintLoginAuthRs = remoteStaffService.inintLoginAuth(username);
-				log.info("remoteStaffService.inintLoginAuth result=[{}],username={}", inintLoginAuthRs,username);
+				log.info("员工 App 权限初始化完成 scene=social-login success={}", inintLoginAuthRs != null && inintLoginAuthRs.isSuccess());
 			} catch(Exception e) {
 				log.error("初始化员工App权限异常",e);
 			}
@@ -608,18 +634,15 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	public Boolean updatePwd(String username,String password,String updateAuthCode){
 		Boolean isSuccess = false;
 
-		String redisKey = SecurityConstants.APP_PWD_UPDATE_AUTHCODE + username;
-		log.info("updatePwd.fundAuthCode.key={}",redisKey);
-		String authCodeObject = stringRedisTemplate.opsForValue().get(redisKey);
-		if (StringUtils.isEmpty(authCodeObject)) {
-			log.error("获取密码修改授权码异常");
-			throw new TCEException("本次修改授权失败");
-		}
-
 		if(!SecurityUtils.checkPassword(password)){
 			//新密码为非强密码
 			log.warn("新密码为非强密码，修改失败");
 			throw new TCEException("新密码为非强密码，修改失败");
+		}
+		String redisKey = SecurityConstants.APP_PWD_UPDATE_AUTHCODE + username;
+		String authCodeObject = stringRedisTemplate.opsForValue().get(redisKey);
+		if (StringUtils.isEmpty(authCodeObject)) {
+			throw new TCEException("本次修改授权失败");
 		}
 
 		//校验修改授权码
@@ -633,12 +656,21 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		}
 
 		if (!authCodeJson.getStr(SecurityConstants.PWD_UPDATE_AUTHCODE_SUB_KEY).equals(deUpdateAuthCode)) {
-			throw new TCEException("修改密码失败，人脸识别过于频繁");
+			throw new TCEException("本次修改授权失败");
+		}
+		if (!PASSWORD_RESET_AUTH_PURPOSES.contains(authCodeJson.getStr("purpose"))
+				|| StringUtils.isBlank(authCodeJson.getStr("verifiedChallengeId"))) {
+			throw new TCEException("本次修改授权失败");
+		}
+		// 先完成所有校验再比较删除：错误授权码绝不消耗合法授权；并发正确请求仅一个可以继续改密。
+		Long consumed = stringRedisTemplate.execute(COMPARE_AND_DELETE, Collections.singletonList(redisKey), authCodeObject);
+		if (!Long.valueOf(1L).equals(consumed)) {
+			throw new TCEException("本次修改授权失败");
 		}
 
 		Boolean isTemp = false;
 		//判断是否临时人员，临时人员不必通过裕同接口检测
-		SmtStaffDTO queryStaffRs = this.checkStaff(username);
+		InternalStaffProvisioningRespDTO queryStaffRs = this.checkStaff(username);
 		if(queryStaffRs.getStatus() == 4) {
 			isTemp = Boolean.TRUE;
 		}
@@ -689,22 +721,32 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 	/**
 	 * 检测app登录用户员工信息是否存在
-	 * @return SmtStaffDTO 员工信息
+	 * @return UPMS 账号开通所需的最小员工资料
 	 */
-	private SmtStaffDTO checkStaff(String username) {
-		Result<SmtStaffDTO> queryStaffRs = remoteStaffService.getSimpleSttaffByBadge(username);
-		SmtStaffDTO staffInfo = queryStaffRs.getData();
-		log.info("remoteStaffService.getSimpleSttaffByBadge.rs={}",queryStaffRs);
+	private InternalStaffProvisioningRespDTO checkStaff(String username) {
+		Result<InternalStaffProvisioningRespDTO> queryStaffRs = remoteStaffService.getProvisioningStaff(username,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "upms-provisioning");
+		InternalStaffProvisioningRespDTO staffInfo = queryStaffRs.getData();
 		if(!queryStaffRs.isSuccess() || Objects.isNull(staffInfo)){
 			log.error("员工信息不存在");
 			throw new TCEException("员工信息不存在");
 		}
-		else if(-1 == staffInfo.getStatus()
+		else if(Objects.isNull(staffInfo.getStatus()) || -1 == staffInfo.getStatus()
 				||0 == staffInfo.getStatus()){
 			log.error("员工状态异常");
 			throw new TCEException("员工状态异常");
 		}
 		return staffInfo;
+	}
+
+	/**
+	 * 临时员工默认密码只能使用受控内部契约返回的证件号末六位。
+	 */
+	private String requiredCertNoLast6(InternalStaffProvisioningRespDTO staff) {
+		if (staff == null || StringUtils.isBlank(staff.getCertNoLast6())) {
+			throw new TCEException("员工身份证信息不存在");
+		}
+		return staff.getCertNoLast6();
 	}
 
 	/**

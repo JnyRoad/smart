@@ -14,6 +14,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.core.dto.AddReplaceApplicationDTO;
 import com.tce.smart.platform.core.dto.SearchAttendanceDTO;
 import com.tce.smart.platform.core.dto.SearchPatchDTO;
@@ -151,6 +152,7 @@ public class SmtReplaceApplicationController extends BaseController{
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/patchErrorPushMsg")
 	public Result patchErrorPushMsg() {
 		smtReplaceApplicationService.patchErrorPushMsg();

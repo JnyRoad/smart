@@ -1,7 +1,7 @@
 'use client'
 import { SpinLoading, Toast } from 'antd-mobile'
 import { useEffect, useRef, useState } from 'react'
-import { checkFace, faceCut } from '@/features/visitor/api'
+import { checkFace, cropEmployeeFace } from '@/features/visitor/api'
 import { resolveLockRefreshFacePic } from './lock-refresh'
 import styles from './lock-face-camera.module.css'
 
@@ -187,7 +187,7 @@ export function LockFaceCamera({
     setChecking(true)
     setFaceState('checking')
     try {
-      const cut = await faceCut(rawBase64)
+      const cut = await cropEmployeeFace(rawBase64)
       if (!mountedRef.current) return
       if (cut.code !== 0 || !cut.data) {
         const message = cut.message && cut.message !== 'success' ? cut.message : '人脸检测失败，请重新拍摄'

@@ -24,13 +24,11 @@
 				try{
 					const res = await account.getToken()
 					this.info = res
-					console.log(res);
-					uni.setStorageSync('UPARSE', res.data);
-					console.log(uni.getStorageSync('UPARSE'));
+					if (!res.data.data) {
+						this.$ytHint.toast({ title: '银行实名服务正在安全升级中' })
+					}
 				}catch(e){
-					//TODO handle the exception
-					console.log(e);
-					throw e
+					this.$ytHint.toast({ title: '银行实名服务正在安全升级中' })
 				}
 			}
 		},

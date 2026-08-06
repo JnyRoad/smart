@@ -387,7 +387,8 @@ public class ModiftyDormitorData {
 			}
 
 			//查询照片
-			Result<Map<String, Object>> empPhotoRes = remoteXCRsEmpService.getEmpPhoto(empNo, SecurityConstants.FROM_IN);
+			Result<Map<String, Object>> empPhotoRes = remoteXCRsEmpService.getEmpPhoto(empNo, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 
 			if(!empPhotoRes.isSuccess() || Objects.isNull(empPhotoRes.getData())){
 				continue;

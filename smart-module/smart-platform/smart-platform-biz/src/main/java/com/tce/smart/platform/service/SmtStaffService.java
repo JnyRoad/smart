@@ -7,7 +7,18 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPageQueryReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffAccountRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminStaffDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminStaffPageRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffRespDTO;
+import com.tce.smart.platform.api.dto.resp.AdminTemporaryStaffDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.StaffLookupRespDTO;
+import com.tce.smart.platform.api.dto.resp.StaffSelfCheckInProfileRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
 import com.tce.smart.platform.core.dto.*;
 import com.tce.smart.platform.core.entity.*;
@@ -28,9 +39,7 @@ public interface SmtStaffService extends IService<SmtStaff> {
 
 	MyDormitoryVO myDormitory(SmtStaff smtStaff);
 
-	Result getSmtStaffInfoById(String id);
-
-	List<SmtStaffDTO> queryMobile(String mobile);
+	List<SmtStaff> findStaffByMobileForLogin(String mobile);
 
 	SmtStaff getByPhoneAndName(String phone, String name);
 
@@ -54,7 +63,16 @@ public interface SmtStaffService extends IService<SmtStaff> {
 
 	List<VehicleApplyVO> getVehiclePark(String vehiclePlate);
 
+	/** App 本人车辆入园记录，只允许车辆关联的员工读取。 */
+	List<VehicleApplyVO> getVehicleParkForOwner(String vehiclePlate, String badge);
+
 	VehicleParkDetailVO getVehicleParkById(Integer id);
+
+	/** App 本人车辆证照详情，只允许车辆关联的员工读取。 */
+	VehicleParkDetailVO getVehicleParkByIdForOwner(Integer id, String badge);
+
+	/** App 本人删除车辆；车牌必须属于认证员工。 */
+	Result deleteVehicleForOwner(String vehiclePlate, String badge);
 
 	Result updatePhone(SmtStaff smtStaff);
 
@@ -71,8 +89,6 @@ public interface SmtStaffService extends IService<SmtStaff> {
 	IPage<StaffNODormitoryVO> quetyStaffNODormitory(Page page, SearchStaffDTO smtStaff);
 
 	StaffInfoVO getSmtStaffInfoByBadge(String badge);
-
-	Result outDormitory(SmtStaff smtStaff);
 
 	Result addVehicle(AddVehicleDTO addVehicleDTO);
 
@@ -105,6 +121,81 @@ public interface SmtStaffService extends IService<SmtStaff> {
 	 * @return 员工信息
 	 */
 	SmtStaff getSimpleSttaffByBadge(String badge);
+
+	/**
+	 * 按管理员可见园区查询员工最小信息。
+	 *
+	 * @param badge 工号关键字
+	 * @param parkIds 当前管理员可见园区
+	 * @return 不含个人敏感信息的员工列表
+	 */
+	List<StaffLookupRespDTO> searchStaffForAdmin(String badge, List<Integer> parkIds);
+
+	/**
+	 * 按管理员可见园区查询员工受控详情。
+	 *
+	 * @param staffId 员工主键
+	 * @param parkIds 当前管理员可见园区
+	 * @return 不含证件、联系方式、地址和人脸资料的员工详情；越园区或不存在时返回空
+	 */
+	AdminStaffDetailRespDTO getAdminStaffDetail(Long staffId, List<Integer> parkIds);
+
+	/**
+	 * 按管理员可见园区分页查询员工最小资料。
+	 *
+	 * @param page 分页参数
+	 * @param request 已限制为非敏感字段的查询条件
+	 * @param parkIds 当前管理员可见园区
+	 * @return 不含手机号、证件及人脸文件标识的员工列表
+	 */
+	IPage<AdminStaffPageRespDTO> getAdminStaffPage(Page page, AdminStaffPageQueryReqDTO request,
+			List<Integer> parkIds);
+
+	/**
+	 * 查询当前管理员园区内可批量离职的临时员工最小资料。
+	 *
+	 * @param badges 工号集合
+	 * @param parkIds 当前管理员可见园区
+	 * @return 仅含主键、工号和姓名的临时员工记录
+	 */
+	List<AdminTemporaryStaffRespDTO> searchTemporaryStaffForAdmin(List<String> badges, List<Integer> parkIds);
+
+	/** 按管理员园区范围分页查询临时人员的最小资料。 */
+	IPage<AdminTemporaryStaffDetailRespDTO> getTemporaryStaffPageForAdmin(Page page,
+			AdminTemporaryStaffQueryReqDTO request, List<Integer> parkIds);
+
+	/** 按管理员园区范围查询一名临时人员的最小资料。 */
+	AdminTemporaryStaffDetailRespDTO getTemporaryStaffDetailForAdmin(Long staffId, List<Integer> parkIds);
+
+	/** 后台修改手机号前验证目标员工属于当前管理员园区。 */
+	Boolean updateStaffPhoneForAdmin(AdminStaffPhoneUpdateReqDTO request, List<Integer> parkIds);
+
+	/** 后台仅能修改最小基础字段，并在服务端验证目标员工园区。 */
+	Boolean updateStaffForAdmin(AdminStaffUpdateReqDTO request, List<Integer> parkIds);
+
+	/**
+	 * 查询当前员工入住流程可展示的资料摘要。
+	 *
+	 * @param badge 已认证主体的工号
+	 * @return 仅含姓名、资料完整状态和脱敏证件号的资料摘要
+	 */
+	StaffSelfCheckInProfileRespDTO getCheckInProfileForBadge(String badge);
+
+	/**
+	 * 查询可用于本人入住的在职员工资料。
+	 *
+	 * @param badge 已认证主体的工号
+	 * @return 在职员工，不存在或已离职时返回空
+	 */
+	SmtStaff getActiveStaffByBadge(String badge);
+
+	/**
+	 * 按工号查询内部账号识别信息。
+	 *
+	 * @param badge 工号
+	 * @return 仅含内部账号识别所需字段的响应
+	 */
+	InternalStaffAccountRespDTO getInternalAccountByBadge(String badge);
 
 	/**
 	 * 根据员工ID获取员工信息
@@ -169,8 +260,6 @@ public interface SmtStaffService extends IService<SmtStaff> {
 
 
 	Page<StaffListVO> getTOStaffPage(Page page, SearchToStaffDTO searchToStaffDTO);
-
-	Result getToStaffInfoById(String id);
 
 	List<SmtPark> getStaffPark(String staffBadge);
 

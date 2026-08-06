@@ -1,0 +1,150 @@
+# yuto_prod/dev Nacos 访问控制发布清单
+
+**用途：** 此文件是生产 Nacos 人工发布、灰度与回滚的版本化清单；不包含 Nacos 内容、账号、密码、Token、数据源或真实个人信息。
+
+## 发布范围
+
+| Data ID | 当前已验证风险 | 收口前置条件 | 灰度探针 | 生产状态 |
+|---|---|---|---|---|
+| `smart-platform.yml` | `/staff/**`、`/articlesrelease/**` | Tasks 2-5、7 完成，仓外调用方为零或已迁移；住宿、园区列表、充值和物流内部 client-id 门槛完成 | 旧路径无 Token 返回 401/403；当前 H5、UI、App 通过 | 未发布 |
+| `smart-upms-biz.yml` | `/api/**` | Open API App scope 核验完成 | 无 App 身份返回 401/403；合法 App token 成功 | 未发布 |
+| `smart-data.yml` | `/**` | Controller 清单逐条完成分类 | 内部 Feign 成功；外部直连拒绝 | 未发布 |
+| `smart-algorithm.yml` | `/**` | 人脸、OCR 调用方完成服务令牌迁移 | 内部算法调用成功；外部直连拒绝 | 未发布 |
+| `smart-push.yml` | `/**` | 推送回调签名与调用方清单完成 | 签名回调成功；无签名拒绝 | 未发布 |
+| `smart-dispatcher.yml` | `/**` | 所有调度 Feign 标识和令牌验证完成 | 定时任务和 Feign 成功 | 未发布 |
+| `smart-schedule.yml` | 本地基线为 `/**`；生产需再次只读核验 | Nacos 读取核验与任务清单完成 | 定时任务无失败 | 未核验 |
+| `smart-bridge-biz-*.yml` | `/**` | 每个设备、厂商回调签名和来源确认 | 合法设备回调成功；未签名拒绝 | 未发布 |
+| `smart-bridge-isc*.yml` | `/**` | 每个设备、厂商回调签名和来源确认 | 合法设备回调成功；未签名拒绝 | 未发布 |
+
+## 单 Data ID 发布记录
+
+每次只填写一个 Data ID，先灰度一个实例；未完成本表任何项目不得扩大。
+
+| 项目 | 填写值 |
+|---|---|
+| Data ID / Group / Namespace |  |
+| 发布前 MD5 / 历史版本号 |  |
+| 发布后 MD5 / 历史版本号 |  |
+| 兼容代码 commit / 镜像 |  |
+| 服务 OAuth 发布前门槛证据（不含秘密） |  |
+| 灰度实例数 / 全量实例数 |  |
+| 开始时间 / 结束时间 / 执行人 |  |
+| 网关日志观察窗口 |  |
+| 旧接口 QPS |  |
+| 内部 Feign 失败数 |  |
+| 设备或第三方回调失败数 |  |
+| UI / 当前 H5 / App / UPMS 回归结果 |  |
+| 回滚 Data ID 历史版本 |  |
+| 运维审核人 / 业务审核人 |  |
+
+## Platform 与 UPMS 精确收口审批记录
+
+下表必须分别完整填写后才能发布对应 Data ID。空白表示尚未取得生产发布证据，不能据此写入 Nacos；禁止以恢复业务通配匿名白名单作为回滚手段。
+
+| 必填项 | `smart-platform.yml` | `smart-upms-biz.yml` |
+|---|---|---|
+| 兼容版本 commit / 镜像 |  |  |
+| 灰度实例 / 全量实例 |  |  |
+| 旧接口 QPS=0 观察窗口（起止时间） |  |  |
+| Nacos 发布前 MD5 / 历史版本 |  |  |
+| Nacos 发布后 MD5 / 历史版本 |  |  |
+| 仓外调用方清零或迁移确认（审批人） |  |  |
+| `/actuator/health` 探针与认证业务回归结果 |  |  |
+| 回滚 Data ID 历史版本 |  |  |
+
+本地基线只保留 `/actuator/health`。Platform 的二维码 `/code` 若未完成短时单用途签名令牌方案，不得加入匿名白名单；在此之前必须保持认证后访问。
+
+## 必须执行的探针
+
+1. 无 Token 访问员工旧路径、新路径、门锁旧路径、物品放行旧路径：401 或 403，响应不含敏感字段。
+2. 带伪造 `from=Y` 的外部 Gateway 请求：401 或 403。
+3. 合法 Smart UI 人员搜索：仅返回人员 ID、工号、姓名、部门。
+4. 合法当前 Smart H5 入住、门锁、物品放行：完成业务流，浏览器请求不出现身份证、住址或他人工号。
+5. 合法 Smart App、UPMS、Feign 和定时任务：成功且日志不含完整员工对象。
+6. 设备、厂商回调：仅在有效签名、时间窗和 nonce 条件下成功。
+
+## 全局 Nacos 精确收口硬门槛
+
+每次任何 Data ID 发布前，必须在**拟发布 commit** 的仓库根目录执行：
+
+```bash
+node scripts/security/check-nacos-ignore-urls.mjs docker/nacos/config/dev
+```
+
+命令必须以退出码 `0` 结束。它动态扫描当前 Data ID，不以历史“剩余数量”或人工摘录替代；任意通配匿名路由、未知白名单项或脚本失败均阻断发布。完成一项模块整改并不表示可单独绕过仍未收口的其他 Data ID。
+
+公开业务例外必须逐路径登记并具备各自的认证边界：例如简历资料提交 `/regist/save/identification` 与人脸裁剪 `/regist/face/crop` 不得用 `/regist/**` 泛化放行，后者只能使用短时、单用途 capability。例外的协议、调用方和回归证据必须进入本清单的单 Data ID 发布记录。
+
+## 兼容代码部署前的服务 OAuth 硬门槛
+
+以下项目必须在部署任何含 `INTERNAL_SERVICE_AUTH_REQUIRED` 调用方的生产兼容镜像**之前**完成并留存不含秘密的证据：
+
+1. 每个存在 `INTERNAL_SERVICE_AUTH_REQUIRED` Feign 契约的调用服务，均在对应 Data ID 配置独立
+   `security.inner.service-token.client-id`、`client-secret` 与 `access-token-uri`；不得复用
+   `security.oauth2.client` 的用户 OAuth 资源。密钥仅通过受管环境变量或密钥系统注入，不写入本清单。
+2. 授权服务器已登记独立客户端，仅授予 `client_credentials` 的 `server` scope；在预发或隔离灰度用同一不可变镜像和受管密钥来源验证能获取该 token。
+3. 预发或隔离灰度已验证标记的 App/Feign 调用成功、错误客户端/错误 scope/缺失配置拒绝，以及应用日志不记录 Authorization 或访问令牌。
+4. 错误 scope、过期令牌、缺失配置或授权服务器不可用时，调用必须在 Feign 拦截器阶段失败，不能发送下游 HTTP 请求。任一项未完成时，不得部署标记调用方，也不得以 `AUDIT`、`ENFORCE` 或放宽匿名路由绕过。
+5. 对 `GET /dormitory/staff/internal/self/roomDetail/{staffBadge}` 和
+   `GET /dormitory/staff/internal/roomList/{staffBadge}`，`smart-platform.yml` 与 App 服务配置必须受管配置
+   `security.inner.dormitory.app-client-id`、`security.inner.dormitory.app-room-purpose`；两项分别精确等于发起
+   Feign 调用的 App 服务令牌 `client_id` 与受审用途。任一值缺失、为空、client_id 或用途不匹配，或 token
+   不是纯 client_credentials 主体时均必须拒绝；灰度探针必须分别留存合法 App 调用成功和通用 `server`
+   scope 客户端被拒绝的证据。此项未通过不得发布 App/Platform 兼容镜像。
+6. `GET /dormitory/staff/internal/roomDetail/{staffBadge}` 仍返回完整住宿详情，只能配置
+   `security.inner.dormitory.admin-room-detail-client-id` 和
+   `security.inner.dormitory.admin-room-detail-purpose` 对应的专用管理员服务调用；任何未受管客户端或用途必须
+   拒绝。若生产核查不存在该完整内部接口消费者，应在完整灰度窗口后删除该路由和 Feign 契约，而非向 App 回退。
+7. 园区全量内部列表必须配置 `security.inner.park.list-client-ids` 为逗号分隔的实际 Smart App 与 Smart Schedule
+   `client_id`；空值、普通用户 token、其他 `server` client 或不匹配用途均必须拒绝。灰度同时验证两个合法调用方成功。
+   Dispatcher 动态 Bridge 目标还必须单独配置 `security.inner.park.dispatcher-client-id`，精确等于 Smart Dispatcher
+   的实际 `client_id`；任何其他 `server` client 均必须拒绝。
+8. 充值与物流定时内部命令分别必须配置
+   `security.inner.recharge.schedule-client-id`、`security.inner.logistics.schedule-client-id`，且都精确等于 Smart
+   Schedule 的实际 `client_id`。任一配置为空、client 不匹配或 purpose 不匹配时必须拒绝；发布前分别运行一次合法
+   定时任务探针并保留不含令牌的结果。
+9. App 密码找回公开入口只能为 `POST /app/password/update` 的 JSON 请求体；旧
+   `PUT /admin/user/password/update` 仅限 `sys_user_edit` 管理权限。发布时验证匿名 POST 在一次性 challenge 已通过时
+   成功、重复/错误 challenge 拒绝，且普通用户访问旧管理端路由被拒绝。
+10. 若 UPMS 兼容镜像存在任何内部 Feign 调用，`smart-upms-biz.yml` 的
+    `security.inner.service-token.*` 必须注入 **UPMS 独立 client_credentials** 客户端的真实值；该客户端只能拥有
+    `client_credentials` 的 `server` scope，且不得复用终端用户 OAuth 资源或 Auth、Platform、App 的客户端。发布前在隔离
+    环境以同一 UPMS 镜像与受管密钥验证取 token 和目标 Feign 调用成功；变量为空、错误 scope 或客户端不独立均阻断发布。
+
+## `security.inner.mode=ENFORCE` 后置收口
+
+仅在上述服务 OAuth 硬门槛、兼容代码灰度和单 Data ID Nacos 精确收口均通过后，才允许从 `AUDIT` 切换 `ENFORCE`。`ENFORCE` 只负责对 `@Inner` 端点执行内部调用语义的硬拒绝；它不负责准备服务 OAuth 客户端、注入密钥或验证 token。
+
+## UPMS 用户资料接口分阶段切换
+
+为避免认证、Platform 或 App 在滚动发布期间中断，按以下不可跳过的顺序执行：
+
+1. 先在隔离环境登记 `SMART_AUTH`、`SMART_PLATFORM`、`SMART_APP` 三个独立 client_credentials 客户端，并以对应服务令牌验证 `/internal/user/**` 的 client_id、`server` scope 与 purpose 均匹配；错误 client、用户 token、错误 purpose 必须拒绝。
+2. 发布 UPMS 兼容镜像：新 `/internal/user/**` 已可用，旧 `/api/user/**` 只作为短期观测兼容路径；Nacos 不得再匿名放行旧路径。记录每个旧路径 QPS、调用方服务和响应码。
+3. 依次灰度并全量发布 `smart-auth`、Platform、App 的新 Feign 契约；每批发布后验证登录、手机验证码、组织管理员、员工离职和手机号同步。任何服务令牌失败只能回滚该调用方镜像或 Nacos 历史版本，不能恢复通配匿名白名单。
+4. 旧路径连续一个完整业务观察窗口 QPS 为零、无未知调用方，且新路径探针均通过后，发布最终 UPMS 镜像删除 `/api/user/**`、`/social/info/**` 与旧 Feign 契约。本分支的最终代码对应此阶段。
+
+若第 2 步发现仓外调用方，停止第 4 步，先为该调用方实现最小 DTO、专属 client_id 和 purpose；不得以保留完整 `UserInfo` 响应作为兼容方案。
+
+## App 离职园区归属迁移门禁
+
+本分支的离职自助链路已改为由认证员工的园区集合决定归属：单园区自动派生，多园区必须由当前 App/UniApp 选择一个园区，且 Platform 以认证园区集合二次校验。浏览器或 App 本地存储中的 `parkId` 只是候选值，绝不构成授权依据。
+
+历史记录和旧入口可能已经写入 `SMT_LEAVE_APPLICATION.PARK_ID IS NULL`。生产数量、来源字段和可可靠映射关系在本地均为 **UNVERIFIED**。在完成下列步骤前，不得发布会启用该新读写边界的 App/Platform 镜像，也不得用默认园区或当前登录园区猜测回填：
+
+1. 经生产数据负责人授权后，先执行只读盘点：按创建时间、来源入口、流程状态统计 `PARK_ID IS NULL`，并抽样核对是否存在可审计的一对一来源（申请人组织/宿舍/流程表）可推导园区。
+2. 仅对存在唯一、可复核来源的记录生成带主键、来源证据、目标园区、操作者和时间的回填清单；无法唯一映射的记录保持隔离，交由业务人工归属，禁止批量默认值。
+3. 在备份、事务回滚脚本和双人复核齐备的预发副本演练回填；验证回填前后数量守恒、园区权限查询、审批流及审计日志。生产执行必须先取得单独授权，并保留影响行数与回滚版本，不在本地代码任务中执行。
+4. 旧 `/leave/application/save` 与五个旧 `/leave/handover/**` 路由在源码中已默认拒绝；若确有盘点确认的短期仓外调用方，必须先为其登记独立 `client_id`、精确 purpose、员工和园区上下文，再在单个灰度实例显式打开兼容开关。任意泛 `server` 客户端、缺少 purpose、缺少园区或对象归属不匹配均必须拒绝。迁移到受控内部入口后删除兼容开关和旧契约；不得以开启泛内部访问替代迁移。
+5. 发布验收同时覆盖：单园区自动提交、多园区选择、篡改本地园区返回 403、历史空园区记录不越权可见，以及回填记录仅对所属园区用户可见。
+
+## 当前前端与运行时发布门禁
+
+1. 当前维护的 `smart-h5` 已迁移访问能力令牌与最小响应契约；旧 `smart-h5-vue2` 已下线，不纳入发布。必须在预发可用的 Chromium/Playwright Runner 完成 H5 端到端回归。本地运行环境曾因文件监听资源上限无法启动 E2E，这不是通过证据。
+2. `smart-app-uniapp` 无独立 CLI 构建链；除已通过的静态契约测试外，必须在 HBuilderX/目标设备完成编译和离职多园区回归，确认选择园区、返回页面刷新和提交失败提示均正常。
+3. 访客通行码仅允许当前认证申请人读取已批准且有效的最小码信息。若生产业务仍要求非当前实现允许的历史状态（例如已完成状态）展示二维码，必须先作出产品决定、补充服务端授权测试和前端验收；不得通过扩大匿名或对象查询权限解决。
+4. 微信 OAuth 第三方协议的实际生产参数和网关对内部头的剥离策略均未在本地读取。上线前由运维在不暴露密钥的条件下验证：外网伪造内部头被拒绝、合法 OAuth 回调成功、日志中无完整第三方响应或个人信息。
+
+## 回滚规则
+
+回滚优先级为：当前调用方镜像 → 当前 Data ID 历史版本 → 灰度实例下线。禁止通过恢复 `/staff/**`、`/articlesrelease/**`、`/api/**` 或 `/**` 解决故障。若必须临时恢复兼容，恢复的是上一版“认证 + 最小字段”的精确路由配置。

@@ -4,6 +4,8 @@ import com.tce.smart.algorithm.api.dto.resp.FaceFeaturesDTO;
 import com.tce.smart.algorithm.service.IFaceService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import io.swagger.annotations.Api;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,8 @@ public class FaceController extends BaseController {
 	 * @return
 	 */
 	@PostMapping("/featuresExtract")
+	@Inner
+	@OpenApi("server")
 	public Result<FaceFeaturesDTO> featuresExtract(@RequestBody String base64Face){
 		FaceFeaturesDTO faceFeaturesInfo = null;
 		try {

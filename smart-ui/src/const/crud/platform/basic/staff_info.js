@@ -99,7 +99,7 @@ export const tableOption = {
     },
     {
       label: '是否有照片',
-      prop: 'facePicId',
+      prop: 'hasFace',
       type: 'select',
       solt: true
     },

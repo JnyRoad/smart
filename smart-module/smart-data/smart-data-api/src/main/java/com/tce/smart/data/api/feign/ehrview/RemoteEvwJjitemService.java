@@ -26,6 +26,7 @@ public interface RemoteEvwJjitemService {
 	 */
 	@GetMapping("/jjitem/{ezid}")
 	Result<List<EvwJjitemRespDTO>>  info(@PathVariable("ezid") Integer ezid,
-										 @RequestHeader(SecurityConstants.FROM) String from);
+										 @RequestHeader(SecurityConstants.FROM) String from,
+										 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

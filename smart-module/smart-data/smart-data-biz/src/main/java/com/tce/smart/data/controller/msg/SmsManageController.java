@@ -1,6 +1,8 @@
 package com.tce.smart.data.controller.msg;
 
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.msg.req.*;
 import com.tce.smart.data.api.vo.msg.SendSmsVo;
 import org.springframework.web.bind.annotation.*;
@@ -31,7 +33,9 @@ public class SmsManageController extends BaseController {
 	 * @param appointmentMsgAo 访客预约短信Ao
 	 * @return Result
 	 */
-	@PostMapping("/send/appointment")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/appointment")
 	public Result<SendSmsVo> sendAppointmentSms(@RequestBody AppointmentMsgReqDTO appointmentMsgAo) {
 		return success(smsManageService.sendAppointmentSms(appointmentMsgAo));
 	}
@@ -42,7 +46,9 @@ public class SmsManageController extends BaseController {
 	 * @param appointmentMsgAo 访客预约短信Ao
 	 * @return Result
 	 */
-	@PostMapping("/send/visitor/proxy")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/visitor/proxy")
 	public Result<SendSmsVo> sendVisitorProxySms(@RequestBody AppointmentMsgReqDTO appointmentMsgAo) {
 		return success(smsManageService.sendVisitorProxySms(appointmentMsgAo));
 	}
@@ -53,7 +59,9 @@ public class SmsManageController extends BaseController {
 	 * @param recruitMsgAo 招聘通知短信Ao
 	 * @return Result
 	 */
-	@PostMapping("/send/recruit")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/recruit")
 	public Result<SendSmsVo> sendRecruitSms(@RequestBody RecruitMsgReqDTO recruitMsgAo) {
 		return success(smsManageService.sendRecruitSms(recruitMsgAo));
 	}
@@ -64,8 +72,10 @@ public class SmsManageController extends BaseController {
 	 * @param dimissionMsgAo 离职通知短信Ao
 	 * @return Result
 	 */
-	@PostMapping("/send/dimission")
-	public Result<SendSmsVo> sendRecruitSms(@RequestBody DimissionMsgReqDTO dimissionMsgAo) {
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/dimission")
+	public Result<SendSmsVo> sendDimissionSms(@RequestBody DimissionMsgReqDTO dimissionMsgAo) {
 		return success(smsManageService.sendDimissionSms(dimissionMsgAo));
 	}
 
@@ -75,7 +85,9 @@ public class SmsManageController extends BaseController {
 	 * @param guardMsgAo 物流车预约通知短信Ao
 	 * @return Result
 	 */
-	@PostMapping("/send/guard")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/guard")
 	public Result<SendSmsVo> sendGuardSms(@RequestBody GuardMsgReqDTO guardMsgAo) {
 		return success(smsManageService.sendGuardSms(guardMsgAo));
 	}
@@ -86,7 +98,9 @@ public class SmsManageController extends BaseController {
 	 * @param smsCodeMsgAo 离职通知短信Ao
 	 * @return Result
 	 */
-	@PostMapping("/send/smsCode")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/smsCode")
 	public Result<SendSmsVo> sendSmsCode(@RequestBody SendSmsCodeMsgReqDTO smsCodeMsgAo) {
 		return success(smsManageService.sendSmsCode(smsCodeMsgAo));
 	}
@@ -96,7 +110,9 @@ public class SmsManageController extends BaseController {
 	 * @param sendSmsErrorAo 错误内容
 	 * @return
 	 */
-	@PostMapping("/send/smsError")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/smsError")
 	public Result<SendSmsVo> sendSmsError(@RequestBody SendSmsErrorReqDTO sendSmsErrorAo) {
 		return success(smsManageService.sendSmsError(sendSmsErrorAo));
 	}
@@ -106,7 +122,9 @@ public class SmsManageController extends BaseController {
 	 * @param req
 	 * @return
 	 */
-	@PostMapping("/send/badge/agree")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/badge/agree")
 	public Result<SendSmsVo> sendBadgeAgree(@RequestBody BadgeAgreeMsgReqDTO req) {
 		return success(smsManageService.sendBadgeAgree(req));
 	}
@@ -116,7 +134,9 @@ public class SmsManageController extends BaseController {
 	 * @param req
 	 * @return
 	 */
-	@PostMapping("/send/badge/refuse")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/badge/refuse")
 	public Result<SendSmsVo> sendBadgeRefuse(@RequestBody BadgeRefuseMsgReqDTO req) {
 		return success(smsManageService.sendBadgeRefuse(req));
 	}
@@ -126,7 +146,9 @@ public class SmsManageController extends BaseController {
 	 * @param signMsgReqDTO
 	 * @return
 	 */
-	@GetMapping("/send/attendance/sign")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/attendance/sign")
 	public Result sendAttendanceSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO) {
 		return success(smsManageService.sendAttendanceSign(signMsgReqDTO));
 	}
@@ -136,7 +158,9 @@ public class SmsManageController extends BaseController {
 	 * @param signMsgReqDTO
 	 * @return
 	 */
-	@GetMapping("/send/wage/sign")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/wage/sign")
 	public Result sendWageSign(@RequestBody List<SignMsgReqDTO> signMsgReqDTO) {
 		return success(smsManageService.sendWageSign(signMsgReqDTO));
 	}
@@ -146,12 +170,16 @@ public class SmsManageController extends BaseController {
 	 * @param articlesReleaseMsgReqDTO
 	 * @return
 	 */
-	@GetMapping("/send/articlesrelease/smscode")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/articlesrelease/smscode")
 	public Result sendArticlesRelease(@RequestBody ArticlesReleaseMsgReqDTO articlesReleaseMsgReqDTO) {
 		return success(smsManageService.sendArticlesRelease(articlesReleaseMsgReqDTO));
 	}
 
-	@GetMapping("/send/msg")
+	@Inner
+	@OpenApi("server")
+	@PostMapping("/internal/send/msg")
 	public Result sendMessage(@RequestBody SendMsgReqDTO reqDTO) {
 		return success(smsManageService.sendMessage(reqDTO));
 	}

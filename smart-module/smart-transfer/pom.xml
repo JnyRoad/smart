@@ -12,6 +12,16 @@
 	<artifactId>smart-transfer</artifactId>
 
 	<dependencies>
+		<!-- 算法内部 Feign 契约：人脸图片不得再调用外部匿名地址。 -->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-algorithm-api</artifactId>
+		</dependency>
+		<!-- 提供受服务令牌保护的 Feign 拦截器。 -->
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-common-security</artifactId>
+		</dependency>
 		<!--web 模块-->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

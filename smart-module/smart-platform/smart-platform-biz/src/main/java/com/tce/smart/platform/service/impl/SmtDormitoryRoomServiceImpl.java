@@ -22,6 +22,7 @@ import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.req.AutoAllotRoomReqDTO;
 import com.tce.smart.platform.api.dto.req.DormitoryBedReqDTO;
+import com.tce.smart.platform.api.dto.req.SelfCheckInReqDTO;
 import com.tce.smart.platform.api.dto.req.dormitorymange.*;
 import com.tce.smart.platform.api.dto.resp.*;
 import com.tce.smart.platform.api.dto.resp.dormitorymange.*;
@@ -61,6 +62,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -497,6 +499,29 @@ public class SmtDormitoryRoomServiceImpl extends ServiceImpl<SmtDormitoryRoomMap
 			throw new SmartException("无可用床位");
 		}
 		return dormitoryQuickStaffRespDTOS;
+	}
+
+	@Override
+	public List<DormitoryQuickStaffRespDTO> autoAllotForAuthenticatedStaff(String badge,
+			SelfCheckInReqDTO request, SmtDormitoryBedService smtDormitoryBedService) {
+		SmtStaff staff = smtStaffService.getActiveStaffByBadge(badge);
+		if (staff == null || StrUtil.isBlank(staff.getCertno()) || !Objects.equals(badge, staff.getBadge())) {
+			throw new AccessDeniedException("当前认证用户没有可用的员工身份");
+		}
+
+		AutoAllotRoomReqDTO serverRequest = new AutoAllotRoomReqDTO();
+		serverRequest.setParkId(request.getParkId());
+		serverRequest.setDormitoryId(request.getDormitoryId());
+		serverRequest.setFloorId(request.getFloorId());
+		serverRequest.setRoomId(request.getRoomId());
+		serverRequest.setBedId(request.getBedId());
+		serverRequest.setRoomType(request.getRoomType());
+		// 员工身份和性别一律以服务端在职档案为准，不能相信浏览器传值。
+		serverRequest.setBadge(staff.getBadge());
+		serverRequest.setCertno(staff.getCertno());
+		serverRequest.setName(staff.getName());
+		serverRequest.setSex(staff.getSex());
+		return autoAllot(serverRequest, smtDormitoryBedService);
 	}
 
 	@Override

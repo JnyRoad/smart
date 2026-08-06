@@ -8,6 +8,7 @@ import com.tce.smart.bridge.isc.service.HandleService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
@@ -37,12 +38,15 @@ public class BridgeISCController extends BaseController {
 	private final HBaseFileService hBaseFileService;
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("业务分发")
 	@PostMapping("/dispatch")
 	public <T> Result dispatch(@RequestBody BridgeDTO<T> bridgeDTO) {
 		return success(bridgeISCService.dispatch(bridgeDTO));
 	}
 
+	@Inner
+	@OpenApi("server")
 	@ApiOperation("ISC事件处理")
 	@PostMapping("/handle")
 	public <T> Result handle(@RequestBody String eventData) {
@@ -50,6 +54,7 @@ public class BridgeISCController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("查询图片")
 	@PostMapping("/image")
 	public Result getImage(@RequestBody ImageDTO imageDTO){
@@ -57,6 +62,7 @@ public class BridgeISCController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("查询缩略图")
 	@PostMapping("/thumbnail")
 	public Result getThumbnail(@RequestBody ImageDTO imageDTO){

@@ -34,13 +34,13 @@ describe('buildWorkSubmitBody（旧 index.vue:213-272 组装事实）', () => {
   it('人员放行分支：personList 组装（lcDate 拆 lcrq/lcsj），thingList 为空数组', () => {
     const body = buildWorkSubmitBody({
       applyMain: APPLY_MAIN,
-      badge: 'YT1',
+		releaseId: 17,
       parkId: 5000021,
       persons: [PERSON],
       goods: [GOOD],
     })
     expect(body.applyMain).toEqual(APPLY_MAIN)
-    expect(body.badge).toBe('YT1')
+		expect(body.releaseId).toBe(17)
     expect(body.parkId).toBe(5000021)
     expect(body.status).toBe(1)
     expect(body.personList).toEqual([
@@ -52,7 +52,7 @@ describe('buildWorkSubmitBody（旧 index.vue:213-272 组装事实）', () => {
   it('物品放行分支：thingList 组装（fxrq 取日期段），personList 为空数组', () => {
     const body = buildWorkSubmitBody({
       applyMain: { ...APPLY_MAIN, fxsx: 1 },
-      badge: 'YT1',
+		releaseId: 17,
       parkId: 5000021,
       persons: [PERSON],
       goods: [GOOD],
@@ -78,7 +78,7 @@ describe('buildWorkSubmitBody（旧 index.vue:213-272 组装事实）', () => {
   it('fxsx=7（出差人员放行）也走人员分支', () => {
     const body = buildWorkSubmitBody({
       applyMain: { ...APPLY_MAIN, fxsx: 7 },
-      badge: 'YT1',
+		releaseId: 17,
       parkId: 5000021,
       persons: [PERSON],
       goods: [],

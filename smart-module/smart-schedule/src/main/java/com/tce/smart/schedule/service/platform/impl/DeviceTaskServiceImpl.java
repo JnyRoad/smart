@@ -20,6 +20,7 @@ import com.tce.smart.dispatcher.api.dto.req.DispatcherDTO;
 import com.tce.smart.dispatcher.api.enums.EventEnum;
 import com.tce.smart.dispatcher.api.feign.RemoteDispatcherService;
 import com.tce.smart.platform.api.dto.*;
+import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.platform.core.entity.SmtDevice;
 import com.tce.smart.platform.core.entity.SmtDeviceTask;
@@ -298,7 +299,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setDeviceId(carCardDTO.getDeviceCode());
 		dispatcherDTO.setData(carCardDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		DateTime end = DateUtil.date();
 		if (null != result && null != result.getData()) {
 			JSONObject object = JSONUtil.parseObj(result.getData());
@@ -401,7 +403,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setDeviceId(carCardDelDTO.getDeviceCode());
 		dispatcherDTO.setData(carCardDelDTO);
 		//这里需要主要 result的code=0表示成功 和 DeviceTaskEnum.DEVICE_OK 不一致
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (result.isSuccess()) {
 			JSONObject object = JSONUtil.parseObj(result.getData());
 			smtDeviceTask.setCode(object.getInt("code"));
@@ -472,7 +475,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		String base64Img = smtImageService.getImageBase64ByCode(smtDeviceTask.getImageId());
 		cardDTO.setFaceImage(base64Img);
 		cardDTO.setCardNo(smtDeviceTask.getCardNo());
-		Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffById(smtDeviceTask.getCardNo(), SecurityConstants.FROM_IN);
+		Result<InternalScheduleStaffIdentityRespDTO> staffInfo = remoteStaffService.getScheduleIdentityStaff(smtDeviceTask.getCardNo(),
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if (staffInfo.isSuccess() && Objects.nonNull(staffInfo.getData()) && staffInfo.getData().getStatus() != -1) {
 			String badge = staffInfo.getData().getBadge();
 			if (NumberUtil.isNumber(badge)) {
@@ -507,7 +511,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		DateTime start = DateUtil.date();
 		// 园区分发
 		dispatcherDTO.setData(cardDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		//Result(code=0, msg=success, data=true)
 		DateTime end = DateUtil.date();
 		boolean flag = this.downCardResultHandle(smtDeviceTask.getId(), result, DateUtil.betweenMs(start, end));
@@ -543,7 +548,8 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setDeviceId(cardDelDTO.getDeviceCode());
 		dispatcherDTO.setData(cardDelDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		DateTime end = DateUtil.date();
 		boolean flag = this.delCardResultHandle(smtDeviceTask.getId(), result, DateUtil.betweenMs(start, end));
 		log.info("状态修改-卡片人员删除，修改时间：{}，请求参数：id：{}，result.code：{},返回结果：{}", DateUtil.formatDateTime(DateUtil.date()), smtDeviceTask.getId(), result.getCode(), flag);

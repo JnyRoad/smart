@@ -24,6 +24,7 @@ public interface RemoteLvwAyearholidayService {
 	 */
 	@GetMapping("/year/holiday/info")
     Result<LvwAyearholidayRespDTO> info(@RequestParam("badge") String badge,
-										@RequestHeader(SecurityConstants.FROM) String from);
+										@RequestHeader(SecurityConstants.FROM) String from,
+										@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

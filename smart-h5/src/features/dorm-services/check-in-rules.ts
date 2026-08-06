@@ -1,4 +1,4 @@
-import type { BedItem, ParkTreeNode, StaffIdentity } from './api'
+import type { BedItem, ParkTreeNode, SelfCheckInRequest } from './api'
 
 /**
  * Occupied beds and soft-deleted beds (delFlag=1) are not selectable. The
@@ -15,20 +15,16 @@ export function floorsFromConditionTree(data: ParkTreeNode[] | undefined): ParkT
 }
 
 /**
- * Maps the raw /staff/define/badge shape onto the autoallot submit keys
- * (birth→birthday, homeAddress→address, validDate/validDateFm→start/end).
+ * 入住请求只保留用户可选择的宿舍资源；员工身份资料由服务端按认证主体回填。
  */
-export function identityToSubmitFields(user: StaffIdentity): Record<string, unknown> {
+export function checkInSelectionToSubmit(selection: SelfCheckInRequest): SelfCheckInRequest {
   return {
-    name: user.name,
-    sex: user.sex,
-    nation: user.nation,
-    certno: user.certno,
-    birthday: user.birth,
-    address: user.homeAddress,
-    signOrg: null,
-    validDateStart: user.validDate,
-    validDateEnd: user.validDateFm,
+    parkId: selection.parkId,
+    dormitoryId: selection.dormitoryId,
+    roomType: selection.roomType,
+    ...(selection.floorId !== undefined ? { floorId: selection.floorId } : {}),
+    ...(selection.roomId !== undefined ? { roomId: selection.roomId } : {}),
+    ...(selection.bedId !== undefined ? { bedId: selection.bedId } : {}),
   }
 }
 

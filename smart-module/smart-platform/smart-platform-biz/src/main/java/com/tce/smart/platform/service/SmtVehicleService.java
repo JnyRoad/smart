@@ -150,12 +150,11 @@ public interface SmtVehicleService extends IService<SmtVehicle> {
 	/**
 	 * 车辆获取园区的信息
 	 * @param parkId
-	 * @param vehiclePlate
-	 * @param isDelete
+	 * @param vehicleId 已完成归属校验的车辆 ID
 	 * @param status
 	 * @return
 	 */
-	int getApplyVehicle(Integer parkId,String vehiclePlate,Integer isDelete,Integer status);
+	int getApplyVehicle(Integer parkId, Long vehicleId, Integer status);
 
 	/**
 	 * 非员工车辆更新

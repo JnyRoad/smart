@@ -77,9 +77,7 @@ export function securityUpdateRelease(data: {
   guardTwoImg: string
   guardThreeImg: string
   id: string | number
-  parkId: number
   status: 4 | 5
-  badge: string
   remark?: string
 }): Promise<Envelope<unknown>> {
   return request({

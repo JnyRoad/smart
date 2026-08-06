@@ -52,6 +52,7 @@
             <select id="getLeaveApplicationByProcessId" parameterType="String" resultType="com.tce.smart.platform.core.entity.SmtLeaveApplication">
                 SELECT
                     SLA. ID,
+					SLA.PARK_ID,
                     SLA.BADGE,
                     SLA. NAME,
                     SLA.COMP_NAME,
@@ -145,8 +146,14 @@
 				                    SMT_LEAVE_APPLICATION SLA
 				                LEFT JOIN SMT_PROCESS_RECORD SPR ON SLA.PROCESS_ID = SPR.PROCESS_ID
 				                WHERE
-				                    SLA.APPLY_BADGE = #{badge}
-				                    AND SLA.LEAVE_STATUS = #{leaveStatus}
+					SLA.APPLY_BADGE = #{badge}
+						AND SLA.LEAVE_STATUS = #{leaveStatus}
+						<if test="parkIds != null and parkIds.size > 0">
+							AND SLA.PARK_ID IN
+							<foreach collection="parkIds" item="parkId" open="(" close=")" separator=",">
+								#{parkId}
+							</foreach>
+						</if>
 <!-- 												ORDER BY SLA.CREATE_TIME DESC -->
 				            ) SPRF
 				    ) V_SPR

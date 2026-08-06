@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwBizLdxregLeaveRegisterRespDTO;
 import com.tce.smart.ehrview.core.entity.EvwBizLdxregLeaveRegister;
 import com.tce.smart.ehrview.core.service.IEvwBizLdxregLeaveRegisterService;
@@ -32,6 +33,7 @@ public class EvwBizLdxregLeaveRegisterController  extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/list")
 	public Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth){
 		List<EvwBizLdxregLeaveRegister> evwBizLdxregLeaveRegisterList = iEvwBizLdxregLeaveRegisterService.list(badge, queryMonth);
@@ -39,6 +41,7 @@ public class EvwBizLdxregLeaveRegisterController  extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/detail")
 	public Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginTime") String beginTime){
 		EvwBizLdxregLeaveRegister evwBizLdxregLeaveRegister = iEvwBizLdxregLeaveRegisterService.getOne(Wrappers.<EvwBizLdxregLeaveRegister>query().lambda()

@@ -48,12 +48,18 @@ public interface VisitorService {
 	 */
 	VisitorDetailVo getVisitorListDeatil(VisitorIdAo visitorId);
 
+	/** App 已登录用户查看本人关联的预约详情。 */
+	VisitorDetailVo getAppVisitorListDetail(VisitorIdAo visitorId);
+
 	/**
 	 * 获取随行人员的详情
 	 * @param visitorId
 	 * @return
 	 */
 	MemberVo getMemberListDeatil(VisitorIdAo visitorId);
+
+	/** App 已登录用户查看本人关联预约的随行人员。 */
+	MemberVo getAppMemberListDetail(VisitorIdAo visitorId);
 
 	/**
 	 * 添加访客信息
@@ -113,7 +119,7 @@ public interface VisitorService {
 	 * @param checkFaceAo
 	 * @return
 	 */
-	PhotoVisitorVo checkFace(CheckFaceAo checkFaceAo);
+	PhotoVisitorVo checkFace(CheckFaceAo checkFaceAo, String capability, String draftId);
 
 	/**
 	 * 获取图片base64
@@ -125,7 +131,7 @@ public interface VisitorService {
 	Boolean addCheck(AddVisitorAo addVisitorAo);
 
 
-	Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo);
+	Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo, String capability, String draftId);
 
 	Result getVisitorRefuseType();
 

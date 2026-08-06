@@ -1,7 +1,7 @@
 package com.tce.smart.app.service.fore.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.admin.api.feign.RemoteDictService;
@@ -30,15 +30,15 @@ import com.tce.smart.data.api.feign.consume.RemoteRsEmpPhotoService;
 import com.tce.smart.data.api.feign.dhrview.RemoteYutoDhrYsService;
 import com.tce.smart.data.api.feign.ehrview.RemoteEvwEmphrYsService;
 import com.tce.smart.platform.api.dto.SmtOutDormitoryStaffDTO;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.req.InDormitoryReqDTO;
 import com.tce.smart.platform.api.dto.req.StaffEmergencyReqDTO;
 import com.tce.smart.platform.api.dto.req.StaffPerfectReqDTO;
 import com.tce.smart.platform.api.dto.resp.MyDormitoryRespDTO;
-import com.tce.smart.platform.api.dto.resp.StaffInfoRespDTO;
+import com.tce.smart.platform.api.dto.resp.InternalStaffSelfProfileRespDTO;
 import com.tce.smart.platform.api.feign.RemoteCallowanceCancelRecordService;
 import com.tce.smart.platform.api.feign.RemoteOutDormitoryStaffService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
+import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import com.tce.smart.tool.constant.DictConstants;
 import com.tce.smart.tool.enums.*;
 import com.tce.smart.tool.exception.TCEException;
@@ -64,6 +64,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Autowired
 	private RemoteStaffService remoteStaff;
+
+	@Autowired
+	private RemoteStaffInternalService remoteStaffInternalService;
 
 	@Autowired
 	private RemoteDictService remoteDictService;
@@ -101,38 +104,36 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public EmployeeVo getBaseinfo(String badge) {
 		// 获取员工号
-		if (StringUtils.isBlank(badge)) {
-			badge = SecurityUtils.getUser().getUsername();
-		}
-		// 远程调用获取员工基本信息
-		StaffInfoRespDTO staff = remoteStaff.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN).data();
+		badge = requireSelfBadge(badge);
+		InternalStaffSelfProfileRespDTO staff = selfProfile(badge);
 
 		EmployeeVo employeeVo = new EmployeeVo();
-		employeeVo.setEmployeeBadge(staff.getSmtStaff().getBadge());
-		employeeVo.setEmployeeName(staff.getSmtStaff().getName());
-		employeeVo.setMobile(staff.getSmtStaff().getPhone());
-		employeeVo.setEmployeeSex(staff.getSmtStaff().getSex());
-		employeeVo.setBuName(staff.getSmtStaff().getCompName());
-		employeeVo.setDeptName(staff.getSmtStaff().getDepName());
-		employeeVo.setJobName(staff.getSmtStaff().getJobName());
+		employeeVo.setEmployeeBadge(staff.getBadge());
+		employeeVo.setEmployeeName(staff.getName());
+		employeeVo.setMobile(staff.getPhone());
+		employeeVo.setEmployeeSex(staff.getSex());
+		employeeVo.setBuName(staff.getCompName());
+		employeeVo.setDeptName(staff.getDepName());
+		employeeVo.setJobName(staff.getJobName());
 		employeeVo.setIsSecurityGuard(employeeVo.getJobName() != null && employeeVo.getJobName().contains("保安") ? 0 : 1);
-		employeeVo.setEmployeePhoto(appCommService.buildHqImageUrl(staff.getSmtStaff().getFacePicId()));
-		employeeVo.setEntryDate(staff.getSmtStaff().getCreateTime());
+		employeeVo.setEmployeePhoto(appCommService.buildHqImageUrl(staff.getFacePicId()));
+		employeeVo.setEntryDate(staff.getCreateTime());
 		employeeVo.setParkName(staff.getParkName());
 		employeeVo.setDormitoryState(Objects.nonNull(staff.getDormitoryState()) ? String.valueOf(staff.getDormitoryState()) : null);
 		employeeVo.setDormitoryStateDesc(staff.getDormitoryStateDesc());
 		employeeVo.setVehicleState(staff.getVehicleState().toString());
 		employeeVo.setVehicleStateDesc(staff.getVehicleStateDesc());
 		employeeVo.setStatus(staff.getStatus());
-		employeeVo.setJcheName(staff.getSmtStaff().getJcheName());
+		employeeVo.setJcheName(staff.getJcheName());
 		employeeVo.setStatusDes(staff.getStatusDes());
-		employeeVo.setEmployeeCardNo(staff.getSmtStaff().getCertno());
+		employeeVo.setEmployeeCardNo(staff.getCertno());
 		employeeVo.setEmpType(staff.getEmpType());
 		employeeVo.setEmpTypeDes(staff.getEmpTypeDes());
 		employeeVo.setApplyState(staff.getApplyState());
-		employeeVo.setWelfareLevel(staff.getSmtStaff().getWelfareLevel());
+		employeeVo.setWelfareLevel(staff.getWelfareLevel());
 		employeeVo.setApplyStateDesc(staff.getApplyStateDesc());
-		Result<String> attribute = remoteYutoDhrYsService.getProperties(employeeVo.getEmployeeBadge(), SecurityConstants.FROM_IN);
+		Result<String> attribute = remoteYutoDhrYsService.getProperties(employeeVo.getEmployeeBadge(), SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		if(Objects.nonNull(attribute.getData())) {
 			employeeVo.setEmpAttribute(attribute.getData());
 		}
@@ -146,44 +147,41 @@ public class EmployeeServiceImpl implements EmployeeService {
 	public EmployeeInfoVo getFullinfo(String badge) {
 		// TODO Auto-generated method stub
 		// 获取员工号
-		if (StringUtils.isBlank(badge)) {
-			badge = SecurityUtils.getUser().getUsername();
-		}
-		StaffInfoRespDTO staffVo = remoteStaff.getFullByBadge(badge, SecurityConstants.FROM_IN).data();
+		badge = requireSelfBadge(badge);
+		InternalStaffSelfProfileRespDTO staffVo = selfProfile(badge);
 		List<SysDict> findByType = remoteDictService.findByType(DictConstants.REALTION_TYPE, SecurityConstants.FROM_IN).data();
 
-		SmtStaffDTO staff = staffVo.getSmtStaff();
 		EmployeeInfoVo emp = new EmployeeInfoVo();
-		emp.setEmployeeId(staff.getBadge());
-		emp.setEmployeeName(staff.getName());
-		emp.setIdentification(staff.getCertno());
+		emp.setEmployeeId(staffVo.getBadge());
+		emp.setEmployeeName(staffVo.getName());
+		emp.setIdentification(staffVo.getCertno());
 		emp.setEmployeePhoto(ImageUtils.changeFullBase64(staffVo.getFacePic()));
-		emp.setBuName(staff.getCompName());
-		emp.setDeptName(staff.getDepName());
-		emp.setJobName(staff.getJobName());
-		emp.setJobLeve(staff.getJcheName());
-		emp.setMobile(staff.getPhone());
-		emp.setEmail(staff.getEmail());
-		emp.setEmpType(staff.getEmpType());
+		emp.setBuName(staffVo.getCompName());
+		emp.setDeptName(staffVo.getDepName());
+		emp.setJobName(staffVo.getJobName());
+		emp.setJobLeve(staffVo.getJcheName());
+		emp.setMobile(staffVo.getPhone());
+		emp.setEmail(staffVo.getEmail());
+		emp.setEmpType(staffVo.getEmpType());
 		emp.setParkName(staffVo.getParkName());
 		emp.setEmpTypeDes("");
 		if (Objects.nonNull(emp.getEmpType())) {
 			emp.setEmpTypeDes(EmpTypeEnum.desc(emp.getEmpType()));
 		}
-		emp.setJobLevelflag(staff.getWelfareLevel());
-		if (CollectionUtils.isNotEmpty(staffVo.getSmtStaffEmergency())) {
+		emp.setJobLevelflag(staffVo.getWelfareLevel());
+		if (StringUtils.isNotBlank(staffVo.getEmergencyName())) {
 			if (CollectionUtils.isNotEmpty(findByType)) {
 				for (SysDict sysDict : findByType) {
-					if (staffVo.getSmtStaffEmergency().get(0).getRelation().equals(sysDict.getValue())) {
+					if (staffVo.getEmergencyRelation().equals(sysDict.getValue())) {
 						emp.setRelation(sysDict.getLabel());
 						break;
 					}
 				}
 			}
-			emp.setEmergencyName(staffVo.getSmtStaffEmergency().get(0).getEmergencyName());
-			emp.setEmergencyPhone(staffVo.getSmtStaffEmergency().get(0).getTelephont());
+			emp.setEmergencyName(staffVo.getEmergencyName());
+			emp.setEmergencyPhone(staffVo.getEmergencyPhone());
 		}
-		emp.setEntryDate(staff.getCreateTime());
+		emp.setEntryDate(staffVo.getCreateTime());
 		return emp;
 	}
 
@@ -211,7 +209,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 		em.setEmergencyPhone(relationAo.getEmergencyPhone());
 		em.setRelation(relationType);
 		Result result = remoteStaff.updateByBadge(em, SecurityConstants.FROM_IN);
-		log.info("修改紧急联系人: Badge={}, Relation={}, EmergencyName={}, Result={}", badge, em.getRelation(), em.getEmergencyName(), result.isSuccess());
+		log.info("修改紧急联系人完成 success={}", result.isSuccess());
 		return result;
 	}
 
@@ -226,7 +224,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 		inDormitoryDTO.setBedType(roomApplyVo.getBedType());
 		inDormitoryDTO.setParkId(roomApplyVo.getParkId());
 		Result result = remoteStaff.addInDormitory(inDormitoryDTO, SecurityConstants.FROM_IN);
-		log.info("员工申请内宿: Badge={}, Result={}", badge, result);
+		log.info("员工申请内宿完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -240,9 +238,12 @@ public class EmployeeServiceImpl implements EmployeeService {
 	public RoomDetailVo roomDetail() {
 		// TODO Auto-generated method stub
 		String badge = SecurityUtils.getUser().getUsername(); // 获取员工号
-		SmtStaffDTO staff = new SmtStaffDTO();
-		staff.setBadge(badge);
-		MyDormitoryRespDTO apply = remoteStaff.myDormitory(staff, SecurityConstants.FROM_IN).data();
+		Result<MyDormitoryRespDTO> dormitoryResult = remoteStaffInternalService.getMyDormitory(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "my-dormitory");
+		if (!dormitoryResult.isSuccess() || dormitoryResult.getData() == null) {
+			throw new TCEException("获取宿舍信息异常");
+		}
+		MyDormitoryRespDTO apply = dormitoryResult.getData();
 
 		RoomDetailVo vo = new RoomDetailVo();
 		vo.setBuildingName(apply.getDormitoryName());
@@ -285,12 +286,13 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result outRoomApply(SmtOutDormitoryStaffDTO outDormitory) {
-		if (StringUtils.isBlank(outDormitory.getStaffBadge())) {
-			String badge = SecurityUtils.getUser().getUsername();
-			outDormitory.setStaffBadge(badge);
+		if (outDormitory == null) {
+			throw new TCEException("外宿申请信息不能为空");
 		}
+		// 外宿申请只能以当前认证员工为主体，不能信任客户端提交的工号。
+		outDormitory.setStaffBadge(requireSelfBadge(null));
 		Result result = outDormitoryStaffService.addOutDormitory(outDormitory, SecurityConstants.FROM_IN);
-		log.info("申请外宿: Badge={}, Result={}", outDormitory.getStaffBadge(), result.isSuccess());
+		log.info("申请外宿完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -299,21 +301,17 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result getAllowance(String staffBadge, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = outDormitoryStaffService.getAllowance(staffBadge, type, SecurityConstants.FROM_IN);
-		log.info("获取补贴信息: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("获取补贴信息完成 success={}", result.isSuccess());
 		return result;
 	}
 
 	@Override
 	public Result outRoomDetaol(String staffBadge, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result<List<SmtOutDormitoryStaffDTO>> result = outDormitoryStaffService.getOutDormitoryInfo(staffBadge, type, SecurityConstants.FROM_IN);
-		log.info("外宿信息: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("外宿信息查询完成 success={}", result.isSuccess());
 
 		OutDormitoryVo vo = new OutDormitoryVo();
 		if (result.isSuccess()) {
@@ -345,7 +343,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 			throw new TCEException("设备编号为空");
 		}
 		String facePhoto = perfectInfoAo.getFacePhoto();
-		FaceFeaturesDTO faceFeaturesDTO = remoteAlgorithmService.getFaceFeatures(facePhoto, SecurityConstants.FROM_IN).data();
+		FaceFeaturesDTO faceFeaturesDTO = remoteAlgorithmService.getFaceFeatures(facePhoto, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
 		if (!StringUtil.isNullOrEmpty(faceFeaturesDTO.getFaceFeature())) {
 			// 更新人脸、身份证照片信息
 			String badge = SecurityUtils.getUser().getUsername();
@@ -421,39 +420,54 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public EmployeeSalayType getSalayType(String badge) {
 		EmployeeSalayType employeeSalayType = new EmployeeSalayType();
-		if (ObjectUtil.isNull(badge)) {
-			throw new TCEException("员工号缺失");
-		}
+		badge = requireSelfBadge(badge);
 		//临时人员不查询薪资
-		StaffInfoRespDTO staff = remoteStaff.getBaseinfoByBadge(badge, SecurityConstants.FROM_IN).data();
+		InternalStaffSelfProfileRespDTO staff = selfProfile(badge);
 		if(Objects.nonNull(staff)) {
 			if (staff.getStatus().equals(StaffStatusEnum.STAFF_STATUS_TEMPORARY.getCode())) {
 				return null;
 			}
 		}
-		EvwEmphrYsRespDTO data = remoteEvwEmphrYsService.info(badge, SecurityConstants.FROM_IN).get("员工信息不存在");
+		EvwEmphrYsRespDTO data = remoteEvwEmphrYsService.info(badge, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).get("员工信息不存在");
 		employeeSalayType.setBadge(badge);
 		employeeSalayType.setSalaryTypeName(data.getSalarytypeName());
 		return employeeSalayType;
 	}
 
+	/** 资料类接口只能查询当前认证员工，防止客户端替换工号越权读取。 */
+	private String requireSelfBadge(String requestedBadge) {
+		String currentBadge = SecurityUtils.getUser().getUsername();
+		if (StringUtils.isBlank(currentBadge)) {
+			throw new TCEException("当前登录员工信息缺失");
+		}
+		if (StringUtils.isNotBlank(requestedBadge) && !currentBadge.equals(requestedBadge)) {
+			throw new TCEException("无权查询其他员工资料");
+		}
+		return currentBadge;
+	}
+
+	private InternalStaffSelfProfileRespDTO selfProfile(String badge) {
+		Result<InternalStaffSelfProfileRespDTO> result = remoteStaffInternalService.getSelfProfile(badge,
+				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "self-profile");
+		if (!result.isSuccess() || result.getData() == null) {
+			throw new TCEException("获取员工信息异常");
+		}
+		return result.getData();
+	}
+
 	@Override
 	public Result outRoomApplyDetail(Integer id) {
 		Result result = outDormitoryStaffService.outRoomApplyDetail(id, SecurityConstants.FROM_IN);
-		log.info("获取外宿审批详情: StaffBadge={}, Result={}", id, result.isSuccess());
-		if (!result.isSuccess()) {
-			throw new TCEException(result.getMessage());
-		}
-		return result;
+		log.info("获取外宿审批详情完成 success={}", result != null && result.isSuccess());
+		return requireOwnedRecord(result, "staffBadge", "无权查看其他员工外宿记录");
 	}
 
 	@Override
 	public Result addCallowanceCancel(String staffBadge, String backDate, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteCallowanceCancelRecordService.save(staffBadge, backDate, type, SecurityConstants.FROM_IN);
-		log.info("外宿补贴撤销申请: StaffBadge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("外宿补贴撤销申请完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -462,11 +476,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result callowanceCancelList(String staffBadge) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteCallowanceCancelRecordService.get(staffBadge, SecurityConstants.FROM_IN);
-		log.info("外宿补贴撤销列表查询: StaffBadge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("外宿补贴撤销列表查询完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -476,20 +488,15 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public Result callowanceCancelDetail(Integer id) {
 		Result result = remoteCallowanceCancelRecordService.detail(id, SecurityConstants.FROM_IN);
-		log.info("外宿补贴撤销记录详情: Id={}, Result={}", id, result.isSuccess());
-		if (!result.isSuccess()) {
-			throw new TCEException(result.getMessage());
-		}
-		return result;
+		log.info("外宿补贴撤销记录详情: Id={}, Result={}", id, result != null && result.isSuccess());
+		return requireOwnedRecord(result, "badge", "无权查看其他员工外宿补贴记录");
 	}
 
 	@Override
 	public Result callowanceUInfo(String staffBadge, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteCallowanceCancelRecordService.getOutDormitory(staffBadge, type, SecurityConstants.FROM_IN);
-		log.info("查询员工外宿补贴信息: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("查询员工外宿补贴信息完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -498,11 +505,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result callowanceDetail(String staffBadge, Integer type) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteCallowanceCancelRecordService.callowanceDetail(staffBadge, type, SecurityConstants.FROM_IN);
-		log.info("查询外宿补贴详情: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("查询外宿补贴详情完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -511,11 +516,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result getFreeBed(Integer parkId, String staffBadge) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = remoteStaff.getJcheFreeBed(parkId, staffBadge, SecurityConstants.FROM_IN);
-		log.info("根据员工号查询空余床位: ParkId={}, Badge={}, Result={}", parkId, staffBadge, result.isSuccess());
+		log.info("查询空余床位完成 parkId={} success={}", parkId, result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -534,15 +537,13 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public Result outRoomList(Map<String, Object> params, String staffBadge) {
-		if (StringUtils.isBlank(staffBadge)) {
-			staffBadge = SecurityUtils.getUser().getUsername();
-		}
+		staffBadge = requireSelfBadge(staffBadge);
 		Result result = outDormitoryStaffService.getOutDormitoryPageList(
 				MapUtil.getInt(params, PaginationConstants.CURRENT),
 				MapUtil.getInt(params, PaginationConstants.SIZE),
 				staffBadge,
 				SecurityConstants.FROM_IN);
-		log.info("查询员工外宿列表: Badge={}, Result={}", staffBadge, result.isSuccess());
+		log.info("查询员工外宿列表完成 success={}", result.isSuccess());
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
@@ -552,22 +553,44 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public Result outRoomListDetail(Integer id) {
 		Result result = outDormitoryStaffService.getOutDormitoryDetailById(id, SecurityConstants.FROM_IN);
-		log.info("查询员工外宿详情: Id={}, Result={}", id, result.isSuccess());
-		if (!result.isSuccess()) {
-			throw new TCEException(result.getMessage());
-		}
-		return result;
+		log.info("查询员工外宿详情: Id={}, Result={}", id, result != null && result.isSuccess());
+		return requireOwnedRecord(result, "staffBadge", "无权查看其他员工外宿记录");
 	}
 
 
 	@Override
 	public Result outRoomDetailById(String recordId) {
 		Result result = outDormitoryStaffService.outRoomDetailById(recordId, SecurityConstants.FROM_IN);
-		log.info("查询房间详情: RecordId={}, Result={}", recordId, result.isSuccess());
-		if (!result.isSuccess()) {
-			throw new TCEException(result.getMessage());
+		log.info("查询房间详情: RecordId={}, Result={}", recordId, result != null && result.isSuccess());
+		return requireOwnedRecord(result, "staffBadge", "无权查看其他员工外宿记录");
+	}
+
+	/**
+	 * 详情接口必须从内部服务返回的归属字段确认记录属于当前员工；字段缺失也拒绝返回，
+	 * 兼容 Feign 反序列化后的 DTO 与 Map 两种载荷形态。
+	 */
+	private Result requireOwnedRecord(Result result, String ownerField, String deniedMessage) {
+		if (result == null || !result.isSuccess()) {
+			throw new TCEException(result == null ? "查询员工记录失败" : result.getMessage());
+		}
+		String currentBadge = requireSelfBadge(null);
+		String ownerBadge = extractOwnerBadge(result.getData(), ownerField);
+		if (StringUtils.isBlank(ownerBadge) || !currentBadge.equals(ownerBadge)) {
+			throw new TCEException(deniedMessage);
 		}
 		return result;
+	}
+
+	private String extractOwnerBadge(Object record, String ownerField) {
+		if (record == null) {
+			return null;
+		}
+		if (record instanceof Map) {
+			Object owner = ((Map) record).get(ownerField);
+			return owner == null ? null : String.valueOf(owner);
+		}
+		Object owner = BeanUtil.getProperty(record, ownerField);
+		return owner == null ? null : String.valueOf(owner);
 	}
 
 }

@@ -26,34 +26,9 @@ public class QueryOaStaffRespVo extends BaseVO {
 	private Integer ID;
 
 	/**
-	 * 员工号
-	 */
-	private String LOGINID;
-
-	/**
-	 * OA系统登录密码？
-	 */
-	private String PASSWORD;
-
-	/**
 	 * 员工名称
 	 */
 	private String LASTNAME;
-
-	/**
-	 * 性别 0-男，1-女
-	 */
-	private String SEX;
-
-	/**
-	 * Oa操作人编号？
-	 */
-	private Integer DSPORDER;
-
-	/**
-	 * 员工号
-	 */
-	private String WorkCode;
 
 	/**
 	 * OA系统-部门编号
@@ -69,10 +44,5 @@ public class QueryOaStaffRespVo extends BaseVO {
 	 * OA系统-岗位编号
 	 */
 	private Integer JOBTITLE;
-
-	/**
-	 * OA系统-岗位名称
-	 */
-	private String JOBTITLENAME;
 
 }

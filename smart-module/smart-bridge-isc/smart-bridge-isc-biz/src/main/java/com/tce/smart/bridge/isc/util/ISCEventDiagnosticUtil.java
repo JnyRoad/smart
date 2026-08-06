@@ -70,14 +70,14 @@ public class ISCEventDiagnosticUtil {
     /**
      * 记录人员未找到的事件
      */
-    public static void recordPersonNotFound(String personNo, String deviceCode) {
+    public static void recordPersonNotFound(String deviceCode) {
         PERSON_NOT_FOUND_EVENTS.incrementAndGet();
 
         if (StrUtil.isNotBlank(deviceCode)) {
             DEVICE_TOTAL_COUNT.computeIfAbsent(deviceCode, k -> new AtomicLong(0)).incrementAndGet();
         }
 
-        log.warn("ISC人员查询失败 - personNo: {}, deviceCode: {}", personNo, deviceCode);
+        log.warn("ISC 人员查询失败，已按设备维度记录");
     }
 
     /**
@@ -102,21 +102,21 @@ public class ISCEventDiagnosticUtil {
 
         // 检查可能的人员标识字段
         String[] personFields = {"ExtEventPersonNo", "cardNo", "jobNo", "personName", "personId"};
-        Map<String, String> personInfo = new HashMap<>();
+        int presentPersonFieldCount = 0;
 
         for (String field : personFields) {
             String value = eventData.getStr(field);
             if (StrUtil.isNotBlank(value)) {
-                personInfo.put(field, value);
+                presentPersonFieldCount++;
             }
         }
 
-        analysis.put("availablePersonFields", personInfo);
+        analysis.put("presentPersonFieldCount", presentPersonFieldCount);
 
         // 检查其他关键字段
         analysis.put("inOutType", eventData.getStr("ExtEventInOut"));
-        analysis.put("pictureUrl", eventData.getStr("ExtEventPictureURL"));
-        analysis.put("svrIndexCode", eventData.getStr("svrIndexCode"));
+        analysis.put("hasPictureUrl", StrUtil.isNotBlank(eventData.getStr("ExtEventPictureURL")));
+        analysis.put("hasServerIndexCode", StrUtil.isNotBlank(eventData.getStr("svrIndexCode")));
 
         log.warn("人员编号为空事件分析: {}", JSONUtil.toJsonStr(analysis));
     }

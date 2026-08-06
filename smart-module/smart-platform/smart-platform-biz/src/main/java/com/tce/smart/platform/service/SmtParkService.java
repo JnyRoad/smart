@@ -120,6 +120,9 @@ public interface SmtParkService extends IService<SmtPark> {
 
 	Result dormitoryAllListToLock(SmtDormitoryStaffService dormitoryStaffService, Integer parkId);
 
+	/** 按已验证的遗留调用方园区范围查询门锁宿舍树，空集合不得回退为全园区。 */
+	Result dormitoryAllListToLock(SmtDormitoryStaffService dormitoryStaffService, List<Integer> parkIds);
+
 	/**
 	 * 获取园区数据
 	 * @return

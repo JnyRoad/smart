@@ -3,6 +3,8 @@ package com.tce.smart.data.controller.temporary;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.temporary.req.EbgEducationRegisterReqDTO;
 import com.tce.smart.temporary.core.entity.EbgEducationRegister;
 import com.tce.smart.temporary.core.service.IEbgEducationRegisterService;
@@ -34,7 +36,9 @@ public class EbgEducationRegisterController extends BaseController {
      * @param ebgEducationRegisterReqDTO
      * @return
      */
-    @PostMapping("/save")
+    @Inner
+    @OpenApi("server")
+    @PostMapping("/internal/save")
     @ResponseBody
     private Result<Boolean> save(@RequestBody EbgEducationRegisterReqDTO ebgEducationRegisterReqDTO){
 		EbgEducationRegister qeuryEbgEducationRegister = new EbgEducationRegister();
