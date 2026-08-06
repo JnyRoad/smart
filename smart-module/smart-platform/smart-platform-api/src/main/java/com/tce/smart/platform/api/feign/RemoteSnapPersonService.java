@@ -30,6 +30,8 @@ public interface RemoteSnapPersonService {
     Result<Boolean> addSnapPerson(@RequestBody SaveSnapPersonReqDTO saveSnapPersonReqDTO, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@PostMapping("/snap/person/check/temp")
-	Result<Boolean> checkTemperature(@RequestBody List<IscTemperatureDTO> dto, @RequestHeader(SecurityConstants.FROM) String from);
+	Result<Boolean> checkTemperature(@RequestBody List<IscTemperatureDTO> dto,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

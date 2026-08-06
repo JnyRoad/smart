@@ -7,7 +7,7 @@ import com.tce.smart.data.api.dto.ehrview.AvaGetskyPayYSHRDTO;
 import com.tce.smart.data.api.dto.ehrview.req.AvaGetskyPayYSHRReqDTO;
 import com.tce.smart.data.api.dto.ehrview.req.CInterFaceBenSupplyReqDTO;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,8 +30,9 @@ public interface RemoteCInterFaceBenSupplyService {
 	 * @param cInterFaceBenSupplyReqDTO
 	 * @return
 	 */
-	  @GetMapping("/cinter/supply/save")
+	  @PostMapping("/cinter/supply/save")
 	  Result<Boolean> save(@RequestBody CInterFaceBenSupplyReqDTO cInterFaceBenSupplyReqDTO,
-									   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

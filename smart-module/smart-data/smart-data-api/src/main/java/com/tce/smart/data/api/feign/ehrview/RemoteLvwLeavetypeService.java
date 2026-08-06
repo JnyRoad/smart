@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface RemoteLvwLeavetypeService {
 
 
-	 @GetMapping("/lvwLeavetype/info")
-	 Result<LvwLeavetypeDTO> getById(@RequestParam("id") Integer id, @RequestHeader(SecurityConstants.FROM) String from);
+    @GetMapping("/lvwLeavetype/info")
+    Result<LvwLeavetypeDTO> getById(@RequestParam("id") Integer id,
+                                     @RequestHeader(SecurityConstants.FROM) String from,
+                                     @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 }

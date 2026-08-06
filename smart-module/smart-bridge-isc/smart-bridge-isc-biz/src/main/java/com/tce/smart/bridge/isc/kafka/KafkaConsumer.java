@@ -81,7 +81,8 @@ public class KafkaConsumer {
 			bridgeDTO.setEventType(key.getCode());
 			bridgeDTO.setParkId(parkId);
 			bridgeDTO.setData(record.value());
-			Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN);
+			Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("处理-Kafka消息，key：{} - {}，EventId：{}，结果：{}，耗时：{}ms", key.getKey(), key.getDesc(), bridgeDTO.getEventId(), result.isSuccess(), DateUtils.toEpochMilli() - start);
 			if (!result.isSuccess()) {
 				throw new TCEException("Dispatcher处理失败");
@@ -117,7 +118,8 @@ public class KafkaConsumer {
 			bridgeDTO.setEventType(key.getCode());
 			bridgeDTO.setParkId(parkId);
 			bridgeDTO.setData(record.value());
-			Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN);
+			Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN,
+					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			log.info("处理-水电表集中器Kafka消息，key：{} - {}，EventId：{}，结果：{}，耗时：{}ms", key.getKey(), key.getDesc(), bridgeDTO.getEventId(), result.isSuccess(), DateUtils.toEpochMilli() - start);
 			if (!result.isSuccess()) {
 				throw new TCEException("水电表集中器Dispatcher处理失败");

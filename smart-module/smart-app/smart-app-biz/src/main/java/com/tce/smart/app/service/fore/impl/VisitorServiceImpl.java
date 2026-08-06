@@ -35,16 +35,19 @@ import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.BeanUtils;
 import com.tce.smart.common.core.util.DateUtils;
+import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.data.api.feign.ehrview.RemoteEvwEmphrYsService;
 import com.tce.smart.platform.api.dto.SaveSmtVisitorDTO;
 import com.tce.smart.platform.api.dto.SmtParkDTO;
 import com.tce.smart.platform.api.dto.SmtVisitorDTO;
+import com.tce.smart.platform.api.dto.admittance.VisitorActionCapabilityAction;
 import com.tce.smart.platform.api.dto.req.*;
+import com.tce.smart.platform.api.dto.req.admittance.VisitorActionCapabilityConsumeReqDTO;
 import com.tce.smart.platform.api.dto.resp.SearchAppSmtVisitorRespDTO;
-import com.tce.smart.platform.api.dto.resp.SearchAppVisitorDetailRespDTO;
+import com.tce.smart.platform.api.dto.resp.AppVisitorSelfDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
-import com.tce.smart.platform.api.feign.RemoteParkService;
+import com.tce.smart.platform.api.feign.RemoteParkInternalService;
 import com.tce.smart.platform.api.feign.RemoteSmtImageService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.platform.api.feign.RemoteVisitorService;
@@ -56,6 +59,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -75,6 +79,8 @@ import java.util.Objects;
 @AllArgsConstructor
 @Slf4j
 public class VisitorServiceImpl implements VisitorService {
+	private static final String VISITOR_BLACKLIST_PURPOSE = "visitor-blacklist";
+	private static final String APP_VISITOR_SELF_PURPOSE = "app-visitor-self";
 	@Autowired
 	private RemoteVisitorService remoteVisitorService;
 
@@ -91,7 +97,7 @@ public class VisitorServiceImpl implements VisitorService {
 	private IOcrService ocrService;
 
 	@Autowired
-	private RemoteParkService remoteParkService;
+	private RemoteParkInternalService remoteParkInternalService;
 
 	@Autowired
 	private RemoteStaffService remoteStaffService;
@@ -137,9 +143,6 @@ public class VisitorServiceImpl implements VisitorService {
 					visitorVo.setVisitorName(searchAppSmtVisitorVO.getVisitorName());
 					visitorVo.setParkName(searchAppSmtVisitorVO.getParkName());
 					visitorVo.setParkId(searchAppSmtVisitorVO.getParkId());
-					//图片
-					visitorVo.setVisitorPhoto(appCommService.buildHqImageUrl(searchAppSmtVisitorVO.getVisitorPhoto()));
-
 					visitorVo.setVisitState(searchAppSmtVisitorVO.getStatus());
 					visitorVo.setVisitStateDesc(searchAppSmtVisitorVO.getStatusDesc());
 					visitorVo.setStartDate(searchAppSmtVisitorVO.getStartTime());
@@ -161,19 +164,29 @@ public class VisitorServiceImpl implements VisitorService {
 	 */
 	@Override
 	public VisitorDetailVo getVisitorListDeatil(VisitorIdAo visitorId) {
+		throw new TCEException("旧微信公众号访客详情已下线");
+	}
 
-		// 调用远程定位访客详情接口
-		SearchAppVisitorDetailRespDTO detail = remoteVisitorService.searchAppVisitorDetail(visitorId.getId(), SecurityConstants.FROM_IN).getData();
-		VisitorDetailVo visitorDetailVo = BeanUtils.transform(VisitorDetailVo.class, detail);
-		//图片
-		visitorDetailVo.setVisitorPhoto(appCommService.buildHqImageUrl(detail.getVisitorPhoto()));
-		if (detail.getCause().equals(VisitorEnum.CAUSE_5.getCode()) || detail.getCause().equals(VisitorEnum.CAUSE_7.getCode())) {
-			visitorDetailVo.setVisitorFrontPhoto(appCommService.buildHqImageUrl(detail.getVisitorFrontPhoto()));
-			visitorDetailVo.setVisitorBackPhoto(appCommService.buildHqImageUrl(detail.getVisitorBackPhoto()));
+	/** App 请求必须改走带登录 actor 的受控内部契约，不能复用公众号兼容查询。 */
+	@Override
+	public VisitorDetailVo getAppVisitorListDetail(VisitorIdAo visitorId) {
+		AppVisitorSelfDetailRespDTO detail = remoteVisitorService.getAppVisitorDetailForActor(visitorId.getId(),
+				currentActorBadge(), currentActorParkIds(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
+				APP_VISITOR_SELF_PURPOSE).getData();
+		return toAppVisitorDetail(detail);
+	}
+
+	/** App 自助详情只接受 Platform 最小契约，不能回填证件、流程或健康码字段。 */
+	private VisitorDetailVo toAppVisitorDetail(AppVisitorSelfDetailRespDTO detail) {
+		VisitorDetailVo visitorDetailVo = new VisitorDetailVo();
+		if (detail == null) {
+			return visitorDetailVo;
 		}
+		visitorDetailVo.setParkId(detail.getParkId());
+		visitorDetailVo.setParkName(detail.getParkName());
+		visitorDetailVo.setVisitorName(detail.getVisitorName());
 		visitorDetailVo.setVisitorMobile(detail.getVisitorPhone());
 		visitorDetailVo.setVisitorCompany(detail.getCompany());
-		visitorDetailVo.setVisitorCertNo(detail.getCertNo() == null ? "" : detail.getCertNo());
 		visitorDetailVo.setVisitReason(detail.getCauseDesc());
 		visitorDetailVo.setPlateNumber(detail.getVehiclePlate());
 		visitorDetailVo.setEmployeeName(detail.getReceptionistName());
@@ -181,20 +194,15 @@ public class VisitorServiceImpl implements VisitorService {
 		visitorDetailVo.setStartTime(detail.getStartTime());
 		visitorDetailVo.setEndTime(detail.getEndTime());
 		visitorDetailVo.setVisitState(detail.getStatus());
-		// 判断随行人员是否为空
 		if (CollectionUtils.isNotEmpty(detail.getFellowVisitorList())) {
-			List<MemberDetailVo> list = new ArrayList<>();
-			for (int i = 0; i < detail.getFellowVisitorList().size(); i++) {
-				MemberDetailVo memberVo = new MemberDetailVo();
-				memberVo.setMemberName(detail.getFellowVisitorList().get(i).getFellowName());
-
-				//图片
-				memberVo.setMemberPhoto(appCommService.buildHqImageUrl(detail.getFellowVisitorList().get(i).getFellowPhoto()));
-				list.add(memberVo);
-				visitorDetailVo.setMember(list);
+			List<MemberDetailVo> members = new ArrayList<>();
+			for (com.tce.smart.platform.api.dto.resp.AppVisitorFellowRespDTO fellow : detail.getFellowVisitorList()) {
+				MemberDetailVo member = new MemberDetailVo();
+				member.setMemberName(fellow.getFellowName());
+				members.add(member);
 			}
+			visitorDetailVo.setMember(members);
 		}
-		visitorDetailVo.setProcessList(detail.getProcessList());
 		return visitorDetailVo;
 	}
 
@@ -203,26 +211,30 @@ public class VisitorServiceImpl implements VisitorService {
 	 */
 	@Override
 	public MemberVo getMemberListDeatil(VisitorIdAo visitorId) {
+		throw new TCEException("旧微信公众号访客详情已下线");
+	}
+
+	@Override
+	public MemberVo getAppMemberListDetail(VisitorIdAo visitorId) {
 		MemberVo memberVo = new MemberVo();
-		// 调用远程定位访客详情接口
-		SearchAppVisitorDetailRespDTO detail = remoteVisitorService.searchAppVisitorDetail(visitorId.getId(), SecurityConstants.FROM_IN).data();
-		// 判断随行人员是否为空
-		List<MemberDetailVo> memberList = new ArrayList<>();
-		if (Objects.isNull(detail)) {
+		AppVisitorSelfDetailRespDTO detail = remoteVisitorService.getAppVisitorDetailForActor(visitorId.getId(),
+				currentActorBadge(), currentActorParkIds(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
+				APP_VISITOR_SELF_PURPOSE).data();
+		return toAppMemberDetail(detail, memberVo);
+	}
+
+	private MemberVo toAppMemberDetail(AppVisitorSelfDetailRespDTO detail, MemberVo memberVo) {
+		if (detail == null || CollectionUtils.isEmpty(detail.getFellowVisitorList())) {
 			return memberVo;
 		}
-		if (CollectionUtils.isNotEmpty(detail.getFellowVisitorList())) {
-			for (int i = 0; i < detail.getFellowVisitorList().size(); i++) {
-				MemberDetailVo memberDetailVo = new MemberDetailVo();
-				memberDetailVo.setMemberName(detail.getFellowVisitorList().get(i).getFellowName());
-				//图片
-				memberDetailVo.setMemberPhoto(appCommService.buildHqImageUrl(detail.getFellowVisitorList().get(i).getFellowPhoto()));
-				memberList.add(memberDetailVo);
-			}
-			memberVo.setRecords(memberList);
+		List<MemberDetailVo> members = new ArrayList<>();
+		for (com.tce.smart.platform.api.dto.resp.AppVisitorFellowRespDTO fellow : detail.getFellowVisitorList()) {
+			MemberDetailVo member = new MemberDetailVo();
+			member.setMemberName(fellow.getFellowName());
+			members.add(member);
 		}
+		memberVo.setRecords(members);
 		return memberVo;
-
 	}
 
 	/**
@@ -320,10 +332,21 @@ public class VisitorServiceImpl implements VisitorService {
 			}
 		}
 		addFellowVisitorDTO.setFollowList(fellowList);
-		Result result = remoteVisitorService.addFellowVisitor(addFellowVisitorDTO, SecurityConstants.FROM_IN);
+		Result result = remoteVisitorService.addAppFellowForActor(addFellowVisitorDTO, currentActorBadge(),
+				currentActorParkIds(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED,
+				APP_VISITOR_SELF_PURPOSE);
 		if (!result.isSuccess()) {
 			throw new TCEException(result.getMessage());
 		}
+	}
+
+	/** App 只从已认证会话取得 actor，绝不信任请求体中的业务工号。 */
+	private String currentActorBadge() {
+		String actorBadge = SecurityUtils.getUser().getUsername();
+		if (StringUtils.isBlank(actorBadge)) {
+			throw new TCEException("当前登录员工不存在");
+		}
+		return actorBadge;
 	}
 
 	/**
@@ -514,7 +537,9 @@ public class VisitorServiceImpl implements VisitorService {
 	 * 判断人脸
 	 */
 	@Override
-	public PhotoVisitorVo checkFace(CheckFaceAo checkFaceAo) {
+	public PhotoVisitorVo checkFace(CheckFaceAo checkFaceAo, String capability, String draftId) {
+		requireVisitorActionOrAuthenticatedEmployee(capability, draftId, VisitorActionCapabilityAction.FACE_UPLOAD,
+				checkFaceAo == null ? null : sha256(checkFaceAo.getVisitorPhoto()));
 		PhotoVisitorVo photoVisitorVo = new PhotoVisitorVo();
 		if (StringUtils.isNotEmpty(checkFaceAo.getVisitorPhoto())) {
 			//已做了图片人脸剪裁，无需压缩
@@ -644,13 +669,97 @@ public class VisitorServiceImpl implements VisitorService {
 	}
 
 	@Override
-	public Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo) {
-		// TODO Auto-generated method stub
+	public Result<?> checkBlackVisitor(AddVisitorAo addVisitorAo, String capability, String draftId) {
+		requireVisitorActionOrAuthenticatedEmployee(capability, draftId, VisitorActionCapabilityAction.BLACKLIST_CHECK,
+				blacklistPayloadHash(addVisitorAo));
 		SmtVisitorDTO smtVisitor = new SmtVisitorDTO();
 		smtVisitor.setVisitorName(addVisitorAo.getVisitorName());
-		smtVisitor.setCertNo(addVisitorAo.getCertNo());
+		smtVisitor.setCertNo(normalizeCertNo(addVisitorAo.getCertNo()));
 		smtVisitor.setParkId(addVisitorAo.getParkId());
-		return remoteVisitorService.checkBlackVisitor(smtVisitor, SecurityConstants.FROM_IN);
+		return remoteVisitorService.checkVisitorBlacklist(smtVisitor, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, VISITOR_BLACKLIST_PURPOSE);
+	}
+
+	/**
+	 * 网关精确放行的两条访客路由仍必须在 App 层二次收口。匿名请求只有在 Platform
+	 * 按草稿、动作和图片摘要原子消费 capability 后，才能进入原有存图或黑名单服务。
+	 */
+	private void requireVisitorActionOrAuthenticatedEmployee(String capability, String draftId,
+			VisitorActionCapabilityAction action, String payloadHash) {
+		boolean hasCapability = StringUtils.isNotBlank(capability);
+		boolean hasDraftId = StringUtils.isNotBlank(draftId);
+		if (hasCapability || hasDraftId) {
+			if (!hasCapability || !hasDraftId) {
+				throw visitorActionDenied();
+			}
+			VisitorActionCapabilityConsumeReqDTO request = new VisitorActionCapabilityConsumeReqDTO();
+			request.setCapability(capability);
+			request.setDraftId(draftId);
+			request.setAction(action);
+			request.setPayloadHash(payloadHash);
+			Result<Boolean> consumed = remoteVisitorService.consumeVisitorActionCapability(request,
+					SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			if (consumed == null || !consumed.isSuccess() || !Boolean.TRUE.equals(consumed.getData())) {
+				log.warn("访客动作 capability 消费失败 action={}", action);
+				throw visitorActionDenied();
+			}
+			return;
+		}
+		// 员工端仅保留已登录的人脸上传兼容路径；黑名单查询始终要求访客 capability，防止员工身份被用于枚举他人证件信息。
+		if (action != VisitorActionCapabilityAction.FACE_UPLOAD || !hasAuthenticatedEmployee()) {
+			throw visitorActionDenied();
+		}
+	}
+
+	/** 历史已登录客户端保留原业务行为，但必须有真实员工主体，不能用匿名或 client token 绕过。 */
+	private boolean hasAuthenticatedEmployee() {
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return false;
+		}
+		SmartUser user = SecurityUtils.getUser(authentication);
+		return user != null && StringUtils.isNotBlank(user.getUsername());
+	}
+
+	private String sha256(String value) {
+		if (StringUtils.isBlank(value)) {
+			return null;
+		}
+		try {
+			byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+					.digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			StringBuilder result = new StringBuilder(digest.length * 2);
+			for (byte current : digest) {
+				result.append(String.format("%02x", current));
+			}
+			return result.toString();
+		} catch (java.security.NoSuchAlgorithmException exception) {
+			throw visitorActionDenied();
+		}
+	}
+
+	/**
+	 * 黑名单 capability 必须绑定实际查询身份，不能只绑定草稿。该规范与 Smart H5 完全一致：
+	 * 姓名、证件号移除所有空白，证件号转大写，再以竖线和园区编号组成摘要原文。
+	 */
+	private String blacklistPayloadHash(AddVisitorAo request) {
+		if (request == null || request.getParkId() == null || StringUtils.isBlank(request.getVisitorName())
+				|| StringUtils.isBlank(request.getCertNo())) {
+			return null;
+		}
+		String visitorName = request.getVisitorName().replaceAll("\\s+", "");
+		String certNo = normalizeCertNo(request.getCertNo());
+		return sha256(visitorName + "|" + certNo + "|" + request.getParkId());
+	}
+
+	/** capability 摘要与实际查询必须使用同一证件号规范，避免空白或小写 X 绕过黑名单。 */
+	private String normalizeCertNo(String certNo) {
+		return certNo == null ? null : certNo.replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT);
+	}
+
+	/** 缺票、错票、过期和重放统一以 403 失败，不暴露图片存储或黑名单查询状态。 */
+	private org.springframework.security.access.AccessDeniedException visitorActionDenied() {
+		return new org.springframework.security.access.AccessDeniedException("访客操作授权已失效，请重新进入申请流程");
 	}
 
 	@Override
@@ -660,7 +769,8 @@ public class VisitorServiceImpl implements VisitorService {
 
 	@Override
 	public List<SmtParkDTO> getPark() {
-		Result<List<SmtParkDTO>> parkList = remoteParkService.getParkList(SecurityConstants.FROM_IN);
+		Result<List<SmtParkDTO>> parkList = remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list");
 		if (!parkList.isSuccess()) {
 			throw new TCEException("获取园区失败");
 		}
@@ -692,7 +802,8 @@ public class VisitorServiceImpl implements VisitorService {
 		SmtVisitorDTO smtVisitor = new SmtVisitorDTO();
 		smtVisitor.setVehiclePlate(addVisitorAo.getPlateNumber());
 		smtVisitor.setParkId(addVisitorAo.getParkId());
-		return remoteVisitorService.checkBlackVehicle(smtVisitor, SecurityConstants.FROM_IN);
+		return remoteVisitorService.checkVehicleBlacklist(smtVisitor, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, VISITOR_BLACKLIST_PURPOSE);
 	}
 
 	@Override
@@ -735,10 +846,25 @@ public class VisitorServiceImpl implements VisitorService {
 
 	@Override
 	public VisitorDetailVo getVisitRecordDetailById(Long id) {
-		//查询预约详细记录
-		VisitorIdAo visitorIdAo = new VisitorIdAo();
-		visitorIdAo.setId(id);
-		return getVisitorListDeatil(visitorIdAo);
+		throw new TCEException("旧微信公众号访客详情已下线");
+	}
+
+	/** 园区列表只能从已认证 SmartUser 派生；空集合不向下游发起可越权的内部调用。 */
+	private String currentActorParkIds() {
+		SmartUser user = SecurityUtils.getUser();
+		if (user == null || user.getParkIdList() == null || user.getParkIdList().isEmpty()) {
+			throw new TCEException("当前登录员工未绑定园区");
+		}
+		List<String> parkIds = new ArrayList<>();
+		for (Integer parkId : user.getParkIdList()) {
+			if (parkId != null) {
+				parkIds.add(String.valueOf(parkId));
+			}
+		}
+		if (parkIds.isEmpty()) {
+			throw new TCEException("当前登录员工未绑定园区");
+		}
+		return StringUtils.join(parkIds, ',');
 	}
 
 	@Override

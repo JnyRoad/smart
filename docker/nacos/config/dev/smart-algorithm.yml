@@ -1,20 +1,13 @@
 security:
+  inner:
+    # 先审计历史直连调用；生产观察完成后仅将此值切换为 ENFORCE，禁止以 ignore-urls 放宽接口。
+    mode: "${SMART_ALGORITHM_INNER_MODE:AUDIT}"
   oauth2:
     client:
       client-id: "${SMART_ALGORITHM_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"        # smart
       client-secret: "${SMART_ALGORITHM_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"    # smart
       scope: server
-        # 放行url
-      ignore-urls:
-        - /**
-#      ignore-urls:
-#        - /webjars/**                         #swagger
-#        - /swagger-resources                  #swagger
-#        - /doc.html                           #swagger
-#        - /v2/api-docs                        #swagger
-#        - /actuator/**
-#        - /inner/**
-#        - /test/**
+      ignore-urls: []
 
 # 数据源
 spring:

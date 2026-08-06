@@ -6,13 +6,20 @@ import com.baomidou.mybatisplus.core.toolkit.Assert;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
+import com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter;
+import com.tce.smart.common.security.service.SmartUser;
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
 import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPhoneUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffPageQueryReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminStaffUpdateReqDTO;
+import com.tce.smart.platform.api.dto.req.AdminTemporaryStaffQueryReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffUpdateStatusReqDTO;
 import com.tce.smart.platform.api.dto.resp.*;
@@ -30,7 +37,10 @@ import com.tce.smart.tool.enums.StaffStatusEnum;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.BeanUtils;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -63,18 +73,24 @@ public class SmtStaffController extends BaseController {
 
 	private final SmtStaffExtService smtStaffExtService;
 
+	private final OpenApiAuthenticationAdapter openApiAuthenticationAdapter;
+
+	/** App 车辆代理只能由受管 OAuth 客户端调用；缺少配置时必须拒绝。 */
+	@Value("${security.inner.vehicle.app-client-id:}")
+	private String appVehicleServiceClientId;
+
 	/**
-	 * 分页查询
+	 * 后台按认证主体园区范围分页查询员工最小信息。
 	 *
-	 * @param page
-	 *            分页对象
-	 * @param smtStaff
-	 *            员工表
-	 * @return
+	 * 原 /page 接口直接返回含手机号、证件号和人脸文件标识的 StaffListVO，已删除。
+	 * 所有后台列表消费者必须迁移至本受权限保护且显式投影的契约。
 	 */
-	@PostMapping("/page")
-	public Result getSmtStaffPage(Page page, @RequestBody SearchStaffDTO smtStaff) {
-		return new Result<>(smtStaffService.getSmtStaffPage(page,smtStaff));
+	@ApiOperation("后台员工最小列表")
+	@PostMapping("/admin/page")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result adminStaffPage(Page page, @RequestBody AdminStaffPageQueryReqDTO request) {
+		return success(smtStaffService.getAdminStaffPage(page, request,
+				currentAuthenticatedUser().getParkIdList()));
 	}
 
 	/**
@@ -83,26 +99,12 @@ public class SmtStaffController extends BaseController {
 	 * @return
 	 */
 	@GetMapping("/quetyStaffNODormitory")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
 	public Result getSmtNoStaffPage(Page page,SearchStaffDTO smtStaff) {
-		return new Result<>(smtStaffService.quetyStaffNODormitory( page,smtStaff));
+		// 宿舍分配只需要身份与组织信息，禁止将证件号、手机号透传至管理端。
+		return success(smtStaffService.quetyStaffNODormitory(page, smtStaff), AdminDormitoryCandidateRespDTO.class);
 	}
 
-	/**
-	 * 通过id查询员工的基本信息
-	 *
-	 * @param id
-	 *            id
-	 * @return Result
-	 */
-	@GetMapping("/{id}")
-	public Result getById(@PathVariable("id") String id) {
-		return smtStaffService.getSmtStaffInfoById(id);
-	}
-
-	@GetMapping("/query/{mobile}")
-	public Result<List<SmtStaffDTO>> queryMobile(@PathVariable("mobile") String mobile) {
-		return success(smtStaffService.queryMobile(mobile));
-	}
 	/**
 	 * 新增员工表
 	 *
@@ -143,45 +145,71 @@ public class SmtStaffController extends BaseController {
 	}
 
 	/**
-	 * 根据员工工号查询员工实体信息
+	 * 后台按工号查询员工最小信息。
 	 *
-	 * @param badge 员工工号
-	 * @return 员工信息
+	 * 查询范围由当前认证用户的园区权限决定，响应不包含任何个人敏感信息。
 	 */
-	@ApiOperation("根据工号模糊查询")
-	@GetMapping("/simple/badge")
-	public Result<List<SmtStaff>> getByBadge(@RequestParam("badge") String badge){
-		List<SmtStaff> smtStaff = smtStaffService.list(Wrappers.<SmtStaff>query().lambda().like(SmtStaff::getBadge, badge).last("and rownum <= 20"));
-		return success(smtStaff);
+	@ApiOperation("后台按工号查询员工最小信息")
+	@GetMapping("/lookup")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result<List<StaffLookupRespDTO>> lookup(@RequestParam("badge") String badge) {
+		return success(smtStaffService.searchStaffForAdmin(badge, currentAuthenticatedUser().getParkIdList()));
 	}
 
-	@ApiOperation("根据工号精确查询")
-	@GetMapping("/define/badge")
-	public Result<SmtStaff> getOneByBadge(@RequestParam("badge") String badge){
-		SmtStaff smtStaff = smtStaffService.getOne(Wrappers.<SmtStaff>query().lambda().eq(SmtStaff::getBadge, badge));
-		return success(smtStaff);
+	/**
+	 * 后台按员工主键查询经园区范围过滤的最小详情。
+	 *
+	 * 该接口不能替代敏感人员档案查询：响应只包含当前 Smart UI 人员识别与组织展示
+	 * 实际需要的非敏感字段，认证主体也不能越过其已授权园区。
+	 */
+	@ApiOperation("后台查询员工受控详情")
+	@GetMapping("/admin/{staffId}")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result<AdminStaffDetailRespDTO> adminStaffDetail(@PathVariable("staffId") Long staffId) {
+		return success(smtStaffService.getAdminStaffDetail(staffId, currentAuthenticatedUser().getParkIdList()));
 	}
 
-	@SysLog("临时人员列表")
-	@ApiOperation("临时人员列表")
-	@PostMapping("/getTempList")
-	public Result<IPage<TempStaffEditRespDTO>> getTempList(Page page, @RequestBody TempStaffEditReqDTO smtStaff) {
-		return success(smtStaffService.getTempList(page, smtStaff), TempStaffEditRespDTO.class);
+	/**
+	 * 查询当前认证员工的入住资料摘要。
+	 *
+	 * 工号始终从认证主体获取，外部请求参数不能指定其他员工。
+	 */
+	@ApiOperation("查询本人入住资料摘要")
+	@GetMapping("/me/check-in-profile")
+	public Result<StaffSelfCheckInProfileRespDTO> myCheckInProfile() {
+		SmartUser currentUser = currentAuthenticatedUser();
+		return success(smtStaffService.getCheckInProfileForBadge(currentUser.getUsername()));
 	}
 
-	@SysLog("查询临时员工")
-	@ApiOperation("查询临时员工")
-	@GetMapping("/getTempById")
-	public Result getTempById(@RequestParam("staffId") Long staffId) {
-		SmtStaff staff = smtStaffService.getById(staffId);
-		if(null != staff){
-			Result<TempStaffEditRespDTO> success = success(smtStaffService.getById(staffId), TempStaffEditRespDTO.class);
-			if(!StringUtils.isEmpty(staff.getFacePicId())) {
-				success.getData().setFaceImg(smtImageService.getImageBase64ByCode(staff.getFacePicId()));
-			}
-			return success;
+	/** 只接受网关解析出的 SmartUser，缺失认证主体时 fail-closed。 */
+	private SmartUser currentAuthenticatedUser() {
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			throw new AccessDeniedException("未认证用户不可查询员工资料");
 		}
-		return success();
+		SmartUser currentUser = SecurityUtils.getUser(authentication);
+		if (currentUser == null) {
+			throw new AccessDeniedException("未认证用户不可查询员工资料");
+		}
+		return currentUser;
+	}
+
+	@SysLog("后台临时人员最小列表")
+	@ApiOperation("后台临时人员最小列表")
+	@PostMapping("/admin/temporary/page")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result temporaryStaffPage(Page page, @RequestBody AdminTemporaryStaffQueryReqDTO request) {
+		return success(smtStaffService.getTemporaryStaffPageForAdmin(page, request,
+				currentAuthenticatedUser().getParkIdList()));
+	}
+
+	@SysLog("后台临时人员最小详情")
+	@ApiOperation("后台临时人员最小详情")
+	@GetMapping("/admin/temporary/{staffId}")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result temporaryStaffDetail(@PathVariable("staffId") Long staffId) {
+		return success(smtStaffService.getTemporaryStaffDetailForAdmin(staffId,
+				currentAuthenticatedUser().getParkIdList()));
 	}
 
 	@SysLog("新增临时员工")
@@ -211,9 +239,10 @@ public class SmtStaffController extends BaseController {
 	}
 
 	@ApiOperation("后台修改员工手机号")
-	@PostMapping("/updateStaffPhone")
-	public Result<Boolean> updateStaffPhone(@RequestParam("staffId") String staffId,@RequestParam("newPhone")String newPhone) {
-		return success(smtStaffService.updateStaffPhone(Long.parseLong(staffId), StrUtil.trim(newPhone)));
+	@PostMapping("/admin/update-phone")
+	@PreAuthorize("@pms.hasPermission('platform_staff_manage')")
+	public Result<Boolean> updateStaffPhone(@RequestBody AdminStaffPhoneUpdateReqDTO request) {
+		return success(smtStaffService.updateStaffPhoneForAdmin(request, currentAuthenticatedUser().getParkIdList()));
 	}
 
 	@SysLog("新增员工到hr中间表")
@@ -228,10 +257,11 @@ public class SmtStaffController extends BaseController {
 	 *            员工表
 	 * @return Result
 	 */
-	@SysLog("修改员工表")
-	@PostMapping("updateStaff")
-	public Result updateById(@RequestBody SmtStaff smtStaff) {
-		return new Result<>(smtStaffService.updateById(smtStaff));
+	@SysLog("后台修改员工基础资料")
+	@PostMapping("/admin/update")
+	@PreAuthorize("@pms.hasPermission('platform_staff_manage')")
+	public Result<Boolean> updateStaff(@RequestBody AdminStaffUpdateReqDTO request) {
+		return success(smtStaffService.updateStaffForAdmin(request, currentAuthenticatedUser().getParkIdList()));
 	}
 
 
@@ -239,39 +269,13 @@ public class SmtStaffController extends BaseController {
 	/**
 	 * 员工，我的宿舍
 	 */
-	@SysLog("我的宿舍")
-	@PostMapping("myDormitory")
-	public Result<MyDormitoryRespDTO> myDormitory(@RequestBody SmtStaff smtStaff) {
-		return success(smtStaffService.myDormitory(smtStaff), MyDormitoryRespDTO.class);
-	}
-
-
-	/**
-	 * 员工，外宿信息
-	 */
-	@SysLog("我的外宿")
-	@PostMapping("outDormitory")
-	public Result outDormitory(@RequestBody SmtStaff smtStaff) {
-		return smtStaffService.outDormitory(smtStaff);
-	}
-
-
-	/**
-	 * 通过员工号查询员工的全部信息
-	 * @param badge
-	 * @return
-	 */
-	@SysLog("app端通过员工号查询员工详细信息")
-	@GetMapping("/getFullByBadge/{badge}")
-	public Result<StaffInfoRespDTO> getFullByBadge(@PathVariable("badge") String badge) {
-		return success(smtStaffService.getSmtStaffInfoByBadge(badge),StaffInfoRespDTO.class);
-	}
 	/**
 	 * 从视图中同步员工信息
 	 * @param empHr
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@PostMapping("/sync")
 	public Result syncStaff(@RequestBody EmpHrVO empHr) {
 		smtStaffService.syncStaff(empHr, dormitoryStaffService);
@@ -279,6 +283,7 @@ public class SmtStaffController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@PostMapping("/sync/img")
 	public Result syncStaffImg() {
 		smtStaffService.syncFaceImg();
@@ -287,59 +292,19 @@ public class SmtStaffController extends BaseController {
 
 
 	/**
-	 * 我的基本信息
-	 * @param  badge
-	 * @return
-	 */
-	@Inner
-	@SysLog("app端通过员工号查询员工基本信息")
-	@GetMapping("/baseInfo/{badge}")
-	public Result getBaseinfoByBadge(@PathVariable("badge") String badge) {
-		return new Result<>(smtStaffService.getBaseinfoById(badge));
-	}
-
-	@GetMapping("/staffByBadge")
-	public Result getStaffByBadge(@RequestParam("badge") String badge, @RequestParam("compId") String compId){
-		return success(smtStaffService.getStaffByBadge(badge, compId), TempStaffEditRespDTO.class);
-	}
-
-	@ApiOperation("批量工号查询")
-	@GetMapping("/staffByBadges")
-	public Result getStaffByBadges(@RequestParam("badges") String badges, @RequestParam("compId") String compId){
-		List<String> badgeList = Arrays.asList(badges.split(","));
-		return success(smtStaffService.getStaffByBadges(badgeList, compId), TempStaffEditRespDTO.class);
-	}
-
-	/**
-	 * 根据员工工号查询员工实体信息
+	 * 后台批量离职前查询当前管理员园区内的临时员工。
 	 *
-	 * @param badge 员工工号
-	 * @return 员工信息
+	 * 调用方不能提交或伪造 BU 编号；园区范围始终从已认证管理主体取得。
 	 */
-	@GetMapping("/simple/get/badge")
-	public Result<SmtStaff> getSimpleSttaffByBadge(@RequestParam("badge") String badge){
-		return new Result<SmtStaff>(smtStaffService.getSimpleSttaffByBadge(badge));
-	}
-
-	/**
-	 * 根据员工ID查询员工实体信息
-	 * @param staffId 员工ID
-	 * @return 员工信息
-	 */
-	@GetMapping("/simple/get")
-	public Result<SmtStaff> getSimpleSttaffById(@RequestParam("staffId") String staffId){
-		return new Result<>(smtStaffService.getSimpleSttaffById(staffId));
-	}
-
-	/**
-	 * 根据员工ID列表 查询员工实体信息
-	 * @param staffIds 员工IDs
-	 * @return 员工信息
-	 */
-	@Inner
-	@GetMapping("/simple/get-list")
-	public Result<List<SmtStaff>> getSimpleSttaffListByIds(@RequestParam("staffIds") ArrayList<String> staffIds){
-		return new Result<>(smtStaffService.getSimpleSttaffByIds(staffIds));
+	@ApiOperation("后台批量查询临时员工最小资料")
+	@GetMapping("/admin/temporary/by-badges")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
+	public Result<List<AdminTemporaryStaffRespDTO>> temporaryStaffByBadges(@RequestParam("badges") String badges) {
+		List<String> badgeList = Arrays.stream(badges.split(","))
+				.map(String::trim)
+				.filter(StrUtil::isNotBlank)
+				.collect(java.util.stream.Collectors.toList());
+		return success(smtStaffService.searchTemporaryStaffForAdmin(badgeList, currentAuthenticatedUser().getParkIdList()));
 	}
 
 	/**
@@ -351,8 +316,12 @@ public class SmtStaffController extends BaseController {
 	@SysLog("app端通过员工号查询员工车辆")
 	@SuppressWarnings("rawtypes")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/myVehicle")
-	public Result<IPage<SmtVehicleRespDTO>> getMyVehicle(Page page, @RequestParam("badge") String badge) {
+	public Result<IPage<SmtVehicleRespDTO>> getMyVehicle(Page page, @RequestParam("badge") String badge,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		return success(smtStaffService.getMyVehicle(page,badge), SmtVehicleRespDTO.class);
 	}
 
@@ -364,8 +333,12 @@ public class SmtStaffController extends BaseController {
 	 */
 	@SysLog("app端添加车辆入园申请")
 	@Inner
+	@OpenApi("server")
 	@PostMapping("addVehiclePark")
-	public Result addVehiclePark(@RequestBody ApplyAuthDTO applyVehicleDTO) {
+	public Result addVehiclePark(@RequestBody ApplyAuthDTO applyVehicleDTO,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		return smtStaffService.addVehiclePark(applyVehicleDTO);
 	}
 
@@ -376,9 +349,14 @@ public class SmtStaffController extends BaseController {
 	 */
 	@SysLog("app端通过车牌号查询车辆可以进出的园区")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/getVehiclePark")
-	public Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber) {
-		return success(smtStaffService.getVehiclePark(plateNumber),VehicleApplyRespDTO.class);
+	public Result<List<VehicleApplyRespDTO>> getVehiclePark(@RequestParam("plateNumber") String plateNumber,
+			@RequestParam("badge") String badge,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
+		return success(smtStaffService.getVehicleParkForOwner(plateNumber, badge),VehicleApplyRespDTO.class);
 	}
 
 	/**
@@ -388,41 +366,65 @@ public class SmtStaffController extends BaseController {
 	 */
 	@SysLog("app通过入园权限id，查看车辆信息")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/getVehicleParkById/{id}")
-	public Result<SmtVehicleRespDTO> getVehicleParkById(@PathVariable("id") Integer id) {
-		VehicleParkDetailVO smtVehicle = smtStaffService.getVehicleParkById(id);
-		SmtVehicleRespDTO smtVehicleRespDTO = new SmtVehicleRespDTO();
-		BeanUtils.copyProperties(smtVehicle, smtVehicleRespDTO);
-		return success(smtVehicleRespDTO);
+	public Result<VehicleAuthDetailRespDTO> getVehicleParkById(@PathVariable("id") Integer id,
+			@RequestParam("badge") String badge,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
+		VehicleParkDetailVO smtVehicle = smtStaffService.getVehicleParkByIdForOwner(id, badge);
+		return success(toVehicleAuthDetailResp(smtVehicle));
 	}
 
 	/**
-	 * 修改手机号
-	 * @param smtStaff
-	 * @return
+	 * 将已经完成归属和园区授权校验的领域详情映射为最小对外证照视图。
+	 * 不能使用 BeanUtils，以免领域对象新增敏感字段后被意外透出。
 	 */
-	@SysLog("app调用接口修改手机号")
-	@Inner
-	@PostMapping("updatePhone")
-	public Result updatePhone(@RequestBody SmtStaff smtStaff) {
-		return smtStaffService.updatePhone(smtStaff);
+	private VehicleAuthDetailRespDTO toVehicleAuthDetailResp(VehicleParkDetailVO vehicle) {
+		VehicleAuthDetailRespDTO response = new VehicleAuthDetailRespDTO();
+		response.setVehiclePlate(vehicle.getVehiclePlate());
+		response.setVehicleBrand(vehicle.getVehicleBrand());
+		response.setVehicleColor(vehicle.getVehicleColor());
+		response.setVehicleType(vehicle.getVehicleType());
+		response.setDriverLicenseBase64(vehicle.getDriverLicenseId());
+		response.setDrivingLicenseBase64(vehicle.getDrivinglLicenseId());
+		response.setReason(vehicle.getReason());
+		return response;
 	}
-
 
 	@SysLog("app调用接口添加车辆")
 	@Inner
+	@OpenApi("server")
 	@PostMapping("addVehicle")
-	public Result addVehicle(@RequestBody AddVehicleDTO addVehicleDTO) {
+	public Result addVehicle(@RequestBody AddVehicleDTO addVehicleDTO,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
 		return smtStaffService.addVehicle(addVehicleDTO);
 	}
 
 	@SysLog("app调用接口移除车辆")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("delVehicle")
-	public Result delVehicle(@RequestParam("plateNumber") String plateNumber) {
-		SmtVehicle vehicle = smtVehicleService.getOne(Wrappers.<SmtVehicle>query().lambda().eq(SmtVehicle::getVehiclePlate, StrUtil.removeAll(plateNumber, " ").toUpperCase())
-				.eq(SmtVehicle::getIsDelete, VehicleConstants.UNDELETED));
-		return new Result<>(smtVehicleService.deleteVehicle(vehicle.getId(),null));
+	public Result delVehicle(@RequestParam("plateNumber") String plateNumber,
+			@RequestParam("badge") String badge,
+			@RequestHeader(value = SecurityConstants.FROM, required = false) String from,
+			@RequestHeader(value = "X-Smart-Internal-Purpose", required = false) String purpose) {
+		assertAppVehicleCaller(from, purpose);
+		return smtStaffService.deleteVehicleForOwner(plateNumber, badge);
+	}
+
+	/** 服务端 token 的 server scope 仍需与精确 App client 和车辆用途同时匹配。 */
+	private void assertAppVehicleCaller(String from, String purpose) {
+		Authentication authentication = SecurityUtils.getAuthentication();
+		if (!SecurityConstants.FROM_IN.equals(from) || !"app-vehicle".equals(purpose)
+				|| StringUtils.isEmpty(appVehicleServiceClientId) || authentication == null
+				|| !openApiAuthenticationAdapter.isClientOnly(authentication)
+				|| !appVehicleServiceClientId.equals(openApiAuthenticationAdapter.clientId(authentication))) {
+			throw new AccessDeniedException("App 车辆服务调用未获授权");
+		}
 	}
 
 	@SysLog("app调用接口获取员工二维码")
@@ -477,16 +479,6 @@ public class SmtStaffController extends BaseController {
 	}
 
 	/**
-	 * 人脸登录-人脸搜索员工信息
-	 *
-	 * @return
-	 */
-	@PostMapping("/face/search/login")
-	public Result<SmtStaff> faceSearchForLogin(@RequestBody StaffPerfectDTO staffPerfectDTO){
-		return new Result<SmtStaff>(smtStaffService.faceSearchForLogin(staffPerfectDTO.getFacePic(),staffPerfectDTO.getDeviceNo()));
-	}
-
-	/**
 	 * 人脸对比
 	 * @param staffPerfectDTO
 	 * @return
@@ -508,6 +500,7 @@ public class SmtStaffController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("同步员工人员和人脸到ISC")
 	@PostMapping("/isc/person/face/sync")
 	public Result<Boolean> syncIscPersonFace(@RequestParam("badge") String badge,
@@ -517,6 +510,7 @@ public class SmtStaffController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@ApiOperation("重试ISC员工人员和人脸同步失败任务")
 	@PostMapping("/isc/person/face/retry")
 	public Result<Boolean> retryFailedIscPersonFaceSync() {
@@ -568,8 +562,9 @@ public class SmtStaffController extends BaseController {
 	 * @return
 	 */
 	@GetMapping("/toStaff/page")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
 	public Result getToStaffPage(Page page, SearchToStaffDTO searchToStaffDTO) {
-		List<Integer> parkIds = SecurityUtils.getUser().getParkIdList();
+		List<Integer> parkIds = currentAuthenticatedUser().getParkIdList();
 		searchToStaffDTO.setParkIds(parkIds);
 		return new Result<>(smtStaffService.getTOStaffPage(page,searchToStaffDTO));
 	}
@@ -579,8 +574,16 @@ public class SmtStaffController extends BaseController {
 	 * @return
 	 */
 	@GetMapping("/toStaff/{id}")
+	@PreAuthorize("@pms.hasPermission('platform_staff_lookup')")
 	public Result getToStaffInfoById(@PathVariable("id") String id) {
-		return smtStaffService.getToStaffInfoById(id);
+		Long staffId;
+		try {
+			staffId = Long.valueOf(id);
+		} catch (NumberFormatException exception) {
+			throw new AccessDeniedException("员工编号无效");
+		}
+		// 以与后台员工详情相同的园区二次校验和最小 DTO 代替原始履历/家庭成员全量返回。
+		return success(smtStaffService.getAdminStaffDetail(staffId, currentAuthenticatedUser().getParkIdList()));
 	}
 
 	/**
@@ -610,6 +613,8 @@ public class SmtStaffController extends BaseController {
 	 * @param page 分页对象
 	 * @return
 	 */
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/sync/list")
 	public Result<IPage<EmpHrReqDTO>> getSmtStaffList(Page page) {
 		return new Result<>(smtStaffService.getStaffList(page));

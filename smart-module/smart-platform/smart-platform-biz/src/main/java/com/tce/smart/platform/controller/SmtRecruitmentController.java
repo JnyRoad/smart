@@ -5,6 +5,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.core.entity.SmtRecruitment;
 import com.tce.smart.platform.service.SmtRecruitmentService;
@@ -169,6 +170,8 @@ public class SmtRecruitmentController extends BaseController {
 	 * @return
 	 */
 	@SysLog("刷新招聘表时间")
+	@Inner
+	@OpenApi("server")
 	@GetMapping("refreshRecruitment")
 	public Result refreshRecruitmentById() {
 		return smtRecruitmentService.refreshRecruitmentById();
@@ -176,6 +179,8 @@ public class SmtRecruitmentController extends BaseController {
 
 
 	@SysLog("更新组织信息")
+	@Inner
+	@OpenApi("server")
 	@GetMapping("refreshComp")
 	public void refreshComp() {
 	  smtRecruitmentService.refreshComp();

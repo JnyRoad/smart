@@ -23,8 +23,11 @@ public interface RemoteLogisticsAppointmentService {
 	 * @param logisticsAppointmentDTO 物流车抓拍信息
 	 * @return
 	 */
-	@PostMapping("/logistics/appointment/save")
-	Result save(@RequestBody LogisticsAppointmentReqDTO logisticsAppointmentDTO, @RequestHeader(SecurityConstants.FROM) String from);
+	@PostMapping("/internal/logistics/appointment/save")
+	Result save(@RequestBody LogisticsAppointmentReqDTO logisticsAppointmentDTO,
+			@RequestHeader(SecurityConstants.FROM) String from,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth,
+			@RequestHeader("X-Smart-Internal-Purpose") String purpose);
 
 
 	/**

@@ -58,10 +58,18 @@ export default function VisitorInfoPage() {
     }
   }, [mounted, router])
 
-  const causeEnum = useQuery({ queryKey: ['visitor', 'cause-enum'], queryFn: getCauseEnum })
+  const visitorDraft = host.visitorDraftToken && host.visitorDraftId
+    ? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
+    : null
+  const causeEnum = useQuery({
+    queryKey: ['visitor', 'cause-enum', visitorDraft?.draftId],
+    queryFn: () => getCauseEnum(visitorDraft!),
+    enabled: visitorDraft !== null,
+  })
   const areaOptions = useQuery({
-    queryKey: ['visitor', 'area-options', config.parkId],
-    queryFn: () => loadAreaOptions(config.parkId),
+    queryKey: ['visitor', 'area-options', config.parkId, visitorDraft?.draftId],
+    queryFn: () => loadAreaOptions(config.parkId, visitorDraft!),
+    enabled: visitorDraft !== null,
   })
 
   const factories: FactoryAreaConfig[] = areaOptions.data ?? []
@@ -99,6 +107,7 @@ export default function VisitorInfoPage() {
   }
 
   async function handleNext() {
+    if (!visitorDraft) return Toast.show('访客操作授权已失效，请重新进入申请流程')
     // 姓名去全部空格（含中间），单位仅去首尾；写回草稿保持显示一致。
     const visitorName = stripSpaces(visitor.visitorName)
     const company = visitor.company.trim()
@@ -167,7 +176,7 @@ export default function VisitorInfoPage() {
             nativePlace: '',
           })),
         ],
-      })
+      }, visitorDraft)
       // 旧版成功判定：code===0 且 data 为真值。
       if (res.code === 0 && res.data) {
         router.push('/visitor/tel')
@@ -211,6 +220,9 @@ export default function VisitorInfoPage() {
             value={visitor.visitorPhotoId}
             onChange={(photoId) => patchVisitor({ visitorPhotoId: photoId })}
             label="点击拍摄/上传人脸照片"
+			visitorFaceDraft={host.visitorDraftToken && host.visitorDraftId
+			  ? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
+			  : undefined}
           />
         </div>
 

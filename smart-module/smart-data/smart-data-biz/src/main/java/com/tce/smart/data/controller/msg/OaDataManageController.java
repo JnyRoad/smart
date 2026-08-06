@@ -3,7 +3,10 @@ package com.tce.smart.data.controller.msg;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.data.api.dto.msg.req.*;
+import com.tce.smart.data.api.dto.msg.resp.OaStaffLookupRespDTO;
 import com.tce.smart.data.service.msg.IOaManageService;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -199,8 +202,10 @@ public class OaDataManageController extends BaseController {
 	 * @param badge
 	 * @return
 	 */
-	@GetMapping("/staff/info/{badge}")
-	public Result<?> getOAInfoByBadge(@PathVariable("badge") String badge) {
+	@Inner
+	@OpenApi("server")
+	@GetMapping("/internal/staff/info/{badge}")
+	public Result<OaStaffLookupRespDTO> getOAInfoByBadge(@PathVariable("badge") String badge) {
 		return success(appOaManagerService.getOAInfoByBadge(badge));
 	}
 }

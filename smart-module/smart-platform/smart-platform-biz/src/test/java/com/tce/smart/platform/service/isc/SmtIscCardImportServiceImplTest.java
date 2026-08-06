@@ -413,7 +413,7 @@ public class SmtIscCardImportServiceImplTest {
 		SmtStaffMapper staffMapper = Mockito.mock(SmtStaffMapper.class);
 		Mockito.when(staffMapper.listIscCardImportStaff(Mockito.eq(5000021), Mockito.isNull(), Mockito.anyString()))
 				.thenReturn(Collections.singletonList(staff));
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO<Map> dto = invocation.getArgument(0);
 					Assert.assertEquals(Integer.valueOf(6000001), dto.getParkId());
@@ -447,7 +447,7 @@ public class SmtIscCardImportServiceImplTest {
 				.thenReturn(Arrays.asList(activeStaff, resignedStaff));
 		Mockito.when(parkConfigService.getConfigByPark(5000021)).thenReturn(parkConfig());
 		Mockito.when(parkConfigService.getOne(Mockito.any(Wrapper.class), Mockito.eq(false))).thenReturn(parkConfig());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO<Map> dto = invocation.getArgument(0);
 					Assert.assertEquals(Integer.valueOf(6000001), dto.getParkId());
@@ -485,7 +485,7 @@ public class SmtIscCardImportServiceImplTest {
 				.thenReturn(Collections.singletonList(staff()));
 		Mockito.when(parkConfigService.getConfigByPark(5000021)).thenReturn(parkConfig());
 		Mockito.when(parkConfigService.getOne(Mockito.any(Wrapper.class), Mockito.eq(false))).thenReturn(parkConfig());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.fail(message));
 		setField(service, "baseMapper", batchMapper);
 		setField(service, "smtIscCardImportDetailMapper", detailMapper);

@@ -57,6 +57,8 @@ public interface RemoteDictService {
 	 * @return
 	 */
 	@GetMapping("/dict/save")
-    Result saveDict(@RequestParam("type") String type, @RequestParam("label") String label, @RequestParam("value") String value, @RequestHeader(SecurityConstants.FROM) String from);
+    Result saveDict(@RequestParam("type") String type, @RequestParam("label") String label, @RequestParam("value") String value,
+                    @RequestHeader(SecurityConstants.FROM) String from,
+                    @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

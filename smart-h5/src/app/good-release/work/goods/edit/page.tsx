@@ -42,7 +42,8 @@ function WorkGoodEditInner() {
   const params = useSearchParams()
   const indexParam = params.get('index')
   const editIndex = indexParam === null ? null : Number(indexParam)
-  const goods = useWorkDraft((s) => s.goods)
+	const goods = useWorkDraft((s) => s.goods)
+	const releaseId = useWorkDraft((s) => s.releaseId)
   const addGood = useWorkDraft((s) => s.addGood)
   const updateGood = useWorkDraft((s) => s.updateGood)
   const editing = editIndex !== null ? (goods[editIndex] ?? null) : null
@@ -171,6 +172,7 @@ function WorkGoodEditInner() {
       {searchVisible && (
         <StaffSearchPopup
           visible
+		  releaseId={releaseId}
           onClose={() => setSearchVisible(false)}
           onPicked={({ name, id }) => setStaff({ name, xm: id })}
         />

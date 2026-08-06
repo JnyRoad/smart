@@ -4,7 +4,9 @@
 	<parent>
 		<groupId>com.tce</groupId>
 		<artifactId>smart</artifactId>
-		<version>yuto-3.0-RELEASE</version>
+		<!--与同仓 smart 父工程使用一致的 CI 友好版本，支持干净本地仓库解析。-->
+		<version>${revision}</version>
+		<relativePath>../smart/pom.xml</relativePath>
 	</parent>
 
 	<artifactId>smart-module</artifactId>

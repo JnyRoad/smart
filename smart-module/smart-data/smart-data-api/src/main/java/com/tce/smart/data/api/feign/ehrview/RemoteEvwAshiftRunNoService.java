@@ -25,6 +25,7 @@ public interface RemoteEvwAshiftRunNoService {
 	 */
 	@GetMapping("/evwAshiftRunNo/info")
     Result<EvwAshiftRunNoDTO> info(@RequestParam("badge") String badge, @RequestParam("empRunDate") String empRunDate,
-								   @RequestHeader(SecurityConstants.FROM) String from);
+									   @RequestHeader(SecurityConstants.FROM) String from,
+									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 }

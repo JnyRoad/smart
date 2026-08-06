@@ -18,6 +18,7 @@ import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.data.api.dto.msg.req.*;
+import com.tce.smart.data.api.dto.msg.resp.OaStaffLookupRespDTO;
 import com.tce.smart.data.api.model.LeaveDetailTable;
 import com.tce.smart.data.api.vo.msg.QueryOaStaffRespVo;
 import com.tce.smart.data.service.msg.IOaManageService;
@@ -141,8 +142,15 @@ public class OaManageServiceImpl implements IOaManageService {
 	}
 
 	@Override
-	public QueryOaStaffRespVo getOAInfoByBadge(String badge) {
-		return processOcrService(badge);
+	public OaStaffLookupRespDTO getOAInfoByBadge(String badge) {
+		QueryOaStaffRespVo oaStaff = processOcrService(badge);
+		if (Objects.isNull(oaStaff)) {
+			return null;
+		}
+		OaStaffLookupRespDTO lookupRespDTO = new OaStaffLookupRespDTO();
+		lookupRespDTO.setId(oaStaff.getID());
+		lookupRespDTO.setName(oaStaff.getLASTNAME());
+		return lookupRespDTO;
 	}
 
 	private QueryOaStaffRespVo processOcrService(String badge) {
@@ -156,7 +164,7 @@ public class OaManageServiceImpl implements IOaManageService {
 						 HttpMethod.GET, requestEntity, String.class);
 			     String responseEntity = exchange.getBody();
 
-				log.info("查询OA系统员工信息Resp==：{}", responseEntity);
+				log.debug("OA 员工信息查询已收到上游响应");
 				if (Objects.isNull(responseEntity)) {
 					throw new TCEException("OA系统员工信息查询异常");
 				}

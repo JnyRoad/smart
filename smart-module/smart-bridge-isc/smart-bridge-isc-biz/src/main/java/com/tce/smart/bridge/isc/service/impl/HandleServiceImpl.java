@@ -61,7 +61,8 @@ public class HandleServiceImpl implements HandleService {
 		com.tce.smart.dispatcher.api.dto.resp.BridgeDTO<String> bridgeDTO = null;
 		try {
 			long start = DateUtils.toEpochMilli();
-			log.info("收到-ISC平台消息：{}", eventData);
+			// 厂商事件原文可能携带人员编号、姓名和图片地址，禁止写入日志。
+			log.info("收到 ISC 平台事件通知");
 			JSONObject eventDataJson = JSONUtil.parseObj(eventData);
 			JSONObject paramJson = eventDataJson.getJSONObject("params");
 			JSONArray eventJson = paramJson.getJSONArray("events");
@@ -102,12 +103,12 @@ public class HandleServiceImpl implements HandleService {
 						// 通过人员主键查询详情，获取工号
 						params.put("paramValue", new String[]{personNo});
 
-						log.debug("查询ISC人员详情，personNo：{}", personNo);
+						log.debug("查询 ISC 人员详情");
 						ISCResponse personResp = bridgeISCService.post(EventEnum.ISC_PERSON_GET, JSONUtil.toJsonStr(params));
 
 						if (personResp == null || !"0".equals(personResp.getCode())) {
 							// 记录人员未找到的事件
-							ISCEventDiagnosticUtil.recordPersonNotFound(personNo, eventObj.getStr("srcParentIndex"));
+							ISCEventDiagnosticUtil.recordPersonNotFound(eventObj.getStr("srcParentIndex"));
 							// 继续处理下一个事件
 							continue;
 						}
@@ -118,10 +119,10 @@ public class HandleServiceImpl implements HandleService {
 							if (StrUtil.isNotBlank(jobNo)) {
 								paramMap.put("cardNo", jobNo);
 							}
-							log.debug("成功获取人员工号，personNo：{}，jobNo：{}", personNo, jobNo);
+							log.debug("成功获取 ISC 人员工号");
 						} else {
 							// 记录人员详情数据为空的事件
-							ISCEventDiagnosticUtil.recordPersonNotFound(personNo, eventObj.getStr("srcParentIndex"));
+							ISCEventDiagnosticUtil.recordPersonNotFound(eventObj.getStr("srcParentIndex"));
 							// 继续处理下一个事件
 							continue;
 						}
@@ -151,7 +152,7 @@ public class HandleServiceImpl implements HandleService {
 								throw new SmartException("保存人员通行图片失败");
 							}
 						} else {
-							log.warn("下载ISC图片失败: {}", personNo);
+							log.warn("下载 ISC 图片失败");
 						}
 						paramMap.put("snapPhoto", imgId);
 						paramMap.put("isISC", true);
@@ -161,7 +162,8 @@ public class HandleServiceImpl implements HandleService {
 						bridgeDTO.setEventType(eventTypeEnum.getEventEnum().getCode());
 						bridgeDTO.setParkId(parkId);
 						bridgeDTO.setData(JSONUtil.toJsonStr(paramMap));
-						Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN);
+						Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN,
+								SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 						log.info("处理-ISC平台消息，key：{} - {}，EventId：{}，结果：{}，耗时：{}ms", eventTypeEnum.getEventEnum().getKey(), eventTypeEnum.getEventEnum().getDesc(), bridgeDTO.getEventId(), result.isSuccess(), DateUtils.toEpochMilli() - start);
 						if (!result.isSuccess()) {
 							throw new TCEException("Dispatcher处理失败");

@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.resp.DeviceListRespDTO;
 import com.tce.smart.platform.api.dto.resp.device.DeviceFTDTO;
@@ -195,6 +197,8 @@ public class SmtDeviceController extends BaseController {
 	 *
 	 * @return Result
 	 */
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/query/deviceStatus")
 	public Result deviceStatus() {
 		bizDeviceService.initDeviceStatus();

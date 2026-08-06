@@ -1,13 +1,19 @@
 ## spring security 配置
 security:
+  inner:
+    # 推送入口只接受携带 FROM_IN 的内部请求；缺少来源头时不得仅审计后放行。
+    mode: ENFORCE
+    push:
+      # 单播仅允许 Platform 的独立服务 client；未注入时必须拒绝，禁止回退到通用 client。
+      platform-client-id: "${SMART_PUSH_PLATFORM_CLIENT_ID:}"
   oauth2:
     client:
-      name: "${SMART_PUSH_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"     # smart
-      password: "${SMART_PUSH_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}" # smart
+      name: "${SMART_PUSH_OAUTH_CLIENT_ID:}"
+      password: "${SMART_PUSH_OAUTH_CLIENT_SECRET:}"
       scope: server
       # 放行url
-      ignore-urls:
-        - /**
+      # 推送业务无匿名入口；所有发送操作仅允许受控服务令牌调用。
+      ignore-urls: []
 
 uni:
   push:

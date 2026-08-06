@@ -23,9 +23,10 @@ import {
 	API_EMPLOYEE_OUT_ROMM_APPLY,
 	API_EMPLOYEE_ALLOWANCE,
 	API_EMPLOYEE_OUT_ROOM_DETAIL,
-	API_SETTING_VERIFY_OLDPHONE,
-	API_SETTING_NEWPHONE_SENDSMS,
-	API_SETTING_UPDATAPHONE,
+	API_SETTING_OLDPHONE_SEND,
+	API_SETTING_OLDPHONE_VERIFY,
+	API_SETTING_NEWPHONE_SEND,
+	API_SETTING_NEWPHONE_CONFIRM,
 	API_EMPLOYEE_OUT_ROMM_APPLY_DETAIL
 } from '@/config/apis'
 // 用户信息相关接口
@@ -143,17 +144,21 @@ const setting = {
 	versionCheck (version) {
 		return axios.get(`${API_SETTING_VERSION_CHECK}?version=${version}`)
 	},
-	// 验证原手机号码
-	verifyOldPhone (obj) {
-		return axios.get(`${API_SETTING_VERIFY_OLDPHONE}?mobile=${obj.mobile}&smsCode=${obj.smsCode}`)
+	// 向当前认证账号的旧手机号发送验证码，前端不再持有工号或旧手机号。
+	sendOldPhoneCode () {
+		return axios.post(API_SETTING_OLDPHONE_SEND)
 	},
-	// 新手机号码发送短信验证码
+	// 验证旧手机号；成功状态由服务端绑定当前会话保存。
+	verifyOldPhone (smsCode) {
+		return axios.post(API_SETTING_OLDPHONE_VERIFY, { smsCode })
+	},
+	// 新手机号发送短信验证码，服务端会检查旧手机号验证状态。
 	newPhoneSendCode (mobile) {
-		return axios.get(`${API_SETTING_NEWPHONE_SENDSMS}?mobile=${mobile}`)
+		return axios.post(API_SETTING_NEWPHONE_SEND, { mobile })
 	},
-	// 更新手机号码
+	// 更新手机号码，服务端同时校验旧手机号授权和新手机号验证码。
 	updataPhone (obj) {
-		return axios.get(`${API_SETTING_UPDATAPHONE}?mobile=${obj.mobile}&smsCode=${obj.smsCode}`)
+		return axios.post(API_SETTING_NEWPHONE_CONFIRM, obj)
 	}
 }
 

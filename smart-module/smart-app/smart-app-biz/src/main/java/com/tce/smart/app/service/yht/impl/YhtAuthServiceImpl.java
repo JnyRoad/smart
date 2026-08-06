@@ -138,7 +138,8 @@ public class YhtAuthServiceImpl implements YhtAuthService {
 
 	@Override
 	public String getBadgeByUserId(String userId) {
-		Result<String> result = remoteYutoDhrYsService.getBadgeByUserId(userId, SecurityConstants.FROM_IN);
+		Result<String> result = remoteYutoDhrYsService.getBadgeByUserId(userId, SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		log.info("根据userId查询工号响应：{}", result);
 		if (!result.isSuccess()) {
 			throw new SmartException("获取工号失败");

@@ -122,7 +122,7 @@ public class LeaveApplicationServiceImpl implements ILeaveApplicationService {
 	public Result saveLeaveApplication(LeaveApplicationDTO leaveApplicationDTO) {
 		SmtLeaveApplication leaveApplication = new SmtLeaveApplication();
 		BeanUtil.copyProperties(leaveApplicationDTO, leaveApplication);
-		Result<EvwEmphrYsRespDTO> result = remoteEvwEmphrYsService.info(leaveApplicationDTO.getBadge(), SecurityConstants.FROM_IN);
+		Result<EvwEmphrYsRespDTO> result = remoteEvwEmphrYsService.info(leaveApplicationDTO.getBadge(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		//log.info("=====result=======remoteEvwEmphrYsService.info======{}",result);
 
 		if(!result.isSuccess() || ObjectUtil.isNull(result.getData())) {
@@ -260,7 +260,7 @@ public class LeaveApplicationServiceImpl implements ILeaveApplicationService {
 
 	@Override
 	public YearHoliday getYearHoliday(String badge) {
-	    Result<LvwAyearholidayRespDTO> result = remoteLvwAyearholidayService.info(badge, SecurityConstants.FROM_IN);
+	    Result<LvwAyearholidayRespDTO> result = remoteLvwAyearholidayService.info(badge, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		LvwAyearholidayRespDTO lvwAyearholidayVO = result.getData();
 	    YearHoliday yearHoliday = new YearHoliday(ObjectUtil.isNull(lvwAyearholidayVO) ? Double.valueOf(0) : ObjectUtil.isNull(lvwAyearholidayVO.getThisbalance()) ? Double.valueOf(0) : lvwAyearholidayVO.getThisbalance());
 		return yearHoliday;
@@ -472,7 +472,7 @@ public class LeaveApplicationServiceImpl implements ILeaveApplicationService {
 	@Override
 	public BigDecimal calMealFee(SmtStaff staff,Date startDate,Date endDate){
 		//充值基数
-		Result<EvwCcdFlstandardDTO> flstandardResult = evwCcdFlstandardService.getById(staff.getJcheId(), staff.getPzid(),SecurityConstants.FROM_IN);
+		Result<EvwCcdFlstandardDTO> flstandardResult = evwCcdFlstandardService.getById(staff.getJcheId(), staff.getPzid(),SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		BigDecimal flstandard = new BigDecimal(flstandardResult.get().getStandard());
 		//正班天数
 		Result<Double> normalWorkDaysResult = remoteRsEmpService.getNormalWorkDays(staff.getBadge(), startDate, endDate,SecurityConstants.FROM_IN);

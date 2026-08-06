@@ -15,6 +15,7 @@ import {
   type ApplyRecordDetail,
   type ApprovalNode,
 } from '@/features/visitor/records-api'
+import { visitorPassCodePath } from '@/features/visitor/pass-code-access'
 import { sanitizeRichText } from '@/lib/sanitize'
 import { useMounted } from '@/lib/use-mounted'
 
@@ -275,7 +276,10 @@ function RecordDetailInner({ applyId }: { applyId: string }) {
             {showPassCode && (
               <button
                 type="button"
-                onClick={() => router.push(`/visitor/code?id=${encodeURIComponent(info.applyId)}`)}
+                onClick={() => {
+                  const path = visitorPassCodePath(info.applyId)
+                  if (path) router.push(path)
+                }}
                 className={`mt-3 flex h-11 w-full items-center justify-center rounded-[14px] text-[15px] font-semibold ${
                   info.dispatchStatus === 'SUCCESS'
                     ? 'bg-brand text-white active:bg-[#d95f00]'

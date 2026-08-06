@@ -16,6 +16,13 @@ import java.util.Date;
 public class LeaveApplicationDTO {
 
 	/**
+	 * 离职申请所属园区。
+	 *
+	 * 仅由受控内部入口根据认证 actor 的园区上下文写入，浏览器请求 DTO 不携带此字段。
+	 */
+	private Integer parkId;
+
+	/**
 	 * 员工号
 	 */
 	@NotBlank(message = "员工号不能为空")

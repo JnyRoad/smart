@@ -14,6 +14,12 @@ spring:
           data-id: common.yml
           group: ${NACOS_GROUP:dev}
           refresh: true
+        # 迁移程序沿用历史服务名时，仍单独加载受服务令牌保护的专属配置，
+        # 避免把迁移凭据混入 smart-schedule 的通用运行配置。
+        extension-configs[0]:
+          data-id: smart-transfer.yml
+          group: ${NACOS_GROUP:dev}
+          refresh: true
         server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}
       discovery:
         server-addr: ${NACOS_URL:smart-nacos}:${NACOS_PORT:8761}

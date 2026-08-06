@@ -59,7 +59,8 @@ public interface RemoteOutDormitoryStaffService {
 	 * @param fromIn
 	 */
 	@GetMapping("/out/dormitory/staff/refresh")
-	void refreshOutDormitory(@RequestHeader(SecurityConstants.FROM) String fromIn);
+	void refreshOutDormitory(@RequestHeader(SecurityConstants.FROM) String fromIn,
+			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
 
 
 	//查询外宿补贴开始时间的配置时间

@@ -208,16 +208,16 @@ test('报修：状态配色 class 与提交失败 toast', async ({ page }) => {
 
 const MY_ROOMS = {
   code: 0,
-  data: { data: [
+  data: [
     { dormitoryId: 'D1', roomId: 'R1', dormitoryName: '新工厂宿舍楼', roomName: '302' },
     { dormitoryId: 'D1', roomId: 'R2', dormitoryName: '新工厂宿舍楼', roomName: '303' },
-  ] },
+  ],
 }
 
 test('退宿：房间多选去重/删除 → 提交体断言', async ({ page }) => {
   await seedLogin(page)
   await mockBaseInfo(page)
-  await page.route('**/app/appdormitory/roomList/**', (route) => route.fulfill({ json: MY_ROOMS }))
+  await page.route('**/platform/dormitory/staff/me/roomList', (route) => route.fulfill({ json: MY_ROOMS }))
   let saveBody: Record<string, unknown> | undefined
   await page.route('**/platform/dor/quit/apply', async (route) => {
     saveBody = route.request().postDataJSON() as Record<string, unknown>
@@ -306,7 +306,7 @@ test('死链回归：home 宫格「退宿申请」入口落到真实页', async 
   await page.route('**/platform/dor/quit/list/approval*', (route) =>
     route.fulfill({ json: { code: 0, data: { total: 0 } } }),
   )
-  await page.route('**/app/appdormitory/roomList/**', (route) => route.fulfill({ json: MY_ROOMS }))
+  await page.route('**/platform/dormitory/staff/me/roomList', (route) => route.fulfill({ json: MY_ROOMS }))
 
   await page.goto('/home')
   await page.getByRole('button', { name: '退宿申请', exact: true }).click()
@@ -317,7 +317,7 @@ test('死链回归：home 宫格「退宿申请」入口落到真实页', async 
 test('退宿：未选房间拦截 + SegmentTabs 双向 + status5 无码', async ({ page }) => {
   await seedLogin(page)
   await mockBaseInfo(page)
-  await page.route('**/app/appdormitory/roomList/**', (route) => route.fulfill({ json: MY_ROOMS }))
+  await page.route('**/platform/dormitory/staff/me/roomList', (route) => route.fulfill({ json: MY_ROOMS }))
   await page.route('**/platform/dor/quit/page*', (route) =>
     route.fulfill({ json: { code: 0, data: { records: [], pages: 1 } } }),
   )

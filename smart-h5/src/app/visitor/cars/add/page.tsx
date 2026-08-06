@@ -21,7 +21,7 @@ function CarFormInner() {
   const router = useRouter()
   const mounted = useMounted()
   const indexParam = useSearchParams().get('index')
-  const { addCar, updateCar } = useVisitorFlow()
+  const { addCar, updateCar, host } = useVisitorFlow()
   const [certTypeVisible, setCertTypeVisible] = useState(false)
 
   // Edit mode only with a valid in-range index (see persons/add for rationale).
@@ -43,7 +43,14 @@ function CarFormInner() {
   })
   const isEdit = editIndex !== null
 
-  const certEnum = useQuery({ queryKey: ['visitor', 'vehicle-cert-enum'], queryFn: getVehicleCertEnum })
+  const visitorDraft = host.visitorDraftToken && host.visitorDraftId
+    ? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
+    : null
+  const certEnum = useQuery({
+    queryKey: ['visitor', 'vehicle-cert-enum', visitorDraft?.draftId],
+    queryFn: () => getVehicleCertEnum(visitorDraft!),
+    enabled: visitorDraft !== null,
+  })
 
   function handleSubmit() {
     // 先去首尾空格再校验，避免误带空格卡在格式校验。
@@ -131,6 +138,11 @@ function CarFormInner() {
             value={form.certImg}
             onChange={(certImg) => setForm((f) => ({ ...f, certImg }))}
             label="请上传证件照片"
+				visitorFaceDraft={
+					host.visitorDraftToken && host.visitorDraftId
+						? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
+						: undefined
+				}
           />
         </div>
 

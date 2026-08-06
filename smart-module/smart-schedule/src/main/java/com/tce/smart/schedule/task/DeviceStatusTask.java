@@ -37,7 +37,8 @@ public class DeviceStatusTask {
 		if (taskJob.getDeviceStatus() && iSwitchService.process(TimerTaskEnum.DEVICE_STATUS)) {
 			try {
 				log.info("发起设备状态查询");
-				remoteDeviceService.queryDeviceStatus(SecurityConstants.FROM_IN);
+				remoteDeviceService.queryDeviceStatus(SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			} catch (Exception e) {
 				log.error("查询设备状态异常", e);
 			}

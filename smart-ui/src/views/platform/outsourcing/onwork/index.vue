@@ -417,7 +417,7 @@
 </template>
 
 <script>
-import { getStaffByBadgeBatch, delStaffBatch, getAppauth, getRecruitment, getDeptTree, postDeptSave, getDeptList, getSearchStaff, delDept, getDeptDetails, getStaffPage, getStaff, postAddStaff, postDelStaff, getDirector, getC6DeptList} from '@/api/platform/basic/personnel_manage'
+import { getTemporaryStaffByBadgeBatch, delStaffBatch, getAppauth, getRecruitment, getDeptTree, postDeptSave, getDeptList, getSearchStaff, delDept, getDeptDetails, getStaffPage, getStaff, postAddStaff, postDelStaff, getDirector, getC6DeptList} from '@/api/platform/basic/personnel_manage'
 import { getStaffImgInfo, importImgs } from "@/api/platform/basic/staff_info";
 import { tableOption, tableOptionBatchDel } from '@/const/crud/platform/basic/personnel_manage'
 import { mapGetters } from 'vuex'
@@ -973,11 +973,9 @@ export default {
       }
       //以逗号或者空格分隔
       this.delBadgesArr = this.delBadges.split(/[\s|,]+/)
-      let obj = {
-        badges: this.delBadgesArr.join(','),
-        compId: this.compId
-      }
-      const res = await getStaffByBadgeBatch(obj)
+      const res = await getTemporaryStaffByBadgeBatch({
+        badges: this.delBadgesArr.join(',')
+      })
       if(!res) return
       if(res.data.code==0){
         let resData = res.data.data

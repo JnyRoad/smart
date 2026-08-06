@@ -37,14 +37,14 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.markDoing(Mockito.any(SmtIscCardTask.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(true);
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{\"list\":[{\"personId\":\"deleted-person\",\"status\":-1},{\"personId\":\"isc-person-1\",\"status\":1}]}"))
 				.thenReturn(Result.success("{}"));
 
 		service.syncCardTasks();
 
 		ArgumentCaptor<DispatcherDTO> requestCaptor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(requestCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(requestCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Assert.assertEquals(EventEnum.ISC_PERSON_GET.getCode(), requestCaptor.getAllValues().get(0).getEventType());
 		Assert.assertEquals(Integer.valueOf(5000021), requestCaptor.getAllValues().get(0).getParkId());
 		Assert.assertEquals(EventEnum.ISC_CARD_ADD.getCode(), requestCaptor.getAllValues().get(1).getEventType());
@@ -82,13 +82,13 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.markDoing(Mockito.any(SmtIscCardTask.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(true);
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{}"));
 
 		service.syncCardTasks();
 
 		ArgumentCaptor<DispatcherDTO> requestCaptor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(1)).dispatch(requestCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
+		Mockito.verify(dispatcherService, Mockito.times(1)).dispatch(requestCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Assert.assertEquals(EventEnum.ISC_CARD_DELETE.getCode(), requestCaptor.getValue().getEventType());
 		Assert.assertEquals(Integer.valueOf(5000021), requestCaptor.getValue().getParkId());
 		Map cardRequest = (Map) requestCaptor.getValue().getData();
@@ -110,7 +110,7 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.markDoing(Mockito.any(SmtIscCardTask.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(true);
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{\"list\":[{\"personId\":\"isc-person-1\",\"status\":-1}]}"))
 				.thenReturn(failedDelete);
 
@@ -143,14 +143,14 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.markDoing(Mockito.any(SmtIscCardTask.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(true);
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{\"list\":[{\"personId\":\"isc-person-1\",\"status\":1}]}"))
 				.thenReturn(failedDelete);
 
 		service.syncCardTasks();
 
 		ArgumentCaptor<DispatcherDTO> requestCaptor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(requestCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(requestCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Assert.assertEquals(EventEnum.ISC_PERSON_GET.getCode(), requestCaptor.getAllValues().get(0).getEventType());
 		Assert.assertEquals(EventEnum.ISC_CARD_DELETE.getCode(), requestCaptor.getAllValues().get(1).getEventType());
 		Mockito.verify(taskService, Mockito.never()).markDoing(
@@ -171,13 +171,13 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.markDoing(Mockito.any(SmtIscCardTask.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(true);
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{\"list\":[]}"));
 
 		service.syncCardTasks();
 
 		ArgumentCaptor<DispatcherDTO> requestCaptor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(1)).dispatch(requestCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
+		Mockito.verify(dispatcherService, Mockito.times(1)).dispatch(requestCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
 		Assert.assertEquals(EventEnum.ISC_PERSON_GET.getCode(), requestCaptor.getValue().getEventType());
 
 		ArgumentCaptor<SmtIscCardTask> taskCaptor = ArgumentCaptor.forClass(SmtIscCardTask.class);
@@ -202,7 +202,7 @@ public class ISCCardTaskServiceImplTest {
 
 		service.syncCardTasks();
 
-		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString());
+		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(taskService, Mockito.never()).updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString());
 	}
 
@@ -223,7 +223,7 @@ public class ISCCardTaskServiceImplTest {
 
 		service.syncCardTasks();
 
-		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString());
+		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString(), Mockito.anyString());
 		ArgumentCaptor<SmtIscCardTask> taskCaptor = ArgumentCaptor.forClass(SmtIscCardTask.class);
 		Mockito.verify(taskService).updateDoingTask(taskCaptor.capture(), Mockito.eq(taskActiveKey(DeviceTaskActionEnum.DOWN.getCode())), Mockito.anyString());
 		SmtIscCardTask lastUpdate = taskCaptor.getValue();
@@ -251,7 +251,7 @@ public class ISCCardTaskServiceImplTest {
 
 		service.syncCardTasks();
 
-		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString());
+		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString(), Mockito.anyString());
 		ArgumentCaptor<SmtIscCardTask> taskCaptor = ArgumentCaptor.forClass(SmtIscCardTask.class);
 		Mockito.verify(taskService).updateDoingTask(taskCaptor.capture(), Mockito.eq("STAFF|1001|JA26086|5000021|111111|1"), Mockito.anyString());
 		SmtIscCardTask lastUpdate = taskCaptor.getValue();
@@ -274,7 +274,7 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.markDoing(Mockito.any(SmtIscCardTask.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(true);
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.fail(77668387, "ISC接口请求异常: 卡号不存在 (code=0x04a12023, rawMsg=cardNo 12345678 is not exists)", null));
 
 		service.syncCardTasks();
@@ -302,7 +302,7 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.markDoing(Mockito.any(SmtIscCardTask.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(true);
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{\"list\":[{\"personId\":\"isc-person-1\",\"status\":1}]}"))
 				.thenReturn(Result.fail(466947, "ISC接口请求异常: 参数错误：参数格式不正确 (code=0x072003, rawMsg=the required parameter cardNo format error)", null));
 
@@ -331,7 +331,7 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.markDoing(Mockito.any(SmtIscCardTask.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(true);
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(Result.success("{\"list\":[{\"personId\":\"isc-person-1\",\"status\":1}]}"))
 				.thenReturn(Result.fail(0x04a12703, "ISC接口请求异常: 人员与卡号不是所属关系 (code=0x04a12703)", null));
 
@@ -363,7 +363,7 @@ public class ISCCardTaskServiceImplTest {
 
 		service.syncCardTasks();
 
-		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString());
+		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(), Mockito.anyString(), Mockito.anyString());
 		ArgumentCaptor<SmtIscCardTask> taskCaptor = ArgumentCaptor.forClass(SmtIscCardTask.class);
 		Mockito.verify(taskService).updateDoingTask(taskCaptor.capture(), Mockito.eq(taskActiveKey(DeviceTaskActionEnum.DOWN.getCode())), Mockito.anyString());
 		SmtIscCardTask lastUpdate = taskCaptor.getValue();
@@ -386,7 +386,7 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
 		Result<String> cardExists = Result.fail(0x04a12700, "卡号已存在");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(cardExists)
 				.thenReturn(Result.success("{\"total\":1,\"list\":[{\"personId\":\"isc-person-1\",\"cardNo\":\"12345678\"}]}"));
 
@@ -414,7 +414,7 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
 		Result<String> cardExists = Result.fail(0x04a12700, "卡号已存在");
 		// 本人名下没有这张卡 => 卡绑定在他人名下
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(cardExists)
 				.thenReturn(Result.success("{\"total\":1,\"list\":[{\"personId\":\"isc-person-1\",\"cardNo\":\"99999999\"}]}"));
 
@@ -441,7 +441,7 @@ public class ISCCardTaskServiceImplTest {
 		Mockito.when(taskService.isCurrentStaffCardAddTask(Mockito.any(SmtIscCardTask.class))).thenReturn(true);
 		Mockito.when(taskService.updateDoingTask(Mockito.any(SmtIscCardTask.class), Mockito.anyString(), Mockito.anyString())).thenReturn(true);
 		Result<String> cardExists = Result.fail(0x04a12700, "卡号已存在");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
 				.thenReturn(cardExists)
 				.thenReturn(Result.fail("ISC查询超时"));
 

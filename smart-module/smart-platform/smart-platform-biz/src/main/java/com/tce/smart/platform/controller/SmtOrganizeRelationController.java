@@ -4,7 +4,6 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.tce.smart.admin.api.feign.RemoteUserService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
@@ -28,9 +27,6 @@ public class SmtOrganizeRelationController extends BaseController {
 
 	@Autowired
 	private SmtOrganizeRelationService smtOrganizeRelationService;
-	@Autowired
-	private RemoteUserService remoteUserService;
-
 
 	/**
 	 * 分页查询

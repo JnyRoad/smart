@@ -6,6 +6,7 @@ import com.tce.smart.businesstrip.core.service.HrFormtableMainService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.businesstrip.req.VwHRMResourceReqDTO;
 import com.tce.smart.data.api.dto.businesstrip.resp.VwHRMResourceRespDTO;
 import org.springframework.beans.BeanUtils;
@@ -31,6 +32,7 @@ public class FormtableHrController extends BaseController {
 	 * @return
 	 */
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/infoPerson")
 	public Result<VwHRMResourceRespDTO> infoPerson(VwHRMResourceReqDTO vwHRMResource) {
 		VwHRMResource qeuryVwHRMResource = new VwHRMResource();

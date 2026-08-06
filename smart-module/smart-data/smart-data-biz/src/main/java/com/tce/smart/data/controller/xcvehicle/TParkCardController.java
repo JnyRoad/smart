@@ -3,6 +3,8 @@ package com.tce.smart.data.controller.xcvehicle;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.DateUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
+import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.consume.req.RsEmpSaveReqDto;
 import com.tce.smart.data.api.dto.xcvehicle.req.XCVehicleAddDTO;
 import com.tce.smart.xcc6.core.service.IRsXCEmpService;
@@ -37,6 +39,8 @@ public class TParkCardController extends BaseController {
 	 * @return
 	 */
 	@PostMapping("/inner/saveVehicle")
+	@Inner
+	@OpenApi("server")
 	public Result<Boolean> saveVehicle(@RequestBody XCVehicleAddDTO xcVehicleAddDTO) {
 		TParkCardAddDTO tParkCardAddDTO = new TParkCardAddDTO();
 		BeanUtils.copyProperties(xcVehicleAddDTO,tParkCardAddDTO);
@@ -53,6 +57,8 @@ public class TParkCardController extends BaseController {
 	 * @return
 	 */
 	@PostMapping("/inner/deleteVehicle/{cardNo}")
+	@Inner
+	@OpenApi("server")
 	public Result<Boolean> deleteVehicle(@PathVariable("cardNo")String cardNo) {
 		return success(tParkCardService.deleteParkCard(cardNo));
 	}

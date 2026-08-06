@@ -49,6 +49,14 @@ export interface ApplyRecordDetail {
   submitTime: string
 }
 
+/** 仅用于展示本人通行二维码的最小响应，禁止复用包含预约详情的遗留接口。 */
+export interface VisitorPassCode {
+  applyId: string
+  valid: boolean
+  qrCode?: string
+  smsCode?: string
+}
+
 export interface ApprovalNode {
   title: string
   state: ApprovalNodeState
@@ -66,13 +74,45 @@ export interface QuerySession {
 
 const SESSION_KEY = 'visitor-query-session'
 const QUERY_SESSION_TTL_MS = 24 * 60 * 60 * 1000
+let querySessionGeneration = 0
+const querySessionChangeListeners = new Set<(generation: number) => void>()
 
 type StoredQuerySession = QuerySession & { savedAt: number }
 
+/** 仅发布无敏感代际，使界面在访客凭证切换时可清除旧访客的内存缓存。 */
+function notifyQuerySessionChanged(): void {
+  querySessionGeneration += 1
+  querySessionChangeListeners.forEach((listener) => listener(querySessionGeneration))
+}
+
+/** 同源其他标签页切换访客查询凭证时，当前标签页也不得保留旧通行码。 */
+function handleQuerySessionStorageChange(event: StorageEvent): void {
+  if (event.storageArea === localStorage && (event.key === SESSION_KEY || event.key === null)) {
+    notifyQuerySessionChanged()
+  }
+}
+
+/** 订阅访客查询会话代际变化；回调中不传递 queryToken。 */
+export function subscribeToQuerySessionChanges(listener: (generation: number) => void): () => void {
+  querySessionChangeListeners.add(listener)
+  if (querySessionChangeListeners.size === 1 && typeof window !== 'undefined') {
+    window.addEventListener('storage', handleQuerySessionStorageChange)
+  }
+
+  return () => {
+    querySessionChangeListeners.delete(listener)
+    if (querySessionChangeListeners.size === 0 && typeof window !== 'undefined') {
+      window.removeEventListener('storage', handleQuerySessionStorageChange)
+    }
+  }
+}
+
 export function saveQuerySession(session: QuerySession): void {
+  const previousQueryToken = getQuerySession()?.queryToken
   const now = Date.now()
   const savedAt = existingSavedAtForToken(session.queryToken, now) ?? now
   localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, savedAt }))
+  if (previousQueryToken !== session.queryToken) notifyQuerySessionChanged()
 }
 
 export function getQuerySession(): QuerySession | null {
@@ -100,7 +140,9 @@ export function getQuerySession(): QuerySession | null {
 }
 
 export function clearQuerySession(): void {
+  const hadSession = localStorage.getItem(SESSION_KEY) !== null
   localStorage.removeItem(SESSION_KEY)
+  if (hadSession) notifyQuerySessionChanged()
 }
 
 function existingSavedAtForToken(queryToken: string, now: number): number | null {
@@ -185,6 +227,17 @@ export async function fetchApplyDetail(applyId: string): Promise<Envelope<ApplyR
   return request({
     module: 'platform',
     url: '/admittance/apply/app/applyDetail',
+    params: { applyId },
+    auth: 'none',
+    headers: tokenHeaders(),
+  })
+}
+
+/** 查询二维码仍必须由 queryToken 绑定到申请手机号，裸 applyId 不能获取任何数据。 */
+export async function fetchVisitorPassCode(applyId: string): Promise<Envelope<VisitorPassCode>> {
+  return request({
+    module: 'platform',
+    url: '/admittance/apply/app/passCode',
     params: { applyId },
     auth: 'none',
     headers: tokenHeaders(),

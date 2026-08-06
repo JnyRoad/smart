@@ -8,6 +8,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.OvwYsCallOwanceDetailsDTO;
 import com.tce.smart.dhrview.core.entity.YutoDhrPsndo;
 import com.tce.smart.dhrview.core.service.YutoDhrPsndoService;
@@ -38,6 +39,7 @@ public class OvwYsCallOwanceDetailsController extends BaseController {
 
 	@SysLog("查询宿补贴")
 	@Inner
+    @OpenApi("server")
     @GetMapping("/get")
     public Result<OvwYsCallOwanceDetailsDTO> getInfo(@RequestParam("badge") String badge, @RequestParam("xtype") Integer xtype){
 		YutoDhrPsndo yutoDhrPsndo = yutoDhrPsndoService.getByBadge(badge);
@@ -68,6 +70,7 @@ public class OvwYsCallOwanceDetailsController extends BaseController {
 
 	@SysLog("根据当前月份查询宿补贴")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/time/get")
 	public Result<Boolean> getInfoByTime(@RequestParam("badge") String badge, @RequestParam("xtype") Integer xtype){
 		OvwYsCallOwanceDetails ovwYsCallOwanceDetails = service.getOne(Wrappers.<OvwYsCallOwanceDetails> query().lambda()
@@ -82,6 +85,7 @@ public class OvwYsCallOwanceDetailsController extends BaseController {
 
 	@SysLog("根据当前月份查询宿补贴")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/time/get/list")
 	public Result<List<OvwYsCallOwanceDetailsDTO>> getInfoByTimeList(@RequestParam("xtype") Integer xtype){
 		List<OvwYsCallOwanceDetails> ovwYsCallOwanceDetails = service.list(Wrappers.<OvwYsCallOwanceDetails> query().lambda()
@@ -101,6 +105,7 @@ public class OvwYsCallOwanceDetailsController extends BaseController {
 
 	@SysLog("查询是否存在住宿补贴")
 	@Inner
+	@OpenApi("server")
 	@GetMapping("get/byBadge")
 	public Result<Boolean> getInfoByBadge(@RequestParam("badge") String badge){
 

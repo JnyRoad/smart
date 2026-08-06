@@ -2,7 +2,12 @@
 import { SpinLoading, Toast } from 'antd-mobile'
 import Image from 'next/image'
 import { useRef, useState } from 'react'
-import { checkFace, faceCut } from '@/features/visitor/api'
+import {
+  cropVisitorFace,
+  type VisitorFaceDraft,
+  uploadVisitorDocument,
+  uploadVisitorPhoto,
+} from '@/features/visitor/api'
 import { extractPhotoId, photoViewUrl } from '@/lib/photo-id'
 
 /** Strips the dataURL prefix; the gateway expects raw base64. */
@@ -22,9 +27,8 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 /**
  * Photo upload returning a gateway photo id.
- * mode 'face': face detection + crop (algorithm:/out/face/cut) before upload —
- * used for visitor/fellow portraits. mode 'plain': direct upload — used for
- * vehicle document photos. Both upload via app:/wechat/visit/checkFace.
+ * 仅用于当前访客申请流：人脸图必须使用裁剪结果绑定的上传票据，证件图使用
+ * DOCUMENT_UPLOAD 票据。草稿缺失时不得回退到员工上传接口。
  */
 export interface FaceUploadResponse {
   code: number
@@ -41,6 +45,7 @@ export function FaceUpload({
   mode,
   label = '点击上传照片',
   onUploaded,
+	visitorFaceDraft,
 }: {
   value?: string
   onChange: (photoId: string) => void
@@ -48,6 +53,8 @@ export function FaceUpload({
   label?: string
   /** Raw checkFace response for callers that need more than the photo id. */
   onUploaded?: (raw: FaceUploadResponse, uploadedBase64: string) => void
+	/** 仅访客申请流传入；后端会按此草稿会话签发一次性裁剪能力。 */
+	visitorFaceDraft?: VisitorFaceDraft
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -56,20 +63,25 @@ export function FaceUpload({
   async function handleFile(file: File) {
     if (uploading) return
     setUploading(true)
-    try {
+	try {
+		if (!visitorFaceDraft) {
+			throw new Error('访客操作授权已失效，请重新进入申请流程')
+		}
       const dataUrl = await readFileAsDataUrl(file)
       let base64 = toRawBase64(dataUrl)
+      let uploaded: FaceUploadResponse
       if (mode === 'face') {
-        const cut = await faceCut(base64)
-        // 真实响应 data 是裁剪后的图片 base64 字符串本身（不是 {imageData} 嵌套）。
-        if (cut.code !== 0 || !cut.data) {
+        const cut = await cropVisitorFace(base64, visitorFaceDraft)
+        if (cut.code !== 0 || !cut.data?.imageData || !cut.data.uploadCapability) {
           // 网关成功消息是英文 success，失败兜底用中文提示。
           Toast.show(cut.message && cut.message !== 'success' ? cut.message : '人脸检测失败，请重新拍摄')
           return
         }
-        base64 = cut.data
+			base64 = cut.data.imageData
+			uploaded = await uploadVisitorPhoto(base64, visitorFaceDraft, cut.data.uploadCapability)
+		} else {
+			uploaded = await uploadVisitorDocument(base64, visitorFaceDraft)
       }
-      const uploaded = (await checkFace(base64)) as FaceUploadResponse
       if (uploaded.code === 0) {
         // Expose both the gateway response and the uploaded base64. Door-lock
         // refresh needs base64 even when checkFace only returns data.photoId.

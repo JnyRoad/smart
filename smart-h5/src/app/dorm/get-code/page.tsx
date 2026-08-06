@@ -1,11 +1,9 @@
 'use client'
-import { useQuery } from '@tanstack/react-query'
-import { Dialog, ErrorBlock } from 'antd-mobile'
+import { Dialog } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toUserMessage } from '@/lib/format/error-message'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
-import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { refreshLockPwd } from '@/features/dorm/api'
 import { LockFaceCamera } from '@/features/dorm/lock-face-camera'
 import styles from './page.module.css'
@@ -18,20 +16,11 @@ export default function GetCodePage() {
   const [facePic, setFacePic] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const baseInfo = useQuery({
-    queryKey: ['employee', 'baseinfo'],
-    queryFn: getEmployeeBaseInfo,
-    enabled: authorized,
-  })
-  const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
-  const employeeName = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeName : undefined
-  const baseInfoFailed = baseInfo.isError || (baseInfo.isSuccess && baseInfo.data.code !== 0)
-
   async function handleGenerate() {
-    if (!facePic || !badge) return
+    if (!facePic) return
     setSubmitting(true)
     try {
-      const res = await refreshLockPwd({ badge, facePic })
+      const res = await refreshLockPwd({ facePic })
       if (res.code === 0) {
         void Dialog.alert({ content: '刷新动态码成功！', confirmText: '确定' }).then(() =>
           router.replace('/dorm/lock'),
@@ -48,20 +37,6 @@ export default function GetCodePage() {
 
   if (!authorized) return null
 
-  if (baseInfoFailed) {
-    return (
-      <div className={styles.page}>
-        <FaceScanTopbar onBack={() => router.back()} onClose={() => router.replace('/dorm/lock')} />
-        <main className={styles.errorArea}>
-          <ErrorBlock status="default" title="加载失败" description="员工信息获取失败" />
-          <button type="button" onClick={() => void baseInfo.refetch()} className={styles.retryButton}>
-            重试
-          </button>
-        </main>
-      </div>
-    )
-  }
-
   return (
     <div className={styles.page} data-testid="lock-face-page">
       <FaceScanTopbar onBack={() => router.back()} onClose={() => router.replace('/dorm/lock')} />
@@ -69,9 +44,8 @@ export default function GetCodePage() {
       <section className={styles.context} aria-label="宿舍门锁信息">
         <div className={styles.contextMain}>
           <div>
-            <p className={styles.personName}>{employeeName ?? '当前员工'}</p>
+            <p className={styles.personName}>当前员工</p>
             <p className={styles.personMeta}>
-              <span className={styles.metaSegment}>工号 {badge ?? '--'}</span>
               <span className={styles.metaSegment}>宿舍门锁</span>
               <span className={styles.metaSegment}>{facePic ? '已完成核验' : '本人核验'}</span>
             </p>
@@ -87,7 +61,7 @@ export default function GetCodePage() {
         onCaptured={setFacePic}
         onGenerate={() => void handleGenerate()}
         generating={submitting}
-        generateDisabled={!facePic || !badge}
+        generateDisabled={!facePic}
       />
     </div>
   )

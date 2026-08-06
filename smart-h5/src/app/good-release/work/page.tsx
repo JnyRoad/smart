@@ -1,5 +1,4 @@
 'use client'
-import { useQuery } from '@tanstack/react-query'
 import { Picker, Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -9,8 +8,7 @@ import { PageShell } from '@/components/page-shell'
 import { SegmentTabs } from '@/components/segment-tabs'
 import { SMS_INPUT_CLASS } from '@/components/sms-code-field'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
-import { getEmployeeBaseInfo } from '@/features/employee/api'
-import { saveWorkRelease } from '@/features/good-release/api'
+import { createOfficeReleaseDraft, saveWorkRelease } from '@/features/good-release/api'
 import {
   DDDD_OPTIONS,
   FXDD_OPTIONS,
@@ -93,18 +91,13 @@ export default function GoodReleaseWorkPage() {
   const router = useRouter()
   const config = getTenantConfig()
   const applyMain = useWorkDraft((s) => s.applyMain)
+	const releaseId = useWorkDraft((s) => s.releaseId)
   const persons = useWorkDraft((s) => s.persons)
   const goods = useWorkDraft((s) => s.goods)
   const patchApplyMain = useWorkDraft((s) => s.patchApplyMain)
+	const setReleaseId = useWorkDraft((s) => s.setReleaseId)
   const clearAll = useWorkDraft((s) => s.clearAll)
   const [submitting, setSubmitting] = useState(false)
-
-  const baseInfo = useQuery({
-    queryKey: ['employee', 'baseinfo'],
-    queryFn: getEmployeeBaseInfo,
-    enabled: authorized,
-  })
-  const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
 
   function patch(p: Partial<WorkApplyMain>) {
     patchApplyMain(p)
@@ -125,12 +118,12 @@ export default function GoodReleaseWorkPage() {
     const personBranch = isPersonRelease(applyMain.fxsx)
     if (personBranch && persons.length === 0) return Toast.show('请添加放行人员')
     if (!personBranch && goods.length === 0) return Toast.show('请添加放行物品')
-    if (!badge) return Toast.show('获取用户信息失败！')
+	if (!releaseId) return Toast.show('请先创建放行草稿')
 
     setSubmitting(true)
     try {
       const res = await saveWorkRelease(
-        buildWorkSubmitBody({ applyMain, badge, parkId: config.parkId, persons, goods }),
+		buildWorkSubmitBody({ applyMain, releaseId, parkId: config.parkId, persons, goods }),
       )
       if (res.code === 0 && res.data) {
         clearAll()
@@ -148,6 +141,25 @@ export default function GoodReleaseWorkPage() {
   if (!authorized || !mounted) return null
 
   const personBranch = isPersonRelease(applyMain.fxsx)
+
+	async function enterReleaseDetails() {
+		if (releaseId) {
+			router.push(personBranch ? '/good-release/work/persons' : '/good-release/work/goods')
+			return
+		}
+		try {
+			const response = await createOfficeReleaseDraft({ parkId: config.parkId })
+			const draftId = response.code === 0 ? response.data?.releaseId : undefined
+			if (draftId === undefined || draftId === null) {
+				Toast.show(response.message || response.msg || '创建草稿失败')
+				return
+			}
+			setReleaseId(draftId)
+			router.push(personBranch ? '/good-release/work/persons' : '/good-release/work/goods')
+		} catch (error) {
+			Toast.show(toUserMessage(error, '创建草稿失败'))
+		}
+	}
 
   return (
     <PageShell title="物品放行（办公区）">
@@ -183,7 +195,7 @@ export default function GoodReleaseWorkPage() {
           </label>
           <button
             type="button"
-            onClick={() => router.push(personBranch ? '/good-release/work/persons' : '/good-release/work/goods')}
+			onClick={() => void enterReleaseDetails()}
             className={`${SMS_INPUT_CLASS} h-auto min-h-12 py-2 text-left`}
           >
             {personBranch ? (

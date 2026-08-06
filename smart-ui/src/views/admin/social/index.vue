@@ -3,7 +3,7 @@
     <el-scrollbar class="my-scrollbar" :native="false">
       <section class="my-basic-inner">
         <div class="top-menu">
-          <el-button type="primary" v-if="permissions.generator_syssocialdetails_add" icon="el-icon-plus" @click="handleAdd">新 增</el-button>
+          <el-button type="primary" v-if="permissions.sys_client_add" icon="el-icon-plus" @click="handleAdd">新 增</el-button>
         </div>
         <avue-crud ref="crud"
                   :page="page"
@@ -16,27 +16,25 @@
                   @row-update="handleUpdate"
                   @row-save="handleSave"
                   @row-del="rowDel">
-          <!-- <template slot="menuLeft">
-            <el-button type="primary"
-                      @click="handleAdd"
-                      size="small"
-                      v-if="permissions.generator_syssocialdetails_add">新 增
-            </el-button>
-            <br/><br/>
-          </template> -->
           <template slot-scope="scope"
                     slot="menu">
             <el-button type="text"
-                      v-if="permissions.generator_syssocialdetails_edit"
+                      v-if="permissions.sys_client_edit"
                       icon="el-icon-check"
                       size="small"
                       @click="handleEdit(scope.row,scope.index)">编辑
             </el-button>
             <el-button type="text"
-                      v-if="permissions.generator_syssocialdetails_del"
+                      v-if="permissions.sys_client_del"
                       icon="el-icon-delete"
                       size="small"
                       @click="handleDel(scope.row,scope.index)">删除
+            </el-button>
+            <el-button type="text"
+                      v-if="permissions.sys_client_edit"
+                      icon="el-icon-refresh"
+                      size="small"
+                      @click="handleRotateSecret(scope.row)">轮换密钥
             </el-button>
           </template>
         </avue-crud>
@@ -46,7 +44,7 @@
 </template>
 
 <script>
-  import {addObj, delObj, fetchList, getObj, putObj} from '@/api/admin/sys-social-details'
+  import {addObj, delObj, fetchList, getObj, putObj, rotateSecret} from '@/api/admin/sys-social-details'
   import {tableOption} from '@/const/crud/admin/sys-social-details'
   import {mapGetters} from 'vuex'
 
@@ -123,7 +121,9 @@
        *
        **/
       handleUpdate: function (row, index, done) {
-        putObj(row).then(data => {
+        const payload = Object.assign({}, row)
+        delete payload.appSecret
+        putObj(payload).then(data => {
           this.tableData.splice(index, 1, Object.assign({}, row))
           this.$message({
             showClose: true,
@@ -141,6 +141,10 @@
        *
        **/
       handleSave: function (row, done) {
+        if (!row.appSecret) {
+          this.$message({ showClose: true, message: '新增三方账号必须填写 appSecret', type: 'warning' })
+          return
+        }
         addObj(row).then(() => {
           this.tableData.push(Object.assign({}, row))
           this.$message({
@@ -151,6 +155,18 @@
           this.refreshChange()
           done()
         })
+      },
+      /** 密钥从不由查询接口返回；管理员必须在此独立操作中主动输入新值。 */
+      handleRotateSecret (row) {
+        this.$prompt('请输入新的 appSecret；保存后旧密钥立即失效', '轮换三方账号密钥', {
+          confirmButtonText: '确认轮换',
+          cancelButtonText: '取消',
+          inputType: 'password',
+          inputPattern: /\S+/,
+          inputErrorMessage: 'appSecret 不能为空'
+        }).then(({ value }) => rotateSecret(row.id, value)).then(() => {
+          this.$message({ showClose: true, message: '密钥已轮换', type: 'success' })
+        }).catch(() => {})
       },
       /**
        * 刷新回调

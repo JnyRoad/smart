@@ -39,6 +39,22 @@ describe('visitor flow store', () => {
     expect(useVisitorFlow.getState().visitor.visitorName).toBe('')
   })
 
+  it('接收新的草稿凭证时清除历史持久化的 openId 和 unionId', () => {
+    useVisitorFlow.setState({
+      host: {
+        openId: 'legacy-open-id',
+        unionId: 'legacy-union-id',
+      } as never,
+    })
+
+    useVisitorFlow.getState().patchHost({ visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id' })
+
+    expect(useVisitorFlow.getState().host).not.toHaveProperty('openId')
+    expect(useVisitorFlow.getState().host).not.toHaveProperty('unionId')
+    expect(localStorage.getItem('visitor-flow')).not.toContain('legacy-open-id')
+    expect(localStorage.getItem('visitor-flow')).not.toContain('legacy-union-id')
+  })
+
   it('replaceAreas 整体替换区域选择', () => {
     const s = useVisitorFlow.getState()
     s.setFactoryAreas('NEW01', { list: ['A1', 'DEAD'], custom: '' })

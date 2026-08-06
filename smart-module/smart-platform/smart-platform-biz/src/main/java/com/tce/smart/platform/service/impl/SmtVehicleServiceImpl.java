@@ -464,7 +464,7 @@ public class SmtVehicleServiceImpl extends ServiceImpl<SmtVehicleMapper, SmtVehi
 		List<DepTree>  listTree = new ArrayList<DepTree>();
 		// 查询裕同视图中的全部bu
 		if(CollUtil.isNotEmpty(listBu)){
-			Result<List<OvwYscompRespDTO>> yscompServiceList = remoteOvwYscompService.getList(SecurityConstants.FROM_IN);
+			Result<List<OvwYscompRespDTO>> yscompServiceList = remoteOvwYscompService.getList(SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			List<OvwYscompRespDTO> yscompRespDTOS = yscompServiceList.getData();
 			Map<Integer, List<OvwYscompRespDTO>> ovmYsMap = yscompRespDTOS.stream().collect(Collectors.groupingBy(OvwYscompRespDTO::getCompid));
 			listBu.forEach(bu->{
@@ -497,7 +497,7 @@ public class SmtVehicleServiceImpl extends ServiceImpl<SmtVehicleMapper, SmtVehi
     public List<DepTree> getDepTree(Integer id) {
 	List<DepTree> depTreeList = new ArrayList<>();
 	DepTree depTree = null;
-        Result<List<OvwYsdepRespDTO>> result = remoteOvwYsdepService.getByCompId(id, SecurityConstants.FROM_IN);
+        Result<List<OvwYsdepRespDTO>> result = remoteOvwYsdepService.getByCompId(id, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
         List<OvwYsdepRespDTO> list = result.getData();
         if(CollectionUtil.isNotEmpty(list)) {
 			for (OvwYsdepRespDTO ovwYsdepVO : list) {
@@ -517,7 +517,7 @@ public class SmtVehicleServiceImpl extends ServiceImpl<SmtVehicleMapper, SmtVehi
 		List<OvwYscompRespDTO>  listOvwYscompVO = new ArrayList<OvwYscompRespDTO>();
 		// 查询裕同视图中的全部bu
 		listBu.forEach(bu->{
-			Result<OvwYscompRespDTO> result = remoteOvwYscompService.getByCompId(bu.getCompId(),SecurityConstants.FROM_IN);
+			Result<OvwYscompRespDTO> result = remoteOvwYscompService.getByCompId(bu.getCompId(),SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 			if(result.isSuccess()) {
 				listOvwYscompVO.add(result.getData());
 			}
@@ -527,7 +527,7 @@ public class SmtVehicleServiceImpl extends ServiceImpl<SmtVehicleMapper, SmtVehi
 
     @Override
     public List<OvwYsdepRespDTO> getDep(Integer id) {
-        Result<List<OvwYsdepRespDTO>> result = remoteOvwYsdepService.getByCompId(id, SecurityConstants.FROM_IN);
+        Result<List<OvwYsdepRespDTO>> result = remoteOvwYsdepService.getByCompId(id, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
         List<OvwYsdepRespDTO> list = result.getData();
         return list;
     }
@@ -691,8 +691,8 @@ public class SmtVehicleServiceImpl extends ServiceImpl<SmtVehicleMapper, SmtVehi
 	}
 
 	@Override
-	public int getApplyVehicle(Integer parkId, String vehiclePlate, Integer isDelete, Integer status) {
-		return this.baseMapper.getApplyVehicle(parkId,vehiclePlate,isDelete,status);
+	public int getApplyVehicle(Integer parkId, Long vehicleId, Integer status) {
+		return this.baseMapper.getApplyVehicle(parkId, vehicleId, status);
 	}
 
 

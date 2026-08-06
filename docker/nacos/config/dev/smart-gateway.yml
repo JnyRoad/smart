@@ -2,6 +2,14 @@ security:
   encode:
     # 前端密码密钥，必须16位
     key: '${SMART_SECURITY_ENCODE_KEY:}'
+  # 不可升级的门锁只通过 Gateway 的短期签名证明访问三条历史路径。
+  # Nacos 不保存签名密钥；调用方只允许逐项配置精确 IP（IPv4 /32、IPv6 /128），默认拒绝全部。
+  legacy-door-lock:
+    enabled: false
+    key-id: "${SMART_LEGACY_DOORLOCK_KEY_ID:}"
+    signature-key: "${SMART_LEGACY_DOORLOCK_SIGNATURE_KEY:}"
+    signature-ttl-seconds: 30
+    clients: []
 
 # 不校验验证码终端
 ignore:

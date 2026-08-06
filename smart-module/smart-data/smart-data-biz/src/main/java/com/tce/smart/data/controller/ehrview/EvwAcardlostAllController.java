@@ -7,6 +7,7 @@ import java.util.List;
 import cn.hutool.core.date.DateUtil;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
+import com.tce.smart.common.security.annotation.OpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +32,8 @@ public class EvwAcardlostAllController extends BaseController {
 	@Autowired
 	private EvwAcardlostAllService evwAcardlostAllService;
 
+	@Inner
+	@OpenApi("server")
 	@GetMapping("/info")
 	public Result<List<EvwAcardlostAllRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("kqStartDate") String kqStartDate){
 
@@ -49,6 +52,7 @@ public class EvwAcardlostAllController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/list")
 	public Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth){
 		List<EvwAcardlostAll> evwAcardlostAllList = evwAcardlostAllService.list(badge, queryMonth);
@@ -56,6 +60,7 @@ public class EvwAcardlostAllController extends BaseController {
 	}
 
 	@Inner
+	@OpenApi("server")
 	@GetMapping("/detail")
 	public Result getByBadge(@RequestParam("badge") String badge, @RequestParam("kqStartDate") String kqStartDate){
 		EvwAcardlostAll evwAcardlostAll = evwAcardlostAllService.getOne(Wrappers.<EvwAcardlostAll>query().lambda()

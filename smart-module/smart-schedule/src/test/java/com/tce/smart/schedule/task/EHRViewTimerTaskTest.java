@@ -38,7 +38,8 @@ public class EHRViewTimerTaskTest {
 
 		task.admittanceUpdateOaTask();
 
-		Mockito.verify(remoteAdmittanceTaskService).updateOaStatusTask(SecurityConstants.FROM_IN);
+		Mockito.verify(remoteAdmittanceTaskService).updateOaStatusTask(SecurityConstants.FROM_IN,
+				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		Mockito.verify(switchService).release(TimerTaskEnum.ADMITTANCE_UPDATE_OA, "owner-token");
 	}
 
@@ -54,7 +55,8 @@ public class EHRViewTimerTaskTest {
 		Mockito.when(taskJob.getAdmittanceUpdateOa()).thenReturn(Boolean.TRUE);
 		Mockito.when(switchService.acquire(TimerTaskEnum.ADMITTANCE_UPDATE_OA, 5L, TimeUnit.MINUTES)).thenReturn("owner-token");
 		Mockito.doThrow(new RuntimeException("remote failed"))
-				.when(remoteAdmittanceTaskService).updateOaStatusTask(SecurityConstants.FROM_IN);
+				.when(remoteAdmittanceTaskService).updateOaStatusTask(SecurityConstants.FROM_IN,
+						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 
 		try {
 			task.admittanceUpdateOaTask();
