@@ -28,6 +28,14 @@ spring:
 smart:
   energy:
     zone-id: Asia/Shanghai #能耗业务日口径时区
+    projection:
+      oauth:
+        # Scheduler 在无 HTTP 请求上下文时申请 server scope 令牌；生产必须覆写为可达的授权端点。
+        access-token-uri: "${SMART_SCHEDULE_OAUTH_TOKEN_URI:${SMART_OAUTH_TOKEN_URI:http://smart-gateway:9990/auth/oauth/token}}"
+        client-id: "${SMART_SCHEDULE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
+        client-secret: "${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
+        scope: server
+        refresh-before-expiry-seconds: 60
   image:
     #内网访问地址
     base-url: "${SMART_SCHEDULE_IMAGE_BASE_URL:}"

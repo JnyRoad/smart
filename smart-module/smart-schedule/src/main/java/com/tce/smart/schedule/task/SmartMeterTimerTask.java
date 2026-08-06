@@ -6,6 +6,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.feign.RemoteDailySettlementService;
 import com.tce.smart.platform.api.feign.RemoteEnergyProjectionService;
 import com.tce.smart.schedule.config.TaskJob;
+import com.tce.smart.schedule.security.EnergyProjectionServerTokenProvider;
 import com.tce.smart.schedule.service.comm.ISwitchService;
 import com.tce.smart.schedule.service.platform.SmartMeterService;
 import com.tce.smart.tool.enums.TimerTaskEnum;
@@ -43,6 +44,8 @@ public class SmartMeterTimerTask {
 	private RemoteDailySettlementService remoteDailySettlementService;
 	@Autowired
 	private RemoteEnergyProjectionService remoteEnergyProjectionService;
+	@Autowired
+	private EnergyProjectionServerTokenProvider energyProjectionServerTokenProvider;
 	@Autowired
 	private TaskJob taskJob;
 	@Value("${smart.energy.zone-id:Asia/Shanghai}")
@@ -135,7 +138,7 @@ public class SmartMeterTimerTask {
 				ENERGY_PROJECTION_PROCESS_PENDING_LOCK_MINUTES, false, false, "能耗投影待处理队列",
 				heartbeat -> executeRemoteEnergyProjection("能耗投影待处理队列", heartbeat,
 						() -> remoteEnergyProjectionService.processPending(SecurityConstants.FROM_IN,
-								SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)));
+								energyProjectionServerTokenProvider.authorizationHeader())));
 	}
 
 	/**
@@ -152,7 +155,7 @@ public class SmartMeterTimerTask {
 				true, true, "能耗投影每日串行编排", heartbeat -> executeRemoteEnergyProjection("能耗投影每日编排", heartbeat,
 						() -> remoteEnergyProjectionService.daily(
 								LocalDate.now(ZoneId.of(energyZoneId)).minusDays(1).toString(), reconcile, backfill,
-								SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)));
+								SecurityConstants.FROM_IN, energyProjectionServerTokenProvider.authorizationHeader())));
 	}
 
 	/**
