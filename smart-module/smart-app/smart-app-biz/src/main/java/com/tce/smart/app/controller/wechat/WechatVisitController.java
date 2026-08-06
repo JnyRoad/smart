@@ -47,11 +47,8 @@ public class WechatVisitController extends BaseController {
 	 */
 	@ApiIgnore
 	@PostMapping("/checkFace")
-	public Result<?> checkFace(
-			@RequestHeader(value = "X-Visitor-Action-Capability", required = false) String capability,
-			@RequestHeader(value = "X-Visitor-Draft-Id", required = false) String draftId,
-			@RequestBody CheckFaceAo checkFaceAo) {
-		return success(visitorService.checkFace(checkFaceAo, capability, draftId));
+	public Result<?> checkFace(@RequestBody CheckFaceAo checkFaceAo) {
+		return success(visitorService.checkFace(checkFaceAo));
 	}
 	/**
 	 * 根据图片的id获取图片的bASE64位
@@ -60,8 +57,9 @@ public class WechatVisitController extends BaseController {
 	 * @return
 	 */
 	@ApiIgnore
+	@PostMapping("/getFace")
 	public Result<?> getFace(@RequestBody PhotoVisitorVo photoVisitorVo) {
-		throw new UnsupportedOperationException("旧微信公众号照片查询已下线");
+		return success(visitorService.getFace(photoVisitorVo));
 	}
 
 	/**
@@ -128,11 +126,8 @@ public class WechatVisitController extends BaseController {
 	 */
 	@ApiIgnore
 	@PostMapping("/checkBlackVisitor")
-	public Result<?> checkBlackVisitor(
-			@RequestHeader(value = "X-Visitor-Action-Capability", required = false) String capability,
-			@RequestHeader(value = "X-Visitor-Draft-Id", required = false) String draftId,
-			@RequestBody AddVisitorAo addVisitorAo) {
-		return visitorService.checkBlackVisitor(addVisitorAo, capability, draftId);
+	public Result<?> checkBlackVisitor( @RequestBody AddVisitorAo addVisitorAo) {
+		return visitorService.checkBlackVisitor(addVisitorAo);
 	}
 
 	/**
@@ -171,8 +166,10 @@ public class WechatVisitController extends BaseController {
 	 * 查询微信公众号预约记录详情
 	 * @return
 	 */
+	@ApiOperation("查询微信公众号预约记录详情")
+	@GetMapping("/record/detail")
 	public Result<VisitorDetailVo> getVisitRecordDetail(WechatVisitorRecordDetailReqDTO wechatVisitorRecordDetailReqDTO){
-		throw new UnsupportedOperationException("旧微信公众号访客详情已下线");
+		return new Result<>(visitorService.getVisitRecordDetail(wechatVisitorRecordDetailReqDTO));
 	}
 
 	/**
@@ -189,7 +186,9 @@ public class WechatVisitController extends BaseController {
 	 * 通过预约记录ID查询预约详情
 	 * @return
 	 */
+	@ApiOperation("通过预约记录ID查询预约详情")
+	@GetMapping("/record/detailById/{id}")
 	public Result<VisitorDetailVo> getVisitRecordDetailById(@ApiParam(name = "id",value = "记录ID",required = true) @RequestParam Long id){
-		throw new UnsupportedOperationException("旧微信公众号访客详情已下线");
+		return new Result<>(visitorService.getVisitRecordDetailById(id));
 	}
 }

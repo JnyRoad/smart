@@ -14,8 +14,6 @@ public interface RemoteEvwCcdFlstandardService {
 
 
 	@GetMapping("/flstandard/get")
-    Result<EvwCcdFlstandardDTO> getById(@RequestParam("id") String id, @RequestParam(value = "Pzid",required = false) Integer Pzid,
-                                        @RequestHeader(SecurityConstants.FROM) String from,
-                                        @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result<EvwCcdFlstandardDTO> getById(@RequestParam("id") String id, @RequestParam(value = "Pzid",required = false) Integer Pzid,@RequestHeader(SecurityConstants.FROM) String from);
 
 }

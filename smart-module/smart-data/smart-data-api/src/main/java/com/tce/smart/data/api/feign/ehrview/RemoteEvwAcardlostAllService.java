@@ -21,15 +21,11 @@ import com.tce.smart.data.api.dto.ehrview.resp.EvwAcardlostAllRespDTO;
 public interface RemoteEvwAcardlostAllService {
 
 	@GetMapping("/evwAcardlostAll/info")
-	Result<List<EvwAcardlostAllRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("kqStartDate") String kqStartDate,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<EvwAcardlostAllRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("kqStartDate") String kqStartDate);
 
 	@GetMapping("/evwAcardlostAll/list")
-	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/evwAcardlostAll/detail")
-	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("kqStartDate") String kqStartDate, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("kqStartDate") String kqStartDate, @RequestHeader(SecurityConstants.FROM) String from);
 }

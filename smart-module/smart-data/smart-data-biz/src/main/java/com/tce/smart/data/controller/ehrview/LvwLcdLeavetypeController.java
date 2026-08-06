@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.LvwLcdLeavetypeDTO;
 import com.tce.smart.ehrview.core.entity.LvwLcdLeavetype;
 import com.tce.smart.ehrview.core.service.ILvwLcdLeavetypeService;
@@ -30,7 +29,6 @@ public class LvwLcdLeavetypeController  extends BaseController {
 	 @Autowired
 	    private ILvwLcdLeavetypeService iLvwLcdLeavetypeService;
 		@Inner
-		@OpenApi("server")
 	    @GetMapping("/info")
 	    public Result<LvwLcdLeavetypeDTO> info(@RequestParam("id") Integer id){
 			LvwLcdLeavetype lvwLcdLeavetype = iLvwLcdLeavetypeService.getOne(

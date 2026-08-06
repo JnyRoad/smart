@@ -66,12 +66,12 @@ public interface SmtVehicleMapper extends BaseMapper<SmtVehicle> {
 	/**
 	 * 车辆获取园区的信息
 	 * @param parkId
-	 * @param vehicleId
+	 * @param vehiclePlate
+	 * @param isDelete
 	 * @param status
 	 * @return
 	 */
-	int getApplyVehicle(@Param("parkId") Integer parkId, @Param("vehicleId") Long vehicleId,
-			@Param("status") Integer status);
+	int getApplyVehicle(@Param("parkId") Integer parkId,@Param("vehiclePlate") String vehiclePlate,@Param("isDelete") Integer isDelete,@Param("status") Integer status);
 
 	/**
 	 * 根据部门ID获取员工信息

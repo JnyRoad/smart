@@ -1,7 +1,6 @@
 package com.tce.smart.dispatcher;
 
 import com.tce.smart.common.security.annotation.EnableSmartFeignClients;
-import com.tce.smart.common.security.annotation.EnableSmartResourceServer;
 import com.tce.smart.common.swagger.annotation.EnableSmartSwagger2;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -18,7 +17,6 @@ import org.springframework.web.context.request.RequestContextListener;
 @ConditionalOnProperty(name = "swagger.enabled", matchIfMissing = true)
 @SpringCloudApplication
 @EnableSmartFeignClients
-@EnableSmartResourceServer
 @EnableAutoConfiguration
 @EnableCaching
 @ComponentScan("com.tce.smart")

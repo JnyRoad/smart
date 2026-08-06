@@ -16,7 +16,11 @@ import com.tce.smart.transfer.dao2.Platform2Dao;
 import lombok.extern.slf4j.Slf4j;
 import org.omg.CORBA.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -45,9 +49,6 @@ public class DBTableCompareService {
 
 	@Autowired
 	private Platform2Dao platform2Dao;
-
-	@Autowired
-	private FaceCropInternalClient faceCropInternalClient;
 
 	public void tableCompare(){
 		//查询一期platform库 所有的用户表
@@ -1277,6 +1278,7 @@ public class DBTableCompareService {
 	}
 
 	public void cutImgData(){
+		RestTemplate restTemplate = new RestTemplate();
 		int current = 1;
 		int size = 200;
 		List<Map<String, Object>> mapList = platform2Dao.getTaskRecordImgList(current, size);
@@ -1312,13 +1314,25 @@ public class DBTableCompareService {
 
 				String bigImgBase64 = Base64.encode(b);
 
-				// 人脸原图只能经内部服务令牌算法契约处理，单条失败不终止整批历史迁移。
-				try {
-					String cutImg = faceCropInternalClient.crop(bigImgBase64);
+				//调用裁剪接口
+				String cutUrl = "https://tech.szyuto.com/algorithm/out/face/cut";
+
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_JSON);
+
+				Map<String, Object> map = new HashMap<>();
+				map.put("serialNo", UUID.randomUUID());
+				map.put("imageData", bigImgBase64);
+
+				HttpEntity<String> request = new HttpEntity<>(JSONUtil.toJsonStr(map), headers);
+				String result = restTemplate.postForObject(cutUrl, request, String.class);
+				JSONObject dataObj = JSONUtil.parseObj(result);
+				if(dataObj.containsKey("code") && dataObj.getInt("code") == 0){
+					String cutImg = dataObj.getStr("data");
 					byte[] bytes = ImageUtils.base64StrToByte(cutImg);
 					platform2Dao.updateImg(id,bytes);
-				} catch (Exception e) {
-					log.error("迁移任务人脸裁剪失败，记录ID={}", id, e);
+				} else {
+					System.out.println("调用裁剪接口失败:" + result);
 				}
 
 			});

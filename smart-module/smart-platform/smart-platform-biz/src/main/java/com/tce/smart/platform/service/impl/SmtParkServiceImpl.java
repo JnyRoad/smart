@@ -676,7 +676,7 @@ public class SmtParkServiceImpl extends ServiceImpl<SmtParkMapper, SmtPark> impl
 			if (smtParkBu.getCompId().length() <= 10) {
 				Integer compId = Integer.parseInt(smtParkBu.getCompId());
 				//根据compid获取部门
-				Result<List<OvwYsdepRespDTO>> depResult = depService.getByCompId(compId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				Result<List<OvwYsdepRespDTO>> depResult = depService.getByCompId(compId, SecurityConstants.FROM_IN);
 				if (depResult.isSuccess()) {
 					if (depResult.getData() != null) {
 						List<OvwYsdepRespDTO> depData = depResult.getData();
@@ -684,7 +684,7 @@ public class SmtParkServiceImpl extends ServiceImpl<SmtParkMapper, SmtPark> impl
 
 					}
 				}
-				Result<Integer> jobResult = jobService.getByCompId(compId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				Result<Integer> jobResult = jobService.getByCompId(compId, SecurityConstants.FROM_IN);
 				if (jobResult.isSuccess()) {
 					if (jobResult.getData() != null) {
 						Integer jobSize = jobResult.getData();
@@ -717,7 +717,7 @@ public class SmtParkServiceImpl extends ServiceImpl<SmtParkMapper, SmtPark> impl
 			Integer compId = Integer.parseInt(sysDict.getValue());
 			CompStatisticsVO compStatisticsVO = new CompStatisticsVO();
 			compStatisticsVO.setCompName(sysDict.getDescription());
-			Result<List<EvwEmphrYsDTO>> emphrResult = evwEmphrYsService.getInStaffByCompId(compId, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<EvwEmphrYsDTO>> emphrResult = evwEmphrYsService.getInStaffByCompId(compId, SecurityConstants.FROM_IN);
 			if (emphrResult.isSuccess()) {
 				if (emphrResult.getData() != null) {
 					List<EvwEmphrYsDTO> emphrData = emphrResult.getData();
@@ -851,16 +851,6 @@ public class SmtParkServiceImpl extends ServiceImpl<SmtParkMapper, SmtPark> impl
 	@Override
 	public Result dormitoryAllListToLock(SmtDormitoryStaffService dormitoryStaffService, Integer parkId) {
 		List<SmtPark> smtParks = this.getParkListToLock(parkId);
-		return this.dormitoryList(dormitoryStaffService, smtParks, Boolean.FALSE);
-	}
-
-	@Override
-	public Result dormitoryAllListToLock(SmtDormitoryStaffService dormitoryStaffService, List<Integer> parkIds) {
-		if (CollectionUtils.isEmpty(parkIds)) {
-			return new Result<>(Collections.emptyList());
-		}
-		List<SmtPark> smtParks = mapper.selectList(Wrappers.<SmtPark>query().lambda()
-				.in(SmtPark::getId, parkIds).orderByDesc(SmtPark::getId));
 		return this.dormitoryList(dormitoryStaffService, smtParks, Boolean.FALSE);
 	}
 

@@ -1,18 +1,14 @@
 package com.tce.smart.app.controller.fore;
 
-import javax.validation.Valid;
-
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tce.smart.app.ao.fore.PerfectInfoAo;
-import com.tce.smart.app.ao.fore.PasswordResetChallengeReqDTO;
-import com.tce.smart.app.ao.fore.PasswordSmsSendReqDTO;
-import com.tce.smart.app.ao.fore.PasswordSmsVerifyReqDTO;
-import com.tce.smart.app.ao.fore.PasswordResetUpdateReqDTO;
 import com.tce.smart.app.service.fore.PasswordService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
@@ -34,46 +30,42 @@ public class PasswordController extends BaseController {
 	private PasswordService passwordService;
 
 	/**
-	 * 创建密码找回 challenge。接口不返回手机号、脱敏手机号或员工是否存在的信号。
+	 * 获取员工手机号(隐藏部分手机号数)
 	 *
 	 * @param badge 员工号
 	 * @return
 	 */
-	@PostMapping("/mobile/query")
-	public Result<?> createChallenge(@Valid @RequestBody PasswordResetChallengeReqDTO request) {
-		return success(passwordService.createPasswordResetChallenge(request.getBadge()));
+	@GetMapping("/mobile/query")
+	public Result<?> sendSmsCode(@RequestParam(value = "badge", required = true) String badge) {
+		return success(passwordService.queryMobile(badge));
 	}
 
 	/**
 	 * 发送短信验证码
 	 *
-	 * @param challengeId 一次性 challenge
+	 * @param badge  员工号
+	 * @param mobile 手机号
 	 * @return
 	 */
-	@PostMapping("/sms/send")
-	public Result<?> sendSmsCode(@RequestBody PasswordSmsSendReqDTO request) {
-		return success(passwordService.sendSmsCode(request == null ? null : request.getChallengeId()));
+	@GetMapping("/sms/send")
+	public Result<?> sendSmsCode(@RequestParam(value = "badge", required = true) String badge,
+			@RequestParam(value = "mobile", required = true) String mobile) {
+		return success(passwordService.sendSmsCode(badge, mobile));
 	}
 
 	/**
 	 * 校验短信验证码
 	 *
-	 * @param challengeId 一次性 challenge
+	 * @param badge   员工号
+	 * @param mobile  手机号
 	 * @param smsCode 短信验证码
 	 * @return
 	 */
-	@PostMapping("/verify")
-	public Result<?> verifySmsCode(@RequestBody PasswordSmsVerifyReqDTO request) {
-		return success(passwordService.verifySmsCode(request == null ? null : request.getChallengeId(),
-				request == null ? null : request.getSmsCode()));
-	}
-
-	/**
-	 * 完成密码找回。公开入口只代理最小请求体，实际改密由 App 服务令牌调用 UPMS 内部接口完成。
-	 */
-	@PostMapping("/update")
-	public Result<Boolean> resetPassword(@Valid @RequestBody PasswordResetUpdateReqDTO request) {
-		return success(passwordService.resetPassword(request));
+	@GetMapping("/verify")
+	public Result<?> verifySmsCode(@RequestParam(value = "badge", required = true) String badge,
+			@RequestParam(value = "mobile", required = true) String mobile,
+			@RequestParam(value = "smsCode", required = true) String smsCode) {
+		return success(passwordService.verifySmsCode(badge, mobile, smsCode));
 	}
 
 	/**

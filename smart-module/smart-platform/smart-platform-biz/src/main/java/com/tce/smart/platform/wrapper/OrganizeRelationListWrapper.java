@@ -1,8 +1,9 @@
 package com.tce.smart.platform.wrapper;
 
 import cn.hutool.core.collection.CollUtil;
-import com.tce.smart.admin.api.dto.InternalUserSummaryRespDTO;
-import com.tce.smart.admin.api.feign.RemoteUserInternalService;
+import com.tce.smart.admin.api.dto.RoleDTO;
+import com.tce.smart.admin.api.dto.UserInfo;
+import com.tce.smart.admin.api.feign.RemoteUserService;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.BeanUtils;
@@ -32,15 +33,16 @@ public class OrganizeRelationListWrapper extends BaseWrapper<SmtOrganizeRelation
 	@Autowired
 	private SmtParkService parkService;
 	@Autowired
-	private RemoteUserInternalService userService;
+	private RemoteUserService userService;
     @Override
     protected OrganizeRelationListRespDTO warp(SmtOrganizeRelation smtOrganizeRelation) throws IOException {
 		OrganizeRelationListRespDTO respDTO = BeanUtils.transform(OrganizeRelationListRespDTO.class, smtOrganizeRelation);
 		SmtPark park = parkService.getById(smtOrganizeRelation.getParkId());
-		Result<InternalUserSummaryRespDTO> result = userService.summary(smtOrganizeRelation.getUserName());
+		Result<UserInfo> result = userService.info(smtOrganizeRelation.getUserName(), SecurityConstants.FROM_IN);
 		if(Objects.nonNull(result.getData())) {
-			List<String> strings = result.getData().getRoleNames();
-			if(CollUtil.isNotEmpty(strings)) {
+			List<RoleDTO> roles = result.getData().getRoleList();
+			if(CollUtil.isNotEmpty(roles)) {
+				List<String> strings = roles.stream().map(RoleDTO::getRoleName).collect(Collectors.toList());
 				respDTO.setUserRole(strings.get(0));
 			}
 		}

@@ -113,15 +113,10 @@ function AreaSelectionInner() {
   const areaFlagParam = params.get('type') ?? ''
   const parkIdParam = Number(params.get('parkId'))
   const parkId = Number.isFinite(parkIdParam) && parkIdParam > 0 ? parkIdParam : config.parkId
-  const host = useVisitorFlow((state) => state.host)
-  const visitorDraft = host.visitorDraftToken && host.visitorDraftId
-    ? { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId }
-    : null
 
   const options = useQuery({
-    queryKey: ['visitor', 'area-options', parkId, visitorDraft?.draftId],
-    queryFn: () => loadAreaOptions(parkId, visitorDraft!),
-    enabled: visitorDraft !== null,
+    queryKey: ['visitor', 'area-options', parkId],
+    queryFn: () => loadAreaOptions(parkId),
   })
 
   const factory = options.data?.find((f) =>

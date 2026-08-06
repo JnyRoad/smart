@@ -53,7 +53,7 @@ public class BridgeISCServiceImpl implements BridgeISCService, CommandLineRunner
 	@Value("${smart.hik.callback-url}")
 	private String subscribeCallbackUrl;
 
-	@Value("${smart.hik.event-subscribe-enabled:false}")
+	@Value("${smart.hik.event-subscribe-enabled:true}")
 	private Boolean eventSubscribeEnabled;
 
 	@Value("${smart.bridge.c-process.url:http://smart-device:8106 }")

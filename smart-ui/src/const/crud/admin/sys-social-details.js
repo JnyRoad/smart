@@ -40,7 +40,12 @@ export const tableOption = {
   {
     label: 'appSecret',
     prop: 'appSecret',
-    overHidden: true
+    overHidden: true,
+    rules: [{
+      required: true,
+      message: '请输入appSecret',
+      trigger: 'blur'
+    }]
   },
   {
     label: '回调地址',

@@ -49,13 +49,13 @@ export default function DormExitPage() {
   const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
   const employeeName = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeName : undefined
 
-	const myRooms = useQuery({
-		queryKey: ['my-rooms'],
-		queryFn: getMyRooms,
-		enabled: authorized,
-	})
-	// 本人接口直接返回房间列表；缺少房间主键的记录不可用于退宿申请。
-	const roomChoices = (myRooms.data?.code === 0 ? (myRooms.data.data ?? []) : [])
+  const myRooms = useQuery({
+    queryKey: ['my-rooms', badge],
+    queryFn: () => getMyRooms(badge as string),
+    enabled: authorized && badge !== undefined,
+  })
+  // Double-data envelope (legacy gateway shape); rooms without ids are unusable.
+  const roomChoices = (myRooms.data?.code === 0 ? (myRooms.data.data?.data ?? []) : [])
     .filter((room) => room.dormitoryId != null && room.roomId != null)
     .map(roomOption)
 

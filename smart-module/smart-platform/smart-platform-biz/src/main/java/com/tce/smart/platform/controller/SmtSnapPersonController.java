@@ -1,7 +1,6 @@
 package com.tce.smart.platform.controller;
 
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.IscTemperatureDTO;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -112,7 +111,6 @@ public class SmtSnapPersonController {
 	 */
 	@PostMapping("/check/temp")
 	@Inner
-	@OpenApi("server")
 	public Result<Boolean> checkTemp(@RequestBody List<IscTemperatureDTO> dto){
 		return new Result<>(smtSnapPersonService.checkTemperature(dto));
 	}

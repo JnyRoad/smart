@@ -139,8 +139,6 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	@Autowired
 	private StringRedisTemplate stringRedisTemplate;
 	@Autowired
-	private VisitorFaceCropCapabilityService visitorFaceCropCapabilityService;
-	@Autowired
 	private SmtMsgTemplateService smtMsgTemplateService;
 	@Autowired
 	private SmtVisitorMapper smtVisitorMapper;
@@ -291,10 +289,8 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			throw new SmartException("您还未关注公众号,请先关注");
 		}
 		VisitorWechatIdentityRespDTO response = new VisitorWechatIdentityRespDTO();
-		// openId/unionId 仅保存在短时服务端草稿中，禁止返给浏览器或落入前端持久化存储。
-		VisitorFaceDraftCredential credential = visitorFaceCropCapabilityService.issueDraft(openId, unionId);
-		response.setVisitorDraftToken(credential.getDraftToken());
-		response.setVisitorDraftId(credential.getDraftId());
+		response.setOpenId(openId);
+		response.setUnionId(unionId);
 		return response;
 	}
 

@@ -37,21 +37,6 @@ assert_contains() {
   fi
 }
 
-assert_line_before() {
-  local file="$1"
-  local earlier="$2"
-  local later="$3"
-  local earlier_line
-  local later_line
-
-  earlier_line="$( (grep -nF "$earlier" "$file" || true) | head -n 1 | cut -d: -f1)"
-  later_line="$( (grep -nF "$later" "$file" || true) | head -n 1 | cut -d: -f1)"
-
-  [[ -n "$earlier_line" ]] || fail "expected $file to contain: $earlier"
-  [[ -n "$later_line" ]] || fail "expected $file to contain: $later"
-  (( earlier_line < later_line )) || fail "expected Maven command before dependent build: $earlier"
-}
-
 make_jar_with_manifest() {
   local jar_path="$1"
   local manifest_body="$2"
@@ -107,40 +92,6 @@ file|smart-module/FileReceiver/build/file.jar
 EOF
 
   diff -u "$expected_file" "$actual_file" || fail "default manifest changed unexpectedly"
-}
-
-test_builds_platform_api_before_smart_upms() {
-  local test_dir="$1"
-  local source_dir="$test_dir/platform-api-bootstrap-source"
-  local output_dir="$test_dir/platform-api-bootstrap-output"
-  local manifest_file="$test_dir/platform-api-bootstrap.manifest"
-  local maven_dir="$test_dir/fake-maven"
-  local maven_command="$maven_dir/mvn"
-  local maven_log="$test_dir/maven.log"
-  local bootstrap_command
-  local platform_api_command
-  local smart_command
-
-  mkdir -p "$source_dir" "$maven_dir"
-  make_boot_jar "$source_dir/smart-good.jar"
-  cat > "$manifest_file" <<EOF
-smart-good|$source_dir/smart-good.jar
-EOF
-  cat > "$maven_command" <<'EOF'
-#!/usr/bin/env bash
-printf '%s|%s\n' "$PWD" "$*" >> "${MAVEN_LOG:?}"
-EOF
-  chmod +x "$maven_command"
-
-  MAVEN_CMD="$maven_command" MAVEN_LOG="$maven_log" \
-    "$script_path" --manifest "$manifest_file" --output "$output_dir"
-
-  bootstrap_command="$repo_root/smart|--projects smart-common/smart-common-bom,smart-common/smart-common-core,smart-common/smart-common-swagger --also-make clean install -DskipTests"
-  platform_api_command="$repo_root/smart-module|--projects smart-platform/smart-platform-api --also-make clean install -DskipTests"
-  smart_command="$repo_root/smart|clean install -DskipTests"
-
-  assert_line_before "$maven_log" "$bootstrap_command" "$platform_api_command"
-  assert_line_before "$maven_log" "$platform_api_command" "$smart_command"
 }
 
 test_collects_manifest_jars_and_writes_release_metadata() {
@@ -367,7 +318,6 @@ main() {
 
   test_gitignore_blocks_default_output
   test_default_manifest_is_exact_release_allowlist "$test_dir"
-  test_builds_platform_api_before_smart_upms "$test_dir"
   test_collects_manifest_jars_and_writes_release_metadata "$test_dir"
   test_missing_manifest_jar_fails_fast "$test_dir"
   test_plain_jar_in_manifest_fails_fast "$test_dir"

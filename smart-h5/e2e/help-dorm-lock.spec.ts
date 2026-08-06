@@ -155,12 +155,13 @@ import { injectTestKey, legacyCipherHex } from './helpers'
 test('门锁：密文解密展示 + 修改三连', async ({ page }) => {
   await seedLogin(page)
   await injectTestKey(page)
+  await mockBaseInfo(page)
   let pwdCipher = legacyCipherHex('123456')
-  await page.route('**/platform/dormitory/staff/me/pwd', (route) =>
+  await page.route('**/platform/dormitory/staff/get/pwd*', (route) =>
     route.fulfill({ json: { code: 0, data: pwdCipher } }),
   )
   let updateBody: Record<string, unknown> | undefined
-  await page.route('**/platform/dormitory/staff/me/lock/pwd', async (route) => {
+  await page.route('**/platform/dormitory/staff/update/lock/pwd', async (route) => {
     updateBody = route.request().postDataJSON() as Record<string, unknown>
     pwdCipher = legacyCipherHex('654321')
     await route.fulfill({ json: { code: 0 } })
@@ -182,13 +183,14 @@ test('门锁：密文解密展示 + 修改三连', async ({ page }) => {
   await input.fill('654321')
   await page.getByRole('button', { name: '确定' }).click()
   await expect(page.getByTestId('lock-code')).toHaveText('654321')
-  expect(updateBody).toEqual({ newPwd: '654321' })
+  expect(updateBody).toEqual({ badge: 'YT20180326', newPwd: '654321' })
 })
 
 test('门锁：未入住 alert 回跳 /dorm', async ({ page }) => {
   await seedLogin(page)
   await injectTestKey(page)
-  await page.route('**/platform/dormitory/staff/me/pwd', (route) =>
+  await mockBaseInfo(page)
+  await page.route('**/platform/dormitory/staff/get/pwd*', (route) =>
     route.fulfill({ json: { code: 0, data: '' } }),
   )
 
@@ -201,17 +203,16 @@ test('门锁：未入住 alert 回跳 /dorm', async ({ page }) => {
 test('刷新动态码：人脸比对 → 生成 → 回门锁页', async ({ page }) => {
   await seedLogin(page)
   await injectTestKey(page)
+  await mockBaseInfo(page)
   await mockFrontCamera(page)
   let cutBody: Record<string, unknown> | undefined
   let checkFaceBody: Record<string, unknown> | undefined
-  let checkFaceRequestCount = 0
-  await page.route('**/app/employee/face/crop', async (route) => {
+  await page.route('**/algorithm/out/face/cut', async (route) => {
     cutBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } })
   })
-  // 已登录门锁不再复用匿名访客上传路径；仍需复用上传后的 base64 刷新动态码。
-  await page.route('**/app/employee/photo/upload*', async (route) => {
-    checkFaceRequestCount += 1
+  // Real checkFace returns data.photoId and no resultData.base64; lock refresh must reuse uploaded base64.
+  await page.route('**/app/wechat/visit/checkFace', async (route) => {
     checkFaceBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({
       json: { code: 0, message: 'success', data: { photoId: 'p-lock' } },
@@ -224,27 +225,25 @@ test('刷新动态码：人脸比对 → 生成 → 回门锁页', async ({ page
     return route.fulfill({ status: 404, body: '' })
   })
   let refreshBody: Record<string, unknown> | undefined
-  await page.route('**/platform/dormitory/staff/me/pwd', async (route) => {
-    if (route.request().method() === 'POST') {
-      refreshBody = route.request().postDataJSON() as Record<string, unknown>
-      await route.fulfill({ json: { code: 0 } })
-      return
-    }
-    await route.fulfill({ json: { code: 0, data: legacyCipherHex('888888') } })
+  await page.route('**/platform/dormitory/staff/update/pwd', async (route) => {
+    refreshBody = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({ json: { code: 0 } })
   })
+  await page.route('**/platform/dormitory/staff/get/pwd*', (route) =>
+    route.fulfill({ json: { code: 0, data: legacyCipherHex('888888') } }),
+  )
 
   await page.goto('/dorm/get-code')
   await expect(page.locator('input[type="file"]')).toHaveCount(0)
   await page.getByRole('button', { name: '打开摄像头' }).click()
-  await page.getByRole('button', { name: '拍照核验' }).click()
+  await page.getByRole('button', { name: '拍照识别' }).click()
+  await expect(page.getByText('人脸对比成功')).toBeVisible()
   expect(cutBody).toEqual({ imageData: 'camera-raw-base64' })
-  await expect.poll(() => checkFaceRequestCount).toBe(1)
   expect(checkFaceBody).toEqual({ visitorPhoto: 'cut-base64' })
-  await expect(page.getByText('人脸识别通过')).toBeVisible()
   expect(brokenImg).toBe(false)
   await page.getByRole('button', { name: '生成动态码' }).click()
   await expect(page.getByText('刷新动态码成功！')).toBeVisible()
-  expect(refreshBody).toEqual({ facePic: 'cut-base64' })
+  expect(refreshBody).toEqual({ badge: 'YT20180326', facePic: 'cut-base64' })
   await page.getByRole('button', { name: '确定' }).click()
   await page.waitForURL('**/dorm/lock')
   await expect(page.getByTestId('lock-code')).toHaveText('888888')
@@ -273,8 +272,9 @@ test('帮助中心：上拉加载第二页（追加不重复）', async ({ page 
 test('门锁：修改失败 alert、解密失败 toast、接口业务失败重试块', async ({ page }) => {
   await seedLogin(page)
   await injectTestKey(page)
+  await mockBaseInfo(page)
   // 1) 解密失败（非法 hex）→ ****** + toast
-  await page.route('**/platform/dormitory/staff/me/pwd', (route) =>
+  await page.route('**/platform/dormitory/staff/get/pwd*', (route) =>
     route.fulfill({ json: { code: 0, data: 'not-valid-hex-!!' } }),
   )
   await page.goto('/dorm/lock')
@@ -284,8 +284,8 @@ test('门锁：修改失败 alert、解密失败 toast、接口业务失败重�
   await expect(page.getByRole('button', { name: '修改动态码' })).toBeDisabled()
 
   // 2) 接口业务失败 → 重试块（不显示伪装码）
-  await page.unroute('**/platform/dormitory/staff/me/pwd')
-  await page.route('**/platform/dormitory/staff/me/pwd', (route) =>
+  await page.unroute('**/platform/dormitory/staff/get/pwd*')
+  await page.route('**/platform/dormitory/staff/get/pwd*', (route) =>
     route.fulfill({ json: { code: 1, msg: '动态码服务繁忙' } }),
   )
   await page.goto('/dorm/lock')
@@ -293,11 +293,11 @@ test('门锁：修改失败 alert、解密失败 toast、接口业务失败重�
   await expect(page.getByRole('button', { name: '重试' })).toBeVisible()
 
   // 3) 修改失败 alert
-  await page.unroute('**/platform/dormitory/staff/me/pwd')
-  await page.route('**/platform/dormitory/staff/me/pwd', (route) =>
+  await page.unroute('**/platform/dormitory/staff/get/pwd*')
+  await page.route('**/platform/dormitory/staff/get/pwd*', (route) =>
     route.fulfill({ json: { code: 0, data: legacyCipherHex('123456') } }),
   )
-  await page.route('**/platform/dormitory/staff/me/lock/pwd', (route) =>
+  await page.route('**/platform/dormitory/staff/update/lock/pwd', (route) =>
     route.fulfill({ json: { code: 1, msg: '动态码修改过于频繁' } }),
   )
   await page.goto('/dorm/lock')

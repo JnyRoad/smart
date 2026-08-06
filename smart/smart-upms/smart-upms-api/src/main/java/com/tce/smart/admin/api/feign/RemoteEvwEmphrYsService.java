@@ -25,7 +25,6 @@ public interface RemoteEvwEmphrYsService {
 	 * @return Result
 	 */
 	@GetMapping("/emphr/ys/info")
-	Result<EvwEmphrYsRespDTO> info(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<EvwEmphrYsRespDTO> info(@RequestParam("badge") String badge, @RequestHeader(SecurityConstants.FROM) String from);
 
 }

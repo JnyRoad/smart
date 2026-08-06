@@ -4,8 +4,6 @@ import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.log.annotation.SysLog;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.req.news.NewsTerminalReqDTO;
 import com.tce.smart.platform.api.dto.resp.news.NewsTerminalRespDTO;
 import com.tce.smart.platform.core.entity.news.SmtNewsTerminal;
@@ -88,8 +86,6 @@ public class SmtNewsTerminalController extends BaseController {
 	 * @return
 	 */
 	@ApiOperation("检查资源是否到期")
-	@Inner
-	@OpenApi("server")
 	@GetMapping("/check")
 	public void checkPublic(){
 		smtNewsTerminalService.checkPublic();

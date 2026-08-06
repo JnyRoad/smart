@@ -3,8 +3,6 @@ package com.tce.smart.data.controller.temporary;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.temporary.req.EbgWorkingRegisterReqDTO;
 import com.tce.smart.temporary.core.entity.EbgWorkingRegister;
 import com.tce.smart.temporary.core.service.IEbgWorkingRegisterService;
@@ -36,9 +34,7 @@ public class EbgWorkingRegisterController extends BaseController {
      * @param ebgWorkingRegisterReqDTO
      * @return
      */
-    @Inner
-    @OpenApi("server")
-    @PostMapping("/internal/save")
+    @PostMapping("/save")
     @ResponseBody
     private Result<Boolean> save(@RequestBody EbgWorkingRegisterReqDTO ebgWorkingRegisterReqDTO){
 		EbgWorkingRegister ebgWorkingRegister = new EbgWorkingRegister();

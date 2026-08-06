@@ -38,12 +38,3 @@ export function putObj (obj) {
     data: obj
   })
 }
-
-/** 显式轮换三方登录密钥，避免普通编辑请求携带或覆盖已有 appSecret。 */
-export function rotateSecret (id, appSecret) {
-  return request({
-    url: '/admin/social/secret/' + id,
-    method: 'put',
-    data: { appSecret }
-  })
-}

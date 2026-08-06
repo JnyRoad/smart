@@ -18,13 +18,9 @@ import java.util.Map;
 public interface RemoteXCVehicleService {
 
 	@PostMapping("/xc-vehicle/inner/saveVehicle")
-	Result<Boolean> saveVehicle(@RequestBody XCVehicleAddDTO xcVehicleAddDTO,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<Boolean> saveVehicle(@RequestBody XCVehicleAddDTO xcVehicleAddDTO, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@PostMapping("/xc-vehicle/inner/deleteVehicle/{cardNo}")
-	Result<Boolean> deleteVehicle(@PathVariable("cardNo")String cardNo,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<Boolean> deleteVehicle(@PathVariable("cardNo")String cardNo, @RequestHeader(SecurityConstants.FROM) String from);
 
 }

@@ -4,7 +4,6 @@ package com.tce.smart.data.controller.ehrview;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwJjitemRespDTO;
 import com.tce.smart.ehrview.core.entity.EvwJjitem;
 import com.tce.smart.ehrview.core.service.IEvwJjitemService;
@@ -37,7 +36,6 @@ public class EvwJjitemController extends BaseController {
      * @return
      */
     @Inner
-    @OpenApi("server")
     @GetMapping("/{ezid}")
     public Result info(@PathVariable("ezid") Integer ezid){
         List<EvwJjitem> evwJjitem = iEvwJjitemService.getEvwJjitem(ezid);

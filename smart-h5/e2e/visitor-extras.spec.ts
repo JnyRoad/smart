@@ -1,23 +1,4 @@
-import { expect, test, type Page, type Request } from '@playwright/test'
-
-/** 选项接口只接受当前微信 OAuth 草稿，不能退回裸匿名枚举。 */
-function expectVisitorDraftHeaders(request: Request) {
-  const headers = request.headers()
-  expect(headers['x-visitor-draft-token']).toBe('draft-token')
-  expect(headers['x-visitor-draft-id']).toBe('draft-id')
-}
-
-/** 上传动作票据必须绑定当前草稿和明确的单一动作。 */
-function expectVisitorActionCapability(request: Request, action: string | string[]) {
-  expect(request.headers()['x-visitor-draft-token']).toBe('draft-token')
-  const body = request.postDataJSON() as Record<string, unknown>
-  expect(body).toMatchObject({ draftId: 'draft-id' })
-  if (Array.isArray(action)) {
-    expect(action).toContain(body.action)
-  } else {
-    expect(body.action).toBe(action)
-  }
-}
+import { expect, test, type Page } from '@playwright/test'
 
 // Mirrors the real /area-options shape: data is an object; factoryType is the
 // backend value ("15"/"16"); areas use areaCode (number) / areaName.
@@ -53,10 +34,7 @@ async function seedDraft(page: Page) {
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: {
-            receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111',
-            visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id',
-          },
+          host: { receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
           visitor: {
             visitorName: '王五', visitorPhotoId: 'photo-001', certNo: '11010519491231002X',
             company: '测试公司', cause: { code: 1, desc: '商务洽谈' },
@@ -71,14 +49,12 @@ async function seedDraft(page: Page) {
 }
 
 async function mockAreaApis(page: Page) {
-  await page.route('**/platform/admittance/visitor-entry/options/area-options*', (route) => {
-    expectVisitorDraftHeaders(route.request())
-    return route.fulfill({ json: { code: 0, data: AREA_CONFIG } })
-  })
-  await page.route('**/platform/admittance/visitor-entry/options/cause', (route) => {
-    expectVisitorDraftHeaders(route.request())
-    return route.fulfill({ json: { code: 0, data: [{ code: 1, desc: '商务洽谈' }] } })
-  })
+  await page.route('**/platform/admittance/apply/app/area-options*', (route) =>
+    route.fulfill({ json: { code: 0, data: AREA_CONFIG } }),
+  )
+  await page.route('**/platform/admittance/apply/enum/cause', (route) =>
+    route.fulfill({ json: { code: 0, data: [{ code: 1, desc: '商务洽谈' }] } }),
+  )
 }
 
 test('区域选择：无搜索框、全选、确定回写 info 已选数', async ({ page }) => {
@@ -116,12 +92,11 @@ test('区域选择：配置匹配不到厂区 → 清缓存 + toast', async ({ p
   await page.addInitScript(() => {
     localStorage.setItem('visitor-area-options-5000021', JSON.stringify([{ factoryType: 'STALE', areas: [] }]))
   })
-  await page.route('**/platform/admittance/visitor-entry/options/area-options*', (route) => {
-    expectVisitorDraftHeaders(route.request())
-    return route.fulfill({
+  await page.route('**/platform/admittance/apply/app/area-options*', (route) =>
+    route.fulfill({
       json: { code: 0, data: { parkId: 5000021, factories: [{ factoryType: 'OTHER', factoryName: '其他', areaFlag: 1, sort: 1, areas: [] }] } },
-    })
-  })
+    }),
+  )
 
   await page.goto('/visitor/area?type=1&factoryType=GONE&parkId=5000021')
   await expect(page.getByText('授权区域配置不可用，请联系管理员').first()).toBeVisible()
@@ -135,21 +110,12 @@ test('区域选择：配置匹配不到厂区 → 清缓存 + toast', async ({ p
 
 test('随行人员：增 → 列表 → 编辑 → 删除 → 空态；身份证非法拦截', async ({ page }) => {
   await seedDraft(page)
-  await page.route('**/platform/admittance/visitor-face/capability', (route) => {
-    expect(route.request().headers()['x-visitor-draft-token']).toBe('draft-token')
-    expect(route.request().postDataJSON()).toEqual({ draftId: 'draft-id' })
-    return route.fulfill({ json: { code: 0, data: { capability: 'one-time-capability' } } })
-  })
-  await page.route('**/platform/admittance/visitor-face/crop', (route) => {
-    expect(route.request().headers()['x-visitor-face-capability']).toBe('one-time-capability')
-    return route.fulfill({ json: { code: 0, message: 'success', data: { imageData: 'cut-base64', uploadCapability: 'face-upload-capability' } } })
-  })
-  await page.route('**/app/wechat/visit/checkFace', (route) => {
-    const headers = route.request().headers()
-    expect(headers['x-visitor-action-capability']).toBe('face-upload-capability')
-    expect(headers['x-visitor-draft-id']).toBe('draft-id')
-    return route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-fellow' } } })
-  })
+  await page.route('**/algorithm/out/face/cut', (route) =>
+    route.fulfill({ json: { code: 0, message: 'success', data: 'cut-base64' } }),
+  )
+  await page.route('**/app/wechat/visit/checkFace', (route) =>
+    route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-fellow' } } }),
+  )
 
   await page.goto('/visitor/persons')
   await expect(page.getByText('暂无随行人员信息')).toBeVisible()
@@ -188,20 +154,12 @@ test('随行人员：增 → 列表 → 编辑 → 删除 → 空态；身份证
 
 test('车辆：添加（默认司机姓名/证件类型）→ 列表 → 删除', async ({ page }) => {
   await seedDraft(page)
-  await page.route('**/platform/admittance/visitor-entry/options/vehicle-cert', (route) => {
-    expectVisitorDraftHeaders(route.request())
-    return route.fulfill({ json: { code: 0, data: [{ code: 2, desc: '身份证复印件' }, { code: 1, desc: '行驶证' }] } })
-  })
-  await page.route('**/app/wechat/visit/checkFace', (route) => {
-    const headers = route.request().headers()
-    expect(headers['x-visitor-action-capability']).toBe('document-capability')
-    expect(headers['x-visitor-draft-id']).toBe('draft-id')
-    return route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-cert' } } })
-  })
-  await page.route('**/platform/admittance/visitor-action/capability', (route) => {
-    expectVisitorActionCapability(route.request(), 'DOCUMENT_UPLOAD')
-    return route.fulfill({ json: { code: 0, data: { capability: 'document-capability' } } })
-  })
+  await page.route('**/platform/admittance/apply/enum/vehicle/cert', (route) =>
+    route.fulfill({ json: { code: 0, data: [{ code: 2, desc: '身份证复印件' }, { code: 1, desc: '行驶证' }] } }),
+  )
+  await page.route('**/app/wechat/visit/checkFace', (route) =>
+    route.fulfill({ json: { code: 0, message: 'success', data: { photoId: 'photo-cert' } } }),
+  )
 
   await page.goto('/visitor/cars')
   await expect(page.getByText('暂无车辆信息')).toBeVisible()
@@ -240,7 +198,7 @@ test('主链回归：带随行人员与车辆的提交体映射', async ({ page 
       'visitor-flow',
       JSON.stringify({
         state: {
-          host: { openId: 'oid-1', unionId: 'uid-1', visitorDraftToken: 'draft-token', visitorDraftId: 'draft-id', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
+          host: { openId: 'oid-1', unionId: 'uid-1', receptionistBadge: 'YT001', receptionistName: '赵经理', receptionistPhone: '13800001111' },
           visitor: {
             visitorName: '王五', visitorPhotoId: 'photo-001', certNo: '11010519491231002X',
             company: '测试公司', cause: { code: 1, desc: '商务洽谈' },
@@ -255,25 +213,16 @@ test('主链回归：带随行人员与车辆的提交体映射', async ({ page 
       }),
     )
   })
-  await page.route('**/app/sms/visitor/send', (route) => route.fulfill({ json: { code: 0 } }))
-  await page.route('**/app/sms/visitor/verify', (route) => route.fulfill({ json: { code: 0 } }))
-  await page.route('**/platform/admittance/visitor-entry/options/area-options*', (route) => {
-    expectVisitorDraftHeaders(route.request())
-    return route.fulfill({ json: { code: 0, data: AREA_CONFIG } })
-  })
+  await page.route('**/app/sms/send/getCode/**', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/app/sms/verify*', (route) => route.fulfill({ json: { code: 0 } }))
+  await page.route('**/platform/admittance/apply/app/area-options*', (route) =>
+    route.fulfill({ json: { code: 0, data: AREA_CONFIG } }),
+  )
   await page.route('**/app/wechat/visit/checkBlackVisitor', (route) =>
     route.fulfill({ json: { code: 0, data: true } }),
   )
-  await page.route('**/platform/admittance/visitor-action/capability', (route) => {
-    expectVisitorActionCapability(route.request(), ['BLACKLIST_CHECK', 'APPLY_SUBMIT'])
-    return route.fulfill({ json: { code: 0, data: { capability: 'visitor-action-capability' } } })
-  })
   let applyBody: Record<string, unknown> | undefined
-  await page.route('**/platform/admittance/visitor-entry/apply', async (route) => {
-    const headers = route.request().headers()
-    expect(headers['x-visitor-draft-token']).toBe('draft-token')
-    expect(headers['x-visitor-draft-id']).toBe('draft-id')
-    expect(headers['x-visitor-action-capability']).toBeTruthy()
+  await page.route('**/platform/admittance/apply/save/apply', async (route) => {
     applyBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0 } })
   })

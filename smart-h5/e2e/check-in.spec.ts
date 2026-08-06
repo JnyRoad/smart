@@ -32,8 +32,8 @@ async function pickWheelOption(page: Page, text: string) {
   await page.getByRole('button', { name: '确定' }).last().click()
 }
 
-// Mock 形状以当前页面消费的字段为准（楼栋/房型/床位主键都是 id，房间总床数 bedTotal，
-// 本人入住资料接口仅返回最小化摘要，详情特征码嵌套在 lockPwd）。
+// Mock 形状以旧版页面消费的字段为准（楼栋/房型/床位主键都是 id，房间总床数 bedTotal，
+// 身份接口 certno/birth/homeAddress/validDate/validDateFm，详情特征码嵌套在 lockPwd）。
 const DORMS = {
   code: 0,
   data: [
@@ -41,19 +41,24 @@ const DORMS = {
     { id: 'D2', dormitoryName: '东区宿舍' },
   ],
 }
-const CHECK_IN_PROFILE = {
+const IDENTITY = {
   code: 0,
   data: {
     name: '王建国',
-    profileComplete: true,
-    maskedCertNo: '**************1234',
+    sex: 1,
+    nation: '汉',
+    certno: '410101199001011234',
+    birth: '1990-01-01',
+    homeAddress: '河南省许昌市',
+    validDate: '2020-01-01',
+    validDateFm: '2040-01-01',
   },
 }
 
 async function mockCheckInBase(page: Page) {
   await mockBaseInfo(page)
   await page.route('**/platform/dormitory/queryDormitory', (route) => route.fulfill({ json: DORMS }))
-  await page.route('**/platform/staff/me/check-in-profile', (route) => route.fulfill({ json: CHECK_IN_PROFILE }))
+  await page.route('**/platform/staff/define/badge*', (route) => route.fulfill({ json: IDENTITY }))
   await page.route('**/platform/dormitory/type/by/park-and-dormitory*', (route) =>
     route.fulfill({ json: { code: 0, data: [{ id: 1, typeName: '四人间' }, { id: 2, typeName: '六人间' }] } }),
   )
@@ -63,7 +68,7 @@ test('宿舍申请：身份获取失败 → 红字提示且无申请按钮', asy
   await seedLogin(page)
   await mockBaseInfo(page)
   await page.route('**/platform/dormitory/queryDormitory', (route) => route.fulfill({ json: DORMS }))
-  await page.route('**/platform/staff/me/check-in-profile', (route) =>
+  await page.route('**/platform/staff/define/badge*', (route) =>
     route.fulfill({ json: { code: 1, message: 'not found' } }),
   )
 
@@ -117,14 +122,14 @@ test('宿舍申请：自选房间全流程（满房拦截/床位过滤/草稿持
     }),
   )
   let allotBody: Record<string, unknown> | undefined
-  await page.route('**/platform/dormitory/room/self/autoallot', async (route) => {
+  await page.route('**/platform/dormitory/room/autoallot', async (route) => {
     allotBody = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({ json: { code: 0 } })
   })
-  await page.route('**/platform/dormitory/staff/me/roomList', (route) =>
+  await page.route('**/platform/dormitory/staff/roomList/**', (route) =>
     route.fulfill({ json: { code: 0, data: [] } }),
   )
-  await page.route('**/platform/dormitory/staff/me/pwd', (route) =>
+  await page.route('**/platform/dormitory/staff/get/pwd*', (route) =>
     route.fulfill({ json: { code: 0, data: '' } }),
   )
 
@@ -164,11 +169,18 @@ test('宿舍申请：自选房间全流程（满房拦截/床位过滤/草稿持
   await page.getByRole('button', { name: '申请' }).click()
   await page.waitForURL('**/check-in/detail')
 
-  // 提交体只能包含宿舍选择，员工身份资料必须由服务端按认证主体回填。
+  // 提交体按旧版字段映射：certno/birthday/address/signOrg/validDateStart/End
   const body = allotBody as Record<string, unknown>
-  expect(Object.keys(body).sort()).toEqual(['bedId', 'dormitoryId', 'floorId', 'parkId', 'roomId', 'roomType'])
+  expect(body.name).toBe('王建国')
+  expect(body.certno).toBe('410101199001011234')
+  expect(body.birthday).toBe('1990-01-01')
+  expect(body.address).toBe('河南省许昌市')
+  expect(body.signOrg).toBeNull()
+  expect(body.validDateStart).toBe('2020-01-01')
+  expect(body.validDateEnd).toBe('2040-01-01')
   expect(body.dormitoryId).toBe('D1')
   expect(body.roomType).toBe(1)
+  expect(body.badge).toBe('YT20180326')
   expect(body.parkId).toBe(5000021)
   expect(body.floorId).toBe('F1')
   expect(body.roomId).toBe('R302')
@@ -202,8 +214,9 @@ test('宿舍申请：切换楼栋清空房间类型与已选房间', async ({ pa
 
 test('宿舍申请详情：分配记录 + 动态码解密展示', async ({ page }) => {
   await seedLogin(page)
+  await mockBaseInfo(page)
   await injectTestKey(page)
-  await page.route('**/platform/dormitory/staff/me/roomList', (route) =>
+  await page.route('**/platform/dormitory/staff/roomList/YT20180326', (route) =>
     route.fulfill({
       json: {
         code: 0,
@@ -223,7 +236,7 @@ test('宿舍申请详情：分配记录 + 动态码解密展示', async ({ page 
       },
     }),
   )
-  await page.route('**/platform/dormitory/staff/me/pwd', (route) =>
+  await page.route('**/platform/dormitory/staff/get/pwd*', (route) =>
     route.fulfill({ json: { code: 0, data: legacyCipherHex('246810') } }),
   )
 

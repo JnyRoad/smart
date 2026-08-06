@@ -30,13 +30,11 @@ public interface RemoteOvwYscompService {
      */
     @GetMapping("/ys/comp/info")
     Result<OvwYscompRespDTO> getByCompId(@RequestParam("compId") String compId,
-										 @RequestHeader(SecurityConstants.FROM) String from,
-										 @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+										 @RequestHeader(SecurityConstants.FROM) String from);
     /**
      * 获取所有公司信息
      * @return
      */
     @GetMapping("/ys/comp/list")
-    Result<List<OvwYscompRespDTO>> getList(@RequestHeader(SecurityConstants.FROM) String from,
-																		@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result<List<OvwYscompRespDTO>> getList(@RequestHeader(SecurityConstants.FROM) String from);
 }

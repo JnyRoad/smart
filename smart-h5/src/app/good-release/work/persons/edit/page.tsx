@@ -22,7 +22,6 @@ function WorkPersonEditInner() {
   const indexParam = params.get('index')
   const editIndex = indexParam === null ? null : Number(indexParam)
   const persons = useWorkDraft((s) => s.persons)
-	const releaseId = useWorkDraft((s) => s.releaseId)
   const addPerson = useWorkDraft((s) => s.addPerson)
   const updatePerson = useWorkDraft((s) => s.updatePerson)
   const editing = editIndex !== null ? (persons[editIndex] ?? null) : null
@@ -110,7 +109,6 @@ function WorkPersonEditInner() {
       {searchVisible && (
         <StaffSearchPopup
           visible
-		  releaseId={releaseId}
           onClose={() => setSearchVisible(false)}
           onPicked={({ gh, name, id }) => setStaff({ gh, name, xm: id })}
         />

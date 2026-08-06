@@ -16,7 +16,7 @@ import { redirectToWechatOAuth } from '@/lib/wechat/oauth'
 /**
  * Visitor flow step 1: receptionist (被访人) info. Entering without a WeChat
  * code starts the silent OAuth round (visitor-side: the code is exchanged for
- * a short-lived opaque draft credential, not a login token).
+ * an openId, not a login token).
  */
 function VisitorEntryInner() {
   const router = useRouter()
@@ -64,13 +64,10 @@ function VisitorEntryInner() {
       try {
         const res = await getVisitorOpenId(code)
         if (res.code === 0 && res.data) {
-          patchHost({
-            visitorDraftToken: res.data.visitorDraftToken,
-            visitorDraftId: res.data.visitorDraftId,
-          })
+          patchHost({ openId: res.data.openId, unionId: res.data.unionId })
         }
       } catch (error) {
-      // 授权失败会在需要 capability 时安全拒绝，但不阻断提示展示。
+        // Missing openId surfaces later at submit; do not block the form.
         Toast.show(toUserMessage(error, '微信授权信息获取失败'))
       }
     })()
@@ -94,15 +91,11 @@ function VisitorEntryInner() {
     }
     setSubmitting(true)
     try {
-      if (!host.visitorDraftToken || !host.visitorDraftId) {
-        Toast.show('访客操作授权已失效，请重新进入申请流程')
-        return
-      }
       const res = await searchReceptionist({
         parkId: config.parkId,
         receptionistName,
         receptionistPhone,
-      }, { draftToken: host.visitorDraftToken, draftId: host.visitorDraftId })
+      })
       if (res.code === 0 && res.data) {
         patchHost({
           receptionistBadge: res.data.receptionistBadge,

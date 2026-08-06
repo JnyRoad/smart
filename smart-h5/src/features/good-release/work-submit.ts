@@ -16,13 +16,13 @@ function timeSegment(value: string): string {
  */
 export function buildWorkSubmitBody(input: {
   applyMain: WorkApplyMain
-	releaseId: string | number
+  badge: string
   parkId: number
   persons: WorkPerson[]
   goods: WorkGood[]
 }): {
   applyMain: WorkApplyMain
-	releaseId: string | number
+  badge: string
   parkId: number
   status: 1
   personList: Record<string, unknown>[]
@@ -31,7 +31,7 @@ export function buildWorkSubmitBody(input: {
   const personBranch = isPersonRelease(input.applyMain.fxsx)
   return {
     applyMain: input.applyMain,
-		releaseId: input.releaseId,
+    badge: input.badge,
     parkId: input.parkId,
     status: 1,
     personList: personBranch

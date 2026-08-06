@@ -12,9 +12,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.dispatcher.api.dto.req.DispatcherDTO;
 import com.tce.smart.dispatcher.api.enums.EventEnum;
 import com.tce.smart.dispatcher.api.feign.RemoteDispatcherService;
-import com.tce.smart.platform.api.dto.resp.InternalScheduleIscPersonRespDTO;
-import com.tce.smart.platform.api.dto.resp.InternalScheduleStaffIdentityRespDTO;
-import com.tce.smart.platform.api.feign.RemoteParkInternalService;
+import com.tce.smart.platform.api.dto.SmtStaffDTO;
+import com.tce.smart.platform.api.feign.RemoteParkService;
 import com.tce.smart.platform.api.feign.RemoteSnapPersonService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.platform.core.entity.SmtDevice;
@@ -120,7 +119,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"));
@@ -133,7 +132,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertFalse(task.getRemark().contains("isc错误码"));
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO authItemRequest = captor.getAllValues().get(1);
 		Assert.assertEquals(EventEnum.ISC_AUTH_ITEM_LIST_GET.getCode(), authItemRequest.getEventType());
 		Assert.assertEquals(Integer.valueOf(5000021), authItemRequest.getParkId());
@@ -163,7 +162,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"));
 
@@ -174,7 +173,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals("删除权限已无可用下发数据，已按删除成功处理", task.getRemark());
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertEquals(EventEnum.ISC_AUTH_ITEM_LIST_GET.getCode(), captor.getAllValues().get(1).getEventType());
 	}
 
@@ -192,7 +191,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)))
 				.thenReturn(Result.success("{\"total\":0,\"list\":null}"));
 
@@ -218,7 +217,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[{}]}"));
 
@@ -245,7 +244,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)))
 				.thenReturn(Result.success("{\"list\":null}"));
 
@@ -272,7 +271,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)))
 				.thenReturn(Result.success("{\"total\":0}"));
 
@@ -299,7 +298,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)))
 				.thenReturn(Result.success("{\"list\":[]}"));
 
@@ -326,7 +325,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)))
 				.thenReturn(Result.success("{\"total\":-1,\"list\":null}"));
 
@@ -353,7 +352,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)))
 				.thenReturn(Result.success("{\"total\":-1,\"list\":[]}"));
 
@@ -384,8 +383,9 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenReturn(Result.success(singleStaffPersonList("isc-person-current", "JA26079", "face-current")))
@@ -396,11 +396,9 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals(DeviceTaskStatusEnum.SUCCESS.getCode(), task.getStatus());
 		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getCode(), task.getCode());
 		Assert.assertEquals("isc-person-current", task.getPersonId());
-		Mockito.verify(remoteStaffService, Mockito.atLeastOnce()).getScheduleIdentityStaff("2059164347547275265",
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO authItemRequest = captor.getAllValues().get(2);
 		Assert.assertEquals(EventEnum.ISC_AUTH_ITEM_LIST_GET.getCode(), authItemRequest.getEventType());
 		Map authItemParams = (Map) authItemRequest.getData();
@@ -430,8 +428,9 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
 		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(downRecord);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_TASK_PROCESS_GET.getCode().equals(request.getEventType())) {
@@ -453,7 +452,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals("isc-person-old", task.getPersonId());
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO authItemRequest = captor.getAllValues().get(1);
 		Assert.assertEquals(EventEnum.ISC_AUTH_ITEM_LIST_GET.getCode(), authItemRequest.getEventType());
 		Map authItemParams = (Map) authItemRequest.getData();
@@ -474,7 +473,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenReturn(Result.success("{\"total\":1,\"list\":[{}]}"));
@@ -489,7 +488,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertFalse(task.getRemark().contains(
 				ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode()));
 		Mockito.verify(downRecordService, Mockito.never()).handleTaskDownRecord(Mockito.any(SmtIscDeviceTask.class));
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN));
 	}
 
 	@Test
@@ -504,7 +503,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.list(Mockito.any())).thenReturn(Collections.singletonList(task));
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress("0x15409999")));
 
 		service.authConfigDownResultHandle();
@@ -513,7 +512,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertTrue(task.getRemark().contains("下载权限失败_ISC返回未知错误"));
 		Assert.assertFalse(task.getRemark().contains("isc错误码"));
 		Assert.assertFalse(task.getRemark().contains("0x15409999"));
-		Mockito.verify(dispatcherService, Mockito.times(1)).dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(1)).dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN));
 		Mockito.verify(downRecordService, Mockito.never()).handleTaskDownRecord(Mockito.any(SmtIscDeviceTask.class));
 	}
 
@@ -531,7 +530,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress("0x15409999")))
 				.thenReturn(Result.success(downloadDetailForOtherPerson()))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"));
@@ -612,7 +611,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenThrow(new RuntimeException("auth item query failed"));
@@ -641,7 +640,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenReturn(null);
@@ -673,7 +672,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"));
@@ -711,7 +710,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenReturn(Result.success(downloadDetailForOtherPerson()))
@@ -723,7 +722,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getCode(), task.getCode());
 		Assert.assertEquals("删除权限已无可用下发数据，已按删除成功处理", task.getRemark());
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
-		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN));
 	}
 
 	@Test
@@ -743,7 +742,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress(null)))
 				.thenReturn(Result.success(downloadDetailForOtherPerson()))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"));
@@ -755,7 +754,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals("删除权限已无可用下发数据，已按删除成功处理", task.getRemark());
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertEquals(EventEnum.ISC_AUTH_ITEM_LIST_GET.getCode(), captor.getAllValues().get(2).getEventType());
 	}
 
@@ -774,7 +773,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"))
@@ -786,7 +785,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals(ISCDeviceTaskEnum.DEVICE_OK.getCode(), task.getCode());
 		Assert.assertEquals("删除权限已无可用下发数据，已按删除成功处理", task.getRemark());
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
-		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN));
 	}
 
 	@Test
@@ -804,7 +803,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress(null)))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"));
@@ -816,7 +815,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals("删除权限已无可用下发数据，已按删除成功处理", task.getRemark());
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertEquals(EventEnum.ISC_AUTH_ITEM_LIST_GET.getCode(), captor.getAllValues().get(2).getEventType());
 	}
 
@@ -837,7 +836,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress("0x15409999")))
 				.thenReturn(Result.success(downloadDetailForPerson("person-1", null)))
 				.thenReturn(Result.success("{\"total\":0,\"list\":[]}"));
@@ -849,7 +848,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals("删除权限已无可用下发数据，已按删除成功处理", task.getRemark());
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertEquals(EventEnum.ISC_AUTH_ITEM_LIST_GET.getCode(), captor.getAllValues().get(2).getEventType());
 	}
 
@@ -870,7 +869,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_NO_AVAILABLE_DATA.getErrorCode())))
 				.thenReturn(Result.success(downloadDetailForPerson("person-1",
@@ -902,7 +901,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_CARD_PERMISSION_UNSUPPORTED.getErrorCode())));
 
@@ -930,7 +929,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)));
 
 		service.authConfigDownResultHandle();
@@ -956,7 +955,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(downloadProgress(null)));
 
 		service.authConfigDownResultHandle();
@@ -982,7 +981,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
 		Mockito.when(deviceService.getOne(Mockito.any())).thenReturn(device());
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(partialDownloadProgress(
 						ISCDeviceTaskErrorEnum.DOWNLOAD_PERMISSION_PACKET_SEND_FAILED.getErrorCode())))
 				.thenReturn(Result.success(downloadDetailWithNestedErrors("person-2")));
@@ -1136,14 +1135,14 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(imageService.getImageBinaryByCode(Mockito.anyString())).thenReturn(new byte[20 * 1024]);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(visitorPersonList()))
 				.thenReturn(Result.success("{\"taskId\":\"config-task-1\"}"));
 
 		service.downAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Map params = (Map) captor.getAllValues().get(1).getData();
 		Object[] personDatas = (Object[]) params.get("personDatas");
 		Map personInfo = (Map) personDatas[0];
@@ -1282,7 +1281,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDown(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		// 批量查询临时人员失败：任务应整体跳过，保持INIT等待下轮，不得走"人员不存在→新增人员"
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.fail("ISC平台查询超时"));
 
 		service.downAccess();
@@ -1292,7 +1291,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.verify(taskService, Mockito.never()).updateById(Mockito.any(SmtIscDeviceTask.class));
 		// 只允许发生一次批量人员查询，不允许出现新增人员/权限配置等后续调用
 		Mockito.verify(dispatcherService, Mockito.times(1))
-				.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+				.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN));
 	}
 
 	@Test
@@ -1309,14 +1308,14 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(imageService.getImageBinaryByCode(Mockito.anyString())).thenReturn(new byte[20 * 1024]);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(singleVisitorPersonList("person-999", "cert-999")))
 				.thenReturn(Result.success("{\"taskId\":\"config-task-999\"}"));
 
 		service.downAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Map personQueryParams = (Map) captor.getAllValues().get(0).getData();
 		Assert.assertEquals("cert-999", ((Iterable) personQueryParams.get("paramValue")).iterator().next());
 		Map authParams = (Map) captor.getAllValues().get(1).getData();
@@ -1348,7 +1347,7 @@ public class ISCDeviceTaskServiceImplTest {
 				Mockito.eq(DeviceTaskConstants.CAR));
 		Mockito.verify(imageService, Mockito.never()).getImageBinaryByCode(Mockito.anyString());
 		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(DispatcherDTO.class),
-				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+				Mockito.eq(SecurityConstants.FROM_IN));
 		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
 		Mockito.verify(taskService).update(updateCaptor.capture());
 		Assert.assertTrue(updateCaptor.getValue().getParamNameValuePairs().values().stream()
@@ -1381,7 +1380,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(staffOtherService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
 		Mockito.when(imageService.getImageBinaryByCode("image-staff")).thenReturn(new byte[20 * 1024]);
 		Mockito.when(imageService.getByCode("image-staff")).thenReturn(image);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(singleStaffPersonList("person-staff", "JA26086", "face-old")))
 				.thenReturn(Result.success("{\"faceId\":\"face-new\"}"))
 				.thenReturn(Result.success("{\"taskId\":\"config-task-staff\"}"));
@@ -1389,7 +1388,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.downAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO faceUpdateRequest = captor.getAllValues().get(1);
 		Assert.assertEquals(EventEnum.ISC_FACE_UPDATE.getCode(), faceUpdateRequest.getEventType());
 		Assert.assertEquals(Integer.valueOf(5000022), faceUpdateRequest.getParkId());
@@ -1421,7 +1420,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(staffOtherService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
 		Mockito.when(imageService.getImageBinaryByCode(Mockito.anyString())).thenReturn(new byte[20 * 1024]);
 		Mockito.when(imageService.getByCode(Mockito.anyString())).thenReturn(image);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())
@@ -1444,7 +1443,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.downAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(6)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(6)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Map<Integer, String> faceIdByPark = new HashMap<>();
 		for (DispatcherDTO request : captor.getAllValues()) {
 			if (EventEnum.ISC_FACE_UPDATE.getCode().equals(request.getEventType())) {
@@ -1536,7 +1535,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(staffOtherService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
 		Mockito.when(imageService.getByCode(Mockito.anyString())).thenReturn(image);
 		Mockito.when(imageService.getImageBinaryByCode(Mockito.anyString())).thenReturn(new byte[20 * 1024]);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())) {
@@ -1554,7 +1553,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.downAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(6)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(6)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Map<Integer, String> addFacePersonByPark = new HashMap<>();
 		for (DispatcherDTO request : captor.getAllValues()) {
 			if (EventEnum.ISC_FACE_ADD.getCode().equals(request.getEventType())) {
@@ -1596,7 +1595,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals(DeviceTaskStatusEnum.CANCEL.getCode(), taskCaptor.getValue().getStatus());
 		Assert.assertEquals("ISC车辆权限不支持下发，已取消", taskCaptor.getValue().getRemark());
 		Mockito.verify(dispatcherService, Mockito.never()).dispatch(Mockito.any(DispatcherDTO.class),
-				Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+				Mockito.eq(SecurityConstants.FROM_IN));
 		Mockito.verify(imageService, Mockito.never()).getImageBinaryByCode(Mockito.anyString());
 	}
 
@@ -1622,7 +1621,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(imageService.getByCode(Mockito.anyString())).thenReturn(image);
 		Mockito.when(imageService.getImageBinaryByCode(Mockito.anyString())).thenReturn(new byte[20 * 1024]);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(emptyPersonList()))
 				.thenReturn(Result.success(emptyPersonList()))
 				.thenReturn(Result.success("{\"personId\":\"person-generated\"}"))
@@ -1630,10 +1629,10 @@ public class ISCDeviceTaskServiceImplTest {
 
 		service.downAccess();
 
-		verifyNoScheduleStaffLookup(remoteStaffService);
+		Mockito.verify(remoteStaffService, Mockito.never()).getSimpleSttaffById(Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(staffOtherService, Mockito.never()).getOne(Mockito.any());
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(4)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(4)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO personAddRequest = captor.getAllValues().get(2);
 		Assert.assertEquals(EventEnum.ISC_PERSON_ADD.getCode(), personAddRequest.getEventType());
 		Map personAddParams = (Map) personAddRequest.getData();
@@ -1673,7 +1672,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(imageService.getImageBinaryByCode("image-14")).thenReturn(new byte[20 * 1024]);
 		Mockito.when(imageService.getByCode("image-14")).thenReturn(image);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(singleVisitorPersonList("sz20652", "421081198506080639")))
 				.thenReturn(Result.success("{\"faceId\":\"face-updated\"}"))
 				.thenReturn(Result.success("{\"taskId\":\"config-task\"}"));
@@ -1681,7 +1680,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.downAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(3)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO faceUpdateRequest = captor.getAllValues().get(1);
 		Assert.assertEquals(EventEnum.ISC_FACE_UPDATE.getCode(), faceUpdateRequest.getEventType());
 		Assert.assertEquals(Integer.valueOf(5000021), faceUpdateRequest.getParkId());
@@ -1718,7 +1717,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(imageService.getImageBinaryByCode("image-22")).thenReturn(new byte[20 * 1024]);
 		Mockito.when(imageService.getByCode("image-22")).thenReturn(image);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(emptyPersonList()))
 				.thenReturn(Result.success(singleVisitorPersonList("sz20652", "421081198506080639")))
 				.thenReturn(Result.success("{\"faceId\":\"face-updated\"}"))
@@ -1727,7 +1726,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.downAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(4)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(4)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertEquals(EventEnum.ISC_PERSON_GET.getCode(), captor.getAllValues().get(0).getEventType());
 		Assert.assertEquals(EventEnum.ISC_PERSON_GET.getCode(), captor.getAllValues().get(1).getEventType());
 		DispatcherDTO faceUpdateRequest = captor.getAllValues().get(2);
@@ -1767,8 +1766,9 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(staffOtherService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
 		Mockito.when(imageService.getImageBinaryByCode("image-current")).thenReturn(new byte[20 * 1024]);
 		Mockito.when(imageService.getByCode("image-current")).thenReturn(image);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())) {
@@ -1790,7 +1790,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.downAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(5)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(5)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO authRequest = captor.getAllValues().stream()
 				.filter(request -> EventEnum.ISC_AUTH_CONFIG_ADD.getCode().equals(request.getEventType()))
 				.findFirst()
@@ -1826,8 +1826,9 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(staffOtherService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
 		Mockito.when(imageService.getByCode("image-current")).thenReturn(image);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_ADD.getCode().equals(request.getEventType())) {
@@ -1841,7 +1842,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertNull(staffTask.getPersonId());
 		Assert.assertNotEquals(DeviceTaskStatusEnum.DOING.getCode(), staffTask.getStatus());
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertFalse(captor.getAllValues().stream()
 				.anyMatch(request -> EventEnum.ISC_AUTH_CONFIG_ADD.getCode().equals(request.getEventType())));
 	}
@@ -1864,7 +1865,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(singleVisitorPersonList("person-del", "cert-del")))
 				.thenReturn(Result.success("{\"taskId\":\"delete-task-1\"}"));
 
@@ -1875,7 +1876,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.verify(taskService, Mockito.never()).getDelayDel(Mockito.any(Page.class), Mockito.anyLong(),
 				Mockito.eq(DeviceTaskConstants.CAR));
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Map personQueryParams = (Map) captor.getAllValues().get(0).getData();
 		Assert.assertEquals("certificateNo", personQueryParams.get("paramName"));
 		Assert.assertEquals("cert-del", ((String[]) personQueryParams.get("paramValue"))[0]);
@@ -1884,7 +1885,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Map personInfo = (Map) personDatas[0];
 		Assert.assertEquals(Collections.singletonList("person-del"), personInfo.get("indexCodes"));
 		Mockito.verify(downRecordService, Mockito.never()).getOne(Mockito.any());
-		verifyNoScheduleStaffLookup(remoteStaffService);
+		Mockito.verify(remoteStaffService, Mockito.never()).getSimpleSttaffById(Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(staffOtherService, Mockito.never()).getOne(Mockito.any());
 	}
 
@@ -1913,8 +1914,9 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())) {
@@ -1929,7 +1931,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.delAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO authRequest = captor.getAllValues().stream()
 				.filter(request -> EventEnum.ISC_AUTH_CONFIG_DEL.getCode().equals(request.getEventType()))
 				.findFirst()
@@ -1971,8 +1973,9 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(downRecord);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())) {
@@ -1987,7 +1990,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.delAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(1)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(1)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO authRequest = captor.getValue();
 		Assert.assertEquals(EventEnum.ISC_AUTH_CONFIG_DEL.getCode(), authRequest.getEventType());
 		Map authParams = (Map) authRequest.getData();
@@ -2027,8 +2030,9 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(downRecord);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())) {
@@ -2043,7 +2047,7 @@ public class ISCDeviceTaskServiceImplTest {
 		service.delAccess();
 
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.times(2)).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		DispatcherDTO authRequest = captor.getAllValues().stream()
 				.filter(request -> EventEnum.ISC_AUTH_CONFIG_DEL.getCode().equals(request.getEventType()))
 				.findFirst()
@@ -2079,7 +2083,7 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(downRecord);
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success("{\"taskId\":\"delete-task-staff\"}"));
 
 		service.delAccess();
@@ -2089,7 +2093,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertTrue(queryHasParam(downRecordQueryCaptor.getValue(), DeviceTaskConstants.CARD));
 		Assert.assertTrue(queryHasParam(downRecordQueryCaptor.getValue(), DeviceTaskConstants.CARD_STAFF_IMPORT));
 		ArgumentCaptor<DispatcherDTO> dispatcherCaptor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService).dispatch(dispatcherCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService).dispatch(dispatcherCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Map authParams = (Map) dispatcherCaptor.getValue().getData();
 		Object[] personDatas = (Object[]) authParams.get("personDatas");
 		Map personInfo = (Map) personDatas[0];
@@ -2122,13 +2126,13 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenAnswer(invocation -> incomingPageWithRecords(invocation.getArgument(0), Collections.emptyList()));
 		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(downRecord);
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success("{\"taskId\":\"delete-task-staff\"}"));
 
 		service.delAccess();
 
 		ArgumentCaptor<DispatcherDTO> dispatcherCaptor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService).dispatch(dispatcherCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService).dispatch(dispatcherCaptor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Map authParams = (Map) dispatcherCaptor.getValue().getData();
 		Object[] personDatas = (Object[]) authParams.get("personDatas");
 		Map personInfo = (Map) personDatas[0];
@@ -2298,9 +2302,10 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(pageWith(task));
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
 		// ISC按工号、证件号查询均为空：人员已被ISC删除，权限已级联清理
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success("{\"list\":[]}"));
 
 		service.delAccess();
@@ -2310,7 +2315,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertTrue(task.getRemark().contains("ISC人员已删除"));
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertFalse(captor.getAllValues().stream()
 				.anyMatch(request -> EventEnum.ISC_AUTH_CONFIG_DEL.getCode().equals(request.getEventType())));
 	}
@@ -2330,9 +2335,10 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
 		// ISC返回的人员全部处于删除状态（status<0）：等同人员已删除
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(deletedOnlyPersonList("isc-person-deleted", "JA26079")));
 
 		service.delAccess();
@@ -2358,9 +2364,10 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
 		// ISC查询失败：不能判定人员已删除，必须保留重试
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.fail("ISC平台查询超时"));
 
 		service.delAccess();
@@ -2386,9 +2393,10 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		Mockito.when(deviceService.getById("device-1")).thenReturn(device());
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
 		// 工号查询为空，但证件号复查命中在册人员：不能误判删除，按正常删除流程下发
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenAnswer(invocation -> {
 					DispatcherDTO request = invocation.getArgument(0);
 					if (EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType())) {
@@ -2409,7 +2417,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Assert.assertEquals(DeviceTaskStatusEnum.DOING.getCode(), task.getStatus());
 		Assert.assertEquals("isc-person-x", task.getPersonId());
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertTrue(captor.getAllValues().stream()
 				.anyMatch(request -> EventEnum.ISC_AUTH_CONFIG_DEL.getCode().equals(request.getEventType())));
 		Mockito.verify(downRecordService, Mockito.never()).handleTaskDownRecord(Mockito.any());
@@ -2430,9 +2438,10 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.when(taskService.getDelayDel(Mockito.any(Page.class), Mockito.anyLong(), Mockito.eq(DeviceTaskConstants.CARD)))
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.update(Mockito.any())).thenReturn(true);
-		stubScheduleStaff(remoteStaffService, "JA26079", "411082199108142426");
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto("JA26079", "411082199108142426")));
 		// ISC返回了记录但personId缺失：疑似响应结构异常，不得误判人员已删除
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success("{\"list\":[{\"jobNo\":\"JA26079\",\"status\":1}]}"));
 
 		service.delAccess();
@@ -2458,8 +2467,9 @@ public class ISCDeviceTaskServiceImplTest {
 				.thenReturn(new Page<>());
 		Mockito.when(taskService.updateById(Mockito.any(SmtIscDeviceTask.class))).thenReturn(true);
 		// 本地员工记录没有工号：只能按证件号单标识判定
-		stubScheduleStaff(remoteStaffService, null, "411082199108142426");
-		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(remoteStaffService.getSimpleSttaffById("2059164347547275265", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(staffDto(null, "411082199108142426")));
+		Mockito.when(dispatcherService.dispatch(Mockito.any(DispatcherDTO.class), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success("{\"list\":[]}"));
 
 		service.delAccess();
@@ -2469,7 +2479,7 @@ public class ISCDeviceTaskServiceImplTest {
 		Mockito.verify(downRecordService).handleTaskDownRecord(task);
 		// 只发生证件号查询，不应出现工号查询
 		ArgumentCaptor<DispatcherDTO> captor = ArgumentCaptor.forClass(DispatcherDTO.class);
-		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN), Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService, Mockito.atLeastOnce()).dispatch(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		Assert.assertTrue(captor.getAllValues().stream()
 				.filter(request -> EventEnum.ISC_PERSON_GET.getCode().equals(request.getEventType()))
 				.allMatch(request -> "certificateNo".equals(((Map) request.getData()).get("paramName"))));
@@ -2503,40 +2513,13 @@ public class ISCDeviceTaskServiceImplTest {
 		return JSONUtil.toJsonStr(body);
 	}
 
-	/**
-	 * 统一声明 Smart Schedule 需要的两类内部员工资料，防止测试回退到通用员工实体契约。
-	 */
-	private void stubScheduleStaff(RemoteStaffService remoteStaffService, String badge, String certNo) {
-		Mockito.when(remoteStaffService.getScheduleIdentityStaff("2059164347547275265", SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED))
-				.thenReturn(Result.success(scheduleIdentityStaff(badge, certNo)));
-		Mockito.when(remoteStaffService.getScheduleIscPersonStaff("2059164347547275265", SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED))
-				.thenReturn(Result.success(scheduleIscPersonStaff(badge, certNo)));
-	}
-
-	private InternalScheduleStaffIdentityRespDTO scheduleIdentityStaff(String badge, String certNo) {
-		InternalScheduleStaffIdentityRespDTO staff = new InternalScheduleStaffIdentityRespDTO();
-		staff.setBadge(badge);
-		staff.setCertno(certNo);
-		staff.setStatus(0);
-		return staff;
-	}
-
-	private InternalScheduleIscPersonRespDTO scheduleIscPersonStaff(String badge, String certNo) {
-		InternalScheduleIscPersonRespDTO staff = new InternalScheduleIscPersonRespDTO();
+	private SmtStaffDTO staffDto(String badge, String certNo) {
+		SmtStaffDTO staff = new SmtStaffDTO();
 		staff.setBadge(badge);
 		staff.setName("张倩瑜");
-		staff.setSex(1);
 		staff.setCertno(certNo);
+		staff.setSex(1);
 		return staff;
-	}
-
-	private void verifyNoScheduleStaffLookup(RemoteStaffService remoteStaffService) {
-		Mockito.verify(remoteStaffService, Mockito.never()).getScheduleIdentityStaff(Mockito.anyString(), Mockito.anyString(),
-				Mockito.anyString());
-		Mockito.verify(remoteStaffService, Mockito.never()).getScheduleIscPersonStaff(Mockito.anyString(), Mockito.anyString(),
-				Mockito.anyString());
 	}
 
 	private ISCDeviceTaskServiceImpl service(RemoteDispatcherService dispatcherService,
@@ -2571,7 +2554,7 @@ public class ISCDeviceTaskServiceImplTest {
 				Mockito.mock(SmtAdmittanceFellowMapper.class),
 				Mockito.mock(SmtDeviceService.class),
 				Mockito.mock(SmtIscDownRecordService.class),
-				Mockito.mock(RemoteParkInternalService.class),
+				Mockito.mock(RemoteParkService.class),
 				Mockito.mock(SmtVisitorService.class),
 				Mockito.mock(SmtFellowVisitorMapper.class),
 				Mockito.mock(SmtAdmittanceFellowMapper.class),
@@ -2615,7 +2598,7 @@ public class ISCDeviceTaskServiceImplTest {
 				Mockito.mock(SmtAdmittanceFellowMapper.class),
 				deviceService,
 				downRecordService,
-				Mockito.mock(RemoteParkInternalService.class),
+				Mockito.mock(RemoteParkService.class),
 				Mockito.mock(SmtVisitorService.class),
 				Mockito.mock(SmtFellowVisitorMapper.class),
 				Mockito.mock(SmtAdmittanceFellowMapper.class),

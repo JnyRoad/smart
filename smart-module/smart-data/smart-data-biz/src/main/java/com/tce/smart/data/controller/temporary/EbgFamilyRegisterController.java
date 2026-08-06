@@ -3,8 +3,6 @@ package com.tce.smart.data.controller.temporary;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.temporary.req.EbgFamilyRegisterReqDTO;
 import com.tce.smart.temporary.core.entity.EbgFamilyRegister;
 import com.tce.smart.temporary.core.service.IEbgFamilyRegisterService;
@@ -36,9 +34,7 @@ public class EbgFamilyRegisterController extends BaseController {
      * @param ebgFamilyRegisterReqDTO ebgFamilyRegisterReqDTO
      * @return
      */
-    @Inner
-    @OpenApi("server")
-    @PostMapping("/internal/save")
+    @PostMapping("/save")
     @ResponseBody
     private Result<Boolean> save(@RequestBody EbgFamilyRegisterReqDTO ebgFamilyRegisterReqDTO){
 

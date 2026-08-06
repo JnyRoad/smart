@@ -184,7 +184,7 @@ public class VacateServiceImpl implements VacateService {
 			throw new TCEException(ExceptionTypeEnum.ASK_LEAVE_TYPE_ERROR);
 		}
 		VacateUnitVo vacateUnitVo = new VacateUnitVo ();
-		Result<LvwLcdLeavetypeDTO> result = remoteLvwLcdLeavetypeService.info(Integer.parseInt(vacateCode), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<LvwLcdLeavetypeDTO> result = remoteLvwLcdLeavetypeService.info(Integer.parseInt(vacateCode),SecurityConstants.FROM_IN);
 		if (CommonConstants.SUCCESS  == result.getCode()) {
 			if(ObjectUtil.isNotNull(result.getData())) {
 				//根据时长id获取时长单位描述

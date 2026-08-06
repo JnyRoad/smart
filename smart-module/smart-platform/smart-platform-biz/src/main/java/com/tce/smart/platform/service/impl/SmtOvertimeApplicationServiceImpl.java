@@ -127,9 +127,7 @@ public class SmtOvertimeApplicationServiceImpl extends ServiceImpl<SmtOvertimeAp
 		if(!exceptionType.equals(ExceptionTypeEnum.CHECK_SUCCESS)){
             throw new TCEException(exceptionType);
 		}
-		Result<List<EvwBizAregotRegisterRespDTO>> infoRegister = remoteEvwBizAregotRegisterService.info(
-				addOverApplicationDTO.getStaffBadge(), addOverApplicationDTO.getExtraworkDate(),
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<EvwBizAregotRegisterRespDTO>> infoRegister = remoteEvwBizAregotRegisterService.info(addOverApplicationDTO.getStaffBadge(), addOverApplicationDTO.getExtraworkDate());
 		log.info("remoteEvwBizAregotRegisterService.info {}",infoRegister);
 		List<EvwBizAregotRegisterRespDTO> dataRegister = infoRegister.getData();
 		if(dataRegister.size()>0)
@@ -143,9 +141,7 @@ public class SmtOvertimeApplicationServiceImpl extends ServiceImpl<SmtOvertimeAp
 			}
 			throw new TCEException(addOverApplicationDTO.getExtraworkDate()+"已在嘉阳PC后台审批中，不能重复申请");
 		}
-		Result<List<EvwLergotAllRespDTO>> infoAll = remoteEvwLergotAllService.info(
-				addOverApplicationDTO.getStaffBadge(), addOverApplicationDTO.getExtraworkDate(),
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<EvwLergotAllRespDTO>> infoAll = remoteEvwLergotAllService.info(addOverApplicationDTO.getStaffBadge(), addOverApplicationDTO.getExtraworkDate());
 		log.info("remoteEvwLergotAllService.info {}",infoAll);
 		List<EvwLergotAllRespDTO> dataAll= infoAll.getData();
 		if(dataAll.size()>0)
@@ -203,7 +199,7 @@ public class SmtOvertimeApplicationServiceImpl extends ServiceImpl<SmtOvertimeAp
 		sendExtraworkAo.setReason(addOverApplicationDTO.getExtraworkDesc());
 		sendExtraworkAo.setRemark(addOverApplicationDTO.getExtraworkDesc());
 		//获取人事区域
-		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<OvwYscompRespDTO> resultComp = remoteOvwYscompService.getByCompId(selectOne.getCompId(), SecurityConstants.FROM_IN);
 		OvwYscompRespDTO ovwYscompVO = resultComp.getData();
 		sendExtraworkAo.setEzid(ovwYscompVO.getEzid().toString());
 		sendExtraworkAo.setJchenid(selectOne.getJcheId());

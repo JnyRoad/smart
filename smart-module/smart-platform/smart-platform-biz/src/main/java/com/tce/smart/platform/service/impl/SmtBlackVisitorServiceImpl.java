@@ -69,8 +69,7 @@ public class SmtBlackVisitorServiceImpl extends ServiceImpl<SmtBlackVisitorMappe
 
 	@Override
 	public Result getHrBlackPage(Page page, String cerNo, String name) {
-		return remoteEvwEmphrYsService.getBlack(page.getCurrent(), page.getSize(), cerNo, name,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		return remoteEvwEmphrYsService.getBlack(page.getCurrent(),page.getSize(), cerNo, name,SecurityConstants.FROM_IN);
 	}
 
 	@Override

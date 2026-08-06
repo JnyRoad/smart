@@ -118,8 +118,7 @@ public class SmtImageController extends BaseController {
 				ImageDTO imageDTO = new ImageDTO();
 				imageDTO.setParkId(parkId);
 				imageDTO.setId(imageId);
-				Result<String> imageRs = remoteDispatcherService.getImage(imageDTO, SecurityConstants.FROM_IN,
-						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				Result<String> imageRs = remoteDispatcherService.getImage(imageDTO, SecurityConstants.FROM_IN);
 
 				imageContent = ImageUtils.base64StrToByte(imageRs.getData().replaceFirst(VehicleConstants.BASE64_PREFIX, ""));
 			}catch (Exception e){}

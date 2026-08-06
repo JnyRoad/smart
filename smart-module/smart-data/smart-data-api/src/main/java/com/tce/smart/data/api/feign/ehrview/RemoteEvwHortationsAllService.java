@@ -16,6 +16,5 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface RemoteEvwHortationsAllService {
 
 	@GetMapping("/evwHortationsall/list")
-	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from);
 }

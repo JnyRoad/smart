@@ -109,8 +109,7 @@ const user = {
       return new Promise((resolve, reject) => {
         getUserInfo().then((res) => {
           const data = res.data.data || {}
-          // 后端只返回当前会话的最小 profile，禁止把完整 SysUser（含密码哈希等）写入浏览器状态。
-          commit('SET_USERIFNO', data.profile)
+          commit('SET_USERIFNO', data.sysUser)
           commit('SET_ROLES', data.roles || [])
           commit('SET_PERMISSIONS', data.permissions || [])
           resolve(data)

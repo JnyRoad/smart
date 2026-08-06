@@ -50,14 +50,6 @@ export default function VisitorTelPage() {
     if (!phone) return Toast.show('请输入手机号')
     if (!/^1\d{10}$/.test(phone)) return Toast.show('手机号格式不正确')
     if (!smsCode) return Toast.show('请输入验证码')
-    if (!flow.host.visitorDraftToken || !flow.host.visitorDraftId) {
-      Toast.show('访客操作授权已失效，请重新进入申请流程')
-      return
-    }
-    const visitorDraft = {
-      draftToken: flow.host.visitorDraftToken,
-      draftId: flow.host.visitorDraftId,
-    }
 
     setSubmitting(true)
     try {
@@ -68,7 +60,7 @@ export default function VisitorTelPage() {
       }
 
       // Re-check the area config and prune selections that expired meanwhile.
-      const options = await loadAreaOptions(config.parkId, visitorDraft)
+      const options = await loadAreaOptions(config.parkId)
       const pruned = pruneSelectedAreas(flow.areasByFactory, options)
       const prunedCount = Object.values(pruned).reduce((n, a) => n + a.list.length, 0)
       if (prunedCount === 0) {
@@ -91,7 +83,7 @@ export default function VisitorTelPage() {
         visitorName: stripSpaces(flow.visitor.visitorName),
         certNo: stripSpaces(flow.visitor.certNo).toUpperCase(),
         parkId: config.parkId,
-      }, visitorDraft)
+      })
       // Security check must fail closed: a service error blocks the submit.
       if (black.code !== 0) {
         Toast.show(black.message ?? '黑名单校验失败，请稍后重试')
@@ -107,8 +99,10 @@ export default function VisitorTelPage() {
       // areaType 是当前工厂勾选的区域 code 列表，remark 旧版恒为空串。
       const area = buildVisitorAreaFields(permitFactoryType, pruned, options)
 
-	  const res = await saveVisitorApply({
-		parkId: config.parkId,
+      const res = await saveVisitorApply({
+        parkId: config.parkId,
+        unionId: flow.host.unionId ?? '',
+        openId: flow.host.openId ?? '',
         receptionistBadge: flow.host.receptionistBadge,
         receptionistName: flow.host.receptionistName,
         receptionistPhone: flow.host.receptionistPhone,
@@ -150,7 +144,7 @@ export default function VisitorTelPage() {
           certType: c.certType.code,
           certImg: c.certImg,
         })),
-	  }, visitorDraft)
+      })
       if (res.code === 0) {
         Toast.show('申请成功')
         flow.reset()

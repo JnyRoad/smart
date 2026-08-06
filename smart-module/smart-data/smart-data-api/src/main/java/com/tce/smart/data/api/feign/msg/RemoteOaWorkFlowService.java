@@ -1,10 +1,9 @@
 package com.tce.smart.data.api.feign.msg;
 
 import com.tce.smart.common.core.constant.ServiceNameConstants;
-import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.data.api.dto.msg.req.*;
-import com.tce.smart.data.api.dto.msg.resp.OaStaffLookupRespDTO;
+import com.tce.smart.data.api.vo.msg.QueryOaStaffRespVo;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
@@ -149,12 +148,6 @@ public interface RemoteOaWorkFlowService {
 	 * @param badge
 	 * @return
 	 */
-	@GetMapping("/oarmanage/internal/staff/info/{badge}")
-	Result<OaStaffLookupRespDTO> getOAInfoByBadge(@PathVariable("badge") String badge,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
-
-	default Result<OaStaffLookupRespDTO> getOAInfoByBadge(String badge) {
-		return getOAInfoByBadge(badge, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
-	}
+	@GetMapping("/oarmanage/staff/info/{badge}")
+	Result<QueryOaStaffRespVo> getOAInfoByBadge(@PathVariable("badge") String badge);
 }

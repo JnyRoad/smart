@@ -13,7 +13,6 @@ import com.tce.smart.businesstrip.core.service.CcdFormtableMainService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.businesstrip.req.CcdFormtableMainDt1ReqDTO;
 import com.tce.smart.data.api.dto.businesstrip.req.CcdFormtableMainDt2ReqDTO;
 import com.tce.smart.data.api.dto.businesstrip.req.CcdFormtableMainReqDTO;
@@ -49,7 +48,6 @@ public class FormtableMainController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@SuppressWarnings("unchecked")
 	@GetMapping("/info")
 	public Result<IPage<CcdFormtableMainRespDTO>> info(Page page, CcdFormtableMainReqDTO ccdFormtableMainReqDTO) {
@@ -67,7 +65,6 @@ public class FormtableMainController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/infoTravel")
 	public Result<CcdFormtableMainRespDTO> infoTravel(CcdFormtableMainReqDTO ccdFormtableMainReqDTO) {
 		CcdFormtableMain queryCdFormtableMain = new CcdFormtableMain();
@@ -86,7 +83,6 @@ public class FormtableMainController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/infoDay")
 	public Result<List<CcdFormtableMainDt1RespDTO>> infoDay(CcdFormtableMainDt1ReqDTO ccdFormtableMainDt1ReqDTO) {
 
@@ -104,7 +100,6 @@ public class FormtableMainController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/infoReport")
 	public Result<List<CcdFormtableMainDt2RespDTO>> infoReport(CcdFormtableMainDt2ReqDTO ccdFormtableMainDt2ReqDTO) {
 		CcdFormtableMainDt2 queryCcdFormtableMainDt2 = new CcdFormtableMainDt2();

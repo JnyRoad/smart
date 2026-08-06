@@ -8,8 +8,7 @@
 
 | method | path | 用途 | 本批使用页面 |
 |---|---|---|---|
-| POST | `/articlesrelease/office/draft` | 创建当前认证用户的办公区草稿（返回 releaseId） | 进入申请子流程前 |
-| GET | `/articlesrelease/{releaseId}/staff/lookup?badge={badge}` | 在受权草稿中按工号查人员（仅返回 name、id） | 添加物品（姓名选择） |
+| GET | `/articlesrelease/oa/staff/info/{badge}` | 按工号查人员（返回 name、id） | 添加物品（姓名选择） |
 | POST | `/articlesrelease/office/save` | 提交放行申请 | 不在本批（申请主页 index 使用） |
 | GET | `/articlesrelease/office/page` | 申请分页列表 | 不在本批（列表页使用） |
 
@@ -34,7 +33,7 @@
 
 ### 交互与校验
 - 必填校验信息：请输入资产编码 / 请输入名称 / 请输入单位 / 请输入数量 / 请输入接收单位；运输方式必选。
-- 弹窗确定后调 `GET /articlesrelease/{releaseId}/staff/lookup?badge={工号}`：`releaseId` 必须来自已创建的服务端草稿；成功（code=0 且有 data）回填姓名 `name` 与人员 id `xm`；失败 toast 后端 message。查询期间全局 loading。
+- 弹窗确定后调 `GET /articlesrelease/oa/staff/info/{工号}`：成功（code=0 且有 data）回填姓名 `name` 与人员 id `xm`；失败 toast 后端 message。查询期间全局 loading。
 - 提交：校验通过后，新增模式 push 进 localStorage `releaseGoodsInfo` 数组；编辑模式按 `itemIndex` 原位替换；随后跳转添加物品-列表页。
 
 ### 页面状态

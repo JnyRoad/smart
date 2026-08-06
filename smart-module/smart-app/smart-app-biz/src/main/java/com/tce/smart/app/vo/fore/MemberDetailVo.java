@@ -1,6 +1,5 @@
 package com.tce.smart.app.vo.fore;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.tce.smart.common.core.vo.BaseVO;
 
 import io.swagger.annotations.ApiModelProperty;
@@ -32,7 +31,6 @@ public class MemberDetailVo extends BaseVO {
 	 * 随行人员图片信息
 	 */
 	@ApiModelProperty(value = "随行人员图片信息",required = true)
-	@JsonIgnore
 	private String memberPhoto;
 
 }

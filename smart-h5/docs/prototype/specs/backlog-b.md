@@ -49,7 +49,7 @@
 
 ### 交互与校验
 - 需上传照片（isUploadImg===0）而未传任何照片时提交 toast「请至少上传一张照片」。
-- 提交参数：guardOneImg/guardTwoImg/guardThreeImg、id、status、remark；保安工号和园区范围由认证主体确定，客户端不提交 `badge`、`parkId`。
+- 提交参数：guardOneImg/guardTwoImg/guardThreeImg、id、parkId、status、badge(审批人工号)、remark。
 - 成功后：扫码进入(isScan)回 `/xuchang/home`；否则跳 `/xuchang/backLog/goodReleaseLive?curTabIndex=1`（旧代码事实，疑似复用生活区跳转）。
 - 详情加载失败：toast 后跳 `/xuchang/home`。
 

@@ -14,12 +14,14 @@ import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { securityUpdateRelease, updateReleaseStatus } from '@/features/backlog/api'
 import { getReleaseDetail } from '@/features/good-release/api'
 import { InfoRow, toImageSrc } from '@/features/good-release/detail-blocks'
+import { getTenantConfig } from '@/lib/config/tenant'
 import { confirmIrreversible } from '@/lib/confirm-irreversible'
 
 function ReleaseLiveApprovalDetailInner() {
   const authorized = useRequireAuth()
   const router = useRouter()
   const params = useSearchParams()
+  const config = getTenantConfig()
   const id = params.get('id') ?? ''
   const sort = Number(params.get('sort'))
   const readOnly = params.get('tab') === 'done'
@@ -82,6 +84,7 @@ function ReleaseLiveApprovalDetailInner() {
 
   async function submitSecurity(nextStatus: 4 | 5) {
     if (submitting) return
+    if (!badge) return Toast.show('获取用户信息失败！')
     if (info?.isUploadImg === 0 && guardImgs.length === 0) {
       Toast.show('请至少上传一张照片')
       return
@@ -96,7 +99,9 @@ function ReleaseLiveApprovalDetailInner() {
         guardTwoImg: guardImgs[1] ?? '',
         guardThreeImg: guardImgs[2] ?? '',
         id,
+        parkId: config.parkId,
         status: nextStatus,
+        badge,
         remark,
       })
       if (res.code === 0 && res.data) {

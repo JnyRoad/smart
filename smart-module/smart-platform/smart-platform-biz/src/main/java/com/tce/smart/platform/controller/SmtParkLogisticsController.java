@@ -6,7 +6,6 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.SmtParkLogisticsDTO;
 import com.tce.smart.platform.core.entity.SmtParkLogistics;
 import com.tce.smart.platform.service.SmtParkLogisticsService;
@@ -89,14 +88,12 @@ public class SmtParkLogisticsController extends BaseController {
 	 * @return Result
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/list")
 	public Result<List<SmtParkLogisticsDTO>> list(){
 		return success(smtParkLogisticsService.list(), SmtParkLogisticsDTO.class);
 	}
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/companyId/{companyId}")
 	public Result<SmtParkLogisticsDTO> getByCompanyId(@PathVariable("companyId") String companyId){
 		return success(smtParkLogisticsService.getOne(Wrappers.<SmtParkLogistics>query().lambda().eq(SmtParkLogistics::getCompanyId, companyId)), SmtParkLogisticsDTO.class);

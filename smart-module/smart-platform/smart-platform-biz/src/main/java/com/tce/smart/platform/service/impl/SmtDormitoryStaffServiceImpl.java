@@ -33,7 +33,6 @@ import com.tce.smart.data.api.feign.ehrview.RemoteOvwYsCallOwanceDetailsService;
 import com.tce.smart.platform.api.dto.DormitoryStaffExcelDTO;
 import com.tce.smart.platform.api.dto.req.DorStaffPerfectDTO;
 import com.tce.smart.platform.api.dto.req.LockPwdUpdateDTO;
-import com.tce.smart.platform.api.dto.req.SelfLockPwdRefreshReqDTO;
 import com.tce.smart.platform.api.dto.req.remoteLock.LockDormitoryStaffDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.DormitoryStaffRespDTO;
@@ -46,6 +45,7 @@ import com.tce.smart.platform.core.mapper.*;
 import com.tce.smart.platform.core.service.SmtImageService;
 import com.tce.smart.platform.core.vo.InDormitoryVO;
 import com.tce.smart.platform.core.vo.StaffInDormitoryVO;
+import com.tce.smart.platform.core.vo.StaffInfoVO;
 import com.tce.smart.platform.emun.RoomSexEnum;
 import com.tce.smart.platform.service.*;
 import com.tce.smart.platform.service.dormitoryconfig.SmtDormitoryPersonService;
@@ -66,7 +66,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -243,7 +242,7 @@ public class SmtDormitoryStaffServiceImpl extends ServiceImpl<SmtDormitoryStaffM
 			return new Result<>(Boolean.FALSE, "您申请的外宿正在审批中，暂不能进行申请内宿");
 		}
 
-		Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(inDormitory.getStaffBadge(), 11, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<OvwYsCallOwanceDetailsDTO> callOwanceDetails = ovwYsCallOwanceDetailsService.getInfo(inDormitory.getStaffBadge(), 11);
 		if (ObjectUtil.isNotNull(callOwanceDetails) && ObjectUtil.isNotNull(callOwanceDetails.getData())) {
 			return new Result<>(Boolean.FALSE, "您申请的外宿补贴还未取消，请在嘉阳系统取消后再申请内宿");
 		}
@@ -878,6 +877,33 @@ public class SmtDormitoryStaffServiceImpl extends ServiceImpl<SmtDormitoryStaffM
 		return new ArrayList<>();
 	}
 
+	@Override
+	public DormitoryRoomDetailRespDTO getStaffRoomInfoByPhone(String phone, String name) {
+		StaffInfoVO vo = staffService.getSmtStaffInfoByPhone(phone, name);
+		if (Objects.nonNull(vo.getSmtStaff())) {
+			List<SmtDormitoryStaff> smtDormitoryStaffs = this.list(new LambdaQueryWrapper<SmtDormitoryStaff>().eq(SmtDormitoryStaff::getStaffBadge, vo.getSmtStaff().getBadge())
+					.orderByDesc(SmtDormitoryStaff::getCreateTime));
+			if (CollUtil.isNotEmpty(smtDormitoryStaffs)) {
+				SmtDormitoryStaff smtDormitoryStaff = smtDormitoryStaffs.get(0);
+				SmtDormitoryRoom smtDormitoryRoom = roomMapper.selectById(smtDormitoryStaff.getRoomId());
+				SmtDormitoryFloor smtDormitoryFloor = floorMapper.selectById(smtDormitoryStaff.getFloorId());
+				return DormitoryRoomDetailRespDTO.builder()
+						.parkName(smtDormitoryStaff.getParkName())
+						.dormitoryName(smtDormitoryStaff.getDormitoryName())
+						.staffBadge(smtDormitoryStaff.getStaffBadge())
+						.floorName(StringUtils.isEmpty(smtDormitoryFloor.getAliasName()) ? smtDormitoryFloor.getFloorName().toString() : smtDormitoryFloor.getAliasName())
+						.roomName(StringUtils.isEmpty(smtDormitoryRoom.getAliasName()) ? smtDormitoryRoom.getRoomName().toString() : smtDormitoryRoom.getAliasName())
+						.dormitoryId(smtDormitoryStaff.getDormitoryId())
+						.floorId(smtDormitoryStaff.getFloorId())
+						.id(smtDormitoryStaff.getBedId())
+						.bedNumber(smtDormitoryStaff.getBedNumber().toString())
+						.roomId(smtDormitoryStaff.getRoomId())
+						.build();
+			}
+		}
+		return null;
+	}
+
 	@Transactional
 	@Override
 	public Result addDormitory(DormitoryStaffDTO dormitoryStaffDTO) {
@@ -1484,8 +1510,7 @@ public class SmtDormitoryStaffServiceImpl extends ServiceImpl<SmtDormitoryStaffM
 		compareDTO.setCompareImageA(compareImageDTO1);
 		compareDTO.setCompareImageB(compareImageDTO2);
 		try {
-			com.tce.smart.algorithm.api.dto.resp.CompareDTO imageComareRs = remoteAlgorithmService.compare(IdUtil.fastSimpleUUID().toUpperCase(), AlgorithmTypeEnum.COMPARE_FACEALL.getType(), compareDTO, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED).data();
+			com.tce.smart.algorithm.api.dto.resp.CompareDTO imageComareRs = remoteAlgorithmService.compare(IdUtil.fastSimpleUUID().toUpperCase(), AlgorithmTypeEnum.COMPARE_FACEALL.getType(), compareDTO, SecurityConstants.FROM_IN).data();
 			log.info("人像比对: 员工号:{} 相似度：{}", staff.getBadge(), imageComareRs.getSimilarity());
 			//小于阀值则认为不是本人
 			if (-1 == (new BigDecimal(String.valueOf(imageComareRs.getSimilarity()))
@@ -1545,57 +1570,6 @@ public class SmtDormitoryStaffServiceImpl extends ServiceImpl<SmtDormitoryStaffM
 			return pwd;
 		}
 		throw new TCEException("今天修改次数已达到上限");
-	}
-
-	@Override
-	public String getPwdForAuthenticatedStaff(String badge) {
-		requireDormitoryStaff(badge);
-		return getPwdByBadge(badge);
-	}
-
-	@Override
-	public String updateLockPwdForAuthenticatedStaff(String badge, String newPwd) {
-		requireDormitoryStaff(badge);
-		LockPwdUpdateDTO request = new LockPwdUpdateDTO();
-		request.setBadge(badge);
-		request.setNewPwd(newPwd);
-		return updateLockPwdByBadge(request);
-	}
-
-	@Override
-	public String refreshPwdForAuthenticatedStaff(String badge, SelfLockPwdRefreshReqDTO request) {
-		requireDormitoryStaff(badge);
-		DorStaffPerfectDTO faceRequest = new DorStaffPerfectDTO();
-		faceRequest.setBadge(badge);
-		faceRequest.setFacePic(request.getFacePic());
-		faceRequest.setDeviceNo(request.getDeviceNo());
-		return updatePwdByBadge(faceRequest);
-	}
-
-	@Override
-	public String faceCompareForAuthenticatedStaff(String badge, SelfLockPwdRefreshReqDTO request) {
-		requireDormitoryStaff(badge);
-		DorStaffPerfectDTO faceRequest = new DorStaffPerfectDTO();
-		// 工号仅来自认证上下文，客户端上传的人脸图不能指定其他员工。
-		faceRequest.setBadge(badge);
-		faceRequest.setFacePic(request.getFacePic());
-		faceRequest.setDeviceNo(request.getDeviceNo());
-		return faceCompare(faceRequest);
-	}
-
-	/**
-	 * 门锁能力只允许当前仍有有效入住关系的员工使用。
-	 */
-	private SmtDormitoryStaff requireDormitoryStaff(String badge) {
-		if (!StringUtils.hasLength(badge)) {
-			throw new AccessDeniedException("未认证用户不可操作门锁动态码");
-		}
-		SmtDormitoryStaff record = this.getOne(Wrappers.<SmtDormitoryStaff>query().lambda()
-				.eq(SmtDormitoryStaff::getStaffBadge, badge));
-		if (record == null || record.getParkId() == null || record.getRoomId() == null) {
-			throw new AccessDeniedException("当前用户没有有效入住关系");
-		}
-		return record;
 	}
 
 	@Override

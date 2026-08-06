@@ -84,10 +84,8 @@ public class ImageServiceImpl implements ImageService {
 		ImageDTO imageDTO = new ImageDTO();
 		imageDTO.setParkId(smtDevice.getParkId());
 		imageDTO.setId(imgCode);
-		Result<String> imageRs = remoteDispatcherService.getImage(imageDTO, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
-		Result<String> smallImageRs = remoteDispatcherService.getThumbnail(imageDTO, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<String> imageRs = remoteDispatcherService.getImage(imageDTO, SecurityConstants.FROM_IN);
+		Result<String> smallImageRs = remoteDispatcherService.getThumbnail(imageDTO, SecurityConstants.FROM_IN);
 		if(StringUtils.isEmpty(imageRs.getData())){
 			return;
 		}

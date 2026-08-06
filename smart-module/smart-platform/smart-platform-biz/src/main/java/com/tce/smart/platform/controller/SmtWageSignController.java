@@ -3,8 +3,6 @@ package com.tce.smart.platform.controller;
 import javax.validation.Valid;
 
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.req.manage.QueryAttendanceSignReqDTO;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -98,8 +96,6 @@ public class SmtWageSignController extends BaseController{
   }
 
 	@SysLog("每月同步员工定时任务")
-	@Inner
-	@OpenApi("server")
 	@GetMapping("/sync/task")
 	public Result syncStaff(){
 		return new Result <>(smtWageSignService.syncStaff());

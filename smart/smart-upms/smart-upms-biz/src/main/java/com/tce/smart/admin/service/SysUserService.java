@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.tce.smart.admin.api.dto.UserDTO;
 import com.tce.smart.admin.api.dto.UserInfo;
 import com.tce.smart.admin.api.entity.SysUser;
-import com.tce.smart.admin.api.dto.AncestorUserRespDTO;
 import com.tce.smart.admin.api.vo.UserVO;
 import com.tce.smart.common.core.model.Result;
 
@@ -70,7 +69,7 @@ public interface SysUserService extends IService<SysUser> {
 	 * @param username 用户名
 	 * @return Result
 	 */
-	List<AncestorUserRespDTO> listAncestorUsers(String username);
+	List<SysUser> listAncestorUsers(String username);
 
 	/**
 	 * 保存用户信息

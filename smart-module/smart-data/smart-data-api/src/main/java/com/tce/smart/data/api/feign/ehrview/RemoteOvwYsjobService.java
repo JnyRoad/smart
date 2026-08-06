@@ -29,8 +29,7 @@ public interface RemoteOvwYsjobService {
      */
     @GetMapping("/ys/job/dept")
     Result<List<OvwYsjobRespDTO>> getByDeptId(@RequestParam("deptId") Integer deptId,
-										  @RequestHeader(SecurityConstants.FROM) String from,
-										  @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+											  @RequestHeader(SecurityConstants.FROM) String from);
 
     /**
      * 根据岗位ID获取岗位信息
@@ -38,23 +37,16 @@ public interface RemoteOvwYsjobService {
      * @return
      */
     @GetMapping("/ys/job/id")
-    Result<OvwYsjobRespDTO> getByDeptName(@RequestParam("jobId") Integer jobId,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result<OvwYsjobRespDTO> getByDeptName(@RequestParam("jobId") Integer jobId, @RequestHeader(SecurityConstants.FROM) String from);
 
 
     @GetMapping("/ys/job/getByCompId")
-    Result<Integer> getByCompId(@RequestParam("compId") Integer compId,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result<Integer> getByCompId(@RequestParam("compId") Integer compId, @RequestHeader(SecurityConstants.FROM) String from);
 
 
     @GetMapping("/ys/job/getListByCompId")
-    Result<List<OvwYsjobRespDTO>> getListByCompId(@RequestParam("compId") Integer compId,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result<List<OvwYsjobRespDTO>> getListByCompId(@RequestParam("compId") Integer compId, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/ys/job/getJChenList")
-	Result<List<OvwYsjobRespDTO>> getJChenList(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<OvwYsjobRespDTO>> getJChenList(@RequestHeader(SecurityConstants.FROM) String from);
 }

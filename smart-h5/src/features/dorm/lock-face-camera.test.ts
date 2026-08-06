@@ -6,7 +6,7 @@ import { LockFaceCamera } from './lock-face-camera'
 
 const visitorApiMock = vi.hoisted(() => ({
   checkFace: vi.fn(),
-  cropEmployeeFace: vi.fn(),
+  faceCut: vi.fn(),
 }))
 
 vi.mock('@/features/visitor/api', () => visitorApiMock)
@@ -36,7 +36,7 @@ const scale = vi.fn()
 const toDataURL = vi.fn(() => 'data:image/jpeg;base64,camera-raw-base64')
 
 beforeEach(() => {
-  visitorApiMock.cropEmployeeFace.mockResolvedValue({ code: 0, data: 'cut-face-base64' })
+  visitorApiMock.faceCut.mockResolvedValue({ code: 0, data: 'cut-face-base64' })
   visitorApiMock.checkFace.mockResolvedValue({ code: 0, data: { photoId: 'photo-1' } })
   stopTrack.mockClear()
   getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: stopTrack }] })
@@ -73,7 +73,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  visitorApiMock.cropEmployeeFace.mockReset()
+  visitorApiMock.faceCut.mockReset()
   visitorApiMock.checkFace.mockReset()
   getUserMedia.mockReset()
 })
@@ -99,7 +99,7 @@ describe('LockFaceCamera', () => {
 
     fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
 
-    await waitFor(() => expect(visitorApiMock.cropEmployeeFace).toHaveBeenCalledWith('camera-raw-base64'))
+    await waitFor(() => expect(visitorApiMock.faceCut).toHaveBeenCalledWith('camera-raw-base64'))
     expect(translate).not.toHaveBeenCalled()
     expect(scale).not.toHaveBeenCalled()
     expect(drawImage).toHaveBeenCalled()
@@ -124,7 +124,7 @@ describe('LockFaceCamera', () => {
 
     fireEvent.click(await screen.findByTestId('lock-face-camera-capture'))
 
-    await waitFor(() => expect(visitorApiMock.cropEmployeeFace).toHaveBeenCalledWith('camera-raw-base64'))
+    await waitFor(() => expect(visitorApiMock.faceCut).toHaveBeenCalledWith('camera-raw-base64'))
     expect(drawImage).toHaveBeenCalled()
     expect(toDataURL).toHaveBeenCalledWith('image/jpeg', 0.9)
     expect(visitorApiMock.checkFace).toHaveBeenCalledWith('cut-face-base64')
@@ -148,7 +148,7 @@ describe('LockFaceCamera', () => {
   })
 
   it('shows an in-stage failure state that can return to scanning', async () => {
-    visitorApiMock.cropEmployeeFace.mockResolvedValue({ code: 1, message: '未检测到人脸' })
+    visitorApiMock.faceCut.mockResolvedValue({ code: 1, message: '未检测到人脸' })
     render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
 
     fireEvent.click(screen.getByTestId('lock-face-camera-start'))
@@ -163,7 +163,7 @@ describe('LockFaceCamera', () => {
   })
 
   it('reuses the active stream when opening the camera again from failure state', async () => {
-    visitorApiMock.cropEmployeeFace.mockResolvedValue({ code: 1, message: '未检测到人脸' })
+    visitorApiMock.faceCut.mockResolvedValue({ code: 1, message: '未检测到人脸' })
     render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
 
     fireEvent.click(screen.getByTestId('lock-face-camera-start'))
@@ -180,7 +180,7 @@ describe('LockFaceCamera', () => {
 
   it('requests a fresh camera stream when the retained stream has ended', async () => {
     const retainedTrack = { readyState: 'live', stop: stopTrack }
-    visitorApiMock.cropEmployeeFace.mockResolvedValue({ code: 1, message: '未检测到人脸' })
+    visitorApiMock.faceCut.mockResolvedValue({ code: 1, message: '未检测到人脸' })
     getUserMedia.mockResolvedValueOnce({ active: true, getTracks: () => [retainedTrack] })
     getUserMedia.mockResolvedValueOnce({ active: true, getTracks: () => [{ readyState: 'live', stop: vi.fn() }] })
     render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
@@ -200,7 +200,7 @@ describe('LockFaceCamera', () => {
 
   it('requests a fresh camera stream from the primary retry action when the retained stream has ended', async () => {
     const retainedTrack = { readyState: 'live', stop: stopTrack }
-    visitorApiMock.cropEmployeeFace.mockResolvedValue({ code: 1, message: '未检测到人脸' })
+    visitorApiMock.faceCut.mockResolvedValue({ code: 1, message: '未检测到人脸' })
     getUserMedia.mockResolvedValueOnce({ active: true, getTracks: () => [retainedTrack] })
     getUserMedia.mockResolvedValueOnce({ active: true, getTracks: () => [{ readyState: 'live', stop: vi.fn() }] })
     render(React.createElement(LockFaceCamera, { onCaptured: vi.fn(), onGenerate: vi.fn() }))
@@ -242,7 +242,7 @@ describe('LockFaceCamera', () => {
 
   it('names the checking action for screen readers', async () => {
     let resolveCut!: (value: { code: number; message: string }) => void
-    visitorApiMock.cropEmployeeFace.mockReturnValue(
+    visitorApiMock.faceCut.mockReturnValue(
       new Promise((resolve) => {
         resolveCut = resolve
       }),

@@ -34,8 +34,7 @@ public interface RemoteParkService {
 	 * @return
 	 */
 	@GetMapping("/park/app/all")
-	Result<List<SmtParkDTO>> getParkList(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<SmtParkDTO>> getParkList(@RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 展示所有的园区(根据用户所属园区过滤过滤)

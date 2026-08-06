@@ -21,11 +21,6 @@
 		</yt-list>
 		<view v-if="applyType == 1" class="mw h20 bgec"></view>
 		<yt-list :ytClass="['pr30', 'pl30']">
-			<yt-list-item showImage=false hasMust title="离职园区" @click="selectCurrentPark">
-				<view class="f30pc2">
-					{{currentParkName || '请选择'}}
-				</view>
-			</yt-list-item>
 			<yt-list-item
 				showImage="false"
 				hasMust
@@ -104,7 +99,6 @@ export default {
 			reasonNameArr: [],
 			leaveTypeArr: [],
 			leaveReasonArr: [],
-			currentParkName: '',
 			dateType: 'date',
 			employeeInfo: {},
 			applyInfo: {
@@ -132,7 +126,6 @@ export default {
 	
 	},
 	onLoad (e) {
-		this.loadCurrentPark()
 		const employeeId = storage.getSync(storage.USER_NAME) // 获取员工的id
 		this.applyInfo.employeeId = employeeId
 		this.applyInfo.dimissionApplyType = e.type
@@ -153,9 +146,6 @@ export default {
 		this.getTypeList();
 		this.getRestTime();
 	},
-	onShow () {
-		this.loadCurrentPark()
-	},
 	onNavigationBarButtonTap(e) {
 		uni.navigateTo({
 			url: `./leave-record?type=${this.applyInfo.dimissionApplyType}`
@@ -163,18 +153,6 @@ export default {
 	},
 	
 	methods: {
-		// 园区来自用户已选择的全局园区上下文；服务端仍会用认证会话园区范围二次校验。
-		loadCurrentPark() {
-			const currentParkId = Number(storage.getSync(storage.PARK_ID))
-			this.currentParkName = storage.getSync(storage.PARK_NAME) || ''
-			this.applyInfo.parkId = Number.isInteger(currentParkId) && currentParkId > 0 ? currentParkId : ''
-		},
-		// 复用首页现有园区选择页，避免多园区员工在离职时被服务端长期拒绝。
-		selectCurrentPark() {
-			uni.navigateTo({
-				url: '/pages/page/home/address-list/address-list'
-			})
-		},
 		// 离职原因列表
 		async getReleaseList() {
 			const res = await dimission.dimissionReason();
@@ -238,13 +216,6 @@ export default {
 		},
 		// 提交
 		async submit() {
-			this.loadCurrentPark()
-			if (!this.applyInfo.parkId) {
-				this.$ytHint.toast({
-					title: '请先选择园区'
-				})
-				return
-			}
 			let flag = true
 			Object.keys(this.applyInfo).forEach(el => {
 				if (this.applyInfo[el] == '') {

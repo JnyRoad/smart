@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.dto.req.AutoAllotRoomReqDTO;
-import com.tce.smart.platform.api.dto.req.SelfCheckInReqDTO;
 import com.tce.smart.platform.api.dto.req.dormitorymange.*;
 import com.tce.smart.platform.api.dto.resp.*;
 import com.tce.smart.platform.api.dto.resp.dormitorymange.*;
@@ -58,12 +57,6 @@ public interface SmtDormitoryRoomService extends IService<SmtDormitoryRoom> {
 	 * @return
 	 */
 	List<DormitoryQuickStaffRespDTO> autoAllot(AutoAllotRoomReqDTO autoAllotRoomReqDTO, SmtDormitoryBedService smtDormitoryBedService);
-
-	/**
-	 * 为当前认证员工分配宿舍，员工身份资料不接受浏览器传入。
-	 */
-	List<DormitoryQuickStaffRespDTO> autoAllotForAuthenticatedStaff(String badge,
-			SelfCheckInReqDTO request, SmtDormitoryBedService smtDormitoryBedService);
 
 	/**
 	 * 再次打印凭条

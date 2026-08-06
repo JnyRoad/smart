@@ -23,6 +23,5 @@ public interface RemoteOaAreaTypeSyncService {
 	 * @return
 	 */
 	@GetMapping("/admittance/area/type/sync/task")
-	Result syncTask(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result syncTask(@RequestHeader(SecurityConstants.FROM) String from);
 }

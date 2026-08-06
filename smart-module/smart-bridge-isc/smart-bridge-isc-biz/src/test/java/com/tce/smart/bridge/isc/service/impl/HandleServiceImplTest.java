@@ -35,8 +35,7 @@ public class HandleServiceImplTest {
 				.thenReturn(personResponse);
 		Mockito.when(bridgeISCService.downISCImage(Mockito.eq(EventEnum.ISC_FACE_IMAGE_GET),
 				Mockito.anyString(), Mockito.anyString())).thenReturn(null);
-		Mockito.when(dispatcherService.handle(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN),
-				Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)))
+		Mockito.when(dispatcherService.handle(Mockito.any(), Mockito.eq(SecurityConstants.FROM_IN)))
 				.thenReturn(Result.success(true));
 		String eventData = "{\"params\":{\"events\":[{\"eventType\":196893,\"srcParentIndex\":\"device-1\","
 				+ "\"happenTime\":\"2026-06-01T10:00:00+08:00\",\"data\":{\"ExtEventPersonNo\":\"isc-person-1\","
@@ -45,8 +44,7 @@ public class HandleServiceImplTest {
 		handleService.eventHandle(eventData);
 
 		ArgumentCaptor<BridgeDTO> captor = ArgumentCaptor.forClass(BridgeDTO.class);
-		Mockito.verify(dispatcherService).handle(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN),
-				Mockito.eq(SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED));
+		Mockito.verify(dispatcherService).handle(captor.capture(), Mockito.eq(SecurityConstants.FROM_IN));
 		JSONObject payload = JSONUtil.parseObj(captor.getValue().getData());
 		Assert.assertEquals("isc-person-1", payload.getStr("personId"));
 		Assert.assertEquals("device-1", payload.getStr("deviceCode"));

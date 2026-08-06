@@ -23,12 +23,10 @@ public interface RemoteCvwCcdAllowRuleService {
 	 * @return
 	 */
 	@GetMapping("/cd/allow/rule/get")
-    Result<CvwCcdAllowRuleDTO> getById(@RequestParam("id") String id, @RequestHeader(SecurityConstants.FROM) String from,
-    @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result<CvwCcdAllowRuleDTO> getById(@RequestParam("id") String id, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/cd/allow/rule/get/byTitle")
     Result<CvwCcdAllowRuleDTO> getByTitle(@RequestParam("title") String title,
-									   @RequestHeader(SecurityConstants.FROM) String from,
-									   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+									   @RequestHeader(SecurityConstants.FROM) String from);
 
 }

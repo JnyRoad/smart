@@ -22,13 +22,12 @@ afterEach(() => {
 })
 
 describe('auth api', () => {
-  it('sends login SMS code as POST JSON without requiring an existing token', async () => {
+  it('sends login SMS code without requiring an existing token', async () => {
     await sendSmsCode('13700001234')
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('/app/sms/login/send')
-    expect(init.method).toBe('POST')
-    expect(JSON.parse(init.body as string)).toEqual({ mobile: '13700001234' })
+    expect(url).toBe('/app/sms/send/getCode/13700001234')
+    expect(init.method).toBe('GET')
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined()
   })
 })

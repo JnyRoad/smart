@@ -106,7 +106,6 @@ public interface RemoteAttendanceApplicationService {
 	 * @return
 	 */
 	@GetMapping("/application/attendance/patchErrorPushMsg")
-	Result patchErrorPushMsg(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result patchErrorPushMsg(@RequestHeader(SecurityConstants.FROM) String from);
 
  }

@@ -1,7 +1,7 @@
 package com.tce.smart.data.service.msg;
 
 import com.tce.smart.data.api.dto.msg.req.*;
-import com.tce.smart.data.api.dto.msg.resp.OaStaffLookupRespDTO;
+import com.tce.smart.data.api.vo.msg.QueryOaStaffRespVo;
 
 /**
  * Oa相关接口服务
@@ -133,7 +133,7 @@ public interface IOaManageService {
 	 * @param badge
 	 * @return
 	 */
-	OaStaffLookupRespDTO getOAInfoByBadge(String badge);
+	QueryOaStaffRespVo getOAInfoByBadge(String badge);
 
 	/**
 	 * 发送合肥园区访客申请

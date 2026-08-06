@@ -270,7 +270,7 @@ public class SmtSecurityPersonRelationServiceImpl extends ServiceImpl<SmtSecurit
 		List<StaffTreeRespDTO> listTree = new ArrayList<>();
 		// 查询裕同视图中的全部bu
 		if (CollUtil.isNotEmpty(listBu)) {
-			Result<List<OvwYscompRespDTO>> ysList = remoteOvwYscompService.getList(SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<List<OvwYscompRespDTO>> ysList = remoteOvwYscompService.getList(SecurityConstants.FROM_IN);
 			if (CollUtil.isEmpty(ysList.getData())) {
 				return listTree;
 			}
@@ -294,7 +294,7 @@ public class SmtSecurityPersonRelationServiceImpl extends ServiceImpl<SmtSecurit
 	private List<StaffTreeRespDTO> getDepTree(Integer id) {
 		List<StaffTreeRespDTO> depTreeList = new ArrayList<>();
 		StaffTreeRespDTO depTree;
-		Result<List<OvwYsdepRespDTO>> result = remoteOvwYsdepService.getByCompId(id, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<OvwYsdepRespDTO>> result = remoteOvwYsdepService.getByCompId(id, SecurityConstants.FROM_IN);
 		List<OvwYsdepRespDTO> list = result.getData();
 		if (CollectionUtil.isNotEmpty(list)) {
 			for (OvwYsdepRespDTO ovwYsdepVO : list) {
