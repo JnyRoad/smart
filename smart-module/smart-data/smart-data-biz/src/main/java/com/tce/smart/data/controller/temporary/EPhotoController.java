@@ -2,8 +2,6 @@ package com.tce.smart.data.controller.temporary;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.temporary.req.SaveEPhotoReqDTO;
 import com.tce.smart.temporary.core.dto.SaveEPhotoDto;
 import com.tce.smart.temporary.core.service.IEPhotoService;
@@ -34,9 +32,7 @@ public class EPhotoController extends BaseController {
 	 * @param saveEPhotoReqDTO 保存EHR员工图片
 	 * @return true-成功,false-失败
 	 */
-	@Inner
-	@OpenApi("server")
-	@PostMapping("/internal/save")
+	@PostMapping("/save")
 	@ResponseBody
 	private Result<Boolean> saveOrUpdatePhoto(@RequestBody SaveEPhotoReqDTO saveEPhotoReqDTO) {
 

@@ -18,19 +18,13 @@ import org.springframework.web.bind.annotation.*;
 public interface RemoteBridgeService {
 
 	@PostMapping("/bridge/dispatch")
-	<T> Result<String> dispatch(@RequestBody BridgeDTO<T> bridgeDTO,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	<T> Result<String> dispatch(@RequestBody BridgeDTO<T> bridgeDTO, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@PostMapping("/bridge/image")
-	Result<String> getImage(@RequestBody ImageDTO imageDTO,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<String> getImage(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@PostMapping("/bridge/thumbnail")
-	Result<String> getThumbnail(@RequestBody ImageDTO imageDTO,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<String> getThumbnail(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from);
 //
 //	@PostMapping("/bridge/image/save")
 //	Result<String> saveImage(@RequestBody ImageDTO imageDTO, @RequestHeader(SecurityConstants.FROM) String from);

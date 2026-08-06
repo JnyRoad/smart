@@ -2,8 +2,6 @@ package com.tce.smart.platform.controller.manage;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.log.annotation.SysLog;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.req.manage.AttendanceSignReqDTO;
 import com.tce.smart.platform.api.dto.req.manage.QueryAttendanceSignReqDTO;
@@ -101,8 +99,6 @@ public class SmtAttendanceSignController extends BaseController {
 
 
 	@SysLog("每月同步员工定时任务")
-	@Inner
-	@OpenApi("server")
 	@ApiOperation("每月同步员工定时任务")
 	@GetMapping("/sync/task")
 	public Result syncStaff() {

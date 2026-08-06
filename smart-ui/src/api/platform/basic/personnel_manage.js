@@ -245,9 +245,12 @@ export function getStaff({
   staffId
 }) {
   return request({
-    url: '/platform/staff/admin/temporary/' + staffId,
+    url: '/platform/staff/getTempById',
     method: 'get',
-  }).then(response => normalizeTemporaryStaffResponse(response))
+    params: {
+      staffId: staffId
+    },
+  })
 }
 
 /**
@@ -275,123 +278,66 @@ export function getStaffPage(query, {
   depId,
   badge,
   name,
-  isFace
+  isFace,
+  status
 }) {
-  const sendData = Object.assign({}, query)
-  ;[
-    ['depId', depId],
-    ['badge', badge],
-    ['name', name],
-    ['isFace', isFace]
-  ].forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      sendData[key] = value
-    }
+  const sendData = Object.assign({}, query, {
+    depId,
+    badge,
+    name,
+    isFace,
+    status
   })
   return request({
-    url: '/platform/staff/admin/temporary/page',
+    url: '/platform/staff/getTempList',
     method: 'post',
-    data: sendData
-  }).then(response => normalizeTemporaryStaffResponse(response))
-}
-
-/**
- * 临时人员接口只在前端保留页面编辑和组织展示所需字段。
- *
- * 即使服务端将来错误附带身份证、手机号或人脸，客户端也不能把它们带入页面状态。
- */
-export function normalizeTemporaryStaff(staff) {
-  const normalized = { id: staff.staffId }
-  ;['badge', 'name', 'sex', 'jobName', 'depId', 'depName', 'jcheId', 'jcheName', 'status', 'entryTime', 'dispatch']
-    .forEach(key => {
-      if (staff[key] !== undefined) {
-        normalized[key] = staff[key]
-      }
-    })
-  return normalized
-}
-
-function normalizeTemporaryStaffResponse(response) {
-  const body = response && response.data ? response.data : {}
-  const data = body.data
-  if (data && Array.isArray(data.records)) {
-    return Object.assign({}, response, {
-      data: Object.assign({}, body, {
-        data: Object.assign({}, data, { records: data.records.map(normalizeTemporaryStaff) })
-      })
-    })
-  }
-  return Object.assign({}, response, {
-    data: Object.assign({}, body, { data: data ? normalizeTemporaryStaff(data) : data })
+    data: sendData,
+    params: sendData
   })
 }
 
 
 
 /**
- * 将后台员工查询响应投影为页面选择控件所需的最小字段。
- *
- * 这里不能透传接口新增字段，避免证件号、手机号等敏感数据重新进入管理端内存。
- */
-export function normalizeLookup(staff) {
-  return {
-    id: staff.staffId,
-    badge: staff.badge,
-    name: staff.name,
-    departmentName: staff.departmentName
-  }
-}
-
-/**
- * 搜索主管列表。
- *
- * 后端只返回当前管理员园区范围内的最小员工信息。
+ * 搜索主管列表
  */
 export function getSearchStaff({
   badge
 }) {
   return request({
-    url: '/platform/staff/lookup',
+    url: '/platform/staff/simple/badge',
     method: 'get',
     params: {
       badge: badge
     }
-  }).then(response => {
-    const body = response && response.data ? response.data : {}
-    const staffList = Array.isArray(body.data) ? body.data : []
-    return Object.assign({}, response, {
-      data: Object.assign({}, body, {
-        data: staffList.map(normalizeLookup)
-      })
-    })
   })
 }
 
 /**
- * 批量离职前查询当前管理员园区内的临时员工。
- *
- * 园区范围由后端认证主体确定，前端不能再传入可伪造的 compId，也不会保留
- * 身份证、手机号等历史响应字段。
+ * 批量离职，根据工号查询员工信息
  */
-export function getTemporaryStaffByBadgeBatch(obj) {
+export function getStaffByBadge(obj) {
   return request({
-    url: `/platform/staff/admin/temporary/by-badges`,
+    url: `/platform/staff/staffByBadge`,
     method: 'get',
     params: {
-      badges: obj.badges
+      badge: obj.badge,
+      compId: obj.compId
     }
-  }).then(response => {
-    const body = response && response.data ? response.data : {}
-    const records = Array.isArray(body.data) ? body.data : []
-    return Object.assign({}, response, {
-      data: Object.assign({}, body, {
-        data: records.map(staff => ({
-          id: staff.staffId,
-          badge: staff.badge,
-          name: staff.name
-        }))
-      })
-    })
+  })
+}
+
+/**
+ * 批量离职，根据多个工号 批量查询员工信息
+ */
+ export function getStaffByBadgeBatch(obj) {
+  return request({
+    url: `/platform/staff/staffByBadges`,
+    method: 'get',
+    params: {
+      badges: obj.badges,
+      compId: obj.compId
+    }
   })
 }
 
@@ -415,12 +361,11 @@ export function delStaffBatch(data) {
  * 批量查询离职员工
  */
  export function searchPersonList (data) {
-  const { status, ...temporaryQuery } = data
   return request({
-    url: `/platform/staff/admin/temporary/page`,
+    url: `/platform/staff/getTempList`,
     method: 'post',
-    data: temporaryQuery
-  }).then(response => normalizeTemporaryStaffResponse(response))
+    data: data
+  })
 }
 
 export function reinstatementSave (data) {

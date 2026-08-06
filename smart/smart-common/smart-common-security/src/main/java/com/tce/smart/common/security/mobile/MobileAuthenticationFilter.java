@@ -2,9 +2,8 @@ package com.tce.smart.common.security.mobile;
 
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.tce.smart.admin.api.dto.InternalSmsVerifyReqDTO;
 import com.tce.smart.admin.api.feign.RemoteAppSmsService;
-import com.tce.smart.admin.api.feign.RemoteUserInternalService;
+import com.tce.smart.admin.api.feign.RemoteUserService;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
@@ -80,11 +79,7 @@ public class MobileAuthenticationFilter extends AbstractAuthenticationProcessing
 				RemoteAppSmsService remoteAppSmsService = SpringContextHolder.getBean(RemoteAppSmsService.class);
 				Result<Boolean> result = null;
 				try {
-					InternalSmsVerifyReqDTO smsVerifyRequest = new InternalSmsVerifyReqDTO();
-					smsVerifyRequest.setMobile(mobile.trim());
-					smsVerifyRequest.setSmsCode(smsCode.trim());
-					result = remoteAppSmsService.verifySmsCode(smsVerifyRequest, SecurityConstants.FROM_IN,
-							SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					result = remoteAppSmsService.verifySmsCode(mobile.trim(), smsCode.trim());
 				}catch(Exception e) {
 					log.error("验证码未通过",e);
 					throw new TCEException("短信码已失效");
@@ -94,9 +89,9 @@ public class MobileAuthenticationFilter extends AbstractAuthenticationProcessing
 					throw new TCEException("短信码已失效");
 				}
 
-				RemoteUserInternalService remoteUserInternalService = SpringContextHolder.getBean(RemoteUserInternalService.class);
+				RemoteUserService remoteUserService = SpringContextHolder.getBean(RemoteUserService.class);
 				try {
-					result = remoteUserInternalService.verifyMobileForLogin(mobile.trim());
+					result = remoteUserService.verifyMobile(mobile.trim(),SecurityConstants.FROM_IN);
 				}catch(Exception e) {
 					log.error("验证码登录失败",e);
 					throw new TCEException(e.getMessage());

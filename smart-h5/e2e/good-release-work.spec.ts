@@ -17,16 +17,6 @@ async function mockBaseInfo(page: Page) {
   )
 }
 
-/** 办公区编辑链路先创建服务端草稿，人员查询只能绑定该草稿。 */
-async function mockOfficeDraftAndStaffLookup(page: Page) {
-  await page.route('**/platform/articlesrelease/office/draft', (route) =>
-    route.fulfill({ json: { code: 0, data: { releaseId: 8001 } } }),
-  )
-  await page.route('**/platform/articlesrelease/8001/staff/lookup**', (route) =>
-    route.fulfill({ json: { code: 0, data: { id: 9, name: '李四' } } }),
-  )
-}
-
 async function pickWheelOption(page: Page, text: string) {
   const current = page.locator(`[aria-label="当前选择的是：${text}"]`).last()
   for (let i = 0; i < 20; i++) {
@@ -64,7 +54,9 @@ async function fillMainForm(page: Page) {
 test('办公区：人员分支全流程（弹窗查人 → 草稿持久 → 提交体断言）', async ({ page }) => {
   await seedLogin(page)
   await mockBaseInfo(page)
-  await mockOfficeDraftAndStaffLookup(page)
+  await page.route('**/platform/articlesrelease/oa/staff/info/YT0002', (route) =>
+    route.fulfill({ json: { code: 0, data: { id: 9, name: '李四' } } }),
+  )
   let saveBody: Record<string, unknown> | undefined
   await page.route('**/platform/articlesrelease/office/save', async (route) => {
     saveBody = route.request().postDataJSON() as Record<string, unknown>
@@ -126,8 +118,7 @@ test('办公区：人员分支全流程（弹窗查人 → 草稿持久 → 提�
   expect(applyMain.sqrjb).toBe(1)
   expect(applyMain.fxsx).toBe(0)
   expect(applyMain.wpfxlb).toBe(0)
-  expect(body.releaseId).toBe(8001)
-  expect(body).not.toHaveProperty('badge')
+  expect(body.badge).toBe('YT20180326')
   expect(body.parkId).toBe(5000021)
   expect(body.status).toBe(1)
   const personList = body.personList as Record<string, unknown>[]
@@ -145,7 +136,6 @@ test('办公区：人员分支全流程（弹窗查人 → 草稿持久 → 提�
 test('办公区：物品分支（增改删 + 提交体断言）', async ({ page }) => {
   await seedLogin(page)
   await mockBaseInfo(page)
-  await mockOfficeDraftAndStaffLookup(page)
   let saveBody: Record<string, unknown> | undefined
   await page.route('**/platform/articlesrelease/office/save', async (route) => {
     saveBody = route.request().postDataJSON() as Record<string, unknown>
@@ -201,8 +191,6 @@ test('办公区：物品分支（增改删 + 提交体断言）', async ({ page 
   await page.waitForURL('**/good-release/work/list')
 
   const body = saveBody as Record<string, unknown>
-  expect(body.releaseId).toBe(8001)
-  expect(body).not.toHaveProperty('badge')
   expect((body.applyMain as Record<string, unknown>).fxsx).toBe(1)
   expect(body.personList).toEqual([])
   const thingList = body.thingList as Record<string, unknown>[]

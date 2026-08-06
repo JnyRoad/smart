@@ -16,13 +16,10 @@ import com.tce.smart.app.vo.fore.NewEmployeeNoteListVo;
 import com.tce.smart.app.vo.wechat.RelationTypeVO;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
-import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.SmtOutDormitoryStaffDTO;
 import com.tce.smart.platform.api.feign.RemoteOutDormitoryStaffService;
-import com.tce.smart.tool.exception.TCEException;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,16 +44,7 @@ public class EmployeeController extends BaseController {
 
 	@GetMapping("/allowance/status")
 	public Result status(@RequestParam(value = "staffBadge", required = false) String staffBadge) {
-		return success(remoteOrtDormitoryStaffService.status(requireCurrentBadge(), SecurityConstants.FROM_IN));
-	}
-
-	/** 外宿状态只能查询当前认证员工，忽略客户端兼容参数中的工号。 */
-	private String requireCurrentBadge() {
-		String badge = SecurityUtils.getUser().getUsername();
-		if (StringUtils.isBlank(badge)) {
-			throw new TCEException("当前登录员工信息缺失");
-		}
-		return badge;
+		return success(remoteOrtDormitoryStaffService.status(staffBadge, SecurityConstants.FROM_IN));
 	}
 
 	/**

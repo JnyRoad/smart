@@ -21,17 +21,11 @@ import com.tce.smart.data.api.dto.ehrview.resp.EvwLergotAllRespDTO;
 public interface RemoteEvwLergotAllService {
 
 	@GetMapping("/evwLergotAll/info")
-	Result<List<EvwLergotAllRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("otTerm") String otTerm,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<EvwLergotAllRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("otTerm") String otTerm);
 
 	@GetMapping("/evwLergotAll/list")
-	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/evwLergotAll/detail")
-	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("otteam") String otteam,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("otteam") String otteam, @RequestHeader(SecurityConstants.FROM) String from);
 }

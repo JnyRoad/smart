@@ -23,8 +23,10 @@
 					COUNT (*)
 				FROM
 					SMT_VEHICLE_APPLY SVA
+				LEFT JOIN SMT_VEHICLE SV ON SVA.VEHICLE_ID = SV."ID"
 				WHERE
-					SVA.VEHICLE_ID = #{vehicleId}
+					SV.IS_DELETE = #{isDelete}
+				AND SV.VEHICLE_PLATE = #{vehiclePlate}
 				AND instr(','||SVA.PARK_ID||',', ',' <![CDATA[||]]> #{parkId} <![CDATA[||]]> ',') <![CDATA[<>]]> 0
 				AND SVA.STATUS != #{status}
 			</select>

@@ -1,6 +1,6 @@
 'use client'
-import { ImageViewer, SpinLoading, Toast } from 'antd-mobile'
 import { useQuery } from '@tanstack/react-query'
+import { ImageViewer, SpinLoading, Toast } from 'antd-mobile'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState } from 'react'
@@ -9,22 +9,32 @@ import { ApprovalTimeline } from '@/components/approval-timeline'
 import { ImageListUpload } from '@/components/image-list-upload'
 import { PageShell } from '@/components/page-shell'
 import { useRequireAuth } from '@/features/auth/use-require-auth'
+import { getEmployeeBaseInfo } from '@/features/employee/api'
 import { securityUpdateRelease } from '@/features/backlog/api'
 import { getReleaseDetail } from '@/features/good-release/api'
 import { InfoRow, toImageSrc } from '@/features/good-release/detail-blocks'
 import { saveDetailSnapshot } from '@/features/good-release/detail-snapshot'
 import { isPersonRelease } from '@/features/good-release/dicts'
+import { getTenantConfig } from '@/lib/config/tenant'
 import { confirmIrreversible } from '@/lib/confirm-irreversible'
 
 function ReleaseWorkApprovalDetailInner() {
   const authorized = useRequireAuth()
   const router = useRouter()
   const params = useSearchParams()
+  const config = getTenantConfig()
   const id = params.get('id') ?? ''
   const readOnly = params.get('tab') === 'done'
   const fromScan = params.get('scan') === '1'
   const [guardImgs, setGuardImgs] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+
+  const baseInfo = useQuery({
+    queryKey: ['employee', 'baseinfo'],
+    queryFn: getEmployeeBaseInfo,
+    enabled: authorized,
+  })
+  const badge = baseInfo.data?.code === 0 ? baseInfo.data.data?.employeeBadge : undefined
 
   const detail = useQuery({
     queryKey: ['good-release-detail', id],
@@ -61,6 +71,7 @@ function ReleaseWorkApprovalDetailInner() {
 
   async function submit(nextStatus: 4 | 5) {
     if (submitting) return
+    if (!badge) return Toast.show('获取用户信息失败！')
     if (info?.isUploadImg === 0 && guardImgs.length === 0) {
       Toast.show('请至少上传一张照片')
       return
@@ -75,7 +86,9 @@ function ReleaseWorkApprovalDetailInner() {
         guardTwoImg: guardImgs[1] ?? '',
         guardThreeImg: guardImgs[2] ?? '',
         id,
+        parkId: config.parkId,
         status: nextStatus,
+        badge,
         // 旧版提交参数含 remark 但页面无输入项（恒空），照旧不渲染输入。
         remark: '',
       })

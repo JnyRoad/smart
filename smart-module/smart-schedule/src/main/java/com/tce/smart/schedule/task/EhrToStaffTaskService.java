@@ -87,8 +87,7 @@ public class EhrToStaffTaskService {
 	public void syncDhrFaceImg() {
 		if (taskJob.getSyncDhrFaceImg() && iSwitchService.process(TimerTaskEnum.DHR_IMG_TYPE)) {
 			log.info("发起DHR员工人脸数据同步任务");
-			remoteStaffService.syncStaffImg(SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			remoteStaffService.syncStaffImg(SecurityConstants.FROM_IN);
 			log.info("结束DHR员工人脸数据同步任务");
 		}
 	}
@@ -103,8 +102,7 @@ public class EhrToStaffTaskService {
 			try {
 				log.info("发起员工数据同步任务");
 				//获取员工同步数据配置
-				Result<List<SmtEhrToStaffSettingDTO>> list = service.getEhrList(SecurityConstants.FROM_IN,
-						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				Result<List<SmtEhrToStaffSettingDTO>> list = service.getEhrList(SecurityConstants.FROM_IN);
 				log.info("remoteDictService.findByType result{}", list);
 				if (!list.isSuccess()) {
 					log.error("未找到BU配置信息，终止同步");
@@ -166,8 +164,7 @@ public class EhrToStaffTaskService {
 					}
 					//查询一页数据
 					Result<Page<EmpHrReqDTO>> result = remoteStaffService
-							.getStaffList(page2.getCurrent(), page2.getSize(), SecurityConstants.FROM_IN,
-									SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+							.getStaffList(page2.getCurrent(), page2.getSize(), SecurityConstants.FROM_IN);
 					if (!result.isSuccess()) {
 						//查询员工数据异常
 						log.error("查询员工数据异常");
@@ -226,8 +223,7 @@ public class EhrToStaffTaskService {
 				log.info("发起DHR员工数据同步任务");
 				//中心  bu-中心-部门-
 				//获取员工同步数据BU配置
-				Result<List<SmtEhrToStaffSettingDTO>> list = service.getDhrList(SecurityConstants.FROM_IN,
-						SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				Result<List<SmtEhrToStaffSettingDTO>> list = service.getDhrList(SecurityConstants.FROM_IN);
 				log.info("DHR员工数据同步，查询配置BU响应结果 {}", list);
 				if (!list.isSuccess()) {
 					log.error("DHR员工数据同步,未找到BU配置信息，终止同步");
@@ -256,8 +252,7 @@ public class EhrToStaffTaskService {
 					do {
 						//查询一页数据
 						Result<Page<YutoDhrPsndoDTO>> pageResult = remoteYutoDhrYsService
-								.page(page.getCurrent(), page.getSize(), compIds, SecurityConstants.FROM_IN,
-										SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+								.page(page.getCurrent(), page.getSize(), compIds, SecurityConstants.FROM_IN);
 						log.info("远程查询DHR员工信息结果:{}", pageResult.isSuccess());
 						if (!pageResult.isSuccess()) {
 							log.error("远程查询DHR员工信息结果失败");
@@ -288,8 +283,7 @@ public class EhrToStaffTaskService {
 					do {
 						//查询一页数据
 						Result<Page<EmpHrReqDTO>> result = remoteStaffService
-							.getStaffList(page2.getCurrent(), page2.getSize(), SecurityConstants.FROM_IN,
-									SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+								.getStaffList(page2.getCurrent(), page2.getSize(), SecurityConstants.FROM_IN);
 						if (!result.isSuccess()) {
 							//查询员工数据异常
 							log.error("DHR同步查询员工数据异常,{}",result.getMessage());
@@ -514,8 +508,7 @@ public class EhrToStaffTaskService {
 		log.info("更新数据:{}", JSONUtil.toJsonStr(evwEmphrYs));
 		try {
 			EmpHrReqDTO empHrReqDTO = getEmpHrReqDTO(evwEmphrYs);
-			Result result = remoteStaffService.syncStaff(empHrReqDTO, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result result = remoteStaffService.syncStaff(empHrReqDTO, SecurityConstants.FROM_IN);
 			log.info(result.getMsg());
 			Thread.sleep(100L);
 		} catch (Exception e) {

@@ -9,10 +9,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.SmtVisitorDTO;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
-import com.tce.smart.platform.api.dto.req.admittance.VisitorWechatCodeReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.SaveAdmittanceApplyReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.SaveAdmittanceCarApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
@@ -21,7 +19,6 @@ import com.tce.smart.platform.api.dto.resp.admittance.AdmittanceApplyCodeDetailR
 import com.tce.smart.platform.api.dto.resp.admittance.AdmittanceApplyDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApplyRecordDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorApprovalProgressRespDTO;
-import com.tce.smart.platform.api.dto.resp.admittance.VisitorPassCodeRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorSelfQueryRespDTO;
 import com.tce.smart.platform.api.dto.resp.admittance.VisitorWechatIdentityRespDTO;
 import com.tce.smart.platform.core.dto.*;
@@ -40,8 +37,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import javax.servlet.http.HttpServletResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -99,12 +94,9 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * @return Result
 	 */
 	@ApiOperation("获得openId")
-	@PostMapping("/get/openId")
-	public Result<VisitorWechatIdentityRespDTO> getOpenId(@RequestBody VisitorWechatCodeReqDTO request) {
-		if (request == null || !org.springframework.util.StringUtils.hasText(request.getCode())) {
-			throw new SmartException("微信授权信息已失效，请重新进入申请流程");
-		}
-		return success(smtAdmittanceApplyService.getOpenId(request.getCode()));
+	@GetMapping("/get/openId")
+	public Result<VisitorWechatIdentityRespDTO> getOpenId(@RequestParam("code") String code) {
+		return success(smtAdmittanceApplyService.getOpenId(code));
 	}
 
 
@@ -165,19 +157,6 @@ public class SmtAdmittanceApplyController extends BaseController {
 	public Result<VisitorApprovalProgressRespDTO> approvalProgress(@RequestParam("applyId") String applyId,
 			@RequestHeader(value = "X-Visitor-Query-Token", required = false) String queryToken) {
 		return success(visitorSelfQueryService.getApprovalProgress(applyId, queryToken));
-	}
-
-	/**
-	 * 通行码只允许已完成短信核验且归属该手机号的 queryToken 查询。
-	 */
-	@ApiOperation("访客自助查看本人通行码")
-	@GetMapping("/app/passCode")
-	public Result<VisitorPassCodeRespDTO> passCode(@RequestParam("applyId") String applyId,
-			@RequestHeader(value = "X-Visitor-Query-Token", required = false) String queryToken,
-			HttpServletResponse response) {
-		// 通行码是短时敏感凭证，禁止浏览器与中间代理缓存。
-		response.setHeader("Cache-Control", "private, no-store");
-		return success(visitorSelfQueryService.getPassCode(applyId, queryToken));
 	}
 
 	/**
@@ -316,7 +295,6 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/comeOnTime")
 	public Result visitorComeOnTime() {
 		smtAdmittanceApplyService.visitorComeOnTime();
@@ -324,7 +302,6 @@ public class SmtAdmittanceApplyController extends BaseController {
 	}
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/update/oa")
 	public Result updateOaStatusTask() {
 		smtAdmittanceApplyService.updateOaStatusTask();
@@ -338,7 +315,6 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/overTime")
 	public Result visitorOverTime() {
 		smtAdmittanceApplyService.visitorOverTime();
@@ -351,7 +327,6 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * @return
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/overTimeNoLeave")
 	public Result overTimeNoLeave() {
 		smtAdmittanceApplyService.visitorOverTimeNoLeave();
@@ -362,7 +337,6 @@ public class SmtAdmittanceApplyController extends BaseController {
 	 * 访客未到达时发送提示
 	 */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/remind")
 	public Result visitorRemind() {
 		smtAdmittanceApplyService.visitorRemind();

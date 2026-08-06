@@ -20,16 +20,27 @@ public interface SettingService {
 	 */
 	CheckVersionVo checkVersion(String appId, String appVersion);
 
-	/** 向当前认证员工的旧手机号发送验证码，客户端不能指定收件号码。 */
-	boolean sendOldPhoneCode();
+	/**
+	 * 验证原有电话号码
+	 * @param mobile
+	 * @param smsCode
+	 * @return
+	 */
+	boolean verifyOldMobile(String mobile,String smsCode);
 
-	/** 校验当前认证员工旧手机号验证码，并在服务端建立短时换绑授权。 */
-	boolean verifyOldPhoneCode(String smsCode);
+	/***
+	 * 发送手机验证码
+	 * @param mobile
+	 * @return
+	 */
+	boolean sendMobileMsg(String mobile);
 
-	/** 在旧手机号已验证的前提下，向用户指定的新手机号发送验证码。 */
-	boolean sendNewPhoneCode(String mobile);
-
-	/** 在旧手机号授权和新手机号验证码都成立时，完成换绑。 */
-	boolean confirmNewPhone(String mobile, String smsCode);
+	/***
+	 * 保存新手机号码
+	 * @param mobile
+	 * @param smsCode
+	 * @return
+	 */
+	boolean updateNewPhone(String mobile,String smsCode);
 
 }

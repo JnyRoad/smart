@@ -5,7 +5,6 @@ import java.util.Objects;
 
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,8 +31,6 @@ public class  EvwBizLregleaveRegisterController extends BaseController {
 	 @Autowired
 	 private EvwBizLregleaveRegisterService evwBizLregleaveRegisterService;
 
-    @Inner
-    @OpenApi("server")
     @GetMapping("/info")
     public Result<List<EvwBizLregleaveRegisterRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("beginTime") String beginTime,@RequestParam("endTime") String endTime){
 	List<EvwBizLregleaveRegister> list = evwBizLregleaveRegisterService.list(Wrappers.<EvwBizLregleaveRegister>query().lambda()
@@ -44,7 +41,6 @@ public class  EvwBizLregleaveRegisterController extends BaseController {
     }
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/list")
 	public Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth){
 		List<EvwBizLregleaveRegister> evwBizLregleaveRegisterList = evwBizLregleaveRegisterService.list(badge, queryMonth);
@@ -52,7 +48,6 @@ public class  EvwBizLregleaveRegisterController extends BaseController {
 	}
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/detail")
 	public Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginTime") String beginTime){
 		EvwBizLregleaveRegister evwBizLregleaveRegister = evwBizLregleaveRegisterService.getOne(Wrappers.<EvwBizLregleaveRegister>query().lambda()

@@ -78,7 +78,7 @@ public class SmtSDTemplatesServiceImpl extends ServiceImpl<SmtSDTemplatesMapper,
 
 	@Override
 	public List<OvwYsjobRespDTO> getJChenList() {
-		Result<List<OvwYsjobRespDTO>> jChenList = remoteOvwYsjobService.getJChenList(SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<OvwYsjobRespDTO>> jChenList = remoteOvwYsjobService.getJChenList(SecurityConstants.FROM_IN);
 		if(!jChenList.isSuccess()){
 			log.error("远程获取职位级层异常");
 			throw new TCEException("获取级层异常");

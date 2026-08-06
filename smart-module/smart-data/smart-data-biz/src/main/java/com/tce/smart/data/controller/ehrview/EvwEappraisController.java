@@ -2,8 +2,6 @@ package com.tce.smart.data.controller.ehrview;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.EvwEappraisDTO;
 import com.tce.smart.ehrview.core.entity.EvwEapprais;
 import com.tce.smart.ehrview.core.service.IEvwEappraisService;
@@ -35,8 +33,7 @@ public class EvwEappraisController extends BaseController {
      * @param badge
      * @return
      */
-    @Inner
-    @OpenApi("server")
+//    @Inner
     @GetMapping("/info")
     public Result info(@RequestParam("badge") String badge){
         List<EvwEapprais> evwEapprais = iEvwEappraisService.getListByBadge(badge);

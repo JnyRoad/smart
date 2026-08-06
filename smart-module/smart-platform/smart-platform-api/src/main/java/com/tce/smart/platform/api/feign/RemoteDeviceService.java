@@ -31,7 +31,6 @@ public interface RemoteDeviceService {
 	 * @return Result
 	 */
 	@GetMapping("/device/query/deviceStatus")
-	Result queryDeviceStatus(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result queryDeviceStatus(@RequestHeader(SecurityConstants.FROM) String from);
 
 }

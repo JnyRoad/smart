@@ -403,8 +403,7 @@ public class SmtWaterMeterServiceImpl extends ServiceImpl<SmtWaterMeterMapper, S
 			dispatcherDTO.setParkId(meter.getParkId());
 			dispatcherDTO.setDeviceId(meter.getConcentratorId().toString());
 			dispatcherDTO.setData(deviceInfo);
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 			if (!result.isSuccess()) {
 				throw new SmartException("水表" + meter.getId() + "读数请求失败");
 			}

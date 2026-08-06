@@ -154,8 +154,7 @@ public class RestApplicationServiceImpl implements RestApplicationService {
 			staffBadge = SecurityUtils.getUser().getUsername();
 		}
 		List<SearchAdjustVO> adjustVoList = new ArrayList<SearchAdjustVO> ();
-		Result<List<LvwAdjustbasicFullRespDTO>> result = remoteLvwAdjustbasicService.getByBadge(staffBadge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<LvwAdjustbasicFullRespDTO>> result = remoteLvwAdjustbasicService.getByBadge(staffBadge,SecurityConstants.FROM_IN);
 		if (CommonConstants.SUCCESS  == result.getCode()) {
 			//转换接过来的值
 			if (CommonConstants.SUCCESS  == result.getCode()) {

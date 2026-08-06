@@ -5,6 +5,8 @@ import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.tce.smart.tool.util.ImageUtils;
 import com.tce.smart.transfer.config.HbaseFindBuilder;
@@ -18,7 +20,11 @@ import org.apache.hadoop.hbase.client.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.hadoop.hbase.HbaseTemplate;
 import org.springframework.data.hadoop.hbase.RowMapper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
 import java.io.File;
@@ -45,8 +51,7 @@ public class StaffImageTransferService {
 	@Resource
 	private HbaseTemplate hbaseTemplate;
 
-	@Resource
-	private FaceCropInternalClient faceCropInternalClient;
+	private final RestTemplate restTemplate = new RestTemplate();
 
 	private static final HbaseConstant.Table tableBlob = HbaseConstant.Table.T_BLOB;
 
@@ -129,8 +134,25 @@ public class StaffImageTransferService {
 		byte[] imageBinaryByCode = null;
 		try {
 
-			String cutImg = faceCropInternalClient.crop(Base64.encode(bigImg));
-			imageBinaryByCode = ImageUtils.base64StrToByte(cutImg);
+			String cutUrl = "https://tech.szyuto.com/algorithm/out/face/cut";
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+
+			Map<String, Object> map = new HashMap<>();
+			map.put("serialNo", UUID.randomUUID());
+			map.put("imageData", Base64.encode(bigImg));
+
+			HttpEntity<String> request = new HttpEntity<>(JSONUtil.toJsonStr(map), headers);
+			String result = restTemplate.postForObject(cutUrl, request, String.class);
+			JSONObject dataObj = JSONUtil.parseObj(result);
+			if(dataObj.containsKey("code") && dataObj.getInt("code") == 0){
+				String cutImg = dataObj.getStr("data");
+				imageBinaryByCode = ImageUtils.base64StrToByte(cutImg);
+			} else {
+				System.out.println("调用裁剪接口失败:" + result);
+				return;
+			}
 
 			String filePath = "E:\\裕同大岭山人脸图片\\" + badge+".jpg";
 			File file = new File(filePath);
@@ -143,7 +165,7 @@ public class StaffImageTransferService {
 			fileOutputStream.flush();
 			fileOutputStream.close();
 		}catch (Exception e){
-			log.error("员工人脸图片迁移时裁剪失败，图片编号={}", imgCode, e);
+			e.printStackTrace();
 		}
 
 //		BlobInfo blobInfo = getBlobInfo(imgCode);

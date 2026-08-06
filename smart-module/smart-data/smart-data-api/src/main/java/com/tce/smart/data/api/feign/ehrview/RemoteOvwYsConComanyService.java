@@ -28,8 +28,7 @@ public interface RemoteOvwYsConComanyService {
 	 */
 	@PostMapping("/ys/con/comany/getByTitle")
 	Result<List<OvwYsConComanyRespDTO>> getByTitle(@RequestBody OvwYsConComanyReqDTO ovwYsConComany,
-													   @RequestHeader(SecurityConstants.FROM) String from,
-													   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+												   @RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 根据compId查询
@@ -38,7 +37,5 @@ public interface RemoteOvwYsConComanyService {
 	 * @return Result<OvwYsConComany>
 	 */
 	@GetMapping("/ys/con/comany/getByCompId/{compId}")
-	Result<OvwYsConComanyRespDTO> getByCompId(@PathVariable("compId") Integer compId,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<OvwYsConComanyRespDTO> getByCompId(@PathVariable("compId") Integer compId, @RequestHeader(SecurityConstants.FROM) String from);
 }

@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.EvwBizLregleaveRespDTO;
 import com.tce.smart.ehrview.core.entity.EvwBizLregleave;
 import com.tce.smart.ehrview.core.service.EvwBizLregleaveService;
@@ -29,7 +28,6 @@ public class EvwBizLregleaveController extends BaseController {
 	private EvwBizLregleaveService evwBizLregleaveService;
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/info")
 	public Result<List<EvwBizLregleaveRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("beginTime") String beginTime, @RequestParam("endTime") String endTime){
 		List<EvwBizLregleave> list = evwBizLregleaveService.list(Wrappers.<EvwBizLregleave>query().lambda()
@@ -40,7 +38,6 @@ public class EvwBizLregleaveController extends BaseController {
 	}
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/list")
 	public Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth){
 		List<EvwBizLregleave> evwBizLregleaveList = evwBizLregleaveService.list(badge, queryMonth);
@@ -48,7 +45,6 @@ public class EvwBizLregleaveController extends BaseController {
 	}
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/detail")
 	public Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginTime") String beginTime){
 		EvwBizLregleave evwBizLregleave = evwBizLregleaveService.getOne(Wrappers.<EvwBizLregleave>query().lambda()

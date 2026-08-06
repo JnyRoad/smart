@@ -48,8 +48,7 @@ public class ExceptionSchedule {
 				for (ExceptionLog exceptionLog : exceptionLogs) {
 					try {
 						BridgeDTO<String> bridgeDTO = JSONUtil.toBean(exceptionLog.getMessage(), BridgeDTO.class);
-						Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN,
-								SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+						Result<Boolean> result = remoteDispatcherService.handle(bridgeDTO, SecurityConstants.FROM_IN);
 						log.info("执行-重试异常消息任务，key：{}，EventId：{}，结果：{}，耗时：{}ms", exceptionLog.getEventType(), bridgeDTO.getEventId(), result.isSuccess(), DateUtils.toEpochMilli() - start);
 						if (result.isSuccess()) {
 							exceptionLog.deleteById();

@@ -33,25 +33,27 @@ async function pickWheelOption(page: Page, text: string) {
 // 旧版选项事实：value 四段 id、label「宿舍名/楼层名层/房间名号房/床号床」（床位主键是 id）
 const LIVE_ROOMS = {
   code: 0,
-  data: [
-    {
-      dormitoryId: 'D1',
-      floorId: 'F2',
-      roomId: 'R3',
-      id: 'B4',
-      dormitoryName: '新工厂宿舍楼',
-      floorName: '2',
-      roomName: '302',
-      bedNumber: 4,
-    },
-  ],
+  data: {
+    data: [
+      {
+        dormitoryId: 'D1',
+        floorId: 'F2',
+        roomId: 'R3',
+        id: 'B4',
+        dormitoryName: '新工厂宿舍楼',
+        floorName: '2',
+        roomName: '302',
+        bedNumber: 4,
+      },
+    ],
+  },
 }
 
 test('生活区放行：无房间拦截（toast + 提交阻断）', async ({ page }) => {
   await seedLogin(page)
   await mockBaseInfo(page)
-  await page.route('**/platform/dormitory/staff/me/roomList', (route) =>
-    route.fulfill({ json: { code: 0, data: [] } }),
+  await page.route('**/app/appdormitory/roomList/**', (route) =>
+    route.fulfill({ json: { code: 0, data: { data: [] } } }),
   )
 
   await page.goto('/good-release/live')
@@ -63,7 +65,7 @@ test('生活区放行：无房间拦截（toast + 提交阻断）', async ({ pag
 test('生活区放行：空图拦截 → 正常提交体断言', async ({ page }) => {
   await seedLogin(page)
   await mockBaseInfo(page)
-  await page.route('**/platform/dormitory/staff/me/roomList', (route) => route.fulfill({ json: LIVE_ROOMS }))
+  await page.route('**/app/appdormitory/roomList/**', (route) => route.fulfill({ json: LIVE_ROOMS }))
   let saveBody: Record<string, unknown> | undefined
   await page.route('**/platform/articlesrelease/living/save', async (route) => {
     saveBody = route.request().postDataJSON() as Record<string, unknown>
@@ -220,7 +222,7 @@ test('死链回归：home 宫格「物品放行（生活区）」入口落到真
   await page.route('**/platform/dor/quit/list/approval*', (route) =>
     route.fulfill({ json: { code: 0, data: { total: 0 } } }),
   )
-  await page.route('**/platform/dormitory/staff/me/roomList', (route) => route.fulfill({ json: LIVE_ROOMS }))
+  await page.route('**/app/appdormitory/roomList/**', (route) => route.fulfill({ json: LIVE_ROOMS }))
 
   await page.goto('/home')
   await page.getByRole('button', { name: '物品放行（生活区）', exact: true }).click()

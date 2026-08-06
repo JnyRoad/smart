@@ -7,7 +7,6 @@ import java.util.List;
 import cn.hutool.core.date.DateUtil;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,8 +30,6 @@ public class EvwBizAregotRegisterController extends BaseController {
 	@Autowired
 	private EvwBizAregotRegisterService evwBizAregotRegisterService;
 
-   @Inner
-   @OpenApi("server")
    @GetMapping("/info")
    public Result<List<EvwBizAregotRegisterRespDTO>> info(@RequestParam("badge") String badge, @RequestParam("otTerm") String otTerm){
 	 SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//设置日期格式
@@ -50,7 +47,6 @@ public class EvwBizAregotRegisterController extends BaseController {
    }
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/list")
 	public Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth){
 		List<EvwBizAregotRegister> evwBizAregotRegisterList = evwBizAregotRegisterService.list(badge, queryMonth);
@@ -58,7 +54,6 @@ public class EvwBizAregotRegisterController extends BaseController {
 	}
 
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/detail")
 	public Result getByBadge(@RequestParam("badge") String badge, @RequestParam("otterm") String otterm){
 		EvwBizAregotRegister evwBizAregotRegister = evwBizAregotRegisterService.getOne(Wrappers.<EvwBizAregotRegister>query().lambda()

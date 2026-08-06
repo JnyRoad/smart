@@ -26,7 +26,6 @@ import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.security.util.SecurityUtils;
 import com.tce.smart.platform.api.dto.SmtParkDTO;
 import com.tce.smart.platform.api.feign.RemoteParkService;
-import com.tce.smart.platform.api.feign.RemoteParkInternalService;
 import com.tce.smart.tool.enums.ExceptionTypeEnum;
 import com.tce.smart.tool.exception.TCEException;
 import io.netty.util.internal.StringUtil;
@@ -75,9 +74,6 @@ public class AppEmployeeNoteServiceImpl extends ServiceImpl<AppEmployeeNoteMappe
 
     @Autowired
 	private RemoteParkService remoteParkService;
-
-	@Autowired
-	private RemoteParkInternalService remoteParkInternalService;
 
     /**
      *  条件分页查询
@@ -216,16 +212,14 @@ public class AppEmployeeNoteServiceImpl extends ServiceImpl<AppEmployeeNoteMappe
 	 */
 	@Override
 	public List<AppParkSubject> prakIdArray() {
-		Result<?> result = remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list");
+		Result<?> result = remoteParkService.getParkList(SecurityConstants.FROM_IN);
 		List smtParklist = (List) result.getData();
 		return smtParklist;
 	}
 
 	@Override
 	public List<SmtParkDTO> getParkList() {
-		Result<List<SmtParkDTO>> result = remoteParkInternalService.getAllParks(SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "park-list");
+		Result<List<SmtParkDTO>> result = remoteParkService.getParkList(SecurityConstants.FROM_IN);
 		List<SmtParkDTO> smtParklist = result.getData();
 		List<Integer> parkIdList = SecurityUtils.getUser().getParkIdList();
 		//返回当前登录用户关联的园区信息

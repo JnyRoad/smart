@@ -18,7 +18,6 @@ import com.tce.smart.platform.api.dto.SmtVehicleRespDTO;
 import com.tce.smart.platform.api.dto.req.AddVehicleReqDTO;
 import com.tce.smart.platform.api.dto.req.ApplyAuthReqDTO;
 import com.tce.smart.platform.api.dto.resp.VehicleApplyRespDTO;
-import com.tce.smart.platform.api.dto.resp.VehicleAuthDetailRespDTO;
 import com.tce.smart.platform.api.feign.RemoteVehicleService;
 import com.tce.smart.tool.enums.ExceptionTypeEnum;
 import com.tce.smart.tool.enums.VehicleColorEnum;
@@ -62,10 +61,9 @@ public class VehicleServiceImpl  implements VehicleService{
 		String userName=SecurityUtils.getUser().getUsername();
 
 		Result<Page<SmtVehicleRespDTO>> result = service.getMyVehicle(MapUtil.getLong(params, PaginationConstants.CURRENT),
-				MapUtil.getLong(params, PaginationConstants.SIZE), userName,SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
+				MapUtil.getLong(params, PaginationConstants.SIZE), userName,SecurityConstants.FROM_IN);
 
-		log.info("remote getMyVehicle completed, success={}", result.isSuccess());
+		log.info("remote getMyVehicle result=[{}]", result);
 		IPage<SmtVehicleRespDTO> pageInfo = result.getData();
 		//获取车辆类型字典表集合
 //		Result<List<SysDict>> findByType = remoteDictService.findByType(DictConstants.VEHICLE_TYPE, SecurityConstants.FROM_IN);
@@ -126,12 +124,10 @@ public class VehicleServiceImpl  implements VehicleService{
 	@Override
 	public List<?> getAuthPark(AuthParkAo ao) {
 		// TODO Auto-generated method stub
-		log.info("remote getVehiclePark requested");
+		log.info("remote getVehiclePark plateNumber=",ao.getPlateNumber());
 		String plateNumber=ao.getPlateNumber();
-		String badge = SecurityUtils.getUser().getUsername();
-		Result<List<VehicleApplyRespDTO>> result = service.getVehiclePark(plateNumber, badge, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
-		log.info("remote getAuthPark completed, success={}", result.isSuccess());
+		Result<List<VehicleApplyRespDTO>> result = service.getVehiclePark(plateNumber,SecurityConstants.FROM_IN);
+		log.info("remote getAuthPark result=[{}]", result);
 		List<VehicleApplyRespDTO> list=result.getData();
 		List<AuthParkVo> vehicleList = new ArrayList<AuthParkVo>();
 		if (list.size()>0) {
@@ -167,19 +163,17 @@ public class VehicleServiceImpl  implements VehicleService{
 		// TODO Auto-generated method stub
 
 		Integer id= Integer.parseInt(ao.getVehicleAuthkId());
-		String badge = SecurityUtils.getUser().getUsername();
-		Result<VehicleAuthDetailRespDTO> result = service.getVehicleParkById(id, badge, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
-		log.info("remote getVehicleParkById completed, success={}", result.isSuccess());
+		Result<SmtVehicleRespDTO> result = service.getVehicleParkById(id,SecurityConstants.FROM_IN);
+		log.info("remote getVehicleParkById result=[{}]", result);
 
 //		Result<List<SysDict>> findByType = remoteDictService.findByType(DictConstants.VEHICLE_TYPE, SecurityConstants.FROM_IN);
 
-		VehicleAuthDetailRespDTO smtVehicle = result.getData();
+		SmtVehicleRespDTO smtVehicle = result.getData();
 		AuthDetailVo vo=new AuthDetailVo();
 		vo.setPlateNumber(smtVehicle.getVehiclePlate());
 		vo.setVehicleBrand(smtVehicle.getVehicleBrand());
-		vo.setCarDrivingLicence(ImageUtils.changeFullBase64(smtVehicle.getDrivingLicenseBase64()));
-		vo.setDrivingLicence(ImageUtils.changeFullBase64(smtVehicle.getDriverLicenseBase64()));
+		vo.setCarDrivingLicence(ImageUtils.changeFullBase64(smtVehicle.getDrivinglLicenseId()));
+		vo.setDrivingLicence(ImageUtils.changeFullBase64(smtVehicle.getDriverLicenseId()));
 		vo.setReason(smtVehicle.getReason());
 		//从枚举中获取颜色
 		for(VehicleColorEnum alarmType : VehicleColorEnum.values()){
@@ -217,10 +211,9 @@ public class VehicleServiceImpl  implements VehicleService{
 		// TODO Auto-generated method stub
 		String badge=SecurityUtils.getUser().getUsername();
 		applyAuthDTO.setBadge(badge);
-		log.info("remote addVehiclePark requested");
-		Result<?> result = service.addVehiclePark(applyAuthDTO,SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
-		log.info("remote addVehiclePark completed, success={}", result.isSuccess());
+		log.info("remote addVehiclePark applyAuthDTO=[{}]", applyAuthDTO);
+		Result<?> result = service.addVehiclePark(applyAuthDTO,SecurityConstants.FROM_IN);
+		log.info("remote addVehiclePark result=[{}]", result);
 		return result;
 	}
 
@@ -230,12 +223,11 @@ public class VehicleServiceImpl  implements VehicleService{
 	@Override
 	public Result addVehicle(AddVehicleReqDTO addVehicleDTO) {
 		// TODO Auto-generated method stub
-		log.info("员工添加车辆请求已接收");
+		log.info("员工添加车辆: 车牌号:{}  工号:{}", addVehicleDTO.getPlateNumber(),addVehicleDTO.getBadge());
 		String badge = SecurityUtils.getUser().getUsername();
 		addVehicleDTO.setBadge(badge);
-		Result<?> result = service.addVehicle(addVehicleDTO,SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
-		log.info("员工添加车辆处理完成, success={}", result.isSuccess());
+		Result<?> result = service.addVehicle(addVehicleDTO,SecurityConstants.FROM_IN);
+		log.info("员工添加车辆处理结果:{}", result);
 		return result;
 	}
 
@@ -286,12 +278,10 @@ public class VehicleServiceImpl  implements VehicleService{
 
 	@Override
 	public Result delete(AuthParkAo ao) {
-		log.info("remote delVehicle requested");
+		log.info("remote delVehicle plateNumber=",ao.getPlateNumber());
 		String plateNumber=ao.getPlateNumber();
-		String badge = SecurityUtils.getUser().getUsername();
-		Result result = service.delVehicle(plateNumber, badge, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "app-vehicle");
-		log.info("remote delVehicle completed, success={}", result.isSuccess());
+		Result result = service.delVehicle(plateNumber,SecurityConstants.FROM_IN);
+		log.info("remote delVehicle result=[{}]", result);
 		return result;
 	}
 

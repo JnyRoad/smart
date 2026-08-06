@@ -2,8 +2,6 @@ package com.tce.smart.platform.controller;
 
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
-import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.core.dto.AddEhrToStaffSettingDTO;
 import com.tce.smart.platform.core.entity.SmtEhrToStaffSetting;
 import com.tce.smart.platform.service.SmtEhrToStaffSettingService;
@@ -32,8 +30,6 @@ public class SmtEhrToStaffSettingController extends BaseController {
 		return new Result<>(service.addList(dto));
 	}
 
-	@Inner
-	@OpenApi("server")
 	@GetMapping("/list-ehr")
 	public Result<List<SmtEhrToStaffSetting>> getListEHR() {
 		return new Result<>(service.getListEHR());
@@ -45,8 +41,6 @@ public class SmtEhrToStaffSettingController extends BaseController {
 		return new Result<>(service.addListEHR(dto));
 	}
 
-	@Inner
-	@OpenApi("server")
 	@GetMapping("/list-dhr")
 	public Result<List<SmtEhrToStaffSetting>> getListDHR() {
 		return new Result<>(service.getListDHR());

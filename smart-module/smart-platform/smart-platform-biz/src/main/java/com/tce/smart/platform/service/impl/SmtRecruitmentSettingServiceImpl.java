@@ -83,7 +83,7 @@ public class SmtRecruitmentSettingServiceImpl extends ServiceImpl<SmtRecruitment
 
 				//翻译签约单位
 				if(!StringUtil.isNullOrEmpty(element.getWorkOrgId())) {
-					Result<OvwYsConComanyRespDTO> getByCompIdRs = remoteOvwYsConComanyService.getByCompId(Integer.parseInt(element.getWorkOrgId()), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					Result<OvwYsConComanyRespDTO> getByCompIdRs = remoteOvwYsConComanyService.getByCompId(Integer.parseInt(element.getWorkOrgId()), SecurityConstants.FROM_IN);
 					if (getByCompIdRs.isSuccess() && Objects.nonNull(getByCompIdRs.getData())) {
 						element.setWorkOrgName(getByCompIdRs.getData().getTitle());
 					}
@@ -105,7 +105,7 @@ public class SmtRecruitmentSettingServiceImpl extends ServiceImpl<SmtRecruitment
 		List<RecruitSetCompListVO> compList = null;
 		OvwYsConComanyReqDTO queryOvwYsConComany = new OvwYsConComanyReqDTO();
 		queryOvwYsConComany.setTitle(keyword);
-		Result<List<OvwYsConComanyRespDTO>> getListRs = remoteOvwYsConComanyService.getByTitle(queryOvwYsConComany, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<OvwYsConComanyRespDTO>> getListRs = remoteOvwYsConComanyService.getByTitle(queryOvwYsConComany, SecurityConstants.FROM_IN);
 		if (getListRs.isSuccess() && CollectionUtils.isNotEmpty(getListRs.getData())) {
 			compList = new ArrayList<>();
 			for (OvwYsConComanyRespDTO element : getListRs.getData()) {

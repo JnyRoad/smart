@@ -1,8 +1,0 @@
-# 仅用于本地与发布配置核对；不得填入真实 client_id、client_secret 或 Token。
-# 在 Nacos 的目标命名空间/分组中由授权服务器实际登记的 client_id 覆盖这些空占位值。
-security:
-  inner:
-    staff:
-      app-client-id: ""
-      upms-client-id: ""
-      schedule-client-id: ""

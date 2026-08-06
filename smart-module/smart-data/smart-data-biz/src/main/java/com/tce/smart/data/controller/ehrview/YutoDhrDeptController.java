@@ -4,7 +4,6 @@ package com.tce.smart.data.controller.ehrview;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.data.api.dto.ehrview.resp.OvwYsdepRespDTO;
 import com.tce.smart.ehrview.core.entity.OvwYsdep;
 import com.tce.smart.ehrview.core.entity.YutoDhrDept;
@@ -40,7 +39,6 @@ public class YutoDhrDeptController extends BaseController {
      * @return
      */
     @Inner
-    @OpenApi("server")
     @GetMapping("/comp")
     public Result<List<OvwYsdepRespDTO>> getByCompId(@RequestParam("compId") Integer compId){
         List<OvwYsdep> ovwYsdepList = yutoDhrDeptService.getByCompId(compId);
@@ -51,7 +49,6 @@ public class YutoDhrDeptController extends BaseController {
      * @return
      */
     @Inner
-    @OpenApi("server")
     @GetMapping("/info")
     public Result<OvwYsdepRespDTO> getByDepId(@RequestParam("depId") Integer depId){
         OvwYsdep ovwYsdep = yutoDhrDeptService.getByDepId(depId);
@@ -60,7 +57,6 @@ public class YutoDhrDeptController extends BaseController {
 
 
     @Inner
-    @OpenApi("server")
     @GetMapping("/parentDep")
     public Result<List<OvwYsdepRespDTO>> getParentDep(@RequestParam("depId") Integer depId){
 	 List<OvwYsdep> ovwYsdepList = yutoDhrDeptService.getParentDep(depId);

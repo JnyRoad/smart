@@ -18,14 +18,11 @@ import java.util.List;
 @FeignClient(value = ServiceNameConstants.SMART_DATA)
 public interface RemoteEvwLdxRegLeaveAllService {
 	@GetMapping("/evwLdxRegLeaveAll/list")
-	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result list(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/evwLdxRegLeaveAll/list/byDay")
-	Result<List<EvwLdxRegLeaveAllRespDTO>> listByDay(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result<List<EvwLdxRegLeaveAllRespDTO>> listByDay(@RequestParam("badge") String badge, @RequestParam("queryMonth") String queryMonth, @RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/evwLdxRegLeaveAll/detail")
-	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginTime") String beginTime, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result getByBadge(@RequestParam("badge") String badge, @RequestParam("beginTime") String beginTime, @RequestHeader(SecurityConstants.FROM) String from);
 }

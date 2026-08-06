@@ -30,10 +30,11 @@
 
 <script>
 import loadLrz from '@/util/load-lrz'
-import request from '@/router/axios'
+import request from "axios";
+import { validatenull } from "@/util/validate";
 const checkFaceAndCut = function(obj) {
   return request({
-    url: '/platform/regist/face/crop',
+    url: '/algorithm/out/face/cut',
     method: 'post',
     data: obj
   })

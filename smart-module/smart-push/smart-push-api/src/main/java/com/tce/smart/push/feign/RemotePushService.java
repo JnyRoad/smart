@@ -28,8 +28,7 @@ public interface RemotePushService {
      * @return
      */
     @PostMapping("/push/notice")
-    Result notice(@RequestBody NoticeMessageDTO noticeMessageDTO, @RequestHeader(SecurityConstants.FROM) String from,
-                  @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result notice(@RequestBody NoticeMessageDTO noticeMessageDTO, @RequestHeader(SecurityConstants.FROM) String from);
 
     /**
      * 单条消息透传,供ios推送调用
@@ -38,8 +37,7 @@ public interface RemotePushService {
      * @return
      */
     @PostMapping("/push/transmission")
-    Result transmission(@RequestBody ApnsMessageDTO apnsMessageDTO, @RequestHeader(SecurityConstants.FROM) String from,
-                        @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result transmission(@RequestBody ApnsMessageDTO apnsMessageDTO, @RequestHeader(SecurityConstants.FROM) String from);
 
     /**
      * 向所有用户推送消息
@@ -48,6 +46,5 @@ public interface RemotePushService {
      * @return
      */
     @PostMapping("/push/pushAll")
-    Result pushAll(@RequestBody PushMessageDTO pushMessageDTO, @RequestHeader(SecurityConstants.FROM) String from,
-                   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result pushAll(@RequestBody PushMessageDTO pushMessageDTO, @RequestHeader(SecurityConstants.FROM) String from);
 }

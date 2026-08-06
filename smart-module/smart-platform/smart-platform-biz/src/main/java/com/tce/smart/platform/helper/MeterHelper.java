@@ -48,8 +48,7 @@ public class MeterHelper {
 		dispatcherDTO.setDeviceId(deviceId.toString());
 		dispatcherDTO.setData(deviceInfo);
 		try {
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 			log.info("水电表集中器(外置阀门)是否在线result: {}", result);
 			if (!result.isSuccess()) {
 				throw new SmartException("接口连接失败，集中器不在线或未连接");
@@ -116,8 +115,7 @@ public class MeterHelper {
 		dispatcherDTO.setDeviceId(deviceCode);
 		dispatcherDTO.setData(dataDTO);
 		try {
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 
 			if (!result.isSuccess()) {
 				log.info("水表阀门{}控制请求失败", deviceCode);
@@ -171,8 +169,7 @@ public class MeterHelper {
 		dispatcherDTO.setDeviceId(deviceCode);
 		dispatcherDTO.setData(dataDTO);
 		try {
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 
 			if (!result.isSuccess()) {
 				log.info("电表闸门{}控制请求失败", deviceCode);
@@ -219,8 +216,7 @@ public class MeterHelper {
 		dispatcherDTO.setData(dataDTO);
 		try {
 			log.info("水电表集中器操作档案数据：{}", dispatcherDTO);
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
 
 			if (!result.isSuccess()) {
 				log.info("水电表集中器{}操作档案请求请求失败", deviceId);

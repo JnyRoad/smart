@@ -1,16 +1,14 @@
 package com.tce.smart.app.controller.fore;
 
-import com.tce.smart.app.ao.fore.PhoneChangeCodeReqDTO;
-import com.tce.smart.app.ao.fore.PhoneChangeConfirmReqDTO;
-import com.tce.smart.app.ao.fore.PhoneChangeNewPhoneReqDTO;
 import com.tce.smart.app.service.fore.SettingService;
 import com.tce.smart.app.vo.fore.CheckVersionVo;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-import javax.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * App设置模块控制器
@@ -35,28 +33,38 @@ public class SettingServiceController extends BaseController {
 		return new Result<>(settingService.checkVersion(appId,version));
 	}
 
-	/** 向当前会话绑定的旧手机号发送验证码，手机号不会出现在请求体、URL 或日志中。 */
-	@PostMapping("/phone/old/send")
-	public Result<Boolean> sendOldPhoneCode() {
-		return success(settingService.sendOldPhoneCode());
+	/**
+	 * 验证原有手机号码
+	 * @param mobile
+	 * @param smsCode
+	 * @return
+	 */
+	@GetMapping("/updatephone/verify/oldmobile/smscode")
+	public Result<Boolean> checkOldMobile(@RequestParam(value = "mobile", required = true) String mobile,
+										  @RequestParam(value = "smsCode", required = true) String smsCode){
+
+		return success(settingService.verifyOldMobile(mobile,smsCode));
 	}
 
-	/** 校验旧手机号验证码并建立服务端短时授权，后续新号操作必须检查该授权。 */
-	@PostMapping("/phone/old/verify")
-	public Result<Boolean> verifyOldPhoneCode(@Valid @RequestBody PhoneChangeCodeReqDTO request) {
-		return success(settingService.verifyOldPhoneCode(request.getSmsCode()));
+	/**
+	 * 新手机号发送手机验证码
+	 * @param mobile
+	 * @return
+	 */
+	@GetMapping("/updatephone/send/smscode")
+	public Result<Boolean> sendSmsCode(@RequestParam(value = "mobile", required = true) String mobile){
+		return success(settingService.sendMobileMsg(mobile));
 	}
-
-	/** 仅在旧手机号已验证的会话里，向新手机号发送验证码。 */
-	@PostMapping("/phone/new/send")
-	public Result<Boolean> sendNewPhoneCode(@Valid @RequestBody PhoneChangeNewPhoneReqDTO request) {
-		return success(settingService.sendNewPhoneCode(request.getMobile()));
-	}
-
-	/** 双重验证后更新新手机号；成功后销毁旧手机号验证状态。 */
-	@PostMapping("/phone/new/confirm")
-	public Result<Boolean> confirmNewPhone(@Valid @RequestBody PhoneChangeConfirmReqDTO request) {
-		return success(settingService.confirmNewPhone(request.getMobile(), request.getSmsCode()));
+	/***
+	 * 验证验证码并保存新的手机号码
+	 * @param mobile
+	 * @param smsCode
+	 * @return
+	 */
+	@GetMapping("/updatephone/update")
+	public Result<Boolean> updateNewMobile(@RequestParam(value = "mobile", required = true) String mobile,
+									 @RequestParam(value = "smsCode", required = true) String smsCode){
+		return success(settingService.updateNewPhone(mobile,smsCode));
 	}
 
 

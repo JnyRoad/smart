@@ -90,8 +90,7 @@ public class SmtParkingCorrectionServiceImpl extends ServiceImpl<SmtParkingCorre
 		dispatcherDTO.setParkId(entity.getParkId());
 		dispatcherDTO.setDeviceId(entity.getParkingId());
 		dispatcherDTO.setData(parkingLotUpdateInfo);
-		Result backResult = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result backResult = remoteDispatcherService.dispatch(dispatcherDTO,SecurityConstants.FROM_IN);
 
 		log.debug("车位校验结果：{}",backResult.isSuccess());
 		return result;
@@ -121,8 +120,7 @@ public class SmtParkingCorrectionServiceImpl extends ServiceImpl<SmtParkingCorre
 			dispatcherDTO.setParkId(park.getId());
 			dispatcherDTO.setData(queryParkingLotReq);
 			//查询停车场当前车位信息
-			Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN,
-					SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result result = remoteDispatcherService.dispatch(dispatcherDTO,SecurityConstants.FROM_IN);
 
 			log.debug("初始化车位校验结果：{}", JSONUtil.toJsonStr(result));
 			if(ObjectUtil.isNotNull(result) && result.getCode() == ParkingCorrectionConstants.SUCCESS) {

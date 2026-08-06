@@ -26,10 +26,9 @@ public interface RemoteLvwAttendYcxxService {
 	 * @return Result
 	 */
 	@GetMapping("/attend/ycxx/info")
-	Result<LvwAttendYcxxSimpleRespDTO> info(@RequestParam("badge") String badge, @RequestParam("startDate") String startDate,
+    Result<LvwAttendYcxxSimpleRespDTO> info(@RequestParam("badge") String badge, @RequestParam("startDate") String startDate,
 											@RequestParam("endDate") String endDate,
-											@RequestHeader(SecurityConstants.FROM) String from,
-											@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+											@RequestHeader(SecurityConstants.FROM) String from);
 	/**
 	 * 补卡全部查询
 	 *
@@ -40,7 +39,6 @@ public interface RemoteLvwAttendYcxxService {
 	 */
 	@GetMapping("/attend/ycxx/infoAll")
 	Result<List<LvwAttendYcxxFullRespDTO>> infoAll(@RequestParam("startDate") String startDate,
-											   @RequestParam("endDate") String endDate, @RequestHeader(SecurityConstants.FROM) String from,
-											   @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+												   @RequestParam("endDate") String endDate, @RequestHeader(SecurityConstants.FROM) String from);
 
 }

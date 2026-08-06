@@ -105,7 +105,7 @@
 |---|---|---|---|
 | 详情 | GET | platform `/articlesrelease/detail/{id}` | — |
 | 室友/宿管审批 | GET | platform `/articlesrelease/status/update` | approveBadge, id, status(2/3), remark |
-| 保安放行 | POST | platform `/articlesrelease/status/security/update` | guardOneImg/guardTwoImg/guardThreeImg, id, status(4/5), remark；保安工号与园区范围由认证主体确定，客户端不得提交 badge、parkId |
+| 保安放行 | POST | platform `/articlesrelease/status/security/update` | guardOneImg/guardTwoImg/guardThreeImg, id, parkId, status(4/5), badge, remark |
 
 ---
 

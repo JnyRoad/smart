@@ -11,7 +11,6 @@ import com.tce.smart.algorithm.entity.AlgorithmConfig;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
@@ -37,7 +36,6 @@ public class AlgorithmConfigController extends BaseController {
 	 * @return
 	 */
 	@ApiOperation("获取算法列表")
-	@PreAuthorize("@pms.hasPermission('algorithm_config_manage')")
 	@GetMapping("/algorithms")
 	public Result<List<AlgorithmConfigListDTO>> algorithms(@RequestParam(value = "type", required = false) String type) {
 		List<AlgorithmConfig> iPage = algorithmConfigService.getList(type);
@@ -52,7 +50,6 @@ public class AlgorithmConfigController extends BaseController {
 	 * @return
 	 */
 	@ApiOperation("获取算法分页列表")
-	@PreAuthorize("@pms.hasPermission('algorithm_config_manage')")
 	@GetMapping("/page")
 	public Result<IPage<AlgorithmConfigListDTO>> getAlgorithmConfigPage(Page<AlgorithmConfig> page, @RequestParam(value = "algorithmType", required = false) String algorithmType) {
 		IPage<AlgorithmConfig> iPage = algorithmConfigService.getPageList(page, algorithmType);
@@ -67,7 +64,6 @@ public class AlgorithmConfigController extends BaseController {
 	 * @return Result
 	 */
 	@ApiOperation("获取算法详情")
-	@PreAuthorize("@pms.hasPermission('algorithm_config_manage')")
 	@GetMapping("/{algorithmType}")
 	public Result<AlgorithmConfigDetailDTO> getById(@PathVariable("algorithmType") String algorithmType) {
 		AlgorithmConfig algorithmConfig = algorithmConfigService.getByAlgorithmType(algorithmType);
@@ -82,7 +78,6 @@ public class AlgorithmConfigController extends BaseController {
 	 */
 	@SysLog("修改算法配置")
 	@ApiOperation("修改算法配置")
-	@PreAuthorize("@pms.hasPermission('algorithm_config_manage')")
 	@PostMapping
 	public Result<Boolean> updateById(@RequestBody @Valid UpdateAlgorithmConfigDTO updateAlgorithmConfigDTO) {
 		algorithmConfigService.updateConfig(updateAlgorithmConfigDTO);

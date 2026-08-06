@@ -21,8 +21,7 @@ public interface RemoteVisitorTaskService {
 	 * @return
 	 */
 	@GetMapping("/visitorTask/overTime")
-    Result visitorOverTime(@RequestParam("parkId") Integer parkId, @RequestHeader(SecurityConstants.FROM) String from,
-            @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result visitorOverTime(@RequestParam("parkId") Integer parkId, @RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 访客超时未离开，给被访人发短息
@@ -30,8 +29,7 @@ public interface RemoteVisitorTaskService {
 	 * @return
 	 */
 	@GetMapping("/visitorTask/overTimeNoLeave")
-    Result overTimeNoLeave(@RequestParam("parkId") Integer parkId, @RequestHeader(SecurityConstants.FROM) String from,
-            @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result overTimeNoLeave(@RequestParam("parkId") Integer parkId, @RequestHeader(SecurityConstants.FROM) String from);
 
 	/**
 	 * 访客已经到达
@@ -44,8 +42,7 @@ public interface RemoteVisitorTaskService {
 	 * @return
 	 */
 	@GetMapping("/visitorTask/remind")
-    Result visitorRemind(@RequestParam("parkId") Integer parkId, @RequestHeader(SecurityConstants.FROM) String from,
-            @RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    Result visitorRemind(@RequestParam("parkId") Integer parkId, @RequestHeader(SecurityConstants.FROM) String from);
 
 
 
@@ -55,7 +52,6 @@ public interface RemoteVisitorTaskService {
 	 * @return
 	 */
 	@GetMapping("/visitorTask/toEmail")
-	Result toEmail(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+	Result toEmail(@RequestHeader(SecurityConstants.FROM) String from);
 
 }

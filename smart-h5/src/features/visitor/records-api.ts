@@ -49,14 +49,6 @@ export interface ApplyRecordDetail {
   submitTime: string
 }
 
-/** 仅用于展示本人通行二维码的最小响应，禁止复用包含预约详情的遗留接口。 */
-export interface VisitorPassCode {
-  applyId: string
-  valid: boolean
-  qrCode?: string
-  smsCode?: string
-}
-
 export interface ApprovalNode {
   title: string
   state: ApprovalNodeState
@@ -193,17 +185,6 @@ export async function fetchApplyDetail(applyId: string): Promise<Envelope<ApplyR
   return request({
     module: 'platform',
     url: '/admittance/apply/app/applyDetail',
-    params: { applyId },
-    auth: 'none',
-    headers: tokenHeaders(),
-  })
-}
-
-/** 查询二维码仍必须由 queryToken 绑定到申请手机号，裸 applyId 不能获取任何数据。 */
-export async function fetchVisitorPassCode(applyId: string): Promise<Envelope<VisitorPassCode>> {
-  return request({
-    module: 'platform',
-    url: '/admittance/apply/app/passCode',
     params: { applyId },
     auth: 'none',
     headers: tokenHeaders(),

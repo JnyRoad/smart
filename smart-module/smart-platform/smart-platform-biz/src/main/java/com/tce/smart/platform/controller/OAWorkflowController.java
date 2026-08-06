@@ -3,7 +3,6 @@ package com.tce.smart.platform.controller;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.core.ao.WorkFlowAO;
 import com.tce.smart.platform.service.IOAWorkflowService;
 import com.tce.smart.platform.service.oacallback.DispatchResult;
@@ -64,7 +63,6 @@ public class OAWorkflowController extends BaseController {
 
 	/** 过期回调日志清理（90 天整行删，仅供 smart-schedule 定时任务调用，spec 2026-07-05 §3.2） */
 	@Inner
-	@OpenApi("server")
 	@GetMapping("/callback/log/clean")
 	public Result cleanExpiredLogs() {
 		return success(logService.cleanExpiredLogs());

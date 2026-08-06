@@ -344,7 +344,7 @@ public class SmtStaffRechargeServiceImpl extends ServiceImpl<SmtStaffRechargeMap
 		List<String> lgBuIds = lgParkBuIds.stream().filter(a -> buIds.contains(a)).collect(Collectors.toList());
 		//查询所有BU上月考勤数据
 		Result<List<AvaGetskyPayYSHRDTO>> result =
-				remoteAvaGetskyPayService.monthList(preMonthFirstDay, buIds, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				remoteAvaGetskyPayService.monthList(preMonthFirstDay, buIds, SecurityConstants.FROM_IN);
 		List<AvaGetskyPayYSHRDTO> payList = result.getData();
 		if (CollectionUtils.isEmpty(payList)) {
 			this.destroyKey("sync");
@@ -361,7 +361,7 @@ public class SmtStaffRechargeServiceImpl extends ServiceImpl<SmtStaffRechargeMap
 			String badge = staff.getBadge();
 			List<SmtStaffRecharge> reRecharges = this.baseMapper.getByBadge(preLocalDate, badge);
 			//TODO检查餐补
-			Result<Boolean> booleanResult = ovwYsCallOwanceDetailsService.getInfoByBadge(badge, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<Boolean> booleanResult = ovwYsCallOwanceDetailsService.getInfoByBadge(badge, SecurityConstants.FROM_IN);
 			Boolean b = booleanResult.getData();
 			if (CollUtil.isNotEmpty(reRecharges)) {
 				SmtStaffRecharge recharge = reRecharges.get(0);
@@ -449,7 +449,7 @@ public class SmtStaffRechargeServiceImpl extends ServiceImpl<SmtStaffRechargeMap
 		AvaGetskyPayYSHRReqDTO dto = new AvaGetskyPayYSHRReqDTO();
 		dto.setStartTime(preMonthFirstDay);
 		dto.setBadge(badgeList);
-		Result<List<AvaGetskyPayYSHRDTO>> result = remoteAvaGetskyPayService.monthListByBadge(dto, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<AvaGetskyPayYSHRDTO>> result = remoteAvaGetskyPayService.monthListByBadge(dto, SecurityConstants.FROM_IN);
 		List<AvaGetskyPayYSHRDTO> pay = result.getData();
 		if (Objects.isNull(pay) || CollUtil.isEmpty(pay)) {
 			throw new TCEException("上月考勤数据未生成或工号有误");
@@ -530,7 +530,7 @@ public class SmtStaffRechargeServiceImpl extends ServiceImpl<SmtStaffRechargeMap
 	 * @return
 	 */
 	private List<String> getYsCallOwance() {
-		Result<List<OvwYsCallOwanceDetailsDTO>> listResult = ovwYsCallOwanceDetailsService.getInfoByTimeList(10, SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+		Result<List<OvwYsCallOwanceDetailsDTO>> listResult = ovwYsCallOwanceDetailsService.getInfoByTimeList(10);
 		if (Objects.nonNull(listResult.getData())) {
 			List<OvwYsCallOwanceDetailsDTO> list = listResult.getData();
 			List<String> badges = list.stream().map(OvwYsCallOwanceDetailsDTO::getBadge).collect(Collectors.toList());
@@ -742,7 +742,7 @@ public class SmtStaffRechargeServiceImpl extends ServiceImpl<SmtStaffRechargeMap
 		}
 		//计算餐补
 		if (Objects.nonNull(staff.getPzid())) {
-			Result<EvwCcdFlstandardDTO> standardResult = remoteEvwCcdFlstandardService.getById(staff.getJcheId(), staff.getPzid(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+			Result<EvwCcdFlstandardDTO> standardResult = remoteEvwCcdFlstandardService.getById(staff.getJcheId(), staff.getPzid(), SecurityConstants.FROM_IN);
 			if (Objects.nonNull(standardResult.getData())) {
 				String standards = standardResult.getData().getStandard();
 				if (Objects.isNull(standards) || StringUtils.isBlank(standards) || standards.equals("")) {
@@ -791,7 +791,7 @@ public class SmtStaffRechargeServiceImpl extends ServiceImpl<SmtStaffRechargeMap
 					recharge.setBlank(" ");
 					return;
 				} else {
-					Result<EvwCcdFlstandardDTO> standardResult = remoteEvwCcdFlstandardService.getById(staff.getJcheId(), staff.getPzid(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+					Result<EvwCcdFlstandardDTO> standardResult = remoteEvwCcdFlstandardService.getById(staff.getJcheId(), staff.getPzid(), SecurityConstants.FROM_IN);
 					if (Objects.nonNull(standardResult.getData())) {
 						String standards = standardResult.getData().getStandard();
 						if (Objects.isNull(standards) || StringUtils.isBlank(standards) || standards.equals("")) {
@@ -848,7 +848,7 @@ public class SmtStaffRechargeServiceImpl extends ServiceImpl<SmtStaffRechargeMap
 						recharge.setBlank(" ");
 						return;
 					} else {
-						Result<EvwCcdFlstandardDTO> standardResult = remoteEvwCcdFlstandardService.getById(staff.getJcheId(), staff.getPzid(), SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+						Result<EvwCcdFlstandardDTO> standardResult = remoteEvwCcdFlstandardService.getById(staff.getJcheId(), staff.getPzid(), SecurityConstants.FROM_IN);
 						if (Objects.nonNull(standardResult.getData())) {
 							String standards = standardResult.getData().getStandard();
 							if (Objects.isNull(standards) || StringUtils.isBlank(standards) || standards.equals("")) {

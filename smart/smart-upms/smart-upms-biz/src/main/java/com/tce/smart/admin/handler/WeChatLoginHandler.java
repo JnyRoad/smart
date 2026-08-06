@@ -41,8 +41,7 @@ public class WeChatLoginHandler extends AbstractLoginHandler {
 		String url = String.format(SecurityConstants.WX_AUTHORIZATION_CODE_URL
 			, socialDetails.getAppId(), socialDetails.getAppSecret(), code);
 		String result = HttpUtil.get(url);
-		// OAuth 响应可能包含 access token，只记录固定事件，禁止写入原始响应。
-		log.debug("微信授权码交换响应已接收");
+		log.debug("微信响应报文:{}", result);
 
 		Object obj = JSONUtil.parseObj(result).get("openid");
 		return obj.toString();

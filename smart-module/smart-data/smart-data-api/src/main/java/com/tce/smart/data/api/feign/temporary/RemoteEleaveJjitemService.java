@@ -24,10 +24,8 @@ public interface RemoteEleaveJjitemService {
 	 * @param from
 	 * @return Result
 	 */
-    @PostMapping("/eleaveJjitem/internal/save")
-	Result<Boolean> save(@Valid @RequestBody EleaveJjitemReqDTO eleaveJjitemReqDTO,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    @PostMapping("/eleaveJjitem/save")
+	Result<Boolean> save(@Valid @RequestBody EleaveJjitemReqDTO eleaveJjitemReqDTO, @RequestHeader(SecurityConstants.FROM) String from);
 
     /**
      * 批量保存工作交接项信息
@@ -35,9 +33,7 @@ public interface RemoteEleaveJjitemService {
      * @param from
      * @return Result
      */
-    @PostMapping("/eleaveJjitem/internal/save/batch")
-	Result<Boolean> save(@RequestBody List<EleaveJjitemReqDTO> entityList,
-			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+    @PostMapping("/eleaveJjitem/save/batch")
+	Result<Boolean> save(@RequestBody List<EleaveJjitemReqDTO> entityList, @RequestHeader(SecurityConstants.FROM) String from);
 
 }

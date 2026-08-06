@@ -16,9 +16,8 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.common.core.util.StringUtils;
 import com.tce.smart.common.security.util.SecurityUtils;
-import com.tce.smart.platform.api.dto.resp.InternalStaffModuleRespDTO;
+import com.tce.smart.platform.api.dto.SmtStaffDTO;
 import com.tce.smart.platform.api.dto.resp.SmtParkRespDTO;
-import com.tce.smart.platform.api.feign.RemoteStaffInternalService;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.tool.exception.TCEException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,9 +43,6 @@ public class ForeModuleServiceImpl implements ForeModuleService {
 
 	@Autowired
 	private RemoteStaffService remoteStaffService;
-
-	@Autowired
-	private RemoteStaffInternalService remoteStaffInternalService;
 
 	private final String[] excludeServiceMoudle = {"正常离职","请假","调休(月薪)","加班(月薪)","出差查询","考勤补卡","工资查询","部门考勤","补贴申请","EHR自助查询","厂牌管理","招聘","异常离职","消费记录","奖惩记录"};
 
@@ -77,12 +73,8 @@ public class ForeModuleServiceImpl implements ForeModuleService {
 		busSubModuleDetaiList.removeIf(item -> item.getModuleName().equals("返厂确认"));
 
 		//查询员工信息
-		Result<InternalStaffModuleRespDTO> moduleStaffResponse = remoteStaffInternalService.getModuleStaff(badge,
-				SecurityConstants.FROM_IN, SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED, "fore-module");
-		if (!moduleStaffResponse.isSuccess() || moduleStaffResponse.getData() == null) {
-			throw new TCEException("获取员工模块资料异常");
-		}
-		InternalStaffModuleRespDTO moduleStaff = moduleStaffResponse.getData();
+		Result<SmtStaffDTO> simpleSttaffByBadge = remoteStaffService.getSimpleSttaffByBadge(badge);
+		SmtStaffDTO smtStaffDTO = simpleSttaffByBadge.getData();
 		//石岩员工隐藏部分服务模块
 		Result<List<SmtParkRespDTO>> staffPark = remoteStaffService.getStaffPark(badge, SecurityConstants.FROM_IN);
 		if(staffPark.isSuccess()){
@@ -90,7 +82,7 @@ public class ForeModuleServiceImpl implements ForeModuleService {
 			for(Object obj : staffParkData){
 				JSONObject jsonObject = JSONUtil.parseObj(obj);
 				SmtParkRespDTO respDTO = JSONUtil.toBean(jsonObject,SmtParkRespDTO.class);
-				if(respDTO.getId().intValue() == 161 && !"171".equals(moduleStaff.getCompId())){
+				if(respDTO.getId().intValue() == 161 && !smtStaffDTO.getCompId().equals("171")){
 					//石岩员工
 					List<String> strings = Arrays.asList(excludeServiceMoudle);
 					List<SubModuleDetailVo> tempBusSubModuleDetaiList = busSubModuleDetaiList.stream().filter(s ->

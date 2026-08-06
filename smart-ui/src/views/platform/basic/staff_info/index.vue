@@ -30,6 +30,9 @@
             <el-form-item label="姓名" prop="name">
               <el-input v-model="searchForm.name" placeholder="姓名" clearable></el-input>
             </el-form-item>
+            <el-form-item label="手机号码" prop="phone">
+              <el-input v-model="searchForm.phone" placeholder="手机号码" clearable></el-input>
+            </el-form-item>
             <el-form-item label="所属园区/BU/部门" prop="depIds">
               <el-cascader expand-trigger="hover" :options="compOptions" :show-all-levels="false" :change-on-select="true" v-model="depIds" clearable></el-cascader>
             </el-form-item>
@@ -47,10 +50,12 @@
                 <el-option v-for="item in staffStatusData" :key="item.value" :label="item.label" :value="item.value"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="是否有照片" prop="hasFace">
-              <el-select v-model="searchForm.hasFace" placeholder="是否有照片" clearable>
-                <el-option label="是" :value="true"></el-option>
-                <el-option label="否" :value="false"></el-option>
+            <el-form-item label="是否有照片" prop="facePicId">
+              <el-select v-model="searchForm.facePicId" placeholder="是否有照片" clearable>
+                <!-- value="1" 字符串类型 -->
+                <!-- :value="1" 数值类型 -->
+                <el-option label="是" value="1"></el-option>
+                <el-option label="否" value="0"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item label="入职时间" prop="timeSlot">
@@ -80,8 +85,8 @@
           <template slot-scope="scope" slot="status">
             <span>{{ scope.row.status | staffStatusInit }}</span>
           </template>
-          <template slot-scope="scope" slot="hasFace">
-            <span>{{ scope.row.hasFace ? '是' : '否' }}</span>
+          <template slot-scope="scope" slot="facePicId">
+            <span>{{ scope.row.facePicId ? '是' : '否' }}</span>
           </template>
           <template slot-scope="scope" slot="deviceAuth">
             <span>{{ scope.row.deviceAuth || '未分配' }}</span>
@@ -341,11 +346,11 @@ export default {
         compId: undefined,
         depId: undefined,
         jcheId: undefined,
+        phone: undefined,
         jobName: undefined,
         name: undefined,
         badges: undefined,
         status: undefined,
-        hasFace: undefined,
         timeSlot: undefined,
         startTime: undefined,
         endTime: undefined
@@ -853,7 +858,7 @@ export default {
 
       let nullFaceArr = [] //没有人脸照片的员工集合
       ids.forEach(function (element) {
-        if (!element.hasFace) {
+        if (_this.validatenull(element.facePicId)) {
           nullFaceArr.push(element.badge)
         }
       }, this)
@@ -888,7 +893,7 @@ export default {
 
       let nullFaceArr = [] //没有人脸照片的员工集合
       ids.forEach(function (element) {
-        if (!element.hasFace) {
+        if (_this.validatenull(element.facePicId)) {
           nullFaceArr.push(element.badge)
         }
       }, this)
@@ -973,7 +978,7 @@ export default {
         this.exportLoading = true
         const { export_json_to_excel } = require('@/vendor/Export2Excel')
         const tHeader = ['工号', '姓名', 'BU', '部门', '职层', '岗位', '入职日期', '员工状态', '所属园区', '是否有照片', '通关权限', 'APP权限']
-        const filterVal = ['badge', 'name', 'compName', 'depName', 'jcheName', 'jobName', 'createTime', 'status', 'parkName', 'hasFace', 'deviceAuth', 'appAuth']
+        const filterVal = ['badge', 'name', 'compName', 'depName', 'jcheName', 'jobName', 'createTime', 'status', 'parkName', 'facePicId', 'deviceAuth', 'appAuth']
 
         let params = Object.assign(
           {
@@ -988,7 +993,7 @@ export default {
             const list = response.data.data.records
             list.forEach(function (item) {
               item.status = staffStatusInit(item.status)
-              item.hasFace = item.hasFace ? '有' : '无'
+              item.facePicId = item.facePicId ? '有' : '无'
               item.deviceAuth = item.deviceAuth ? item.deviceAuth : '未分配'
               item.appAuth = item.appAuth ? item.appAuth : '未分配'
             })

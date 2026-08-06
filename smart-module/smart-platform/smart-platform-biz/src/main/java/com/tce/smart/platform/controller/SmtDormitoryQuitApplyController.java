@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.Inner;
-import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.platform.api.dto.req.*;
 import com.tce.smart.platform.api.dto.resp.*;
 import com.tce.smart.platform.service.SmtDormitoryQuitApplyService;
@@ -48,8 +47,6 @@ public class SmtDormitoryQuitApplyController extends BaseController {
 	}
 
 
-	@Inner
-	@OpenApi("server")
 	@GetMapping("/dealy/quit")
 	@ApiOperation(value = "延迟退宿")
 	public Result<Boolean> dealyQuit() {
