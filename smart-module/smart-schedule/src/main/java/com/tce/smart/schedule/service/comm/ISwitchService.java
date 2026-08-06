@@ -21,6 +21,16 @@ public interface ISwitchService {
 
 	void release(TimerTaskEnum timerTask, String lockToken);
 
+	/**
+	 * 仅当当前令牌仍持有锁时续租，避免延长已经被其他实例接管的锁。
+	 */
+	boolean renew(TimerTaskEnum timerTask, String lockToken, long timeout, TimeUnit timeUnit);
+
+	/**
+	 * 只读取指定任务锁是否存在，用于调度优先级让路，不承担互斥正确性。
+	 */
+	boolean isLocked(TimerTaskEnum timerTask);
+
 	LocalDateTime saveOrGetKey(String key);
 
 	void recordSyncTime(String key, LocalDateTime lastTime);

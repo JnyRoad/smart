@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.energy.SmtEnergyParkDayItemMapper">
+	<insert id="mergeItem" parameterType="com.tce.smart.platform.core.entity.energy.SmtEnergyParkDayItem">
+		MERGE INTO SMT_ENERGY_PARK_DAY_ITEM t USING (SELECT #{id} id,#{parkId} park_id,#{statDate} stat_date,#{resourceType} resource_type,#{unit} unit,#{meterSource} meter_source,#{meterId} meter_id,#{meterDayFactId} meter_day_fact_id,#{usageValue} usage_value,#{ruleId} rule_id,#{ruleVersion} rule_version,#{ruleDecision} rule_decision,#{ruleReason} rule_reason,#{calculatedAt} calculated_at FROM dual) s ON(t.PARK_ID=s.park_id AND t.STAT_DATE=s.stat_date AND t.RESOURCE_TYPE=s.resource_type AND t.UNIT=s.unit AND t.METER_SOURCE=s.meter_source AND t.METER_ID=s.meter_id)
+		WHEN MATCHED THEN UPDATE SET METER_DAY_FACT_ID=s.meter_day_fact_id,USAGE_VALUE=s.usage_value,RULE_ID=s.rule_id,RULE_VERSION=s.rule_version,RULE_DECISION=s.rule_decision,RULE_REASON=s.rule_reason,CALCULATED_AT=s.calculated_at
+		WHEN NOT MATCHED THEN INSERT(ID,PARK_ID,STAT_DATE,RESOURCE_TYPE,UNIT,METER_SOURCE,METER_ID,METER_DAY_FACT_ID,USAGE_VALUE,RULE_ID,RULE_VERSION,RULE_DECISION,RULE_REASON,CALCULATED_AT) VALUES(s.id,s.park_id,s.stat_date,s.resource_type,s.unit,s.meter_source,s.meter_id,s.meter_day_fact_id,s.usage_value,s.rule_id,s.rule_version,s.rule_decision,s.rule_reason,s.calculated_at)
+	</insert>
+</mapper>

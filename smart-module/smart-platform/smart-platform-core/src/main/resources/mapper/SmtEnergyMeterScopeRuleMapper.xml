@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.energy.SmtEnergyMeterScopeRuleMapper">
+	<select id="selectEffectiveRule" resultType="com.tce.smart.platform.core.entity.energy.SmtEnergyMeterScopeRule">
+		SELECT * FROM (SELECT ID,PARK_ID,METER_SOURCE,METER_ID,RESOURCE_TYPE,UNIT,EFFECTIVE_START_DATE,EFFECTIVE_END_DATE,INCLUDE_FLAG,METER_GROUP_ID,PARENT_METER_ID,RULE_VERSION,REASON,CREATE_TIME,UPDATE_TIME FROM SMT_ENERGY_METER_SCOPE_RULE WHERE METER_SOURCE=#{meterSource} AND METER_ID=#{meterId} AND EFFECTIVE_START_DATE &lt;= #{statDate} AND (EFFECTIVE_END_DATE IS NULL OR EFFECTIVE_END_DATE &gt; #{statDate}) ORDER BY RULE_VERSION DESC,ID DESC) WHERE ROWNUM=1
+	</select>
+	<select id="selectEffectiveRulesForPark" resultType="com.tce.smart.platform.core.entity.energy.SmtEnergyMeterScopeRule">
+		SELECT ID,PARK_ID,METER_SOURCE,METER_ID,RESOURCE_TYPE,UNIT,EFFECTIVE_START_DATE,EFFECTIVE_END_DATE,INCLUDE_FLAG,METER_GROUP_ID,PARENT_METER_ID,RULE_VERSION,REASON,CREATE_TIME,UPDATE_TIME FROM SMT_ENERGY_METER_SCOPE_RULE WHERE PARK_ID=#{parkId} AND METER_SOURCE=#{meterSource} AND EFFECTIVE_START_DATE &lt;= #{statDate} AND (EFFECTIVE_END_DATE IS NULL OR EFFECTIVE_END_DATE &gt; #{statDate}) ORDER BY METER_ID,RULE_VERSION DESC,ID DESC
+	</select>
+</mapper>

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
@@ -263,6 +264,8 @@ public class WaterEleHelper {
             eleReading.put("eleMeterCurrVal", eleReadingDTO.getCurrentReading());
             // 采集时间
             eleReading.put("collectTime", eleReadingDTO.getCollectTime());
+			// 事件标识随同本次构造的 payload 传递，Kafka 及下游重试不得重新生成。
+			assignSourceEventId(eleReading);
             kafka(EventEnum.ELE_REPEATER_READ.getKey(), JSONUtil.toJsonStr(eleReading));
         } catch (Exception e) {
             log.error("电表集中器连接超时，读取失败", e);
@@ -392,6 +395,8 @@ public class WaterEleHelper {
             waterReading.put("valveState", waterReadingDTO.getIsOpen());
             // 采集时间
             waterReading.put("collectTime", waterReadingDTO.getCollectTime());
+			// 事件标识随同本次构造的 payload 传递，Kafka 及下游重试不得重新生成。
+			assignSourceEventId(waterReading);
             kafka(EventEnum.WATER_REPEATER_READ.getKey(), JSONUtil.toJsonStr(waterReading));
         } catch (Exception e) {
             log.error("水表集中器连接超时，读取失败", e);
@@ -617,4 +622,11 @@ public class WaterEleHelper {
     private void kafka(String key, String data) {
         kafkaProducer.sendMessage(bridgeEventTopic, key, data);
     }
+
+	/** 为单条读数 payload 创建一次来源事件标识。 */
+	private void assignSourceEventId(JSONObject reading) {
+		if (!reading.containsKey("sourceEventId")) {
+			reading.put("sourceEventId", UUID.randomUUID().toString());
+		}
+	}
 }

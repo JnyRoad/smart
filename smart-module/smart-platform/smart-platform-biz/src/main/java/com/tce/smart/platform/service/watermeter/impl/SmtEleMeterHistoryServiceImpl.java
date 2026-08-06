@@ -3,10 +3,12 @@ package com.tce.smart.platform.service.watermeter.impl;
 import cn.afterturn.easypoi.excel.ExcelExportUtil;
 import cn.afterturn.easypoi.excel.entity.ExportParams;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tce.smart.common.core.constant.CommonConstants;
@@ -23,6 +25,8 @@ import com.tce.smart.platform.core.entity.watermeter.SmtEleMeter;
 import com.tce.smart.platform.core.entity.watermeter.SmtEleMeterHistory;
 import com.tce.smart.platform.core.mapper.watermeter.SmtEleMeterHistoryMapper;
 import com.tce.smart.platform.helper.SdChangeHelper;
+import com.tce.smart.platform.service.energy.EnergyProjectionService;
+import com.tce.smart.platform.service.energy.EnergyReadingIngestionService;
 import com.tce.smart.platform.service.watermeter.SmtEleMeterHistoryService;
 import com.tce.smart.platform.service.watermeter.SmtEleMeterService;
 import com.tce.smart.platform.utils.NumberUtils;
@@ -37,9 +41,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.List;
 import java.util.Objects;
 
@@ -55,6 +63,11 @@ public class SmtEleMeterHistoryServiceImpl extends ServiceImpl<SmtEleMeterHistor
 	private SmtEleMeterService eleMeterService;
 	@Autowired
 	private SdChangeHelper sdChangeHelper;
+	@Autowired
+	private EnergyReadingIngestionService energyReadingIngestionService;
+	@Autowired
+	private EnergyProjectionService energyProjectionService;
+	private static final DateTimeFormatter COLLECT_TIME_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss").withResolverStyle(ResolverStyle.STRICT);
 	/** 水电表生产阈值 */
 	@Value("${smart.meter.prod}")
 	private Integer prod;
@@ -105,23 +118,98 @@ public class SmtEleMeterHistoryServiceImpl extends ServiceImpl<SmtEleMeterHistor
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public Boolean saveCurrentReading(EleMeterDataUpdateDTO dto) {
-		SmtEleMeter eleMeter = eleMeterService.getByConcentratorIdAndSeq(Long.parseLong(dto.getDeviceCode()), dto.getEleMeterSeq());
+		ReadingInput input = validateReading(dto == null ? null : dto.getDeviceCode(), dto == null ? null : dto.getEleMeterSeq(),
+				dto == null ? null : dto.getEleMeterCurrVal(), dto == null ? null : dto.getCollectTime());
+		SmtEleMeter eleMeter = eleMeterService.getByConcentratorIdAndSeq(input.deviceCode, input.sequence);
 		if (eleMeter == null) {
 			throw new SmartException("电表信息不存在");
 		}
-		double before = NumberUtils.transDouble(eleMeter.getCurrentReading());
-		double after = NumberUtils.transDouble(dto.getEleMeterCurrVal());
-		double differ = after - before;
-		eleMeter.setIsOnline(NumberConstants.TWO);
-		eleMeter.setCurrentReading(dto.getEleMeterCurrVal());
+		if (this.baseMapper.lockMeterForUpdate(eleMeter.getId()) == null) {
+			throw new SmartException("电表信息不存在");
+		}
+		eleMeter = eleMeterService.getById(eleMeter.getId());
+		if (eleMeter == null) {
+			throw new SmartException("电表信息不存在");
+		}
+		Long historyId = IdWorker.getId();
+		SmtEleMeterHistory previous = this.baseMapper.selectPreviousByCollectTime(eleMeter.getId(), input.collectTime, historyId);
+		String eventPayload = JSONUtil.toJsonStr(dto);
+		EnergyReadingIngestionService.RegisterCommand command = new EnergyReadingIngestionService.RegisterCommand(dto.getSourceEventId(), "ELE_READ", "ELE",
+				eleMeter.getParkId() == null ? null : eleMeter.getParkId().longValue(), eleMeter.getId(), dto.getDeviceCode(), dto.getEleMeterSeq(), dto.getEleMeterCurrVal(), null, input.collectTime);
+		if (!energyReadingIngestionService.register(command, energyReadingIngestionService.hashPayload(eventPayload), eventPayload)) {
+			return Boolean.TRUE;
+		}
 		SmtEleMeterHistory history = SmtEleMeterHistory.builder()
+				.id(historyId)
 				.eleMeterId(eleMeter.getId())
-				.collectTime(LocalDateTime.now())
-				.currentReading(dto.getEleMeterCurrVal())
-				.isError((differ < life) ? OneOrZeroEnum.ZERO.getCode() : OneOrZeroEnum.ONE.getCode())
+				.collectTime(input.collectTime)
+				.currentReading(input.reading.toPlainString())
+				.isError(isError(previous == null ? null : previous.getCurrentReading(), input.reading) ? OneOrZeroEnum.ONE.getCode() : OneOrZeroEnum.ZERO.getCode())
 				.build();
-		eleMeterService.updateById(eleMeter);
-		return save(history);
+		if (!save(history)) {
+			throw new SmartException("电表历史读数保存失败");
+		}
+		SmtEleMeterHistory latest = this.baseMapper.selectLatestByCollectTime(eleMeter.getId());
+		if (latest != null && historyId.equals(latest.getId()) && OneOrZeroEnum.ZERO.getCode().equals(history.getIsError())) {
+			eleMeter.setIsOnline(NumberConstants.TWO);
+			eleMeter.setCurrentReading(history.getCurrentReading());
+			eleMeterService.updateById(eleMeter);
+		}
+		requestProjection("ELE", eleMeter.getId(), input.collectTime.toLocalDate());
+		return Boolean.TRUE;
+	}
+
+	/** 同一读数会影响其所在日以及相邻两个日的边界。 */
+	private void requestProjection(String source, Long meterId, LocalDate collectDate) {
+		for (int offset = -1; offset <= 1; offset++) {
+			energyProjectionService.requestProjection(source, meterId, collectDate.plusDays(offset));
+		}
+	}
+
+	private boolean isError(String previousReading, BigDecimal currentReading) {
+		if (previousReading == null) return false;
+		BigDecimal previous;
+		try {
+			previous = new BigDecimal(previousReading);
+		} catch (NumberFormatException ex) {
+			log.warn("历史电表读数不是有效数值，当前读数标记异常");
+			return true;
+		}
+		BigDecimal difference = currentReading.subtract(previous);
+		if (difference.compareTo(BigDecimal.ZERO) < 0) return true;
+		if (life == null || life <= 0) {
+			log.warn("电表异常阈值未配置或不大于零，跳过增量阈值判断");
+			return false;
+		}
+		return difference.compareTo(BigDecimal.valueOf(life)) > 0;
+	}
+
+	private ReadingInput validateReading(String deviceCode, Integer sequence, String reading, String collectTime) {
+		if (deviceCode == null || deviceCode.trim().isEmpty() || sequence == null || sequence < 0 || reading == null || reading.trim().isEmpty() || collectTime == null) {
+			throw new SmartException("电表读数参数不完整");
+		}
+		try {
+			Long concentratorId = Long.parseLong(deviceCode);
+			if (concentratorId < 0) throw new NumberFormatException();
+			BigDecimal value = new BigDecimal(reading);
+			if (value.compareTo(BigDecimal.ZERO) < 0) throw new NumberFormatException();
+			return new ReadingInput(concentratorId, sequence, value, LocalDateTime.parse(collectTime, COLLECT_TIME_FORMATTER));
+		} catch (NumberFormatException | DateTimeParseException ex) {
+			throw new SmartException("电表读数、集中器标识或采集时间格式不合法");
+		}
+	}
+
+	private static class ReadingInput {
+		private final Long deviceCode;
+		private final Integer sequence;
+		private final BigDecimal reading;
+		private final LocalDateTime collectTime;
+		private ReadingInput(Long deviceCode, Integer sequence, BigDecimal reading, LocalDateTime collectTime) {
+			this.deviceCode = deviceCode;
+			this.sequence = sequence;
+			this.reading = reading;
+			this.collectTime = collectTime;
+		}
 	}
 
 	@Override

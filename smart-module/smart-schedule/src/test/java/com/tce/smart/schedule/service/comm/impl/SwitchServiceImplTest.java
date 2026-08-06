@@ -85,6 +85,55 @@ public class SwitchServiceImplTest {
 				Mockito.eq("current-token"));
 	}
 
+	@Test
+	public void renewExtendsOnlyTheCurrentTokenLock() throws Exception {
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		SwitchServiceImpl service = new SwitchServiceImpl();
+		setField(service, "redisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.execute(Mockito.any(DefaultRedisScript.class),
+				Mockito.eq(Collections.singletonList(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION.getKey())),
+				Mockito.eq("owner-token"), Mockito.eq("5400000"))).thenReturn(1L);
+
+		Boolean renewed = service.renew(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, "owner-token", 90L,
+				TimeUnit.MINUTES);
+
+		Assert.assertTrue(renewed);
+		Mockito.verify(redisTemplate).execute(Mockito.any(DefaultRedisScript.class),
+				Mockito.eq(Collections.singletonList(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION.getKey())),
+				Mockito.eq("owner-token"), Mockito.eq("5400000"));
+		Mockito.verify(redisTemplate, Mockito.never()).opsForValue();
+	}
+
+	@Test
+	public void renewDoesNotExtendLockWhenTokenDoesNotMatch() throws Exception {
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		SwitchServiceImpl service = new SwitchServiceImpl();
+		setField(service, "redisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.execute(Mockito.any(DefaultRedisScript.class),
+				Mockito.eq(Collections.singletonList(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION.getKey())),
+				Mockito.eq("stale-token"), Mockito.eq("5400000"))).thenReturn(0L);
+
+		Boolean renewed = service.renew(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, "stale-token", 90L,
+				TimeUnit.MINUTES);
+
+		Assert.assertFalse(renewed);
+		Mockito.verify(redisTemplate, Mockito.never()).opsForValue();
+	}
+
+	@Test
+	public void isLockedOnlyReadsTheDailyTaskLock() throws Exception {
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		SwitchServiceImpl service = new SwitchServiceImpl();
+		setField(service, "redisTemplate", redisTemplate);
+		Mockito.when(redisTemplate.hasKey(TimerTaskEnum.ENERGY_PROJECTION_DAILY.getKey())).thenReturn(Boolean.TRUE);
+
+		Boolean locked = service.isLocked(TimerTaskEnum.ENERGY_PROJECTION_DAILY);
+
+		Assert.assertTrue(locked);
+		Mockito.verify(redisTemplate).hasKey(TimerTaskEnum.ENERGY_PROJECTION_DAILY.getKey());
+		Mockito.verify(redisTemplate, Mockito.never()).opsForValue();
+	}
+
 	private void setField(Object target, String name, Object value) throws Exception {
 		Field field = target.getClass().getDeclaredField(name);
 		field.setAccessible(true);

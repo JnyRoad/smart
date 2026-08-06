@@ -3,10 +3,12 @@ package com.tce.smart.platform.service.watermeter.impl;
 import cn.afterturn.easypoi.excel.ExcelExportUtil;
 import cn.afterturn.easypoi.excel.entity.ExportParams;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tce.smart.common.core.constant.CommonConstants;
@@ -24,6 +26,8 @@ import com.tce.smart.platform.core.entity.watermeter.SmtWaterMeterHistory;
 import com.tce.smart.platform.core.mapper.watermeter.SmtWaterMeterHistoryMapper;
 import com.tce.smart.platform.emun.ValveStatusEnum;
 import com.tce.smart.platform.helper.SdChangeHelper;
+import com.tce.smart.platform.service.energy.EnergyProjectionService;
+import com.tce.smart.platform.service.energy.EnergyReadingIngestionService;
 import com.tce.smart.platform.service.watermeter.SmtWaterMeterHistoryService;
 import com.tce.smart.platform.service.watermeter.SmtWaterMeterService;
 import com.tce.smart.platform.utils.NumberUtils;
@@ -38,9 +42,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.List;
 import java.util.Objects;
 
@@ -56,6 +64,11 @@ public class SmtWaterMeterHistoryServiceImpl extends ServiceImpl<SmtWaterMeterHi
 	private SmtWaterMeterService waterMeterService;
 	@Autowired
 	private SdChangeHelper sdChangeHelper;
+	@Autowired
+	private EnergyReadingIngestionService energyReadingIngestionService;
+	@Autowired
+	private EnergyProjectionService energyProjectionService;
+	private static final DateTimeFormatter COLLECT_TIME_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss").withResolverStyle(ResolverStyle.STRICT);
 	/**
 	 * 水电表生产阈值
 	 */
@@ -110,28 +123,99 @@ public class SmtWaterMeterHistoryServiceImpl extends ServiceImpl<SmtWaterMeterHi
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public Boolean saveCurrentReading(WaterMeterDataUpdateDTO dto) {
-		SmtWaterMeter waterMeter = waterMeterService.getByConcentratorIdAndSeq(Long.parseLong(dto.getDeviceCode()), dto.getWaterMeterSeq());
+		ReadingInput input = validateReading(dto == null ? null : dto.getDeviceCode(), dto == null ? null : dto.getWaterMeterSeq(),
+				dto == null ? null : dto.getWaterMeterCurrVal(), dto == null ? null : dto.getCollectTime());
+		SmtWaterMeter waterMeter = waterMeterService.getByConcentratorIdAndSeq(input.deviceCode, input.sequence);
 		if (waterMeter == null) {
 			throw new SmartException("水表信息不存在");
 		}
-		double before = NumberUtils.transDouble(waterMeter.getCurrentReading());
-		double after = NumberUtils.transDouble(dto.getWaterMeterCurrVal());
-		double differ = after - before;
-		if (Objects.isNull(dto.getValveState())) {
-			waterMeter.setIsOpen(ValveStatusEnum.NO_RELATION.getCode());
-		} else {
-			waterMeter.setIsOpen(dto.getValveState());
+		if (this.baseMapper.lockMeterForUpdate(waterMeter.getId()) == null) {
+			throw new SmartException("水表信息不存在");
 		}
-		waterMeter.setCurrentReading(dto.getWaterMeterCurrVal());
-		waterMeter.setIsOnline(NumberConstants.TWO);
-		waterMeterService.updateById(waterMeter);
+		waterMeter = waterMeterService.getById(waterMeter.getId());
+		if (waterMeter == null) {
+			throw new SmartException("水表信息不存在");
+		}
+		Long historyId = IdWorker.getId();
+		SmtWaterMeterHistory previous = this.baseMapper.selectPreviousByCollectTime(waterMeter.getId(), input.collectTime, historyId);
+		String eventPayload = JSONUtil.toJsonStr(dto);
+		EnergyReadingIngestionService.RegisterCommand command = new EnergyReadingIngestionService.RegisterCommand(dto.getSourceEventId(), "WATER_READ", "WATER",
+				waterMeter.getParkId() == null ? null : waterMeter.getParkId().longValue(), waterMeter.getId(), dto.getDeviceCode(), dto.getWaterMeterSeq(), dto.getWaterMeterCurrVal(), dto.getValveState(), input.collectTime);
+		if (!energyReadingIngestionService.register(command, energyReadingIngestionService.hashPayload(eventPayload), eventPayload)) {
+			return Boolean.TRUE;
+		}
 		SmtWaterMeterHistory history = SmtWaterMeterHistory.builder()
+				.id(historyId)
 				.waterMeterId(waterMeter.getId())
-				.collectTime(LocalDateTime.now())
-				.currentReading(dto.getWaterMeterCurrVal())
-				.isError((differ < life) ? OneOrZeroEnum.ZERO.getCode() : OneOrZeroEnum.ONE.getCode())
+				.collectTime(input.collectTime)
+				.currentReading(input.reading.toPlainString())
+				.isError(isError(previous == null ? null : previous.getCurrentReading(), input.reading) ? OneOrZeroEnum.ONE.getCode() : OneOrZeroEnum.ZERO.getCode())
 				.build();
-		return save(history);
+		if (!save(history)) {
+			throw new SmartException("水表历史读数保存失败");
+		}
+		SmtWaterMeterHistory latest = this.baseMapper.selectLatestByCollectTime(waterMeter.getId());
+		if (latest != null && historyId.equals(latest.getId()) && OneOrZeroEnum.ZERO.getCode().equals(history.getIsError())) {
+			waterMeter.setCurrentReading(history.getCurrentReading());
+			waterMeter.setIsOnline(NumberConstants.TWO);
+			waterMeter.setIsOpen(dto.getValveState() == null ? ValveStatusEnum.NO_RELATION.getCode() : dto.getValveState());
+			waterMeterService.updateById(waterMeter);
+		}
+		requestProjection("WATER", waterMeter.getId(), input.collectTime.toLocalDate());
+		return Boolean.TRUE;
+	}
+
+	/** 同一读数会影响其所在日以及相邻两个日的边界。 */
+	private void requestProjection(String source, Long meterId, LocalDate collectDate) {
+		for (int offset = -1; offset <= 1; offset++) {
+			energyProjectionService.requestProjection(source, meterId, collectDate.plusDays(offset));
+		}
+	}
+
+	private boolean isError(String previousReading, BigDecimal currentReading) {
+		if (previousReading == null) return false;
+		BigDecimal previous;
+		try {
+			previous = new BigDecimal(previousReading);
+		} catch (NumberFormatException ex) {
+			log.warn("历史水表读数不是有效数值，当前读数标记异常");
+			return true;
+		}
+		BigDecimal difference = currentReading.subtract(previous);
+		if (difference.compareTo(BigDecimal.ZERO) < 0) return true;
+		if (life == null || life <= 0) {
+			log.warn("水表异常阈值未配置或不大于零，跳过增量阈值判断");
+			return false;
+		}
+		return difference.compareTo(BigDecimal.valueOf(life)) > 0;
+	}
+
+	private ReadingInput validateReading(String deviceCode, Integer sequence, String reading, String collectTime) {
+		if (deviceCode == null || deviceCode.trim().isEmpty() || sequence == null || sequence < 0 || reading == null || reading.trim().isEmpty() || collectTime == null) {
+			throw new SmartException("水表读数参数不完整");
+		}
+		try {
+			Long concentratorId = Long.parseLong(deviceCode);
+			if (concentratorId < 0) throw new NumberFormatException();
+			BigDecimal value = new BigDecimal(reading);
+			if (value.compareTo(BigDecimal.ZERO) < 0) throw new NumberFormatException();
+			return new ReadingInput(concentratorId, sequence, value, LocalDateTime.parse(collectTime, COLLECT_TIME_FORMATTER));
+		} catch (NumberFormatException | DateTimeParseException ex) {
+			throw new SmartException("水表读数、集中器标识或采集时间格式不合法");
+		}
+	}
+
+	private static class ReadingInput {
+		private final Long deviceCode;
+		private final Integer sequence;
+		private final BigDecimal reading;
+		private final LocalDateTime collectTime;
+		private ReadingInput(Long deviceCode, Integer sequence, BigDecimal reading, LocalDateTime collectTime) {
+			this.deviceCode = deviceCode;
+			this.sequence = sequence;
+			this.reading = reading;
+			this.collectTime = collectTime;
+		}
 	}
 
 	@Override

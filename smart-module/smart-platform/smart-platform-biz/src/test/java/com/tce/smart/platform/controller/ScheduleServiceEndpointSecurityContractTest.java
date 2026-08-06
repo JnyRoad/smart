@@ -56,6 +56,10 @@ public class ScheduleServiceEndpointSecurityContractTest {
 		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtWageSignController", "syncStaff");
 		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtEhrToStaffSettingController", "getListEHR");
 		assertInternalServerEndpoint("com.tce.smart.platform.controller.SmtEhrToStaffSettingController", "getListDHR");
+		assertInternalServerEndpoint("com.tce.smart.platform.controller.energy.EnergyProjectionController", "processPending");
+		assertInternalServerEndpoint("com.tce.smart.platform.controller.energy.EnergyProjectionController", "reconcile");
+		assertInternalServerEndpoint("com.tce.smart.platform.controller.energy.EnergyProjectionController", "backfillMonthToDate");
+		assertInternalServerEndpoint("com.tce.smart.platform.controller.energy.EnergyProjectionController", "daily");
 	}
 
 	private void assertInternalServerEndpoint(String className, String methodName) throws Exception {

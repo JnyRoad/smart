@@ -7,6 +7,8 @@ import com.tce.smart.platform.core.dto.meter.MeterReadHisDTO;
 import com.tce.smart.platform.core.entity.watermeter.SmtEleMeterHistory;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
+
 /**
  * @author: Li.JiaJun
  * @since: 2021/8/19 10:28
@@ -33,4 +35,14 @@ public interface SmtEleMeterHistoryMapper extends BaseMapper<SmtEleMeterHistory>
 	 * @return
 	 */
 	IPage<MeterReadHisDTO> initReading(Page page, @Param("meterId") Long meterId, @Param("meterMonth") String meterMonth);
+
+	/** 按设备采集时间取得当前最新历史，采集时间相同以主键排序。 */
+	SmtEleMeterHistory selectLatestByCollectTime(@Param("meterId") Long meterId);
+
+	/** 取得待写入读数之前的历史，避免迟到读数与未来读数比较。 */
+	SmtEleMeterHistory selectPreviousByCollectTime(@Param("meterId") Long meterId,
+											 @Param("collectTime") LocalDateTime collectTime, @Param("historyId") Long historyId);
+
+	/** 锁定主表行，使同一电表的读数事务按采集时间顺序串行化。 */
+	Long lockMeterForUpdate(@Param("meterId") Long meterId);
 }

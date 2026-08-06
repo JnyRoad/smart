@@ -31,6 +31,8 @@ spring:
       url: http://test.baidu.com    
 
 smart:
+  energy:
+    zone-id: Asia/Shanghai #能耗业务日口径时区
   image:
     #内网访问地址
     base-url: "${SMART_SCHEDULE_IMAGE_BASE_URL:}"
@@ -124,6 +126,10 @@ guard:
     #jdbc-url: jdbc:oracle:thin:@smart-oracle:1521:ev6db
 
 task:
+  job:
+    energyProjectionProcessPending: false #能耗投影待处理队列任务默认关闭
+    energyProjectionReconcile: false #能耗投影前一业务日回算任务默认关闭
+    energyProjectionBackfill: false #能耗投影本月补齐任务默认关闭
   ehr:
     wageSignTaskTime: 0 10 0 1 * ?             #每月一日零点十分执行工资签单员工信息生成任务
     noticeTaskTime: 0 0 10 * * ?               #每天十点执行，工资签收提醒与考勤汇总确认提醒任务
@@ -137,3 +143,8 @@ task:
       reading: 0 */59 * * * ? #定时查询电表读数  
     day: 
       calc: 0 0 2 * * ? #许昌水电定时结算任务
+  energy:
+    projection:
+      pending-cron: 0 0/5 * * * ? #每5分钟处理能耗投影待处理队列
+      reconcile-cron: 0 15 2 * * ? #上海时区每日串行执行前一业务日回算和本月补齐
+      execution-wait-seconds: 7200 #每日任务等待共享执行锁的最长秒数

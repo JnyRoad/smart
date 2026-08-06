@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.energy.SmtEnergyMeterDayLockMapper">
+	<insert id="ensureAnchor">INSERT /*+ IGNORE_ROW_ON_DUPKEY_INDEX(SMT_ENERGY_METER_DAY_LOCK (METER_SOURCE, METER_ID, STAT_DATE)) */ INTO SMT_ENERGY_METER_DAY_LOCK (METER_SOURCE,METER_ID,STAT_DATE) VALUES (#{meterSource},#{meterId},#{statDate})</insert>
+	<select id="lockForUpdate" resultType="int">SELECT 1 FROM SMT_ENERGY_METER_DAY_LOCK WHERE METER_SOURCE=#{meterSource} AND METER_ID=#{meterId} AND STAT_DATE=#{statDate} FOR UPDATE</select>
+</mapper>
