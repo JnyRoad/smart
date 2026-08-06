@@ -4,6 +4,7 @@ import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.constant.ServiceNameConstants;
 import com.tce.smart.common.core.model.Result;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -14,19 +15,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface RemoteEnergyProjectionService {
 	@PostMapping("/inner/energy/projection/process-pending")
 	Result<Boolean> processPending(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
 
 	@PostMapping("/inner/energy/projection/reconcile/{businessDate}")
 	Result<Boolean> reconcile(@PathVariable("businessDate") String businessDate,
 			@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
 
 	@PostMapping("/inner/energy/projection/backfill-month-to-date")
 	Result<Boolean> backfillMonthToDate(@RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
 
 	@PostMapping("/inner/energy/projection/daily/{businessDate}")
 	Result<Boolean> daily(@PathVariable("businessDate") String businessDate, @RequestParam("reconcile") boolean reconcile,
 			@RequestParam("backfill") boolean backfill, @RequestHeader(SecurityConstants.FROM) String from,
-			@RequestHeader(SecurityConstants.INTERNAL_SERVICE_AUTH) String serviceAuth);
+			@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
 }

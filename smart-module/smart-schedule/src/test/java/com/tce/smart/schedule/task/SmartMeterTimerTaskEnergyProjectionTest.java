@@ -4,6 +4,7 @@ import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.api.feign.RemoteEnergyProjectionService;
 import com.tce.smart.schedule.config.TaskJob;
+import com.tce.smart.schedule.security.EnergyProjectionServerTokenProvider;
 import com.tce.smart.schedule.service.comm.ISwitchService;
 import com.tce.smart.tool.enums.TimerTaskEnum;
 import org.junit.Assert;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
  * 能耗投影定时任务的分布式锁和内部调用契约测试。
  */
 public class SmartMeterTimerTaskEnergyProjectionTest {
+	private static final String SCHEDULE_AUTHORIZATION = "Bearer schedule-token";
 
 	@Test
 	public void pendingDoesNothingWhenDisabled() throws Exception {
@@ -83,12 +85,12 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 
 		String expectedBusinessDate = LocalDate.now(ZoneId.of("Asia/Shanghai")).minusDays(1).toString();
 		Mockito.when(remoteService.daily(expectedBusinessDate, true, true, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)).thenReturn(Result.success(Boolean.TRUE));
+				SCHEDULE_AUTHORIZATION)).thenReturn(Result.success(Boolean.TRUE));
 
 		task.energyProjectionDailyTask();
 
 		Mockito.verify(remoteService).daily(expectedBusinessDate, true, true, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SCHEDULE_AUTHORIZATION);
 		Mockito.verify(switchService).release(TimerTaskEnum.ENERGY_PROJECTION_DAILY, "daily-token");
 		Mockito.verify(switchService, Mockito.never()).release(Mockito.eq(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION),
 				Mockito.anyString());
@@ -106,12 +108,12 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 		Mockito.when(switchService.acquire(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, 90L, TimeUnit.MINUTES))
 				.thenReturn("execution-token");
 		Mockito.when(remoteService.daily(expectedBusinessDate, true, true, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)).thenReturn(Result.success(Boolean.TRUE));
+				SCHEDULE_AUTHORIZATION)).thenReturn(Result.success(Boolean.TRUE));
 
 		task.energyProjectionDailyTask();
 
 		Mockito.verify(remoteService).daily(expectedBusinessDate, true, true, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SCHEDULE_AUTHORIZATION);
 		Mockito.verify(remoteService, Mockito.never()).reconcile(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(remoteService, Mockito.never()).backfillMonthToDate(Mockito.anyString(), Mockito.anyString());
 		Mockito.verify(switchService).release(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, "execution-token");
@@ -133,14 +135,14 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 		Mockito.when(switchService.acquire(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, 90L, TimeUnit.MINUTES))
 				.thenReturn(null, "execution-token");
 		Mockito.when(remoteService.daily(expectedBusinessDate, true, true, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED)).thenReturn(Result.success(Boolean.TRUE));
+				SCHEDULE_AUTHORIZATION)).thenReturn(Result.success(Boolean.TRUE));
 
 		task.energyProjectionDailyTask();
 
 		Mockito.verify(switchService, Mockito.times(2)).acquire(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION,
 				90L, TimeUnit.MINUTES);
 		Mockito.verify(remoteService).daily(expectedBusinessDate, true, true, SecurityConstants.FROM_IN,
-				SecurityConstants.INTERNAL_SERVICE_AUTH_REQUIRED);
+				SCHEDULE_AUTHORIZATION);
 	}
 
 	@Test
@@ -191,6 +193,7 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 		setField(task, "taskJob", taskJob);
 		setField(task, "iSwitchService", switchService);
 		setField(task, "remoteEnergyProjectionService", remoteService);
+		setField(task, "energyProjectionServerTokenProvider", tokenProvider());
 		setField(task, "energyZoneId", "Asia/Shanghai");
 		setField(task, "energyProjectionExecutionWaitSeconds", 0L);
 		return task;
@@ -202,6 +205,7 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 		setField(task, "taskJob", taskJob);
 		setField(task, "iSwitchService", switchService);
 		setField(task, "remoteEnergyProjectionService", remoteService);
+		setField(task, "energyProjectionServerTokenProvider", tokenProvider());
 		setField(task, "energyZoneId", "Asia/Shanghai");
 		setField(task, "energyProjectionExecutionWaitSeconds", 0L);
 		return task;
@@ -213,9 +217,19 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 		setField(task, "taskJob", taskJob);
 		setField(task, "iSwitchService", switchService);
 		setField(task, "remoteEnergyProjectionService", remoteService);
+		setField(task, "energyProjectionServerTokenProvider", tokenProvider());
 		setField(task, "energyZoneId", "Asia/Shanghai");
 		setField(task, "energyProjectionExecutionWaitSeconds", 0L);
 		return task;
+	}
+
+	/**
+	 * 调度测试使用固定 Bearer 值，避免访问真实授权服务器。
+	 */
+	private EnergyProjectionServerTokenProvider tokenProvider() {
+		EnergyProjectionServerTokenProvider tokenProvider = Mockito.mock(EnergyProjectionServerTokenProvider.class);
+		Mockito.when(tokenProvider.authorizationHeader()).thenReturn(SCHEDULE_AUTHORIZATION);
+		return tokenProvider;
 	}
 
 	private void setField(Object target, String name, Object value) throws Exception {
