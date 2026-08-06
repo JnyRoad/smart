@@ -48,10 +48,7 @@ public class PublicRouteDenyContractTest {
 				"/admittance/visitor-truck/apply",
                 "/regist/save/identification",
                 "/regist/face/crop",
-                "/regist/face/add",
-                "/dormitory/staff/remote/to/lock",
-                "/park/tolock/dormitory/allList",
-                "/staff/define/badge"), ignoreUrls);
+                "/regist/face/add"), ignoreUrls);
         assertFalse("公开例外必须逐路径声明，不能扩展整个简历前缀", ignoreUrls.contains("/regist/**"));
     }
 
@@ -69,9 +66,6 @@ public class PublicRouteDenyContractTest {
 		assertFalse(ignoreUrls.contains("/admittance/visitor-truck/**"));
 		assertFalse(ignoreUrls.contains("/admittance/app/**"));
 		assertFalse(ignoreUrls.contains("/admittance/**"));
-		assertFalse(ignoreUrls.contains("/dormitory/staff/**"));
-		assertFalse(ignoreUrls.contains("/park/**"));
-		assertFalse(ignoreUrls.contains("/staff/define/**"));
     }
 
     @Test
@@ -82,10 +76,6 @@ public class PublicRouteDenyContractTest {
         assertTrue(config.contains("list-client-ids: \"${SMART_PARK_LIST_CLIENT_IDS:}\""));
         assertTrue(config.contains("schedule-client-id: \"${SMART_RECHARGE_SCHEDULE_CLIENT_ID:}\""));
         assertTrue(config.contains("schedule-client-id: \"${SMART_LOGISTICS_SCHEDULE_CLIENT_ID:}\""));
-		assertTrue(config.contains("legacy-door-lock:"));
-		assertTrue(config.contains("key-id: \"${SMART_LEGACY_DOORLOCK_KEY_ID:}\""));
-		assertTrue(config.contains("signature-key: \"${SMART_LEGACY_DOORLOCK_SIGNATURE_KEY:}\""));
-		assertTrue(config.contains("clients: []"));
     }
 
     private List<String> readIgnoreUrls(String dataId) throws IOException {

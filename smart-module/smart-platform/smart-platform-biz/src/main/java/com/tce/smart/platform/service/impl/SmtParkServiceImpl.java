@@ -855,16 +855,6 @@ public class SmtParkServiceImpl extends ServiceImpl<SmtParkMapper, SmtPark> impl
 	}
 
 	@Override
-	public Result dormitoryAllListToLock(SmtDormitoryStaffService dormitoryStaffService, List<Integer> parkIds) {
-		if (CollectionUtils.isEmpty(parkIds)) {
-			return new Result<>(Collections.emptyList());
-		}
-		List<SmtPark> smtParks = mapper.selectList(Wrappers.<SmtPark>query().lambda()
-				.in(SmtPark::getId, parkIds).orderByDesc(SmtPark::getId));
-		return this.dormitoryList(dormitoryStaffService, smtParks, Boolean.FALSE);
-	}
-
-	@Override
 	public ParkDataRespDTO getParkData() {
 		return null;
 	}

@@ -1,14 +1,5 @@
 ## spring security 配置
 security:
-  # 遗留门锁只接受 Gateway 签名证明；默认关闭、空调用方列表时必须拒绝全部请求。
-  legacy-door-lock:
-    enabled: false
-    key-id: "${SMART_LEGACY_DOORLOCK_KEY_ID:}"
-    signature-key: "${SMART_LEGACY_DOORLOCK_SIGNATURE_KEY:}"
-    max-clock-skew-seconds: 5
-    max-ttl-seconds: 30
-    # 生产环境按调用方逐项声明 source-cidrs（IPv4 /32、IPv6 /128）与 park-ids；禁止宽泛园区或 IP 网段。
-    clients: []
   inner:
     # Platform 到 UPMS 的用户管理调用只使用专属服务令牌。
     service-token:
@@ -76,10 +67,6 @@ security:
         - /regist/save/identification
         - /regist/face/crop
         - /regist/face/add
-        # 旧门锁只能沿用这三条精确 GET 路径；Platform 过滤器仍会验 Gateway 签名、CIDR 和 nonce。
-        - /dormitory/staff/remote/to/lock
-        - /park/tolock/dormitory/allList
-        - /staff/define/badge
 spring:
   #  datasource:
   #    type: com.zaxxer.hikari.HikariDataSource
