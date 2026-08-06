@@ -30,6 +30,10 @@ public class SwitchServiceImpl implements ISwitchService {
 	private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
 			"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
 			Long.class);
+	/** 比较令牌后原子续租，令牌失配时不得延长其他实例的锁。 */
+	private static final DefaultRedisScript<Long> RENEW_LOCK_SCRIPT = new DefaultRedisScript<>(
+			"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end",
+			Long.class);
 	private static final int RELEASE_LOCK_RETRY_TIMES = 2;
 	private static final long RELEASE_LOCK_RETRY_SLEEP_MILLIS = 100L;
 
@@ -92,6 +96,25 @@ public class SwitchServiceImpl implements ISwitchService {
 				sleepBeforeReleaseRetry(timerTask);
 			}
 		}
+	}
+
+	@Override
+	public boolean renew(TimerTaskEnum timerTask, String lockToken, long timeout, TimeUnit timeUnit) {
+		if (timerTask == null || lockToken == null || lockToken.isEmpty() || timeout <= 0 || timeUnit == null) {
+			return false;
+		}
+		long timeoutMillis = timeUnit.toMillis(timeout);
+		if (timeoutMillis <= 0) {
+			return false;
+		}
+		Long renewed = redisTemplate.execute(RENEW_LOCK_SCRIPT, Collections.singletonList(timerTask.getKey()), lockToken,
+				String.valueOf(timeoutMillis));
+		return Long.valueOf(1L).equals(renewed);
+	}
+
+	@Override
+	public boolean isLocked(TimerTaskEnum timerTask) {
+		return timerTask != null && Boolean.TRUE.equals(redisTemplate.hasKey(timerTask.getKey()));
 	}
 
 	private void sleepBeforeReleaseRetry(TimerTaskEnum timerTask) {

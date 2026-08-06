@@ -70,4 +70,10 @@ public class TaskJob {
 	private Boolean waterMeterReading;
 	private Boolean eleMeterReading;
 	private Boolean genSettlementDaily;
+	/** 能耗投影待处理队列任务开关，未配置时保持关闭。 */
+	private Boolean energyProjectionProcessPending = Boolean.FALSE;
+	/** 能耗投影前一业务日回算任务开关，未配置时保持关闭。 */
+	private Boolean energyProjectionReconcile = Boolean.FALSE;
+	/** 能耗投影本月补齐任务开关，未配置时保持关闭。 */
+	private Boolean energyProjectionBackfill = Boolean.FALSE;
 }

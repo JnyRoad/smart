@@ -83,6 +83,10 @@ public enum TimerTaskEnum {
 	WATER_METER_READING("timer_water_meter_reading", "timer_water_meter_reading", "智能水表读数查询任务"),
 	ELE_METER_READING("timer_ele_meter_reading", "timer_ele_meter_reading", "智能电表读数查询任务"),
 	GEN_SETTLEMENT_DAILY("timer_gen_settlement_daily", "timer_gen_settlement_daily", "智能电表水电日结算"),
+	// 能耗投影任务专属锁和全局执行锁，避免跨实例重复执行及不同投影任务并发写入。
+	ENERGY_PROJECTION_PROCESS_PENDING("timer_energy_projection_process_pending", "timer_energy_projection_process_pending", "能耗投影待处理队列任务"),
+	ENERGY_PROJECTION_DAILY("timer_energy_projection_daily", "timer_energy_projection_daily", "能耗投影每日串行编排任务"),
+	ENERGY_PROJECTION_EXECUTION("timer_energy_projection_execution", "timer_energy_projection_execution", "能耗投影全局串行执行锁"),
 
 	DORMITORY_DEALY_QUIT("timer_dormitory_dealy_quit", "timer_dormitory_dealy_quit", "退宿申请延迟退宿");
 

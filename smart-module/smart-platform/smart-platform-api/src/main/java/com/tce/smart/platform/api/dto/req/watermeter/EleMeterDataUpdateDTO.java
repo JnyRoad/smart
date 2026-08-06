@@ -25,4 +25,8 @@ public class EleMeterDataUpdateDTO extends BaseDTO {
 	 * 采集时间
 	 */
 	private String collectTime;
+	/**
+	 * 集中器为单条读数生成的可重放事件标识。
+	 */
+	private String sourceEventId;
 }

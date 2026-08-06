@@ -207,6 +207,14 @@ smart:
   meter:
     prod: 200  #生产水电表阈值
     life: 100  #生活水电表阈值
+  energy:
+    zone-id: Asia/Shanghai #能耗业务日与对外月累计的服务器时区口径
+    boundary-tolerance-minutes: 120 #日界读数允许的最大回溯分钟数
+    backfill:
+      max-requests: 1000 #单次受控回填最多接受的表计日投影请求数
+    projection:
+      max-retry-count: 3 #单条投影失败后的最大尝试次数
+      retry-delay-minutes: 5 #可重试投影再次入队前的延迟分钟数
   park:
     xc-id: 5000021
   org:

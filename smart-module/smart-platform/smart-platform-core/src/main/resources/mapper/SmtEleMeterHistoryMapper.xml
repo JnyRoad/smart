@@ -34,4 +34,27 @@
 			</if>
 		order by collect_time asc
 	</select>
+
+	<select id="selectLatestByCollectTime" resultType="com.tce.smart.platform.core.entity.watermeter.SmtEleMeterHistory">
+		SELECT * FROM (
+			SELECT ID, ELE_METER_ID, COLLECT_TIME, CURRENT_READING, IS_ERROR
+			FROM SMT_ELE_METER_HISTORY
+			WHERE IS_DELETE = 0 AND ELE_METER_ID = #{meterId}
+			ORDER BY COLLECT_TIME DESC, ID DESC
+		) WHERE ROWNUM = 1
+	</select>
+
+	<select id="selectPreviousByCollectTime" resultType="com.tce.smart.platform.core.entity.watermeter.SmtEleMeterHistory">
+		SELECT * FROM (
+			SELECT ID, ELE_METER_ID, COLLECT_TIME, CURRENT_READING, IS_ERROR
+			FROM SMT_ELE_METER_HISTORY
+			WHERE IS_DELETE = 0 AND IS_ERROR = 0 AND ELE_METER_ID = #{meterId}
+			AND (COLLECT_TIME &lt; #{collectTime} OR (COLLECT_TIME = #{collectTime} AND ID &lt; #{historyId}))
+			ORDER BY COLLECT_TIME DESC, ID DESC
+		) WHERE ROWNUM = 1
+	</select>
+
+	<select id="lockMeterForUpdate" resultType="java.lang.Long">
+		SELECT ID FROM SMT_ELE_METER WHERE ID = #{meterId} FOR UPDATE
+	</select>
 </mapper>
