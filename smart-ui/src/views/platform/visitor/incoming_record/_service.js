@@ -27,6 +27,13 @@ export const xcIncomingRecordApi = {
       params: data
     })
   },
+  revoke(data){
+    return request({
+      url: '/platform/manage/admittance/apply/revoke',
+      method: 'post',
+      data: data
+    })
+  },
   getFactoryList(){
     return request({
       url: `/platform/admittance/area/type/security/factory/list`,

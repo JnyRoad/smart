@@ -18,7 +18,7 @@ const APPLY_BADGES: Record<ApplyStatus, StatusLabel> = {
   PASSED: { text: '已通过', tone: 'success' },
   REJECTED: { text: '已拒绝', tone: 'danger' },
   EXPIRED: { text: '已过期', tone: 'muted' },
-  REVOKED: { text: '已撤销', tone: 'muted' },
+  REVOKED: { text: '已作废', tone: 'muted' },
 }
 
 /** Unknown values fall back to the raw text in muted tone so contract drift is visible. */

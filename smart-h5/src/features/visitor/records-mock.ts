@@ -16,6 +16,20 @@ export function mockDelay(ms = 300): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/** 模拟作废后端终态，保证本地演示可验证“作废后重新预约”的页面路径。 */
+export function revokeMockApply(applyId: string): boolean {
+	const summary = MOCK_LIST.find((item) => item.applyId === applyId)
+	const detail = MOCK_DETAILS[applyId]
+	if (!summary || !detail || summary.applyStatus === 'REVOKED') return false
+	summary.applyStatus = 'REVOKED'
+	delete summary.currentNode
+	delete summary.dispatchStatus
+	detail.detail.applyStatus = 'REVOKED'
+	delete detail.detail.dispatchStatus
+	detail.nodes = []
+	return true
+}
+
 export const MOCK_LIST: RecordSummary[] = [
   {
     applyId: 'mock-pending',

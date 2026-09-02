@@ -23,6 +23,7 @@ import com.tce.smart.platform.service.SmtOutDormitoryStaffService;
 import com.tce.smart.platform.service.SmtParkService;
 import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceFellowService;
+import com.tce.smart.platform.service.admittance.SmtAdmittanceApplyService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceVehicleService;
 import com.tce.smart.tool.enums.ApplicationEnum;
 import com.tce.smart.tool.enums.DeviceDownStatusEnum;
@@ -212,6 +213,51 @@ public class VisitorSelfQueryServiceImplTest {
 		} catch (SmartException error) {
 			Assert.assertEquals(Integer.valueOf(403), error.getCode());
 		}
+	}
+
+	@Test
+	public void revokeApplyOnlyDelegatesForTheTokenOwner() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		SmtAdmittanceApplyService applyService = Mockito.mock(SmtAdmittanceApplyService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		setField(service, "smtAdmittanceApplyService", applyService);
+		SmtAdmittanceApply apply = apply(10031L, "李明", "13712341234", VisitorStatusEnum.Status_0.getCode());
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		Mockito.when(mapper.selectById(10031L)).thenReturn(apply);
+		Mockito.when(applyService.revokeApply(apply)).thenReturn(Boolean.TRUE);
+
+		Assert.assertTrue(service.revokeApply("10031", "tok-existing"));
+
+		Mockito.verify(applyService).revokeApply(apply);
+	}
+
+	@Test
+	public void listMyApplyMapsVoidedApplyToRevoked() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		RemoteAppSmsService smsService = Mockito.mock(RemoteAppSmsService.class);
+		StringRedisTemplate redisTemplate = Mockito.mock(StringRedisTemplate.class);
+		ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
+		SmtParkService parkService = Mockito.mock(SmtParkService.class);
+		SmtAdmittanceFellowService fellowService = Mockito.mock(SmtAdmittanceFellowService.class);
+		SmtAdmittanceVehicleService vehicleService = Mockito.mock(SmtAdmittanceVehicleService.class);
+		VisitorSelfQueryServiceImpl service = newService(mapper, smsService, redisTemplate, valueOperations, parkService,
+				fellowService, vehicleService);
+		Mockito.when(valueOperations.get("smart:admittance:visitor-query:tok-existing")).thenReturn("13712341234");
+		SmtAdmittanceApply apply = apply(10032L, "李明", "13712341234", 7);
+		Mockito.when(mapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(apply));
+		Mockito.when(fellowService.getByApplyId(10032L)).thenReturn(Collections.emptyList());
+		Mockito.when(vehicleService.getByApplyId(10032L)).thenReturn(Collections.emptyList());
+
+		VisitorSelfQueryRespDTO response = service.listMyApply(new VisitorSelfQueryReqDTO(), "tok-existing");
+
+		Assert.assertEquals("REVOKED", response.getRecords().get(0).getApplyStatus());
 	}
 
 	@Test

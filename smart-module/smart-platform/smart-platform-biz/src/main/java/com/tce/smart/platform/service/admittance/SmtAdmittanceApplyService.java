@@ -136,6 +136,15 @@ public interface SmtAdmittanceApplyService extends IService<SmtAdmittanceApply> 
 	Boolean delDeviceAuth(Long id);
 
 	/**
+	 * 作废入厂申请，并提交该申请关联人员、车辆的权限回收任务。
+	 * 调用方必须在调用前完成申请单归属校验。
+	 *
+	 * @param apply 已完成归属校验的申请单
+	 * @return 是否作废成功
+	 */
+	Boolean revokeApply(SmtAdmittanceApply apply);
+
+	/**
 	 * 访客超时提示
 	 */
 	void visitorOverTime();

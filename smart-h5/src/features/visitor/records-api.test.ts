@@ -5,6 +5,7 @@ import {
   fetchApplyDetail,
   fetchMyApplies,
   getQuerySession,
+  revokeApply,
   saveQuerySession,
   sendRecordSms,
 } from './records-api'
@@ -114,6 +115,19 @@ describe('mock 开关', () => {
     await fetchApplyDetail('a-1')
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('/platform/admittance/apply/app/applyDetail?applyId=a-1')
+    expect((init.headers as Record<string, string>)['X-Visitor-Query-Token']).toBe('tok-q')
+  })
+
+  it('开关关：作废申请使用本人查询凭证提交申请单 ID', async () => {
+    setMockFlag(false)
+    saveQuerySession({ queryToken: 'tok-q', maskedName: '李明', maskedMobile: '137****1234' })
+
+    await revokeApply('a-1')
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/platform/admittance/apply/app/revoke')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ applyId: 'a-1' })
     expect((init.headers as Record<string, string>)['X-Visitor-Query-Token']).toBe('tok-q')
   })
 })

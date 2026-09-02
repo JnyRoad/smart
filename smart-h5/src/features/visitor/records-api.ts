@@ -2,7 +2,7 @@ import { ApiError, request } from '@/lib/api/http'
 import { getTenantConfig } from '@/lib/config/tenant'
 import { sendVisitorSms } from './api'
 import type { ApplyStatus, ApprovalNodeState, DispatchStatus } from './record-status'
-import { MOCK_DETAILS, MOCK_IDENTITY, MOCK_LIST, MOCK_QUERY_TOKEN, mockDelay } from './records-mock'
+import { MOCK_DETAILS, MOCK_IDENTITY, MOCK_LIST, MOCK_QUERY_TOKEN, mockDelay, revokeMockApply } from './records-mock'
 
 /**
  * 访客“我的申请记录”接口：契约对齐网关侧本人申请查询能力。
@@ -203,6 +203,24 @@ export async function fetchApprovalProgress(
     module: 'platform',
     url: '/admittance/apply/app/approvalProgress',
     params: { applyId },
+    auth: 'none',
+    headers: tokenHeaders(),
+  })
+}
+
+/** 作废本人名下的入厂申请，并由后端提交关联权限的回收任务。 */
+export async function revokeApply(applyId: string): Promise<Envelope<boolean>> {
+  if (isMockOn()) {
+    await mockDelay()
+    return revokeMockApply(applyId)
+      ? { code: 0, data: true }
+      : { code: 1, message: '申请单不存在或已作废' }
+  }
+  return request({
+    module: 'platform',
+    url: '/admittance/apply/app/revoke',
+    method: 'POST',
+    data: { applyId },
     auth: 'none',
     headers: tokenHeaders(),
   })

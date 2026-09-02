@@ -20,6 +20,8 @@ import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
 import com.tce.smart.platform.core.entity.SmtIscDownRecord;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.entity.SmtTaskDownRecord;
+import com.tce.smart.platform.core.entity.ApproveList;
+import com.tce.smart.platform.core.entity.SmtVisitorProcessRecord;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceAreaTypeAuth;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceApply;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceFellow;
@@ -101,6 +103,8 @@ public class SmtAdmittanceApplyServiceImplTest {
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtDeviceTask.class);
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtIscDeviceTask.class);
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtAdmittanceApply.class);
+		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ApproveList.class);
+		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtVisitorProcessRecord.class);
 	}
 
 	@Test
@@ -339,7 +343,7 @@ public class SmtAdmittanceApplyServiceImplTest {
 
 		harness.service.updateStatus(harness.apply);
 
-		// 断言任务创建与 isc_submit_batch 更新使用同一批次号，且顺序为：先建任务，后写批次号
+		// 先条件占用申请单，再创建任务；作废已抢占状态时不允许继续创建下发任务。
 		ArgumentCaptor<DeviceTaskVO> taskCaptor = ArgumentCaptor.forClass(DeviceTaskVO.class);
 		Mockito.verify(harness.taskService).saveTask(taskCaptor.capture());
 		Long batchIdOnTask = taskCaptor.getValue().getBatchId();
@@ -352,10 +356,27 @@ public class SmtAdmittanceApplyServiceImplTest {
 		Assert.assertTrue("isc_submit_batch 更新应写入与任务一致的批次号",
 				updateCaptor.getValue().getParamNameValuePairs().values().stream()
 						.anyMatch(value -> batchIdOnTask.equals(value)));
+		Assert.assertTrue("批次占用必须排除已作废状态",
+				updateCaptor.getValue().getParamNameValuePairs().values().stream()
+						.anyMatch(value -> VisitorStatusEnum.CAUSE_7.getCode().equals(value)));
 
 		InOrder inOrder = Mockito.inOrder(harness.taskService, harness.mapper);
-		inOrder.verify(harness.taskService).saveTask(Mockito.any(DeviceTaskVO.class));
 		inOrder.verify(harness.mapper).update(Mockito.isNull(), Mockito.any());
+		inOrder.verify(harness.taskService).saveTask(Mockito.any(DeviceTaskVO.class));
+	}
+
+	@Test
+	public void updateStatusDoesNotQueuePermissionsWhenVoidWonBeforeBatchClaim() throws Exception {
+		UpdateStatusHarness harness = setUpUpdateStatusHarness();
+		// 条件写 isc_submit_batch 失败代表作废已先把状态改为 7。
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(0);
+
+		harness.service.updateStatus(harness.apply);
+
+		Mockito.verify(harness.taskService, Mockito.never()).saveTask(Mockito.any(DeviceTaskVO.class));
+		// 已作废时，旧审批回调不得继续发送照片或通过通知。
+		Mockito.verify(harness.service, Mockito.never()).smbPutPhoto(harness.apply.getId());
+		Assert.assertNull("作废已抢占时不得记录新的下发批次", harness.apply.getIscSubmitBatch());
 	}
 
 	@Test
@@ -382,8 +403,9 @@ public class SmtAdmittanceApplyServiceImplTest {
 			// 期望异常
 		}
 
-		// 批次未提交成功，isc_submit_batch 不应被写入
-		Mockito.verify(harness.mapper, Mockito.never()).update(Mockito.isNull(), Mockito.any());
+		// 事务内会先条件写入以取得行锁；任务失败时真实事务整体回滚，内存对象也不得记录批次。
+		Mockito.verify(harness.mapper).update(Mockito.isNull(), Mockito.any());
+		Assert.assertNull("任务创建失败时不得把批次号写回申请对象", harness.apply.getIscSubmitBatch());
 	}
 
 	// ========== Task 5: 重新下发批次化 ==========
@@ -664,6 +686,28 @@ public class SmtAdmittanceApplyServiceImplTest {
 		}
 		Mockito.verify(mapper).countActiveMainFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime);
 		Mockito.verify(mapper, Mockito.never()).selectCount(Mockito.any());
+	}
+
+	@Test
+	public void revokeApplyInvalidatesTheApplyAndQueuesPermissionCleanup() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		ApproveListService approveListService = Mockito.mock(ApproveListService.class);
+		SmtVisitorProcessRecordService processRecordService = Mockito.mock(SmtVisitorProcessRecordService.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		setField(service, "approveListService", approveListService);
+		setField(service, "smtVisitorProcessRecordService", processRecordService);
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.doReturn(Boolean.TRUE).when(service).delDeviceAuth(3201L);
+		SmtAdmittanceApply apply = pendingAdmittanceApply(3201L, "void-approved");
+		apply.setStatus(VisitorStatusEnum.Status_0.getCode());
+
+		Assert.assertTrue(service.revokeApply(apply));
+
+		ArgumentCaptor<LambdaUpdateWrapper> wrapperCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+		Mockito.verify(mapper).update(Mockito.isNull(), wrapperCaptor.capture());
+		Assert.assertTrue(updateWrapperHasParam(wrapperCaptor.getValue(), 7));
+		Mockito.verify(service).delDeviceAuth(3201L);
 	}
 
 	@Test
@@ -1599,11 +1643,11 @@ public class SmtAdmittanceApplyServiceImplTest {
 		service.updateOaStatusTask();
 
 		Assert.assertFalse(hasUpdateParam(mapper, DeviceDownStatusEnum.FAIL.getCode()));
-		ArgumentCaptor<SmtAdmittanceApply> updateByIdCaptor = ArgumentCaptor.forClass(SmtAdmittanceApply.class);
-		Mockito.verify(mapper, Mockito.atLeastOnce()).updateById(updateByIdCaptor.capture());
+		ArgumentCaptor<SmtAdmittanceApply> updateCaptor = ArgumentCaptor.forClass(SmtAdmittanceApply.class);
+		Mockito.verify(mapper, Mockito.atLeastOnce()).update(updateCaptor.capture(), Mockito.any());
 		Assert.assertTrue("推送失败不影响下发状态，应仍为已下发(4)",
-				updateByIdCaptor.getAllValues().stream()
-						.anyMatch(a -> DeviceDownStatusEnum.ALRAEDY.getCode().equals(a.getDeviceStatus())));
+				updateCaptor.getAllValues().stream()
+						.anyMatch(a -> a != null && DeviceDownStatusEnum.ALRAEDY.getCode().equals(a.getDeviceStatus())));
 	}
 
 	private boolean hasUpdateParam(SmtAdmittanceApplyMapper mapper, Object expected) {

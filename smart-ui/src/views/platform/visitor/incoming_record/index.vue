@@ -61,6 +61,7 @@
                   <el-option label="超时未到" value="4"></el-option>
                   <el-option label="已离开" value="5"></el-option>
                   <el-option label="预约超时" value="6"></el-option>
+                  <el-option label="已作废" value="7"></el-option>
                 </el-select>
               </el-form-item>
               <el-form-item label="预约来访时间" prop="timeRange">
@@ -126,6 +127,13 @@
                             <el-button v-else type="text" size="mini" @click.stop="reSend(item)" disabled>重新下发 </el-button>
                             <!-- hasAuth: 0 无权限  1有权限 -->
                             <el-button type="text" size="mini" @click.stop="delAuth(item)" :disabled="item.hasAuth != 1">删除通行权限 </el-button>
+                            <el-button
+                              v-if="permissions['platform_visitor_incoming_revoke']"
+                              type="text"
+                              size="mini"
+                              @click.stop="revokeApply(item)"
+                              :disabled="item.status === 7"
+                            >作废申请</el-button>
                           </p>
                         </div>
                       </div>
@@ -364,6 +372,44 @@ export default {
         })
         .catch(err => { console.error(err) })
     },
+    revokeApply(item) {
+      const elm = this.$createElement
+      const _this = this
+      this.$msgbox({
+        message: elm('p', { attrs: { class: 'smallp' } }, [
+          elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''),
+          elm('span', null, '确认作废该申请？单据将立即失效；已下发的人员和车辆通行权限将进入回收流程，且不可恢复。')
+        ]),
+        showCancelButton: true,
+        confirmButtonText: '确定作废',
+        cancelButtonText: '取消',
+        customClass: 'small_dialog',
+        center: true
+      })
+        .then(() => xcIncomingRecordApi.revoke({ id: item.id }))
+        .then((response) => {
+          if (response.data.code === 0 && response.data.data === true) {
+            _this.getList(_this.page, _this.searchForm)
+            _this.$notify({
+              title: '作废成功',
+              message: '申请单已失效，关联通行权限已提交回收',
+              type: 'success',
+              duration: 2000
+            })
+            return
+          }
+          _this.$notify.error({
+            title: '作废失败',
+            message: response.data.msg || '申请单作废失败',
+            duration: 2000
+          })
+        })
+        .catch((error) => {
+          if (error !== 'cancel' && error !== 'close') {
+            console.error(error)
+          }
+        })
+    },
     getList(page, params) {
       this.loading = true
       params = Object.assign(
@@ -473,6 +519,8 @@ export default {
                 item.status = '已离开'
               } else if (item.status == 6) {
                 item.status = '预约超时'
+              } else if (item.status == 7) {
+                item.status = '已作废'
               }
             })
             const data = this.formatJson(filterVal, list)

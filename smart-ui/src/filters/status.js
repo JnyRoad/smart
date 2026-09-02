@@ -109,6 +109,7 @@ export function applyStatusClassFormat (status) {
  * 4:超时未到
  * 5:已离开
  * 6:预约超时
+ * 7:已作废
  */
 export function visitorStatusFormat (status) {
   if(status==0){
@@ -125,6 +126,8 @@ export function visitorStatusFormat (status) {
     return '已离开'
   }else if(status==6){
     return '预约超时'
+  }else if(status==7){
+    return '已作废'
   }
 }
 /**
@@ -136,6 +139,7 @@ export function visitorStatusFormat (status) {
  * 4:超时未到-visitorStatus5
  * 5:已离开-visitorStatus6
  * 6:预约超时-visitorStatus7
+ * 7:已作废-visitorStatus8
  */
 export function visitorStatusClassFormat (status) {
   return 'visitorStatus'+ (Number(status)+1);

@@ -41,7 +41,7 @@ public class SmtAdmittanceApplyMapperXmlTest {
 		Assert.assertTrue(sql.contains("INNER JOIN SMT_ADMITTANCE_FELLOW F ON F.VISITOR_ID = A.ID"));
 		Assert.assertTrue(sql.contains("F.CERT_NO = ?"));
 		Assert.assertTrue(sql.contains("F.IS_MAIN = 1"));
-		Assert.assertTrue(sql.contains("A.STATUS != 1"));
+		Assert.assertTrue(sql.contains("A.STATUS NOT IN (1, 7)"));
 		Assert.assertTrue(sql.contains("A.START_TIME < ?"));
 		Assert.assertFalse(sql.contains("A.START_TIME <= ?"));
 		Assert.assertTrue(sql.contains("A.END_TIME > ?"));
