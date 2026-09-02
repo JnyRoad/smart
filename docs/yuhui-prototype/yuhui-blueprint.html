@@ -89,6 +89,29 @@ li::marker{color:var(--accent);font-weight:700}
 .flab{align-self:center;font-size:11px;font-weight:700;color:var(--accent);background:var(--soft);border-radius:10px;padding:2px 10px;margin-bottom:6px}
 .frow{display:grid;gap:10px;margin:0 auto;width:100%}
 
+
+/* 第 8 章 逐项开发说明 */
+.chapter-lede{font-size:15px;color:var(--ink);border-left:3px solid var(--accent);padding-left:16px;margin:16px 0 22px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:18px 0 26px}
+.item .ih{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:6px}
+.item .ih h3{margin:0;font-size:17px}
+.item .ino{font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--accent);background:var(--soft);border-radius:6px;padding:2px 9px;font-size:13px}
+.item .ibatch{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--ink3);background:var(--code);border-radius:10px;padding:2px 10px}
+.item dl{margin:0}
+.item dt{font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--accent);margin:16px 0 6px}
+.item dd{margin:0;color:var(--ink2);font-size:14px;line-height:1.85}
+.item dd table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 4px;background:var(--card)}
+.item dd th{background:var(--code);text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);font-size:12px;color:var(--ink2);white-space:nowrap}
+.item dd td{padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.item dd tr:last-child td{border-bottom:none}
+.item dd ol,.item dd ul{margin:4px 0 4px;padding-left:22px}
+.item dd li{margin-bottom:4px}
+.item dd code{font-size:.85em;word-break:break-all}
+.item dd pre{background:var(--code);border-radius:8px;padding:10px 12px;font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all}
+.toc-items{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.toc-items a{font-size:12.5px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:3px 11px;color:var(--ink2)}
+.toc-items a:hover{border-color:var(--accent);color:var(--accent)}
+
 @media print{.side,.pager{display:none}.page{display:block!important;page-break-after:always}.main{max-width:none;padding:0}}
 </style>
 
@@ -110,8 +133,15 @@ li::marker{color:var(--accent);font-weight:700}
     <a href="#p8">四 · 裕慧家园 App</a>
     <a href="#p9">五 · 权限管理与删除链路</a>
     <a href="#p10">六/七 · 免检证与自助打印</a>
-    <div class="grp">计划与确认</div>
+    <div class="grp">计划</div>
     <a href="#p11">开发批次与里程碑</a>
+    <div class="grp">逐项开发说明（开发级）</div>
+    <a href="#p13">批次 0 · 现网缺陷与生产核查</a>
+    <a href="#p14">批次 1 · P0 基础与小改造</a>
+    <a href="#p15">批次 2 · P1 打印族与 App 执行环节</a>
+    <a href="#p16">批次 3-4 · 刷卡与可靠删除地基</a>
+    <a href="#p17">批次 5-6 · 自动删除与最终阶段</a>
+    <div class="grp">确认</div>
     <a href="#p12">风险 · 待办 · 确认清单</a>
   </nav>
 </aside>
@@ -139,7 +169,7 @@ li::marker{color:var(--accent);font-weight:700}
   </ol>
   </div>
   <h2>怎么确认这份蓝图</h2>
-   <p>建议按顺序看：<b>核心流程图</b>（第 3 章，业务全貌）→ <b>交互原型</b>（第 4 章打开 App/Web 原型，按剧本把一张单据从申请点到归档）→ 逐个<b>功能模块</b>（确认功能描述与界面是否符合预期）→ <b>开发批次</b>（确认先后顺序）→ 最后在<b>确认清单</b>（第 8 章）逐项打勾回复。配套材料：<a href="https://claude.ai/code/artifact/9a59fbf7-032f-440f-b835-c040927ddad7" target="_blank">全套 UI 设计稿（可在线圈批）</a>。</p>
+  <p>建议按顺序看：<b>核心流程图</b>（第 3 章，业务全貌）→ <b>交互原型</b>（第 4 章打开 App/Web 原型，按剧本把一张单据从申请点到归档）→ 逐个<b>功能模块</b>（确认功能描述与界面是否符合预期）→ <b>开发批次</b>（第 7 章，确认先后顺序）→ <b>第 8 章逐项开发说明</b>（每个功能点独立成节，讲清现状、目标、实现方式、流程、改动清单与验证）→ 最后在<b>确认清单</b>（第 9 章）逐项打勾回复。配套材料：<a href="https://claude.ai/code/artifact/9a59fbf7-032f-440f-b835-c040927ddad7" target="_blank">全套 UI 设计稿（可在线圈批）</a>。</p>
   <div class="pager"><span></span><a class="next" href="#p1">下一章 · 整体架构 →</a></div>
 </section>
 
@@ -453,7 +483,7 @@ flowchart LR
 <section class="page" id="pg-p11">
   <div class="kicker">第 7 章</div>
   <h1>开发批次与里程碑</h1>
-  <p class="lede">按「先修地基、再上功能、外部依赖不满足就顺延」排定。每个批次可独立验收、独立回滚。</p>
+  <p class="lede">按「先修地基、再上功能、外部依赖不满足就顺延」排定。每个批次可独立验收、独立回滚。<b>点击批次名称可跳到第 8 章该批次的逐项开发说明</b>（每个功能点：现状与问题 → 目标与验收 → 实现方式 → 处理流程 → 改动清单 → 测试验证 → 依赖风险）。</p>
   <pre class="mermaid">
 flowchart LR
   B0["批次 0 · 立即<br/>5 个现网缺陷修复"]:::acc --> B1["批次 1 · P0<br/>访客小改造 + 作废止血<br/>保密考试管理 · 手动下发+期限<br/>设计器启动 · App 工程搭建"]
@@ -468,20 +498,20 @@ flowchart LR
 </pre>
   <div class="tbl"><table>
     <tr><th>批次</th><th>交付内容</th><th>启动门（不满足就顺延，不带病排产）</th></tr>
-    <tr><td>批次 0（立即）</td><td>5 个现网缺陷修复（含会误删权限的高危 BUG）</td><td>无；建议先核查生产任务开关（待办 20）定应急等级</td></tr>
-    <tr><td>批次 1（P0）</td><td>搜索保留/随行搜索/区域判重/作废止血/供应商软删除/考试通过管理/访客手动下发+期限/模板设计器启动开发/App 工程与登录</td><td>无外部依赖，随时可开工</td></tr>
-    <tr><td>批次 2（P1）</td><td>设计器完成→模板一次性切换（外包厂牌/访客带码/免检证）；App 执行环节全部上线</td><td>①IC 证卡机型号确认（只打卡面）②PDA 机型确认且扫码头+NFC 读卡验证通过</td></tr>
-    <tr><td>批次 3（P2）</td><td>三段刷卡（A点安检→押运人→B点安检）正式接入</td><td>NFC 验证已在批次 2 前置完成</td></tr>
-    <tr><td>批次 4（P3）</td><td>可靠删除链路 5.8 → 进出记录同步修复 5.7 → 申请期限拦截 + 保密联动 3.1/3.2/3.4 → 作废完整版</td><td>严格按此顺序：先地基后联动</td></tr>
-    <tr><td>批次 5（P4）</td><td>自动删除演练一周后灰度开启 + 删除报表；App 申请与主管审批（园区引擎）；押运方式完整交付</td><td>5.4 开启前演练数据核对无误</td></tr>
-    <tr><td>批次 6（远期）</td><td>自助打印硬件对接</td><td>设备定制完成</td></tr>
+    <tr><td><a href="#p13">批次 0（立即）</a></td><td>5 个现网缺陷修复（含会误删权限的高危 BUG）</td><td>无；建议先核查生产任务开关（待办 20）定应急等级</td></tr>
+    <tr><td><a href="#p14">批次 1（P0）</a></td><td>搜索保留/随行搜索/区域判重/作废止血/供应商软删除/考试通过管理/访客手动下发+期限/模板设计器启动开发/App 工程与登录</td><td>无外部依赖，随时可开工</td></tr>
+    <tr><td><a href="#p15">批次 2（P1）</a></td><td>设计器完成→模板一次性切换（外包厂牌/访客带码/免检证）；App 执行环节全部上线</td><td>①IC 证卡机型号确认（只打卡面）②PDA 机型确认且扫码头+NFC 读卡验证通过</td></tr>
+    <tr><td><a href="#p16">批次 3（P2）</a></td><td>三段刷卡（A点安检→押运人→B点安检）正式接入</td><td>NFC 验证已在批次 2 前置完成</td></tr>
+    <tr><td><a href="#p16">批次 4（P3）</a></td><td>可靠删除链路 5.8 → 进出记录同步修复 5.7 → 申请期限拦截 + 保密联动 3.1/3.2/3.4 → 作废完整版</td><td>严格按此顺序：先地基后联动</td></tr>
+    <tr><td><a href="#p17">批次 5（P4）</a></td><td>自动删除演练一周后灰度开启 + 删除报表；App 申请与主管审批（园区引擎）；押运方式完整交付</td><td>5.4 开启前演练数据核对无误</td></tr>
+    <tr><td><a href="#p17">批次 6（远期）</a></td><td>自助打印硬件对接</td><td>设备定制完成</td></tr>
   </table></div>
-  <div class="pager"><a href="#p10">← 上一章</a><a class="next" href="#p12">下一章 · 确认清单 →</a></div>
+  <div class="pager"><a href="#p10">← 上一章</a><a class="next" href="#p13">下一章 · 逐项开发说明 →</a></div>
 </section>
 
 <!-- ============ P12 确认清单 ============ -->
 <section class="page" id="pg-p12">
-  <div class="kicker">第 8 章</div>
+  <div class="kicker">第 9 章</div>
   <h1>风险 · 待办 · 确认清单</h1>
   <h2>还开着的事项（仅 3 件）</h2>
   <div class="tbl"><table>
@@ -509,7 +539,2109 @@ flowchart LR
   </ol>
   <p style="margin-top:8px">确认通过后，开发按批次 0 → 批次 1 顺序启动，每批次交付后单独验收。</p></div>
   <p style="color:var(--ink3);font-size:12px;margin-top:24px">配套档案：《裕慧家园系统新增功能需求分析.md》（40 项清单与 25 项确认记录）·《调研与实施方案 v1.5》（代码级证据与技术方案，经四轮对抗评审定稿）· UI 设计画布 v4。本蓝图与上述档案口径一致，如有出入以最新确认记录为准。</p>
-  <div class="pager"><a href="#p11">← 上一章</a><a class="next" href="#p0">回到封面 ↺</a></div>
+  <div class="pager"><a href="#p17">← 上一章</a><a class="next" href="#p0">回到封面 ↺</a></div>
+</section>
+
+<!-- ============ p13 逐项开发说明 ============ -->
+<section class="page" id="pg-p13">
+  <div class="kicker">第 8 章 · 逐项开发说明</div>
+  <h1>批次 0 · 现网缺陷修复与生产核查</h1>
+  <p style="color:var(--ink3);font-size:13px">立即执行 · 每项独立提交独立回滚</p>
+  <div class="toc-items" id="toc-p13"></div>
+  <p class="chapter-lede">批次 0 是《裕慧家园系统新增功能调研与实施方案》第四节里排在最前面的一批：修复调研顺带发现的 5 个现网缺陷（第六节①③④⑤，②做止血），并核查待确认问题 20（生产 5.4 任务开关状态）。这批改动共同点是"小、独立、可单独回滚"——每一项都不依赖其他项，不需要等厂牌打印、APP、决策 C（5.8 权限删除链路改造）任何一个大项先落地；相反，⑤/②/待办20 都是后续 P3 批次（5.8、2.6 完整版）验收前必须先清场的地基问题，因此排在最前面立即修。上线顺序建议：先做纯代码修复的①③⑤（互不依赖，可并行、可任意顺序合并），②因为同时涉及"止血"与"决策C 长期方案"的边界，修复口径需要先对齐（只做本批次列出的最小止血，不做完整状态机），④涉及订阅健康判定需要单独设计止血方案、且和 5.7 完整对账批次（批次4）有部分重叠面，建议放在①③⑤之后单独走查；待办 20 是纯核查+可能的应急处置，不改代码，可以和以上代码修复并行进行，但如果核查出生产已经误删，应急处置（关开关、核实名单、补发权限）要优先于①的代码合并上线节奏单独走应急流程。全部 5 项代码修复均为独立 PR、独立发布、独立回滚，互不阻塞；待办 20 产出一份可执行的运维核查手册，不产生代码提交。</p>
+
+<section class="item" id="item-d1">
+ <div class="ih"><span class="ino">缺陷①</span><h3>保密区自动删除天数取错字段</h3><span class="ibatch">批次 0</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <p>每日 0 点由 <code>PlatformTimerTask.autoDeleteTask()</code>（<code>smart-module/smart-schedule/.../task/PlatformTimerTask.java:143-148</code>，<code>@Scheduled(cron = "0 0 00 * * ?")</code>）触发，若 <code>taskJob.getSupplierAutoAuthDelete()</code> 为真且抢到 Redis 互斥锁，调用 <code>remoteSecurityAuthService.syncTask()</code>，最终进入 <code>SmtSecurityAuthDeleteServiceImpl.deleteAuthTask()</code>（<code>smart-module/smart-platform/smart-platform-biz/.../service/securityzone/impl/SmtSecurityAuthDeleteServiceImpl.java:120-144</code>）。</p>
+   <p>该方法第 131 行用 <code>deleteConfig.getDeleteDay()</code> 是否为 0 作为"该园区是否启用自动删除"的开关（这一处字段用对了），非 0 才继续遍历该园区 <code>auth_type=2</code>（保密区）的权限逐条调用 <code>deleteStaffAuthWithTransaction()</code>（150-218 行）。真正的 bug 在下游 <code>freeDay()</code> 方法第 229 行：</p>
+   <p><code>Integer limitDays = config.getIsWhiteList();</code></p>
+   <p>这里应取管理员配置的天数阈值 <code>config.getDeleteDay()</code>（实体 <code>SmtSecurityAuthDelete.java</code> 注释"超过多少天后删除权限"，典型取值如 30/60/90），却错取了 <code>isWhiteList</code>——一个"是否启用白名单"的 0/1 开关字段。第 284 行判定 <code>if (limitDays &lt; dateTimes.size()) return Boolean.TRUE;</code>（真则删除）。由于 <code>limitDays</code> 恒为 0 或 1，只要员工距最近一次进出（或权限创建时间，187-192 行的兜底逻辑）已经过去 1 天以上——这在任何一次 0 点定时任务里几乎必然成立——就会被判定应删，与管理员在页面上实际配置的 30/60/90 天完全无关。也就是说：只要某园区管理员把 <code>deleteDay</code> 从 0 改成任意正数打算"启用自动删除"，实际生效的宽限期立刻从"他配置的天数"退化成"0~1 天"，属地雷型缺陷（配置越"正常"，误删越快出现）。</p>
+   <p>影响范围：命中的每条权限，先经白名单校验（156-161 行 <code>smtSecurityWhiteService.isExist</code>）放行后，200 行 <code>smtStaffDeviceAuthService.removeById(authRelation.getId())</code> 物理删除本地 <code>smt_staff_device_auth</code> 记录，再于 207-208 行 <code>smtStaffService.savePersonCardTask(DeviceTaskConstants.DEL, ...)</code> 下发设备端删除任务——即整个园区非白名单的保密区权限，理论上会在开关生效当天几乎全部被清空。</p>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>修复后，<code>freeDay()</code> 的宽限期判定应使用 <code>config.getDeleteDay()</code>：员工在 <code>deleteDay</code> 天内有进出记录（或权限创建未满 <code>deleteDay</code> 天）不应被删除，超过才删除；<code>isWhiteList</code> 字段继续只用于原有白名单判定（156-161 行），不参与宽限期计算。验收：单测覆盖 <code>limitDays</code>（即 deleteDay）与 <code>dateTimes.size()</code> 的边界（相等/小于/大于）；灰度园区把 <code>deleteDay</code> 设为较大值（如 30）观察一个执行周期，只有"最近 30 天无进出记录且非白名单"的员工被建删除任务，其余不受影响。</dd>
+  <dt>实现方式</dt>
+  <dd><code>SmtSecurityAuthDeleteServiceImpl.java:229</code> 一行改动：<code>Integer limitDays = config.getIsWhiteList();</code> → <code>Integer limitDays = config.getDeleteDay();</code>。不涉及表结构变更，<code>smt_security_auth_delete</code> 表已有 <code>delete_day</code>/<code>is_white_list</code> 两个独立字段，只是代码取错了变量。</dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>先执行待办 20 的核查，确认生产该开关当前状态；若已开启，先按待办 20 的应急处置关闭开关止血。</li>
+    <li>修复 229 行代码 + 补充 <code>freeDay()</code> 的边界单测。</li>
+    <li>独立分支提交，走代码评审。</li>
+    <li>合并后随 smart-platform-biz 正常发布节奏上线（无需单独重启，随服务发布生效）。</li>
+    <li>上线后先在单一测试园区把 <code>deleteDay</code> 设置为较大值观察一个执行周期，核对被删名单是否符合"超过 deleteDay 天未进出"的预期，再逐步推广到生产园区开启。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>后端</td><td>SmtSecurityAuthDeleteServiceImpl.java（freeDay 方法，229 行）</td><td>limitDays 取值由 getIsWhiteList() 改为 getDeleteDay()</td></tr>
+    <tr><td>测试</td><td>对应单测类（新增/补充）</td><td>覆盖 limitDays 与实际间隔天数的边界场景</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>单测：构造不同 <code>deleteDay</code> 值 + 不同"最近进出至今天数"的组合，验证 <code>freeDay()</code> 返回值符合预期。联调：在测试园区配置一条员工权限 + 一条若干天前的 <code>SmtSnapPerson</code> 进出记录，手动触发 <code>deleteAuthTask()</code>，观察只有超过配置天数的记录才生成删除任务。</dd>
+  <dt>依赖与风险</dt>
+  <dd>无前置依赖，独立可回滚（单文件改动，直接 git revert 即可，不涉及数据结构）。风险：若生产此前已开启过该开关一段时间，此次修复不会自动恢复历史误删，需要走待办 20 里给出的排查 SQL 定位受影响人员并人工补发权限；修复上线不等于历史数据已修复，两者要分开确认。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-d2">
+ <div class="ih"><span class="ino">缺陷②</span><h3>员工无人脸时跳过建删除任务，但本地记录仍被批量删除（止血版）</h3><span class="ibatch">批次 0</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <p><code>SmtStaffDeviceAuthServiceImpl.removeAuthToDevice(List&lt;Integer&gt; ids, List&lt;String&gt; deviceIds)</code>（<code>smart-module/smart-platform/smart-platform-biz/.../service/impl/SmtStaffDeviceAuthServiceImpl.java:462-480</code>）批量删除员工权限时，467-477 行 for 循环逐条处理：</p>
+   <p><code>if (StrUtil.isBlank(staff.getFacePicId())) { log.info(...); continue; }</code>（470-473 行）</p>
+   <p>若该员工没有人脸图片，跳过 474-476 行的 <code>smtDeviceTaskService.addDeviceDelTaskImmed(...)</code>（即不向设备端下发删除指令），但循环结束后第 478 行 <code>this.removeByIds(ids)</code> 是对整个入参 <code>ids</code> 集合统一执行的，被 <code>continue</code> 跳过人脸校验的员工其 id 仍然在 <code>ids</code> 里，本地 <code>smt_staff_device_auth</code> 记录照样被物理删除。结果是：设备端从未收到删除指令、权限依然生效，但园区侧的记录已经"查不到"，管理员既看不到这条残留，也没有可重发的入口。</p>
+   <p>对照：同一个类里的单条重载 <code>removeAuthToDevice(SmtStaffDeviceAuth staffAuth, List&lt;String&gt; deviceIds)</code>（483-495 行）没有这个问题——486-489 行人脸为空时直接 <code>return false</code>，不会走到 494 行的 <code>removeById</code>。bug 只存在于批量（List）重载里。这是决策 C（5.8 权限删除链路改造）点名的具体子案例之一，长期应并入 5.8 的"先下发确认成功再收敛本地"链路；本批次只做最小止血，不做完整状态机。</p>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>批量删除时，若某员工因无人脸图片而未能建成设备端删除任务，其本地权限记录不应被一并物理删除（至少应保留可见、可人工处理的状态），避免出现"设备端权限还在、本地记录却查不到"的静默残留。验收：批量入参中混入一个无 facePicId 的员工，调用后该员工的 <code>smt_staff_device_auth</code> 记录仍可查询到，且日志/可见渠道能标识出它是"跳过建任务"的记录；其余正常员工按原逻辑被正常删除。</dd>
+  <dt>实现方式</dt>
+  <dd>在 467-477 行的 for 循环中收集被跳过的 id（<code>skippedIds</code>），第 478 行 <code>this.removeByIds(ids)</code> 改为只删除 <code>ids</code> 中排除 <code>skippedIds</code> 后的集合；<code>skippedIds</code> 对应的记录保留在库中，同时输出一条可检索的 ERROR/WARN 级日志（含 staffId、badge），供后续人工核实或随决策 C 落地时并入正式的"删除中/删除失败"状态机。本次止血不新增字段、不改表结构。</dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>改造 <code>removeAuthToDevice(List&lt;Integer&gt;, List&lt;String&gt;)</code>：收集 skippedIds，从待删除集合中剔除。</li>
+    <li>补充单测：混合"正常员工 + 无人脸员工"的批量删除场景。</li>
+    <li>独立分支提交，代码评审合并。</li>
+    <li>随 smart-platform-biz 正常发布节奏上线，无需数据回填（本次修复只影响"以后"的批量删除行为）。</li>
+    <li>历史因该 bug 已经产生的残留（本地记录已删但设备端权限未清）不在本次自动修复范围，需要另行排查——可参考待办 20 给出的 SQL 思路变体，按 card_no 反查是否存在本应生成但缺失的 DEL 任务记录，作为存量核实的起点。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>后端</td><td>SmtStaffDeviceAuthServiceImpl.java（removeAuthToDevice(List, List) 方法）</td><td>剔除因无人脸跳过建任务的员工 id，不对其执行本地物理删除；补充可检索日志</td></tr>
+    <tr><td>测试</td><td>对应单测</td><td>覆盖批量删除中含无人脸员工的场景</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>单测直接调用该方法，断言无人脸员工的记录未被删除、其余正常员工记录被正常删除。如联调环境允许，构造一个无 facePicId 的测试员工验证真实行为一致。</dd>
+  <dt>依赖与风险</dt>
+  <dd>独立可回滚（无表结构变更）。风险：修复后这类记录会"删不掉"，如果只是打日志而没有配套的可见清单入口，管理员仍然感知不到有记录卡住，等于把"静默误删"换成"静默卡住"——建议至少确保日志可被检索/告警，长期依赖批次 4 的 5.8 完整链路给出正式的"删除失败"状态与可操作入口。本止血修复的范围明确限定为"不删无法确认设备端已清的记录"，不承诺解决残留权限本身。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-d3">
+ <div class="ih"><span class="ino">缺陷③</span><h3>供应商协议到期通知只置标志，不发送实际消息</h3><span class="ibatch">批次 0</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <p><code>SupplierNotifyServiceImpl.notifyProcess()</code>（<code>smart-module/smart-schedule/.../service/platform/impl/SupplierNotifyServiceImpl.java:26-56</code>）由 <code>PlatformTimerTask.supplierNotify()</code>（122-127 行，每 30 分钟一次）调度。34-37 行按园区查询即将到期的供应商列表，40-49 行遍历每个供应商：</p>
+   <p><code>String template = config.getTemplate();</code>（第 42 行）</p>
+   <p>取出通知模板字符串后，该变量在整个方法里没有被用于任何拼接或发送调用，紧接着 44-47 行直接调用 <code>updateNotifyStatus</code> 把 <code>notifyStatus</code> 置为 <code>SupplierNotifyEnum.NOTIFY</code>（已通知）。全文件、全方法找不到任何短信/微信/站内消息的发送代码——即"标志已置成已通知"，但实际上从未有任何消息发出去。</p>
+   <p>影响：供应商保密协议临近到期时，相关负责人无从知晓；且一旦标志被置为已通知，若 <code>notifyList()</code>（下游未逐一核实其判重逻辑）不会重复捞取已置位的记录，则后续同一供应商大概率也不会再进入候选名单，等同永久错过这次到期提醒的窗口。</p>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>协议到期前配置的天数阈值命中时，系统应真正发出一条通知消息（微信/短信/站内信任一均可，内容用 template 渲染，包含供应商名称、到期时间等关键信息），且只有发送成功才置 <code>notifyStatus</code> 为已通知，发送失败不应误置位（避免"标志已置、消息未达"的假成功）。验收：测试园区配置一条即将到期的供应商记录，任务跑一次后能在对应渠道实际收到消息，且数据库里 <code>notifyStatus</code> 正确变更；人为制造发送失败（如渠道不可用）时，<code>notifyStatus</code> 保持未通知，下一轮任务能重试。</dd>
+  <dt>实现方式</dt>
+  <dd>在第 42 行取出 template 之后、44 行置位之前，插入实际的消息发送逻辑，参考 PR#127（保密权限微信推送）落地的 <code>WeChatMsgUtil</code> 通道（或对应的站内消息服务）完成"渲染模板 + 发送"。需要先确认两点尚未在代码中核实到的信息：①通知对象是谁——当前 <code>SmtSecurityAreaSupplierRespDTO</code> 是否已带联系人/接收人字段，若没有需要新增或从关联表补查；②发送失败时的重试策略——建议改为"发送成功才置位"，33-53 行现有的 try/catch 是按供应商粒度包裹的，需要把"发送失败"和"发送成功但置位失败"两种异常路径都处理清楚，且单个供应商失败不应影响同批次其他供应商的处理。</dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>确认通知对象字段与消息模板占位符（需要业务侧或数据库现状确认接收人来源）。</li>
+    <li>接入 WeChatMsgUtil（或对应站内消息通道），实现"渲染 + 发送"。</li>
+    <li>调整发送成功才置位的顺序与单供应商级异常隔离。</li>
+    <li>单测（mock 发送服务）+ 联调（真实收到消息）验证。</li>
+    <li>独立分支提交、评审、合并，随 smart-schedule 服务发布节奏上线（重启生效）。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>后端</td><td>SupplierNotifyServiceImpl.java（notifyProcess 方法）</td><td>插入实际消息发送逻辑，发送成功才更新 notifyStatus</td></tr>
+    <tr><td>后端</td><td>消息发送通道（视复用范围，可能涉及 smart-platform 侧暴露的 Feign 接口）</td><td>提供"渲染模板 + 发送"的调用点供 schedule 模块调用</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>单测 mock 消息发送服务，分别验证发送成功后置位、发送失败不置位两条路径。联调环境构造一条即将到期的供应商记录，跑一次任务验证真实收到消息且数据库状态正确。</dd>
+  <dt>依赖与风险</dt>
+  <dd>依赖先确认"通知对象/接收人"的数据来源（当前代码库内未核实到供应商到消息接收人的明确映射，属于本项修复前必须澄清的前置问题，不确认清楚可能导致误发或发不出）；回滚为代码回退，不涉及数据结构变更，风险低。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-d4">
+ <div class="ih"><span class="ino">缺陷④</span><h3>ISC 事件订阅"假活"：本地标志与 ISC 侧真实订阅状态可能脱节</h3><span class="ibatch">批次 0</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <p><code>BridgeISCServiceImpl</code>（<code>smart-module/smart-bridge-isc/smart-bridge-isc-biz/.../service/impl/BridgeISCServiceImpl.java</code>）用一个内存标志 <code>SUBSCRIBE_STATUS</code> 表示"当前是否已订阅"。134-146 行 <code>run()</code>（应用启动时执行一次）：若开启了事件订阅配置（<code>isEventSubscribeEnabled()</code>）则调用 <code>subscribeEvent()</code>；否则记日志"ISC事件订阅已关闭"。165-188 行 <code>subscribeEvent()</code> 方法里：</p>
+   <p><code>if (SUBSCRIBE_STATUS) { return; }</code>（第 169-171 行）</p>
+   <p>只要本地内存标志为 true 就直接返回，不会重新调用 ISC 的订阅接口。495-498 行还有一个每 2 分钟执行一次的 <code>@Scheduled</code> 任务 <code>subscribeTask()</code>，同样只是调用 <code>subscribeEvent()</code>，受同一个 169 行判断把关——即这个"周期性重订阅"任务在 <code>SUBSCRIBE_STATUS</code> 为 true 时形同虚设。</p>
+   <p><code>SUBSCRIBE_STATUS</code> 只在本进程内维护：订阅成功时在 181-184 行置为 true，取消订阅时在 208 行置为 false（193-210 行 <code>unsubscribeEvent()</code> 只在应用关闭时的 <code>destroy()</code> 里被调用，151-160 行）。一旦 ISC 服务端因自身重启/网络问题把订阅关系清除，但本应用没有主动调用 <code>unsubscribeEvent()</code>，本地标志会一直停留在 true——2 分钟一次的重订阅任务因 169 行直接 return 而不会真的重新订阅，ISC 侧实际已经掉线不再推送门禁事件，本地却"以为"订阅健康，进出记录（<code>SmtSnapPerson</code>）会静默停止更新，直到下次应用重启（重新走 134-146 行的 <code>run()</code>）才会恢复。这正是方案文档第五节 5.7 缺陷链条的第一环。</p>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>订阅健康检查不能只信本地内存标志，需要有主动校验/周期性重新确认订阅仍然生效的机制。验收：模拟 ISC 侧订阅失效后，本地应能在下一个健康检查周期内（分钟级）感知并重新订阅成功，<code>SmtSnapPerson</code> 恢复更新，不需要重启应用。</dd>
+  <dt>实现方式</dt>
+  <dd>
+   <p>批次 0 只做止血，不做 5.7 的完整拉取式对账（那是批次 4）。建议方案：在事件回调入口（<code>HandleServiceImpl</code>，方案文档 5.7 证据提到的反查/落库入口）记录"最后一次成功处理 ISC 事件回调的时间戳"；<code>subscribeTask()</code>（495-498 行）改造为：若距最后回调时间超过阈值（如 10 分钟无任何事件回调），视为疑似断连，主动把 <code>SUBSCRIBE_STATUS</code> 置为 false，再调用 <code>subscribeEvent()</code> 触发真正的重新订阅。</p>
+   <p>该方案比"直接去掉 169 行短路判断、每次都重订阅"更贴近问题本质（本地标志未必错，但没有真正在收事件才是要处理的信号），也避免和批次 4 的 5.7 完整订阅健康检查/拉取式对账重复建设。</p>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>在事件回调入口增加"最后成功回调时间戳"记录（内存或 Redis，视是否要跨实例共享，多实例部署建议存 Redis）。</li>
+    <li>改造 <code>subscribeTask()</code>：增加超时判定，超时则重置 <code>SUBSCRIBE_STATUS</code> 并重新订阅。</li>
+    <li>单测覆盖超时判定的边界（刚好等于阈值、小于阈值、大于阈值）。</li>
+    <li>联调：人为模拟 ISC 断连（如临时禁用回调地址或调用 ISC 侧取消订阅接口），观察是否在阈值时间内自动恢复推送。</li>
+    <li>独立分支提交、评审、合并，随 smart-bridge-isc 服务发布节奏上线（重启生效）。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>后端</td><td>BridgeISCServiceImpl.java（subscribeEvent/subscribeTask）</td><td>增加基于"最后回调时间"的健康判定，超时则重置 SUBSCRIBE_STATUS 并重新订阅</td></tr>
+    <tr><td>后端</td><td>事件回调入口（如 HandleServiceImpl）</td><td>记录最后一次成功处理 ISC 事件回调的时间戳，供健康判定使用</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>单测验证超时阈值判定的边界行为。联调验证人为断连后能在阈值时间内自愈、恢复接收事件；观察日志确认重订阅动作被正确触发而非被 169 行短路掉。</dd>
+  <dt>依赖与风险</dt>
+  <dd>本止血方案只保证"订阅关系能自愈"，不解决"订阅中断期间已经丢失的事件如何补偿"——那部分依赖批次 4（5.7 完整方案）的拉取式对账任务（<code>/api/acs/v2/door/events</code>）。两者不冲突，止血先上线可以缩短"假活"窗口，降低批次 4 上线前的数据缺口积累。回滚为代码回退，不涉及数据结构变更。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-d5">
+ <div class="ih"><span class="ino">缺陷⑤</span><h3>批量删除任务循环内提前 return，后续设备静默不建任务</h3><span class="ibatch">批次 0</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <p><code>SmtDeviceTaskServiceImpl.deleteTask(DeviceTaskDeleteDTO deviceTaskDeleteDTO)</code>（<code>smart-module/smart-platform/smart-platform-core/.../service/impl/SmtDeviceTaskServiceImpl.java:305-354</code>）用于给一批设备（<code>deviceTaskDeleteDTO.getDeviceCode()</code>，一个 List）创建删除任务。308-352 行是外层 for 循环，逐个遍历 deviceCode：</p>
+   <p>311-314 行：若该设备是 ISC 同步设备，调用 <code>smtIscDeviceTaskService.deleteTask(...)</code> 后 <code>continue</code>（继续处理下一个设备，这部分正确）。</p>
+   <p>316-350 行：非 ISC 设备分支——若存在下发记录（<code>taskDownRecord</code> 非空）且尚未有 INIT 状态的删除任务（323-329 行 <code>count == 0</code>），330-347 行构建新的 <code>SmtDeviceTask</code> 对象，第 348 行：</p>
+   <p><code>return this.save(deviceTask);</code></p>
+   <p>这个 <code>return</code> 在 for 循环内部——一旦第一个满足条件的非 ISC 设备成功创建删除任务，方法立即整体返回，同一批次里排在它后面的所有 deviceCode（不论是否 ISC 设备）都不会再被处理，权限会静默残留在这些设备上，调用方拿到的返回值（true）也无法反映"其实只处理了一个设备"这个事实。</p>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>批量删除应遍历完所有 deviceCode，为每个满足条件的设备都创建对应的删除任务，方法不应因单个设备处理完就提前退出。验收：单测传入 3 个及以上非 ISC 设备的 deviceCode 列表，断言每个设备都各自生成了一条对应的 <code>SmtDeviceTask</code>（action=2/DEL）记录，而不是只生成第一个。</dd>
+  <dt>实现方式</dt>
+  <dd>将第 348 行 <code>return this.save(deviceTask);</code> 改为 <code>this.save(deviceTask);</code>（去掉 return，让循环继续处理下一个 deviceCode）；方法末尾根据整体处理结果返回一个汇总布尔值（如"逐个 save 结果做与/或运算"）。需要先核实调用方当前如何依赖这个返回值（是否只判断 true/false 就认为"整批处理完成"），改动返回值语义时同步确认调用方逻辑不受影响。</dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>排查该方法的所有调用方，确认各自如何使用返回值。</li>
+    <li>修复 348 行的提前 return，调整方法末尾的返回值语义（与调用方对齐后再定）。</li>
+    <li>补充单测覆盖多设备（含多个非 ISC 设备）批量删除场景。</li>
+    <li>独立分支提交、评审、合并，随 smart-platform-biz 服务发布节奏上线。</li>
+    <li>上线后建议做一次历史核对：按 card_no 反查同一批应删设备是否每个都有对应的删除任务记录，识别历史因本 bug 遗留的存量残留权限（可参考待办 20 的 SQL 思路变体）。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>后端</td><td>SmtDeviceTaskServiceImpl.java（deleteTask 方法，348 行）</td><td>去掉 for 循环内的提前 return，遍历完所有 deviceCode 后再返回汇总结果</td></tr>
+    <tr><td>测试</td><td>对应单测</td><td>覆盖多设备（含多个非 ISC 设备）批量删除场景，断言每个设备各自生成删除任务</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>单测验证多设备场景下每个设备都各自建了删除任务，任务数与传入的 deviceCode 数一致（排除已有 INIT 删除任务的去重情况）。联调（如闸机管理删除入口）验证多设备批量删除后逐一核对 <code>smt_device_task</code> 记录数与设备数一致。</dd>
+  <dt>依赖与风险</dt>
+  <dd>需要先核实所有调用方对返回值的使用方式，避免修复本 bug 时引入新的语义不一致（例如某调用方原本依赖"true=至少处理一个"这种弱语义）。此修复不处理历史因该 bug 造成的存量残留权限，需要额外做一次性核对，建议随批次 0 一起排查但不阻塞代码本身上线。回滚为代码回退，无数据结构变更。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-todo20">
+ <div class="ih"><span class="ino">待办 20</span><h3>生产 5.4 任务开关核查与应急处置手册</h3><span class="ibatch">批次 0</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <p>方案文档第五节待确认问题 20 要求核实"生产环境 5.4（保密区权限自动删除）任务开关当前是否开启，若开启，缺陷①的取错字段 bug 是否已造成误删"。本项交付一份可执行的核查 + 应急处置手册，不是代码改动。</p>
+   <p><strong>对草稿口径的修正</strong>：方案草稿把开关键名写成 <code>timer_task_supplier_auto_auth_delete</code>，核实代码后需要澄清——这实际是 Redis 分布式互斥锁的 key，定义在 <code>smart-tool</code> 模块 <code>TimerTaskEnum.java:51</code> 行：<code>SUPPLIER_AUTO_AUTH_DELETE("timer_task_supplier_auto_auth_delete", "timer_task_supplier_auto_auth_delete", "保密区区域权限自动删除任务")</code>，由 <code>SwitchServiceImpl.process()</code>（<code>smart-module/smart-schedule/.../service/comm/impl/SwitchServiceImpl.java:46-63</code>）用 Redis <code>setIfAbsent</code> 抢占，作用是"防止多实例同时跑同一个定时任务"，<strong>不是业务意义上的开/关开关</strong>。</p>
+   <p>真正决定"这个定时任务本次触发是否执行"分两层：</p>
+   <p>1）Spring 定时触发层：<code>PlatformTimerTask.java:143-148</code> 行 <code>@Scheduled(cron = "0 0 00 * * ?")</code>（每天 0 点触发）<code>autoDeleteTask()</code>，方法体第 145 行 <code>if (taskJob.getSupplierAutoAuthDelete() && switchService.process(TimerTaskEnum.SUPPLIER_AUTO_AUTH_DELETE))</code> 才会往下执行 <code>remoteSecurityAuthService.syncTask(...)</code>。</p>
+   <p>2）<code>taskJob.getSupplierAutoAuthDelete()</code> 对应 <code>TaskJob.java:66</code> 行 <code>private Boolean supplierAutoAuthDelete;</code>，绑定 <code>@ConfigurationProperties(prefix = "task.job")</code>，即配置属性 <code>task.job.supplier-auto-auth-delete</code>（yaml kebab-case）。仓库内 <code>smart-module/smart-schedule/src/main/resources/bootstrap.yml:78</code> 当前写的默认值是 <code>supplier-auto-auth-delete: false</code>——但这只是随代码打包进 jar 的默认值，不代表生产实际生效值；按用户既有认知（生产三台任务开关分工的记录），本项目的任务开关一贯是通过各服务本地 bootstrap.yml 文件人工改 + 重启生效，生产部署文件可能已被改过。另外 <code>TaskJob</code> 类没有 <code>@RefreshScope</code> 注解，即使生产 Nacos 上另有一份覆盖配置（自动派生的 data-id 应为 <code>smart-schedule.yml</code>，命名空间 <code>eda914a9-b100-427b-9d37-4d7da89b841f</code>），也不会热更新，只有服务重启才会读取到新值生效。</p>
+   <p>3）即便服务级开关是 true，<code>SmtSecurityAuthDeleteServiceImpl.deleteAuthTask()</code> 第 131 行 <code>if (Objects.isNull(deleteConfig.getDeleteDay()) || OneOrZeroEnum.ZERO.getCode().equals(deleteConfig.getDeleteDay())) { continue; }</code>——每个园区在 <code>smt_security_auth_delete</code> 表里还有各自独立的行级开关（<code>delete_day</code> 是否非 0），这是数据库配置，与上面的服务级 Boolean 开关是两回事，必须分开核查，缺一不能下结论。</p>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>给出一份任何有相应权限的人（不要求读代码）可以照抄执行的核查步骤，能确定性回答"生产现在是否开着"和"如果开着/开过，有没有已经造成误删"，并给出可执行的应急处置动作。</dd>
+  <dt>实现方式</dt>
+  <dd>本项不产生代码修改，是一份核查 + SQL + 运维操作手册，具体步骤见下方"处理流程"。</dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li><strong>定位主机</strong>：按现有记录，生产三台分工——136 = 业务定时任务主机（smart-schedule 应部署在此）、119 = ISC 专用、113 = 网关 + admin 静态资源主机。本次核查应登录 136。</li>
+    <li><strong>查服务级开关的真实生效值</strong>：登录 136，找到 smart-schedule 实际部署目录下当前生效的 bootstrap.yml（不是仓库里的默认值），搜索 <code>supplier-auto-auth-delete</code> 这一行的值；同时到 Nacos 控制台核对 namespace=<code>eda914a9-b100-427b-9d37-4d7da89b841f</code> 下是否存在 data-id=<code>smart-schedule.yml</code> 的配置并同样设置了该属性——两处都要看。如该服务开放了 actuator 的 <code>/actuator/env</code> 或 <code>/actuator/configprops</code> 端点，优先直接查运行中进程的真实生效值，比读配置文件更可靠（因为文件和 Nacos 谁生效、有没有被后来的手工改动覆盖，单看文件不能确定）。</li>
+    <li><strong>查该定时任务是否真的执行过</strong>：若开关为 true，进一步查应用日志——每次抢锁成功，<code>SwitchServiceImpl.process()</code> 第 59 行会打印"开始执行：保密区区域权限自动删除任务 <em>时间</em>"，核对最近若干天日志里是否出现过这条记录、出现的日期。</li>
+    <li><strong>查各园区的行级开关</strong>：即使服务开关是 true，还要看数据库表 <code>smt_security_auth_delete</code> 各园区行的 <code>delete_day</code> 是否非 0（0/null 视为该园区未启用，对照代码第 131 行）。核查 SQL：
+     <br /><code>SELECT id, park_id, delete_day, is_white_list, is_holiday, is_business, is_leave, is_compensatory FROM smt_security_auth_delete;</code>
+     <br />只有 <code>delete_day</code> 非 0/非 null 的园区行才会真正参与删除判定。</li>
+    <li><strong>若 2/3/4 三方交叉确认任务确实跑过、且存在 delete_day 非 0 的园区</strong>：因缺陷①，只要任务跑过一次且命中园区 <code>delete_day</code> 非 0，几乎会把该园区所有非白名单的 <code>auth_type=2</code>（保密区）权限在当天全部命中删除（229 行 bug 导致实际宽限期恒为 0~1 天）。由于 200 行是"先物理删除本地记录，再在 207-208 行生成设备端删除任务"，被误删的 <code>smt_staff_device_auth</code> 记录本身在库里已经找不到了，只能通过设备端删除任务的残留记录反推"曾经删过谁"。核查 SQL 思路：
+     <ul>
+      <li>非 ISC 同步设备：<code>SELECT device_code, card_no, general, create_time, status, remark FROM smt_device_task WHERE action = 2 AND service_type = 1 AND device_type = 1 AND create_time &gt;= TO_DATE('怀疑开始日期','YYYY-MM-DD') AND create_time &lt; TO_DATE('怀疑结束日期的次日','YYYY-MM-DD') ORDER BY create_time;</code>（这里 <code>action=2</code>=立即删除、<code>service_type=1</code>、<code>device_type=1</code>=卡片，是 5.4 自动删除经 <code>savePersonCardTask(DeviceTaskConstants.DEL, ...)</code> 生成任务时固定写入的取值组合，源码见 <code>SmtStaffServiceImpl.java:1522-1557</code> 与 <code>personCardServiceType</code>）。</li>
+      <li>ISC 同步设备：同构字段查 <code>SMT_ISC_DEVICE_TASK</code> 表（DEVICE_CODE / CARD_NO / GENERAL / CREATE_TIME / STATUS / REMARK），需要 <code>JOIN SMT_DEVICE</code> 才能按 park_id 过滤（参照 <code>SmtIscDeviceTaskMapper.xml</code> 里 <code>getDelayDel</code>/<code>getDel</code> 查询的 join 写法）。</li>
+      <li>由于当前代码没有"来源标记"字段（这正是方案文档 5.6 缺陷指出的报表口径缺口），这批任务无法用字段直接和其他正常删除（员工主动作废、离职清理等）区分，只能靠：①创建时间是否落在 0 点整前后（cron 是每天 0 点触发，与人工操作的时间点通常有明显差异）；②card_no（对应 <code>smt_staff.id</code>）批量反查是否集中在保密区权限组（关联 <code>smt_device_authority.area_type=1</code> 的设备）下、同一天短时间内出现异常集中的批量记录；③与当前 <code>smt_staff_device_auth</code> 里该园区 <code>auth_type=2</code> 记录数做前后对比，若怀疑窗口后出现断崖式下降，可作为佐证。三者需要交叉印证，任一条单独都不足以下结论。</li>
+     </ul>
+    </li>
+    <li><strong>应急处置（若确认已发生大面积误删）</strong>：
+     <ol>
+      <li>立即关闭服务级开关：改 136 上 smart-schedule 实际生效的配置（本地文件和/或 Nacos 对应 data-id）中 <code>task.job.supplier-auto-auth-delete</code> 为 false，<strong>重启 smart-schedule 服务</strong>使其生效（因 <code>TaskJob</code> 无 <code>@RefreshScope</code>，只改配置不重启不会生效）。</li>
+      <li>用上一步的 SQL 确认误删名单（card_no 集合，反查 <code>smt_staff.badge</code>/<code>name</code>），并与业务侧/HR 侧提供的"该园区应有保密权限人员清单"核实真实受影响范围——库内原始权限记录已被删除，无法只靠数据库自证"删之前是谁"。</li>
+      <li>对确认误删的人员，走正常的保密权限重新下发流程补发（复用现有员工侧"通关权限分配"对话框重新勾选权限组，或访客侧手动下发路径），不建议尝试"整体数据回滚"（没有干净的回滚点，且名单中部分人员可能确实符合应删条件）。</li>
+      <li>修复缺陷①代码（见本文"缺陷①"条目）并按其"处理流程"完成灰度验证后，才考虑重新打开开关，不要修完立刻全量开启。</li>
+     </ol>
+    </li>
+    <li><strong>若核查后确认开关本来就是 false、且日志显示从未真正执行过</strong>：本项可直接结论"未造成影响"关闭，但仍建议按"缺陷①"独立完成代码修复，避免以后有人不了解此坑而误开。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   本项为生产核查与运维操作，不产生业务代码提交。
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>无代码改动</td><td>—</td><td>本项为生产配置核查、日志核查与 SQL 排查，不涉及代码提交</td></tr>
+    <tr><td>配置（若需应急关闭）</td><td>smart-schedule 生产 bootstrap.yml / Nacos data-id smart-schedule.yml</td><td>task.job.supplier-auto-auth-delete 改为 false，需重启服务生效</td></tr>
+    <tr><td>SQL（排查用，非迁移脚本）</td><td>smt_security_auth_delete / smt_device_task / SMT_ISC_DEVICE_TASK</td><td>见"处理流程"第 4/5 步的查询语句，用于核查开关状态与误删痕迹</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>无常规意义上的单元测试；核查过程本身即"验证"——以 136 主机实际生效配置值、Nacos 控制台配置值、应用日志、数据库 SQL 结果四方交叉印证得出结论，任一来源单独都不能下结论（例如只看仓库里的默认值 <code>bootstrap.yml=false</code> 不足以说明生产状态，必须看生产实际部署文件或运行时的 <code>/actuator/env</code>）。</dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>需要生产环境访问权限（136 主机文件与日志、数据库只读查询权限、Nacos 控制台只读权限）——本次调研仅为静态代码核实，未实际登录生产执行核查，本手册需要有相应权限的人员按步骤执行。</li>
+    <li>若确认发生过误删，但业务侧无法提供"应有权限清单"作为比对基准，止血 SQL 只能证明"发生过一次异常集中的大批量删除"，未必能精确复原到底删了谁——这是本方案的已知局限，需要业务侧配合提供基准名单。</li>
+    <li>关闭开关、重新下发权限均为可回滚操作；本项本身不修改代码，无代码层面的回滚风险。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+  <div class="pager"><a href="#p11">← 上一批次</a><a class="next" href="#p14">下一批次 →</a></div>
+</section>
+
+<!-- ============ p14 逐项开发说明 ============ -->
+<section class="page" id="pg-p14">
+  <div class="kicker">第 8 章 · 逐项开发说明</div>
+  <h1>批次 1 · P0 基础与快速见效改造</h1>
+  <p style="color:var(--ink3);font-size:13px">无外部依赖，随时开工</p>
+  <div class="toc-items" id="toc-p14"></div>
+  <p class="chapter-lede">
+本批次（批次 1 / P0）覆盖 10 项：2.4/2.5/2.7/3.3/5.3 五处小改造、2.6 作废止血版、5.1 考试通过管理、5.2 访客手动下发、1.2 模板设计器启动开发、4.1/4.2/4.3 新 App 工程搭建。除 5.1↔5.2（5.2 的涉密权限组下发依赖 5.1 的证件号版考试拦截）、2.6↔2.7（2.7 的判重排除条件依赖 2.6 新增的"已作废"状态）两组存在先后依赖外，其余各项改动文件互不重叠，可并行开发。统一口径：批次 1 内所有涉及删除/到期收回权限的功能，一律不新增"先删本地再下发"路径，也不新增本地延迟删除任务——到期收敛统一靠 ISC 下发窗口在设备端自然失效，等 5.8（批次 4）请求化删除链路上线后再补本地记录收敛；2.6 权限回收明确复用访客链路现成的 <code>delVisitorDeviceAuth</code> 样板（只基于已下发成功记录建立即执行删除任务，不碰业务单据字段之外的表），禁止引用同文件里另一个存在"循环内首次保存即 return"缺陷的 <code>deleteTask</code> 方法。
+</p>
+
+<section class="item" id="item-2-4">
+  <div class="ih"><span class="ino">2.4</span><h3>入厂申请记录搜索返回保留查询状态</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      列表页 <code>incoming_record/index.vue</code> 其实已经做了一半的"转发+恢复"机制：<code>created()</code>（247-259 行）会读 <code>this.$route.query.queryForm/queryPage</code> 并回填 <code>searchForm</code>/<code>page</code>；<code>handleDetail()</code>（395-404 行）跳转详情时也确实把当前 <code>page</code>、<code>searchForm</code> 作为 query 带给了详情路由。但 <code>detail.vue</code> 的返回按钮 <code>goBack()</code>（338-340 行）只调用了浏览器历史回退 <code>this.$router.go(-1)</code>，没有把详情页收到的 query 重新写回列表 URL。由于 <code>router/platform/visitor.js</code> 里只静态声明了 <code>detail/:id</code> 这一段路由（26-35 行），列表页本身是通过后台菜单动态 <code>component</code> 字段加载的一级路由，用户第一次点菜单进入列表时历史记录里没有任何 query；<code>go(-1)</code> 精确回退到的正是这条"无 query"的历史记录，而不是携带查询条件的新记录。结果就是 <code>created()</code> 里现成的恢复逻辑永远读不到值，翻页/搜索条件在返回后被重置为默认值。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>从列表搜索/翻页后进入详情，再点"返回"，应看到进入详情前的搜索条件、分页与列表内容原样保留，无需用户重新点搜索。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      不改列表页现有的"转发+恢复"逻辑（保留不动），只改 <code>detail.vue</code> 的 <code>goBack()</code>：把 <code>this.$router.go(-1)</code> 换成显式 <code>this.$router.push({ path: '/platform/visitor/incoming_record', query: { queryPage: this.$route.query.queryPage, queryForm: this.$route.query.queryForm } })</code>，把详情页收到的 query 原样带回列表路由，触发列表 <code>created()</code> 里已有的恢复分支。这是改动面最小的方案（比引入 sessionStorage 更贴合现有代码结构）。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>用户在列表页搜索/翻页，<code>searchForm</code>/<code>page</code> 处于当前状态</li>
+        <li>点击卡片进入详情，<code>handleDetail()</code> 把 <code>page</code>、<code>searchForm</code> 作为 query 传给详情路由（现状已有）</li>
+        <li>详情页挂载，按 <code>$route.params.id</code> 加载详情（现状已有）</li>
+        <li>用户点击"返回"，<code>goBack()</code> 改为显式 push 回列表路由，并把收到的 <code>queryPage</code>/<code>queryForm</code> 原样带回（本项新增）</li>
+        <li>列表页 <code>created()</code> 检测到 <code>$route.query.queryForm</code> 存在，恢复 <code>searchForm</code>/<code>page</code> 并重新 <code>getList()</code>（现状已有，无需改）</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/detail.vue（338-340 行 goBack）</td><td><code>$router.go(-1)</code> 改为携带 <code>queryPage</code>/<code>queryForm</code> 的显式 push</td></tr>
+        <tr><td>前端（不改，确认沿用）</td><td>smart-ui/src/views/platform/visitor/incoming_record/index.vue（247-259 行 created，395-404 行 handleDetail）</td><td>现有转发与恢复逻辑保留</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>手工回归：列表填访客姓名条件+翻到第 2 页→进入详情→点返回，断言搜索框内容、页码、列表数据与返回前一致；有前端路由测试基建的话补一条断言 <code>goBack()</code> 调用 push 且携带正确 query 的单测。</dd>
+    <dt>依赖与风险</dt>
+    <dd>若该菜单在 sys_menu 里配置了 keep-alive（是否开启未在静态代码中确认），组件不会重新创建，<code>created()</code> 不会重跑，需要在 <code>activated()</code> 里补同一套恢复逻辑兜底；本次改动只涉及 <code>detail.vue</code> 一处，不影响直接通过 URL 访问详情等其他入口。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-2-5">
+  <div class="ih"><span class="ino">2.5</span><h3>随行人员姓名搜索</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      <code>SmtAdmittanceApplyMapper.xml</code> 的 <code>getSmtVisitorPage</code>（58 行起）已经 <code>LEFT JOIN SMT_ADMITTANCE_FELLOW SAF</code>（89 行）与 <code>LEFT JOIN SMT_ADMITTANCE_VEHICLE SAV</code>（90 行），证件号条件已经查随行表 <code>SAF.CERT_NO LIKE ...</code>（104-106 行），但姓名条件只判断主表 <code>V.VISITOR_NAME LIKE ...</code>（92-94 行），搜不到随行人员姓名。查询用了 <code>SELECT DISTINCT</code>（60 行）试图去重，但因为同时 LEFT JOIN 了一对多的 fellow 和 vehicle 两张表，一个访客有多个随行人或多台车时会产生笛卡尔积重复行——<code>DISTINCT</code> 无法消除，因为 <code>SAV.PLATE</code> 等字段在不同车辆行之间取值不同。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>在"访客姓名"框输入任一随行人员姓名也能搜到对应主单；不因本次改造而放大现有的重复行问题。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      SQL 层：把姓名过滤条件从"只判 <code>V.VISITOR_NAME</code>"改为"<code>V.VISITOR_NAME LIKE ... OR EXISTS (SELECT 1 FROM SMT_ADMITTANCE_FELLOW SF2 WHERE SF2.VISITOR_ID = V.ID AND SF2.FELLOW_NAME LIKE ...)</code>"，用独立 EXISTS 子查询而不是复用外层 LEFT JOIN 的 <code>SAF</code> 别名——直接在 JOIN 结果上加姓名过滤会因为 LEFT JOIN 产生的 NULL 行导致主表本身命中的记录被误过滤掉。顺手把证件号条件（现状 104-106 行的 <code>SAF.CERT_NO LIKE</code>）也改成同样的 EXISTS 写法，从根源上消掉因随行人 JOIN 导致的重复行，不必等未来专门重构。前端：搜索框 label 由"访客姓名"改为"访客/随行姓名"，字段名不变仍传 <code>visitorName</code>，无需前后端新增参数联调。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>用户在"访客/随行姓名"框输入随行人员姓名</li>
+        <li>前端沿用现有 <code>visitorName</code> 参数提交查询</li>
+        <li>后端 <code>getSmtVisitorPage</code> 的 WHERE 条件按主表姓名或 EXISTS 随行人员姓名任一匹配</li>
+        <li>返回命中的主单（EXISTS 写法不产生额外重复行）</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>数据库/SQL</td><td>smart-module/smart-platform/smart-platform-core/src/main/resources/mapper/SmtAdmittanceApplyMapper.xml（getSmtVisitorPage，约 58-131 行）</td><td>姓名条件加随行姓名 EXISTS 分支；证件号条件同步改 EXISTS 写法防重复行</td></tr>
+        <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/index.vue（19-21 行"访客姓名"表单项）</td><td>label 文案改"访客/随行姓名"</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>造 3 组数据验证：①只主访客姓名命中；②只随行人员姓名命中；③一访客带 3 个随行人（应只返回 1 行，验证 EXISTS 改造未引入新的重复行）；有 Mapper 单测基建的话补一条针对 <code>getSmtVisitorPage</code> 的集成测试断言返回行数。</dd>
+    <dt>依赖与风险</dt>
+    <dd>本次一并把证件号搜索也切到 EXISTS，属于顺手修复现有的重复行隐患，改动范围仍限定在这一段 SQL，风险低；随行人姓名是否要求精确匹配未见需求特别说明，按现有证件号/姓名条件的一致口径继续用 LIKE 模糊匹配。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-2-7">
+  <div class="ih"><span class="ino">2.7</span><h3>重复申请按新厂/老厂区域判重 + 随行人员纳入判重</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      <code>visitorEqualCheck</code>（<code>SmtAdmittanceApplyServiceImpl.java</code>，253-276 行）遍历 <code>fellowList</code>，只对 <code>Integer.valueOf(1).equals(fellow.getIsMain())</code>（264 行）的记录（即主申请人本人）做重复校验，调用 <code>baseMapper.countActiveMainFellowOverlapByCertNo(certNo, startTime, endTime)</code>；对应 SQL（<code>Mapper.xml</code>，360-369 行）条件为 <code>F.CERT_NO=? AND F.IS_MAIN=1 AND A.STATUS!=1</code> 加时间重叠，既没有区域维度，也不校验非主随行人员（<code>IS_MAIN!=1</code>）。<code>SmtAdmittanceApply</code> 实体已有 <code>areaType</code> 字段（entity.java:134，String 类型，供 detail.vue 拆分展示"新工厂/老工厂"多选结果），SQL 里完全没有引用。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>同一证件号在同一时间段、同一区域（新厂或老厂，因二者绑定不同门岗设备、各自独立管控）下不能有两条有效申请；跨区域可以并存，无需额外管控；随行人员（非主申请人）也要按同样规则纳入判重，不再只挡主申请人自己。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      SQL 层：<code>countActiveMainFellowOverlapByCertNo</code> 去掉 <code>F.IS_MAIN=1</code> 限制，改为按证件号对 <code>SMT_ADMITTANCE_FELLOW</code> 全表（含主申请人与随行人）判重；新增区域交集条件，传入本次申请的 <code>areaType</code>，与已存在申请的 <code>A.AREA_TYPE</code> 做子串匹配（因为该字段是多选拼接的字符串，需用 Oracle <code>INSTR</code>/<code>LIKE</code> 判断两侧是否存在交集，而非精确等值）。Java 层：<code>visitorEqualCheck</code> 循环里去掉 <code>isMain</code> 判断分支，对 <code>fellowList</code> 里所有人统一跑判重；调用改为多传一个 <code>areaType</code> 入参。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>用户提交入厂申请（含主申请人+随行人员列表+ <code>areaType</code>）</li>
+        <li><code>visitorEqualCheck</code> 遍历 <code>fellowList</code>（不再按 <code>isMain</code> 跳过）</li>
+        <li>对每个人的证件号，查询同证件号+区域有交集+时间重叠+状态非终态（"已拒绝"及 2.6 新增的"已作废"）的记录数</li>
+        <li>命中则抛异常阻止提交，提示对应随行人姓名及冲突时间段</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>数据库/SQL</td><td>SmtAdmittanceApplyMapper.xml（countActiveMainFellowOverlapByCertNo，360-369 行）</td><td>去掉 IS_MAIN=1 限制；加 AREA_TYPE 交集匹配入参</td></tr>
+        <tr><td>后端</td><td>SmtAdmittanceApplyServiceImpl.visitorEqualCheck（253-276 行）</td><td>去掉 isMain 分支，统一对所有随行人判重；透传 areaType</td></tr>
+        <tr><td>后端（跨项联动）</td><td>同 SQL 的 STATUS!=1 条件</td><td>2.6 上线后追加排除"已作废"状态</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>单测覆盖：同证件号同区域时段重叠应拦截；同证件号跨区域（一新厂一老厂）不应拦截；非主随行人员与其他申请证件号重叠时应拦截（当前会漏判，是本项修复的核心场景）。</dd>
+    <dt>依赖与风险</dt>
+    <dd><code>AREA_TYPE</code> 的实际存储格式（分隔符、编码是否有歧义）需要先抽样核对线上数据再定 SQL 匹配写法，避免误判/漏判；判重收紧后，同证件号同区域的重复提交会比现状更容易被拦，需要在上线说明里提前告知一线操作人员，避免误认为是新缺陷。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-3-3">
+  <div class="ih"><span class="ino">3.3</span><h3>保密供应商软删除</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      <code>SmtSecurityAreaSupplierServiceImpl.delSecurityAreaSupplier</code>（297-304 行）唯一的前置校验是"该供应商名下是否还有在册人员"（<code>SmtSupplierPerson</code>，299-302 行，有则拒绝删除），通过后直接 <code>this.removeById(id)</code> 物理删除（303 行）。<code>SmtSecurityAreaSupplier</code>、<code>SmtSupplierPerson</code> 两个实体均无 <code>del_flag</code>/<code>isDelete</code> 字段，也无 <code>@TableLogic</code> 注解。仓内确实有 <code>@TableLogic</code> 用法先例，但需要注意：<code>SmtOrganizeRelation.java</code>（37-38 行）与 <code>SmtExternalDept.java</code>（49-50 行）的 <code>@TableLogic</code> 字段其实是被整段注释掉的，并未生效；真正生效可参照的先例是 <code>SmtWaterMeter.java</code>（106-107 行：<code>@TableLogic private Integer isDelete;</code>）。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>删除供应商记录后历史数据可追溯、不产生物理空洞；已逻辑删除的供应商在常规查询（列表、详情、下拉选择）中不再出现；PDA/扫码等场景命中已失效供应商关联记录时给出明确的"已过期/失效"提示。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      数据库/实体：<code>SmtSecurityAreaSupplier</code>、<code>SmtSupplierPerson</code> 各加 <code>del_flag</code>（Integer，0 未删/1 已删）字段，实体加 <code>@TableLogic</code> 注解（写法参照 <code>SmtWaterMeter.java:106-107</code>），启用后 MyBatis-Plus 内置的 <code>removeById</code> 自动变为 <code>UPDATE del_flag=1</code>，<code>delSecurityAreaSupplierServiceImpl</code> 的调用代码无需改。删除入口的"有在册人员则拒绝删除"这条硬校验批次 1 保持不变（需求未明确是否允许级联软删）。查询层：MyBatis-Plus 逻辑删除只对内置方法（<code>selectById</code>/<code>selectList</code> 等）自动生效，凡是这两张表相关的手写 XML SQL 需要人工逐条核对补 <code>AND DEL_FLAG = 0</code>。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>管理员在保密供应商列表点删除</li>
+        <li>后端校验该供应商名下是否还有在册人员，有则拒绝（沿用现状）</li>
+        <li>无在册人员则执行逻辑删除（<code>UPDATE del_flag=1</code>），由 MyBatis-Plus 自动生效</li>
+        <li>常规查询（分页/下拉/详情）自动过滤已软删记录</li>
+        <li>PDA/扫码命中该供应商关联的失效人员/记录时，判断 <code>del_flag=1</code> 返回"该记录已失效"提示</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>数据库</td><td>SMT_SECURITYAREA_SUPPLIER、SMT_SUPPLIER_PERSON</td><td>各加 del_flag 字段（默认 0）</td></tr>
+        <tr><td>后端实体</td><td>SmtSecurityAreaSupplier.java、SmtSupplierPerson.java</td><td>加 del_flag 字段 + @TableLogic 注解</td></tr>
+        <tr><td>后端</td><td>SmtSecurityAreaSupplierServiceImpl.delSecurityAreaSupplier（297-304 行）</td><td>调用代码不变，removeById 语义由物理删自动变逻辑删</td></tr>
+        <tr><td>后端</td><td>供应商相关手写 XML（分页/详情等自定义查询）</td><td>逐个核对补 DEL_FLAG=0 过滤条件</td></tr>
+        <tr><td>前端/PDA</td><td>扫码校验分支</td><td>命中 del_flag=1 记录时提示"已过期/失效"</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>单测覆盖 <code>delSecurityAreaSupplier</code> 删除后 <code>getById</code>/<code>list</code> 均查不到该记录；专门核对现有手写 XML 查询是否会把已软删记录漏出来（这是最容易遗漏的点）；PDA/扫码集成测试模拟命中软删记录，验证提示文案符合预期。</dd>
+    <dt>依赖与风险</dt>
+    <dd>MyBatis-Plus 逻辑删除不会自动处理手写原生 SQL，遗漏某处 XML 未加 DEL_FLAG 过滤是本项最大风险点，需要对 <code>SmtSecurityAreaSupplierMapper.xml</code>、供应商人员相关 XML 及所有引用这两张表的查询做一次全文复核；升级为逻辑删除只管住未来的删除动作，不处理历史上已发生的物理删除数据。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-5-3">
+  <div class="ih"><span class="ino">5.3</span><h3>手动下发权限增加起止日期</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      两条手动下发链路都缺日期字段。① 员工侧"通关权限分配"：入口在 <code>smart-ui/src/views/platform/basic/staff_info/index.vue:157</code>（对话框标题"通关权限分配"），提交调用 <code>/platform/staff/device/auth/updateAuth/{type}</code>（<code>smart-ui/src/api/platform/basic/staff_info.js:62</code>），后端 <code>SmtStaffDeviceAuthController.java:56-58</code> → <code>SmtStaffDeviceAuthServiceImpl.updateAuthNew(type, auth)</code>（193-261 行），入参 <code>UpdateDeviceAuthDTO</code> 只有 <code>ids</code>（员工ID列表）+ <code>deviceAuthIds</code>（权限策略ID列表），全程没有日期字段。② 权限组批量粘贴：<code>DeviceAuthRelationAddReqDTO</code> 只有 <code>authId</code>+<code>type</code>+<code>badges</code>（工号列表），同样无日期。底层 <code>SMT_ISC_DEVICE_TASK</code> 表本身已有 <code>startTime</code>/<code>overTime</code> 字段（<code>SmtIscDeviceTask.java:50,55</code>，action 枚举含 1下发/2删除/11延迟下发/12延迟删除），ISC 下发的 <code>auth_config</code> 本身支持时间窗口；但 <code>SmtStaffDeviceAuth</code>（员工-权限关联表）实体本身没有起止时间字段（只有 <code>staffId</code>/<code>authId</code>/<code>createTime</code>/<code>authType</code>）。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>手动下发权限时可指定本次授权的生效起止日期（默认当天~2030，即长期有效兜底）；到期后靠 ISC 设备端窗口自动失效，批次 1 不碰本地记录、不建本地延迟删除任务；弹窗里"有效期"控件放在"追加/覆盖"单选控件上方。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      后端 DTO：<code>UpdateDeviceAuthDTO</code>、<code>DeviceAuthRelationAddReqDTO</code> 各加 <code>startTime</code>/<code>endTime</code> 字段，未传时后端兜底默认"当天 00:00 ~ 2030-12-31"。<code>SmtStaffDeviceAuth</code> 表加起止字段供列表展示（仅展示用，不驱动本地删除逻辑）。<code>updateAuthNew</code> 组装下发任务（<code>smtDeviceTaskService.updateStaffAuthNew</code>）时把这组起止时间透传进 <code>DeviceTaskVO</code>，最终写入 <code>SMT_ISC_DEVICE_TASK.START_TIME</code>/<code>OVER_TIME</code>，走 <code>auth_config</code> 下发窗口由设备端到期自动拒行，不新建 action=12 延迟删除任务。前端：员工"通关权限分配"弹窗与权限组批量粘贴弹窗，在"追加/覆盖"单选控件上方新增起止日期选择器，默认当天~2030-12-31。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>管理员在通关权限分配/权限组批量粘贴弹窗选择权限组+起止日期（默认当天~2030）</li>
+        <li>提交时后端接收 startTime/endTime，写入本次下发任务的 START_TIME/OVER_TIME</li>
+        <li>ISC 下发时把该窗口写入设备端 auth_config，到期后设备端自动拒绝通行，服务端无需二次动作</li>
+        <li>SmtStaffDeviceAuth 记录同步这组起止时间用于列表展示，不驱动本地清理</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>后端 DTO</td><td>UpdateDeviceAuthDTO.java、DeviceAuthRelationAddReqDTO.java</td><td>加 startTime/endTime 字段+默认值兜底</td></tr>
+        <tr><td>后端</td><td>SmtStaffDeviceAuthServiceImpl.updateAuthNew（193-261 行）</td><td>组装 DeviceTaskVO 时透传起止时间</td></tr>
+        <tr><td>数据库/实体</td><td>smt_staff_device_auth 表/SmtStaffDeviceAuth.java</td><td>加起止时间字段（展示用）</td></tr>
+        <tr><td>前端</td><td>staff_info/issueAuth.vue、权限组批量粘贴弹窗</td><td>追加/覆盖单选上方新增有效期选择器，默认当天~2030</td></tr>
+        <tr><td>后端</td><td>/relation/add 对应 Controller/ServiceImpl</td><td>同步接入 startTime/endTime</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>单测覆盖 <code>updateAuthNew</code> 在传入自定义起止时间时正确写入 <code>SMT_ISC_DEVICE_TASK</code>；未传时兜底默认区间；集成测试验证 ISC 下发报文里 <code>auth_config</code> 的时间窗口字段被正确赋值。</dd>
+    <dt>依赖与风险</dt>
+    <dd>批次 1 明确不建本地延迟删除任务，到期收敛完全依赖 ISC 设备端窗口失效，本地 <code>smt_staff_device_auth</code> 记录在到期后仍会"看起来有效"，这是本批次的既定妥协，需在验收说明里写清楚，待 5.8（批次 4）链路上线后再补本地收敛。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-2-6">
+  <div class="ih"><span class="ino">2.6</span><h3>入场申请作废（止血版）</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      当前只有逐条删除设备权限的端点 <code>POST /del/auth</code>（<code>SmtAdmittanceApplyController.java:220-224</code>）→ <code>delDeviceAuth(id)</code>（<code>SmtAdmittanceApplyServiceImpl.java:1583-1598</code>），遍历该申请单下的随行人（<code>getByApplyId</code>）与车辆，分别调用 <code>smtDeviceTaskService.delVisitorDeviceAuth(fellow.getId()/vehicle.getId())</code>——只回收权限，不改申请单状态。<code>VisitorStatusEnum</code>（smart-tool 模块）目前只有 0已通过/1已拒绝/2待审核/3已到达/4超时未到/5已离开/6预约超时，没有"已作废"状态。<code>delVisitorDeviceAuth</code> 的实现（<code>SmtDeviceTaskServiceImpl.java:801-873</code>）只基于 <code>SmtTaskDownRecord</code> 里已下发成功的记录建立即执行的删除任务（复用已有可复用删除任务或新建 <code>OVER_TIME</code>=当前时间的 INIT 状态 DEL 任务），不物理删除业务单据。同文件里另有一个 <code>deleteTask</code> 方法（305-348 行）存在缺陷：<code>for (String deviceCode : ...)</code> 循环内，第一个非 ISC 设备 <code>save</code> 成功后即在 348 行 <code>return this.save(deviceTask)</code>，导致同一申请涉及多台非 ISC 设备时，后续设备的删除任务不会被创建，权限静默残留——本项止血版明确禁止走这条路径。OA 回调侧已有 CAS 幂等占位：<code>claimOaFinalStatus</code>（<code>SmtAdmittanceApplyServiceImpl.java:2060-2083</code>）用 <code>.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_2.getCode())</code>（即"待审核"）做条件更新，只有当前状态仍是待审核时才会被回调结果覆盖，天然具备"状态已变更则更新 0 行"的幂等特性。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>前端卡片支持多选，右上工具条新增「作废」按钮；勾选一条或多条后点击，选中记录整单置为"已作废"状态并批量回收其下全部随行人/车辆的通行权限；判重（2.7）排除已作废单据；作废后同一人可重新提交申请；不联动 OA（园区内直接作废），但后续到达的 OA 审批回调若发现单据已作废，须幂等忽略、不得重新激活单据或触发权限下发。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      枚举：<code>VisitorStatusEnum</code> 新增状态码（如 <code>Status_7</code>"已作废"）。后端：新增批量作废接口（如 <code>POST /batch/invalid</code>，入参 <code>List&lt;Long&gt; ids</code>），对每个 id 依次：① 用 CAS 条件更新（参照 <code>claimOaFinalStatus</code> 的写法：只允许从非终态迁移到"已作废"，避免并发下重复作废或覆盖已终态记录）；② 复用 <code>delDeviceAuth</code> 内部逻辑，遍历 fellow/vehicle 调 <code>delVisitorDeviceAuth</code> 回收权限（不走有缺陷的 <code>deleteTask</code>）；③ 记录操作人/时间留痕。OA 回调兼容：<code>claimOaFinalStatus</code>/<code>resolveOaFinalStatus</code> 链路里，CAS 更新条件天然只匹配"待审核"状态，已作废记录不会被误覆盖，只需要确认调用方把"CAS 更新 0 行"当作正常的幂等结果处理而非异常。判重：2.7 的 SQL <code>STATUS != 1</code> 扩展为排除"已作废"状态码。前端：<code>incoming_record/index.vue</code> 卡片加复选框实现多选，列表顶部工具条新增「作废」按钮，选中至少一条时可点击，二次确认后调用批量作废接口。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>管理员在入厂申请记录列表勾选一条或多条卡片</li>
+        <li>点击右上工具条「作废」按钮，二次确认弹窗</li>
+        <li>后端对每条记录做 CAS 状态更新为"已作废"（已处于终态/正在删除中的记录跳过并回显原因）</li>
+        <li>作废成功的记录，遍历其随行人/车辆，复用 <code>delVisitorDeviceAuth</code> 建立即执行的删除任务回收权限</li>
+        <li>前端刷新列表，作废记录以新状态展示，判重条件（2.7）后续自动排除这些单据</li>
+        <li>若稍后到达该单据的 OA 回调，CAS 条件（当前状态仍需=待审核）不满足，更新 0 行，幂等跳过，不覆盖已作废状态</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>后端枚举</td><td>VisitorStatusEnum.java</td><td>新增"已作废"状态码</td></tr>
+        <tr><td>后端</td><td>SmtAdmittanceApplyController.java</td><td>新增批量作废端点</td></tr>
+        <tr><td>后端</td><td>SmtAdmittanceApplyServiceImpl.java（参照 1583-1598 行 delDeviceAuth、2060-2083 行 claimOaFinalStatus）</td><td>新增批量作废方法：CAS 改状态 + 复用 delDeviceAuth 权限回收逻辑；确认 OA 回调 CAS 对已作废单幂等生效</td></tr>
+        <tr><td>数据库/SQL</td><td>SmtAdmittanceApplyMapper.xml countActiveMainFellowOverlapByCertNo（360-369 行）</td><td>STATUS != 1 扩展为排除已作废</td></tr>
+        <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/index.vue</td><td>卡片加多选勾选框 + 右上工具条「作废」按钮</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>单测覆盖：批量作废接口对"待审核/已通过/已到达"等非终态记录成功，对"已拒绝"等终态记录按业务口径决定是否允许（批次 1 建议只允许非终态与在用状态作废，已拒绝/已作废不可重复操作）；OA 回调幂等测试——模拟对已作废单据的回调，断言状态不被覆盖、无异常抛出；权限回收测试——断言调用路径经过 <code>delVisitorDeviceAuth</code> 而非有缺陷的 <code>deleteTask</code>。</dd>
+    <dt>依赖与风险</dt>
+    <dd>止血版不接入 5.8 的请求实体化删除链路，权限回收在 ISC 侧失败时本地无法感知（沿用 <code>delVisitorDeviceAuth</code> 现状的可靠性水平，不做增强），是批次 1 到批次 4 之间的已知妥协，需在验收文档注明；新增"已作废"状态码后，所有对 <code>VisitorStatusEnum</code> 做全量枚举展示映射的前端/报表位置需要补充新状态的展示文案，避免显示异常。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-5-1">
+  <div class="ih"><span class="ino">5.1</span><h3>保密考试通过管理</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      全仓「考试」零命中。仿照对象承诺书三件套完整存在：<code>SmtSecurityPersonRelationController</code>（<code>@RequestMapping("/security/person")</code>）——分页查询 <code>/page</code>（41-44 行）、员工树 <code>/staff/tree</code>（51-64 行）、手动添加关联 <code>/save/relation</code>（71-75 行）、导入关联 <code>/export/save/relation</code>（77-81 行）、批量删除 <code>/batch/delete</code>（88-93 行）、全员视角 <code>/all/staff</code>（100-105 行，专门查"所有在职员工"，用于连同未关联的人也能展示）。查询过滤先例——<code>SmtStaffMapper.xml</code>（259-264 行）：<code>signStatus=1</code> 时 <code>STAFF.ID IN (SELECT STAFF_ID FROM SMT_SECURITY_PERSON_RELATION)</code>，<code>signStatus=0</code> 时 <code>NOT IN</code>，可原样复制成"是否通过考试"的过滤条件。保密权限申请拦截点——<code>SmtSecurityZoneServiceImpl.getAuthRemark</code>（217-254 行）：目前只支持员工路径（按 <code>apply.getStaffId()</code> 查 <code>SmtStaff</code>、查人脸、查 <code>SmtSecurityPersonRelation</code> 关联保密区、查保密区关联权限，任一环节缺失就在 remark 里给出原因），只判定"是否关联保密区"，不判定"是否考试通过"；权限组的保密标识已有——<code>SmtDeviceAuthority.areaType</code>（0公共/1保密），<code>getAuthRemark</code> 第 237 行用 <code>Integer.valueOf(1).equals(smtDeviceAuthority.getAreaType())</code> 判定申请是否涉密。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>新建「保密考试通过」关系表与维护界面（复制承诺书三件套交互：手动添加、Excel 导入、批量删除、分页查询，全员视角展示、未通过的人也要能看到），菜单挂在「保密区」分组下；查询支持部门/姓名工号/是否通过组合筛选；员工申请含保密权限（area_type=1）时未通过考试要拦截；5.2 访客手动下发保密权限入口与入场申请涉及保密权限时（区域类型→权限组映射含 area_type=1）也要经过同一拦截点。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      数据库：新建 <code>smt_security_exam_relation</code> 类似表，结构参照 <code>smt_security_person_relation</code>。后端：新建 <code>SmtSecurityExamRelationController</code>，完整复制 <code>SmtSecurityPersonRelationController</code> 的 5 个端点（分页、员工树、手动关联、导入关联、批量删除、全员视角）；查询过滤复制 <code>SmtStaffMapper.xml</code>（259-264 行）的 <code>signStatus IN/NOT IN</code> 模式，新增 <code>examStatus</code> 维度并支持与部门/姓名/工号组合。拦截点：<code>getAuthRemark</code>（217-254 行）在现有"未关联保密区"分支之后新增"未通过考试"分支：查新表判断该 staffId 是否存在关联，不存在则 <code>remark="员工未通过保密考试"</code>；同时为 <code>getAuthRemark</code> 新增访客证件号重载/分支（当前只有 staffId 路径），供 5.2、入场申请环节按证件号复用。菜单：新增到「保密区」分组下，与保密供应商、保密区人员关联同级。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>管理员在「保密考试通过管理」页手动添加或批量导入通过考试的员工/工号名单</li>
+        <li>查询页可按部门/姓名工号/是否通过组合筛选，全员视角展示（含未通过的人）</li>
+        <li>员工侧：申请涉密权限组（area_type=1）时，getAuthRemark 校验该 staffId 是否在考试通过表中，不在则拦截并给出原因</li>
+        <li>访客侧：5.2 手动下发保密权限组前，按证件号做同样的考试通过校验（新增分支）</li>
+        <li>入场申请：涉及保密权限的入场申请提交时，同一拦截点复用（区域类型→权限组映射含 area_type=1 时触发）</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>数据库</td><td>新建 smt_security_exam_relation 表</td><td>参照 smt_security_person_relation 结构</td></tr>
+        <tr><td>后端</td><td>新建 SmtSecurityExamRelationController/ServiceImpl</td><td>复制 SmtSecurityPersonRelationController 的 5 个端点</td></tr>
+        <tr><td>数据库/SQL</td><td>参照 SmtStaffMapper.xml（259-264 行）新增查询条件</td><td>examStatus IN/NOT IN，支持部门/姓名工号组合筛选</td></tr>
+        <tr><td>后端</td><td>SmtSecurityZoneServiceImpl.getAuthRemark（217-254 行）</td><td>新增"未通过考试"拦截分支 + 访客证件号分支</td></tr>
+        <tr><td>前端</td><td>smart-ui 新增「保密考试通过管理」页面</td><td>参照承诺书维护页交互，菜单挂「保密区」分组</td></tr>
+        <tr><td>后端</td><td>5.2 访客手动下发接口、入场申请提交校验链</td><td>接入同一拦截点</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>单测覆盖：<code>getAuthRemark</code> 对未通过考试的员工申请涉密权限组返回预期 remark；已通过考试的正常放行；批量导入/删除接口单测参照承诺书体系已有测试用例改写；集成测试覆盖访客证件号分支。</dd>
+    <dt>依赖与风险</dt>
+    <dd>新表字段设计（是否记录考试日期/成绩/有效期）需求文档未细化，本方案先按"通过/未通过"二元状态设计，若后续要求"考试有效期过期需重考"，表结构需预留扩展字段；<code>getAuthRemark</code> 是员工/访客/入场申请三处复用的高频调用路径，改动需要覆盖全部调用方回归测试，避免对存量正常流程产生误伤。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-5-2">
+  <div class="ih"><span class="ino">5.2</span><h3>访客手动下发权限</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      现仅"重新下发"能力（走 <code>updateAuthNew</code> 的 <code>type=3</code> 分支，内容由区域类型→权限组映射决定，不能自选权限组）；员工侧"通关权限分配"对话框存在于 <code>staff_info/index.vue:157</code>，调 <code>/staff/device/auth/updateAuth/{type}</code> → <code>updateAuthNew</code>（193-261 行），该链路落库主键是 <code>staffId</code>（<code>SmtStaffDeviceAuth</code> 实体：staffId+authId+createTime+authType，无 applyId/batchId 概念），无法直接套用到访客身上。访客侧任务落库已有另一套现成模式可参照：<code>addCard(SmtAdmittanceApply apply, SmtAdmittanceFellow fellow, List&lt;String&gt; deviceId, Long batchId)</code>（<code>SmtAdmittanceApplyServiceImpl.java:860-880</code>）以 <code>fellow.getId().toString()</code> 作为 <code>cardNo</code>（865 行），把 <code>apply.getId()</code> 写入 <code>deviceTaskVO.setApplyId</code>（873 行）、<code>batchId</code> 写入 <code>setBatchId</code>（874 行），<code>startTime</code> 取 <code>apply.getStartTime().plusHours(-putOffsetHour)</code>（870 行）、<code>overTime</code> 取 <code>apply.getEndTime()</code>（871 行），最终经 <code>saveRequiredDeviceTask(deviceTaskVO)</code>（877 行）落库。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>入厂申请记录卡片支持单选，右上「通关权限」按钮触发弹窗，UI 复用员工双栏权限选择组件；新增访客专用下发接口——选权限组→查该权限组关联设备→建带 applyId/batchId 的下发任务；结束日期默认取申请单 endTime；长期供应商也走这个功能完成下发（无需单独登记供应商）；下发涉密权限组前必须先过 5.1 的考试通过校验。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      后端：新增访客版下发接口（如 <code>POST /apply/device/auth</code>，入参 applyId + fellowId/vehicleId + 选中的 authId 列表），落库方式参照 <code>addCard</code>（860-880 行）：<code>cardNo=fellow.getId().toString()</code>、<code>applyId</code>=当前申请单 ID、<code>batchId</code>=本次操作生成的新批次号、<code>startTime</code> 按现有 <code>putOffsetHour</code> 提前量、<code>overTime</code>=申请单的 <code>endTime</code>（不接受页面输入自定义值，需求已明确"结束日期默认取申请单 endTime"）；下发前若选中权限组 <code>areaType=1</code>（保密），调用 5.1 新增的证件号版 <code>getAuthRemark</code> 分支校验考试通过状态，未通过则拒绝并提示。前端：<code>incoming_record/index.vue</code> 卡片改支持单选（与 2.6 的多选并存，用不同交互区分：普通点击单选进入通关权限操作，勾选框多选走批量作废），右上工具条新增「通关权限」按钮，弹窗复用员工侧的双栏权限选择组件（<code>staff_info/issueAuth.vue</code> 的 UI 结构），接口指向新的访客端点。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>管理员在入厂申请记录列表单选一条记录（该访客或长期供应商的申请单）</li>
+        <li>点击右上「通关权限」按钮，弹出双栏选择组件（复用员工侧 UI）</li>
+        <li>管理员勾选目标权限组（可能含涉密权限组）</li>
+        <li>提交前后端校验：若含涉密权限组，按证件号查 5.1 考试通过表，未通过则拒绝</li>
+        <li>通过校验后，后端按 fellow.id 为 cardNo、申请单 endTime 为 overTime，建立新的下发任务（带 applyId/batchId）</li>
+        <li>任务下发成功后设备端在申请单结束时间自动失效（批次 1 不建本地延迟删除，同 5.3 口径）</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>后端</td><td>新增访客版权限下发 Controller/ServiceImpl</td><td>参照 addCard（860-880 行）落库模式，cardNo=fellow.id</td></tr>
+        <tr><td>后端</td><td>下发前置校验</td><td>涉密权限组时调用 5.1 的证件号版 getAuthRemark</td></tr>
+        <tr><td>前端</td><td>smart-ui/.../incoming_record/index.vue</td><td>卡片支持单选 + 右上「通关权限」按钮</td></tr>
+        <tr><td>前端</td><td>复用 staff_info/issueAuth.vue 的双栏选择组件 UI，指向新接口</td><td>结束日期展示为申请单 endTime（不可编辑）</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>单测覆盖新接口的落库字段（cardNo/applyId/batchId/overTime）正确性；集成测试覆盖"选中涉密权限组但证件号未通过考试"应被拒绝；手工验证长期供应商场景可复用同一入口完成下发。</dd>
+    <dt>依赖与风险</dt>
+    <dd>依赖 5.1 先落地（考试通过表与证件号校验分支），若排期上 5.1 滞后，5.2 涉密权限组下发校验需要先用占位逻辑（如临时跳过校验并打日志告警）过渡，避免互相阻塞；本项与 2.6 在同一列表页面新增了单选+多选两套交互模式，前端需要仔细设计选择框样式或明确的模式切换，避免用户混淆。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-1-2">
+  <div class="ih"><span class="ino">1.2</span><h3>模板设计器「启动开发」（架构与数据模型、画布基础）</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>现状与问题</dt>
+    <dd>
+      现有模板全部硬编码：<code>smart-ui/src/views/platform/visitor/qrCode_new/index.vue</code> 中，模板路径按 <code>isVip</code> 二选一硬编码为 <code>red/visitor.lbx</code> 或 <code>red/visitor-VIP.lbx</code>（410-416 行），随后逐字段调用 b-PAC 浏览器插件对象模型：<code>bpac.IsExtensionInstalled()</code> 检测插件是否安装（393 行）、<code>objDoc = bpac.IDocument</code> 并 <code>objDoc.Open(strPath)</code> 打开 .lbx 模板（417-418 行）、循环用 <code>objDoc.GetObject('字段名')</code> 取模板里预置的对象逐个赋值文本/图片（427-541 行区间，如 visitorName/parkName/company/receptionistName/cause/permitAreaTypeDesc/startTime/endTime 等），最后 <code>objDoc.PrintOut(1,0)</code> 打印（542 行）。后端没有任何打印模板实体/表/接口，全仓无二维码/条码对象引用。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>本批（P0 最先启动，贯穿批次 1-2）只交付设计器的架构与数据模型、画布基础能力，不接管线上打印（决策 B：线上保持现状，设计器完整交付后一次性切换，带回退开关）。验收标准：①模板表设计完成并可建表；②设计器能新建模板、拖拽放置文本/照片位/二维码/条形码/底板等基础组件、保存为 JSON 定义并可重新打开还原；③渲染输出通道预留 b-PAC（对接现有 <code>objDoc.GetObject</code>/<code>PrintOut</code> 调用方式）与 IC 证卡机（通道待定，机型未选定前只做接口抽象）两个扩展点。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      数据库：新建模板表（字段：模板名称、人员类型、分类、绑定公司或供应商 ID、版本号、启用状态、JSON 定义、必填字段清单、创建/更新时间）。后端：模板 CRUD Controller/Service（新建/编辑/启用禁用/版本管理），保存时校验 JSON 结构基本合法性（组件类型、字段绑定是否存在）。前端：Web 可视化拖拽设计器页面，沿用 smart-ui 现有 Vue2/Element UI 体系，只做当前需要的组件类型（文本、照片位、二维码、条形码、底板背景图），不引入通用低代码框架，组件面板+画布+属性面板三栏布局，保存前提供预览渲染。渲染输出通道抽象：定义统一的"模板 JSON → 渲染指令"转换层，第一个实现对接现有 b-PAC 调用方式（<code>GetObject</code>+赋值+<code>PrintOut</code> 模式不变，字段来源从硬编码改为模板 JSON 驱动），IC 证卡机通道留空实现（接口占位，机型确认后再补）。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>管理员在设计器新建模板，选择人员类型+分类+绑定公司/供应商</li>
+        <li>拖拽画布放置文本/照片位/二维码/条码/底板组件，绑定数据字段（如 visitorName/parkName 等）</li>
+        <li>保存为模板 JSON，写入模板表（默认未启用状态）</li>
+        <li>预览渲染验证模板效果</li>
+        <li>模板启用后进入版本管理，可回滚到历史版本</li>
+        <li>（批次 2）打印入口按"人员→单位→绑定模板→兜底默认"的解析链选中模板，调用渲染输出通道打印，切换时旧 .lbx 链路保留一个版本周期作回退</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>数据库</td><td>新建模板表</td><td>名称/人员类型/分类/绑定公司或供应商/版本号/启用状态/JSON 定义/必填字段</td></tr>
+        <tr><td>后端</td><td>新建模板管理 Controller/Service</td><td>CRUD + 版本管理 + 启用禁用</td></tr>
+        <tr><td>前端</td><td>新建可视化拖拽设计器页面</td><td>三栏布局：组件面板/画布/属性面板，组件类型：文本/照片位/二维码/条码/底板</td></tr>
+        <tr><td>后端</td><td>渲染输出通道抽象层</td><td>对接现有 b-PAC objDoc 调用模式（参照 qrCode_new/index.vue:393-542），IC 证卡机通道占位</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>单测覆盖模板 CRUD 与 JSON 结构校验；设计器手工验证——新建模板拖拽各类型组件、保存、重新打开能还原画布状态；预览渲染与实际 b-PAC 打印字段一致性人工比对（用现有访客凭条字段集作第一个验证用例，如 visitorName/parkName/company/startTime/endTime）。</dd>
+    <dt>依赖与风险</dt>
+    <dd>本批只做架构与画布基础，不做 1.3/1.4/1.5 的绑定与自动调用（留待批次 2），验收时需明确"设计器可用"与"线上切换"是两条独立验收线，避免被误解为本批要切换打印；IC 证卡机机型与 SDK 形态未定（问题 18 剩余项），渲染输出通道的证卡机部分只能做接口占位，具体渲染细节要等硬件选型后二次设计。</dd>
+  </dl>
+</section>
+
+<section class="item" id="item-4-1">
+  <div class="ih"><span class="ino">4.1</span><h3>新 App 工程搭建（含 4.2 工号登录接入、4.3 模块化与按权限展示）</h3><span class="ibatch">批次 1</span></div>
+  <dl>
+    <dt>4.1 APP 基础框架：现状与问题</dt>
+    <dd>旧 <code>smart-app-uniapp</code> 被需求侧判定为冗余弃用，仅作只读参考（登录流程、请求/存储封装、页面结构可对照）。</dd>
+    <dt>4.2 工号登录：现状（已满足，可直接复用）</dt>
+    <dd>
+      旧工程 <code>login.vue</code>（<code>smart-app-uniapp/pages/page/logins/login/login.vue</code>）表单字段是"员工号"（8 行：<code>&lt;text class="w150 f32pc"&gt;员工号&lt;/text&gt;</code>）+密码，登录动作 <code>bindLogins()</code>（108 行起）校验未填工号时提示"请输入员工号"（113 行），最终调用 <code>loginAccount.login(this.form)</code>，对应 <code>api-account.js:17</code>：<code>axios.post(`${API_LOGIN}?username=${obj.username}&password=${obj.password}&randomStr=${obj.randomStr}&grant_type=password&scope=server`)</code>。服务端 grant_type 家族在 <code>smart-common-core</code> 的 <code>SecurityConstants.java</code>（74-107 行）一次性列全：<code>OAUTH_TOKEN_URL</code>/<code>SMS_TOKEN_URL</code>/<code>OCR_TOKEN_URL</code>/<code>WX_PUBLIC_TOKEN_URL</code>/<code>YHT_TOKEN_URL</code>/<code>UPDATE_PWD_URL</code>/<code>SOCIAL_TOKEN_URL</code>/<code>MOBILE_TOKEN_URL</code>；<code>smart-auth</code> 的 <code>AuthorizationServerConfig.java</code>（131 行判断 <code>GrantType</code>）已挂了 password 授权模式处理。smart-ui 管理后台走同一套认证体系，服务端零改造即可复用。
+    </dd>
+    <dt>4.3 统一登录与权限：现状</dt>
+    <dd>
+      OAuth2+RedisTokenStore+upms 菜单/按钮权限体系只服务管理后台；App 端现状是"服务页模块按人下发"：<code>ForeModuleServiceImpl.getForeModuleList()</code>（50 行起），核心是 <code>badge = SecurityUtils.getUser().getUsername()</code> 取当前登录工号（61 行），再调 <code>remoteStaffService.getStaffAppModule(badge)</code>（62 行）拿该工号可见的模块列表（staff-module 映射），后续按业务模块集合与员工可见模块集合取交集组装返回（68 行起）。
+    </dd>
+    <dt>目标与验收标准</dt>
+    <dd>新建独立 uni-app 工程（CLI+Vue3 或 HBuilderX 二选一，本批不强制决定，spec 阶段定），首期只承载登录、请求/存储封装、客户端基座；工号密码登录接口与后端零改造直接复用；PDA 功能模块入口沿用 staff-module 机制新增 PDA 模块项，四页签（首页/待办/消息/我的）页面壳、PDA 岗位字典表结构、登录后选岗骨架同步搭建；LOGO 透明底橙字，登录页落款"许昌裕同印刷包装有限公司"，不出现 PDA 字样。</dd>
+    <dt>实现方式</dt>
+    <dd>
+      工程初始化：新建 uni-app 工程（建议目录如 <code>smart-pda-uniapp/</code>，与现有子项目平级），技术栈选型在 spec 阶段定，本批先按 CLI 方向搭骨架以便脚本化构建/CI。客户端基建：参照旧工程 <code>api/</code>、<code>tools/</code>（如 <code>api-account.js</code> 的封装模式）重写请求封装（统一挂 token/refresh 逻辑）、登录态存储、升级机制占位。登录接入：直接复用现有 <code>grant_type=password</code> 接口，请求参数格式照抄 <code>api-account.js:17</code>（username/password/randomStr/grant_type=password/scope=server），服务端零改造。模块化与权限展示：新工程首页请求现有 <code>getForeModuleList</code> 接口，后端只新增一条"PDA 模块"记录挂到 staff-module 配置数据里（不改代码，只加配置），前端按返回的模块列表渲染入口图标，做到"服务端下发、客户端仅渲染"，避免只做客户端隐藏入口这种伪权限控制。四页签：首页/待办/消息/我的四个 tabbar 页面骨架，本批只搭页面壳。岗位选择：本批先设计 PDA 岗位字典表结构（东门岗/西门岗等），登录后选岗的交互与本地存储机制搭骨架，字典数据维护页面可后置。
+    </dd>
+    <dt>处理流程</dt>
+    <dd>
+      <ol>
+        <li>初始化 uni-app 工程骨架（目录结构、构建脚本、CI 接入）</li>
+        <li>搭建请求封装（含 token 挂载/刷新）与本地存储封装模块，参照旧工程登录参数格式对接现有认证接口</li>
+        <li>实现登录页（员工号+密码，含 LOGO 与落款文案），登录成功后跳转首页</li>
+        <li>首页请求 getForeModuleList 接口，按服务端下发的模块列表渲染功能入口（新增"PDA 模块"配置项，未配置的工号看不到入口）</li>
+        <li>搭建四页签（首页/待办/消息/我的）页面壳与路由骨架</li>
+        <li>搭建 PDA 岗位字典表结构与登录后选岗交互骨架（岗位选择入口=首页顶部岗位标签，具体业务对接在批次 2）</li>
+      </ol>
+    </dd>
+    <dt>改动清单</dt>
+    <dd>
+      <table>
+        <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
+        <tr><td>工程</td><td>新建 smart-pda-uniapp/（或按 spec 阶段定名）</td><td>uni-app CLI 或 HBuilderX 工程骨架</td></tr>
+        <tr><td>前端</td><td>新工程请求/存储封装模块</td><td>参照 smart-app-uniapp/api/、tools/ 的实现模式重写</td></tr>
+        <tr><td>前端</td><td>新工程登录页</td><td>员工号+密码，调用现有 grant_type=password 接口（api-account.js:17 同款参数格式）</td></tr>
+        <tr><td>后端</td><td>staff-module 配置数据（不改代码，加配置）</td><td>新增"PDA 模块"入口项，控制按工号/角色可见（复用 ForeModuleServiceImpl.getForeModuleList:50-90+）</td></tr>
+        <tr><td>前端</td><td>新工程四页签骨架（首页/待办/消息/我的）</td><td>页面壳+路由，不含具体业务</td></tr>
+        <tr><td>数据库</td><td>新建 PDA 岗位字典表</td><td>东门岗/西门岗等岗位枚举，供批次 2 登录后选岗使用</td></tr>
+      </table>
+    </dd>
+    <dt>测试与验证</dt>
+    <dd>手工验证：新工程登录页输入现有员工号密码可成功登录并拿到 token；首页按不同工号（有/无 PDA 模块权限）验证入口显隐与服务端下发一致；四页签路由跳转基本可用；工程构建脚本（若走 CLI 方向）能正常打 Android 包（真机联调延后到 PDA 机型确定后）。</dd>
+    <dt>依赖与风险</dt>
+    <dd>PDA 机型未定（问题 18 剩余项），本批不做扫码头等硬件对接，仅搭客户端基座；uni-app CLI vs HBuilderX 的选型影响后续所有页面的开发方式，需要在 spec 阶段尽快拍板避免返工；决策 A 要求所有新增 PDA 接口必须有登录态+角色/身份校验+园区数据范围过滤，本批仅涉及登录与模块列表两个既有接口、未新增 PDA 专属接口，该要求在批次 2 新增扫码/核验接口时才实际生效，此处先记录避免遗漏。</dd>
+  </dl>
+</section>
+
+  <div class="pager"><a href="#p13">← 上一批次</a><a class="next" href="#p15">下一批次 →</a></div>
+</section>
+
+<!-- ============ p15 逐项开发说明 ============ -->
+<section class="page" id="pg-p15">
+  <div class="kicker">第 8 章 · 逐项开发说明</div>
+  <h1>批次 2 · P1 打印族切换与 App 执行环节</h1>
+  <p style="color:var(--ink3);font-size:13px">启动门：证卡机型号 / PDA 机型 + 扫码头 + NFC 验证</p>
+  <div class="toc-items" id="toc-p15"></div>
+  <p class="chapter-lede">批次 2（P1）是两条并行线各自的第一个交付里程碑：打印族（模块一 1.1/1.3/1.4/1.5 + 模块二 2.1/2.2/2.3 + 六 6.1）依赖批次 1 已启动的 1.2 可视化设计器完整验收通过后，<strong>一次性切换</strong>替换现有硬编码 .lbx 打印链路，切换必须带回退开关；App 族（4.4/4.5/4.6/4.7/4.8/4.14）是「裕慧家园」新 uni-app 工程在批次 1 完成登录与客户端基建之后的第一批业务页面——但只交付<strong>执行环节</strong>（进出登记、核验、岗位、A/B 点确认、封条、报表），保密放行的「申请」与「主管审批」两屏属最终阶段（批次 5 的 4.11），本批次不做，第一阶段申请仍走 OA/现有系统。两条线共享一条硬规则：保密放行是新建的厂内 A 岗位→B 岗位流转单据域，不是把现有 <code>smt_articles_release</code> 出厂放行体系搬进 App，后者继续原样服务生活区/办公区放行条，H5 的物品放行申请界面不动。批次 2 结束时必须先过三道启动门（详见 <code>item-gate2</code>）：IC 证卡机/PDA 机型与扫码头联通、NFC 卡号一致性 demo；三门不过，对应子项顺延，不带病排产。以下每项证据均为本次在 <code>main</code> 工作树中逐路径核对的文件与行号，全部为静态代码只读核对，未执行任何写操作。</p>
+
+<section class="item" id="item-1-1">
+ <div class="ih"><span class="ino">1.1</span><h3>外包工 IC 卡厂牌打印</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>外包域前端目录 <code>smart-ui/src/views/platform/outsourcing/</code> 下只有 <code>apply/</code>、<code>approve/</code>、<code>detail/</code>、<code>onwork/</code>、<code>unit/</code> 五个子目录（本次逐一 <code>ls</code> 核实），没有任何打印相关代码，全仓对 <code>bpac</code>（现有访客凭条用的浏览器打印插件）的引用也不出现在外包域。IC 证卡机与现有 b-PAC 标签机是两套不同硬件通道，证卡机走本地代理/驱动而非浏览器插件，方案侧已确认「只打卡面、不写卡」——卡号是 IC 卡内置编号，不需要打印时写卡。卡号↔人员绑定体系已经完整存在且外包工可直接复用：表 <code>SMT_ISC_STAFF_CARD</code>（<code>smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/entity/SmtIscStaffCard.java:19-83</code>）字段含 <code>staffId</code>、<code>badge</code>、<code>parkId</code>、<code>dispatcherParkId</code>、<code>cardNo</code>（第 47 行注释「999 开头的 ISC 虚拟卡不入库」，与 <code>SmtIscStaffCardServiceImpl.java:39</code> 的 <code>ISC_VIRTUAL_CARD_PREFIX = "999"</code> 常量对应）、<code>delFlag</code>（0 有效/1 已删除）、<code>activeKey</code>（第 56-60 行注释「有效记录唯一键，软删除后置空」，用于软删+唯一约束防重）。维护入口是员工详情页新增的「ISC卡片」tab（<code>smart-ui/src/views/platform/basic/staff_info/detail.vue:238</code> 起 <code>&lt;p class="box-orange isc-card-title"&gt;ISC卡片&lt;/p&gt;</code>，含新增/编辑/删除按钮与卡号输入校验提示「请输入8-20位数字或大写字母实体卡号」），后端接口 <code>SmtIscStaffCardController</code>（<code>.../platform/controller/SmtIscStaffCardController.java</code>）挂 <code>/isc/staff/card/list|edit|{id}</code> 三个方法；批量导入另有 <code>SmtIscCardImportController</code>（<code>@RequestMapping("/isc/card/import")</code>）。外包工与正式员工在 <code>SmtStaff</code>/组织体系里同表同流程（组织侧 <code>compType==1</code> 标识外包单位，见 1.3 节证据），因此外包工发卡登记直接复用这一整套接口，不需要新表新接口。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①外包工人员列表页可选中一人或批量选中多人发起厂牌打印；②打印内容（姓名、照片、所属外包单位、有效期、模板决议出的分类样式）来自 1.3/1.4/1.5 的模板解析链，不再硬编码；③IC 证卡机只打印卡面图案，不做任何写卡操作；④卡号登记走员工详情页「ISC卡片」tab 或批量导入现有流程，打印页不重复实现登记功能，只读取已登记的 <code>cardNo</code> 用于展示/核对；⑤打印失败（证卡机离线、驱动异常）有明确报错提示，不静默失败。</dd>
+  <dt>实现方式</dt>
+  <dd>后端零新建数据表：卡号体系全部复用 <code>SMT_ISC_STAFF_CARD</code> + <code>SmtIscStaffCardController</code>；新增的是「外包工厂牌打印」这一动作型接口——按选中的 <code>staffId</code> 集合查员工基础信息 + 模板解析结果（1.5）+ 已登记卡号（只读展示，不新建/不修改卡记录），拼装打印数据返回前端。前端新建 <code>outsourcing/</code> 域下的「厂牌打印」页面（人员选择表格 + 打印预览 + 打印按钮），复用 1.2 设计器产出的渲染引擎与证卡机打印通道（而非 b-PAC 通道）。证卡机具体 SDK/驱动形态待机型确认后补充适配层，本批先按「渲染输出可插拔」的接口约定开发，机型确认前可用模拟/测试驱动联调界面与数据流。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>管理员在外包工列表勾选一人或多人，点击「打印厂牌」。</li><li>前端调用打印数据组装接口，按 1.5 的「人员→单位→绑定模板→兜底默认」解析链取得该外包工对应模板。</li><li>接口一并返回该人员在 <code>SMT_ISC_STAFF_CARD</code> 中已登记的 <code>cardNo</code>（仅用于打印页展示核对，不允许在打印页新增/修改卡号）。</li><li>前端调用证卡机打印通道，渲染模板并出图；卡号缺失时提示「请先在员工详情页登记 ISC 实体卡」并阻断打印。</li><li>打印结果（成功/失败）留痕，便于对账补打。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>前端</td><td>新建 <code>smart-ui/src/views/platform/outsourcing/badge/</code></td><td>外包工厂牌打印页面：人员选择 + 预览 + 打印</td></tr>
+  <tr><td>后端</td><td>新建打印数据组装接口（挂 outsourcing 或 badge 相关 Controller）</td><td>按 staffId 集合返回姓名/照片/单位/模板解析结果/已登记卡号</td></tr>
+  <tr><td>后端（复用不改）</td><td><code>SmtIscStaffCardController.java</code>、<code>SmtIscStaffCard.java:19-83</code></td><td>卡号登记/维护/批量导入原样复用，打印页只读</td></tr>
+  <tr><td>硬件对接</td><td>证卡机驱动/SDK 适配层（新建，机型待定）</td><td>接 1.2 渲染输出，出图到证卡机</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>单元测试覆盖模板解析链的各分支（有绑定模板/无绑定走兜底/卡号缺失阻断打印）；联调测试需等 IC 证卡机到货后用真实驱动跑通「选人→出图→卡面核对」全链路；打印异常路径（驱动未安装、打印超时）需有独立用例。</dd>
+  <dt>依赖与风险</dt>
+  <dd>强依赖 1.2 设计器完整交付、1.3/1.4/1.5 模板解析链先行；证卡机具体型号与打印 SDK/驱动形态仍是问题 18 的剩余开放项，机型未定前只能做到接口约定层面的开发，无法真机联调；若证卡机厂商 SDK 只提供 Windows 桌面代理而非浏览器可调用形态，需要额外一层本地代理服务（参照现有访客凭条 <code>ws://127.0.0.1:33666</code> 身份证读卡器的本地 WebSocket 代理模式）。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-1-3">
+ <div class="ih"><span class="ino">1.3 / 1.4 / 1.5</span><h3>模板按公司绑定、供应商模板分类、打印自动解析链</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>组织侧已有「外包单位/派遣工」区分，但没有「公司→模板」关联表。证据：<code>smart-ui/src/views/platform/basic/organization_manage/index.vue:28-30</code>：<code>&lt;span v-if="scope.row.compType==1"&gt;外包单位&lt;/span&gt;&lt;span v-if="scope.row.compType==2"&gt;派遣工&lt;/span&gt;</code>，企业类型下拉在同文件 76-77 行、表单字段 110/195/206/240 行；人员侧派遣单位字段在 <code>smart-ui/src/views/platform/basic/personnel_manage/index.vue:243-244</code>：<code>&lt;el-form-item label="派遣单位" prop="dispatch"&gt;&lt;el-input v-model="personnelDialog.fromData.dispatch" .../&gt;&lt;/el-form-item&gt;</code>，555/690/1267/1316 行是该字段的初始值与提交映射。模板方面现状只有两个静态文件 <code>smart-ui/public/resource/bpacTemplates/{red,white}/{visitor,visitor-VIP}.lbx</code>（本次 <code>find</code> 核实，红/白各一份 VIP、一份非 VIP，共 4 个文件，无其它分类），打印入口硬编码二选一：<code>smart-ui/src/views/platform/visitor/qrCode_new/index.vue:410-416</code>：<pre><code>let templateId = ''
+if (this.visitorData.isVip) {
+  templateId = 'visitor-VIP.lbx'
+} else {
+  templateId = 'visitor.lbx'
+}
+const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templateId</code></pre>随后 427-542 行是对 b-PAC <code>objDoc.GetObject(...)</code> 逐字段（照片、姓名、园区名、结束时间等）硬编码填充再 <code>PrintOut</code>，本次通读该区间确认所有字段对象均为文本/图片类型，没有二维码/条码对象，与 2.1 节结论一致。后端目前没有任何打印模板实体/表/接口——全仓搜索模板/绑定相关表名均为空。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①模板管理界面可维护「人员类型（员工/外包工/派遣工/供应商/访客）+ 分类 + 绑定对象（具体公司或供应商，或留空表示该类型默认模板）」三个维度；②打印入口按人员自动解析出对应模板，解析优先级为「本人所属公司/供应商精确绑定 → 该人员类型默认模板 → 全局兜底模板」，任一层查不到不报错，继续往下一层退；③模板可维护启用/停用状态、版本号，停用的模板不参与解析；④原 <code>qrCode_new/index.vue:410-416</code> 的 <code>isVip</code> 硬编码判断被解析链服务调用取代；⑤组织变更（外包单位改绑模板、公司信息变更）后下次打印立即生效，不需要重新发版前端。</dd>
+  <dt>实现方式</dt>
+  <dd>新增模板绑定表（模板 ID、人员类型枚举、绑定对象类型[组织/供应商/空]、绑定对象 ID、优先级、启用状态），与 1.2 设计器产出的模板主表关联。解析服务 <code>resolvePrintTemplate(personId, personType)</code> 作为统一入口：先查该人所属组织/供应商是否有精确绑定记录（组织侧用现有 <code>compType</code>/<code>dispatch</code> 字段或组织 ID 关联，供应商侧用 <code>SmtSecurityAreaSupplier.id</code>），查不到则按 <code>personType</code> 查该类型的默认模板，仍查不到则用全局兜底模板（可回落但仍需带二维码，见 2.3 的 fail-closed 约束——保密类人员没有兜底选项）。此服务替换现有前端硬编码判断，未来所有打印入口（1.1 外包工、访客凭条、6.1 免检证）统一调用同一条解析链，避免各处各自硬编码。前端模板绑定维护页并入 1.2 的模板管理界面，作为「绑定」子 Tab。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>管理员在模板管理界面新建/编辑模板，为其绑定「人员类型」与可选的「具体公司/供应商」。</li><li>打印入口调用 <code>resolvePrintTemplate</code>，传入待打印人员 ID 与类型。</li><li>解析服务依次尝试精确绑定 → 类型默认 → 全局兜底，返回命中的模板 ID 与渲染数据。</li><li>渲染层（1.2 产出）按模板定义把字段值填入并生成图片，交给对应打印通道（b-PAC 或证卡机）。</li><li>解析全部落空时按 2.3 的 fail-closed 规则处理（保密人员拒绝打印，非保密走兜底）。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>数据库</td><td>新增模板绑定表</td><td>模板 ID、人员类型、绑定对象类型/ID、优先级、启用状态</td></tr>
+  <tr><td>后端</td><td>新增 <code>TemplateResolveService.resolvePrintTemplate</code></td><td>三级解析链，统一供各打印入口调用</td></tr>
+  <tr><td>前端</td><td>模板管理界面（并入 1.2）</td><td>新增「模板绑定」维护 Tab</td></tr>
+  <tr><td>前端</td><td><code>smart-ui/src/views/platform/visitor/qrCode_new/index.vue:410-416</code></td><td>去掉 <code>isVip</code> 硬编码，改为调用解析链返回的模板</td></tr>
+  <tr><td>前端</td><td><code>qrCode_new/index.vue:427-542</code></td><td>字段填充逻辑随 1.2 渲染引擎重写，不再逐个 <code>GetObject</code> 硬编码</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>单测覆盖解析链三级优先级与全部落空场景；准备至少一个外包单位、一个供应商、一个默认员工的绑定数据，验证解析结果符合预期；回归验证组织/供应商信息变更后解析结果同步更新，不依赖前端缓存或发版。</dd>
+  <dt>依赖与风险</dt>
+  <dd>本项是 1.1/2.1/2.2/2.3/6.1 的共同前置，必须先于它们完成；与 1.2 设计器共用同一批数据表与渲染引擎，建议同一 PR 或紧密衔接的连续迭代交付，避免绑定表先行但设计器未就绪导致的空转。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-2-1">
+ <div class="ih"><span class="ino">2.1 / 2.2 / 2.3</span><h3>访客厂牌二维码、模板可调化、保密/非保密区分</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>解包 <code>red/visitor.lbx</code> 与前端字段填充逻辑（<code>qrCode_new/index.vue:427-542</code>，本次通读确认）证实模板对象只有文本与图片，没有二维码/条码对象，JS 侧也没有任何二维码字段的填充代码——2.1「厂牌带二维码」在现有 .lbx 链路下无法实现，只能随 1.2 设计器新增二维码组件类型后随整体切换交付。二维码内容后端已经具备：访客详情/核验接口用 <code>smtVisitor.getSmsCode()</code> 现场生成二维码，<code>SmtVisitorServiceImpl.java:2694</code>：<code>respDTO.setQrCode(createQRCode(smtVisitor.getSmsCode()))</code>，另一处 <code>:2722</code> 同构；生成方法 <code>createQRCode</code>（<code>:2739-2757</code>）用 ZXing <code>MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, 1200, 1200, HINTS)</code> 生成 PNG 后 Base64 编码返回，<code>content</code> 参数即 <code>smsCode</code>。2.2「模板可调化」现状确认硬编码：改版式必须用 P-touch Editor 改 <code>.lbx</code> 二进制文件后重新发版前端静态资源，运营侧无法自行调整。2.3「保密/非保密区分」：保密区供应商台账完整存在——表 <code>SMT_SECURITYAREA_SUPPLIER</code>（<code>smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core/entity/SmtSecurityAreaSupplier.java:24-118</code>，字段含 <code>id/parkId/supplierType/companyCode/companyName/beginEffectTime/endEffectTime/protocolType/protocolName/carryItem</code> 等）+ <code>SmtSecurityAreaSupplierController</code> + 人员表 <code>SmtSupplierPerson</code>，前端维护页在 <code>smart-ui/src/views/platform/security_area/supplier_person/</code>（<code>index.vue</code>、<code>_supplier.vue</code>、<code>dlg_supplierPerson.vue</code> 等）；已有按访客信息反查是否保密供应商人员的接口 <code>POST /securityarea/supplier/person/visitor/find</code>（<code>SmtSupplierPersonController.java:30-48</code>）。但入厂申请与打印链路目前零引用该体系：本次对 <code>SmtAdmittanceApplyServiceImpl.java</code> 全文 grep <code>Supplier|supplier</code> 结果为 0 命中，证实申请侧从未做保密供应商关联判断，打印时更无从区分。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①新厂牌模板带二维码组件，内容 = 该访客/申请的 <code>smsCode</code>，扫码可用于 4.5 访客核验；②模板样式（文字位置、字号、Logo、配色分类）可在设计器里可视化调整并即时生效，不再需要改二进制文件重新发版；③申请人证件号或所属公司命中 <code>SMT_SECURITYAREA_SUPPLIER</code>/<code>SMT_SUPPLIER_PERSON</code> 时，打印必须使用「保密」分类且带二维码的模板；④保密访客解析不到「带二维码」的保密模板时，<strong>拒绝打印并明确提示</strong>（fail-closed），不允许回落到无码默认模板；⑤申请保存时即落「是否保密供应商」标记字段，打印时直接读标记而非实时联查两张表，降低打印链路对台账表的实时依赖。</dd>
+  <dt>实现方式</dt>
+  <dd>二维码组件作为 1.2 设计器的组件类型之一（文本/图片/二维码/条码四类，方案已定），随整体切换一次性交付，不做 .lbx 过渡版；组件内容字段绑定到后台传入的 <code>smsCode</code>，渲染时复用 <code>createQRCode</code> 同款内容语义（内容不变，只是从「后端直接吐 PNG」改为「设计器组件按内容生成」，两者对齐即可，不需要改 <code>createQRCode</code> 本身）。保密判定：在入厂申请「保存」这一步（<code>SmtAdmittanceApplyServiceImpl</code> 的申请保存方法）按访客/随行证件号调用 <code>/securityarea/supplier/person/visitor/find</code> 同款查询逻辑，命中则在申请单落一个 <code>isSecuritySupplier</code>（或等价）标记字段；打印入口读取该标记决定走保密模板分类，避免每次打印都重新联查供应商与人员两张表。1.3/1.4/1.5 的模板解析链在遇到保密标记时，其「兜底」层不允许使用无二维码模板——这是 1.5 通用解析链之上叠加的一条强制校验，解析失败即整体失败，前端提示「未匹配到保密厂牌模板，请联系管理员配置后再打印」。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>入厂申请保存时按证件号查保密供应商/人员台账，命中则落 <code>isSecuritySupplier=1</code>。</li><li>打印入口取得该访客的模板解析请求，附带 <code>isSecuritySupplier</code> 标记。</li><li>解析链（1.5）在保密标记为真时，只在「保密」分类模板范围内匹配，且要求模板必须带二维码组件；非保密访客正常走 1.5 通用三级解析。</li><li>保密访客解析失败（无匹配保密带码模板）→ 直接拒绝打印，不生成任何图像；非保密访客解析失败仍可走全局兜底（兜底模板本身也带二维码，因为 2.1 是全量切换后的默认能力，不是保密专属）。</li><li>渲染成功后调用打印通道出图，二维码内容为 <code>smsCode</code>，可被 4.5 核验接口扫码识别。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>前端（设计器）</td><td>1.2 设计器组件库</td><td>新增二维码/条码组件类型，内容可绑定 <code>smsCode</code> 等字段</td></tr>
+  <tr><td>数据库</td><td>入厂申请表（<code>smt_admittance_apply</code> 或随行表）</td><td>加 <code>is_security_supplier</code> 标记字段</td></tr>
+  <tr><td>后端</td><td><code>SmtAdmittanceApplyServiceImpl</code> 申请保存方法</td><td>保存时按证件号查 <code>SmtSupplierPersonController.java:48</code> 同款逻辑，落保密标记</td></tr>
+  <tr><td>后端</td><td>1.5 <code>resolvePrintTemplate</code></td><td>叠加保密强制校验分支：标记为真时只在带码保密模板范围内匹配，失败即拒绝</td></tr>
+  <tr><td>前端</td><td>打印页</td><td>拒绝打印时的明确提示文案与阻断交互</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>单测：保密标记落库正确性（含供应商协议过期后不应再命中，需协同 3.1/3.2 的期限维护）；保密访客命中带码模板正常打印、未配置保密模板时拒绝打印且不出图；非保密访客二维码内容与 <code>smsCode</code> 一致，扫码后调 4.5 核验接口能查到正确申请；模板样式在设计器里调整后无需重新发版即时生效的回归验证。</dd>
+  <dt>依赖与风险</dt>
+  <dd>与 1.3/1.4/1.5 共用同一次「整体切换」时点，不能提前也不宜滞后；fail-closed 规则要求上线前必须先为常见保密供应商类型配好带码模板，否则切换当天会出现大量保密访客无法打印的情况，建议切换前用生产保密供应商台账跑一遍模板覆盖检查；<code>isSecuritySupplier</code> 标记的时效性依赖 3.1（协议期限变更联动）尽快跟上，否则供应商解密/协议到期后标记可能滞后。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-6-1">
+ <div class="ih"><span class="ino">6.1</span><h3>免检证打印</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>全仓对「免检」关键字搜索零命中，功能完全空白。可复用的现成能力：按工号查员工基础信息的接口 <code>getSimpleSttaffByBadge</code>（服务实现 <code>SmtStaffServiceImpl.java:955</code>，控制器暴露在 <code>SmtStaffController.java:320-321</code>：<code>GET</code> 接口 <code>getSimpleSttaffByBadge(@RequestParam("badge") String badge)</code>），全仓已有约 30 处调用（被访人查询、审批人查询、放行单据查询等场景均在用），是仓内标准的「工号查人」入口，年用量 3-5 张的免检证完全可以复用而不必新建查询接口。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①管理员输入工号即可查出员工姓名、部门、照片等基础信息；②可手动录入免检证有效期（本次不涉及有效期的业务规则计算，纯手工录入 + 校验起止合法性）；③选择模板（依赖 1.2/1.3/1.4/1.5 的模板体系，免检证作为模板管理里的一个人员类型/分类）后一键打印；④打印内容包含工号查得的姓名、照片、录入的有效期。</dd>
+  <dt>实现方式</dt>
+  <dd>纯新建的单页面功能，后端不需要新表——免检证本身没有需要持久化的业务状态（不像放行单、访客申请那样有审批流转），如需要留痕（打印记录、有效期变更历史）可选加一张轻量打印记录表，非必须。前端新建「免检证打印」页面：工号输入框 → 调用 <code>getSimpleSttaffByBadge</code> 查人 → 展示照片与基础信息 → 有效期起止选择器 → 调用 1.5 的模板解析链（免检证作为独立人员类型分类）取得对应模板 → 打印。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>管理员在免检证打印页输入工号，回车或点击查询。</li><li>前端调用 <code>getSimpleSttaffByBadge</code>（<code>SmtStaffController.java:320-321</code>）取得员工姓名、照片、部门等。</li><li>管理员手工录入有效期起止日期，前端校验结束不早于开始。</li><li>调用 1.5 解析链取得「免检证」分类模板，渲染预览。</li><li>确认后调用打印通道（b-PAC 或证卡机，视免检证物理载体而定，待确认）出图。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>前端</td><td>新建免检证打印页面（建议 <code>smart-ui/src/views/platform/badge/exemption/</code>）</td><td>工号查询 + 有效期录入 + 模板预览 + 打印</td></tr>
+  <tr><td>后端（复用不改）</td><td><code>SmtStaffController.java:320-321</code>、<code>SmtStaffServiceImpl.java:955</code></td><td>原样复用工号查人接口</td></tr>
+  <tr><td>后端</td><td>1.5 模板解析链</td><td>新增「免检证」人员类型分类，供本页调用</td></tr>
+  <tr><td>数据库（可选）</td><td>免检证打印记录表</td><td>非必须，如需审计留痕再建</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>工号查不到人时的错误提示；有效期非法（结束早于开始）的前端校验；模板未配置「免检证」分类时的兜底/拒绝行为与 1.5/2.3 的解析规则保持一致；因业务量极低（年 3-5 张），手工验收即可，不必投入自动化测试。</dd>
+  <dt>依赖与风险</dt>
+  <dd>依赖 1.2/1.5 模板体系先行；打印载体（纸质还是卡片）未在方案中明确，若为卡片则同 1.1 一样依赖证卡机机型确认；本项开发量极轻，可放在模板体系稳定后顺带交付，不建议单独占用排期靠前的位置（与决策 B 的批次 2 收尾同步即可）。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-tpl-cutover">
+ <div class="ih"><span class="ino">切换方案</span><h3>厂牌打印模板体系一次性切换上线</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>需求侧已拍板（问题 23 答复，方案文档决策 B）：现有 <code>qrCode_new/index.vue:410-416</code> 硬编码链路 + 4 个静态 <code>.lbx</code> 文件在切换前保持现状不动，不做「模板文件管理」的中间过渡版本；等 1.2 设计器 + 1.3/1.4/1.5 绑定与解析链全部验收通过后，<strong>整体一次性切换</strong>，直接把现有线上打印替换为新体系。这意味着从批次 1 启动设计器开发到批次 2 切换生效之间，线上访客凭条打印功能与新体系并行开发但互不干扰，风险集中在切换那一刻——旧链路一旦替换，若新体系有缺陷会直接影响访客现场通行效率，因此必须有可回退能力。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①切换前完成 1.2/1.3/1.4/1.5 全部验收标准，且已为访客（VIP/非VIP/保密/非保密）、外包工、供应商、免检证等全部现网出现过的人员分类配好对应模板并试打通过；②切换动作本身可控——建议用一个配置开关（如 Nacos 配置项或功能开关表）控制「打印入口走旧 <code>.lbx</code> 硬编码路径」还是「走新模板解析链」，切换即改开关值，不需要重新发版前端；③旧 <code>.lbx</code> 链路代码在切换后保留至少一个版本周期（建议与方案文档口径一致，不随切换 PR 直接删除），确认新体系稳定运行后再清理；④切换当天准备明确的回退步骤（改回开关 + 验证旧链路仍可用），并提前在非生产环境演练一次完整切换+回退流程；⑤2.1/2.2/2.3/6.1/1.1 六项功能与打印族切换同一时点交付，不分批灰度到具体门岗/具体人员类型（因为解析链是统一入口，无法只对部分人群生效）。</dd>
+  <dt>实现方式</dt>
+  <dd>切换开关建议放在打印入口层（<code>qrCode_new/index.vue</code> 及外包工/免检证等新页面共同调用的一个「取打印数据」服务），开关关闭时行为与现状完全一致（继续硬编码判断 <code>isVip</code> 拼 <code>.lbx</code> 路径），开关开启时改为调用 1.5 <code>resolvePrintTemplate</code> 解析链。开关本身可以是后端下发的配置项，前端每次打印动作时读取，避免前端硬编码构建时决定。旧链路代码物理保留在仓库中（不删除文件、不移除相关组件），只是不再被开关开启后的路径调用，回退时把开关改回即可，不需要紧急发版。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>1.2/1.3/1.4/1.5 全部完成开发与验收，进入试打阶段。</li><li>用生产保密供应商台账、外包单位台账跑一遍模板覆盖检查，确认没有「解析链查不到模板」的人员类型缺口。</li><li>选定低峰时段（如非上班高峰）开启切换开关，现场安排一名管理员在门岗验证首批打印是否正常。</li><li>验证通过后正常运行；若发现问题立即关闭开关回退到旧链路，同时记录问题清单。</li><li>稳定运行满一个版本周期（建议至少两周）后，视情况清理旧 <code>.lbx</code> 相关代码。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>配置</td><td>新增打印链路切换开关（Nacos 配置或功能开关表）</td><td>控制走旧硬编码路径还是新解析链</td></tr>
+  <tr><td>前端</td><td>打印数据获取服务（<code>qrCode_new</code> 及各新打印页共用）</td><td>按开关值分流到旧/新链路</td></tr>
+  <tr><td>验收清单</td><td>试打验收文档（不进代码库，另行整理）</td><td>覆盖 VIP/非VIP/保密/非保密访客、外包工、免检证等全部现网人员分类</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>切换前在测试环境完整演练一次「开启开关→打印验证→关闭开关回退→打印验证」流程，确认两条链路互不污染彼此的模板/数据缓存；生产切换当天现场值守，首批打印人工核对厂牌内容（姓名、照片、二维码扫描结果、保密标记正确性）后再放量。</dd>
+  <dt>依赖与风险</dt>
+  <dd>切换成败强依赖 1.2/1.3/1.4/1.5/2.1/2.2/2.3/6.1/1.1 的联合验收质量，任何一项模板配置缺口都可能在切换当天暴露为访客/外包工无法打印；证卡机与 PDA 机型仍是外部依赖（问题 18 剩余部分），若机型确认晚于设计器交付，1.1/6.1 的证卡机打印通道可以延后于访客凭条切换单独验收，不阻塞访客二维码厂牌先行切换。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-4">
+ <div class="ih"><span class="ino">4.4</span><h3>访客进出扫码登记（PDA）</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>全仓（含旧 <code>smart-app-uniapp</code>）对 <code>scanCode</code> 关键字搜索命中 0 处，确认现存 App 从未实现过扫码功能，PDA 扫码进出登记是彻底新建。方案口径已明确：本项<strong>仅针对访客</strong>（员工进出走门禁闸机、不经 PDA），且访客的「进入」与「离开」两个方向都要登记（区别于旧思路只记一次）。访客二维码的内容载体依赖 2.1（模板带码后才有可扫的厂牌），码内容语义已在 2.1/4.5 中确认为 <code>smsCode</code>。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①PDA 上有独立的「访客进出登记」入口，可选择方向（进入/离开）后扫码；②扫码成功后自动带出访客核验信息（复用 4.5 核验接口结果）供安检确认；③登记记录包含访客身份、方向、时间、操作岗位（依赖 4.6 已选岗位）、操作人工号；④同一访客短时间内重复扫同方向码有合理提示（不强制阻断，因存在多次经停同一岗位的场景，具体规则由需求方在 spec 阶段确认）；⑤扫码优先走 PDA 内置扫码头，相机扫码（<code>uni.scanCode</code>）作为兜底。</dd>
+  <dt>实现方式</dt>
+  <dd>新建登记表（访客申请关联 ID 或 smsCode、方向枚举、岗位、操作人、扫码时间、园区）+ 新建登记接口（服务端鉴权：登录态 + 保安/安检岗位身份 + 园区数据范围过滤，与决策 A 的服务端鉴权约定一致）。新 App 页面新建「进出登记」页：方向选择 → 触发扫码（PDA 扫码头优先，相机兜底）→ 解析出 <code>smsCode</code> → 调用 4.5 核验接口取访客信息展示 → 确认后落登记记录。扫码解析路由可参照 H5 现有 <code>smart-h5/src/lib/wechat/scan-release.ts:125-142</code> 的 <code>releaseRouteFromScanResult</code> 思路（按内容格式分流处理），但访客码内容是纯 <code>smsCode</code> 字符串而非该文件里的 JSON 结构，PDA 端按实际码内容格式自行解析，不能照抄该文件的 JSON 解析逻辑。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>安检/保安登录 PDA 并选定当前岗位（4.6）。</li><li>进入「访客进出登记」页，选择方向（进入/离开）。</li><li>触发扫码（优先扫码头），扫到访客厂牌二维码取得 <code>smsCode</code>。</li><li>调用 4.5 核验接口按 <code>smsCode</code> 查详情，展示申请人/时间/区域/接待人/事由/照片/期限，失效/过期码明确红色提示并阻断登记。</li><li>核验通过后确认登记，写入登记表（含方向、岗位、操作人、时间）。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>数据库</td><td>新建访客进出登记表</td><td>关联访客/申请、方向、岗位、操作人、时间、园区</td></tr>
+  <tr><td>后端</td><td>新建进出登记接口</td><td>服务端鉴权（登录态+岗位身份+园区范围），复用 4.5 核验结果</td></tr>
+  <tr><td>PDA 前端</td><td>新建「访客进出登记」页面</td><td>方向选择 + 扫码 + 核验展示 + 确认登记</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>扫码头联通验证是批次 2 启动门（见 <code>item-gate2</code>），未过门不可排产真机联调；单测覆盖登记接口的鉴权分支（非保安/安检岗位调用应拒绝）；集成测试覆盖失效码、过期码、正常码三种扫码结果的前端展示与阻断逻辑。</dd>
+  <dt>依赖与风险</dt>
+  <dd>依赖 4.5 核验接口先行或同批并行；依赖 4.6 岗位选择先完成，登记记录才有岗位维度；访客厂牌带码依赖 2.1 切换完成，切换前旧厂牌无码，4.4 在切换完成前只能用「手动输入 smsCode」等兜底方式联调，不能等价于真实扫码验收。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-5">
+ <div class="ih"><span class="ino">4.5</span><h3>访客二维码核验</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>「有码无验」——访客二维码内容已确认为 <code>smsCode</code>（<code>SmtVisitorServiceImpl.java:2694,2739-2757</code>，见 2.1 节证据），但 <code>SmtVisitorController</code> 现有约 35 个端点中没有一个「按码查详情」的核验接口。仓内有完全对应的样板可仿照：宿舍退宿的按码核验接口 <code>GET /dor/quit/list/check/{smsCode}</code>（<code>SmtDormitoryQuitApplyController.java:56-59</code>：<code>@GetMapping("/list/check/{smsCode}") public Result&lt;DormitoryQuitApplyDetailRespDTO&gt; getCheckByCode(@PathVariable("smsCode") String smsCode)</code>，内部调用 <code>smtDormitoryQuitApplyService.getCheckByCode(smsCode)</code>），返回结构化的核验详情 DTO，模式与访客核验需求完全一致，可直接照此结构新增访客侧同构接口。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①新增接口按 <code>smsCode</code> 查询访客申请详情，返回申请人姓名、时间段、区域、接待人、事由、照片、有效期；②访客码已过期或失效（含 3.3 软删供应商关联的历史码、2.6 作废单）时返回明确的「已失效/已过期」状态，前端红色禁止态展示，不允许继续登记/放行；③接口仅供 PDA（保安/安检岗）与必要的管理端调用，服务端做角色与园区数据范围校验；④核验结果作为 4.4 进出登记的前置展示信息，不重复实现一遍展示逻辑（4.4 直接复用本接口返回结构）。</dd>
+  <dt>实现方式</dt>
+  <dd>仿照 <code>SmtDormitoryQuitApplyController.java:56-59</code> 的接口形态，在访客域新增 <code>GET /visitor/check/{smsCode}</code>（或等价路径，命名以访客域现有风格为准）。服务实现按 <code>smsCode</code> 反查 <code>SmtVisitor</code>/申请单，组装 <code>VisitorCheckRespDTO</code>：申请人、接待人、事由、区域、时间段、照片（复用现有 <code>imageService.buildImageUrl</code> 图片拼接模式，已在 <code>ArticlesReleaseDetailWrapper.java</code> 等多处使用）、状态（正常/已过期/已作废/已失效）。状态判定需要结合当前时间与申请单 <code>endTime</code> 比较（现有 <code>searchVisitorById</code> 方法 <code>SmtVisitorServiceImpl.java:2711</code> 已有「<code>System.currentTimeMillis() - endTime &lt; 0</code>」判定当前有效性的写法，可直接复用同一判定条件）、2.6 作废态、3.3 软删除后的供应商人员关联提示。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>PDA 扫码取得 <code>smsCode</code>（4.4 场景）或直接在核验页手动输入/扫码核验（独立入口场景）。</li><li>调用新增核验接口按 <code>smsCode</code> 查询。</li><li>接口内部判定：申请单不存在 → 未知码；已作废（2.6）→ 已失效；已过期（<code>endTime</code> 已过）→ 已过期；关联保密供应商已被软删（3.3）→ 附加提示「所属单位保密协议已失效」；均正常 → 返回完整详情。</li><li>前端按状态展示，异常态用红色高亮并禁止继续放行/登记操作。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>后端</td><td>访客域新增核验接口（仿 <code>SmtDormitoryQuitApplyController.java:56-59</code>）</td><td>按 smsCode 查详情，含状态判定</td></tr>
+  <tr><td>后端</td><td>新建 <code>VisitorCheckRespDTO</code></td><td>申请人/时间/区域/接待人/事由/照片/期限/状态</td></tr>
+  <tr><td>PDA 前端</td><td>访客核验展示组件</td><td>供 4.4 登记页与独立核验入口共用</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>单测覆盖四种状态分支（正常/过期/作废/供应商软删）；接口鉴权测试（非保安/安检角色调用应拒绝，跨园区调用应过滤）；与 2.6 的作废功能联调，确认作废单立即在核验接口体现为失效状态。</dd>
+  <dt>依赖与风险</dt>
+  <dd>依赖 2.6（批次 1 止血版即可，作废态字段先行）；「已过期」判定使用与 <code>SmtVisitorServiceImpl.java:2711</code> 一致的现网口径，避免核验结果与其它已有接口的有效性判断不一致；实际可用性仍与打印切换（2.1）绑定——切换前发出的老厂牌无码，核验接口本身在切换前即可开发验收（可用测试数据的 smsCode 手动核验），只是真实扫码链路要等新厂牌铺开。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-6">
+ <div class="ih"><span class="ino">4.6</span><h3>岗位选择</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>员工基础信息里有 DHR 同步的岗位字段，但没有「PDA 登录选岗」这一交互流程，全仓无对应字典与选择组件。方案口径：岗位选择入口是 App 首页顶部的岗位标签，首次进入保密放行等功能模块时也可弹出选岗提示；选定的岗位需要随后续的进出登记（4.4）、核验（4.5）、A/B 点确认（4.7）等记录一并留痕。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①新增 PDA 岗位字典（如东门岗/西门岗/A点安检/B点安检等，具体清单由需求方在 spec 阶段确认）；②登录后若未选岗，首页顶部提示并可点击选岗，也可在进入具体业务模块时弹出选岗要求；③已选岗位在首页顶部常驻展示，可随时点击切换；④所有涉及岗位维度的业务记录（4.4 进出登记、4.7 A/B 点确认、4.8 报表筛选）都能取到当前登录会话选定的岗位值；⑤同一账号可能在不同班次绑定不同岗位，切岗后新产生的记录用新岗位，历史记录不受影响。</dd>
+  <dt>实现方式</dt>
+  <dd>后端新增岗位字典表（编码/名称/所属园区/启用状态）+ 字典查询接口。PDA 端登录成功后检查本地/会话是否已选岗，未选则跳转或弹出选岗页；选定后存入客户端会话状态（本地存储 + 内存态），随后所有业务请求把当前岗位编码作为参数或请求头透传给后端，后端落库时一并记录。首页顶部常驻岗位标签组件，点击可重新选岗（不需要重新登录）。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>用户登录成功，App 检查是否已选岗位。</li><li>未选岗：跳转/弹出岗位字典列表，用户选择后写入客户端会话状态并展示在首页顶部。</li><li>已选岗：直接进首页，顶部展示当前岗位，可点击切换。</li><li>后续业务操作（扫码登记、核验、A/B 点确认）请求时附带当前岗位编码，后端记录该编码到对应业务表。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>数据库</td><td>新建 PDA 岗位字典表</td><td>编码/名称/园区/启用状态</td></tr>
+  <tr><td>后端</td><td>新建岗位字典查询接口</td><td>按园区过滤返回可选岗位列表</td></tr>
+  <tr><td>PDA 前端</td><td>首页顶部岗位标签组件 + 选岗页/弹窗</td><td>登录后校验、切换、会话态持久化</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>单测覆盖字典按园区过滤；PDA 端测试未选岗时业务操作应被拦截或引导先选岗；切岗后新记录使用新岗位、历史记录岗位不变的回归验证。</dd>
+  <dt>依赖与风险</dt>
+  <dd>本项相对独立，可与 4.4/4.5 并行开发；岗位字典的具体清单（东门岗/西门岗等命名）需求方尚未给出最终列表，建议先按可扩展字典设计、上线前由业务侧确认具体条目，不要在代码里硬编码岗位名称。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-7">
+ <div class="ih"><span class="ino">4.7</span><h3>保密物品放行——A/B 点确认执行环节（新建单据域，页面与接口）</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>设计评审已修正一处此前的方案侧错误映射：保密物品放行是<strong>厂内 A 岗位 → B 岗位流转</strong>的独立业务，无出厂/返厂环节，<strong>不是</strong>把现有 <code>smt_articles_release</code> 出厂放行体系搬进 App。现有体系继续原样服务生活区/办公区放行条，H5 的物品放行申请界面不做任何修改。现有体系的可复用部件已逐一核实：①审批引擎——园区审批表族 <code>smt_approval</code>/<code>_node</code>/<code>_person</code>/<code>_condition</code> 完整存在（本批次不涉及申请与审批页，仅记录可复用结论供后续批次使用）；②二维码 wrapper 模式——<code>ArticlesReleaseDetailWrapper.java:89-99</code> 在放行单状态为「已审批」时用 <code>QRCodeUtils.wordsCreateQRCode</code> 对 <code>{"id": releaseId, "type": "article-类型"}</code> 的 JSON 生成二维码（本次读取确认第 89-99 行逻辑属实），新单据域的二维码可仿此结构，把 <code>type</code> 换成保密放行单专属标识；③按卡号查人员——<code>SMT_ISC_STAFF_CARD</code> 映射现成（见 1.1 节证据），A/B 点刷卡确认可直接用其 <code>cardNo</code> 反查 <code>staffId</code>；④保安确认交互样式——现有 H5 <code>smart-h5/src/lib/wechat/scan-release.ts</code> 的扫码 + 详情核对 + 状态更新三段式交互可作为 UI 参考，但其 <code>releaseRouteFromScanResult</code>（第 125-142 行）按 JSON <code>{"id","type"}</code> 解析路由到 <code>backlog/release-live</code>/<code>release-work</code>/<code>dorm-exit</code> 三类既有单据，新单据域走独立路由，不复用其分流分支。方案侧口径：出发/目的岗位（不是接收单位）；A/B 点确认<strong>不拍照</strong>（现场无法拍照，区别于现有 <code>articlesRelease</code> 体系的出厂/返厂三张照片留痕）；刷卡为硬性要求（NFC 或外接读卡器），本批先做页面与接口、接口预留卡号字段，刷卡链路本身随批次 3 的 4.9 接入。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①新建保密放行单据域（主单 + 物料明细 + 封条 + A/B 确认节点），单号前缀独立区分（示意 MF），不与 <code>smt_articles_release</code> 混用；②主单字段含单号、申请人、出发岗位、目的岗位、事由、状态机（待审批/已驳回/待出发/押运中/已归档）、押运方式与押运人或锁编号、A/B 点确认人与时间；③A 点出发确认：安检在 PDA 上核对物料与封条后确认，接口预留押运人/操作人卡号字段（本批可先以工号/账号完成确认，刷卡校验待 4.9）；④B 点到达归档：接收岗位安检确认到达，单据状态置「已归档」；⑤拒绝：A 点或 B 点均可在确认前拒绝，单据回退到「已驳回」或指定的失败态（状态机细节在 spec 阶段定稿）；⑥待办列表按当前登录岗位（4.6）过滤，只展示与本岗位相关（出发岗位=当前岗位待发起，或目的岗位=当前岗位待接收）的单据；⑦本批不含「申请」与「主管审批」两屏（批次 5 的 4.11），执行环节的单据来源是已通过第一阶段（OA/现有系统）审批的数据，或按 spec 阶段确定的过渡对接方式导入待执行单据。</dd>
+  <dt>实现方式</dt>
+  <dd>新建独立表族而非扩展 <code>articlesRelease</code>（方案文档给出的两个选项中，鉴于「厂内岗位流转、无出发/返回照片、无出厂/返厂」与现有体系语义差异较大，倾向新表族，具体在 spec 阶段定稿）：主单表（单号、申请人、出发/目的岗位、事由、状态、押运方式、押运人或锁编号、A 点确认人/时间、B 点确认人/时间、审计列）+ 物料明细表（关联主单，参考 <code>SmtArticlesReleaseThing.java</code> 的字段粒度：资产编码/名称/数量/单位/流向/备注，去掉与厂内流转无关的「接收单位/是否返厂/返厂日期」等字段）+ 封条表（详见 4.14）。接口清单：待办列表（按当前岗位过滤，服务端用登录态解出的当前岗位与主单出发/目的岗位比对）、A 点出发确认（校验封条齐全、物料核对、写入确认人时间，预留 <code>cardNo</code> 参数但本批不强校验）、B 点到达归档（同构）、拒绝（任一节点可调用，回写状态与拒绝原因）。二维码沿用 wrapper 模式思路：单据进入「待出发」状态后生成 <code>{"id": releaseId, "type": "security-release"}</code> 结构的二维码，供 A/B 点 PDA 扫码定位单据（也可直接走待办列表选择，二维码是可选加速路径）。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>（本批之外）第一阶段申请经 OA/现有系统审批通过，形成「待出发」状态的保密放行单（数据接入方式见依赖与风险）。</li><li>A 点安检登录 PDA，在待办列表看到本岗位（出发岗位=当前岗位）待处理单据，或扫码定位。</li><li>核对物料明细与封条（4.14），确认后调用 A 点出发确认接口，单据置「押运中」，记录确认人与时间（本批不强校验刷卡）。</li><li>押运人按选定的押运方式（人工押运刷卡确认，或锁编号手动录入，详见批次 5 的 4.13）押运至目的岗位。</li><li>B 点安检在待办列表看到本岗位（目的岗位=当前岗位）的「押运中」单据，核对到达后调用 B 点到达归档接口，单据置「已归档」。</li><li>任一节点发现问题可调用拒绝接口，单据回退指定状态并留痕拒绝原因。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>数据库</td><td>新建保密放行主单表</td><td>单号、申请人、出发/目的岗位、事由、状态、押运方式/押运人/锁编号、A/B 确认人时间</td></tr>
+  <tr><td>数据库</td><td>新建保密放行物料明细表</td><td>关联主单，参考 <code>SmtArticlesReleaseThing.java</code> 字段粒度精简</td></tr>
+  <tr><td>后端</td><td>新建待办列表接口</td><td>按当前登录岗位过滤出发/目的岗位匹配的单据</td></tr>
+  <tr><td>后端</td><td>新建 A 点出发确认接口</td><td>校验封条/物料，写确认人时间，预留 cardNo 字段</td></tr>
+  <tr><td>后端</td><td>新建 B 点到达归档接口</td><td>同构，置「已归档」</td></tr>
+  <tr><td>后端</td><td>新建拒绝接口</td><td>回写状态与拒绝原因</td></tr>
+  <tr><td>后端（复用不改）</td><td><code>ArticlesReleaseDetailWrapper.java:89-99</code> 的 wrapper 模式、<code>SMT_ISC_STAFF_CARD</code> 卡号映射</td><td>参考实现新单据域的二维码生成与刷卡预留字段，不直接调用原类</td></tr>
+  <tr><td>PDA 前端</td><td>新建 A 点确认页、B 点确认页、待办列表页</td><td>物料/封条核对 UI，不含拍照环节</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>单测覆盖状态机全部合法迁移与非法迁移拒绝；接口鉴权测试（非目标岗位账号调用 A/B 点确认应拒绝）；待办列表按岗位过滤的准确性验证；因申请/审批不在本批，联调需要准备一批「已处于待出发状态」的种子数据（通过 spec 阶段确定的过渡方式手工插入或走临时接口）。</dd>
+  <dt>依赖与风险</dt>
+  <dd>本批不含申请与主管审批页（4.11 在批次 5），执行环节如何拿到「已审批待出发」的单据存在过渡期空档——需要 spec 阶段明确：是由第一阶段 OA/现有系统审批通过后手工/接口方式推送到新单据域，还是本批先允许管理端直接创建「待出发」态单据用于验收，这一过渡口径未在方案文档中给出细节，建议作为独立待确认问题提给需求方；刷卡为硬性要求但本批不接入（4.9 在批次 3），意味着批次 2 交付的 A/B 点确认只能用工号/账号确认，不是最终验收形态，需要在验收标准里明确写清楚「本批验收范围不含刷卡硬校验」，避免与最终交付标准混淆；表结构是全新设计，需要在 spec-kit 的 plan.md 阶段做详细字段级设计，本节只给方向性字段清单。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-8">
+ <div class="ih"><span class="ino">4.8</span><h3>放行记录报表</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>现有 <code>smt_articles_release</code> 体系的导出/分页接口（<code>SmtArticlesReleaseServiceImpl.java</code> 中的相关查询方法）属于出厂放行条体系，字段语义（接收单位、是否返厂、返厂日期）与保密放行不一致，只能作为分页/导出实现方式的参考，不能直接复用查询逻辑或表。方案已明确报表筛选维度为七项组合：封条条码、申请人、出发岗位、到达岗位、状态、出发安检、到达安检。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①App 端查询页与管理台报表页均支持按上述七个维度任意组合筛选；②列表展示单号、申请人、出发/目的岗位、状态、A/B 点确认人与时间、封条号（可能多个，展示第一个+数量或可展开）；③支持导出（管理台侧，格式与现有报表导出方式保持一致，具体走仓内通用导出组件）；④分页与排序性能在封条条码搜索场景下需要走索引（封条表 <code>seal_barcode</code> 唯一索引已在 4.14 定义，报表按封条号筛选时通过关联查询）；⑤App 端查询页面向执行岗位人员，只展示与其岗位相关或全量（按角色权限区分）取决于 spec 阶段的权限设计。</dd>
+  <dt>实现方式</dt>
+  <dd>新建报表查询接口，基于 4.7 新单据域的主单表 + 4.14 封条表做关联查询，七个筛选条件均为可选，组合 AND 过滤。封条条码筛选需要 <code>EXISTS</code> 子查询关联封条表（避免一单多条码导致主表结果重复行，参照批次 1 2.5 节处理随行人员判重时选用 EXISTS 而非 JOIN 的同一思路，防止分页 count 虚高）。出发/到达安检字段对应 A/B 点确认人，直接来自主单表的 <code>a_confirm_by</code>/<code>b_confirm_by</code>（或等价命名）。管理台报表页复用仓内现有分页组件与导出组件，不新增导出机制。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>用户（App 或管理台）在报表页设置筛选条件（任意组合七项）。</li><li>调用报表查询接口，后端拼装动态 SQL（各条件独立 AND，为空则不参与过滤）。</li><li>封条条码条件走 EXISTS 子查询避免重复行。</li><li>返回分页列表，管理台侧另支持导出全量结果。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>后端</td><td>新建保密放行报表查询接口</td><td>七维组合筛选，封条条码用 EXISTS 子查询关联封条表</td></tr>
+  <tr><td>PDA 前端</td><td>新建放行记录查询页</td><td>七维筛选表单 + 列表</td></tr>
+  <tr><td>管理台前端（smart-ui）</td><td>新建保密放行报表页</td><td>同七维筛选 + 导出</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>单测覆盖七个筛选条件单独生效与组合生效；一单多封条场景下分页 count 与列表行数一致性验证（对照批次 1 2.5 节修复的同类问题，本项从一开始就用 EXISTS，不应重现该缺陷）；导出功能的数据一致性抽查。</dd>
+  <dt>依赖与风险</dt>
+  <dd>依赖 4.7 主单表与 4.14 封条表结构定稿后才能定接口字段；管理台侧权限范围（是否需要按园区/部门限制可见数据）需在 spec 阶段与其它管理台报表的权限模型对齐，本节暂按「与 4.7/4.14 同一套鉴权」处理。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-14">
+ <div class="ih"><span class="ino">4.14</span><h3>封条条码</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>物料明细表 <code>SMT_ARTICLES_RELEASE_THING</code>（<code>SmtArticlesReleaseThing.java:1-101</code>，本次通读全字段确认）字段完整覆盖资产编码 <code>wpbm</code>、名称 <code>wpmc</code>、单位 <code>wpdw</code>、数量 <code>wpsl</code>、流向 <code>wplx</code>、接收单位 <code>jsdw</code>、运输方式 <code>ysfs</code>、车牌 <code>cph</code> 等既有出厂放行需要的信息，但<strong>没有任何封条字段</strong>——本次对全仓「封条」「sealNo」「seal_barcode」等关键字搜索均为 0 命中，确认属于彻底新建。现有二维码机制只编码 <code>{"id","type"}</code> 两个字段（<code>ArticlesReleaseDetailWrapper.java:89-99</code>，本次读取确认第 91-97 行 <code>jsonObject.put("id",...); jsonObject.put("type",...)</code>），不含封条信息，无法直接扩展复用于「按封条码反查单据」的场景（那是完全不同的查询方向：现有是「按单据生成码」，封条反查是「按码找单据」）。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>①封条为预印刷的独立编号，装货贴封时由现场人员在 PDA 上把条码逐枚扫码录入到申请单，一张单据可关联多个封条条码；②任一条码都能反查出对应的保密放行单据；③条码不可与「在途」（未终态）单据重复关联，重复关联应有明确校验拦截；④单据终态（已归档/已驳回等）后，其封条码整体随单据失效，不需要单独维护封条自身的状态机；⑤PDA 录入交互：扫码头触发、结果自动填入输入框、输入框保持常驻焦点以支持连续多枚扫描，不使用摄像头取景模式；⑥按条码反查接口仅限保安/安检角色调用，按园区过滤，命中已终态单据要有明确提示（不是当作正常在途单处理）。</dd>
+  <dt>实现方式</dt>
+  <dd>新建独立封条表：<code>id</code>、<code>release_id</code>（指向 4.7 新单据域主单，不是指向 <code>smt_articles_release</code>）、<code>seal_barcode</code>（唯一索引，防止同一条码被两张在途单同时占用）、<code>park_id</code>、审计列（创建时间/创建人）。不做物料级绑定（不关联具体某条物料明细），不设独立状态机——录入即与主单绑定，主单终态即整体失效，这是需求方在原型评审阶段拍板简化的结果（原「贴封登记独立状态机」设计已裁掉）。用独立表而非在主单表里存逗号分隔字符串，是为了：①<code>seal_barcode</code> 唯一索引能在数据库层面防止条码跨单重复；②按条码反查时可以走索引，而不是对逗号串做模糊匹配扫全表。新增接口 <code>GET /security-release/by-seal/{barcode}</code>（命名与新单据域路径前缀对齐，具体以 spec 阶段定的路由前缀为准）：按条码查封条表拿到 <code>release_id</code>，再查主单详情返回；未命中给出「条码未登记」提示，命中已终态单据给出「该单据已归档/已驳回，封条已失效」提示。放行待办/记录列表（4.8）补充按封条号搜索作为报表七维之一。扫码路由方面，H5 现有 <code>scan-release.ts</code> 的 <code>scanType</code> 已含 <code>['qrCode', 'barCode']</code>（第 115 行，本次确认），但其结果解析 <code>releaseRouteFromScanResult</code>（125-142 行）只认 JSON 结构的二维码内容，遇到纯条码字符串会在 <code>JSON.parse</code> 处直接抛「扫码结果格式不正确」；PDA 端需要新增一个纯条码分支：解析前先判断内容是否为 JSON，不是则按封条条码走 <code>by-seal</code> 反查路由，是则按原 <code>{"id","type"}</code> 结构处理（如果 PDA 端同时需要处理两类扫码结果）。H5 侧本身不需要改动（H5 的物品放行申请界面保持现状，不涉及封条），此处只是把该文件的分流思路作为 PDA 端实现参考。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>A 点安检在 4.7 出发确认页面进入「封条录入」，PDA 扫码头逐枚扫描封条条码，每次扫描结果自动填入常驻焦点的输入框并追加到已录入列表。</li><li>提交时后端校验每个条码：格式合法、未被其它在途单占用（查封条表 <code>seal_barcode</code> 是否已存在且关联单据未终态）。</li><li>校验通过，封条记录批量写入，与 4.7 主单 <code>release_id</code> 关联。</li><li>后续 B 点或任何环节可扫描其中任一条码，调用 <code>by-seal/{barcode}</code> 反查，直接定位并打开该单据详情。</li><li>单据进入终态后，其关联封条条码整体随之失效，反查接口返回「已终态」提示而非正常详情。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>数据库</td><td>新建 <code>smt_release_seal</code> 表</td><td><code>id</code>、<code>release_id</code>、<code>seal_barcode</code>（唯一索引）、<code>park_id</code>、审计列</td></tr>
+  <tr><td>后端</td><td>新建封条录入接口</td><td>批量录入 + 未终态占用校验</td></tr>
+  <tr><td>后端</td><td>新建 <code>GET .../by-seal/{barcode}</code> 反查接口</td><td>保安/安检角色 + 园区过滤，终态单据明确提示</td></tr>
+  <tr><td>PDA 前端</td><td>封条扫码录入组件</td><td>扫码头触发、输入框常驻焦点、连续录入列表</td></tr>
+  <tr><td>PDA 前端</td><td>扫码路由分支</td><td>参照 <code>smart-h5/src/lib/wechat/scan-release.ts:125-142</code> 思路新增纯条码分支，非 JSON 内容按封条反查处理</td></tr>
+  <tr><td>PDA 前端</td><td>4.8 报表查询页</td><td>补封条条码搜索条件</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>单测覆盖：条码唯一性校验（同一条码不可绑定两个在途单）、终态单据的封条反查返回明确失效提示而非详情、批量录入的部分失败回滚行为；PDA 端需要实机验证扫码头触发后输入框是否正确保持焦点、连续扫描是否会丢失前一次结果（这是纯前端交互细节，建议早期用真实扫码头做一次原型验证，而不是等到批次末尾）。</dd>
+  <dt>依赖与风险</dt>
+  <dd>依赖 4.7 主单表结构先定稿（<code>release_id</code> 外键指向对象）；排在 4.7 之后交付（方案文档启动门第④条）；扫码头的「侧键触发+结果自动填入+焦点常驻」交互高度依赖具体 PDA 机型的扫码头接入方式（广播模式/键盘仿真/厂商 SDK 三选一，见 <code>item-gate2</code>），机型未定前只能基于键盘仿真模式（多数扫码头的通用兼容模式）做开发与联调，真实体验需等机型到货后验证微调。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-gate2">
+ <div class="ih"><span class="ino">启动门</span><h3>批次 2 验证手册：PDA 扫码头联通、NFC 读卡 demo、IC 证卡机确认清单</h3><span class="ibatch">批次 2</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>批次 2 打印族与 App 族均依赖尚未到货/未选定的硬件，方案文档把三项外部依赖列为批次 2 的硬性启动门，不满足则对应子项移出该批次顺延，不带病排产。现状核实：①旧 <code>smart-app-uniapp</code> 全仓无 <code>scanCode</code> 命中（本次 grep 确认为 0），说明这条链路此前从未被验证过，不能假设新工程能直接复用旧经验；②旧工程搜索 NFC 相关代码同样查无实质代码（仅在字体图标文件的 Base64 编码数据中偶然出现字符组合，非真实功能代码，已核实排除）；③员工↔IC 卡号绑定机制（<code>SMT_ISC_STAFF_CARD.cardNo</code>，见 1.1 节证据）已经确认为 NFC 核验的比对基准——需求方已确认 NFC 读出的卡号与该字段登记的是同一编号，但进制/字节序等编码细节仍需 demo 阶段实测确认，不能假设两端天然一致。</dd>
+  <dt>目标与验收标准</dt>
+  <dd>三项启动门任一不过，对应批次 2 子项（4.4/4.5/4.6/4.14 依赖扫码头，4.7 依赖 NFC 且刷卡硬性无降级，1.1/6.1 依赖证卡机）移出本批顺延，不得用相机扫码/手动选人等方式永久替代验收标准，只能作为开发阶段的临时联调手段。</dd>
+  <dt>实现方式</dt>
+  <dd><strong>一、PDA 扫码头接入验证步骤</strong>：①确认目标机型后，先测试其扫码头的对接模式——多数工业 PDA 提供三种模式之一或多选：广播模式（扫码结果以系统广播 Intent 发出，uni-app 侧需要监听原生广播并桥接到 JS）、键盘仿真模式（扫码结果模拟键盘输入，最通用，对接成本最低但需要输入框在扫码瞬间保持焦点）、厂商 SDK 模式（需要引入厂商提供的原生插件，兼容性最强但绑定特定机型）；②建议优先验证键盘仿真模式（成本最低），做一个最小 Demo 页面：一个输入框，验证扫码头触发后内容是否正确进入输入框、是否有多余字符（部分扫码头会在结果前后加换行符或 Tab，需要在解析时 trim）；③在此基础上做「扫码头 + 工号登录联通」验证：用扫码头扫描一个包含工号的测试二维码，验证识别结果能否直接用于登录表单填充或触发登录动作；④验证结果记录到批次 2 启动清单，含机型型号、对接模式、已知限制（如扫码头是否支持一维码/二维码/两者皆可）。<strong>二、NFC 读卡 demo 验证步骤</strong>：①机型确认为 Android 后，用 HTML5+ 的 <code>plus.nfc</code>（或原生插件形式的 <code>android.nfc</code> API）读取一张已在 <code>SMT_ISC_STAFF_CARD</code> 登记过 <code>cardNo</code> 的实体卡（M1/CPU 卡），取得卡片 UID 或指定扇区数据；②对比读出的原始数据与登记的 <code>cardNo</code> 字符串，重点核对进制（十进制 vs 十六进制）与字节序（大端 vs 小端）是否一致——若不一致，需要在 App 端读卡后做一次格式转换才能匹配数据库值，转换规则要在 demo 阶段固化并写入代码注释；③demo 需覆盖至少 3-5 张不同工号的已登记卡片，确认转换规则稳定、无个例例外；④demo 结论直接决定 4.7/4.9 的刷卡校验实现方式，若 NFC 读出格式与登记格式无法可靠映射，需要升级为「外接 USB/蓝牙读卡器」或更换 PDA 机型（方案文档已确认刷卡无降级口径，只能换硬件不能降级为非刷卡方式）。<strong>三、IC 证卡打印机型号与打印 SDK/驱动形态确认清单</strong>：①确认证卡机具体型号（问题 18 剩余开放项）；②确认打印通道形态——是否提供 Windows 本地打印驱动（可通过浏览器插件或本地代理服务调用，参照现有访客凭条 b-PAC 插件模式）还是需要额外的桌面代理程序（参照现有身份证读卡器 <code>ws://127.0.0.1:33666</code> 本地 WebSocket 代理模式）；③确认 SDK 是否支持从 1.2 设计器产出的图片/HTML 渲染结果直接出图，还是需要额外的格式转换层；④确认打印分辨率、卡面尺寸与设计器画布参数是否匹配，避免出图错位或裁切。</dd>
+  <dt>处理流程</dt>
+  <dd><ol><li>采购/确认 PDA 与证卡机具体机型（问题 18 剩余部分，业务侧推动）。</li><li>机型到货后，开发侧在 3 个工作日内完成「扫码头 + 登录联通」最小 Demo，产出对接模式结论。</li><li>并行完成 NFC 读卡 demo，产出卡号编码映射规则结论。</li><li>确认证卡机打印通道形态，产出适配层技术方案。</li><li>三项结论汇总为批次 2 启动清单，逐项打勾后方可排产对应子项的真机联调环节（接口与页面开发本身不受阻塞，可提前基于约定接口并行开发）。</li></ol></dd>
+  <dt>改动清单</dt>
+  <dd><table><thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead><tbody>
+  <tr><td>PDA 前端</td><td>扫码头联通 Demo 页面（临时，不进正式功能）</td><td>验证键盘仿真/广播/SDK 三种对接模式</td></tr>
+  <tr><td>PDA 前端</td><td>NFC 读卡 Demo 页面（临时）</td><td>读卡 + 与 <code>SMT_ISC_STAFF_CARD.cardNo</code> 比对，固化编码转换规则</td></tr>
+  <tr><td>文档</td><td>批次 2 启动清单（不进代码库，另行整理）</td><td>三项验证结论、机型信息、已知限制</td></tr>
+  </tbody></table></dd>
+  <dt>测试与验证</dt>
+  <dd>扫码头 Demo 至少覆盖一维码与二维码各一次扫描；NFC Demo 覆盖 3-5 张不同工号卡片且结果稳定；证卡机确认清单以书面（或工单记录）形式留痕，作为后续适配层开发的输入。</dd>
+  <dt>依赖与风险</dt>
+  <dd>三项均为外部硬件采购/交付驱动，开发侧无法自行推进，是全批次的最大排期风险；建议开发侧在等待硬件到货期间，先按「键盘仿真扫码 + 手动模拟 NFC 卡号输入」的方式并行完成接口与页面开发，机型到货后只做联调不做从零开发，压缩硬件到货后的排期占用；NFC demo 若发现编码不一致且规则不稳定（例如不同批次卡片规则不同），需要立即升级为独立技术调研任务，不能算作「顺手实测」完成。</dd>
+ </dl>
+</section>
+
+  <div class="pager"><a href="#p14">← 上一批次</a><a class="next" href="#p16">下一批次 →</a></div>
+</section>
+
+<!-- ============ p16 逐项开发说明 ============ -->
+<section class="page" id="pg-p16">
+  <div class="kicker">第 8 章 · 逐项开发说明</div>
+  <h1>批次 3-4 · 刷卡接入与可靠删除地基</h1>
+  <p style="color:var(--ink3);font-size:13px">严格顺序：5.8 → 5.7 → 期限拦截 + 3.1 → 3.2 → 3.4 → 2.6 完整版 → 4.10</p>
+  <div class="toc-items" id="toc-p16"></div>
+  <p class="chapter-lede">批次 3（P2）只有一项：4.9 NFC 刷卡正式接入，把批次 2 已验证通过的 NFC demo 接进保密放行 4.7 的三段刷卡节点（A 点安检 → 押运人 → B 点安检），刷卡是硬性要求、没有降级口径。批次 4（P3）是删除类需求的地基与联动：<strong>严格按「地基 → 数据 → 联动」的顺序执行</strong>——先做 5.8 可靠删除链路（所有自动删权限功能的前提），再修 5.7 海康进出记录同步（5.4 等判定的数据来源），然后落申请侧两道强制校验与 3.1 非保密转保密，接着 3.2 保密到期全量删除 + 自动解密、3.4 解密后重新申请，最后 2.6 作废完整版接入 5.8 链路，4.10 上级主管同步只做验证。顺序不能颠倒：3.1/3.2/2.6 的删除动作全部经过 5.8 新链路，若先做联动再改链路，等于在不可靠的删除上放大数据不一致。</p>
+<p class="chapter-lede">证据路径缩写（均相对仓库根目录）：<code>[PB]</code>=<code>smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform</code>；<code>[PC]</code>=<code>smart-module/smart-platform/smart-platform-core/src/main/java/com/tce/smart/platform/core</code>；<code>[PX]</code>=<code>smart-module/smart-platform/smart-platform-core/src/main/resources/mapper</code>；<code>[SCH]</code>=<code>smart-module/smart-schedule/src/main/java/com/tce/smart/schedule</code>；<code>[BI]</code>=<code>smart-module/smart-bridge-isc/smart-bridge-isc-biz/src/main/java/com/tce/smart/bridge/isc</code>；<code>[DP]</code>=<code>smart-module/smart-dispatcher</code>；<code>[TOOL]</code>=<code>smart-module/smart-tool/src/main/java/com/tce/smart/tool</code>；<code>[UI]</code>=<code>smart-ui/src</code>。以下所有行号均已在 main @ a94896b7 工作区逐处核对。</p>
+
+<section class="item" id="item-4-9">
+ <div class="ih"><span class="ino">4.9</span><h3>NFC 刷卡正式接入（三段刷卡联调上线）</h3><span class="ibatch">批次 3</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <ul>
+    <li>移动端零 NFC 代码：旧工程 <code>smart-app-uniapp</code> 全文检索 <code>nfc</code> 仅命中 <code>common/css/colorui/icon.css</code> 的图标类名，没有任何读卡逻辑；新 App 工程（批次 1 新建）需从零实现。旧工程有 Native.js 使用先例可作写法参考（<code>smart-app-uniapp/mixins/exitApp.vue</code>、<code>config/authority.js</code>、<code>pages/page/tabbar/home/home.vue</code> 均调用 <code>plus.android</code>）。</li>
+    <li>卡号↔人员绑定已存在，不必新建：实体 <code>SmtIscStaffCard</code>（<code>[PC]/entity/SmtIscStaffCard.java:19</code> <code>@TableName("SMT_ISC_STAFF_CARD")</code>），字段 <code>staffId:28</code>、<code>badge:30</code>、<code>cardNo:49</code>、<code>delFlag:54</code>、<code>activeKey:60</code>（软删 + 活跃唯一键）。卡号规则在 <code>[PC]/service/impl/SmtIscStaffCardServiceImpl.java:38-39</code>：<code>ISC_CARD_NO_PATTERN = "[0-9A-Z]{8,20}"</code>、<code>ISC_VIRTUAL_CARD_PREFIX = "999"</code>；校验点 <code>:398-399</code> 抛「ISC卡号必须为8-20位数字或大写字母」。999 开头为 ISC 虚拟卡，不入库。</li>
+    <li>现有卡号接口只有维护类：<code>[PB]/controller/SmtIscStaffCardController.java:22</code> <code>/isc/staff/card</code> 下 <code>/list:27</code>、<code>/edit:33</code>、<code>/{id}:39</code>，<strong>没有「按卡号反查人员」接口</strong>，PDA 刷卡后无法把卡号换成员工。</li>
+    <li>4.7 保密放行为批次 2 新建单据域（主单 + 物料明细 + 封条 + A/B 确认节点），刷卡节点属于该域，本项是把 NFC 读卡结果接入这些节点的确认动作。需求已定：刷卡为硬性要求、无扫码/选人降级（方案 v1.2 问题 22）；卡号编码一致性已由需求方确认（问题 24），demo 顺手实测进制/字节序即可。</li>
+   </ul>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>目标 PDA 机型上，App 在 A 点确认页、押运人确认页、B 点确认页均能通过 NFC 读出 IC 卡卡号，1 秒内回显姓名/工号/岗位；三段刷卡任一段未刷卡，单据不能推进到下一状态（服务端强校验，不只是客户端禁用按钮）。</li>
+    <li>读出的卡号与 <code>SMT_ISC_STAFF_CARD.cardNo</code> 精确匹配（含大小写/前导零处理后一致），匹配不到、卡已软删（<code>delFlag=1</code>）、999 虚拟卡均给出明确提示并拒绝。</li>
+    <li>刷卡人身份写入放行单节点留痕（谁在什么时间以哪张卡确认），报表 4.8 可按出发/到达安检筛选。</li>
+    <li>NFC 硬件不可用时唯一替代是外接 USB/蓝牙读卡器（仍为刷卡）或更换机型；不接受任何非刷卡路径。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <ul>
+    <li><strong>客户端读卡</strong>：优先 HTML5+ Native.js 直调 <code>android.nfc.NfcAdapter</code>（<code>enableForegroundDispatch</code> 前台调度 + <code>onNewIntent</code> 取 <code>Tag.getId()</code> 得 UID 字节数组），封装为 <code>useNfcReader()</code> 组合式函数：进入确认页启用、离开页面关闭。若机型 Native.js 不稳定，换原生插件（uni 原生插件市场 NFC 插件或自研 Android 插件）；两种实现对外暴露同一接口 <code>readCardNo(): Promise&lt;string&gt;</code>，页面不感知。</li>
+    <li><strong>卡号规范化</strong>：客户端只上传原始 UID（hex 字符串 + 字节序标记），规范化（大小写、字节序翻转、十进制/十六进制转换）放服务端一处完成，避免多端口径不一致。规范化规则由 demo 实测结果定死后写进服务端常量并配单测。</li>
+    <li><strong>新增「按卡号查人员」接口</strong>：<code>GET /isc/staff/card/by-card-no/{cardNo}</code>（放在 <code>SmtIscStaffCardController</code>），查 <code>SMT_ISC_STAFF_CARD</code>（<code>delFlag=0</code>）联 <code>SmtStaff</code> 返回 staffId/badge/name/岗位；仅保安/安检角色可调、按园区过滤（决策 A 第 4 条：服务端鉴权不能省）。响应不含证件号、手机号等 PII（参考仓内 /staff by-badge 泄露教训）。</li>
+    <li><strong>接入 4.7 三段刷卡</strong>：放行单确认接口（A 点确认 / 押运人确认 / B 点确认）增加必填 <code>cardNo</code> 参数，服务端用同一 <code>resolveStaffByCardNo</code> 反查并校验：A/B 点刷卡人须为安检岗位；押运人刷卡人须为单据登记的押运人（4.13 人工押运）——不匹配即拒绝。节点表落 <code>confirm_staff_id / confirm_card_no / confirm_time</code>。</li>
+   </ul>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>安检在 App 打开放行单 A 点确认页，页面启用 NFC 前台调度，提示「请刷卡」。</li>
+    <li>刷卡 → 客户端得 UID → 调 <code>/isc/staff/card/by-card-no/{cardNo}</code> → 回显人员信息供安检目视核对。</li>
+    <li>安检点「确认」→ 提交 A 点确认接口（含 cardNo、押运方式、押运人/锁编号）→ 服务端二次反查卡号 + 岗位校验 + 状态机校验 → 通过则单据进入「押运中」。</li>
+    <li>人工押运时，押运人在同一 PDA 刷卡 → 押运人确认接口校验「刷卡人 = 单据押运人」→ 通过。</li>
+    <li>到 B 点，B 点安检刷卡确认 → 单据终态「已到达」；三段任一失败仅提示、不推进，无跳过入口。</li>
+    <li>报表 4.8 按出发安检/到达安检（来自刷卡反查的 staffId）筛选。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>新 App（uni-app）</td><td>新建 <code>composables/useNfcReader.js</code>（或 <code>.ts</code>）</td><td>Native.js / 原生插件双实现，统一 <code>readCardNo()</code>；前台调度启停随页面生命周期</td></tr>
+     <tr><td>新 App</td><td>保密放行 A 点确认页 / 押运人确认页 / B 点确认页</td><td>接入读卡、回显人员、把 cardNo 随确认请求提交；无卡号时确认按钮禁用且服务端同样拒绝</td></tr>
+     <tr><td>新 App</td><td>Android manifest（HBuilderX manifest.json 权限）</td><td>加 <code>android.permission.NFC</code>，如用原生插件配置插件依赖</td></tr>
+     <tr><td>后端 platform-biz</td><td><code>[PB]/controller/SmtIscStaffCardController.java</code></td><td>新增 <code>GET /by-card-no/{cardNo}</code>，角色 + 园区鉴权，返回最小人员信息</td></tr>
+     <tr><td>后端 platform-core</td><td><code>[PC]/service/impl/SmtIscStaffCardServiceImpl.java</code></td><td>新增 <code>getActiveByCardNo</code>（<code>delFlag=0</code>、排除 999 前缀）与卡号规范化工具 <code>normalizeCardNo</code>（复用 <code>:38</code> 的正则）</td></tr>
+     <tr><td>后端 platform-biz</td><td>4.7 保密放行单据域 Service（批次 2 新建类）</td><td>A/B/押运三个确认方法增加 cardNo 必填 + 反查 + 岗位/押运人匹配校验；节点表写刷卡人与卡号</td></tr>
+     <tr><td>DB</td><td>4.7 节点表</td><td>加 <code>confirm_card_no</code>、<code>confirm_staff_id</code>、<code>confirm_time</code>（若批次 2 建表时已预留则无改动）</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   <ul>
+    <li>单测：卡号规范化（大小写、字节序翻转、前导零）、999 虚拟卡与软删卡拒绝、卡号格式非法拒绝（对齐 <code>SmtIscStaffCardServiceImpl.java:398</code> 规则）。</li>
+    <li>接口测试：非安检角色调 by-card-no 返回 403；跨园区卡号查不到；确认接口缺 cardNo 返回 400、刷卡人非押运人返回业务错误。</li>
+    <li>真机联调：目标 PDA 上用 ≥3 张已登记 IC 卡 + 1 张未登记卡 + 1 张 999 虚拟卡走完整三段流程；记录一次读卡耗时与连续 50 次读卡成功率（验收门槛建议 ≥ 98%，具体由需求方定）。</li>
+    <li>回归：<code>/isc/staff/card/edit</code> 维护流程不受影响；smart-ui 员工详情「ISC卡片」tab 正常。</li>
+   </ul>
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>前置：批次 2 启动门「NFC demo + 卡号一致性实测」通过；4.7 单据域与 4.13 押运字段已交付；PDA 机型已定（问题 18 剩余采购项）。</li>
+    <li>风险：部分 PDA 厂商对 NFC 前台调度有定制（需 ROM 侧开启），Native.js 在 App 后台/锁屏后调度失效——页面级启停 + 进入页面重新 enable 可规避；机型不通即按口径换外接读卡器或换机型，无软件降级。</li>
+    <li>数据风险：<code>SMT_ISC_STAFF_CARD</code> 登记的卡号若有历史脏数据（小写、含空格），by-card-no 会查不到；上线前跑一次 <code>cardNo</code> 规范性 SQL 巡检。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-5-8">
+ <div class="ih"><span class="ino">5.8</span><h3>权限删除链路统一改造（可靠删除：先下发 → 回执确认 → 再删 → 对账）</h3><span class="ibatch">批次 4</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <p><strong>入口层在创建删除任务的同一事务里就把本地权限记录物理删除</strong>，设备端是否真的删掉无人知晓；一旦下发失败，本地已无记录可重发、也无告警。逐处证据：</p>
+   <table>
+    <thead><tr><th>入口</th><th>证据</th><th>问题</th></tr></thead>
+    <tbody>
+     <tr><td>权限组人员删除/清空（smart-ui 权限组人员页 <code>[UI]/views/platform/area/limit/personDetail.vue:161,195</code> 调 <code>batchDel/clearAll</code> → <code>/platform/device/authority/relation/del</code>、<code>/relation/clear/{id}</code>）</td><td><code>[PB]/service/impl/SmtStaffDeviceAuthServiceImpl.java:484-495</code>：<code>smtDeviceTaskService.addDeviceDelTaskImmed(...)</code> 之后紧跟 <code>return this.removeById(staffAuth.getId());</code>；批量版 <code>:463-480</code> 循环建任务后 <code>:478 this.removeByIds(ids)</code></td><td>@Transactional 同事务；任务创建结果不检查；无人脸员工 <code>:470-473 continue</code> 跳过建任务但 <code>:478</code> 仍删本地行（现网缺陷②）</td></tr>
+     <tr><td>车辆权限删除</td><td><code>[PB]/service/impl/SmtVehicleApplyServiceImpl.java:250-263</code>（批量）、<code>:267-278</code>（单条）：<code>addDeviceDelTaskImmed</code> 后 <code>removeById/removeByIds</code></td><td>同构；车辆无 <code>vehicle</code> 时 <code>:269-272</code> 直接 <code>return false</code> 不建任务</td></tr>
+     <tr><td>离职清理</td><td><code>[PB]/service/impl/SmtStaffServiceImpl.java:1659-1698</code>：<code>:1687 savePersonCardTask(DeviceTaskConstants.DEL, ...)</code> 后 <code>:1689-1690 smtStaffDeviceAuthService.remove(...)</code></td><td>整段包在 try/catch 只打日志（<code>:1696-1697</code>），失败静默</td></tr>
+     <tr><td>保密区到期自动删除</td><td><code>[PB]/service/securityzone/impl/SmtSecurityAuthDeleteServiceImpl.java:199-208</code>，注释原文「1. 先删除员工权限策略关联 … 2. 生成删除人员已下发设备权限的任务」</td><td>顺序反了：先删本地再建任务</td></tr>
+     <tr><td>权限组未挂设备</td><td><code>[PB]/service/impl/SmtDeviceAuthorityServiceImpl.java:588-594</code>（relation 为空直接 <code>removeByIds</code>）、<code>:651-657</code>（<code>removeByAuthId</code>）</td><td>纯本地删、零下发；设备曾下发过、之后被从权限组移除的场景永久残留</td></tr>
+     <tr><td>任务创建不可感知</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java:772-788</code> <code>addDeviceDelTaskImmed</code> 为 <code>void</code>，<code>:786 saveTask(deviceTaskVO)</code> 返回值丢弃；<code>saveTask :101</code> 返回 String，非 ISC 设备查不到下发记录时 <code>:173 return null</code></td><td>入口层无法知道是否真的建了任务</td></tr>
+     <tr><td>多设备删除提前返回</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java:305-348</code> <code>deleteTask</code> 在第一个非 ISC 设备 <code>:348 return this.save(deviceTask)</code></td><td>现网缺陷⑤，后续设备不建任务（批次 0 修）</td></tr>
+    </tbody>
+   </table>
+   <p><strong>ISC 侧回执链本身是完备的</strong>（问题只在入口层）：<code>[SCH]/service/platform/impl/ISCDeviceTaskServiceImpl.java</code> 删除任务走 auth_config/delete → 进度轮询 → 下载明细，<code>:2736-2743</code> <code>if (update &amp;&amp; "0".equals(downResultCode))</code> 才调 <code>smtIscDownRecordService.handleTaskDownRecord(updateTask)</code>（注释「下载明细确认成功后，才维护本地下发记录；删除权限也在这里移除记录」）；失败走 <code>markDeleteTaskForRetry :1629-1653</code>（<code>:1634</code> 1 小时后重试，<code>DELETE_TASK_RETRY_DELAY_SECONDS = 60 * 60 :127</code>），达 <code>[TOOL]/constant/DeviceTaskConstants.java:63 AUTH_CONFIG_MAX_RETRY_TIMES = 10</code> 后 <code>markTaskRetryExceeded :1442-1461</code> 置 FAIL、remark 写「请人工介入处理」——<strong>没有任何告警、没有回写授权行</strong>。</p>
+   <p><strong>已有收敛雏形</strong>：<code>[PC]/service/impl/StaffDeviceAuthSyncService.java:66-108</code> <code>syncAfterDelete</code>——删除回执确认后，若该员工在权限组全部设备上都没有活跃下发记录（<code>:102 hasAnyActiveDownRecord</code>）才删关联行（<code>:103</code>）。它已被两个确认点调用：非 ISC <code>[PC]/service/impl/SmtTaskDownRecordServiceImpl.java:79-93</code>（DEL 分支）、ISC <code>[PC]/service/impl/SmtIscDownRecordServiceImpl.java:84,92</code>。但它只按 <code>设备+卡号+服务类型</code> 实时全量反查，<strong>没有 request/授权行关联键</strong>，且 <code>:110-112 isStaffFaceAccess</code> 只认 <code>deviceType=CARD</code> 且 <code>serviceType ∈ {CARD_STAFF_IMPORT, UPDATE_FACE}</code>（<code>:37-38</code>），车辆完全不覆盖。并发下（同一员工两个权限组同时删/新授权）会收敛错行。</p>
+   <p>手动对账工具：<code>[PB]/controller/SmtIscAccessCleanupController.java:24</code> <code>/isc/access/cleanup</code>，<code>:40-41 POST /execute</code> → <code>[PB]/service/isc/impl/SmtIscAccessCleanupServiceImpl.java:99</code>，仅 ISC、人工触发，前端页 <code>[UI]/views/platform/records/isc_access_cleanup/index.vue</code>。</p>
+   <p>字段现状：<code>smt_staff_device_auth</code> 只有 <code>id/staffId/authId/createTime/authType</code>（<code>[PC]/entity/SmtStaffDeviceAuth.java:19-45</code>），无状态、无代次；车辆侧 <code>SmtVehicleApply.status</code> 已是审批状态「0-审批中 1-已审批 2-已拒绝」（<code>[PC]/entity/SmtVehicleApply.java:60-63</code>），不能复用；任务表 <code>SMT_ISC_DEVICE_TASK</code> 已有 <code>applyId:154 / batchId:159 / times:80 / personId:149</code>（<code>[PC]/entity/SmtIscDeviceTask.java</code>）但无删除请求关联列。</p>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>任何入口发起的权限删除，本地授权行在设备端确认删除前<strong>不消失</strong>，只进入「删除中」；设备端全部确认后才终态删除。</li>
+    <li>删除失败（重试耗尽或 48h 超时）可见：授权行置「删除失败」、管理员收到告警（微信/站内）、页面有失败清单与「重发」按钮。</li>
+    <li>删除期间禁止对同主体 + 同权限组新增下发，由数据库约束保证（不是应用层先读后写）。</li>
+    <li>迟到/串代次的回执不会误删新授权；设备端确被旧任务清掉而新授权有效时自动补偿重下发。</li>
+    <li>每日对账任务自动发现「设备有下发记录但本地无有效权限来源」的残留并补删除任务；上线前先跑一轮清掉存量残留（问题 15）。</li>
+    <li>灰度：先只切「权限组人员页删除/清空」入口，观察一周无异常再推广到离职、保密到期、作废、车辆入口。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <p><strong>1）删除请求实体化</strong>——新表 <code>smt_auth_delete_request</code>：</p>
+   <table>
+    <thead><tr><th>列</th><th>类型/约束</th><th>说明</th></tr></thead>
+    <tbody>
+     <tr><td><code>request_id</code></td><td>PK，雪花 ID（沿用 <code>IdWorker.getId()</code>，同 <code>submitIscPersonBatch</code> 的 batchId 做法）</td><td>请求主键</td></tr>
+     <tr><td><code>subject_type</code></td><td>1 人员 / 2 车辆</td><td>区分授权主体</td></tr>
+     <tr><td><code>auth_row_id</code></td><td>NOT NULL，索引</td><td>人员=<code>smt_staff_device_auth.id</code>；车辆=<code>smt_vehicle_apply.id</code></td></tr>
+     <tr><td><code>subject_id</code> / <code>auth_id</code></td><td>NOT NULL</td><td>staffId 或 vehicleId；权限组 id（冗余便于对账）</td></tr>
+     <tr><td><code>generation</code></td><td>NOT NULL</td><td>发起时授权行的代次快照</td></tr>
+     <tr><td><code>device_snapshot</code></td><td>CLOB/JSON</td><td>发起时刻目标设备集（设备 id + 是否 ISC）；回执只认快照内设备</td></tr>
+     <tr><td><code>status</code></td><td>0 处理中 / 1 成功 / 2 失败 / 3 已关闭（被新请求替代）/ 4 人工确认清理</td><td>请求状态</td></tr>
+     <tr><td><code>source</code></td><td>1 权限组删除 / 2 权限组清空 / 3 离职 / 4 保密到期 / 5 入厂作废 / 6 手动重发 / 7 对账补偿</td><td>发起来源（同时满足 5.6 报表的来源标记）</td></tr>
+     <tr><td><code>park_id / opt_user / create_time / finish_time / fail_reason / deadline_time</code></td><td></td><td><code>deadline_time = create_time + 48h</code> 供超时兜底扫描</td></tr>
+    </tbody>
+   </table>
+   <p>任务表 <code>SMT_ISC_DEVICE_TASK</code> 与 <code>smt_device_task</code> 各加 <code>DELETE_REQUEST_ID</code> 列 + 索引；<code>addDeviceDelTaskImmed</code>/<code>saveTask</code> 建任务时写入。</p>
+   <p><strong>2）授权行加状态与代次</strong>：<code>smt_staff_device_auth</code> 加 <code>status</code>（0 正常 / 1 删除中 / 2 删除失败，默认 0）、<code>generation</code>（默认 1）、<code>delete_request_id</code>；<code>smt_vehicle_apply</code> 加独立 <code>del_status</code>（同三态）、<code>generation</code>、<code>delete_request_id</code>——不动已被审批占用的 <code>status</code>。</p>
+   <p><strong>3）完整状态迁移表</strong>（授权行删除生命周期的全部合法迁移）：</p>
+   <table>
+    <thead><tr><th>迁移</th><th>触发</th><th>保障</th></tr></thead>
+    <tbody>
+     <tr><td>0 正常 → 1 删除中</td><td>权限组删除/清空、离职、保密到期、入厂作废发起</td><td>CAS <code>UPDATE ... SET status=1, delete_request_id=? WHERE id=? AND status=0</code>，更新 0 行即幂等返回（挡重复清空）；<strong>同一事务</strong>写 <code>smt_auth_delete_request</code>（含设备集快照）+ 创建快照内<strong>全部</strong>删除任务；任一任务创建失败（<code>saveTask</code> 返回 null/异常）整体回滚回 0，不存在部分创建中间态</td></tr>
+     <tr><td>1 删除中 → 已删除（终态，物理删行或 <code>status=9</code> 归档）</td><td>request 快照内全部设备任务终态成功</td><td>按 <code>delete_request_id</code> 收敛：每条任务成功回执 → 统计该 request 下未终态任务数为 0 → 删行、request 置 1；不再实时反查设备+卡号</td></tr>
+     <tr><td>1 删除中 → 2 删除失败</td><td>任一任务重试耗尽 FAIL（<code>markTaskRetryExceeded</code>），或每日扫描 <code>deadline_time &lt; now</code> 仍未终态</td><td>置 2 + request 置 2 + 告警；任务经 request 关联可定位到具体设备</td></tr>
+     <tr><td>2 删除失败 → 1 删除中</td><td>人工在失败清单点「重发」</td><td>CAS <code>WHERE status=2</code>；新建 request（source=6），旧 request 置 3 关闭；仅对旧 request 中失败设备重建任务</td></tr>
+     <tr><td>2 删除失败 → 已删除</td><td>人工核实设备端确无权限后「确认清理」</td><td>request 置 4，记录操作人/时间/备注留痕</td></tr>
+    </tbody>
+   </table>
+   <p><strong>4）并发防护</strong>：</p>
+   <ul>
+    <li><code>generation</code> 代次：授权行创建即赋值（同主体 + 权限组取 <code>max(generation)+1</code>）；重新授权必须等旧行达终态后新建行。</li>
+    <li>「删除中/删除失败期间禁止新增下发」用 DB 原子化：新建唯一索引 <code>uk_staff_auth_active(staff_id, auth_id, active_flag)</code>，其中 <code>active_flag</code> 为虚拟列/触发列（status ∈ {0,1,2} 时 = 1，终态归档时 = NULL；Oracle 用函数索引 <code>CASE WHEN status IN (0,1,2) THEN staff_id||'_'||auth_id END</code>）；插入撞唯一键即报「该员工权限正在删除中，请等待完成或先处理失败项」。备选：插入前 <code>SELECT ... FOR UPDATE</code> 锁主体行。</li>
+    <li>迟到回执按 <code>request_id + generation</code> 校验：request 已关闭（status 3/4）或授权行 generation 已变 → 不收敛只记日志；若确认设备端已被旧删除任务清掉而新代次授权有效 → 对该设备触发补偿重下发（ISC 无设备端 fencing，只能园区侧收口）。</li>
+    <li>回执处理只认「当前 request 快照内的设备」，删除期间权限组设备被编辑不影响判定。</li>
+    <li>车辆侧同构：独立 <code>del_status</code> + 车辆自己的 request/快照/收敛器（现有 <code>StaffDeviceAuthSyncService</code> 只认 CARD/人脸服务类型 <code>:110-112</code>，需新增 <code>VehicleAuthDeleteSyncService</code>，服务类型 <code>CAR_STAFF</code>、设备类型 <code>CAR</code>）。</li>
+   </ul>
+   <p><strong>5）确认点收口</strong>：ISC 侧 <code>ISCDeviceTaskServiceImpl.java:2736-2743</code> 成功分支与 <code>:1620-1626</code>（无可用下发数据按成功处理分支）调用的 <code>SmtIscDownRecordServiceImpl.handleTaskDownRecord :67</code>；非 ISC 侧 <code>SmtTaskDownRecordServiceImpl.handleTaskDownRecord :65</code> 的 DEL 分支 <code>:79-93</code>。两处统一改为：先维护下发记录，再调新 <code>AuthDeleteRequestService.onTaskSuccess(task)</code>（按 <code>delete_request_id</code> 收敛）；<strong>任务无 <code>delete_request_id</code>（存量旧任务）时才回落到旧 <code>syncAfterDelete</code></strong>，保证兼容。</p>
+   <p><strong>6）任务创建必达</strong>：<code>addDeviceDelTaskImmed</code>（<code>SmtDeviceTaskServiceImpl.java:772</code>）改为返回 <code>List&lt;Long&gt;</code>（任务 id 列表）并在 <code>saveTask</code> 返回 null 时抛业务异常；无设备/无下发记录分支改为「查设备端确无权限（ISC 用 <code>hasIscAuthItem</code>，非 ISC 用 <code>smt_task_down_record</code>）才允许直接终态，否则照建兜底删除任务」，禁止静默跳过；<code>SmtStaffDeviceAuthServiceImpl.java:470-473</code> 无人脸员工不再 <code>continue</code>，同样建删除任务（缺陷②系统性修复）。</p>
+   <p><strong>7）失败可见</strong>：<code>markTaskRetryExceeded :1442-1461</code> 成功更新后追加 <code>authDeleteRequestService.onTaskFailed(task)</code>：按 request 置授权行 2、request 置 2、写告警；告警通道复用现有站内消息（<code>[PC]/service/impl/SmtMsgRecordServiceImpl.java:37</code> 体系）与微信推送（<code>[PB]/service/impl/IAppMsgPushServiceImpl.java:29,57</code> 走 <code>RemotePushService</code>），接收人取园区管理员配置。</p>
+   <p><strong>8）对账任务化</strong>：把 <code>SmtIscAccessCleanupServiceImpl.execute :99</code> 的核心抽成 <code>reconcile(parkId)</code>，新增 <code>PlatformTimerTask.authDeleteReconcile()</code> 每日 02:00（新增 <code>TimerTaskEnum.AUTH_DELETE_RECONCILE</code>，按 <code>[TOOL]/enums/TimerTaskEnum.java:49-51</code> 现有格式加开关）：①扫「有 <code>SMT_ISC_DOWN_RECORD</code>/<code>smt_task_down_record</code> 但本地无有效权限来源」的残留 → 以 source=7 建 request + 删除任务；②扫 <code>deadline_time &lt; now</code> 的 request → 置失败 + 告警；补非 ISC 版（基于 <code>smt_task_down_record</code>）。</p>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>入口（以权限组人员页删除为例）调 <code>deviceAuthRelationDel</code> → 新 <code>AuthDeleteRequestService.submit(rows, source)</code>。</li>
+    <li>事务内：对每个授权行 CAS 0→1；计算设备快照（权限组设备 − 其他权限组仍需保留的设备，沿用 <code>SmtDeviceAuthorityServiceImpl.java:607-616</code> 的 <code>buildOtherDeviceIdsByStaffId</code> 逻辑）；写 request；逐设备 <code>saveTask</code>（写 <code>delete_request_id</code>）；任一失败抛异常整体回滚。</li>
+    <li>smart-schedule 按现有节奏执行删除任务（ISC：<code>getDelayDel</code> 捞取 → auth_config/delete → 轮询；非 ISC：设备回调）。</li>
+    <li>成功回执 → <code>handleTaskDownRecord</code> 维护下发记录 → <code>onTaskSuccess</code>：request 下未终态任务数归零 → 校验 generation 未变 → 删授权行、request=1。</li>
+    <li>失败回执 → 1 小时后重试（现有）→ 10 次耗尽 → <code>onTaskFailed</code>：授权行=2、request=2、发告警。</li>
+    <li>管理员在权限组人员页看到「删除失败」标记与失败设备清单 → 点「重发」（CAS 2→1，新 request）或「确认清理」（request=4）。</li>
+    <li>每日对账任务补漏 + 超时兜底；上线前先对全园区跑一次对账清存量。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>DB</td><td>新表 <code>smt_auth_delete_request</code>；<code>smt_staff_device_auth</code> 加 <code>status/generation/delete_request_id</code> + 活跃唯一索引；<code>smt_vehicle_apply</code> 加 <code>del_status/generation/delete_request_id</code>；<code>SMT_ISC_DEVICE_TASK</code>、<code>smt_device_task</code> 加 <code>DELETE_REQUEST_ID</code></td><td>默认值兼容存量（status=0、generation=1）；按仓库约定不留人工脚本目录，随发布记录交付</td></tr>
+     <tr><td>platform-core 实体/Mapper</td><td>新 <code>SmtAuthDeleteRequest</code> 实体 + Mapper；<code>SmtStaffDeviceAuth</code>、<code>SmtVehicleApply</code>、<code>SmtIscDeviceTask</code>、<code>SmtDeviceTask</code> 加字段；<code>[PX]/SmtIscDeviceTaskMapper.xml</code> base_column_list 补列</td><td>批量 SQL 沿用 <code>OracleInBatchUtils</code></td></tr>
+     <tr><td>platform-core 服务</td><td>新 <code>AuthDeleteRequestService</code>（submit / onTaskSuccess / onTaskFailed / resend / confirmCleared / reconcile）；新 <code>VehicleAuthDeleteSyncService</code></td><td>核心状态机与 CAS 全部集中在此，入口层不再直接 <code>removeById</code></td></tr>
+     <tr><td>platform-core</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java:772-788</code> <code>addDeviceDelTaskImmed</code>；<code>saveTask :101-175</code></td><td>返回任务 id 列表 / 抛异常；写 <code>delete_request_id</code>；无下发记录分支改「确认无权限才直删」</td></tr>
+     <tr><td>platform-core 确认点</td><td><code>[PC]/service/impl/SmtTaskDownRecordServiceImpl.java:79-93</code>；<code>[PC]/service/impl/SmtIscDownRecordServiceImpl.java:84,92</code></td><td>有 request 关联走新收敛器，无关联回落旧 <code>syncAfterDelete</code></td></tr>
+     <tr><td>platform-biz 入口（灰度第一站）</td><td><code>[PB]/service/impl/SmtStaffDeviceAuthServiceImpl.java:463-495</code>；<code>[PB]/service/impl/SmtDeviceAuthorityServiceImpl.java:582-641,644-657</code></td><td>改为调 <code>AuthDeleteRequestService.submit</code>；去掉 <code>removeById/removeByIds</code>；relation 为空分支改走「确认无权限才直删」</td></tr>
+     <tr><td>platform-biz 入口（推广阶段）</td><td><code>[PB]/service/impl/SmtVehicleApplyServiceImpl.java:250-278</code>；<code>[PB]/service/impl/SmtStaffServiceImpl.java:1659-1698</code>；<code>[PB]/service/securityzone/impl/SmtSecurityAuthDeleteServiceImpl.java:199-208</code></td><td>同上切换；保密到期分支顺序改为「先建 request/任务、确认后删」</td></tr>
+     <tr><td>smart-schedule</td><td><code>[SCH]/service/platform/impl/ISCDeviceTaskServiceImpl.java:1442-1461</code> <code>markTaskRetryExceeded</code>；<code>:2736-2743</code></td><td>失败终态回调 <code>onTaskFailed</code>（经 Feign 调 platform 内部端点，需加 <code>@Inner</code> 与网关白名单，参照既有 platform 内部任务端点白名单教训）</td></tr>
+     <tr><td>smart-schedule 定时</td><td><code>[SCH]/task/PlatformTimerTask.java</code>；<code>[TOOL]/enums/TimerTaskEnum.java</code></td><td>新增每日对账任务与开关</td></tr>
+     <tr><td>platform-biz 控制器</td><td><code>[PB]/controller/SmtIscAccessCleanupController.java</code> 扩展或新建 <code>AuthDeleteRequestController</code></td><td>失败清单分页、重发、确认清理、request 详情</td></tr>
+     <tr><td>告警</td><td>复用 <code>SmtMsgRecordService</code> / <code>IAppMsgPushServiceImpl</code></td><td>删除失败告警模板 + 接收人配置</td></tr>
+     <tr><td>smart-ui</td><td><code>[UI]/views/platform/area/limit/personDetail.vue</code>、<code>vechileDetail.vue</code>；<code>[UI]/views/platform/records/person_isc/index.vue</code>；<code>[UI]/api/platform/area/limit.js</code></td><td>人员/车辆页加「删除状态」列、失败筛选、重发/确认清理按钮；ISC 人脸下发记录页联动显示 request_id 与删除状态</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   <ul>
+    <li>单测（platform-core）：状态机每条迁移的 CAS 命中/未命中；同一事务内第 N 个设备 <code>saveTask</code> 失败整体回滚；request 快照内设备全部成功才删行；generation 不一致的迟到回执不收敛；唯一索引撞键返回业务错误。仓内已有 <code>SmtIscAccessCleanupServiceImplTest</code>、<code>SmtIscCardImportServiceImplTest</code> 的 Mock 风格可照抄。</li>
+    <li>集成（联调环境 ISC）：①正常删除：行进入 1 → ISC 下载明细 SUCCESS → 行消失；②模拟 ISC 返回失败 10 次：行变 2、告警到达、页面出现失败项；③重发后成功：行终态；④删除中对同员工同权限组重新授权：被唯一索引拒绝；⑤删除中编辑权限组设备：不影响 request 判定；⑥非 ISC 闸机路径同样验证。</li>
+    <li>对账：人为制造「本地无权限、设备有下发记录」→ 每日任务生成 source=7 request 并成功清理。</li>
+    <li>灰度观察指标：request 成功率、平均确认时长、失败告警数；一周内无「设备残留」工单再推广。</li>
+    <li>回归：<code>StaffDeviceAuthSyncService</code> 旧路径对无 request 关联的存量任务仍工作。</li>
+   </ul>
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>前置：批次 0 缺陷⑤（<code>deleteTask</code> 提前 return）与缺陷②止血已合并；生产 Nacos 内部端点白名单需同步（历史上 platform 内部任务端点曾因白名单缺失 401）。</li>
+    <li>风险：改动面大（4 个入口 + 2 个确认点 + schedule），必须按灰度顺序；旧任务无 <code>delete_request_id</code>，双轨并存期间两套收敛器都要保留。</li>
+    <li>ISC 无设备端 fencing：迟到删除仍可能清掉新授权，只能靠补偿重下发兜底，需在验收时明确接受该窗口。</li>
+    <li>Oracle 函数索引/虚拟列写法需 DBA 评审；上线前的一轮全量对账可能生成大量删除任务，需限流（按园区、按批次）。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-5-7">
+ <div class="ih"><span class="ino">5.7</span><h3>海康进出记录同步修复（拉取对账 + 订阅健康 + 异常事件重处理）</h3><span class="ibatch">批次 4</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <p>链路：<code>[BI]/service/impl/BridgeISCServiceImpl.java:135-146</code> 应用启动 <code>run()</code> 调 <code>subscribeEvent()</code> 订阅 → ISC 推送到 <code>[BI]/controller/BridgeISCController.java:47</code> <code>POST /bridge/handle</code> → <code>[BI]/service/impl/HandleServiceImpl.java:59-185</code> <code>eventHandle</code> → <code>:164 remoteDispatcherService.handle</code> → <code>[DP]/smart-dispatcher-biz/.../service/impl/HandleServiceImpl.java:41-42</code> <code>PERSON_ACCESS_RECORD → replyOfAccess :230-241</code> → platform <code>[PB]/controller/IntergrationAccessController.java:147-149</code> <code>@Inner POST /log/reply</code> → <code>:204 smtSnapPersonService.addSnapPerson</code>（<code>[PB]/service/impl/SmtSnapPersonServiceImpl.java:317</code>）→ 表 <code>smt_snap_person</code>（<code>[PC]/entity/SmtSnapPerson.java:21</code>，键字段 <code>deviceId:38 / snapTime:58 / personId:70 / eventType:54</code>）。事件类型 <code>[DP]/smart-dispatcher-api/.../enums/ISCEventTypeEnum.java:13-19</code> TYPE_1~7（人脸认证通过/失败、正常开门/关门、门锁开/关、人脸抓拍）。</p>
+   <p>三处缺陷（均已核对）：</p>
+   <ol>
+    <li><strong>订阅「假活」</strong>：<code>BridgeISCServiceImpl.java:73 public static volatile boolean SUBSCRIBE_STATUS = false;</code>；<code>subscribeEvent :165-171</code> 开头 <code>if (SUBSCRIBE_STATUS) return;</code>；订阅成功 <code>:183</code> 置 true 后<strong>只有</strong>取消订阅 <code>:208</code> 会置 false；2 分钟任务 <code>:494-498 subscribeTask()</code> 只是再调 <code>subscribeEvent</code>，因此 ISC 侧掉订阅（ISC 重启、订阅过期、回调地址不可达被剔除）而本地标志仍 true 时永不重订阅。仓内 <code>EventEnum</code> 只有 <code>ISC_EVENT_SUBSCRIBE :165</code> 与 <code>ISC_EVENT_UNSUBSCRIBE :166</code>，没有「查询订阅列表」的端点定义。</li>
+    <li><strong>事件丢弃</strong>：<code>HandleServiceImpl.java:92-98</code> <code>ExtEventPersonNo</code> 为空 → <code>continue</code>；<code>:108-113</code> ISC 人员反查失败 → <code>continue</code>；<code>:122-127</code> 人员列表为空 → <code>continue</code>。只有 <code>ISCEventDiagnosticUtil</code> 计数，原始事件数据丢失，无法补。</li>
+    <li><strong>异常无补偿</strong>：<code>:177-183</code> catch 只打日志，<code>:181</code> <code>// exceptionLogService.insert(record.key(), JSONUtil.toJsonStr(bridgeDTO));</code> 被注释；同模块 Kafka 消费者仍在用该服务（<code>[BI]/kafka/KafkaConsumer.java:93</code>），说明异常表基建存在。</li>
+   </ol>
+   <p>纯推送、零拉取：仓内唯一拉取式参照是测温 <code>[SCH]/service/platform/impl/ISCDeviceTaskServiceImpl.java:3263-3293</code> <code>getTemperature</code>（20 分钟窗口、<code>pageNo</code> 自增至空页、<code>pageSize 1000</code>）——注意其定时入口 <code>[SCH]/task/ISCDeviceTimerTask.java:155-163</code> 已被整段注释，只能借鉴写法不能借用调度。ISC 门禁事件查询 API 仓内未接入：<code>EventEnum.java:142</code> 仅有 <code>ISC_FACE_IMAGE_GET(58, "/api/acs/v1/event/pictures")</code>，无 <code>/api/acs/v2/door/events</code>。</p>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>ISC 侧任一时间窗口的门禁事件，本地 <code>smt_snap_person</code> 在 T+30 分钟内与之差量对齐（漏推事件被拉取补齐），补齐率可在报表查看。</li>
+    <li>ISC 掉订阅后 ≤ 2 分钟内自动恢复订阅，并有一条可查的告警/日志。</li>
+    <li>personNo 为空或反查失败的事件不再丢弃：落异常表，延迟重处理成功后进入正常台账；仍失败的可在管理端查看原始报文。</li>
+    <li>5.4 的「最后进出时间」判定（<code>SmtSecurityAuthDeleteServiceImpl.java:187-191</code> 取 <code>snapPeople.get(0).getSnapTime()</code>）建立在完整数据上。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <ul>
+    <li><strong>①拉取式对账任务</strong>：在 <code>EventEnum</code> 新增 <code>ISC_DOOR_EVENTS_GET(新码, "/api/acs/v2/door/events", "查询门禁点事件", POST)</code>（并在 <code>[DP]/smart-dispatcher-api/.../ISCApiErrorCodeClassifier.java:652-682</code> 的 switch 补 case，参照 <code>ISC_TEMPERATURE_GET :682</code>），bridge-isc 通过既有 <code>bridgeISCService.post(EventEnum, json)</code> 调用；请求体 <code>startTime/endTime</code>（ISO8601，沿用 <code>getISO8601Timestamp</code>）、<code>eventTypes</code>（TYPE_1~7 的 code）、<code>pageNo/pageSize</code>。新任务 <code>IscDoorEventReconcileTask</code>（放 bridge-isc，因为反查人员、下图、组装 paramMap 的逻辑都在这里）每 30 分钟拉取「上一窗口 [now−40min, now−10min]」（留 10 分钟让推送先到）；分页到空页止；对每条事件按 <code>(deviceCode, happenTime 秒, ExtEventPersonNo)</code> 去重键先查本地是否已有（需 platform 新增 <code>@Inner</code> 查询端点 <code>/log/exists</code> 批量判断），不存在的复用 <code>eventHandle</code> 里同一套「反查工号 → 下图 → dispatcher」流程（把 <code>:85-171</code> 抽成 <code>handleSingleEvent(eventObj)</code> 供推送与拉取共用）。窗口游标持久化（Redis 或表），任务失败下次从游标续拉。<strong>前置核对</strong>：ISC 门禁组件「事件类型订阅配置」若关闭则 ISC 不存储事件、拉取为空——上线前在 ISC 后台核对并留截图；v1/v2 版本以现场 ISC 为准。</li>
+    <li><strong>②订阅健康检查</strong>：改 <code>subscribeTask :494-498</code> 为「无条件周期重订阅」——每 2 分钟直接调 <code>ISC_EVENT_SUBSCRIBE</code>（ISC 同类型重复订阅是幂等的，按 OpenAPI 语义覆盖）；<code>subscribeEvent :169-171</code> 的 <code>if (SUBSCRIBE_STATUS) return;</code> 改为仅用于日志区分「首次/续订」。若现场 ISC 版本提供订阅查询接口（<code>/api/eventService/v1/eventSubscriptionView</code>，UNVERIFIED），可改为查询后按需订阅。另加「推送静默探测」：连续 N 分钟（可配置，默认 30）无任何 <code>/bridge/handle</code> 请求且工作时段内，强制重订阅并告警。</li>
+    <li><strong>③反查失败事件落异常表</strong>：<code>:92-98</code>、<code>:108-113</code>、<code>:122-127</code> 三处 <code>continue</code> 前调用 <code>exceptionLogService.insert(key, eventObj 原文 + 失败原因)</code>；<code>:181</code> 取消注释。新增重处理任务每 10 分钟取异常表中「未处理且重试 &lt; 5 次」的记录再走 <code>handleSingleEvent</code>；personNo 为空的事件（远程开门/按钮开门）只落台账不反查人员（<code>cardNo</code> 留空，platform 侧 <code>:180-186</code> 已能接受空 cardNo）。</li>
+   </ul>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>启动 → 订阅；每 2 分钟无条件续订；续订失败连续 3 次 → 告警。</li>
+    <li>推送到达 <code>/bridge/handle</code> → <code>handleSingleEvent</code>：反查工号 → 下图 → dispatcher → platform 落库；任一环节失败 → 异常表。</li>
+    <li>每 30 分钟对账任务：按窗口分页拉 <code>/api/acs/v2/door/events</code> → 批量查本地是否存在 → 缺失事件走 <code>handleSingleEvent</code> → 更新游标 → 记录「拉取 N / 补齐 M」。</li>
+    <li>每 10 分钟重处理任务：异常表待处理记录重试 → 成功标记已处理；5 次仍败保留供人工查看。</li>
+    <li>管理端「进出记录」页新增来源列（推送/对账补齐/重处理）便于验收统计。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>dispatcher-api</td><td><code>[DP]/smart-dispatcher-api/.../enums/EventEnum.java</code>（:142 附近）、<code>ISCApiErrorCodeClassifier.java</code></td><td>新增 <code>ISC_DOOR_EVENTS_GET</code> 端点与错误码分类 case</td></tr>
+     <tr><td>bridge-isc</td><td><code>[BI]/service/impl/BridgeISCServiceImpl.java:165-187,494-498</code></td><td>无条件周期续订、静默探测、订阅失败告警；<code>SUBSCRIBE_STATUS</code> 降级为日志用途</td></tr>
+     <tr><td>bridge-isc</td><td><code>[BI]/service/impl/HandleServiceImpl.java:59-185</code></td><td>抽 <code>handleSingleEvent</code>；三处 <code>continue</code> 改落异常表；<code>:181</code> 恢复异常记录</td></tr>
+     <tr><td>bridge-isc</td><td>新 <code>IscDoorEventReconcileTask</code>、<code>IscExceptionRetryTask</code>（<code>@Scheduled</code>，带开关）</td><td>窗口拉取 + 游标；异常重处理</td></tr>
+     <tr><td>platform-biz</td><td><code>[PB]/controller/IntergrationAccessController.java</code></td><td>新增 <code>@Inner POST /log/exists</code> 批量判重端点；<code>addSnapPerson</code> 入参加 <code>source</code></td></tr>
+     <tr><td>platform-core</td><td><code>SmtSnapPerson</code> / 表 <code>smt_snap_person</code></td><td>加 <code>source</code> 列与 <code>(device_id, snap_time, person_id)</code> 索引（去重与对账查询）</td></tr>
+     <tr><td>配置</td><td>bridge-isc bootstrap/Nacos</td><td>新开关：对账任务、窗口长度、静默阈值；生产 Nacos 同步（人工步骤写进上线单）</td></tr>
+     <tr><td>smart-ui</td><td>进出记录页（<code>[UI]/views/platform/records/person</code>）</td><td>加来源列/筛选；异常事件查看页（可选）</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   <ul>
+    <li>单测：窗口游标推进与回退；去重键计算；分页终止条件；异常表重试次数上限。</li>
+    <li>联调：①在 ISC 后台手工取消订阅 → 2 分钟内本地重新订阅成功（日志可见）；②停掉 bridge-isc 10 分钟制造漏推 → 恢复后 30 分钟内对账把漏掉事件补齐，条数与 ISC 后台事件查询一致；③构造 personNo 为空事件（远程开门）→ 落台账且 cardNo 空；④构造 ISC 人员不存在事件 → 异常表可见、补建人员后重处理成功。</li>
+    <li>前置核对（上线前必做）：ISC 门禁事件类型订阅配置开启；<code>/api/acs/v2/door/events</code> 在现场 ISC 版本可用、分页上限确认。</li>
+    <li>回归：<code>/bridge/handle</code> 推送路径耗时不变；5.4 演练模式（批次 5）用修复后数据跑一周。</li>
+   </ul>
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>外部依赖：ISC 版本与 OpenAPI 权限（门禁事件查询接口需在 ISC 开放平台给该 appKey 授权）；生产 Nacos 开关人工同步。</li>
+    <li>风险：对账窗口内事件量大时下图（<code>downISCImage</code>）成为瓶颈——对账补齐的事件可先不下图、异步补图；重复订阅若现场 ISC 非幂等会产生重复推送，需靠 platform 侧去重键兜底（因此去重索引是必做项）。</li>
+    <li>119 主机是 ISC 任务主机（生产三台分工），新任务开关只在该机开启。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-apply-check">
+ <div class="ih"><span class="ino">模块二</span><h3>申请侧两道强制校验：保密协议期限拦截 + 涉保密权限考试拦截</h3><span class="ibatch">批次 4</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <ul>
+    <li>入厂申请从未引用保密供应商表：<code>[PB]/service/admittance/impl/SmtAdmittanceApplyServiceImpl.java</code> 全文 grep <code>supplier</code>（忽略大小写）零命中。保存入口 <code>saveAdmittanceApply :194</code>、<code>saveAdmittanceCarApply :229</code>；校验链 <code>visitorEqualCheck :254-276</code> 只做「访客与被访人重复」「主访客证件号非空」「时间重叠判重」（SQL <code>[PX]/SmtAdmittanceApplyMapper.xml:360-369 countActiveMainFellowOverlapByCertNo</code>）。</li>
+    <li>数据齐全但无联动：<code>SMT_SECURITYAREA_SUPPLIER.endEffectTime</code>（<code>[PC]/entity/SmtSecurityAreaSupplier.java:73</code>）、<code>SMT_SUPPLIER_PERSON.idCard / supplierId</code>（<code>[PC]/entity/SmtSupplierPerson.java:51,36</code>）。已有一个「按证件号 + 供应商查是否在名单」的方法 <code>[PB]/service/impl/SmtSupplierPersonServiceImpl.java:45-53 getVisitorSupplier</code>（接口 <code>/securityarea/supplier/person/visitor/find :48</code>），但它要求传 supplierId，不适合申请侧「只知道证件号」的场景。</li>
+    <li>考试拦截点：5.1（批次 1）在 <code>[PB]/service/securityzone/impl/SmtSecurityZoneServiceImpl.java:217-254 getAuthRemark</code> 追加「未通过考试且目标含 area_type=1 权限组 → 拦截」。该方法按 <code>apply.getStaffId()</code> 查员工（<code>:229</code>），<strong>没有访客证件号分支</strong>，访客入厂申请涉及保密区域时无法复用。</li>
+    <li>申请单区域字段 <code>SmtAdmittanceApply.areaType :134</code>（授权进入区域选项）→ <code>getDeviceList :783-797</code> 经 <code>SmtAdmittanceAreaTypeAuth</code> 映射到权限组 authId，可据此判断本次申请是否命中 <code>area_type=1</code> 的保密权限组。</li>
+   </ul>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>申请人或任一随行人证件号命中 <code>SMT_SUPPLIER_PERSON</code> 时，申请 <code>endTime</code> 不得晚于其供应商 <code>endEffectTime</code>（取该证件号所有有效供应商中最晚者）；超出即拒绝保存，提示「XX 所属保密供应商协议 YYYY-MM-DD 到期，申请结束时间不得晚于该日期」。</li>
+    <li>申请区域映射的权限组含 <code>area_type=1</code> 时，申请人/随行人须在 5.1 考试通过名单内（按证件号），否则拒绝并提示未通过考试的姓名。</li>
+    <li>两道校验在 H5 提交与管理台代提两条路径均生效（都走 <code>saveAdmittanceApply</code>），不依赖打印或手动下发环节补救。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <ul>
+    <li>新增 <code>SmtSupplierPersonService.findLatestEndEffectTimeByIdCards(List&lt;String&gt; idCards)</code>：一条 SQL <code>SMT_SUPPLIER_PERSON P JOIN SMT_SECURITYAREA_SUPPLIER S ON P.SUPPLIER_ID=S.ID WHERE P.ID_CARD IN (...) [AND S.DEL_FLAG=0 —— 3.3 软删后加]</code> 按证件号分组取 <code>MAX(END_EFFECT_TIME)</code>；证件号 IN 走 <code>OracleInBatchUtils</code>。</li>
+    <li>在 <code>visitorEqualCheck :254</code> 末尾（或紧随其后新增 <code>securityConstraintCheck(saveSmtVisitor)</code>，由 <code>saveAdmittanceApply :194</code> 与 <code>saveAdmittanceCarApply :229</code> 统一调用）：收集 <code>fellowList</code> 全部 <code>certNo</code>（含 isMain=0 随行，<code>[PC]/entity/admittance/SmtAdmittanceFellow.java:42,61</code>）→ 查期限 → 逐人比较 <code>saveSmtVisitor.getEndTime()</code>。</li>
+    <li>考试拦截：把 5.1 的判定抽成 <code>SecurityExamCheckService.assertPassed(List&lt;String&gt; certNos, List&lt;Integer&gt; authIds)</code>；<code>getAuthRemark</code>（员工）与本处（访客）共用。访客侧 authIds 来源：<code>smtAdmittanceAreaTypeAuthService.getAuthByType(areaType, DEVICE_TYPE_1, parkId)</code>（<code>:785</code> 同款）→ <code>smtDeviceAuthorityService.listByIds</code> 判 <code>areaType==1</code>（<code>SmtSecurityZoneServiceImpl.java:236-238</code> 同款）。</li>
+    <li>可配置开关（园区级）：允许先「只提示不拦截」观察一周再切硬拦截，避免上线日大面积申请失败。</li>
+   </ul>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>H5/管理台提交入厂申请 → <code>saveAdmittanceApply</code> → 原有 <code>visitorEqualCheck</code>。</li>
+    <li>新增 <code>securityConstraintCheck</code>：①收集全部证件号；②查保密供应商最晚协议截止 → 比较 endTime → 超期抛 <code>SmartException</code>；③解析申请区域 → 权限组 → 若含保密权限组 → 查考试通过名单 → 缺人抛异常。</li>
+    <li>通过后继续原流程（发 OA、落库）。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>platform-core</td><td><code>SmtSupplierPersonMapper</code>（xml + 接口）</td><td>新增按证件号批量查最晚协议截止的 SQL</td></tr>
+     <tr><td>platform-biz</td><td><code>[PB]/service/impl/SmtSupplierPersonServiceImpl.java</code></td><td>新增 <code>findLatestEndEffectTimeByIdCards</code></td></tr>
+     <tr><td>platform-biz</td><td><code>[PB]/service/admittance/impl/SmtAdmittanceApplyServiceImpl.java:194,229,254-276</code></td><td>新增 <code>securityConstraintCheck</code> 并在两个保存入口调用</td></tr>
+     <tr><td>platform-biz</td><td>5.1 新建的考试服务 + <code>[PB]/service/securityzone/impl/SmtSecurityZoneServiceImpl.java:217-254</code></td><td>抽公共判定，新增按证件号分支</td></tr>
+     <tr><td>配置</td><td>园区配置表/Nacos</td><td>拦截模式开关（提示/硬拦）</td></tr>
+     <tr><td>前端</td><td>smart-h5 访客申请页、smart-ui 入厂申请代提页</td><td>展示后端错误文案即可，无结构改动</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   <ul>
+    <li>单测：证件号命中多个供应商取最晚；随行人命中而主访客未命中同样拦截；endTime 恰等于 endEffectTime 当天放行（边界口径与需求方确认：按日期含当天）。</li>
+    <li>集成：申请保密区域 + 未考试 → 拒绝；考试通过 → 放行；非保密区域不查考试。</li>
+    <li>回归：<code>visitorEqualCheck</code> 原三项校验不变；货车预约 <code>saveAdmittanceCarApply</code> 同样生效。</li>
+   </ul>
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>依赖 5.1 考试名单表（批次 1）与 3.3 软删（<code>del_flag</code> 过滤条件）。</li>
+    <li>风险：<code>SMT_SUPPLIER_PERSON.idCard</code> 历史数据格式（末位 x 大小写）与申请侧证件号不一致导致漏拦——比较前统一大写并去空格。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-3-1">
+ <div class="ih"><span class="ino">3.1</span><h3>非保密转保密：协议期限/人员变更联动申请单、任务与重新下发</h3><span class="ibatch">批次 4</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <ul>
+    <li>协议期限被修改时只重置通知标志：<code>[PB]/service/impl/SmtSecurityAreaSupplierServiceImpl.java:208-211</code> <code>if (areaSupplier.getEndEffectTime().getTime() != supplierAddReqDTO.getEndEffectTime().getTime()) { smtSecurityAreaSupplier.setNotifyFlag(NON_NOTIFY) }</code>，不碰申请单、不改任务、不重下发。人员添加入口 <code>SmtSupplierPersonServiceImpl.saveSupplierPerson :55-70</code>、<code>saveUploadSupplierPerson :73</code>（接口 <code>/securityarea/supplier/person/save :59</code>、<code>/uploadSave :70</code>）同样无联动。</li>
+    <li>「删除权限任务」= <code>SMT_ISC_DEVICE_TASK action=12</code>，执行时刻字段 <code>OVER_TIME</code>：<code>[PX]/SmtIscDeviceTaskMapper.xml:287-299 getDelayDel</code> 捞 <code>ACTION = 12 AND OVER_TIME &lt;= #{overTime}</code>（状态 0/6/NULL、TIMES&lt;10）。</li>
+    <li>设备端有效期在 ISC 下发时固化：<code>[SCH]/service/platform/impl/ISCDeviceTaskServiceImpl.java:2169-2170</code> <code>params.put("startTime"/"endTime", ...)</code>，改期限必须重新下发。</li>
+    <li>访客任务的构造：<code>SmtAdmittanceApplyServiceImpl.java:860-871 addCard</code>，<code>cardNo = fellow.getId()</code>（<code>:865</code>）、<code>overTime = apply.getEndTime()</code>（<code>:871</code>）——因此按 <code>fellow.id</code> 能定位到该随行人的全部任务。</li>
+    <li>可复用的批次化重发：<code>submitIscPersonBatch :676-691</code>（事务内取消旧批次未终态人员任务 → <code>addDeviceTaskForPerson</code> 重建 → 回写 <code>iscSubmitBatch</code>，<code>SmtAdmittanceApply.java:154</code>），当前只被 <code>repeatVisitorDeviceAuth :1234</code> 调用。</li>
+    <li>申请单本身无「保密供应商」标记，只能按证件号反查：<code>SmtAdmittanceApply.certNo :49</code>、<code>SmtAdmittanceFellow.certNo :42</code>。</li>
+   </ul>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>供应商协议 <code>endEffectTime</code> 被改短，或新增人员到某供应商时：该人员（按证件号）所有<strong>未终态且 endTime 晚于新截止</strong>的入厂申请单 endTime 收敛为新截止；对应延迟删除任务 <code>OVER_TIME</code> 同步；已下发的设备权限按新期限重新下发（ISC 端 endTime 更新）。</li>
+    <li>协议被改长：不自动延长已有申请（申请期限由申请人自己决定），只解除拦截。</li>
+    <li>联动在同一事务内完成申请单与任务更新；重新下发失败可在访客记录页看到 deviceStatus 并重发（复用现有 <code>repeatVisitorDeviceAuth</code>）。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <ul>
+    <li>新增 <code>SecuritySupplierLinkageService.onEndEffectTimeShortened(supplierId, newEnd)</code> 与 <code>onPersonAdded(supplierId, idCard)</code>，分别挂在 <code>saveSecurityAreaSupplier :178</code>（期限变更分支 <code>:208</code> 之后）与 <code>saveSupplierPerson :55 / saveUploadSupplierPerson :73</code> 成功后（同事务，用 <code>transactionTemplate</code> 包裹，与 <code>submitIscPersonBatch</code> 一致）。</li>
+    <li>反查：按 idCard 集合查 <code>smt_admittance_apply</code>（<code>certNo</code>）∪ <code>smt_admittance_fellow</code>（<code>certNo</code> → <code>visitorId</code>），条件 <code>status</code> 未终态（0 已通过/2 未处理/3 已到达，见 <code>SmtAdmittanceApply.java:51</code> 注释）且 <code>endTime &gt; newEnd</code>。</li>
+    <li>收敛：<code>UPDATE smt_admittance_apply SET end_time = newEnd WHERE id IN (...) AND end_time &gt; newEnd</code>；任务：<code>UPDATE SMT_ISC_DEVICE_TASK SET OVER_TIME = newEndEpoch WHERE APPLY_ID IN (...) AND ACTION=12 AND STATUS IN (0,6) OR STATUS IS NULL</code>（非 ISC 表 <code>smt_device_task</code> 同构，按 <code>cardNo IN (fellowIds)</code>）。</li>
+    <li>重新下发：对 status=0（已通过）且已提交过批次的单据，把 <code>submitIscPersonBatch</code> 从 private 提为 service 内可调用（或新增 <code>resubmitPersonAuth(applyId)</code> 包装），传 <code>apply.getIscSubmitBatch()</code> 作旧批次；重建的任务自然带新 <code>overTime</code>（<code>addCard :871</code> 读 <code>apply.getEndTime()</code>，需先刷新实体）。</li>
+    <li>协议改长不触发收敛；仅记录审计日志。</li>
+   </ul>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>管理员在保密供应商页改协议截止（或添加人员）→ 保存。</li>
+    <li>服务判断「截止变短」或「新增人员」→ 收集受影响证件号 → 反查未终态申请单。</li>
+    <li>事务内：收敛 endTime → 同步任务 OVER_TIME → 对已通过单调用批次化重发（取消旧批次、重建、回写批次）。</li>
+    <li>schedule 侧按新 OVER_TIME 执行删除，ISC 下发时按新 endTime 固化设备端权限。</li>
+    <li>返回给管理员：受影响单据数与清单（弹窗二次确认后再执行）。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>platform-biz</td><td>新 <code>SecuritySupplierLinkageService</code></td><td>反查、收敛、任务同步、触发重发</td></tr>
+     <tr><td>platform-biz</td><td><code>[PB]/service/impl/SmtSecurityAreaSupplierServiceImpl.java:178-215</code></td><td>期限变短分支调用联动</td></tr>
+     <tr><td>platform-biz</td><td><code>[PB]/service/impl/SmtSupplierPersonServiceImpl.java:55-90</code></td><td>新增/导入人员后调用联动</td></tr>
+     <tr><td>platform-biz</td><td><code>[PB]/service/admittance/impl/SmtAdmittanceApplyServiceImpl.java:676-691</code></td><td>暴露批次化重发供联动调用（接口方法 + 权限校验）</td></tr>
+     <tr><td>platform-core</td><td><code>SmtAdmittanceApplyMapper.xml</code>、<code>SmtIscDeviceTaskMapper.xml</code>、<code>SmtDeviceTaskMapper.xml</code></td><td>按证件号反查未终态单；按 applyId/cardNo 批量更新 OVER_TIME</td></tr>
+     <tr><td>smart-ui</td><td><code>[UI]/views/platform/business/security_area/</code> 供应商编辑/人员添加</td><td>保存前预览受影响单据数并二次确认</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   <ul>
+    <li>单测：截止变短/变长分支；主访客与随行人分别命中；终态单不受影响；任务只更新未终态。</li>
+    <li>联调：改短协议 → 申请单 endTime 与 <code>SMT_ISC_DEVICE_TASK.OVER_TIME</code> 同步 → ISC 后台查该人员权限 endTime 已更新 → 到点自动删除。</li>
+    <li>回归：<code>repeatVisitorDeviceAuth</code> 原路径不变。</li>
+   </ul>
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>前置：申请侧期限拦截已上线（否则新单仍会超期）；3.3 软删过滤。</li>
+    <li>风险：批量重发在人员多时产生大量 ISC 任务——按单据串行、限制单次联动最多 N 单，超出转后台任务；重发失败只影响 deviceStatus，不回滚 endTime 收敛（期限收敛是安全方向）。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-3-2">
+ <div class="ih"><span class="ino">3.2</span><h3>保密到期全量删除 + 自动解密（每日任务）</h3><span class="ibatch">批次 4</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <ul>
+    <li>现有到期任务只通知：<code>[SCH]/task/PlatformTimerTask.java:122-127 supplierNotify()</code>（30 分钟一次，开关 <code>TimerTaskEnum.SUPPLIER_NOTIFY</code>，<code>[TOOL]/enums/TimerTaskEnum.java:49</code>）→ <code>[SCH]/service/platform/impl/SupplierNotifyServiceImpl.java:26-56</code>：<code>:42 String template = config.getTemplate();</code> 之后未使用，直接 <code>:44 updateNotifyStatus(NOTIFY)</code>——消息发送代码缺失（现网缺陷③，批次 0 修）。</li>
+    <li>没有任何「到期 → 回收权限 / 失效单据 / 清理人员 / 标记解密」逻辑；供应商实体无解密/失效状态字段（<code>SmtSecurityAreaSupplier.java:44 supplierType</code> 只是 A 类/非 A 类，<code>:108 notifyFlag</code> 只是通知状态）。</li>
+    <li>每日任务的现成样板：<code>PlatformTimerTask.java:140-148 autoDeleteTask()</code>（cron <code>0 0 00 * * ?</code>，开关 <code>SUPPLIER_AUTO_AUTH_DELETE :51</code>，Feign 调 platform <code>remoteSecurityAuthService.syncTask</code>）。</li>
+    <li>删除必须走 5.8 新链路，否则「先删本地」会让失败静默残留。</li>
+   </ul>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>每日 01:00 扫描 <code>endEffectTime &lt; 当天 00:00</code> 且未解密的供应商，对其名单人员：①未终态入厂申请单置终态（新增状态值「已作废-协议到期」或复用 2.6 作废态 + 原因）；②已下发权限经 5.8 请求化删除；③<strong>清理 <code>SMT_SUPPLIER_PERSON</code> 名单</strong>（软删）；④供应商标记「已解密/失效」并记录解密时间与原因。</li>
+    <li>任务幂等：重复执行不重复建删除请求、不重复通知。</li>
+    <li>执行结果可查：每次运行写摘要（供应商数、单据数、request 数、失败数），失败进入 5.8 失败清单与告警。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <ul>
+    <li>DB：<code>SMT_SECURITYAREA_SUPPLIER</code> 加 <code>decrypt_status</code>（0 保密中 / 1 已解密）、<code>decrypt_time</code>、<code>decrypt_reason</code>（1 到期自动 / 2 人工提前）、<code>decrypt_user</code>；<code>SMT_SUPPLIER_PERSON</code> 依赖 3.3 的 <code>del_flag</code> 软删。</li>
+    <li>platform 新增 <code>SecuritySupplierDecryptService.decrypt(supplierId, reason, operator)</code>（3.2 自动与 3.4 人工共用），事务边界：供应商标记 + 人员软删 + 单据终态在一个事务；权限删除通过 5.8 <code>AuthDeleteRequestService.submit(source=4)</code>，任务创建同事务、确认异步。</li>
+    <li>访客权限的删除对象：按 <code>fellow.id</code> 定位已下发记录（<code>SmtDeviceTaskServiceImpl.delVisitorDeviceAuth :801</code> 的查询条件 <code>CARD_VISITOR/CARD_ADMITTANCE</code>、<code>CAR_VISITOR/CAT_ADMITTANCE</code> 可复用），但收敛与失败可见性走 5.8 的 request（访客侧「授权行」= 申请单 + fellow，request.auth_row_id 记 fellow.id、subject_type=3 访客）。</li>
+    <li>schedule：<code>PlatformTimerTask</code> 新增 <code>supplierDecryptTask()</code>（cron <code>0 0 1 * * ?</code>，新 <code>TimerTaskEnum.SUPPLIER_DECRYPT</code>），Feign 调 platform 内部端点 <code>@Inner POST /securityarea/supplier/decrypt/expired</code>。</li>
+    <li>解密通知：复用批次 0 修好的供应商通知通道，向供应商联系人/园区管理员发「协议到期已解密」。</li>
+   </ul>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>01:00 任务触发 → platform 查 <code>endEffectTime &lt; today AND decrypt_status = 0</code> 的供应商列表。</li>
+    <li>逐供应商（独立事务，单个失败不影响其他）：查名单 idCard → 反查未终态申请单（主 + 随行）→ 单据置终态、写原因 → 对每个 fellow/车辆发起 5.8 删除 request → 名单软删 → 供应商置已解密。</li>
+    <li>5.8 链路异步确认设备端删除；失败进入失败清单 + 告警。</li>
+    <li>写运行摘要；发解密通知。</li>
+    <li>该单位人员再申请时因名单已清，不再命中保密校验，走普通访客流程（3.4）。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>DB</td><td><code>SMT_SECURITYAREA_SUPPLIER</code></td><td>加 <code>decrypt_status/decrypt_time/decrypt_reason/decrypt_user</code></td></tr>
+     <tr><td>platform-core</td><td><code>[PC]/entity/SmtSecurityAreaSupplier.java</code>、Mapper</td><td>字段 + 到期未解密查询</td></tr>
+     <tr><td>platform-biz</td><td>新 <code>SecuritySupplierDecryptService</code>；新 <code>@Inner</code> 端点</td><td>解密事务编排（3.2/3.4 共用）</td></tr>
+     <tr><td>platform-biz</td><td><code>[PB]/service/admittance/impl/SmtAdmittanceApplyServiceImpl.java</code></td><td>新增「按证件号批量置终态 + 原因」方法；<code>updateOaStatusTask :1836</code> 的待处理扫描排除该终态</td></tr>
+     <tr><td>smart-schedule</td><td><code>[SCH]/task/PlatformTimerTask.java</code>、<code>[TOOL]/enums/TimerTaskEnum.java</code>、Feign 接口</td><td>每日解密任务与开关</td></tr>
+     <tr><td>smart-ui</td><td><code>[UI]/views/platform/business/security_area/</code> 供应商列表/详情</td><td>解密状态列、解密时间/原因、运行摘要查看</td></tr>
+     <tr><td>配置</td><td>136 主机 bootstrap / Nacos</td><td>新任务开关仅在业务任务主机开启</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   <ul>
+    <li>单测：到期边界（当天 00:00）；已解密不重复处理；单供应商异常不影响批次；名单软删后申请侧校验不命中。</li>
+    <li>联调：造一个昨日到期供应商 + 2 名人员 + 1 张在途单 + 已下发权限 → 任务后：单据终态、request 生成、ISC 权限删除确认、名单不可见、供应商已解密、通知到达。</li>
+    <li>回归：<code>supplierNotify</code> 通知任务不受影响；5.4 的 auth_type=2 员工权限删除与本任务互不干扰（对象不同：员工 vs 访客）。</li>
+   </ul>
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>硬前置：5.8 已灰度通过并推广到「保密到期」入口；3.3 软删；缺陷③已修（通知通道可用）。</li>
+    <li>风险：到期当天仍在厂内的人员会被即时收权——需求已确认「协议到期即自动解密」，但建议任务时间选凌晨且通知提前（<code>supplierNotify</code> 的 days 配置）；历史上大量已到期供应商首次运行会集中处理，首跑前先出清单让需求方确认。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-3-4">
+ <div class="ih"><span class="ino">3.4</span><h3>解密后重新申请（提前解密人工动作 + 普通访客流程）</h3><span class="ibatch">批次 4</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <ul>
+    <li>无「解密」状态迁移，<code>supplierType</code> 只有 A 类/非 A 类（<code>SmtSecurityAreaSupplier.java:44</code>）；删除供应商是硬删且要求先删人员（<code>SmtSecurityAreaSupplierServiceImpl.java:297-304</code>，人员存在时抛「已关联授权人员，请删除授权人员后在删除供应商」）。</li>
+    <li>解密后能否「重新申请」取决于两件事：①名单是否清理（否则申请侧期限拦截仍命中）；②打印/区分逻辑（2.3）是否按名单实时判断——2.3 随打印切换交付，按证件号/单位比对保密供应商台账，名单清理后自然判为非保密。</li>
+   </ul>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>管理员可对未到期供应商执行「提前解密」，效果与 3.2 到期自动解密完全一致（回收权限、失效在途单、清理名单、标记已解密），操作留痕并二次确认。</li>
+    <li>解密后该单位人员提交入厂申请：不触发保密期限拦截、不触发考试拦截（除非申请区域本身是保密区域）、2.3 打印判为普通访客模板。</li>
+    <li>重新合作：供应商主记录保留历史（软删/已解密态），重新添加人员即恢复保密约束（新协议期限）。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <ul>
+    <li>复用 3.2 的 <code>SecuritySupplierDecryptService.decrypt(supplierId, reason=2 人工, operator)</code>；新增接口 <code>POST /securityarea/supplier/decrypt/{id}</code>（<code>[PB]/controller/SmtSecurityAreaSupplierController.java:35</code> 下），鉴权同供应商删除。</li>
+    <li>「重新合作」= 供应商编辑协议期限 + 添加人员：编辑时若 <code>decrypt_status=1</code> 且新 <code>endEffectTime &gt; now</code>，置回 0 并清空解密字段（写审计）；随后 3.1 联动照常生效。</li>
+    <li>申请侧：无需改动，期限拦截查的是未软删名单；考试拦截只看申请区域权限组 area_type。</li>
+   </ul>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>管理员在供应商详情点「提前解密」→ 弹窗显示受影响人员数/在途单数 → 确认。</li>
+    <li>调用解密服务（同 3.2 第 2 步）→ 返回摘要。</li>
+    <li>该单位人员再申请 → 普通访客流程 → 审批通过后按普通区域权限组下发 → 打印普通模板。</li>
+    <li>若重新合作 → 编辑协议 + 添加人员 → 恢复保密约束。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>platform-biz</td><td><code>[PB]/controller/SmtSecurityAreaSupplierController.java</code></td><td>新增 <code>/decrypt/{id}</code>（人工解密）</td></tr>
+     <tr><td>platform-biz</td><td><code>[PB]/service/impl/SmtSecurityAreaSupplierServiceImpl.java:178-215</code></td><td>编辑时「已解密 → 重新生效」的状态回置与审计</td></tr>
+     <tr><td>smart-ui</td><td><code>[UI]/views/platform/business/security_area/</code></td><td>提前解密按钮 + 影响预览弹窗；已解密态展示与筛选</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   <ul>
+    <li>联调：提前解密 → 名单不可见 → 同证件号提交申请成功且不带保密标记 → 审批后权限组为普通 → 打印普通模板（打印切换后验证）。</li>
+    <li>回归：3.2 自动解密与人工解密共用服务，两条路径的审计字段区分正确。</li>
+   </ul>
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>依赖 3.2 服务、3.3 软删、2.3（打印切换）；风险低，主要是权限：提前解密属高影响操作，建议限定园区管理员角色并留痕。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-2-6-full">
+ <div class="ih"><span class="ino">2.6</span><h3>入场申请作废——完整版（接入 5.8 请求化删除链路 + OA 回调幂等）</h3><span class="ibatch">批次 4</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <ul>
+    <li>批次 1 止血版已交付：整单作废状态 + 走访客链路 <code>delDeviceAuth :1583-1598</code>（对每个 fellow/vehicle 调 <code>smtDeviceTaskService.delVisitorDeviceAuth</code>（<code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java:801</code>）：基于 <code>smt_task_down_record</code> 已下发成功记录建/复用 DEL 任务，不删业务单据）+ 判重排除作废态 + OA 回调幂等。</li>
+    <li>止血版的删除仍是「建任务即完事」：任务失败无人知晓，与 5.8 改造前的员工链路同一缺陷，只是不删本地记录所以可重发。</li>
+    <li>OA 终态处理已有 CAS 抢占：<code>SmtAdmittanceApplyServiceImpl.java:2002 claimAndApplyOaFinalStatus</code> → <code>:2060 claimOaFinalStatus</code> 条件 <code>.eq(status, Status_2 未处理)</code>；拉取对账 <code>updateOaStatusTask :1836</code> 只扫 Status_2 行。作废态不是 Status_2，CAS 天然不命中——止血版已据此实现幂等忽略并留痕。需求已确认不联动 OA 撤单（仓内 <code>[PB]/controller/OARevokeController.java:32-35</code> <code>/oa/revoke/process</code> → <code>OARevokeServiceImpl.java:39 sendOaRevoke</code> 是其他流程的撤单通道，本项不使用）。</li>
+   </ul>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>作废动作产生的权限回收进入 5.8 request：作废单详情可见每个人员/车辆的删除状态（删除中/成功/失败），失败可重发，失败告警。</li>
+    <li>作废单在设备端权限全部确认删除前，业务上已不可用（作废态立即生效），但删除进度可追踪。</li>
+    <li>OA 回调/拉取对账遇到已作废单：不改状态、不重发短信、不建下发任务，写一条留痕日志（已有），本次补「留痕落表」便于审计。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <ul>
+    <li>作废服务 <code>cancelApply(id, reason)</code> 的权限回收改为 <code>AuthDeleteRequestService.submit(source=5 入厂作废, subject_type=3 访客, auth_row_id=fellow.id / vehicle.id, device_snapshot=已下发成功记录设备集)</code>；删除任务写 <code>delete_request_id</code>；作废单表加 <code>delete_request_ids</code>（或经 request 表按 applyId 反查）。</li>
+    <li>访客侧收敛器：5.8 的 request 收敛按 request_id 统计任务，不依赖 <code>StaffDeviceAuthSyncService</code>（它只认员工人脸服务类型），因此访客无需改旧收敛器。</li>
+    <li>OA 幂等：在 <code>claimAndApplyOaFinalStatus :2002</code> claim 失败分支与 <code>syncOaStatus</code> 中，若查到单据为作废态，写 <code>smt_process_record</code>（仓内已有流程记录表，<code>OARevokeServiceImpl.java:56-70 saveProcessRecord</code> 同款）一条「OA 终态到达但单据已作废，已忽略」。</li>
+    <li>2.7 判重 SQL（<code>SmtAdmittanceApplyMapper.xml:360-369</code>）已在批次 1 排除作废态，本项不改。</li>
+   </ul>
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>管理员/申请人作废 → 单据置作废态（CAS 仅允许从未终态迁移）→ 同事务对每个已下发的 fellow/vehicle 建 request + 删除任务。</li>
+    <li>schedule 执行删除 → 回执确认 → request 终态；失败 → 告警 + 失败清单。</li>
+    <li>OA 后续回调/对账到达 → 发现作废态 → 忽略 + 留痕。</li>
+    <li>同证件号重新申请 → 判重不命中作废单 → 正常流程。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>platform-biz</td><td><code>[PB]/service/admittance/impl/SmtAdmittanceApplyServiceImpl.java</code>（批次 1 新增的作废方法；<code>:2002-2030</code>）</td><td>权限回收切到 5.8 request；OA 幂等留痕落表</td></tr>
+     <tr><td>platform-core</td><td><code>AuthDeleteRequestService</code></td><td>支持 subject_type=3 访客（auth_row_id=fellow/vehicle id，快照来自 <code>smt_task_down_record</code>/<code>SMT_ISC_DOWN_RECORD</code>）</td></tr>
+     <tr><td>smart-ui / smart-h5</td><td>入厂记录详情（<code>[UI]/views/platform/business/incoming/</code>）</td><td>作废单展示人员/车辆删除状态与重发按钮（复用 5.8 组件）</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   <ul>
+    <li>联调：作废含 2 随行 + 1 车辆的已通过单 → 生成 3 个 request → ISC/闸机确认 → 全部终态；模拟 1 个设备失败 → 失败可见、重发成功。</li>
+    <li>OA：作废后手工在 OA 审批通过 → 拉取对账不改单据、无短信、留痕一条。</li>
+    <li>回归：止血版作废流程与判重排除不变。</li>
+   </ul>
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   <ul>
+    <li>硬前置：5.8 推广到访客入口；批次 1 止血版已上线。风险低：主要是访客 subject 类型在 request 模型中的扩展要在 5.8 设计时预留（不要把 request 设计成只认 <code>smt_staff_device_auth.id</code>）。</li>
+   </ul>
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-10">
+ <div class="ih"><span class="ino">4.10</span><h3>上级主管同步——已满足，仅验证</h3><span class="ibatch">批次 4</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   <ul>
+    <li>来源：DHR 视图字段 <code>jobglbdef18</code> → <code>[SCH]/task/EhrToStaffTaskService.java:365</code> <code>evwEmphrYs.setReportTo(null == item.getJobglbdef18() ? "" : item.getJobglbdef18());</code> → <code>:487 empHrReqDTO.setReportTo(d.getReportTo())</code> 经 Feign 送 platform。</li>
+    <li>落库：<code>[PB]/utils/StaffUtil.java:164</code> <code>smtStaff.setReportTo(empHr.getReportTo());</code>；实体 <code>[PC]/entity/SmtStaff.java:172 private String reportTo;</code>（注释「直接上级领导员工号」）。新增与更新两条路径都经 <code>buildStaff</code>：<code>[PB]/service/impl/SmtStaffServiceImpl.java:1066-1088 syncStaff</code> 更新分支 <code>:1077</code>、先入住后入职分支 <code>:1105</code>、新增分支 <code>:1119</code>——主管变动下次同步自动覆盖。</li>
+    <li>消费：<code>[PB]/service/approval/impl/ApprovalNodeServiceImpl.java:258-270</code> <code>case LEADER</code>：按申请人工号取 <code>staff.getReportTo()</code>（<code>:263</code>）再 <code>getSimpleSttaffByBadge(reportTo)</code>（<code>:264</code>）生成审批人——4.11 的直接主管审批可直接用。</li>
+    <li>一处代码瑕疵（不影响「已满足」结论，但影响 4.11 健壮性）：<code>:265 if(Objects.isNull(staff))</code> 检查的是 <code>staff</code> 而非 <code>approvalStaff</code>；若 reportTo 指向的工号在 <code>SmtStaff</code> 中不存在，<code>:267 approvalStaff.getBadge()</code> 会 NPE。建议随 4.11 顺手修正为 <code>Objects.isNull(approvalStaff)</code> 并给出「上级主管不存在」提示。</li>
+   </ul>
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   <ol>
+    <li>随机抽 20 名员工，<code>SmtStaff.reportTo</code> 与 DHR 视图 <code>jobglbdef18</code> 一致。</li>
+    <li>在 DHR 改一名员工主管 → 下一次同步任务后 <code>reportTo</code> 更新。</li>
+    <li>退宿审批（eventId=6、LEADER 规则）发起后审批人 = reportTo 对应员工。</li>
+    <li>reportTo 为空/指向不存在工号时，审批发起给出可读提示而非 500（需先修 <code>:265</code>）。</li>
+   </ol>
+  </dd>
+  <dt>实现方式</dt>
+  <dd>零改造（验证项）。可选小修：<code>ApprovalNodeServiceImpl.java:265</code> 空检查对象改为 <code>approvalStaff</code>。</dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>查 DHR 视图 20 条 <code>badge, jobglbdef18</code>。</li>
+    <li>查 <code>SmtStaff</code> 对应 <code>badge, report_to</code> 比对。</li>
+    <li>在测试 DHR 改一条主管 → 触发员工同步任务 → 复查。</li>
+    <li>用该员工发起退宿申请 → 查 <code>smt_approval_person</code> 审批人。</li>
+    <li>把一名员工 reportTo 改为不存在工号 → 发起审批 → 观察是否 NPE（决定是否修 <code>:265</code>）。</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
+    <tbody>
+     <tr><td>无</td><td>—</td><td>零改造</td></tr>
+     <tr><td>可选</td><td><code>[PB]/service/approval/impl/ApprovalNodeServiceImpl.java:265</code></td><td>空检查对象修正 + 友好提示（建议随 4.11 一起）</td></tr>
+    </tbody>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>按上述 5 步执行并把 SQL 与结果截图归档到验收记录；同步任务运行在 136 业务任务主机，验证需在该机开关开启状态下进行。</dd>
+  <dt>依赖与风险</dt>
+  <dd>依赖 DHR 视图字段稳定；审批人取值时点为提单时刻（主管变动不回溯在途审批），需求方已接受。</dd>
+ </dl>
+</section>
+
+  <div class="pager"><a href="#p15">← 上一批次</a><a class="next" href="#p17">下一批次 →</a></div>
+</section>
+
+<!-- ============ p17 逐项开发说明 ============ -->
+<section class="page" id="pg-p17">
+  <div class="kicker">第 8 章 · 逐项开发说明</div>
+  <h1>批次 5-6 · 自动删除灰度与最终阶段</h1>
+  <p style="color:var(--ink3);font-size:13px">5.4 演练后开启 · App 申请+主管审批 · 押运 · 远期自助打印</p>
+  <div class="toc-items" id="toc-p17"></div>
+  <p class="chapter-lede">批次 5（P4）与批次 6（远期）覆盖两类工作：一是把「保密区权限自动删除」链路从「代码存在但有 BUG、疑似不可用」的状态，改造成可灰度、可审计、可回溯的生产可用能力（5.4/5.5/5.6）；二是把保密物品放行的申请与审批从 App 执行环节（批次 2 已交付 A/B 确认、押运、封条）延伸到最终阶段的完整业务闭环——申请提交、主管审批、押运方式留痕（4.11/4.12/4.13）。两批次共同前置是批次 4 的 5.8 权限删除链路改造（先下发确认、再收敛本地记录），5.4 的「删除」动作必须切到该链路上才能算真正可靠；4.11/4.12 依赖 4.10（上级主管同步，已满足）与批次 2 已交付的保密放行单据域。批次 6 只有 7.1 一项，仅做规划，不进入开发排期，等硬件定型后另行立项。</p>
+
+<section class="item" id="item-5-4">
+ <div class="ih"><span class="ino">5.4</span><h3>保密区权限自动删除</h3><span class="ibatch">批次 5</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   链路已经完整存在，不是新建：每日 00:00 定时任务 <code>PlatformTimerTask.autoDeleteTask()</code>（<code>smart-module/smart-schedule/.../task/PlatformTimerTask.java:143-148</code>，方法头注释在 140 行）触发，实际读取<strong>两层开关</strong>——① 应用层布尔开关 <code>task.job.supplier-auto-auth-delete</code>（<code>TaskJob.java:66</code> 字段 <code>supplierAutoAuthDelete</code>，<code>@ConfigurationProperties(prefix="task.job")</code>）；② 动态开关 <code>switchService.process(TimerTaskEnum.SUPPLIER_AUTO_AUTH_DELETE)</code>，其真实键名核实为 <code>timer_task_supplier_auto_auth_delete</code>（<code>smart-module/smart-tool/.../enums/TimerTaskEnum.java:51</code>：<code>SUPPLIER_AUTO_AUTH_DELETE("timer_task_supplier_auto_auth_delete", ...)</code>）——两个开关都要打开任务才真正执行。<br>
+   任务触发 <code>SmtSecurityAuthDeleteServiceImpl.deleteAuthTask()</code>（<code>smart-module/smart-platform/smart-platform-biz/.../securityzone/impl/SmtSecurityAuthDeleteServiceImpl.java:118-144</code>）：按园区分组读取 <code>smt_security_auth_delete</code> 配置表（<code>@TableName("smt_security_auth_delete")</code>，<code>SmtSecurityAuthDelete.java:19</code>），对每个开启了 <code>deleteDay</code> 的园区，取 <code>auth_type=2</code>（保密区）权限行，逐条在独立事务 <code>deleteStaffAuthWithTransaction()</code>（:150-218）中：白名单检测（:156-161，见 5.5）→ 查 <code>SmtSnapPerson</code> 最后一次进出记录 → 调 <code>freeDay()</code>（:226-267）扣除节假日/出差/请假/调休后计算空白天数 → 超限则<strong>先物理删除 <code>smt_staff_device_auth</code> 关联行</strong>（:200 <code>removeById</code>）<strong>再生成设备删除任务</strong>（:207 <code>savePersonCardTask</code>）。<br>
+   已亲自核实的现网 BUG：<code>freeDay()</code> 里 <code>Integer limitDays = config.getIsWhiteList();</code>（<code>SmtSecurityAuthDeleteServiceImpl.java:229</code>）——取的是白名单开关字段（0/1），应为 <code>config.getDeleteDay()</code>（配置的天数上限）。一旦任务开关打开，<code>limitDays</code> 恒为 0 或 1，几乎所有人都会被判定「超过删除天数限制」而被删权限，属高危缺陷（批次 0 已修复，本批次只需带回归测试验证不再复发）。<br>
+   更本质的问题：删除动作走的是「先删本地、再建任务」的旧模式，与决策 C（5.8）要统一改造的问题同构——任务若失败，本地记录已经删没了，管理员看不到残留也无法重发。生产开关当前是否开启（问题 20）未验证，是本项开启前必须核查的前置条件（见开放事项）。
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   ① 修复 BUG 后新增「演练模式」开关：开启时只跑判定逻辑、生成命中记录，不执行 <code>removeById</code> 与 <code>savePersonCardTask</code>；② 删除动作改走 5.8 改造后的「先下发确认、后收敛本地」链路，不再在同一事务内先删本地；③ 灰度流程可执行：演练一周 → 核对命中名单 → 确认无误后关闭演练模式、正式放开；④ 单测覆盖 <code>freeDay()</code> 天数计算（含节假日/出差/请假/调休扣减）与白名单跳过分支。
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   在 <code>smt_security_auth_delete</code> 配置表加 <code>dry_run</code>（演练模式）字段，配置页 <code>smart-ui/src/views/platform/business/security_area/edit.vue</code> 的「保密区权限自动删除配置」区块（73-144 行）新增开关；<code>deleteStaffAuthWithTransaction()</code> 在超限判定通过后先判断 <code>dry_run</code>：为真则只写 5.6 的删除记录报表（结果=「演练命中」），不触碰 <code>smt_staff_device_auth</code> 与设备任务；为假则改调 5.8 改造后的删除请求接口（不再直接 <code>removeById</code>）。删除动作对 5.8 的依赖是硬依赖，若批次 4 的 5.8 未完成，本项只能先完成「演练模式」与 BUG 回归，暂不放开真删。
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>每日 00:00 <code>autoDeleteTask()</code> 触发，校验 <code>task.job.supplier-auto-auth-delete</code> 与 <code>timer_task_supplier_auto_auth_delete</code> 两个开关均为开</li>
+    <li>按园区读取 <code>smt_security_auth_delete</code> 配置，跳过 <code>deleteDay=0</code>（未开启）的园区</li>
+    <li>取该园区 <code>auth_type=2</code> 权限行，逐条独立事务处理</li>
+    <li>白名单命中（<code>smt_security_white</code>）直接跳过</li>
+    <li>查最后一次 <code>SmtSnapPerson</code> 进出（无记录则以权限创建时间为起点）</li>
+    <li><code>freeDay()</code> 扣减节假日/出差/请假/调休后与 <code>deleteDay</code>（修复后）比较</li>
+    <li>未超限跳过；超限且演练模式开启 → 只写报表记录（结果=演练命中）</li>
+    <li>超限且演练模式关闭 → 发起 5.8 删除请求（先下发确认、后收敛），终态写回报表</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>DB</td><td><code>smt_security_auth_delete</code></td><td>加 <code>dry_run</code> 演练模式字段；核对 <code>delete_day</code> 字段确未与 <code>is_white_list</code> 混用</td></tr>
+    <tr><td>后端</td><td><code>SmtSecurityAuthDeleteServiceImpl.java:229</code></td><td>回归确认 <code>getDeleteDay()</code> 替换 <code>getIsWhiteList()</code> 的修复未被回退，补单测锁定</td></tr>
+    <tr><td>后端</td><td><code>SmtSecurityAuthDeleteServiceImpl.java:194-208</code></td><td>超限分支按 <code>dry_run</code> 二选一：写演练记录 或 调用 5.8 删除请求接口（替换直接 <code>removeById</code>）</td></tr>
+    <tr><td>后端</td><td><code>SecurityAuthDeleteReqDTO</code> / <code>editConfig</code>（:104-116）</td><td>DTO 与保存逻辑加 <code>dryRun</code> 字段</td></tr>
+    <tr><td>前端</td><td><code>smart-ui/.../security_area/edit.vue:73-144</code></td><td>「保密区权限自动删除配置」区块加演练模式开关与说明文案</td></tr>
+    <tr><td>运维</td><td>生产 Nacos</td><td>核查 <code>task.job.supplier-auto-auth-delete</code> 与 <code>timer_task_supplier_auto_auth_delete</code> 当前值（对应问题 20）</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   单测：<code>freeDay()</code> 天数计算的四类扣减场景（节假日/出差/请假/调休单独与组合）+ 修复后 <code>limitDays</code> 取值正确性回归。集成：演练模式下跑一轮任务，核对报表命中名单与预期一致、且 <code>smt_staff_device_auth</code>/设备任务均未被触碰。灰度：生产开启演练模式一周，人工核对命中名单准确率后再关闭演练、放开真删，首次真删观察至少一个完整周期。
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   硬依赖批次 4 的 5.8（删除链路改造）——若 5.8 未上线，本项只能停在「演练模式」阶段，不放开真删。依赖 5.7（海康进出记录同步）数据完整性——5.7 现有订阅假活缺陷（现网缺陷④，<code>BridgeISCServiceImpl.java:135-146,169,493-497</code>）会导致 <code>SmtSnapPerson</code> 进出记录缺失，直接影响 <code>freeDay()</code> 判定准确性，5.7 未修复前灰度结果不可全信。风险：生产开关若已长期开启且 BUG 未修复，历史误删范围需要单独核查（对应开放事项）。
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-5-5">
+ <div class="ih"><span class="ino">5.5</span><h3>自动删除白名单</h3><span class="ibatch">批次 5</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   已满足，零改造项，本批次只做验证与口径确认。表 <code>smt_security_white</code>（<code>SmtSecurityWhite.java:19</code> <code>@TableName("smt_security_white")</code>，字段 <code>staffId</code>/<code>deleteConfigId</code>/<code>staffBadge</code>/<code>staffName</code>/<code>parkId</code>）随删除配置一并维护：<code>SmtSecurityAuthDeleteServiceImpl.editConfig()</code> 保存配置后在第 115 行调用 <code>smtSecurityWhiteService.editList(reqDTO.getWhiteList(), delete.getId())</code>（<code>SmtSecurityWhiteServiceImpl.java:36-47</code>，先整体 <code>remove</code> 再 <code>saveBatch</code>，即整份白名单覆盖式保存，不支持增量单条编辑）。任务执行时在 <code>deleteStaffAuthWithTransaction()</code> 的 :156-161 命中白名单即 <code>return</code> 跳过：<br>
+   <code>if (OneOrZeroEnum.ONE.getCode().equals(deleteConfig.getIsWhiteList())) { if (smtSecurityWhiteService.isExist(deleteConfig.getId(), staffId)) { ...; return; } }</code><br>
+   前端配置页 <code>smart-ui/.../security_area/edit.vue:99-141</code> 已有白名单维护 UI：「工号/姓名」两列表格（105-136 行），工号回车查姓名（<code>getStaffDetail</code>）、点击「+」逐行加入（<code>addLine</code>）、逐行可删（<code>delLine</code>），仅在 <code>isWhiteList===1</code>（总开关打开）时展示。
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   不新增功能，验证现状口径：① 白名单命中判定以 <code>staffId</code> 精确匹配，无模糊/部门维度；② 白名单是「整份覆盖保存」而非增量接口，前端每次保存都会带上完整列表，需确认页面加载时已正确回显现有名单（<code>getWhiteListConfig()</code>，:321-336）避免误删旧名单；③ 白名单总开关（<code>isWhiteList</code>）与 5.4 的演练模式是两个独立开关，不互斥、可同时开启（演练模式下白名单判定仍会跑，只是最终不执行删除）。
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   无代码改动。验证方式：核对 <code>editList()</code> 覆盖保存语义是否与前端「查询回显后再编辑保存」的交互匹配（存在并发编辑覆盖风险，两个管理员同时打开配置页后保存会互相覆盖，属已知限制、本批次不改造，只在验收报告中注明）；结合 5.6 报表核对「已跳过白名单」结果的命中人数与白名单表行数一致。
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>管理员在配置页维护白名单工号/姓名，点击保存</li>
+    <li><code>editConfig()</code> 保存删除配置主表，随后整体覆盖 <code>smt_security_white</code></li>
+    <li>次日 00:00 任务执行时，逐条权限先查 <code>isWhiteList</code> 总开关</li>
+    <li>开关为 1 时按 <code>deleteConfigId + staffId</code> 查白名单表，命中即跳过该员工</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>验证</td><td><code>SmtSecurityWhiteServiceImpl.java:36-47,49-55</code></td><td>核对覆盖保存与 <code>isExist</code> 判定逻辑无需改动</td></tr>
+    <tr><td>验证</td><td><code>smart-ui/.../security_area/edit.vue:99-141</code></td><td>核对页面回显与保存交互，记录并发覆盖风险为已知限制</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   回归测试：白名单内员工在 5.4 任务中必被跳过（无论演练模式开关状态）；白名单外员工正常参与超限判定。人工核对：配置页保存后刷新页面，名单与保存前一致（验证覆盖式保存未丢数据）。
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   无新依赖。已知风险（不在本批次修复范围）：覆盖式保存在并发编辑场景下会互相覆盖；白名单无「有效期」概念，长期白名单人员离职后需人工清理，否则会一直被跳过判定。
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-5-6">
+ <div class="ih"><span class="ino">5.6</span><h3>自动删除记录报表</h3><span class="ibatch">批次 5</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   缺失，需新建独立报表页。现状删除动作只在 <code>smt_device_task</code>（<code>SmtDeviceTask.java:21</code> <code>@TableName("smt_device_task")</code>）留下一行任务记录，字段含 <code>remark</code>/<code>serviceType</code>/<code>action</code>/<code>status</code>/<code>code</code>，但<strong>没有「自动删除」来源标记、没有删除原因（触发原因）、没有「演练命中/已跳过白名单」这类中间结果</strong>——任务表只记录「最终发起了一次删除任务」，记录不了 5.4 判定过程中的跳过/演练命中等非落库动作。<br>
+   <code>SmtSecurityAuthDeleteServiceImpl.deleteStaffAuthWithTransaction()</code>（:210-211）已有一段结构化日志可直接对齐字段口径：<br>
+   <code>log.info("成功删除员工权限，staffId={}, badge={}, authId={}, 设备数量={}", staffId, staff.getBadge(), authRelation.getAuthId(), deviceAuthList.size());</code><br>
+   即现有日志已天然覆盖「员工/工号/权限组/设备数量」四个维度，缺的是「执行时间、部门、最后进出时间、触发原因、结果」这几项，以及日志之外的落库能力（日志不可查询筛选，也不支撑「已跳过白名单」「演练命中」这类不落任务表的场景）。
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   新建「权限自动删除记录」报表页，覆盖 5.4 任务每次判定的完整轨迹（含跳过与演练命中，不只是最终删除成功的记录），支持按执行日期/姓名工号/部门/权限组/结果多维度筛选，菜单挂在保密区功能组下，页面加载 3 秒内返回首页数据（按园区数据范围过滤）。
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   新建独立记录表 <code>smt_security_auth_delete_log</code>（不复用 <code>smt_device_task</code>，因为该表语义是「设备任务」，演练命中/跳过白名单等场景根本不产生设备任务，必须有独立的判定过程记录），在 <code>deleteStaffAuthWithTransaction()</code> 每个分支出口处（跳过白名单 :156-161、超限判定不通过 :194-197、演练命中、正式删除成功 :199-211、异常 :213-217）各写一行记录，取代目前分散的 <code>log.debug/warn/info</code> 调用，同一批字段既进日志也进表（双写，保留日志便于线上排障）。报表页新建 <code>smart-ui/src/views/platform/business/security_area/auth_delete_log/</code>，后端加 <code>SmtSecurityAuthDeleteLogController</code>（分页查询 + 导出）。
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>5.4 任务逐条权限判定过程中，每个分支出口构造一条记录（执行时间/员工/部门/权限组/最后进出时间/触发原因/结果）</li>
+    <li>写入 <code>smt_security_auth_delete_log</code>（与原 <code>log.xxx</code> 调用并存，替代而非新增噪音）</li>
+    <li>正式删除分支额外关联 <code>smt_device_task</code> 主键，便于报表页下钻查看设备下发/删除任务详情</li>
+    <li>管理员在报表页按条件筛选、导出</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>DB</td><td>新表 <code>smt_security_auth_delete_log</code></td><td>字段：id, park_id, exec_time, staff_id, staff_badge, staff_name, department, auth_id, auth_name, last_snap_time, trigger_reason, result(演练命中/已删除设备确认/删除失败/已跳过白名单), device_task_id(可空), remark, create_time</td></tr>
+    <tr><td>后端</td><td><code>SmtSecurityAuthDeleteServiceImpl.deleteStaffAuthWithTransaction():150-218</code></td><td>各分支出口新增写日志表调用，字段对齐 :210 现有结构化日志</td></tr>
+    <tr><td>后端</td><td>新增 <code>SmtSecurityAuthDeleteLogController</code> / <code>Service</code> / <code>Mapper</code></td><td>分页查询（按执行日期/姓名工号/部门/权限组/结果）+ 导出</td></tr>
+    <tr><td>前端</td><td>新增 <code>smart-ui/src/views/platform/business/security_area/auth_delete_log/index.vue</code></td><td>报表列表页 + 筛选表单 + 导出按钮</td></tr>
+    <tr><td>配置</td><td>菜单表</td><td>「权限自动删除记录」菜单挂在保密区功能组下</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   单测：日志表写入覆盖跳过白名单/超限判定不通过/演练命中/正式删除/异常五类分支各至少一条记录。集成：跑一轮 5.4 演练模式任务，报表页应能筛出全部「演练命中」记录且字段完整；关闭演练模式后跑一轮，应能筛出「已删除设备确认」记录并可下钻到设备任务。权限测试：跨园区管理员看不到其他园区记录。
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   依赖 5.4 先完成演练模式改造（本项是 5.4 灰度验证的直接支撑，两项建议同批次一起交付、报表先行或同步）。风险：双写日志表与原有 <code>log.xxx</code> 调用需要保持字段口径一致，避免报表数据与线上日志对不上；若未来接入 5.8，删除结果的「终态」会有异步收敛过程（先「删除中」后「已删除/删除失败」），报表需支持结果状态更新而非一次性落库不可变。
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-11">
+ <div class="ih"><span class="ino">4.11</span><h3>保密放行申请与主管审批进 App</h3><span class="ibatch">批次 5（最终阶段）</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   园区审批引擎完整存在、可直接复用，问题 25 已确认口径：最终阶段申请与审批走**园区审批引擎、直接主管审批、不走 OA**；第一阶段（批次 2）App 只交付执行环节（A/B 确认、押运、封条、进出、报表），申请仍在 OA/现有系统提交。<br>
+   审批引擎四张核心表：<code>smt_approval</code>（园区+事件类型的审批配置主表）/ <code>smt_approval_node</code>（审批节点）/ <code>smt_approval_person</code>（指定审批人）/ <code>smt_approval_condition</code>（条件分流），入口方法 <code>ApprovalServiceImpl.approvalProcess()</code>：<br>
+   <code>public List&lt;ApproveProcessListReqDTO&gt; approvalProcess(ApprovalProcessReqDTO reqDTO) { SmtApproval approval = smtApprovalService.getApproval(reqDTO.getParkId(), reqDTO.getEventId()); ... return approvalNodeService.getApprovalPerson(reqDTO); }</code>（<code>ApprovalServiceImpl.java:36-43</code>，按园区+<code>eventId</code> 取审批配置，找不到直接抛异常，说明每个事件类型必须先在管理台配好审批流程才能提单）。<br>
+   事件类型常量已用满 1-6（<code>ApproveListTypeConstants.java:13-38</code>：1 <code>LEAVE</code> 离职 / 2 <code>VISITOR</code> 访客 / 3 <code>ARTICLE</code> 物品 / 4 <code>APPEAL</code> 员工申诉 / 5 <code>REPAIR</code> 园区报修 / 6 <code>QUIT_DORMITORY</code> 退宿），保密放行需要注册**新的 <code>eventId</code>（如 7）**，不能复用已有值。<br>
+   审批人=直属主管的规则已现成：<code>ApprovalNodeServiceImpl.getApprovalPersonList()</code> 的 <code>LEADER</code> 分支（<code>ApprovalNodeServiceImpl.java:258-272</code>）按申请人工号查 <code>SmtStaff</code>，取 <code>staff.getReportTo()</code>（<code>:263-264</code>：<code>if (Objects.nonNull(staff.getReportTo())) { SmtStaff approvalStaff = smtStaffService.getSimpleSttaffByBadge(staff.getReportTo()); ... }</code>），<code>reportTo</code> 字段来自 4.10 DHR 同步（已满足，零改造）。
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   保密放行申请从批次 2 的执行环节延伸出「App 端提交申请」与「App 端主管审批」两个新页面；审批规则完全走园区审批引擎（不新开审批表），审批人默认取申请人直属主管；驳回可填写意见并支持申请人修改后重提；App 首页按账号权限展示「保密放行」入口（沿用 4.3 的 staff-module 模块下发机制）。第一阶段（已交付）与最终阶段并存期间，两条申请入口互不干扰，切换时机由业务侧另行决定（本项只负责最终阶段能力就绪）。
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   在 <code>ApproveListTypeConstants</code> 新增常量（如 <code>SECURITY_RELEASE = 7</code>），管理台为该 <code>eventId</code> 配置审批节点（默认单节点、<code>LEADER</code> 规则）；App 端新增「放行申请页」（出发/目的岗位选择、物料录入、封条扫码头录入、事由文本），提交后落批次 2 已建的保密放行单据域主单，随即调用 <code>ApprovalServiceImpl.approvalProcess()</code> 取审批人生成审批流转记录；「审批页」按工号查该主管待审批列表，同意/驳回操作，驳回必填意见，驳回后原申请可编辑重提（沿用退宿模式：新记录还是原记录改状态重提，需在 spec 阶段定，退宿是原单据改状态）。
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>员工在 App「放行申请」页填写出发/目的岗位、物料、封条、事由，提交</li>
+    <li>后端保存保密放行主单（批次 2 单据域），状态置「待审批」</li>
+    <li>调用 <code>ApprovalServiceImpl.approvalProcess()</code>（新 <code>eventId</code>），引擎按 <code>LEADER</code> 规则取申请人 <code>reportTo</code> 生成审批人</li>
+    <li>主管在 App「审批」列表看到待办，进入详情</li>
+    <li>同意：单据流转到批次 2 的执行环节（A 点安检确认可开始）；驳回：必填驳回意见，单据退回申请人</li>
+    <li>申请人可在驳回单基础上修改后重新提交，回到步骤 3</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>后端</td><td><code>ApproveListTypeConstants.java:13-38</code></td><td>新增保密放行 <code>eventId</code> 常量</td></tr>
+    <tr><td>后端</td><td>保密放行单据域 Service（批次 2 已建）</td><td>提交申请时调用 <code>ApprovalServiceImpl.approvalProcess()</code> 生成审批记录；接入审批结果回写单据状态</td></tr>
+    <tr><td>后端</td><td><code>smart-app</code> 模块</td><td>新增 App 端申请提交接口、主管待审批列表/同意/驳回接口</td></tr>
+    <tr><td>前端(App)</td><td>新建 uni-app 工程</td><td>新增「放行申请页」「审批页」两屏（画布已出 UI 设计）</td></tr>
+    <tr><td>配置</td><td>园区审批引擎管理台</td><td>为新 <code>eventId</code> 配置审批节点（默认 <code>LEADER</code> 规则单节点）</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   单测：新 <code>eventId</code> 下 <code>approvalProcess()</code> 能正确取到申请人主管；<code>reportTo</code> 为空（无主管）时的兜底行为需明确（当前 <code>LEADER</code> 分支为空则不生成审批人，需在 spec 阶段决定是否需要兜底审批人或拦截提交）。集成：提交→主管审批同意/驳回→重提整条链路走通；驳回后原申请状态与可编辑性验证。权限：非本人直属主管尝试审批应被拒绝。
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   依赖 4.10（已满足，零改造）、批次 2 已交付的保密放行单据域与 App 执行环节页面。依赖批次 4 的组织架构数据准确性（<code>reportTo</code> 依赖 DHR 同步）。风险：<code>reportTo</code> 为空场景（新员工同步延迟、主管离职未及时更新）需要兜底方案，否则申请会卡在「审批人为空」；第一阶段 OA 申请与最终阶段 App 申请并存期，需要明确的单据来源标记以免报表/统计口径混乱，本文档不替代该口径的详细设计。
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-12">
+ <div class="ih"><span class="ino">4.12</span><h3>审批流可配置</h3><span class="ibatch">批次 5</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   部分满足，退宿审批是现成样板。<code>SmtDormitoryQuitApplyServiceImpl.getApprovePersonList()</code>（<code>smart-module/smart-platform/smart-platform-biz/.../impl/SmtDormitoryQuitApplyServiceImpl.java:415-426</code>）示范了「事件类型 + 条件」求审批人的标准接法：<br>
+   <code>private List&lt;ApproveProcessListReqDTO&gt; getApprovePersonList(DormitoryQuitApplyEditReqDTO quitApply) { ApprovalProcessReqDTO approvalProcess = new ApprovalProcessReqDTO(); ...; approvalProcess.setEventId(ApproveListTypeConstants.QUIT_DORMITORY); ...; List&lt;ApproveProcessListReqDTO&gt; approveProcessList = approvalService.approvalProcess(approvalProcess); return approveProcessList; }</code><br>
+   条件枚举 <code>ApprovalConditionEnum</code>（<code>smart-module/smart-tool/.../enums/ApprovalConditionEnum.java</code>）当前 7 个值：<code>REPAIR_AREA(1)</code>/<code>REPAIR_TYPE(2)</code>/<code>ITEM_TYPE(3)</code>/<code>DORMITORY_NAME(4)</code>/<code>REPAIR_DORMITORY_NAME(5)</code>/<code>QUIT_DORMITORY_REASON(6)</code>/<code>QUIT_DORMITORY_NAME(7)</code>，均为已有业务定制的条件，无保密放行相关值。审批人规则枚举 <code>ApprovalPersonRuleEnum</code> 含 <code>EXIST</code>（指定人）/<code>LEADER</code>（上级领导，见 4.11）/<code>ROOMMATE</code>（室友，退宿专用）三种，「上级领导」规则可直接给 4.11 用。<br>
+   配置 CRUD Controller 齐备：<code>controller/approval/</code> 下 <code>SmtApprovalController.java</code>、<code>SmtApprovalNodeController.java</code>、<code>SmtApprovalPersonController.java</code>、<code>SmtApprovalConditionController.java</code> 四个均存在（均位于 <code>smart-module/smart-platform/smart-platform-biz/.../controller/approval/</code>）。smart-ui 侧 <code>dorm_exit/_service.js</code> 已示范节点相关调用（<code>/platform/approval/list/page</code>、<code>/platform/approval/node/update</code>、<code>/platform/approval/node/list/{id}</code>、<code>/platform/smtapprovalcondition/type/list</code>），是否已有完整的「可视化配置管理页」（而不只是节点级接口）标注为 UNVERIFIED，需要以现有 <code>smart-ui</code> 路由核实。
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   为保密放行扩充 <code>ApprovalConditionEnum</code>（按放行事项类型/物料流向分流，例如按出发岗位或物品类别路由到不同审批人），并补齐一个可视化配置页（若现状确无完整管理页），支持管理员按事件类型（含新的保密放行 <code>eventId</code>）配置节点、审批人规则、条件分流，无需改代码即可调整审批流程。
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   <code>ApprovalConditionEnum</code> 新增枚举值（如 <code>SECURITY_RELEASE_TYPE(8, "放行事项类型")</code>、<code>SECURITY_RELEASE_MATERIAL_FLOW(9, "物料流向")</code>），配合 <code>smt_approval_condition</code> 表已有的条件行结构，为新 <code>eventId</code>（4.11 新增）配置条件分流规则。若现有节点级接口缺少整合的管理页，新建 <code>smart-ui/src/views/platform/business/approval_config/</code> 页面，仿照 <code>dorm_exit/_service.js</code> 的接口调用方式，做「事件类型 → 节点列表 → 每节点的审批人规则/条件」三级可视化编辑。
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>管理员进入审批流配置页，选择事件类型（新增「保密放行」选项）</li>
+    <li>为该事件类型配置一个或多个审批节点，指定顺序</li>
+    <li>每节点选审批人规则：指定人（<code>EXIST</code>）/上级领导（<code>LEADER</code>）/条件分流</li>
+    <li>条件分流规则从 <code>ApprovalConditionEnum</code> 扩充值中选择（放行事项类型/物料流向）</li>
+    <li>保存后 4.11 提交申请时 <code>approvalProcess()</code> 按新配置动态求审批人</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>后端</td><td><code>ApprovalConditionEnum.java</code></td><td>新增保密放行相关条件枚举值</td></tr>
+    <tr><td>后端</td><td><code>SmtApprovalConditionController.java</code></td><td>核实现有接口是否已足够支撑新条件类型，不足则扩展</td></tr>
+    <tr><td>前端</td><td>核实现状（UNVERIFIED）</td><td>确认是否已有完整可视化配置页；若无则新建整合页面，仿 <code>dorm_exit/_service.js</code> 接口调用方式</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   单测：新条件枚举值的 <code>getEnmu()</code>/<code>desc()</code> 查找正确。集成：为保密放行事件类型配置「按物料流向分流到不同审批人」，提交不同流向的申请，验证 <code>approvalProcess()</code> 返回的审批人符合配置。回归：退宿等既有事件类型的审批流程配置不受影响（条件枚举扩充为新增值，不修改既有值编码）。
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   依赖 4.11 完成新 <code>eventId</code> 注册。风险：现有「可视化配置管理页」完整度未核实（UNVERIFIED），若确实只有节点级零散接口而无整合页面，本项工作量会显著高于「扩充枚举」这一步，需在 spec 阶段先核实现状再定工作量；条件枚举扩充要避免与其他业务（如未来新事件类型）产生编码冲突，建议预留编号区间。
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-4-13">
+ <div class="ih"><span class="ino">4.13</span><h3>押运方式选择</h3><span class="ibatch">批次 5</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   缺失，全仓无「押运」相关字段或代码（grep 确认零命中）。最接近的既有字段是物料明细表 <code>SMT_ARTICLES_RELEASE_THING</code>（<code>SmtArticlesReleaseThing.java:20</code> <code>@TableName("SMT_ARTICLES_RELEASE_THING")</code>）中的运输方式字段 <code>ysfs</code>（第 66 行，人工/货车/叉车/三轮），以及保密区预约陪同人概念，但语义均不符——<code>ysfs</code> 描述的是「货物怎么运」，不是「谁押运、用什么方式确认押运人身份」。<br>
+   需要注意：保密物品放行按 4.7 口径修正是<strong>新建的独立单据域</strong>（厂内 A 岗位→B 岗位流转，主单+物料明细+封条+A/B 确认节点），不是把 <code>SMT_ARTICLES_RELEASE_THING</code> 体系直接搬进 App，因此 4.13 的押运字段应加在批次 2 已建的新单据域主单/明细上，<code>ysfs</code> 只作为「运输方式已有类似字段设计先例」的参考，不是本项的直接改动目标。
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   问题 12 已确认从简口径：放行单增加押运方式字段（人工押运/定位器锁二选一）+ 押运人字段（刷卡卡号/工号）+ 锁编号字段；A 点安检在 App 上选择押运方式，选人工押运则押运人须刷卡确认身份，选定位器锁则须手动录入锁编号（必填校验）后提交留痕。不做设备清单管理、不做锁状态跟踪，字段随批次 2 单据域预留，本批次完整交付含报表展示。
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   在保密放行单据域主单表加 <code>escort_type</code>（押运方式：1 人工押运/2 定位器锁）、<code>escort_person_badge</code>（押运人工号，人工押运时刷卡后回填）、<code>escort_person_card_no</code>（刷卡卡号，来自 <code>SMT_ISC_STAFF_CARD</code> 反查）、<code>lock_no</code>（定位器锁编号，定位器锁时必填）四个字段。App「A 点确认」页新增押运方式选择组件：选人工押运时唤起刷卡/NFC 流程（复用 4.7/4.9 已建的刷卡节点）；选定位器锁时展示锁编号输入框（PDA 扫码头或手动输入均可，必填校验）。
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>安检在 A 点确认页选择押运方式：人工押运 或 定位器锁</li>
+    <li>人工押运：唤起刷卡流程，押运人刷卡，系统按卡号反查 <code>SMT_ISC_STAFF_CARD</code> 得到工号/姓名，回填并确认</li>
+    <li>定位器锁：安检手动录入锁编号，前端校验非空后提交</li>
+    <li>保存押运信息到放行单主单，随单据一起流转到 B 点</li>
+    <li>B 点确认时展示押运方式与押运人/锁编号供核对（不做二次校验，仅展示留痕）</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>DB</td><td>保密放行单据域主单表（批次 2 已建）</td><td>加 <code>escort_type</code>/<code>escort_person_badge</code>/<code>escort_person_card_no</code>/<code>lock_no</code> 四个字段</td></tr>
+    <tr><td>后端</td><td>放行单据域 Service（A 点确认接口）</td><td>接收并校验押运信息：定位器锁时 <code>lock_no</code> 必填，人工押运时 <code>escort_person_card_no</code> 必须通过 <code>SMT_ISC_STAFF_CARD</code> 反查得到有效工号</td></tr>
+    <tr><td>前端(App)</td><td>A 点确认页</td><td>押运方式二选一组件 + 人工押运刷卡流程 + 定位器锁编号输入框</td></tr>
+    <tr><td>前端(报表)</td><td>4.8 放行条报表 / 管理台报表</td><td>列表与详情增加押运方式/押运人/锁编号展示与筛选</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   单测：定位器锁选中但锁编号为空时提交应被拒绝；人工押运选中但未完成刷卡时提交应被拒绝。集成：两种押运方式各走一遍完整放行流程，核对报表展示字段完整、B 点能看到 A 点录入的押运信息。刷卡路径依赖 4.7/4.9 已交付的刷卡节点，需确认联调可用。
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   依赖批次 2 已交付的保密放行单据域与 4.7/4.9 刷卡验证节点（人工押运分支复用）。依赖员工↔IC 卡号绑定 <code>SMT_ISC_STAFF_CARD</code> 数据完整性——押运人若未登记卡号将无法完成人工押运确认，需要在批次 2 已确认过的问题 19（卡号绑定已全部关闭）基础上核实押运人角色（可能是保安/司机等特定岗位）是否也已完成发卡登记。风险：定位器锁编号纯手动录入无设备状态校验，无法防止录入错误编号或重复使用同一编号，若后续需要防重可在 spec 阶段补充锁编号占用中校验（本批次口径明确不做）。
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-7-1">
+ <div class="ih"><span class="ino">7.1</span><h3>自助打印硬件对接</h3><span class="ibatch">批次 6（远期，仅规划）</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   无现状可言，全仓唯一的自助打印链路是访客凭条：本地身份证读卡器通过浏览器 WebSocket 对接（<code>ws://127.0.0.1:33666</code>，<code>smart-ui/src/views/platform/visitor/qrCode_new/index.vue:167</code> 注释「客户端电脑本地IP，非服务器IP」）+ b-PAC 浏览器插件调用本地 Brother 标签打印机，模板路径硬编码（同文件 410-416 行按 <code>isVip</code> 二选一拼接 <code>/resource/bpacTemplates/red/{visitor,visitor-VIP}.lbx</code>），模板文件确认存在（<code>smart-ui/public/resource/bpacTemplates/{red,white}/{visitor,visitor-VIP}.lbx</code>）。这是「本地读卡器 + 浏览器插件 + 本地标签打印机」这一套特定组合的专用实现，与「自助设备」（无人值守、面向访客/员工自助操作的一体化打印终端）完全是两回事，代码层面没有任何可复用的抽象。
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   本批次不开发，只产出规划要点：明确设备定制完成后应对接的接口面，避免 1.2 模板设计器（批次 1-2 已建）的「渲染输出」环节把 b-PAC/标签机耦合死，导致将来接自助打印设备时要推倒重来。验收标准是一份可执行的接口预留清单，而非代码交付。
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   利用批次 1-2 已经把「渲染输出」设计为可对接不同打印通道这一前提（决策 B 第 1 点：canvas/HTML 转图 → b-PAC 图片对象 / IC 证卡机打印通道，两通道已经是分离的），在该抽象层再预留第三个通道位——「自助设备打印通道」，具体协议（本地代理/云端下发/一体机 SDK）留待设备选型后再定，本阶段只锁定接口形状：模板渲染产出统一的图片/位图数据 + 打印任务元数据（人员信息、模板 ID、目标设备类型），由具体通道适配器决定如何把这份数据送到物理打印机。
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>（远期）设备完成选型与本地代理/SDK 联调</li>
+    <li>模板设计器渲染产出通用位图数据（复用 1.2 已有渲染管线，不为自助设备重写模板引擎）</li>
+    <li>按目标设备类型路由到对应打印通道适配器（b-PAC / IC 证卡机 / 自助设备，三选一）</li>
+    <li>自助设备通道适配器负责与物理终端通信，完成打印</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>规划</td><td>1.2 模板设计器渲染输出层（批次 1-2 交付物）</td><td>确认渲染产出与打印通道之间已有清晰边界，为第三个通道（自助设备）预留适配器接入点，不在本批次实现该适配器</td></tr>
+    <tr><td>规划</td><td>无代码改动</td><td>仅产出接口面文档，供设备选型后的独立立项使用</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   本批次不涉及可运行代码，无测试项。规划成果的验证标准是：设备选型完成后，新增一个打印通道适配器时，是否只需要实现「接收位图数据+元数据 → 调用设备协议打印」这一个接口，而不需要改动模板设计器或已有的 b-PAC/证卡机通道代码。
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   依赖批次 1-2 的模板设计器与打印渲染输出按决策 B 的抽象方式落地（若批次 1-2 实现时为求进度把 b-PAC 通道和渲染逻辑耦合，本项的「预留接口面」就无从谈起，需要在批次 1-2 验收时把「通道可扩展性」作为一项检查点）。风险：自助打印设备的具体形态（一体机/多功能终端/带读卡功能等）未定，规划要点可能在设备选型后需要调整；本项排在批次 6 无固定时间表，长期悬空可能导致批次 1-2 交付时无人主动检查通道抽象是否留了口子。
+  </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-open">
+ <div class="ih"><span class="ino">收口</span><h3>开放事项</h3><span class="ibatch">批次 5/6 相关</span></div>
+ <dl>
+  <dt>现状与问题</dt>
+  <dd>
+   两类开放事项直接影响本文覆盖的批次能否按期启动：<br>
+   ① <strong>问题 20（5.4 生产核查）</strong>：生产环境 <code>task.job.supplier-auto-auth-delete</code> 与 Nacos 动态开关 <code>timer_task_supplier_auto_auth_delete</code>（本次调研核实的真实键名，见 5.4 现状）当前是否为开启状态尚未查证。若已开启，则 <code>SmtSecurityAuthDeleteServiceImpl.java:229</code> 的取错字段 BUG（批次 0 已修复代码，但生产是否已发布该修复需单独确认）可能已经造成过大面积误删保密权限，需要先核查 136 主机 bootstrap 配置与 <code>smt_device_task</code> 历史删除任务记录，评估是否需要数据补救，再决定 5.4 灰度启动的起点是「正常灰度」还是「先做历史影响评估」。<br>
+   ② <strong>IC 证卡机/PDA 机型采购确认清单</strong>：问题 18 已确认 PDA 为 Android 系统、IC 证卡机只打卡面不写卡（风险已降），但两个具体机型仍待定。机型未定会连带阻塞：批次 2 的扫码头接入验证（决策 A 第 3 点）、批次 3 的 NFC demo（问题 24 已确认卡号口径，但仍需机型上机核验一次进制/字节序）、以及本批次 4.13 中「人工押运刷卡」这一分支在真实设备上的可用性验证。
+  </dd>
+  <dt>目标与验收标准</dt>
+  <dd>
+   两项开放事项均不属于「代码可解决」范畴，本节只做收口说明，不产出代码改动方案：① 问题 20 需要一次生产环境核查动作（查配置+查历史任务记录），产出「当前开关状态」+「若已开启，历史误删范围评估」两个结论，直接决定 5.4 灰度启动是否需要先做数据补救；② 机型采购清单需要业务/采购侧给出定案，技术侧配合列出选型时需验证的接口能力（PDA：内置扫码头是否支持广播模式/键盘仿真或需厂商 SDK、NFC 芯片读取能力；IC 证卡机：本地代理协议形态、是否提供 SDK 或需要中间件）。
+  </dd>
+  <dt>实现方式</dt>
+  <dd>
+   问题 20：登录 136 主机核查 <code>bootstrap.yml</code>/Nacos 配置中心中 <code>task.job.supplier-auto-auth-delete</code> 的实际值，以及 <code>timer_task_supplier_auto_auth_delete</code> 动态开关的当前状态；若开启，SQL 核对 <code>smt_device_task</code> 中 <code>action=12</code>（延迟删除）且来源可追溯到保密区自动删除任务的历史记录，评估影响范围。机型采购：技术侧不负责采购决策，仅提供一份「验收测试清单」供采购/业务侧在选型时用于现场验证候选机型。
+  </dd>
+  <dt>处理流程</dt>
+  <dd>
+   <ol>
+    <li>核查 136 主机 <code>bootstrap.yml</code> 本地配置文件与 Nacos 配置中心当前值</li>
+    <li>核查 <code>smt_device_task</code> 历史删除任务记录，比对 BUG 存在期间的删除量是否异常</li>
+    <li>若发现异常删除，评估是否需要数据补救（是否需要联系 ISC 侧核实设备端实际权限状态）</li>
+    <li>机型采购清单交业务/采购侧，技术侧列出到货后的验证测试项（扫码头联通、NFC 读卡编码一致性、证卡机打印协议）</li>
+   </ol>
+  </dd>
+  <dt>改动清单</dt>
+  <dd>
+   <table>
+    <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
+    <tr><td>运维</td><td>136 主机 bootstrap 配置 / Nacos</td><td>核查开关当前值（不代表本文档执行改动，仅列为待办）</td></tr>
+    <tr><td>运维</td><td>生产 <code>smt_device_task</code> 表</td><td>历史删除记录核查 SQL（只读排查，不做数据改动）</td></tr>
+    <tr><td>采购</td><td>无代码</td><td>PDA/IC 证卡机机型定案，技术侧提供验证测试清单</td></tr>
+   </table>
+  </dd>
+  <dt>测试与验证</dt>
+  <dd>
+   不适用（本节为运维核查与采购收口事项，非代码交付）。
+  </dd>
+  <dt>依赖与风险</dt>
+  <dd>
+   问题 20 的核查结论直接决定 5.4 能否按「正常灰度」节奏启动——若历史已有大面积误删，需要额外插入一轮数据补救工作，会推迟 5.4 的灰度开始时间。机型采购清单的确认时间直接决定批次 2 启动门（扫码头验证）与批次 3（NFC 正式接入）能否按期开始，进而间接影响本批次 4.13 中依赖刷卡节点的部分能否联调验证；机型迟迟不定案是当前全部硬件相关需求（1.1/4.7/4.9/4.13）共同的最大外部风险点。
+  </dd>
+ </dl>
+</section>
+
+  <div class="pager"><a href="#p16">← 上一批次</a><a class="next" href="#p12">下一章 · 风险与确认清单 →</a></div>
 </section>
 
 </main>
@@ -517,7 +2649,7 @@ flowchart LR
 
 <script>
 (function(){
-  var pages=['p0','p1','p2','p3','p4','p5','p6','p7','p8','p9','p10','p11','p12'];
+  var pages=['p0','p1','p2','p3','p4','p5','p6','p7','p8','p9','p10','p11','p12','p13','p14','p15','p16','p17'];
   var nav=document.getElementById('nav');
   function show(id){
     if(pages.indexOf(id)<0) id='p0';
@@ -529,6 +2661,16 @@ flowchart LR
   function fromHash(){ show((location.hash||'#p0').replace('#','')); }
   window.addEventListener('hashchange', fromHash);
   fromHash();
+  ['p13','p14','p15','p16','p17'].forEach(function(id){
+    var pg=document.getElementById('pg-'+id), toc=document.getElementById('toc-'+id);
+    if(!pg||!toc) return;
+    pg.querySelectorAll('.item').forEach(function(it){
+      var no=it.querySelector('.ino'), h=it.querySelector('h3'); if(!h) return;
+      var a=document.createElement('a'); a.href='#'+id; a.textContent=(no?no.textContent+' ':'')+h.textContent;
+      a.addEventListener('click',function(e){e.preventDefault(); if(location.hash!=='#'+id){location.hash='#'+id;} setTimeout(function(){it.scrollIntoView({behavior:'smooth',block:'start'})},60)});
+      toc.appendChild(a);
+    });
+  });
   // 键盘翻页（不拦截修饰键组合）
   document.addEventListener('keydown', function(e){
     if(e.metaKey||e.ctrlKey||e.altKey) return;
