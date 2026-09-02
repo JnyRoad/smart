@@ -301,13 +301,28 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 		return ipage;
 	}
 
+	/**
+	 * 为一批设备创建删除任务，必须遍历所有设备，不能因单台任务保存完成或失败而提前退出。
+	 *
+	 * @param deviceTaskDeleteDTO 删除任务参数
+ * @return 本次存在需创建的非 ISC 删除任务、所有设备编码均有效且任务全部保存成功时返回 true
+	 */
 	@Override
 	public boolean deleteTask(DeviceTaskDeleteDTO deviceTaskDeleteDTO) {
+		boolean hasNonIscTaskToCreate = false;
+		boolean allNonIscTasksSaved = true;
+		boolean allDeviceCodesResolved = true;
 		//根据serialNo来生成删除任务
 		if (ObjectUtil.isNotNull(deviceTaskDeleteDTO) && StringUtils.isNotEmpty(deviceTaskDeleteDTO.getCardNo()) && CollectionUtil.isNotEmpty(deviceTaskDeleteDTO.getDeviceCode())) {
 			for (String deviceCode : deviceTaskDeleteDTO.getDeviceCode()) {
 				//判断设备是否为ISC同步的 是则把任务创建在新表中
 				SmtDevice smtDevice = smtDeviceMapper.selectById(deviceCode);
+				if (smtDevice == null) {
+					// 设备已删除或编码无效时，标记整批失败但继续处理后续设备。
+					log.warn("删除任务未找到设备，跳过处理，deviceCode：{}", deviceCode);
+					allDeviceCodesResolved = false;
+					continue;
+				}
 				if (StaffSyncEnum.YES.getCode().equals(smtDevice.getIsSync())) {
 					smtIscDeviceTaskService.deleteTask(deviceCode, deviceTaskDeleteDTO.getCardNo());
 					continue;
@@ -328,6 +343,7 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 					);
 					if (count == 0) {
 						//生成删除任务
+						hasNonIscTaskToCreate = true;
 						SmtDeviceTask deviceTask = new SmtDeviceTask();
 						deviceTask.setId(null);
 						deviceTask.setDeviceCode(taskDownRecord.getDeviceCode());
@@ -345,12 +361,13 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 						deviceTask.setOverTime(DateUtil.currentSeconds());
 						String sNo = UUID.randomUUID().toString().replaceAll("-", "");
 						deviceTask.setSerialNo(sNo);
-						return this.save(deviceTask);
+						// 使用非短路与运算，单台保存失败后仍继续为后续设备创建删除任务。
+						allNonIscTasksSaved &= this.save(deviceTask);
 					}
 				}
 			}
 		}
-		return Boolean.FALSE;
+		return hasNonIscTaskToCreate && allNonIscTasksSaved && allDeviceCodesResolved;
 	}
 
 	@Override
