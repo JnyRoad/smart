@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * ISC平台对接服务
@@ -81,6 +82,16 @@ public class BridgeISCServiceImpl implements BridgeISCService, CommandLineRunner
 	 * 参数提交方式
 	 */
 	private static final String CONTENT_TYPE = "application/json";
+
+	/**
+	 * ISC事件订阅超过该时长未收到成功回调时，认为本地订阅标志可能失真。
+	 */
+	private static final long EVENT_SUBSCRIBE_HEALTH_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(10);
+
+	/**
+	 * 最近一次成功处理ISC回调的时间；订阅刚成功时也会写入，作为首个回调的观察期。
+	 */
+	private volatile long lastSuccessfulEventCallbackTime;
 
 	@Override
 	public <T> String dispatch(BridgeDTO<T> bridgeDTO) {
@@ -181,6 +192,7 @@ public class BridgeISCServiceImpl implements BridgeISCService, CommandLineRunner
 		if (response != null && isIscSuccessCode(response.getCode())) {
 			log.info("订阅事件成功");
 			SUBSCRIBE_STATUS = true;
+			refreshEventSubscribeHealthTime();
 			return;
 		}
 		SUBSCRIBE_STATUS = false;
@@ -491,12 +503,50 @@ public class BridgeISCServiceImpl implements BridgeISCService, CommandLineRunner
 		log.info("请求参数：event={},参数={}", eventEnum.getKey(), object);
 	}
 
-	//每2分钟执行一次
+	/**
+	 * 每两分钟检查一次订阅健康状态，超时才重新向ISC订阅。
+	 */
 	@Scheduled(initialDelay = 1000 * 60, fixedDelay = 1000 * 60 * 2)
 	public void subscribeTask() {
+		if (!isEventSubscribeEnabled()) {
+			return;
+		}
+		if (isEventSubscribeHealthExpired()) {
+			log.warn("ISC事件订阅健康超时，最近成功回调时间：{}，准备重新订阅",
+					lastSuccessfulEventCallbackTime);
+			SUBSCRIBE_STATUS = false;
+		}
 		subscribeEvent();
 	}
 
+	/**
+	 * 记录一条ISC事件已被成功处理，用于证明当前事件订阅链路仍然健康。
+	 */
+	public void recordSuccessfulEventCallback() {
+		refreshEventSubscribeHealthTime();
+	}
+
+	/**
+	 * 判断本地已订阅但长期未收到成功回调的假活状态。
+	 */
+	private boolean isEventSubscribeHealthExpired() {
+		if (!SUBSCRIBE_STATUS) {
+			return false;
+		}
+		return System.currentTimeMillis() - lastSuccessfulEventCallbackTime
+				>= EVENT_SUBSCRIBE_HEALTH_TIMEOUT_MILLIS;
+	}
+
+	/**
+	 * 刷新订阅健康时间，volatile写入保证巡检线程能读取到最新时间。
+	 */
+	private void refreshEventSubscribeHealthTime() {
+		lastSuccessfulEventCallbackTime = System.currentTimeMillis();
+	}
+
+	/**
+	 * 判断当前环境是否开启ISC事件订阅。
+	 */
 	private boolean isEventSubscribeEnabled() {
 		return Boolean.TRUE.equals(eventSubscribeEnabled);
 	}
