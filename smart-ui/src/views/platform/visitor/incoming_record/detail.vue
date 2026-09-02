@@ -337,11 +337,11 @@ export default {
     },
     /**
      * 返回来源申请列表，并恢复进入详情前的查询条件和分页。
-     * 根据受限的货车来源标记选择列表路由；通过路由跳转触发列表页的 created 恢复逻辑，不修改远端数据。
+     * 根据受限的货车来源标记选择列表路由；替换当前详情历史，避免浏览器后退再次进入详情页。
      */
     goBack() {
       const isTruckRecord = this.$route.query.recordType === 'truck'
-      this.$router.push({
+      this.$router.replace({
         path: isTruckRecord ? '/platform/visitor/incoming_record/truck' : '/platform/visitor/incoming_record',
         query: {
           queryPage: this.$route.query.queryPage,

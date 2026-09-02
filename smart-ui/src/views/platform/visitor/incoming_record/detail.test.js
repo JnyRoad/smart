@@ -15,33 +15,33 @@ const component = (await import('./detail.vue')).default
 const truckComponent = (await import('./truck.vue')).default
 
 describe('入厂申请详情返回', () => {
-  it('返回列表时原样携带进入详情前的查询条件和分页', () => {
-    const push = vi.fn()
+  it('返回列表时替换详情历史并原样携带查询条件和分页', () => {
+    const replace = vi.fn()
     const queryPage = { currentPage: 2, pageSize: 8 }
     const queryForm = { visitorName: '王小雨', status: '2' }
 
     component.methods.goBack.call({
-      $router: { push },
+      $router: { replace },
       $route: { query: { queryPage, queryForm } }
     })
 
-    expect(push).toHaveBeenCalledWith({
+    expect(replace).toHaveBeenCalledWith({
       path: '/platform/visitor/incoming_record',
       query: { queryPage, queryForm }
     })
   })
 
   it('从货车记录进入时返回货车列表并保留查询条件和分页', () => {
-    const push = vi.fn()
+    const replace = vi.fn()
     const queryPage = { currentPage: 3, pageSize: 16 }
     const queryForm = { visitorName: '司机甲', vehiclePlate: '豫A12345' }
 
     component.methods.goBack.call({
-      $router: { push },
+      $router: { replace },
       $route: { query: { queryPage, queryForm, recordType: 'truck' } }
     })
 
-    expect(push).toHaveBeenCalledWith({
+    expect(replace).toHaveBeenCalledWith({
       path: '/platform/visitor/incoming_record/truck',
       query: { queryPage, queryForm, recordType: 'truck' }
     })
