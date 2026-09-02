@@ -1,7 +1,6 @@
 package com.tce.smart.common.security.openapi;
 
 import com.tce.smart.common.security.annotation.OpenApi;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,6 +9,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -35,10 +35,23 @@ import javax.servlet.http.HttpServletResponse;
  * 因此这里不依赖任何异常翻译链，直接调用 {@code response.sendError(403, ...)} 是唯一可靠的路径。
  */
 @Slf4j
-@RequiredArgsConstructor
 public class OpenApiInterceptor implements HandlerInterceptor {
 
 	private final OpenApiAuthenticationAdapter adapter;
+	private final boolean allowDeprecatedCompatibilityScopes;
+
+	/**
+	 * 保持既有构造方式的二进制兼容；默认启用已废弃 scope 的迁移兼容，
+	 * 具体服务可通过双参构造在完成迁移后显式关闭。
+	 */
+	public OpenApiInterceptor(OpenApiAuthenticationAdapter adapter) {
+		this(adapter, true);
+	}
+
+	public OpenApiInterceptor(OpenApiAuthenticationAdapter adapter, boolean allowDeprecatedCompatibilityScopes) {
+		this.adapter = adapter;
+		this.allowDeprecatedCompatibilityScopes = allowDeprecatedCompatibilityScopes;
+	}
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -57,8 +70,9 @@ public class OpenApiInterceptor implements HandlerInterceptor {
 
 		boolean allow;
 		if (openApi != null) {
-			// 规则1：标注了 @OpenApi 的接口，必须是纯客户端 token 且 scope 命中
-			allow = clientOnly && adapter.scopes(authentication).contains(openApi.value());
+			// 规则1：标注了 @OpenApi 的接口，必须是纯客户端 token 且主 scope 或迁移兼容 scope 命中。
+			// compatibilityScopes 只服务于有限迁移期，不能替代按能力划分的新主 scope。
+			allow = clientOnly && hasRequiredScope(adapter.scopes(authentication), openApi);
 		} else {
 			// 规则2：deny-by-default——纯客户端 token 不允许访问未显式标注 @OpenApi 的接口
 			// 规则3：其余场景（用户 token 调普通接口）放行，交由既有权限体系继续校验
@@ -79,5 +93,25 @@ public class OpenApiInterceptor implements HandlerInterceptor {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * 主 scope 始终是长期授权边界；兼容 scope 必须先被目录标记为已废弃，才会作为迁移期
+	 * 的精确额外候选项。不支持通配符、前缀或层级匹配，避免泛化为大权限授权。
+	 */
+	private boolean hasRequiredScope(Set<String> tokenScopes, OpenApi openApi) {
+		if (tokenScopes == null || tokenScopes.isEmpty()) {
+			return false;
+		}
+		if (tokenScopes.contains(openApi.value())) {
+			return true;
+		}
+		for (String compatibilityScope : openApi.compatibilityScopes()) {
+			if (allowDeprecatedCompatibilityScopes && OpenApiScopeCatalog.isDeprecated(compatibilityScope)
+					&& tokenScopes.contains(compatibilityScope)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

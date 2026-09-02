@@ -42,6 +42,13 @@ public class SmartResourceServerAutoConfiguration {
 	@Value("${rest.config.validateAfterInactivity:30000}")
 	private Integer validateAfterInactivity;
 
+	/**
+	 * 已废弃开放 API scope 的迁移开关。初始发布保持 true，确认没有旧调用后由配置中心切为 false
+	 * 并滚动重启资源服务；即使 Controller 注解尚未移除兼容项也会拒绝旧大权限 token。
+	 */
+	@Value("${smart.openapi.allow-deprecated-compatibility-scopes:true}")
+	private boolean allowDeprecatedOpenApiCompatibilityScopes;
+
 	@Bean
 	@Primary
 	@LoadBalanced
@@ -117,7 +124,8 @@ public class SmartResourceServerAutoConfiguration {
 		return new WebMvcConfigurer() {
 			@Override
 			public void addInterceptors(InterceptorRegistry registry) {
-				registry.addInterceptor(new OpenApiInterceptor(openApiAuthenticationAdapter)).addPathPatterns("/**");
+				registry.addInterceptor(new OpenApiInterceptor(openApiAuthenticationAdapter,
+						allowDeprecatedOpenApiCompatibilityScopes)).addPathPatterns("/**");
 			}
 		};
 	}

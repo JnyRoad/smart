@@ -15,16 +15,20 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
- * 为无 HTTP 请求上下文的能耗投影调度任务申请并缓存 server scope 的 Bearer 令牌。
+ * 为无 HTTP 请求上下文的能耗投影调度任务按 capability scope 申请并缓存 Bearer 令牌。
+ *
+ * <p>缓存按 scope 隔离，避免后续新增能力后将一个大权限 token 复用于不同内部接口。</p>
  */
 public class EnergyProjectionServerTokenProvider {
 
 	private final EnergyProjectionOAuthProperties properties;
 	private final RestOperations restOperations;
 	private final Clock clock;
-	private volatile CachedToken cachedToken;
+	private final ConcurrentMap<String, CachedToken> cachedTokens = new ConcurrentHashMap<>();
 
 	public EnergyProjectionServerTokenProvider(EnergyProjectionOAuthProperties properties, RestOperations restOperations,
 			Clock clock) {
@@ -34,38 +38,56 @@ public class EnergyProjectionServerTokenProvider {
 	}
 
 	/**
-	 * 获取可用于 Feign 调用的 Authorization 请求头；配置或授权失败时安全抛错，不发送匿名内部请求。
+	 * 获取历史默认 scope 的 Authorization 请求头。仅为已编译调用方的迁移兼容保留；
+	 * 新代码必须改用 {@link #authorizationHeader(String)} 或具体能力方法。
 	 */
+	@Deprecated
 	public String authorizationHeader() {
+		return authorizationHeader(properties.getScope());
+	}
+
+	/**
+	 * 获取能耗投影内部调用所需的最小能力令牌。
+	 */
+	public String energyProjectionAuthorizationHeader() {
+		return authorizationHeader(properties.getEnergyProjectionRunScope());
+	}
+
+	/**
+	 * 获取指定 capability scope 的 Authorization 请求头；配置或授权失败时安全抛错，
+	 * 不发送匿名内部请求。不同 scope 的令牌独立缓存，避免权限串用。
+	 */
+	public String authorizationHeader(String capabilityScope) {
+		String normalizedScope = normalizeCapabilityScope(capabilityScope);
 		Instant now = clock.instant();
-		CachedToken current = cachedToken;
+		CachedToken current = cachedTokens.get(normalizedScope);
 		if (current != null && current.isUsable(now)) {
 			return current.authorizationHeader;
 		}
 		synchronized (this) {
 			now = clock.instant();
-			current = cachedToken;
+			current = cachedTokens.get(normalizedScope);
 			if (current != null && current.isUsable(now)) {
 				return current.authorizationHeader;
 			}
-			CachedToken refreshed = requestToken(now);
-			cachedToken = refreshed;
+			CachedToken refreshed = requestToken(now, normalizedScope);
+			cachedTokens.put(normalizedScope, refreshed);
 			return refreshed.authorizationHeader;
 		}
 	}
 
 	/**
-	 * 按 OAuth2 client_credentials 规范向授权端点申请 server scope 令牌。
+	 * 按 OAuth2 client_credentials 规范向授权端点申请指定 capability scope 令牌。
 	 */
 	@SuppressWarnings("rawtypes")
-	private CachedToken requestToken(Instant now) {
-		validateConfiguration();
+	private CachedToken requestToken(Instant now, String capabilityScope) {
+		validateConfiguration(capabilityScope);
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 		headers.set(HttpHeaders.AUTHORIZATION, basicAuthorization(properties.getClientId(), properties.getClientSecret()));
 		MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
 		form.add("grant_type", "client_credentials");
-		form.add("scope", properties.getScope());
+		form.add("scope", capabilityScope);
 		ResponseEntity<Map> response;
 		try {
 			response = restOperations.exchange(properties.getAccessTokenUri(), HttpMethod.POST,
@@ -90,7 +112,7 @@ public class EnergyProjectionServerTokenProvider {
 	/**
 	 * 配置不完整时不向平台内部端点发出无凭证调用。
 	 */
-	private void validateConfiguration() {
+	private void validateConfiguration(String capabilityScope) {
 		if (isBlank(properties.getAccessTokenUri())) {
 			throw new IllegalStateException("能耗投影 OAuth access-token-uri 未配置");
 		}
@@ -100,9 +122,19 @@ public class EnergyProjectionServerTokenProvider {
 		if (isBlank(properties.getClientSecret())) {
 			throw new IllegalStateException("能耗投影 OAuth client-secret 未配置");
 		}
-		if (isBlank(properties.getScope())) {
+		if (isBlank(capabilityScope)) {
 			throw new IllegalStateException("能耗投影 OAuth scope 未配置");
 		}
+	}
+
+	/**
+	 * 统一去除配置值两侧空白，避免同一 capability 因配置格式差异产生重复缓存项。
+	 */
+	private String normalizeCapabilityScope(String capabilityScope) {
+		if (isBlank(capabilityScope)) {
+			throw new IllegalStateException("能耗投影 OAuth scope 未配置");
+		}
+		return capabilityScope.trim();
 	}
 
 	private String basicAuthorization(String clientId, String clientSecret) {

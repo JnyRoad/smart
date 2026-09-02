@@ -66,9 +66,13 @@
 </template>
 
 <script>
-  import {addObj, delObj, fetchList, mergeAllowedParkIds, putObj, resetSecret} from '@/api/admin/client'
+  import {addObj, delObj, fetchList, fetchScopes, mergeAllowedParkIds, putObj, resetSecret} from '@/api/admin/client'
   import {allPark} from '@/api/platform/_publicService'
-  import {tableOption} from '@/const/crud/admin/client'
+  import {
+    createTableOption,
+    mergeEditableScopeOptions,
+    normalizeScopeFormValue
+  } from '@/const/crud/admin/client'
   import {mapGetters} from 'vuex'
 
   export default {
@@ -82,7 +86,7 @@
           pageSize: 20 // 每页显示多少条
         },
         tableLoading: false,
-        tableOption: tableOption,
+        tableOption: createTableOption(),
         form: {},
         // 授权园区多选框当前选中值；与 form.allowedParkIds 保持同步（见 watch）
         allowedParkIds: [],
@@ -135,22 +139,63 @@
         this.$refs.crud.rowDel(row, index)
       },
       /**
-       * 表单弹窗打开前的准备：拉取园区下拉数据源，并把当前行的 scope/授权园区
-       * 从后端存储格式（逗号字符串 / additionalInformation JSON）反解成表单可编辑的数组。
+       * 表单弹窗打开前的准备：拉取园区和 capability scope 目录，并把当前行的
+       * scope/授权园区从后端存储格式（逗号字符串 / additionalInformation JSON）反解成表单可编辑的数组。
        */
       handleOpenBefore(show, type) {
         allPark().then(response => {
           this.parkOptions = response.data.data
+        }).catch(error => {
+          // 园区选项加载失败不应影响授权域目录的安全校验；记录后仍允许用户重试或继续编辑。
+          console.error(error)
         })
+        this.prepareOpenForm(type)
+        this.loadScopeOptions(type).then(() => {
+          show()
+        }).catch(error => {
+          console.error(error)
+          this.$message({
+            showClose: true,
+            message: '授权域目录加载失败，暂不能编辑 App 授权，请稍后重试',
+            type: 'error'
+          })
+        })
+      },
+      /**
+       * 把当前行的 scope/授权园区转换为表单格式。先完成转换，才能把历史 scope 合并到动态目录中展示。
+       */
+      prepareOpenForm(type) {
         if (['edit', 'view'].includes(type)) {
-          // scope 落库是逗号分隔字符串，多选下拉需要数组
-          this.form.scope = this.form.scope ? this.form.scope.split(',') : []
+          // 列表刚保存/更新时 scope 仍可能是数组，统一规范后才能安全地重新打开多选表单。
+          this.form.scope = normalizeScopeFormValue(this.form.scope)
           this.allowedParkIds = this.parseAllowedParkIds(this.form.additionalInformation)
         } else {
           this.form.scope = []
           this.allowedParkIds = []
         }
-        show()
+      },
+      /**
+       * 从服务端读取 capability scope 目录。新增时隐藏已废弃的历史 scope；编辑/查看时保留，
+       * 以便存量客户端在迁移期可见且不会因打开表单而丢失原有授权。
+       */
+      loadScopeOptions(type) {
+        return fetchScopes().then(response => {
+          const catalog = response.data && response.data.data
+          if (!Array.isArray(catalog)) {
+            throw new Error('服务端返回的授权域目录格式无效')
+          }
+          const options = type === 'add'
+            ? catalog.filter(scope => !scope.deprecated)
+            : this.mergeHistoricalScopeOptions(catalog)
+          this.tableOption = createTableOption(options)
+        })
+      },
+      /**
+       * 编辑老客户端时，已废弃的目录 scope 和历史未知 scope 都以禁用项展示，
+       * 避免保存时被静默删除，也避免通过编辑窗口重新授予历史大权限。
+       */
+      mergeHistoricalScopeOptions(catalog) {
+        return mergeEditableScopeOptions(catalog, this.form.scope || [])
       },
       /**
        * 从 additionalInformation JSON 文本里读出 allowedParkIds，解析失败时静默按空数组处理

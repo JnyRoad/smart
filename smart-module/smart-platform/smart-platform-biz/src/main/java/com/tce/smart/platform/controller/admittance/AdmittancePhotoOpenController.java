@@ -4,6 +4,7 @@ import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.security.annotation.OpenApi;
 import com.tce.smart.common.security.openapi.OpenApiAuthenticationAdapter;
+import com.tce.smart.common.security.openapi.OpenApiScopeCatalog;
 import com.tce.smart.platform.service.admittance.AdmittancePhotoOpenService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.MediaType;
@@ -44,7 +45,7 @@ public class AdmittancePhotoOpenController extends BaseController {
 	/**
 	 * 待拉取照片ID清单（园区范围=应用绑定范围）。
 	 */
-	@OpenApi("open:admittance:photo:read")
+	@OpenApi(OpenApiScopeCatalog.ADMITTANCE_PHOTO_READ)
 	@GetMapping("/pending")
 	public Result<List<String>> pending() {
 		List<Integer> allowedParkIds = openApiAuthenticationAdapter
@@ -56,7 +57,7 @@ public class AdmittancePhotoOpenController extends BaseController {
 	 * 按 photoId 下载照片二进制（image/png）。
 	 * 400=photoId 非法；404=无该图片（数据质量问题，客户端跳过不重试循环）。
 	 */
-	@OpenApi("open:admittance:photo:read")
+	@OpenApi(OpenApiScopeCatalog.ADMITTANCE_PHOTO_READ)
 	@GetMapping("/download/{photoId}")
 	public ResponseEntity<byte[]> download(@PathVariable("photoId") String photoId) {
 		if (photoId == null || !PHOTO_ID_PATTERN.matcher(photoId).matches()) {

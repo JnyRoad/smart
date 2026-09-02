@@ -1,6 +1,5 @@
 
 import { baseTableOption } from '../_base'
-import { OPEN_SCOPES } from '@/const/openScopes'
 
 const DIC = {
   vaild: [{
@@ -11,7 +10,62 @@ const DIC = {
     value: 'true'
   }]
 }
-export const tableOption = {
+
+/**
+ * 将接口返回的逗号字符串或本地表格行保留的数组统一为表单多选框使用的 scope 数组。
+ *
+ * <p>新增、编辑成功后列表会先复用表单行对象，scope 因而可能仍是数组；不能假定它始终是后端
+ * 存储的逗号字符串，否则再次打开编辑窗口会因调用 {@code split} 失败。</p>
+ *
+ * @param {string|string[]|undefined|null} rawScope 原始授权域值
+ * @returns {string[]} 去空白、去空值后的授权域数组
+ */
+export function normalizeScopeFormValue (rawScope) {
+  if (Array.isArray(rawScope)) {
+    return rawScope
+      .map(scope => scope == null ? '' : String(scope).trim())
+      .filter(Boolean)
+  }
+  if (typeof rawScope !== 'string') {
+    return []
+  }
+  return rawScope.split(',').map(scope => scope.trim()).filter(Boolean)
+}
+
+/**
+ * 合并编辑表单可展示的 scope 选项，并禁止新增或重新选择已废弃、未知的历史授权域。
+ *
+ * <p>历史客户端已持有的废弃 scope 需要保留显示，避免管理员打开表单后被静默删除；但它们不能
+ * 再被主动授予。后端仍是最终校验边界，前端禁用只用于避免无效操作。</p>
+ *
+ * @param {Array<{value: string, label: string, deprecated?: boolean, disabled?: boolean}>} catalog 后端目录
+ * @param {string[]} selectedScopes 当前客户端已保存的授权域
+ * @returns {Array<{value: string, label: string, deprecated?: boolean, disabled?: boolean}>} 表单选项
+ */
+export function mergeEditableScopeOptions (catalog, selectedScopes = []) {
+  const catalogOptions = catalog.map(scope => Object.assign({}, scope, {
+    disabled: Boolean(scope.disabled || scope.deprecated)
+  }))
+  const knownValues = new Set(catalogOptions.map(scope => scope.value))
+  const historicalOptions = selectedScopes
+    .filter(scope => !knownValues.has(scope))
+    .map(scope => ({
+      value: scope,
+      label: '历史授权域（仅保留）：' + scope,
+      deprecated: true,
+      disabled: true
+    }))
+  return catalogOptions.concat(historicalOptions)
+}
+
+/**
+ * 根据后端返回的权威 capability scope 目录创建表单配置。
+ *
+ * @param {Array<{value: string, label: string, deprecated?: boolean}>} scopeOptions 授权域选项
+ * @returns {object} Avue 客户端管理表格配置
+ */
+export function createTableOption (scopeOptions = []) {
+  return {
   ...baseTableOption,
   indexLabel: '序号',
   viewBtn: true,
@@ -46,7 +100,7 @@ export const tableOption = {
     align: 'center',
     type: 'select',
     multiple: true,
-    dicData: OPEN_SCOPES,
+    dicData: scopeOptions,
     overHidden: true,
     rules: [{
       required: true,
@@ -115,4 +169,8 @@ export const tableOption = {
     align: 'center',
     hide: true
   }]
+  }
 }
+
+// 页面首次渲染前尚未请求目录时保持空选项；弹窗打开前会替换为后端实时目录。
+export const tableOption = createTableOption()

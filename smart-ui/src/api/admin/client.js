@@ -9,6 +9,18 @@ export function fetchList (query) {
   })
 }
 
+/**
+ * 获取由后端维护的 OAuth capability scope 目录。
+ * 前端只用于展示和选择，创建/更新时仍由服务端再次校验。
+ * @returns {Promise} data 为 scope 目录数组
+ */
+export function fetchScopes () {
+  return request({
+    url: '/admin/client/scopes',
+    method: 'get'
+  })
+}
+
 export function addObj (obj) {
   return request({
     url: '/admin/client/save',

@@ -6,12 +6,15 @@ import com.tce.smart.admin.api.entity.SysOauthClientDetails;
 import com.tce.smart.admin.service.SysOauthClientDetailsService;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.log.annotation.SysLog;
+import com.tce.smart.common.security.openapi.OpenApiScope;
+import com.tce.smart.common.security.openapi.OpenApiScopeCatalog;
 import io.swagger.annotations.Api;
 import lombok.AllArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.List;
 
 /**
  * <p>
@@ -47,6 +50,19 @@ public class OauthClientDetailsController {
 	@GetMapping("/page")
 	public Result getOauthClientDetailsPage(Page page, SysOauthClientDetails sysOauthClientDetails) {
 		return Result.success(sysOauthClientDetailsService.page(page, Wrappers.query(sysOauthClientDetails)));
+	}
+
+	/**
+	 * 返回受版本控制的 capability scope 目录，供客户端管理页的多选授权域使用。
+	 *
+	 * <p>该接口只暴露名称、展示标签与废弃标记；真正的创建/编辑权限仍由既有 save/update
+	 * 接口控制，且服务层会再次校验，不能仅依赖前端下拉。</p>
+	 *
+	 * @return 可选择或展示的开放 API scope 目录
+	 */
+	@GetMapping("/scopes")
+	public Result<List<OpenApiScope>> scopes() {
+		return Result.success(OpenApiScopeCatalog.all());
 	}
 
 	/**

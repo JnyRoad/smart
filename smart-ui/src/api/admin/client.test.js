@@ -18,6 +18,12 @@ describe('api/admin/client 请求签名契约', () => {
     })
   })
 
+  it('fetchScopes → GET /admin/client/scopes，读取后端权威 capability scope 目录', () => {
+    expect(api.fetchScopes).toBeTypeOf('function')
+    api.fetchScopes()
+    expect(request).toHaveBeenCalledWith({ url: '/admin/client/scopes', method: 'get' })
+  })
+
   it('addObj → POST /admin/client/save，obj 走 data', () => {
     api.addObj({ clientId: 'app-1' })
     expect(request).toHaveBeenCalledWith({
