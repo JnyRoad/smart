@@ -709,27 +709,31 @@ flowchart LR
 </section>
 
 <section class="item" id="item-d5">
- <div class="ih"><span class="ino">缺陷⑤</span><h3>批量删除任务循环内提前 return，后续设备静默不建任务</h3><span class="ibatch">批次 0</span></div>
+ <div class="ih"><span class="ino">缺陷⑤</span><h3>批量删除任务循环内提前 return，后续设备静默不建任务</h3><span class="ibatch">批次 0 · 已实现，待合入 main</span></div>
  <dl>
+  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>77deb5c6</code>）</dt>
+  <dd>
+   <p><strong>已实现：</strong><code>deleteTask</code> 已改为遍历完整个 <code>deviceCode</code> 列表。每个需创建的非 ISC 删除任务都会通过 <code>allNonIscTasksSaved &amp;= this.save(deviceTask)</code> 累计保存结果；这是非短路与运算，任一设备保存失败后仍会继续处理后续设备。</p>
+   <p>方法仅在本次存在需创建的非 ISC 删除任务且全部保存成功时返回 <code>true</code>；有任一保存失败时返回 <code>false</code>，但后续设备任务仍已尝试创建。唯一入口 <code>SmtDeviceTaskController.delete()</code> 只将该布尔值原样写入响应，未发现其他调用方依赖旧的“首台设备保存结果”语义。ISC 分支仍沿用原有 <code>void</code> 委托及返回语义，本止血修复不扩展该范围。</p>
+  </dd>
   <dt>现状与问题</dt>
   <dd>
-   <p><code>SmtDeviceTaskServiceImpl.deleteTask(DeviceTaskDeleteDTO deviceTaskDeleteDTO)</code>（<code>smart-module/smart-platform/smart-platform-core/.../service/impl/SmtDeviceTaskServiceImpl.java:305-354</code>）用于给一批设备（<code>deviceTaskDeleteDTO.getDeviceCode()</code>，一个 List）创建删除任务。308-352 行是外层 for 循环，逐个遍历 deviceCode：</p>
-   <p>311-314 行：若该设备是 ISC 同步设备，调用 <code>smtIscDeviceTaskService.deleteTask(...)</code> 后 <code>continue</code>（继续处理下一个设备，这部分正确）。</p>
-   <p>316-350 行：非 ISC 设备分支——若存在下发记录（<code>taskDownRecord</code> 非空）且尚未有 INIT 状态的删除任务（323-329 行 <code>count == 0</code>），330-347 行构建新的 <code>SmtDeviceTask</code> 对象，第 348 行：</p>
+   <p><strong>修复前：</strong><code>SmtDeviceTaskServiceImpl.deleteTask(DeviceTaskDeleteDTO deviceTaskDeleteDTO)</code> 用于给一批设备（<code>deviceTaskDeleteDTO.getDeviceCode()</code>，一个 List）创建删除任务。外层 for 循环逐个遍历 deviceCode；ISC 同步设备会调用 <code>smtIscDeviceTaskService.deleteTask(...)</code> 后 <code>continue</code>。</p>
+   <p>非 ISC 设备若存在下发记录（<code>taskDownRecord</code> 非空）且尚未有 INIT 状态的删除任务（<code>count == 0</code>），便构建新的 <code>SmtDeviceTask</code> 对象并在循环内执行：</p>
    <p><code>return this.save(deviceTask);</code></p>
    <p>这个 <code>return</code> 在 for 循环内部——一旦第一个满足条件的非 ISC 设备成功创建删除任务，方法立即整体返回，同一批次里排在它后面的所有 deviceCode（不论是否 ISC 设备）都不会再被处理，权限会静默残留在这些设备上，调用方拿到的返回值（true）也无法反映"其实只处理了一个设备"这个事实。</p>
   </dd>
   <dt>目标与验收标准</dt>
-  <dd>批量删除应遍历完所有 deviceCode，为每个满足条件的设备都创建对应的删除任务，方法不应因单个设备处理完就提前退出。验收：单测传入 3 个及以上非 ISC 设备的 deviceCode 列表，断言每个设备都各自生成了一条对应的 <code>SmtDeviceTask</code>（action=2/DEL）记录，而不是只生成第一个。</dd>
+  <dd>已完成单元验收：传入 3 个非 ISC 设备时，每台都各自生成一条 <code>SmtDeviceTask</code>（action=2/DEL）记录；当首台保存失败时，后两台仍继续尝试创建，且整批结果返回 <code>false</code>。</dd>
   <dt>实现方式</dt>
-  <dd>将第 348 行 <code>return this.save(deviceTask);</code> 改为 <code>this.save(deviceTask);</code>（去掉 return，让循环继续处理下一个 deviceCode）；方法末尾根据整体处理结果返回一个汇总布尔值（如"逐个 save 结果做与/或运算"）。需要先核实调用方当前如何依赖这个返回值（是否只判断 true/false 就认为"整批处理完成"），改动返回值语义时同步确认调用方逻辑不受影响。</dd>
+  <dd>已移除循环内的提前返回，新增“是否有非 ISC 任务需创建”和“是否全部保存成功”两个累计状态；末尾统一返回二者的与。保存结果使用 <code>&amp;=</code> 而非短路 <code>&amp;&amp;</code>，保证失败状态不会跳过后续 <code>save</code> 调用。</dd>
   <dt>处理流程</dt>
   <dd>
    <ol>
-    <li>排查该方法的所有调用方，确认各自如何使用返回值。</li>
-    <li>修复 348 行的提前 return，调整方法末尾的返回值语义（与调用方对齐后再定）。</li>
-    <li>补充单测覆盖多设备（含多个非 ISC 设备）批量删除场景。</li>
-    <li>独立分支提交、评审、合并，随 smart-platform-biz 服务发布节奏上线。</li>
+    <li>已排查调用方：控制器仅原样返回布尔结果。</li>
+    <li>已移除循环内提前 return，遍历结束后统一返回汇总结果。</li>
+    <li>已补充单测覆盖三台非 ISC 设备全量建任务，以及首台保存失败仍继续处理后续设备。</li>
+    <li>待本 PR 评审、合并，并随 <code>smart-platform-biz</code> 服务发布节奏上线。</li>
     <li>上线后建议做一次历史核对：按 card_no 反查同一批应删设备是否每个都有对应的删除任务记录，识别历史因本 bug 遗留的存量残留权限（可参考待办 20 的 SQL 思路变体）。</li>
    </ol>
   </dd>
@@ -737,14 +741,14 @@ flowchart LR
   <dd>
    <table>
     <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
-    <tr><td>后端</td><td>SmtDeviceTaskServiceImpl.java（deleteTask 方法，348 行）</td><td>去掉 for 循环内的提前 return，遍历完所有 deviceCode 后再返回汇总结果</td></tr>
-    <tr><td>测试</td><td>对应单测</td><td>覆盖多设备（含多个非 ISC 设备）批量删除场景，断言每个设备各自生成删除任务</td></tr>
+    <tr><td>后端（已改）</td><td>SmtDeviceTaskServiceImpl.java（deleteTask）</td><td>去掉循环内提前 return，遍历后统一汇总非 ISC 任务保存结果</td></tr>
+    <tr><td>测试（已改）</td><td>SmtDeviceTaskServiceImplTest.java</td><td>覆盖多设备全量建任务，以及单台保存失败后仍继续处理后续设备</td></tr>
    </table>
   </dd>
   <dt>测试与验证</dt>
-  <dd>单测验证多设备场景下每个设备都各自建了删除任务，任务数与传入的 deviceCode 数一致（排除已有 INIT 删除任务的去重情况）。联调（如闸机管理删除入口）验证多设备批量删除后逐一核对 <code>smt_device_task</code> 记录数与设备数一致。</dd>
+  <dd>已执行：<code>mvn -f smart-module/pom.xml -pl smart-platform/smart-platform-core -am -Dtest=SmtDeviceTaskServiceImplTest -Dsurefire.failIfNoSpecifiedTests=false test</code>，8 个测试全部通过。未执行：闸机管理删除入口联调、实际设备任务消费确认和生产发布验证；上线后仍建议按 card_no 核对历史存量设备是否均有删除任务记录。</dd>
   <dt>依赖与风险</dt>
-  <dd>需要先核实所有调用方对返回值的使用方式，避免修复本 bug 时引入新的语义不一致（例如某调用方原本依赖"true=至少处理一个"这种弱语义）。此修复不处理历史因该 bug 造成的存量残留权限，需要额外做一次性核对，建议随批次 0 一起排查但不阻塞代码本身上线。回滚为代码回退，无数据结构变更。</dd>
+  <dd>本修复不处理历史因该 bug 造成的存量残留权限，需要额外做一次性核对；也不改变 ISC 分支既有的返回语义。回滚为代码回退，无数据结构变更。</dd>
  </dl>
 </section>
 
@@ -1657,7 +1661,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
      <tr><td>保密区到期自动删除</td><td><code>[PB]/service/securityzone/impl/SmtSecurityAuthDeleteServiceImpl.java:199-208</code>，注释原文「1. 先删除员工权限策略关联 … 2. 生成删除人员已下发设备权限的任务」</td><td>顺序反了：先删本地再建任务</td></tr>
      <tr><td>权限组未挂设备</td><td><code>[PB]/service/impl/SmtDeviceAuthorityServiceImpl.java:588-594</code>（relation 为空直接 <code>removeByIds</code>）、<code>:651-657</code>（<code>removeByAuthId</code>）</td><td>纯本地删、零下发；设备曾下发过、之后被从权限组移除的场景永久残留</td></tr>
      <tr><td>任务创建不可感知</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java:772-788</code> <code>addDeviceDelTaskImmed</code> 为 <code>void</code>，<code>:786 saveTask(deviceTaskVO)</code> 返回值丢弃；<code>saveTask :101</code> 返回 String，非 ISC 设备查不到下发记录时 <code>:173 return null</code></td><td>入口层无法知道是否真的建了任务</td></tr>
-     <tr><td>多设备删除提前返回</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java:305-348</code> <code>deleteTask</code> 在第一个非 ISC 设备 <code>:348 return this.save(deviceTask)</code></td><td>现网缺陷⑤，后续设备不建任务（批次 0 修）</td></tr>
+     <tr><td>多设备删除提前返回</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java</code> <code>deleteTask</code> 已改为遍历完整个 deviceCode 列表，并以非短路 <code>&amp;= this.save(deviceTask)</code> 汇总结果</td><td>缺陷⑤已实现、待合入 main；单测覆盖后续设备仍建任务</td></tr>
     </tbody>
    </table>
    <p><strong>ISC 侧回执链本身是完备的</strong>（问题只在入口层）：<code>[SCH]/service/platform/impl/ISCDeviceTaskServiceImpl.java</code> 删除任务走 auth_config/delete → 进度轮询 → 下载明细，<code>:2736-2743</code> <code>if (update &amp;&amp; "0".equals(downResultCode))</code> 才调 <code>smtIscDownRecordService.handleTaskDownRecord(updateTask)</code>（注释「下载明细确认成功后，才维护本地下发记录；删除权限也在这里移除记录」）；失败走 <code>markDeleteTaskForRetry :1629-1653</code>（<code>:1634</code> 1 小时后重试，<code>DELETE_TASK_RETRY_DELAY_SECONDS = 60 * 60 :127</code>），达 <code>[TOOL]/constant/DeviceTaskConstants.java:63 AUTH_CONFIG_MAX_RETRY_TIMES = 10</code> 后 <code>markTaskRetryExceeded :1442-1461</code> 置 FAIL、remark 写「请人工介入处理」——<strong>没有任何告警、没有回写授权行</strong>。</p>
@@ -1764,7 +1768,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
   <dt>依赖与风险</dt>
   <dd>
    <ul>
-    <li>前置：批次 0 缺陷⑤（<code>deleteTask</code> 提前 return）与缺陷②止血已合并；生产 Nacos 内部端点白名单需同步（历史上 platform 内部任务端点曾因白名单缺失 401）。</li>
+    <li>前置：批次 0 缺陷⑤已实现、待合入 main；与缺陷②止血均需完成合并。生产 Nacos 内部端点白名单也需同步（历史上 platform 内部任务端点曾因白名单缺失 401）。</li>
     <li>风险：改动面大（4 个入口 + 2 个确认点 + schedule），必须按灰度顺序；旧任务无 <code>delete_request_id</code>，双轨并存期间两套收敛器都要保留。</li>
     <li>ISC 无设备端 fencing：迟到删除仍可能清掉新授权，只能靠补偿重下发兜底，需在验收时明确接受该窗口。</li>
     <li>Oracle 函数索引/虚拟列写法需 DBA 评审；上线前的一轮全量对账可能生成大量删除任务，需限流（按园区、按批次）。</li>
