@@ -669,7 +669,7 @@ flowchart LR
 <section class="item" id="item-d4">
  <div class="ih"><span class="ino">缺陷④</span><h3>ISC 事件订阅"假活"：本地标志与 ISC 侧真实订阅状态可能脱节</h3><span class="ibatch">批次 0 · 已实现，待合入 main</span></div>
  <dl>
-  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>77deb5c6</code>）</dt>
+  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>4644f0cc</code>）</dt>
   <dd>
    <p><strong>已实现：</strong><code>BridgeISCServiceImpl</code> 新增单进程内存健康时间 <code>lastSuccessfulEventCallbackTime</code> 与 10 分钟阈值。每次订阅成功会写入观察起点；<code>subscribeTask()</code> 仍按现有 2 分钟频率运行，但仅在事件订阅已开启、本地标志为已订阅且最近成功回调已超过阈值时，才将 <code>SUBSCRIBE_STATUS</code> 重置为 false 并复用既有 <code>subscribeEvent()</code> 发起重订阅。</p>
    <p><code>HandleServiceImpl.eventHandle()</code> 只在 <code>remoteDispatcherService.handle(...)</code> 返回成功后调用 <code>recordSuccessfulEventCallback()</code>；收到 HTTP 回调但业务分发失败不会刷新健康时间，避免把失败链路误判为健康。</p>
