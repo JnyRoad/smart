@@ -125,7 +125,11 @@ var db=seed();
 var me=null, post=null, stack=[], tab='home';
 /* ================= 基础 ================= */
 function $(id){return document.getElementById(id)}
-function esc(s){return String(s).replace(/</g,'&lt;')}
+/**
+ * 将动态内容安全地插入 HTML 文本或双引号属性。
+ * 事件处理器不拼接动态文本，避免 HTML 实体解码后再次进入 JavaScript 语法上下文。
+ */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function toast(m){var t=$('tst');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},1800)}
 function nav(s,p){stack.push({s:s,p:p||{}});render()}
 function back(){if(stack.length>1)stack.pop();render()}
@@ -303,9 +307,19 @@ function detailBlocks(o){
 V.detail=function(p){
  var o=db.orders.filter(function(x){return x.no===p.no})[0];
  var foot='';
- if(o.status==='rejected'&&o.applicant===me.name) foot='<div class="foot"><div class="btn" onclick="draft={from:\''+o.from+'\',to:\''+o.to+'\',things:JSON.parse(JSON.stringify(db.orders.filter(function(x){return x.no===\''+o.no+'\'})[0].things)),seals:db.orders.filter(function(x){return x.no===\''+o.no+'\'})[0].seals.slice(),reason:\''+esc(o.reason)+'\',editNo:\''+o.no+'\'};nav(\'apply\')">修改后重新提交</div></div>';
+ if(o.status==='rejected'&&o.applicant===me.name) foot='<div class="foot"><div class="btn" data-order-no="'+esc(o.no)+'" onclick="editRejected(this.dataset.orderNo)">修改后重新提交</div></div>';
  return bar('单据详情',true)+'<div class="body">'+detailBlocks(o)+'</div>'+foot;
 };
+/**
+ * 将被驳回的单据复制为可编辑草稿。
+ * 仅传递单据号并在函数内读取自由文本，避免把事由拼入内联事件处理器。
+ */
+function editRejected(no){
+ var o=db.orders.filter(function(x){return x.no===no})[0];
+ if(!me||!o||o.status!=='rejected'||o.applicant!==me.name){toast('该单据当前不可重新提交');return}
+ draft={from:o.from,to:o.to,things:JSON.parse(JSON.stringify(o.things)),seals:o.seals.slice(),reason:o.reason,editNo:o.no};
+ nav('apply');
+}
 /* ---- 主管审批 ---- */
 V.approveList=function(){
  var l=db.orders.filter(function(o){return o.status==='pending'});
