@@ -1,6 +1,5 @@
 
 import { baseTableOption } from '../_base'
-import { OPEN_SCOPES } from '@/const/openScopes'
 
 const DIC = {
   vaild: [{
@@ -11,7 +10,14 @@ const DIC = {
     value: 'true'
   }]
 }
-export const tableOption = {
+/**
+ * 根据后端返回的权威 capability scope 目录创建表单配置。
+ *
+ * @param {Array<{value: string, label: string, deprecated?: boolean}>} scopeOptions 授权域选项
+ * @returns {object} Avue 客户端管理表格配置
+ */
+export function createTableOption (scopeOptions = []) {
+  return {
   ...baseTableOption,
   indexLabel: '序号',
   viewBtn: true,
@@ -46,7 +52,7 @@ export const tableOption = {
     align: 'center',
     type: 'select',
     multiple: true,
-    dicData: OPEN_SCOPES,
+    dicData: scopeOptions,
     overHidden: true,
     rules: [{
       required: true,
@@ -115,4 +121,8 @@ export const tableOption = {
     align: 'center',
     hide: true
   }]
+  }
 }
+
+// 页面首次渲染前尚未请求目录时保持空选项；弹窗打开前会替换为后端实时目录。
+export const tableOption = createTableOption()

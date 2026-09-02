@@ -138,7 +138,7 @@ public class SmartMeterTimerTask {
 				ENERGY_PROJECTION_PROCESS_PENDING_LOCK_MINUTES, false, false, "能耗投影待处理队列",
 				heartbeat -> executeRemoteEnergyProjection("能耗投影待处理队列", heartbeat,
 						() -> remoteEnergyProjectionService.processPending(SecurityConstants.FROM_IN,
-								energyProjectionServerTokenProvider.authorizationHeader())));
+								energyProjectionServerTokenProvider.energyProjectionAuthorizationHeader())));
 	}
 
 	/**
@@ -155,7 +155,7 @@ public class SmartMeterTimerTask {
 				true, true, "能耗投影每日串行编排", heartbeat -> executeRemoteEnergyProjection("能耗投影每日编排", heartbeat,
 						() -> remoteEnergyProjectionService.daily(
 								LocalDate.now(ZoneId.of(energyZoneId)).minusDays(1).toString(), reconcile, backfill,
-								SecurityConstants.FROM_IN, energyProjectionServerTokenProvider.authorizationHeader())));
+								SecurityConstants.FROM_IN, energyProjectionServerTokenProvider.energyProjectionAuthorizationHeader())));
 	}
 
 	/**

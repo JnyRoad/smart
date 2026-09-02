@@ -20,6 +20,7 @@ import java.util.Set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * OpenApiInterceptor 裁决矩阵单测：覆盖简报要求的 6 个用例，
@@ -39,6 +40,14 @@ public class OpenApiInterceptorTest {
 		public void openApiHandlerMethod() {
 		}
 
+		@OpenApi(value = "internal:energy:projection:run", compatibilityScopes = {"server"})
+		public void migrationHandlerMethod() {
+		}
+
+		@OpenApi(value = "internal:energy:projection:run", compatibilityScopes = {"open:admittance:photo:read"})
+		public void invalidMigrationHandlerMethod() {
+		}
+
 		public void plainHandlerMethod() {
 		}
 	}
@@ -55,6 +64,16 @@ public class OpenApiInterceptorTest {
 
 	private HandlerMethod plainHandler() throws NoSuchMethodException {
 		Method method = SampleController.class.getMethod("plainHandlerMethod");
+		return new HandlerMethod(new SampleController(), method);
+	}
+
+	private HandlerMethod migrationHandler() throws NoSuchMethodException {
+		Method method = SampleController.class.getMethod("migrationHandlerMethod");
+		return new HandlerMethod(new SampleController(), method);
+	}
+
+	private HandlerMethod invalidMigrationHandler() throws NoSuchMethodException {
+		Method method = SampleController.class.getMethod("invalidMigrationHandlerMethod");
 		return new HandlerMethod(new SampleController(), method);
 	}
 
@@ -96,6 +115,29 @@ public class OpenApiInterceptorTest {
 				new MockHttpServletRequest("GET", "/open/park"), response, openApiHandler());
 
 		assertFalse(result);
+		assertEquals(403, response.getStatus());
+	}
+
+	@Test
+	public void migrationDoesNotTreatActiveScopeAsCompatibilityScope() throws Exception {
+		Set<String> activeScope = new HashSet<>();
+		activeScope.add("open:admittance:photo:read");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("photo-client", activeScope));
+
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		assertFalse(interceptor.preHandle(new MockHttpServletRequest(), response, invalidMigrationHandler()));
+		assertEquals(403, response.getStatus());
+	}
+
+	@Test
+	public void migrationCompatibilityCanBeExplicitlyDisabledAfterCutover() throws Exception {
+		Set<String> legacyScope = new HashSet<>();
+		legacyScope.add("server");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("legacy-schedule", legacyScope));
+		OpenApiInterceptor cutoverInterceptor = new OpenApiInterceptor(adapter, false);
+
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		assertFalse(cutoverInterceptor.preHandle(new MockHttpServletRequest(), response, migrationHandler()));
 		assertEquals(403, response.getStatus());
 	}
 
@@ -145,5 +187,40 @@ public class OpenApiInterceptorTest {
 
 		assertFalse(result);
 		assertEquals(403, response.getStatus());
+	}
+
+	@Test
+	public void migrationScopeAcceptsOnlyDedicatedOrExplicitLegacyScope() throws Exception {
+		Set<String> dedicatedScope = new HashSet<>();
+		dedicatedScope.add("internal:energy:projection:run");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("smart-schedule", dedicatedScope));
+		assertTrue(interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), migrationHandler()));
+
+		SecurityContextHolder.clearContext();
+		Set<String> legacyScope = new HashSet<>();
+		legacyScope.add("server");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("legacy-schedule", legacyScope));
+		assertTrue(interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), migrationHandler()));
+
+		SecurityContextHolder.clearContext();
+		Set<String> unrelatedScope = new HashSet<>();
+		unrelatedScope.add("server:read");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("other-service", unrelatedScope));
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		assertFalse(interceptor.preHandle(new MockHttpServletRequest(), response, migrationHandler()));
+		assertEquals(403, response.getStatus());
+	}
+
+	/**
+	 * 迁移期需要临时接受旧 scope，但主 scope 仍必须保持单值，避免把所有新接口退化为通配授权。
+	 */
+	@Test
+	public void openApiDeclaresEmptyCompatibilityScopesByDefault() {
+		try {
+			Method method = OpenApi.class.getMethod("compatibilityScopes");
+			assertEquals(0, ((String[]) method.getDefaultValue()).length);
+		} catch (NoSuchMethodException e) {
+			fail("@OpenApi 必须声明仅用于迁移的 compatibilityScopes 属性");
+		}
 	}
 }

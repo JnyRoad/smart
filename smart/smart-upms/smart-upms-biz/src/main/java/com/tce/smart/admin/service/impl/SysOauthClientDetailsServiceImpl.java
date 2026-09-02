@@ -8,6 +8,7 @@ import com.tce.smart.admin.mapper.SysOauthClientDetailsMapper;
 import com.tce.smart.admin.service.SysOauthClientDetailsService;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.TCEException;
+import com.tce.smart.common.security.openapi.OpenApiScopeCatalog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -18,6 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * <p>
@@ -78,6 +82,7 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 	 */
 	@Override
 	public boolean save(SysOauthClientDetails entity) {
+		validateAndNormalizeScopes(entity, Collections.<String>emptySet());
 		encodePlainSecretIfNeeded(entity);
 		return super.save(entity);
 	}
@@ -87,7 +92,8 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 	 *
 	 * <p>与 {@link #save} 同理：管理页“编辑应用”若填写了新的明文 secret，落库前必须补齐 {bcrypt} 前缀；
 	 * 若未改 secret（前端传 null/空，表示保持原值不变），不得误编码空值，直接跳过即可。
-	 * 已带前缀（{noop}/{bcrypt}）的值视为“调用方已知晓自己在做什么”，原样保留，避免二次编码导致密文错乱。</p>
+	 * 已带前缀（{noop}/{bcrypt}）的值视为“调用方已知晓自己在做什么”，原样保留，避免二次编码导致密文错乱。
+	 * scope 实际变化且落库成功后会吊销该客户端已有令牌，防止已签发的大权限 token 在过期前继续生效。</p>
 	 *
 	 * @param clientDetails
 	 * @return
@@ -95,8 +101,81 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 	@Override
 	@CacheEvict(value = SecurityConstants.CLIENT_DETAILS_KEY, key = "#clientDetails.clientId")
 	public Boolean updateClientDetailsById(SysOauthClientDetails clientDetails) {
+		SysOauthClientDetails existing = null;
+		boolean scopeSubmitted = StringUtils.hasText(clientDetails.getScope());
+		boolean scopeChanged = false;
+		if (StringUtils.hasText(clientDetails.getScope())) {
+			existing = this.getById(clientDetails.getClientId());
+			Set<String> currentScopes = existingScopes(existing);
+			validateAndNormalizeScopes(clientDetails, currentScopes);
+			scopeChanged = !currentScopes.equals(scopesFromRaw(clientDetails.getScope()));
+		}
 		encodePlainSecretIfNeeded(clientDetails);
-		return this.updateById(clientDetails);
+		Boolean updated = this.updateById(clientDetails);
+		if (Boolean.TRUE.equals(updated) && scopeSubmitted && scopeChanged) {
+			revokeTokens(clientDetails.getClientId());
+		}
+		return updated;
+	}
+
+	/**
+	 * 校验并规范化逗号分隔 scope。前端下拉只是体验层；所有写库入口都必须在这里拦截未知、空白
+	 * 和重复 capability，避免绕过管理页直接扩大 OAuth 客户端权限。
+	 *
+	 * <p>已经存在的废弃或历史未知 scope 仅可在原客户端编辑时原样保留，不能被新客户端或其他
+	 * 客户端新增授予。这使历史记录可安全维护，同时不会把 {@code server} 等大权限重新扩散。</p>
+	 */
+	private void validateAndNormalizeScopes(SysOauthClientDetails clientDetails, Set<String> existingScopes) {
+		String rawScopes = clientDetails.getScope();
+		if (!StringUtils.hasText(rawScopes)) {
+			throw new TCEException("客户端 scope 不能为空");
+		}
+		Set<String> normalizedScopes = new LinkedHashSet<>();
+		for (String rawScope : rawScopes.split(",", -1)) {
+			String scope = rawScope == null ? null : rawScope.trim();
+			if (!StringUtils.hasText(scope)) {
+				throw new TCEException("客户端 scope 不能包含空值");
+			}
+			if (!normalizedScopes.add(scope)) {
+				throw new TCEException("客户端 scope 不能重复：" + scope);
+			}
+			boolean existing = existingScopes.contains(scope);
+			if (!OpenApiScopeCatalog.contains(scope) && !existing) {
+				throw new TCEException("未知 capability scope：" + scope);
+			}
+			if (OpenApiScopeCatalog.isDeprecated(scope) && !existing) {
+				throw new TCEException("历史 capability scope 不允许新增授予：" + scope);
+			}
+		}
+		clientDetails.setScope(String.join(",", normalizedScopes));
+	}
+
+	/**
+	 * 读取当前记录的 scope，用于允许历史客户端在不扩权前提下保留已存在的兼容 scope。
+	 */
+	private Set<String> existingScopes(SysOauthClientDetails existing) {
+		if (existing == null) {
+			return Collections.emptySet();
+		}
+		return scopesFromRaw(existing.getScope());
+	}
+
+	/**
+	 * 将已存或待提交的逗号分隔 scope 规范为集合，仅用于比较和存量兼容判断；
+	 * 写入前的空值、重复与未知值仍由 {@link #validateAndNormalizeScopes} 严格拒绝。
+	 */
+	private Set<String> scopesFromRaw(String rawScopes) {
+		if (!StringUtils.hasText(rawScopes)) {
+			return Collections.emptySet();
+		}
+		Set<String> scopes = new LinkedHashSet<>();
+		for (String rawScope : rawScopes.split(",", -1)) {
+			String scope = rawScope == null ? null : rawScope.trim();
+			if (StringUtils.hasText(scope)) {
+				scopes.add(scope);
+			}
+		}
+		return scopes;
 	}
 
 	/**

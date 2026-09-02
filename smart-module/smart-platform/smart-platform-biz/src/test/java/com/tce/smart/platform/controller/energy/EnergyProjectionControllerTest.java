@@ -20,6 +20,7 @@ import com.tce.smart.common.security.annotation.OpenApi;
 import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.fail;
 
 /** 园区能耗接口不允许空园区权限降级为全量读取。 */
@@ -39,19 +40,17 @@ public class EnergyProjectionControllerTest {
 	}
 
 	@Test
-	public void internalProjectionEndpointsRequireServerScope() throws Exception {
-		Method method = EnergyProjectionController.class.getMethod("processPending");
-		assertEquals("/inner/energy/projection/process-pending", method.getAnnotation(PostMapping.class).value()[0]);
-		assertEquals("server", method.getAnnotation(OpenApi.class).value());
-		assertEquals(Inner.class, method.getAnnotation(Inner.class).annotationType());
+	public void internalProjectionEndpointsRequireDedicatedProjectionScope() throws Exception {
+		assertDedicatedProjectionScope("processPending");
+		assertDedicatedProjectionScope("reconcile", String.class);
+		assertDedicatedProjectionScope("backfillMonthToDate");
+		assertDedicatedProjectionScope("daily", String.class, boolean.class, boolean.class);
 	}
 
 	@Test
 	public void dailyOrchestrationEndpointIsSingleInternalCall() throws Exception {
 		Method method = EnergyProjectionController.class.getMethod("daily", String.class, boolean.class, boolean.class);
 		assertEquals("/inner/energy/projection/daily/{businessDate}", method.getAnnotation(PostMapping.class).value()[0]);
-		assertEquals("server", method.getAnnotation(OpenApi.class).value());
-		assertEquals(Inner.class, method.getAnnotation(Inner.class).annotationType());
 		assertEquals(3, method.getParameterTypes().length);
 	}
 
@@ -79,5 +78,16 @@ public class EnergyProjectionControllerTest {
 
 	private SmartUser user(java.util.List<Integer> parks) {
 		return new SmartUser(1, 1, "test", parks, "x", true, true, true, true, Collections.emptyList());
+	}
+
+	/**
+	 * 所有能耗投影内部入口使用同一个最小能力 scope，并在滚动升级期精确兼容旧 server scope。
+	 */
+	private void assertDedicatedProjectionScope(String methodName, Class<?>... parameterTypes) throws Exception {
+		Method method = EnergyProjectionController.class.getMethod(methodName, parameterTypes);
+		OpenApi openApi = method.getAnnotation(OpenApi.class);
+		assertEquals("internal:energy:projection:run", openApi.value());
+		assertArrayEquals(new String[] {"server"}, openApi.compatibilityScopes());
+		assertEquals(Inner.class, method.getAnnotation(Inner.class).annotationType());
 	}
 }

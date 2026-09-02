@@ -3,6 +3,7 @@ package com.tce.smart.admin.service.impl;
 import com.tce.smart.admin.api.entity.SysOauthClientDetails;
 import com.tce.smart.admin.api.feign.RemoteTokenService;
 import com.tce.smart.common.core.constant.SecurityConstants;
+import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
 import org.junit.Before;
 import org.junit.Test;
@@ -197,7 +198,7 @@ public class SysOauthClientDetailsServiceImplTest {
 		SysOauthClientDetails entity = new SysOauthClientDetails();
 		entity.setClientId("new-app");
 		entity.setClientSecret("plain-secret-123");
-		entity.setScope("open:test:read");
+		entity.setScope("open:admittance:photo:read");
 
 		boolean result = service.save(entity);
 
@@ -217,6 +218,7 @@ public class SysOauthClientDetailsServiceImplTest {
 		SysOauthClientDetails entity = new SysOauthClientDetails();
 		entity.setClientId("legacy-app");
 		entity.setClientSecret("{noop}plain-secret");
+		entity.setScope("open:admittance:photo:read");
 
 		service.save(entity);
 
@@ -233,6 +235,7 @@ public class SysOauthClientDetailsServiceImplTest {
 		entity.setClientId("migrated-app");
 		String alreadyEncoded = SecurityConstants.BCRYPT + BCRYPT_ENCODER_FOR_TEST.encode("some-secret");
 		entity.setClientSecret(alreadyEncoded);
+		entity.setScope("open:admittance:photo:read");
 
 		service.save(entity);
 
@@ -306,5 +309,73 @@ public class SysOauthClientDetailsServiceImplTest {
 		service.updateClientDetailsById(update);
 
 		assertThat(update.getClientSecret()).isEqualTo("{bcrypt}already-encoded-hash");
+	}
+
+	/** 新建客户端不能绕过管理端下拉直接写入未知 scope。 */
+	@Test
+	public void save_rejectsUnknownCapabilityScope() throws Exception {
+		mockBaseMapperForSave();
+		SysOauthClientDetails entity = new SysOauthClientDetails();
+		entity.setClientId("unknown-scope-app");
+		entity.setClientSecret("plain-secret");
+		entity.setScope("internal:unknown:write");
+
+		try {
+			service.save(entity);
+			org.junit.Assert.fail("未知 capability scope 必须被后端拒绝");
+		} catch (TCEException expected) {
+			assertThat(expected.getMessage()).contains("未知");
+		}
+	}
+
+	/** 历史 server scope 不得被新客户端重新授予，避免大权限继续扩散。 */
+	@Test
+	public void save_rejectsDeprecatedLegacyServerScope() throws Exception {
+		mockBaseMapperForSave();
+		SysOauthClientDetails entity = new SysOauthClientDetails();
+		entity.setClientId("new-server-scope-app");
+		entity.setClientSecret("plain-secret");
+		entity.setScope("server");
+
+		try {
+			service.save(entity);
+			org.junit.Assert.fail("历史 server scope 必须拒绝新增授予");
+		} catch (TCEException expected) {
+			assertThat(expected.getMessage()).contains("历史");
+		}
+	}
+
+	/** 存量客户端可在不移除原有 server scope 的前提下补充最小能力 scope，便于滚动迁移。 */
+	@Test
+	public void update_preservesExistingLegacyServerScopeDuringMigration() {
+		String clientId = "legacy-schedule";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope("server");
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope(" server , internal:energy:projection:run ");
+
+		Boolean result = service.updateClientDetailsById(update);
+
+		assertThat(result).isTrue();
+		assertThat(update.getScope()).isEqualTo("server,internal:energy:projection:run");
+		verify(remoteTokenService).removeTokensByClientId(clientId, SecurityConstants.FROM_IN);
+	}
+
+	/** 合法 scope 写库前统一去空格并稳定为逗号分隔格式。 */
+	@Test
+	public void save_normalizesKnownCapabilityScopes() throws Exception {
+		mockBaseMapperForSave();
+		SysOauthClientDetails entity = new SysOauthClientDetails();
+		entity.setClientId("projection-app");
+		entity.setClientSecret("plain-secret");
+		entity.setScope(" open:admittance:photo:read , internal:energy:projection:run ");
+
+		service.save(entity);
+
+		assertThat(entity.getScope()).isEqualTo("open:admittance:photo:read,internal:energy:projection:run");
 	}
 }

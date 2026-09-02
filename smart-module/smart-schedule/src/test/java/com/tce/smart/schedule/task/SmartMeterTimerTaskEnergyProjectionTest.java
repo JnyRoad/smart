@@ -71,6 +71,28 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 	}
 
 	@Test
+	public void pendingTaskCallsRemoteWithDedicatedEnergyProjectionToken() throws Exception {
+		TaskJob taskJob = enabledTaskJob();
+		ISwitchService switchService = Mockito.mock(ISwitchService.class);
+		RemoteEnergyProjectionService remoteService = Mockito.mock(RemoteEnergyProjectionService.class);
+		SmartMeterTimerTask task = createTask(taskJob, switchService, remoteService);
+		EnergyProjectionServerTokenProvider tokenProvider = tokenProvider();
+		setField(task, "energyProjectionServerTokenProvider", tokenProvider);
+		Mockito.when(switchService.acquire(TimerTaskEnum.ENERGY_PROJECTION_PROCESS_PENDING, 30L, TimeUnit.MINUTES))
+				.thenReturn("pending-token");
+		Mockito.when(switchService.acquire(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, 90L, TimeUnit.MINUTES))
+				.thenReturn("execution-token");
+		Mockito.when(remoteService.processPending(SecurityConstants.FROM_IN, SCHEDULE_AUTHORIZATION))
+				.thenReturn(Result.success(Boolean.TRUE));
+
+		task.energyProjectionProcessPendingTask();
+
+		Mockito.verify(remoteService).processPending(SecurityConstants.FROM_IN, SCHEDULE_AUTHORIZATION);
+		Mockito.verify(tokenProvider).energyProjectionAuthorizationHeader();
+		Mockito.verify(tokenProvider, Mockito.never()).authorizationHeader();
+	}
+
+	@Test
 	public void dailyTimeoutDegradesToSingleDailyEndpointWhileDailyLockIsOwned() throws Exception {
 		TaskJob taskJob = enabledTaskJob();
 		ISwitchService switchService = Mockito.mock(ISwitchService.class);
@@ -120,6 +142,28 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 		Mockito.verify(switchService).release(TimerTaskEnum.ENERGY_PROJECTION_DAILY, "daily-token");
 		Mockito.verify(switchService, Mockito.times(1)).acquire(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION,
 				90L, TimeUnit.MINUTES);
+	}
+
+	@Test
+	public void tasksUseDedicatedEnergyProjectionTokenInsteadOfLegacyDefaultToken() throws Exception {
+		TaskJob taskJob = enabledTaskJob();
+		ISwitchService switchService = Mockito.mock(ISwitchService.class);
+		RemoteEnergyProjectionService remoteService = Mockito.mock(RemoteEnergyProjectionService.class);
+		SmartMeterTimerTask task = createTask(taskJob, switchService, remoteService);
+		EnergyProjectionServerTokenProvider tokenProvider = tokenProvider();
+		setField(task, "energyProjectionServerTokenProvider", tokenProvider);
+		Mockito.when(switchService.acquire(TimerTaskEnum.ENERGY_PROJECTION_DAILY, 90L, TimeUnit.MINUTES))
+				.thenReturn("daily-token");
+		Mockito.when(switchService.acquire(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, 90L, TimeUnit.MINUTES))
+				.thenReturn("execution-token");
+		String expectedBusinessDate = LocalDate.now(ZoneId.of("Asia/Shanghai")).minusDays(1).toString();
+		Mockito.when(remoteService.daily(expectedBusinessDate, true, true, SecurityConstants.FROM_IN,
+				SCHEDULE_AUTHORIZATION)).thenReturn(Result.success(Boolean.TRUE));
+
+		task.energyProjectionDailyTask();
+
+		Mockito.verify(tokenProvider).energyProjectionAuthorizationHeader();
+		Mockito.verify(tokenProvider, Mockito.never()).authorizationHeader();
 	}
 
 	@Test
@@ -228,7 +272,7 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 	 */
 	private EnergyProjectionServerTokenProvider tokenProvider() {
 		EnergyProjectionServerTokenProvider tokenProvider = Mockito.mock(EnergyProjectionServerTokenProvider.class);
-		Mockito.when(tokenProvider.authorizationHeader()).thenReturn(SCHEDULE_AUTHORIZATION);
+		Mockito.when(tokenProvider.energyProjectionAuthorizationHeader()).thenReturn(SCHEDULE_AUTHORIZATION);
 		return tokenProvider;
 	}
 
