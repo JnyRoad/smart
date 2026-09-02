@@ -401,7 +401,7 @@ flowchart LR
   <h1>模块二 · 访客模块优化</h1>
   <div class="tbl"><table>
     <tr><th>需求</th><th>功能说明</th><th>涉及界面</th><th>实现方式</th><th>交付批次</th></tr>
-    <tr><td>2.4 搜索返回不丢</td><td>列表搜完点详情，返回后搜索条件和页码还在</td><td>入场申请记录（改造）</td><td>查询条件持久化到地址栏，返回自动恢复</td><td>批次 1</td></tr>
+    <tr><td>2.4 搜索返回不丢</td><td>列表搜完点详情，返回后搜索条件和页码还在</td><td>入场申请记录（改造）</td><td>查询条件持久化到地址栏，返回自动恢复</td><td>批次 1 已实现（PR #168）</td></tr>
     <tr><td>2.5 随行人员搜索</td><td>按随行人员姓名或证件号也能搜出主申请人的单据</td><td>同上</td><td>查询 SQL 扩展到随行表（证件号现已支持，补姓名）</td><td>批次 1</td></tr>
     <tr><td>2.6 一键作废</td><td>申请单置为「已作废」+ 回收已下发权限；待审批 OA 单在本地事务提交后尽力撤销，失败不回滚本地作废。当前管理端为单条作废。</td><td>同上（作废态灰显）</td><td>批次 1 已实现：新增作废端点 + 权限删除任务；批次 4 再接入可靠删除链路</td><td>批次 1 已实现（PR #163）/ 批次 4 完整版</td></tr>
     <tr><td>2.7 判重按区域</td><td>新厂、老厂可各有一张有效申请互不影响（两区域绑定不同门岗设备）；<b>随行人员纳入判重</b></td><td>无界面变化（校验规则）</td><td>判重 SQL 加区域维度 + 随行证件号</td><td>批次 1</td></tr>
@@ -850,9 +850,14 @@ flowchart LR
 </p>
 
 <section class="item" id="item-2-4">
-  <div class="ih"><span class="ino">2.4</span><h3>入厂申请记录搜索返回保留查询状态</h3><span class="ibatch">批次 1</span></div>
+  <div class="ih"><span class="ino">2.4</span><h3>入厂申请记录搜索返回保留查询状态</h3><span class="ibatch">批次 1 · 已实现（PR #168）</span></div>
   <dl>
-    <dt>现状与问题</dt>
+    <dt>实施状态（已实现，PR #168，最新修复提交 <code>1bb359e2</code>）</dt>
+    <dd>
+      <p>已在功能分支实现并通过 PR 审查修复：访客列表进入详情后，<code>detail.vue</code> 的 <code>goBack()</code> 根据受限的 <code>recordType=truck</code> 标记选择访客或货车列表，并用 <code>$router.replace(...)</code> 携带原始 <code>queryPage</code>/<code>queryForm</code> 返回。替换而非追加历史记录，避免浏览器后退再次打开详情。</p>
+      <p>货车列表的 <code>truck.vue</code> 已在进入共用详情页时写入该来源标记；新增 <code>detail.test.js</code> 覆盖访客返回、货车返回和货车详情入口三条路由行为。Vitest 全量 76 个测试文件、391 个测试均通过。PR 尚未合入 <code>main</code>，真实浏览器回归与生产发布效果仍未验证。</p>
+    </dd>
+    <dt>实施前问题</dt>
     <dd>
       列表页 <code>incoming_record/index.vue</code> 其实已经做了一半的"转发+恢复"机制：<code>created()</code>（247-259 行）会读 <code>this.$route.query.queryForm/queryPage</code> 并回填 <code>searchForm</code>/<code>page</code>；<code>handleDetail()</code>（395-404 行）跳转详情时也确实把当前 <code>page</code>、<code>searchForm</code> 作为 query 带给了详情路由。但 <code>detail.vue</code> 的返回按钮 <code>goBack()</code>（338-340 行）只调用了浏览器历史回退 <code>this.$router.go(-1)</code>，没有把详情页收到的 query 重新写回列表 URL。由于 <code>router/platform/visitor.js</code> 里只静态声明了 <code>detail/:id</code> 这一段路由（26-35 行），列表页本身是通过后台菜单动态 <code>component</code> 字段加载的一级路由，用户第一次点菜单进入列表时历史记录里没有任何 query；<code>go(-1)</code> 精确回退到的正是这条"无 query"的历史记录，而不是携带查询条件的新记录。结果就是 <code>created()</code> 里现成的恢复逻辑永远读不到值，翻页/搜索条件在返回后被重置为默认值。
     </dd>
@@ -860,15 +865,15 @@ flowchart LR
     <dd>从列表搜索/翻页后进入详情，再点"返回"，应看到进入详情前的搜索条件、分页与列表内容原样保留，无需用户重新点搜索。</dd>
     <dt>实现方式</dt>
     <dd>
-      不改列表页现有的"转发+恢复"逻辑（保留不动），只改 <code>detail.vue</code> 的 <code>goBack()</code>：把 <code>this.$router.go(-1)</code> 换成显式 <code>this.$router.push({ path: '/platform/visitor/incoming_record', query: { queryPage: this.$route.query.queryPage, queryForm: this.$route.query.queryForm } })</code>，把详情页收到的 query 原样带回列表路由，触发列表 <code>created()</code> 里已有的恢复分支。这是改动面最小的方案（比引入 sessionStorage 更贴合现有代码结构）。
+      保留列表页现有的"转发+恢复"逻辑不动。实际实现由 <code>detail.vue</code> 的 <code>goBack()</code> 显式 <code>$router.replace(...)</code> 返回来源列表，并把详情页收到的 <code>queryPage</code>/<code>queryForm</code> 原样带回，触发列表 <code>created()</code> 里已有的恢复分支；货车入口额外由 <code>truck.vue</code> 写入 <code>recordType=truck</code>，使共用详情页能回到正确的货车列表。这比引入 sessionStorage 更贴合现有代码结构，也不会新增详情历史记录。
     </dd>
     <dt>处理流程</dt>
     <dd>
       <ol>
         <li>用户在列表页搜索/翻页，<code>searchForm</code>/<code>page</code> 处于当前状态</li>
-        <li>点击卡片进入详情，<code>handleDetail()</code> 把 <code>page</code>、<code>searchForm</code> 作为 query 传给详情路由（现状已有）</li>
+        <li>点击卡片进入详情，<code>handleDetail()</code> 把 <code>page</code>、<code>searchForm</code> 作为 query 传给详情路由；货车列表额外写入 <code>recordType=truck</code></li>
         <li>详情页挂载，按 <code>$route.params.id</code> 加载详情（现状已有）</li>
-        <li>用户点击"返回"，<code>goBack()</code> 改为显式 push 回列表路由，并把收到的 <code>queryPage</code>/<code>queryForm</code> 原样带回（本项新增）</li>
+        <li>用户点击"返回"，<code>goBack()</code> 显式 replace 回来源列表路由，并把收到的 <code>queryPage</code>/<code>queryForm</code> 原样带回（本项新增）</li>
         <li>列表页 <code>created()</code> 检测到 <code>$route.query.queryForm</code> 存在，恢复 <code>searchForm</code>/<code>page</code> 并重新 <code>getList()</code>（现状已有，无需改）</li>
       </ol>
     </dd>
@@ -876,14 +881,16 @@ flowchart LR
     <dd>
       <table>
         <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
-        <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/detail.vue（338-340 行 goBack）</td><td><code>$router.go(-1)</code> 改为携带 <code>queryPage</code>/<code>queryForm</code> 的显式 push</td></tr>
+        <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/detail.vue（goBack）</td><td><code>$router.go(-1)</code> 改为按来源显式 replace，并携带 <code>queryPage</code>/<code>queryForm</code></td></tr>
+        <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/truck.vue（handleDetail）</td><td>进入共用详情页时写入 <code>recordType=truck</code>，保证返回货车列表</td></tr>
+        <tr><td>前端测试</td><td>smart-ui/src/views/platform/visitor/incoming_record/detail.test.js</td><td>覆盖访客/货车返回使用 replace 且保留查询状态，以及货车详情入口来源标记</td></tr>
         <tr><td>前端（不改，确认沿用）</td><td>smart-ui/src/views/platform/visitor/incoming_record/index.vue（247-259 行 created，395-404 行 handleDetail）</td><td>现有转发与恢复逻辑保留</td></tr>
       </table>
     </dd>
     <dt>测试与验证</dt>
-    <dd>手工回归：列表填访客姓名条件+翻到第 2 页→进入详情→点返回，断言搜索框内容、页码、列表数据与返回前一致；有前端路由测试基建的话补一条断言 <code>goBack()</code> 调用 push 且携带正确 query 的单测。</dd>
+    <dd>已完成自动验证：Vitest 覆盖 <code>goBack()</code> 调用 replace 且携带正确 query 的访客、货车两条返回路径，以及货车详情入口来源标记；全量 76 个测试文件、391 个测试通过。待真实浏览器回归：列表填访客姓名条件+翻到第 2 页→进入详情→点返回，断言搜索框内容、页码、列表数据与返回前一致，并确认浏览器后退不再重开详情。</dd>
     <dt>依赖与风险</dt>
-    <dd>若该菜单在 sys_menu 里配置了 keep-alive（是否开启未在静态代码中确认），组件不会重新创建，<code>created()</code> 不会重跑，需要在 <code>activated()</code> 里补同一套恢复逻辑兜底；本次改动只涉及 <code>detail.vue</code> 一处，不影响直接通过 URL 访问详情等其他入口。</dd>
+    <dd>若该菜单在 sys_menu 里配置了 keep-alive（是否开启未在静态代码中确认），组件不会重新创建，<code>created()</code> 不会重跑，需要在 <code>activated()</code> 里补同一套恢复逻辑兜底；本次改动涉及共用详情页、货车入口与路由测试，不影响直接通过 URL 访问详情等其他入口（未带来源标记时默认返回访客列表）。</dd>
   </dl>
 </section>
 
