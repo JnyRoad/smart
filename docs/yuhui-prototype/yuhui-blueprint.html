@@ -667,9 +667,9 @@ flowchart LR
 </section>
 
 <section class="item" id="item-d4">
- <div class="ih"><span class="ino">缺陷④</span><h3>ISC 事件订阅"假活"：本地标志与 ISC 侧真实订阅状态可能脱节</h3><span class="ibatch">批次 0 · 已实现，待合入 main</span></div>
+ <div class="ih"><span class="ino">缺陷④</span><h3>ISC 事件订阅"假活"：本地标志与 ISC 侧真实订阅状态可能脱节</h3><span class="ibatch">批次 0 · 已合入 main</span></div>
  <dl>
-  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>77deb5c6</code>）</dt>
+  <dt>实施状态（已合入 main，代码基线：2026-09-02 / <code>77deb5c6</code> / PR #165）</dt>
   <dd>
    <p><strong>已实现：</strong><code>BridgeISCServiceImpl</code> 新增单进程内存健康时间 <code>lastSuccessfulEventCallbackTime</code> 与 10 分钟阈值。每次订阅成功会写入观察起点；<code>subscribeTask()</code> 仍按现有 2 分钟频率运行，但仅在事件订阅已开启、本地标志为已订阅且最近成功回调已超过阈值时，才将 <code>SUBSCRIBE_STATUS</code> 重置为 false 并复用既有 <code>subscribeEvent()</code> 发起重订阅。</p>
    <p><code>HandleServiceImpl.eventHandle()</code> 只在 <code>remoteDispatcherService.handle(...)</code> 返回成功后调用 <code>recordSuccessfulEventCallback()</code>；收到 HTTP 回调但业务分发失败不会刷新健康时间，避免把失败链路误判为健康。</p>
@@ -689,7 +689,7 @@ flowchart LR
     <li>已在两分钟巡检中增加 10 分钟超时判定，超时才重置 <code>SUBSCRIBE_STATUS</code> 并重订阅。</li>
     <li>已用单元测试覆盖阈值相等时重订阅、阈值内不重订阅以及成功回调刷新。</li>
     <li>待集成环境人为模拟 ISC 断连，确认阈值内自动恢复推送。</li>
-    <li>待本 PR 评审、合并，并随 <code>smart-bridge-isc</code> 发布节奏上线。</li>
+    <li>已完成 PR #165 评审与合并（已进入 main）；后续随 <code>smart-bridge-isc</code> 服务发布节奏上线，生产发布效果仍待验证。</li>
    </ol>
   </dd>
   <dt>改动清单</dt>
@@ -709,9 +709,9 @@ flowchart LR
 </section>
 
 <section class="item" id="item-d5">
- <div class="ih"><span class="ino">缺陷⑤</span><h3>批量删除任务循环内提前 return，后续设备静默不建任务</h3><span class="ibatch">批次 0 · 已实现，待合入 main</span></div>
+ <div class="ih"><span class="ino">缺陷⑤</span><h3>批量删除任务循环内提前 return，后续设备静默不建任务</h3><span class="ibatch">批次 0 · 已合入 main</span></div>
  <dl>
-  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>4644f0cc</code>）</dt>
+  <dt>实施状态（已合入 main，代码基线：2026-09-02 / <code>4644f0cc</code> / PR #166）</dt>
   <dd>
    <p><strong>已实现：</strong><code>deleteTask</code> 已改为遍历完整个 <code>deviceCode</code> 列表。每个需创建的非 ISC 删除任务都会通过 <code>allNonIscTasksSaved &amp;= this.save(deviceTask)</code> 累计保存结果；这是非短路与运算，任一设备保存失败后仍会继续处理后续设备。设备编码不存在或设备已删除时，方法会标记整批失败并跳过该设备，继续处理后续设备。</p>
    <p>方法仅在本次存在需创建的非 ISC 删除任务、所有设备编码均有效且全部保存成功时返回 <code>true</code>；有任一保存失败或无效设备时返回 <code>false</code>，但后续设备任务仍已尝试创建。唯一入口 <code>SmtDeviceTaskController.delete()</code> 只将该布尔值原样写入响应，未发现其他调用方依赖旧的“首台设备保存结果”语义。ISC 分支委托 <code>SmtIscDeviceTaskService.deleteTask(String, String)</code>，该接口返回 <code>boolean</code>；当前批量方法不汇总或使用该返回值，本止血修复不扩展该既有范围。</p>
@@ -733,7 +733,7 @@ flowchart LR
     <li>已排查调用方：控制器仅原样返回布尔结果。</li>
     <li>已移除循环内提前 return，遍历结束后统一返回汇总结果。</li>
     <li>已补充单测覆盖三台非 ISC 设备全量建任务、首台保存失败，以及未知设备时仍继续处理后续有效设备。</li>
-    <li>待本 PR 评审、合并，并随 <code>smart-platform-biz</code> 服务发布节奏上线。</li>
+    <li>已完成 PR #166 评审与合并（已进入 main）；后续随 <code>smart-platform-biz</code> 服务发布节奏上线，生产发布效果仍待验证。</li>
     <li>上线后建议做一次历史核对：按 card_no 反查同一批应删设备是否每个都有对应的删除任务记录，识别历史因本 bug 遗留的存量残留权限（可参考待办 20 的 SQL 思路变体）。</li>
    </ol>
   </dd>
@@ -815,6 +815,24 @@ flowchart LR
     <li>关闭开关、重新下发权限均为可回滚操作；本项本身不修改代码，无代码层面的回滚风险。</li>
    </ul>
   </dd>
+ </dl>
+</section>
+
+<section class="item" id="item-oauth-scope">
+ <div class="ih"><span class="ino">清单外</span><h3>OAuth 开放接口权限收敛（PR #161）</h3><span class="ibatch">不计入批次 · 独立安全加固</span></div>
+ <dl>
+  <dt>实施状态（已合入 main，PR #161）</dt>
+  <dd>把开放接口（供外部系统调用的入厂照片、能耗预测等接口）从笼统的 <code>server</code> 泛权限收敛为按资源最小权限的 scope（如 <code>internal:admittance:photo:read</code>、<code>internal:energy:projection:run</code>），服务端新增 scope 目录、校验与授权变更后吊销旧 token；生产迁移期默认保留兼容开关 <code>SMART_OPEN_API_ALLOW_DEPRECATED_COMPATIBILITY_SCOPES</code>。</dd>
+  <dt>与本蓝图的关系</dt>
+  <dd>本项不在《裕慧家园系统新增功能需求分析》40 项清单与 5 个现网缺陷范围内，是独立发起的开放接口安全加固；记录于此仅为避免读者在提交历史里看到一次 895 行的改动却在蓝图找不到对应条目。迁移期结束后（旧调用方下线、兼容开关关闭）建议在此补记一行收尾状态。</dd>
+ </dl>
+</section>
+
+<section class="item" id="item-maintenance-note">
+ <div class="ih"><span class="ino">维护说明</span><h3>状态标注的更新责任</h3><span class="ibatch">蓝图维护约定</span></div>
+ <dl>
+  <dt>约定</dt>
+  <dd>各条目「实施状态」优先标注落地 PR 号（如 <code>PR #165</code>），代码基线 commit 仅作辅助定位，不作为"已修复"的判据——基线 commit 只说明分支创建时 main 在哪，不代表该 commit 本身包含修复。批次标签统一用「已实现」（分支已完成但未合并）→「已合入 main」（已合并，等待随服务发布上线）→「已上线」（生产已验证生效）三段式，任何触碰本文件的 PR 在补记自身状态之外，应顺带检查是否有其他条目的状态因本次合并而需要从「已实现」推进到「已合入 main」，避免像缺陷④⑤那样合并后无人回填。</dd>
  </dl>
 </section>
 
@@ -1768,7 +1786,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
   <dt>依赖与风险</dt>
   <dd>
    <ul>
-    <li>前置：批次 0 缺陷⑤已实现、待合入 main；与缺陷②止血均需完成合并。生产 Nacos 内部端点白名单也需同步（历史上 platform 内部任务端点曾因白名单缺失 401）。</li>
+    <li>前置：批次 0 缺陷⑤已合入 main（PR #166）；缺陷②止血仍未合并，需先完成。生产 Nacos 内部端点白名单也需同步（历史上 platform 内部任务端点曾因白名单缺失 401）。</li>
     <li>风险：改动面大（4 个入口 + 2 个确认点 + schedule），必须按灰度顺序；旧任务无 <code>delete_request_id</code>，双轨并存期间两套收敛器都要保留。</li>
     <li>ISC 无设备端 fencing：迟到删除仍可能清掉新授权，只能靠补偿重下发兜底，需在验收时明确接受该窗口。</li>
     <li>Oracle 函数索引/虚拟列写法需 DBA 评审；上线前的一轮全量对账可能生成大量删除任务，需限流（按园区、按批次）。</li>
