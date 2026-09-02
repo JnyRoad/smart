@@ -102,9 +102,10 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 	@CacheEvict(value = SecurityConstants.CLIENT_DETAILS_KEY, key = "#clientDetails.clientId")
 	public Boolean updateClientDetailsById(SysOauthClientDetails clientDetails) {
 		SysOauthClientDetails existing = null;
-		boolean scopeSubmitted = StringUtils.hasText(clientDetails.getScope());
+		// null 表示调用方没有修改 scope；空字符串或空白表示提交了无效值，必须走校验并拒绝落库。
+		boolean scopeSubmitted = clientDetails.getScope() != null;
 		boolean scopeChanged = false;
-		if (StringUtils.hasText(clientDetails.getScope())) {
+		if (scopeSubmitted) {
 			existing = this.getById(clientDetails.getClientId());
 			Set<String> currentScopes = existingScopes(existing);
 			validateAndNormalizeScopes(clientDetails, currentScopes);

@@ -68,7 +68,11 @@
 <script>
   import {addObj, delObj, fetchList, fetchScopes, mergeAllowedParkIds, putObj, resetSecret} from '@/api/admin/client'
   import {allPark} from '@/api/platform/_publicService'
-  import {createTableOption} from '@/const/crud/admin/client'
+  import {
+    createTableOption,
+    mergeEditableScopeOptions,
+    normalizeScopeFormValue
+  } from '@/const/crud/admin/client'
   import {mapGetters} from 'vuex'
 
   export default {
@@ -162,8 +166,8 @@
        */
       prepareOpenForm(type) {
         if (['edit', 'view'].includes(type)) {
-          // scope 落库是逗号分隔字符串，多选下拉需要数组
-          this.form.scope = this.form.scope ? this.form.scope.split(',').map(scope => scope.trim()).filter(Boolean) : []
+          // 列表刚保存/更新时 scope 仍可能是数组，统一规范后才能安全地重新打开多选表单。
+          this.form.scope = normalizeScopeFormValue(this.form.scope)
           this.allowedParkIds = this.parseAllowedParkIds(this.form.additionalInformation)
         } else {
           this.form.scope = []
@@ -187,19 +191,11 @@
         })
       },
       /**
-       * 历史未知 scope 不再允许新增，但编辑老客户端时需作为禁用项展示，避免保存时被静默删除。
+       * 编辑老客户端时，已废弃的目录 scope 和历史未知 scope 都以禁用项展示，
+       * 避免保存时被静默删除，也避免通过编辑窗口重新授予历史大权限。
        */
       mergeHistoricalScopeOptions(catalog) {
-        const knownValues = new Set(catalog.map(scope => scope.value))
-        const historicalOptions = (this.form.scope || [])
-          .filter(scope => !knownValues.has(scope))
-          .map(scope => ({
-            value: scope,
-            label: '历史授权域（仅保留）：' + scope,
-            deprecated: true,
-            disabled: true
-          }))
-        return catalog.concat(historicalOptions)
+        return mergeEditableScopeOptions(catalog, this.form.scope || [])
       },
       /**
        * 从 additionalInformation JSON 文本里读出 allowedParkIds，解析失败时静默按空数组处理

@@ -311,6 +311,59 @@ public class SysOauthClientDetailsServiceImplTest {
 		assertThat(update.getClientSecret()).isEqualTo("{bcrypt}already-encoded-hash");
 	}
 
+	/**
+	 * 编辑时只要提交了 scope 字段，就必须拒绝空字符串；否则 MyBatis-Plus 会把存量授权域清空，
+	 * 而已签发 token 又不会因为 scope 被视为“未提交”而及时吊销。
+	 */
+	@Test
+	public void updateClientDetailsById_rejectsEmptySubmittedScope_beforePersistingOrRevokingTokens() {
+		String clientId = "existing-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope("open:admittance:photo:read");
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope("");
+
+		try {
+			service.updateClientDetailsById(update);
+			org.junit.Assert.fail("提交空 scope 必须被拒绝");
+		} catch (TCEException expected) {
+			assertThat(expected.getMessage()).contains("不能为空");
+		}
+
+		verify(service, never()).updateById(any(SysOauthClientDetails.class));
+		verify(remoteTokenService, never()).removeTokensByClientId(anyString(), anyString());
+	}
+
+	/**
+	 * 空白字符与空字符串同样属于无效授权域，不能绕过编辑接口的 scope 完整性校验。
+	 */
+	@Test
+	public void updateClientDetailsById_rejectsWhitespaceSubmittedScope_beforePersistingOrRevokingTokens() {
+		String clientId = "existing-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope("open:admittance:photo:read");
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope("  ");
+
+		try {
+			service.updateClientDetailsById(update);
+			org.junit.Assert.fail("提交空白 scope 必须被拒绝");
+		} catch (TCEException expected) {
+			assertThat(expected.getMessage()).contains("不能为空");
+		}
+
+		verify(service, never()).updateById(any(SysOauthClientDetails.class));
+		verify(remoteTokenService, never()).removeTokensByClientId(anyString(), anyString());
+	}
+
 	/** 新建客户端不能绕过管理端下拉直接写入未知 scope。 */
 	@Test
 	public void save_rejectsUnknownCapabilityScope() throws Exception {
