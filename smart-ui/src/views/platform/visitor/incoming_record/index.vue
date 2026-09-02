@@ -406,6 +406,13 @@ export default {
         })
         .catch((error) => {
           if (error !== 'cancel' && error !== 'close') {
+            _this.$notify.error({
+              title: '作废失败',
+              message: error && error.response && error.response.data && error.response.data.msg
+                ? error.response.data.msg
+                : '申请单作废失败',
+              duration: 2000
+            })
             console.error(error)
           }
         })

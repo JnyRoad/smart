@@ -1,6 +1,7 @@
 package com.tce.smart.platform.controller.admittance;
 
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.wrapper.BaseController;
 import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceApply;
@@ -38,7 +39,13 @@ public class SmtAdmittanceApplyManageController extends BaseController {
 	@PreAuthorize("@pms.hasPermission('platform_visitor_incoming_revoke')")
 	@PostMapping("/revoke")
 	public Result<Boolean> revokeApply(@RequestParam("id") String id) {
-		SmtAdmittanceApply apply = smtAdmittanceApplyService.getById(Long.parseLong(id));
+		Long applyId;
+		try {
+			applyId = Long.parseLong(id);
+		} catch (NumberFormatException error) {
+			throw new SmartException("申请单不存在");
+		}
+		SmtAdmittanceApply apply = smtAdmittanceApplyService.getById(applyId);
 		return success(smtAdmittanceApplyService.revokeApply(apply));
 	}
 }

@@ -69,6 +69,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
@@ -620,22 +622,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				// 作废在批次提交前已生效，停止照片推送、通知和旧对象状态回写。
 				return;
 			}
-			//照片推送为过渡期尽力而为行为：与权限下发解耦，事务外执行，失败不影响已下发状态（照片由 FileReceiver 拉取兜底）
-			if (Boolean.TRUE.equals(photoPushEnabled)) {
-				try {
-					if (!Boolean.TRUE.equals(this.smbPutPhoto(apply.getId()))) {
-						log.error("【入厂申请照片推送】推送失败（不影响下发状态，等待客户端拉取），id={}", apply.getId());
-					}
-				} catch (Exception e) {
-					log.error("【入厂申请照片推送】推送异常（不影响下发状态，等待客户端拉取），id={}", apply.getId(), e);
-				}
+			if (!this.sendApprovedEffectsUnlessRevoked(apply)) {
+				return;
 			}
-		}
-		//预约通知
-		try {
-			this.sendPassMsg(apply);
-		} catch (Exception e) {
-			log.error("【入厂申请微信消息推送失败】{},{}", e.getMessage(), e.getStackTrace());
 		}
 		updateByIdUnlessRevoked(apply);
 	}
@@ -664,9 +653,45 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		}
 		// OA 已完成的单据无需撤销；待审批单则尽力撤销，失败不能使本地作废失效。
 		if (VisitorStatusEnum.Status_2.getCode().equals(originalStatus)) {
-			revokePendingOaProcess(apply);
+			schedulePendingOaRevokeAfterCommit(apply);
 		}
 		return Boolean.TRUE;
+	}
+
+	/**
+	 * 在申请单仍处于已通过状态时，以事务行锁串行发送审批通过后的外部效果。
+	 * 作废先提交时条件更新失败，照片和通知均不会发送；本流程先取得锁时，作废会等待本次通知完成后再回收权限。
+	 */
+	private boolean sendApprovedEffectsUnlessRevoked(SmtAdmittanceApply apply) {
+		Boolean delivered = transactionTemplate.execute(status -> {
+			LambdaUpdateWrapper<SmtAdmittanceApply> claimWrapper = Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+					.eq(SmtAdmittanceApply::getId, apply.getId())
+					.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
+					.set(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.ALRAEDY.getCode());
+			if (!this.update(null, claimWrapper)) {
+				return Boolean.FALSE;
+			}
+			// 照片推送为过渡期尽力而为行为：与权限下发解耦，失败不影响已下发状态（照片由 FileReceiver 拉取兜底）。
+			if (Boolean.TRUE.equals(photoPushEnabled)) {
+				try {
+					if (!Boolean.TRUE.equals(this.smbPutPhoto(apply.getId()))) {
+						log.error("【入厂申请照片推送】推送失败（不影响下发状态，等待客户端拉取），id={}", apply.getId());
+					}
+				} catch (Exception e) {
+					log.error("【入厂申请照片推送】推送异常（不影响下发状态，等待客户端拉取），id={}", apply.getId(), e);
+				}
+			}
+			try {
+				this.sendPassMsg(apply);
+			} catch (Exception e) {
+				log.error("【入厂申请微信消息推送失败】{},{}", e.getMessage(), e.getStackTrace());
+			}
+			return Boolean.TRUE;
+		});
+		if (!Boolean.TRUE.equals(delivered)) {
+			log.info("入厂申请在通过通知前已作废，跳过照片和通知，id={}，processId={}", apply.getId(), apply.getProcessId());
+		}
+		return Boolean.TRUE.equals(delivered);
 	}
 
 	/**
@@ -687,6 +712,26 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 
 	/**
 	 * 本地作废已先持久化；OA 撤销仅用于关闭外部待办，异常只告警，不能恢复本地有效状态。
+	 */
+	private void schedulePendingOaRevokeAfterCommit(SmtAdmittanceApply apply) {
+		if (StrUtil.isBlank(apply.getProcessId()) || StrUtil.isBlank(apply.getReceptionistBadge())) {
+			return;
+		}
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			log.error("入厂申请本地作废缺少事务同步，跳过 OA 撤销以避免未提交的外部副作用，id={}，processId={}",
+					apply.getId(), apply.getProcessId());
+			return;
+		}
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+			@Override
+			public void afterCommit() {
+				revokePendingOaProcess(apply);
+			}
+		});
+	}
+
+	/**
+	 * 事务提交后的 OA 撤销调用。失败只记录日志，不会恢复本地已作废终态。
 	 */
 	private void revokePendingOaProcess(SmtAdmittanceApply apply) {
 		if (StrUtil.isBlank(apply.getProcessId()) || StrUtil.isBlank(apply.getReceptionistBadge())) {

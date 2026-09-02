@@ -1,14 +1,16 @@
 package com.tce.smart.platform.controller.admittance;
 
+import com.tce.smart.common.core.exception.SmartException;
+import com.tce.smart.platform.service.admittance.SmtAdmittanceApplyService;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.lang.reflect.Method;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /** 管理端作废接口不得落在访客 H5 放行的 /admittance/** 路径下。 */
 public class SmtAdmittanceApplyManageControllerAclTest {
@@ -33,5 +35,19 @@ public class SmtAdmittanceApplyManageControllerAclTest {
 		assertNotNull(postMapping);
 		assertNotNull(preAuthorize);
 		assertTrue(preAuthorize.value().contains("platform_visitor_incoming_revoke"));
+	}
+
+	@Test
+	public void revokeRejectsNonNumericIdWithBusinessError() {
+		SmtAdmittanceApplyService applyService = Mockito.mock(SmtAdmittanceApplyService.class);
+		SmtAdmittanceApplyManageController controller = new SmtAdmittanceApplyManageController(applyService);
+
+		try {
+			controller.revokeApply("not-a-number");
+			fail("非法申请单 ID 必须被转换为业务异常");
+		} catch (SmartException error) {
+			assertEquals("申请单不存在", error.getMessage());
+		}
+		Mockito.verifyZeroInteractions(applyService);
 	}
 }

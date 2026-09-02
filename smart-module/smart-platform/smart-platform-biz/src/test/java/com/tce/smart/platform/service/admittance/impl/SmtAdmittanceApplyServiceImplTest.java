@@ -46,6 +46,7 @@ import com.tce.smart.platform.api.dto.req.admittance.SaveAdmittanceApplyReqDTO;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceAreaTypeAuthService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceFellowService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceVehicleService;
+import com.tce.smart.data.api.feign.msg.RemoteOaWorkFlowService;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
 import com.tce.smart.tool.enums.AdmittanceTypeEnum;
 import com.tce.smart.tool.enums.DeviceTaskActionEnum;
@@ -72,6 +73,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.Field;
@@ -313,6 +316,7 @@ public class SmtAdmittanceApplyServiceImplTest {
 		harness.service = service;
 		harness.mapper = mapper;
 		harness.taskService = taskService;
+		harness.msgTemplateService = msgTemplateService;
 		harness.apply = apply;
 		return harness;
 	}
@@ -321,6 +325,7 @@ public class SmtAdmittanceApplyServiceImplTest {
 		SmtAdmittanceApplyServiceImpl service;
 		SmtAdmittanceApplyMapper mapper;
 		SmtDeviceTaskService taskService;
+		SmtMsgTemplateService msgTemplateService;
 		SmtAdmittanceApply apply;
 	}
 
@@ -351,14 +356,15 @@ public class SmtAdmittanceApplyServiceImplTest {
 		Assert.assertEquals(harness.apply.getId(), taskCaptor.getValue().getApplyId());
 
 		ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
-		Mockito.verify(harness.mapper).update(Mockito.isNull(), updateCaptor.capture());
-		updateCaptor.getValue().getSqlSegment();
+		Mockito.verify(harness.mapper, Mockito.times(2)).update(Mockito.isNull(), updateCaptor.capture());
+		// 先生成 SQL 片段，确保 MyBatis-Plus 将 Lambda 条件对应的参数写入捕获器。
+		updateCaptor.getAllValues().forEach(LambdaUpdateWrapper::getSqlSegment);
 		Assert.assertTrue("isc_submit_batch 更新应写入与任务一致的批次号",
-				updateCaptor.getValue().getParamNameValuePairs().values().stream()
-						.anyMatch(value -> batchIdOnTask.equals(value)));
+				updateCaptor.getAllValues().stream().anyMatch(wrapper -> wrapper.getParamNameValuePairs().values().stream()
+						.anyMatch(value -> batchIdOnTask.equals(value))));
 		Assert.assertTrue("批次占用必须排除已作废状态",
-				updateCaptor.getValue().getParamNameValuePairs().values().stream()
-						.anyMatch(value -> VisitorStatusEnum.CAUSE_7.getCode().equals(value)));
+				updateCaptor.getAllValues().stream().anyMatch(wrapper -> wrapper.getParamNameValuePairs().values().stream()
+						.anyMatch(value -> VisitorStatusEnum.CAUSE_7.getCode().equals(value))));
 
 		InOrder inOrder = Mockito.inOrder(harness.taskService, harness.mapper);
 		inOrder.verify(harness.mapper).update(Mockito.isNull(), Mockito.any());
@@ -377,6 +383,19 @@ public class SmtAdmittanceApplyServiceImplTest {
 		// 已作废时，旧审批回调不得继续发送照片或通过通知。
 		Mockito.verify(harness.service, Mockito.never()).smbPutPhoto(harness.apply.getId());
 		Assert.assertNull("作废已抢占时不得记录新的下发批次", harness.apply.getIscSubmitBatch());
+	}
+
+	@Test
+	public void updateStatusDoesNotNotifyWhenVoidWinsAfterBatchClaim() throws Exception {
+		UpdateStatusHarness harness = setUpUpdateStatusHarness();
+		// 首次条件更新成功创建权限批次，第二次通知前状态认领失败代表作废已落库。
+		Mockito.when(harness.mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1, 0);
+
+		harness.service.updateStatus(harness.apply);
+
+		Mockito.verify(harness.taskService).saveTask(Mockito.any(DeviceTaskVO.class));
+		Mockito.verify(harness.service, Mockito.never()).smbPutPhoto(harness.apply.getId());
+		Mockito.verify(harness.msgTemplateService, Mockito.never()).selectByTempCode(Mockito.anyString());
 	}
 
 	@Test
@@ -708,6 +727,36 @@ public class SmtAdmittanceApplyServiceImplTest {
 		Mockito.verify(mapper).update(Mockito.isNull(), wrapperCaptor.capture());
 		Assert.assertTrue(updateWrapperHasParam(wrapperCaptor.getValue(), 7));
 		Mockito.verify(service).delDeviceAuth(3201L);
+	}
+
+	@Test
+	public void revokeApplySchedulesPendingOaCancellationOnlyAfterCommit() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		ApproveListService approveListService = Mockito.mock(ApproveListService.class);
+		SmtVisitorProcessRecordService processRecordService = Mockito.mock(SmtVisitorProcessRecordService.class);
+		RemoteOaWorkFlowService oaWorkFlowService = Mockito.mock(RemoteOaWorkFlowService.class);
+		SmtAdmittanceApplyServiceImpl service = Mockito.spy(new SmtAdmittanceApplyServiceImpl());
+		setField(service, "baseMapper", mapper);
+		setField(service, "approveListService", approveListService);
+		setField(service, "smtVisitorProcessRecordService", processRecordService);
+		setField(service, "remoteOaWorkFlowService", oaWorkFlowService);
+		Mockito.when(mapper.update(Mockito.isNull(), Mockito.any())).thenReturn(1);
+		Mockito.doReturn(Boolean.TRUE).when(service).delDeviceAuth(3202L);
+		SmtAdmittanceApply apply = pendingAdmittanceApply(3202L, "3202");
+		apply.setStatus(VisitorStatusEnum.Status_2.getCode());
+		apply.setReceptionistBadge("badge-3202");
+
+		TransactionSynchronizationManager.initSynchronization();
+		try {
+			Assert.assertTrue(service.revokeApply(apply));
+			Mockito.verifyZeroInteractions(oaWorkFlowService);
+			for (TransactionSynchronization synchronization : TransactionSynchronizationManager.getSynchronizations()) {
+				synchronization.afterCommit();
+			}
+			Mockito.verify(oaWorkFlowService).sendOaRevoke(3202, "badge-3202");
+		} finally {
+			TransactionSynchronizationManager.clearSynchronization();
+		}
 	}
 
 	@Test
