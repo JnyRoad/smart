@@ -305,17 +305,24 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 	 * 为一批设备创建删除任务，必须遍历所有设备，不能因单台任务保存完成或失败而提前退出。
 	 *
 	 * @param deviceTaskDeleteDTO 删除任务参数
-	 * @return 本次存在需创建的非 ISC 删除任务且全部保存成功时返回 true
+ * @return 本次存在需创建的非 ISC 删除任务、所有设备编码均有效且任务全部保存成功时返回 true
 	 */
 	@Override
 	public boolean deleteTask(DeviceTaskDeleteDTO deviceTaskDeleteDTO) {
 		boolean hasNonIscTaskToCreate = false;
 		boolean allNonIscTasksSaved = true;
+		boolean allDeviceCodesResolved = true;
 		//根据serialNo来生成删除任务
 		if (ObjectUtil.isNotNull(deviceTaskDeleteDTO) && StringUtils.isNotEmpty(deviceTaskDeleteDTO.getCardNo()) && CollectionUtil.isNotEmpty(deviceTaskDeleteDTO.getDeviceCode())) {
 			for (String deviceCode : deviceTaskDeleteDTO.getDeviceCode()) {
 				//判断设备是否为ISC同步的 是则把任务创建在新表中
 				SmtDevice smtDevice = smtDeviceMapper.selectById(deviceCode);
+				if (smtDevice == null) {
+					// 设备已删除或编码无效时，标记整批失败但继续处理后续设备。
+					log.warn("删除任务未找到设备，跳过处理，deviceCode：{}", deviceCode);
+					allDeviceCodesResolved = false;
+					continue;
+				}
 				if (StaffSyncEnum.YES.getCode().equals(smtDevice.getIsSync())) {
 					smtIscDeviceTaskService.deleteTask(deviceCode, deviceTaskDeleteDTO.getCardNo());
 					continue;
@@ -360,7 +367,7 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 				}
 			}
 		}
-		return hasNonIscTaskToCreate && allNonIscTasksSaved;
+		return hasNonIscTaskToCreate && allNonIscTasksSaved && allDeviceCodesResolved;
 	}
 
 	@Override

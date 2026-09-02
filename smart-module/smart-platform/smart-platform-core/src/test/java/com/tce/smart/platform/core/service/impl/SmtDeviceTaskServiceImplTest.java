@@ -32,6 +32,9 @@ import java.util.Collections;
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class SmtDeviceTaskServiceImplTest {
 
+	/**
+	 * 初始化 Lambda 查询所需的 MyBatis-Plus 元数据缓存。
+	 */
 	@BeforeClass
 	public static void initMybatisPlusLambdaCache() {
 		TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SmtTaskDownRecord.class);
@@ -103,6 +106,47 @@ public class SmtDeviceTaskServiceImplTest {
 		Mockito.verify(deviceTaskMapper, Mockito.times(3)).insert(Mockito.any(SmtDeviceTask.class));
 	}
 
+	/**
+	 * 未知设备不应阻断同批后续有效设备的删除任务创建。
+	 */
+	@Test
+	public void deleteTaskContinuesAfterUnknownDeviceCode() throws Exception {
+		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
+		SmtDeviceTaskMapper deviceTaskMapper = Mockito.mock(SmtDeviceTaskMapper.class);
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtDeviceTaskServiceImpl service = new SmtDeviceTaskServiceImpl(downRecordService,
+				Mockito.mock(SmtIscDownRecordService.class),
+				Mockito.mock(SmtDeviceAuthorityRelationMapper.class),
+				deviceMapper,
+				Mockito.mock(SmtIscDeviceTaskService.class));
+		setField(service, "baseMapper", deviceTaskMapper);
+		SmtDevice device = new SmtDevice();
+		device.setIsSync(StaffSyncEnum.NO.getCode());
+		Mockito.when(deviceMapper.selectById(Mockito.anyString())).thenReturn(null, device);
+		Mockito.when(downRecordService.getOne(Mockito.any())).thenReturn(newDownRecord("device-1"));
+		Mockito.when(deviceTaskMapper.selectCount(Mockito.any())).thenReturn(0);
+		Mockito.when(deviceTaskMapper.insert(Mockito.any(SmtDeviceTask.class))).thenReturn(1);
+		DeviceTaskDeleteDTO request = new DeviceTaskDeleteDTO();
+		request.setCardNo("1001");
+		request.setDeviceCode(Arrays.asList("missing-device", "device-1"));
+
+		boolean result;
+		try {
+			result = service.deleteTask(request);
+		} catch (NullPointerException exception) {
+			Assert.fail("未知设备不应阻断后续设备的删除任务创建");
+			return;
+		}
+
+		Assert.assertFalse(result);
+		ArgumentCaptor<SmtDeviceTask> taskCaptor = ArgumentCaptor.forClass(SmtDeviceTask.class);
+		Mockito.verify(deviceTaskMapper).insert(taskCaptor.capture());
+		Assert.assertEquals("device-1", taskCaptor.getValue().getDeviceCode());
+	}
+
+	/**
+	 * 访客删除应忽略历史完成任务，并为门禁卡下发记录新建删除任务。
+	 */
 	@Test
 	public void delVisitorDeviceAuthHandlesAdmittanceCardRecordsAndIgnoresHistoricalDeletes() throws Exception {
 		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
@@ -153,6 +197,9 @@ public class SmtDeviceTaskServiceImplTest {
 		Mockito.verify(iscDeviceTaskService).delVisitorDeviceAuth(fellowId);
 	}
 
+	/**
+	 * 访客删除应复用处理中车辆门禁删除任务，而不重复插入。
+	 */
 	@Test
 	public void delVisitorDeviceAuthReusesDoingCarAdmittanceDeleteTask() throws Exception {
 		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
@@ -201,6 +248,9 @@ public class SmtDeviceTaskServiceImplTest {
 		Mockito.verify(iscDeviceTaskService).delVisitorDeviceAuth(vehicleId);
 	}
 
+	/**
+	 * 删除任务在调用方未填写类型时应从下发记录补齐类型。
+	 */
 	@Test
 	public void saveTaskDeleteBackfillsDownRecordTypesWhenCallerOmitsThem() throws Exception {
 		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
@@ -245,6 +295,9 @@ public class SmtDeviceTaskServiceImplTest {
 		Assert.assertEquals(DeviceTaskConstants.CARD_STAFF_IMPORT, insertedTask.getValue().getServiceType());
 	}
 
+	/**
+	 * 历史员工人脸下发记录应规范为员工权限删除任务。
+	 */
 	@Test
 	public void saveTaskDeleteNormalizesLegacyStaffFaceRecordToStaffPermissionTask() throws Exception {
 		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
@@ -298,6 +351,9 @@ public class SmtDeviceTaskServiceImplTest {
 		Assert.assertEquals(DeviceTaskActionEnum.DELAY_DEL.getCode(), insertedTask.getValue().getAction());
 	}
 
+	/**
+	 * 车辆设备类型常量对应的重复任务不应再次创建。
+	 */
 	@Test
 	public void saveTaskDeduplicatesCarDeviceTypeConstantTasks() throws Exception {
 		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
@@ -332,6 +388,9 @@ public class SmtDeviceTaskServiceImplTest {
 		Mockito.verify(deviceTaskMapper, Mockito.never()).insert(Mockito.any(SmtDeviceTask.class));
 	}
 
+	/**
+	 * 删除任务应按设备类型和服务类型查询对应的下发记录。
+	 */
 	@Test
 	public void saveTaskDeleteLooksUpDownRecordByDeviceTypeAndServiceType() throws Exception {
 		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
@@ -379,6 +438,9 @@ public class SmtDeviceTaskServiceImplTest {
 		Assert.assertEquals(DeviceTaskActionEnum.DEL.getCode(), insertedDeleteTask.getValue().getAction());
 	}
 
+	/**
+	 * 断言 Lambda 查询参数中包含预期值。
+	 */
 	private void assertQueryHasParam(LambdaQueryWrapper queryWrapper, Object expected) {
 		queryWrapper.getSqlSegment();
 		Assert.assertTrue(queryWrapper.getParamNameValuePairs().values().stream()
@@ -397,6 +459,9 @@ public class SmtDeviceTaskServiceImplTest {
 		return downRecord;
 	}
 
+	/**
+	 * 为测试对象及其父类的指定字段注入 Mock。
+	 */
 	private void setField(Object target, String name, Object value) throws Exception {
 		Class<?> type = target.getClass();
 		while (type != null) {

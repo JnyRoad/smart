@@ -669,7 +669,7 @@ flowchart LR
 <section class="item" id="item-d4">
  <div class="ih"><span class="ino">缺陷④</span><h3>ISC 事件订阅"假活"：本地标志与 ISC 侧真实订阅状态可能脱节</h3><span class="ibatch">批次 0 · 已实现，待合入 main</span></div>
  <dl>
-  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>4644f0cc</code>）</dt>
+  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>77deb5c6</code>）</dt>
   <dd>
    <p><strong>已实现：</strong><code>BridgeISCServiceImpl</code> 新增单进程内存健康时间 <code>lastSuccessfulEventCallbackTime</code> 与 10 分钟阈值。每次订阅成功会写入观察起点；<code>subscribeTask()</code> 仍按现有 2 分钟频率运行，但仅在事件订阅已开启、本地标志为已订阅且最近成功回调已超过阈值时，才将 <code>SUBSCRIBE_STATUS</code> 重置为 false 并复用既有 <code>subscribeEvent()</code> 发起重订阅。</p>
    <p><code>HandleServiceImpl.eventHandle()</code> 只在 <code>remoteDispatcherService.handle(...)</code> 返回成功后调用 <code>recordSuccessfulEventCallback()</code>；收到 HTTP 回调但业务分发失败不会刷新健康时间，避免把失败链路误判为健康。</p>
@@ -711,10 +711,10 @@ flowchart LR
 <section class="item" id="item-d5">
  <div class="ih"><span class="ino">缺陷⑤</span><h3>批量删除任务循环内提前 return，后续设备静默不建任务</h3><span class="ibatch">批次 0 · 已实现，待合入 main</span></div>
  <dl>
-  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>77deb5c6</code>）</dt>
+  <dt>实施状态（本分支，代码基线：2026-09-02 / <code>4644f0cc</code>）</dt>
   <dd>
-   <p><strong>已实现：</strong><code>deleteTask</code> 已改为遍历完整个 <code>deviceCode</code> 列表。每个需创建的非 ISC 删除任务都会通过 <code>allNonIscTasksSaved &amp;= this.save(deviceTask)</code> 累计保存结果；这是非短路与运算，任一设备保存失败后仍会继续处理后续设备。</p>
-   <p>方法仅在本次存在需创建的非 ISC 删除任务且全部保存成功时返回 <code>true</code>；有任一保存失败时返回 <code>false</code>，但后续设备任务仍已尝试创建。唯一入口 <code>SmtDeviceTaskController.delete()</code> 只将该布尔值原样写入响应，未发现其他调用方依赖旧的“首台设备保存结果”语义。ISC 分支仍沿用原有 <code>void</code> 委托及返回语义，本止血修复不扩展该范围。</p>
+   <p><strong>已实现：</strong><code>deleteTask</code> 已改为遍历完整个 <code>deviceCode</code> 列表。每个需创建的非 ISC 删除任务都会通过 <code>allNonIscTasksSaved &amp;= this.save(deviceTask)</code> 累计保存结果；这是非短路与运算，任一设备保存失败后仍会继续处理后续设备。设备编码不存在或设备已删除时，方法会标记整批失败并跳过该设备，继续处理后续设备。</p>
+   <p>方法仅在本次存在需创建的非 ISC 删除任务、所有设备编码均有效且全部保存成功时返回 <code>true</code>；有任一保存失败或无效设备时返回 <code>false</code>，但后续设备任务仍已尝试创建。唯一入口 <code>SmtDeviceTaskController.delete()</code> 只将该布尔值原样写入响应，未发现其他调用方依赖旧的“首台设备保存结果”语义。ISC 分支委托 <code>SmtIscDeviceTaskService.deleteTask(String, String)</code>，该接口返回 <code>boolean</code>；当前批量方法不汇总或使用该返回值，本止血修复不扩展该既有范围。</p>
   </dd>
   <dt>现状与问题</dt>
   <dd>
@@ -724,15 +724,15 @@ flowchart LR
    <p>这个 <code>return</code> 在 for 循环内部——一旦第一个满足条件的非 ISC 设备成功创建删除任务，方法立即整体返回，同一批次里排在它后面的所有 deviceCode（不论是否 ISC 设备）都不会再被处理，权限会静默残留在这些设备上，调用方拿到的返回值（true）也无法反映"其实只处理了一个设备"这个事实。</p>
   </dd>
   <dt>目标与验收标准</dt>
-  <dd>已完成单元验收：传入 3 个非 ISC 设备时，每台都各自生成一条 <code>SmtDeviceTask</code>（action=2/DEL）记录；当首台保存失败时，后两台仍继续尝试创建，且整批结果返回 <code>false</code>。</dd>
+  <dd>已完成单元验收：传入 3 个非 ISC 设备时，每台都各自生成一条 <code>SmtDeviceTask</code>（action=2/DEL）记录；当首台保存失败，或列表中先出现未知设备时，后续有效设备仍继续尝试创建，且整批结果返回 <code>false</code>。</dd>
   <dt>实现方式</dt>
-  <dd>已移除循环内的提前返回，新增“是否有非 ISC 任务需创建”和“是否全部保存成功”两个累计状态；末尾统一返回二者的与。保存结果使用 <code>&amp;=</code> 而非短路 <code>&amp;&amp;</code>，保证失败状态不会跳过后续 <code>save</code> 调用。</dd>
+  <dd>已移除循环内的提前返回，新增“是否有非 ISC 任务需创建”“是否全部保存成功”和“是否全部解析到设备”三个累计状态；末尾统一返回三者的与。保存结果使用 <code>&amp;=</code> 而非短路 <code>&amp;&amp;</code>，保证失败状态不会跳过后续 <code>save</code> 调用。</dd>
   <dt>处理流程</dt>
   <dd>
    <ol>
     <li>已排查调用方：控制器仅原样返回布尔结果。</li>
     <li>已移除循环内提前 return，遍历结束后统一返回汇总结果。</li>
-    <li>已补充单测覆盖三台非 ISC 设备全量建任务，以及首台保存失败仍继续处理后续设备。</li>
+    <li>已补充单测覆盖三台非 ISC 设备全量建任务、首台保存失败，以及未知设备时仍继续处理后续有效设备。</li>
     <li>待本 PR 评审、合并，并随 <code>smart-platform-biz</code> 服务发布节奏上线。</li>
     <li>上线后建议做一次历史核对：按 card_no 反查同一批应删设备是否每个都有对应的删除任务记录，识别历史因本 bug 遗留的存量残留权限（可参考待办 20 的 SQL 思路变体）。</li>
    </ol>
@@ -742,13 +742,13 @@ flowchart LR
    <table>
     <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
     <tr><td>后端（已改）</td><td>SmtDeviceTaskServiceImpl.java（deleteTask）</td><td>去掉循环内提前 return，遍历后统一汇总非 ISC 任务保存结果</td></tr>
-    <tr><td>测试（已改）</td><td>SmtDeviceTaskServiceImplTest.java</td><td>覆盖多设备全量建任务，以及单台保存失败后仍继续处理后续设备</td></tr>
+    <tr><td>测试（已改）</td><td>SmtDeviceTaskServiceImplTest.java</td><td>覆盖多设备全量建任务、单台保存失败，以及未知设备后仍继续处理后续设备</td></tr>
    </table>
   </dd>
   <dt>测试与验证</dt>
-  <dd>已执行：<code>mvn -f smart-module/pom.xml -pl smart-platform/smart-platform-core -am -Dtest=SmtDeviceTaskServiceImplTest -Dsurefire.failIfNoSpecifiedTests=false test</code>，8 个测试全部通过。未执行：闸机管理删除入口联调、实际设备任务消费确认和生产发布验证；上线后仍建议按 card_no 核对历史存量设备是否均有删除任务记录。</dd>
+  <dd>已执行：<code>mvn -f smart-module/pom.xml -pl smart-platform/smart-platform-core -am -Dtest=SmtDeviceTaskServiceImplTest -Dsurefire.failIfNoSpecifiedTests=false test</code>，9 个测试全部通过。未执行：闸机管理删除入口联调、实际设备任务消费确认和生产发布验证；上线后仍建议按 card_no 核对历史存量设备是否均有删除任务记录。</dd>
   <dt>依赖与风险</dt>
-  <dd>本修复不处理历史因该 bug 造成的存量残留权限，需要额外做一次性核对；也不改变 ISC 分支既有的返回语义。回滚为代码回退，无数据结构变更。</dd>
+  <dd>本修复不处理历史因该 bug 造成的存量残留权限，需要额外做一次性核对；ISC 分支的布尔返回值仍未纳入整批汇总，保持既有语义。回滚为代码回退，无数据结构变更。</dd>
  </dl>
 </section>
 
