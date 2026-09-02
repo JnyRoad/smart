@@ -1,0 +1,597 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>裕慧家园 App 原型</title>
+<style>
+:root{--acc:#EC6C00;--acc2:#D95F00;--soft:#FFF1E3;--sink:#5A2600;--ink:#595757;--ink2:#6F6C6B;--ink3:#807D7C;
+--line:#E5E3E3;--lsoft:#EFEEEE;--bg:#F7F7F7;--ok:#16A673;--warn:#C98416;--dgr:#D83B36;--info:#2376D9}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#ECEDEA;font-family:"Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;color:var(--ink);font-size:15px;line-height:1.7}
+.stage{display:flex;gap:26px;justify-content:center;align-items:flex-start;padding:26px 16px 60px;flex-wrap:wrap}
+.panel{width:300px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;position:sticky;top:26px}
+.panel h3{margin:0 0 4px;font-size:15px}
+.panel .sub{font-size:12px;color:var(--ink3);margin-bottom:12px}
+.panel .lbl{font-size:12px;color:var(--ink2);font-weight:700;margin:12px 0 6px}
+.acct{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--lsoft);border-radius:10px;margin-bottom:6px;cursor:pointer;font-size:13px}
+.acct:hover{border-color:var(--acc)}
+.acct.on{background:var(--soft);border-color:var(--acc);color:var(--sink);font-weight:700}
+.acct small{color:var(--ink3);font-weight:400}
+.hintbox{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--ink2);line-height:1.8}
+.rst{display:flex;align-items:center;justify-content:center;min-height:38px;border-radius:9px;border:1px solid var(--line);font-size:13px;font-weight:650;cursor:pointer;margin-top:12px;background:#fff}
+.rst:hover{border-color:var(--dgr);color:var(--dgr)}
+/* 手机壳 */
+.shell{width:406px;flex-shrink:0}
+.phone{width:406px;height:868px;background:#1c1c1c;border-radius:38px;padding:8px;box-shadow:0 30px 70px rgba(30,35,30,.28)}
+.scr{width:390px;height:852px;background:var(--bg);border-radius:30px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.bar{height:52px;background:#fff;border-bottom:1px solid var(--lsoft);display:flex;align-items:center;justify-content:space-between;padding:0 14px;flex-shrink:0}
+.bar b{font-size:17px}
+.bk{width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:9px}
+.bk:hover{background:var(--bg)}
+.body{flex:1;overflow-y:auto;padding:14px 14px 18px;display:flex;flex-direction:column;gap:12px}
+.foot{background:#fff;border-top:1px solid var(--lsoft);padding:12px 14px 16px;display:flex;gap:10px;flex-shrink:0}
+.tabbar{height:58px;background:#fff;border-top:1px solid var(--lsoft);display:flex;flex-shrink:0}
+.tabbar div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--ink3);cursor:pointer}
+.tabbar div.on{color:var(--acc);font-weight:700}
+.card{background:#fff;border:1px solid var(--lsoft);border-radius:14px;padding:14px 15px}
+.card.sel{border:1.5px solid var(--acc);background:#FFF9F2}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.5px}
+.kv s{color:var(--ink2);text-decoration:none;flex-shrink:0}
+.kv b{font-weight:600;text-align:right}
+.h4{font-size:14px;font-weight:750;margin:0 0 6px}
+.btn{display:flex;align-items:center;justify-content:center;min-height:46px;border-radius:10px;background:var(--acc);color:#fff;font-weight:700;font-size:15px;cursor:pointer;user-select:none;flex:1}
+.btn:hover{background:var(--acc2)}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.btn.ghost:hover{border-color:var(--acc);color:var(--acc)}
+.btn.dgr{background:#fff;border:1px solid var(--dgr);color:var(--dgr)}
+.btn.dis{background:#E5E3E3;color:#fff;cursor:not-allowed}
+.btn.sm{min-height:38px;font-size:13px;flex:none;padding:0 16px}
+.chip{display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:6px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.c-ok{background:rgba(22,166,115,.12);color:var(--ok)}.c-warn{background:rgba(201,132,22,.14);color:var(--warn)}
+.c-dgr{background:rgba(216,59,54,.12);color:var(--dgr)}.c-info{background:rgba(35,118,217,.12);color:var(--info)}
+.c-soft{background:var(--soft);color:var(--sink)}.c-gray{background:var(--bg);color:var(--ink3)}
+.field{min-height:46px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 13px;display:flex;align-items:center;gap:8px;font-size:14px}
+.field input,.field select,.field textarea{border:none;outline:none;flex:1;font-size:14px;font-family:inherit;background:transparent;color:var(--ink);min-width:0}
+.field.foc{border:1.5px solid var(--acc);box-shadow:0 0 0 3px rgba(236,108,0,.16)}
+.lab{font-size:12.5px;color:var(--ink2);margin:2px 0 -6px}
+.seg{display:flex;background:var(--bg);border-radius:10px;padding:3px}
+.seg div{flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;font-size:13.5px;color:var(--ink2);border-radius:8px;cursor:pointer}
+.seg div.on{background:#fff;border:1px solid var(--acc);color:var(--sink);font-weight:700}
+.opt2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt2 div{min-height:48px;border-radius:10px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;font-size:14.5px;cursor:pointer;color:var(--ink2)}
+.opt2 div.on{background:var(--soft);border-color:var(--acc);color:var(--sink);font-weight:700}
+.gridfn{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.fn{position:relative;background:#fff;border:1px solid var(--lsoft);border-radius:14px;padding:15px 13px;display:flex;flex-direction:column;gap:8px;cursor:pointer}
+.fn:hover{border-color:var(--acc)}
+.fn b{font-size:14.5px}
+.fn .bdg{position:absolute;top:9px;right:11px;background:rgba(216,59,54,.12);color:var(--dgr);font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px}
+.mono{font-family:ui-monospace,Menlo,monospace}
+.muted{font-size:12px;color:var(--ink3)}
+.sealtag{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 11px;border-radius:8px;background:var(--bg);font-size:12.5px;font-family:ui-monospace,Menlo,monospace}
+.sealtag i{font-style:normal;cursor:pointer;color:var(--ink3);font-weight:700}
+.row{display:flex;gap:10px;align-items:center}
+.avatar{width:52px;height:52px;border-radius:11px;background:var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-weight:750;font-size:19px}
+.banner{padding:11px 14px;display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;border-radius:12px}
+.tl{display:flex;flex-direction:column;gap:0}
+.tl .it{display:flex;gap:10px;font-size:12.5px;color:var(--ink2);position:relative;padding:0 0 14px 16px}
+.tl .it:before{content:"";position:absolute;left:3px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--acc)}
+.tl .it:after{content:"";position:absolute;left:6px;top:16px;bottom:0;width:1px;background:var(--lsoft)}
+.tl .it:last-child:after{display:none}
+.toast{position:absolute;left:50%;bottom:120px;transform:translateX(-50%);background:rgba(40,44,40,.92);color:#fff;font-size:13px;padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:50;white-space:nowrap}
+.toast.show{opacity:1}
+.empty{text-align:center;color:var(--ink3);font-size:13px;padding:36px 0}
+.nfc{width:120px;height:120px;border-radius:50%;background:var(--soft);margin:26px auto 4px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px dashed var(--acc)}
+.nfc.done{border-style:solid;background:rgba(22,166,115,.10);border-color:var(--ok)}
+@media(max-width:1080px){.panel{position:static;width:406px}}
+</style>
+<div class="stage">
+  <div class="panel">
+    <h3>演示控制台</h3>
+    <div class="sub">这是右侧 App 的“上帝视角”：切换演示账号即可扮演流程中的不同角色，把一张放行单从申请一路走到归档。</div>
+    <div class="lbl">演示账号（点击切换登录）</div>
+    <div id="accts"></div>
+    <div class="lbl">下一步引导</div>
+    <div class="hintbox" id="hint">从「陈明（申请人）」开始：登录后进入「放行申请」提交一张新单。</div>
+    <div class="rst" onclick="resetAll()">重置演示数据</div>
+  </div>
+  <div class="shell"><div class="phone"><div class="scr" id="scr"></div></div></div>
+</div>
+<script>
+/* ================= 数据 ================= */
+var POSTS=['保密区A-南门岗','保密区B-收发岗','成型车间B-收发室','研发打样室岗'];
+var USERS=[
+ {id:'chen',name:'陈明',badge:'YT06218',dept:'结构设计部',tag:'申请人',type:'apply',boss:'王志远'},
+ {id:'wzy',name:'王志远',badge:'YT01022',dept:'结构设计部',tag:'直属主管',type:'manager'},
+ {id:'ljj',name:'李建军',badge:'YT08211',dept:'安保部',tag:'A岗安检（出发）',type:'guard',post:'保密区A-南门岗'},
+ {id:'zl',name:'赵磊',badge:'YT02890',dept:'安保部',tag:'B岗安检（到达）',type:'guard',post:'成型车间B-收发室'}
+];
+var ESCORTS={'8A02D14C':{name:'王强',dept:'工艺部',tag:'押运员',badge:'YT03150'}};
+function seed(){return {
+ orders:[
+  {no:'MF20260829031',applicant:'吴凯',dept:'设备部',from:'保密区B-收发岗',to:'保密区A-南门岗',
+   things:[{n:'笔记本电脑（研发专用）',c:'ZC-2026-0102',q:1}],seals:['F0779001','F0779002'],reason:'设备检修回送',
+   status:'escorting',escort:{type:'lock',lockNo:'SD-0233'},
+   tl:[['08-29 15:40','吴凯 提交申请'],['08-29 16:02','孙浩（主管）审批同意'],['08-29 16:52','B-收发岗 孙一鸣 确认出发 · 定位器锁 SD-0233']]},
+  {no:'MF20260828011',applicant:'郑海',dept:'品质部',from:'保密区A-南门岗',to:'成型车间B-收发室',
+   things:[{n:'手机中框对样件',c:'ZC-2026-0287',q:4}],seals:['F0768001'],reason:'品质对样',
+   status:'archived',escort:{type:'man',name:'王强'},
+   tl:[['08-28 09:20','郑海 提交申请'],['08-28 09:41','主管审批同意'],['08-28 10:15','A-南门岗 李建军 确认出发 · 押运 王强'],['08-28 10:52','成型车间B 赵磊 确认到达 · 归档']]}
+ ],
+ visitors:[
+  {id:'v1',name:'李芳',comp:'深圳市恒兴印务有限公司',secret:true,valid:true,area:'新厂 · 保密区A',range:'08-28 09:00 ~ 08-30 18:00',host:'王强 · 工艺部',cause:'模具对样',inside:false},
+  {id:'v2',name:'刘建国',comp:'宏图纸品',secret:true,valid:false,reason:'供应商保密协议已到期，权限已回收',area:'-',range:'-'}
+ ],
+ entries:[], seq:12
+};}
+var db=seed();
+var me=null, post=null, stack=[], tab='home';
+/* ================= 基础 ================= */
+function $(id){return document.getElementById(id)}
+/**
+ * 将动态内容安全地插入 HTML 文本或双引号属性。
+ * 事件处理器不拼接动态文本，避免 HTML 实体解码后再次进入 JavaScript 语法上下文。
+ */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function toast(m){var t=$('tst');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},1800)}
+function nav(s,p){stack.push({s:s,p:p||{}});render()}
+function back(){if(stack.length>1)stack.pop();render()}
+/**
+ * 跳转到指定页面，并阻止安检人员在未选择岗位时进入工作台。
+ * 参数为目标页面及其页面参数；仅更新本地演示导航状态，不产生外部副作用。
+ */
+function go(s,p){
+ if(s==='home'&&me&&me.type==='guard'&&!post){toast('请先选择当前岗位');return}
+ stack=[{s:s,p:p||{}}];render();
+}
+function cur(){return stack[stack.length-1]}
+function stChip(o){
+ var m={pending:['待审批','c-warn'],rejected:['已驳回','c-dgr'],approved:['待出发确认','c-warn'],escorting:['押运中','c-info'],archived:['已归档','c-ok']};
+ var x=m[o.status];return '<span class="chip '+x[1]+'">'+x[0]+'</span>';
+}
+function now(){var d=new Date();function z(n){return (n<10?'0':'')+n}return z(d.getMonth()+1)+'-'+z(d.getDate())+' '+z(d.getHours())+':'+z(d.getMinutes())}
+function newNo(){db.seq++;return 'MF202608300'+(db.seq<10?'0'+db.seq:db.seq)}
+function counts(){
+ return {
+  approve: db.orders.filter(function(o){return o.status==='pending'}).length,
+  todoA: db.orders.filter(function(o){return o.status==='approved'&&o.from===post}).length,
+  todoB: db.orders.filter(function(o){return o.status==='escorting'&&o.to===post}).length
+ };
+}
+function hint(){
+ var h;
+ var pend=db.orders.some(function(o){return o.status==='pending'});
+ var appr=db.orders.some(function(o){return o.status==='approved'});
+ var esc2=db.orders.some(function(o){return o.status==='escorting'&&o.to==='成型车间B-收发室'});
+ if(!me) h='点击左侧账号登录 App。建议顺序：陈明 → 王志远 → 李建军 → 赵磊。';
+ else if(me.type==='apply'&&!pend&&!appr) h='用「放行申请」提交一张新单（封条条码可点「模拟扫码」自动填入），然后切到 王志远 审批。';
+ else if(pend) h='当前有待审批单：切换到「王志远（直属主管）」，进入放行审批 → 同意。';
+ else if(appr) h='单据已审批：切换到「李建军（A岗安检）」，在放行待办里做出发确认（试试两种押运方式）。';
+ else if(esc2) h='单据押运中：切换到「赵磊（B岗安检）」，用「封条扫码」输入任一封条号（如新单的 F08210xx）直接定位单据，确认到达归档。';
+ else h='流程已走完：可在「记录报表」查全程轨迹；也可以体验访客核验/进出登记，或点「重置演示数据」重来。';
+ $('hint').textContent=h;
+}
+function renderAccts(){
+ $('accts').innerHTML=USERS.map(function(u){
+  return '<div class="acct'+(me&&me.id===u.id?' on':'')+'" onclick="loginAs(\''+u.id+'\')"><span style="width:30px;height:30px;border-radius:8px;background:'+(me&&me.id===u.id?'var(--acc)':'#c9cec9')+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:750;font-size:13px">'+u.name[0]+'</span><span>'+u.name+'<br><small>'+u.tag+'</small></span></div>';
+ }).join('');
+}
+function loginAs(id){
+ me=USERS.filter(function(u){return u.id===id})[0];
+ post=me.post||null;
+ if(me.type==='guard'){stack=[{s:'postSel',p:{}}];}
+ else {stack=[{s:'home',p:{}}];}
+ tab='home';render();
+}
+function logout(){me=null;post=null;stack=[{s:'login',p:{}}];render()}
+/**
+ * 还原演示数据与全部临时流程状态，避免上一次演示的缓存影响下一次流程。
+ * 无输入和返回值；会重建本地数据、清空会话状态并重新渲染界面。
+ */
+function resetAll(){
+ db=seed();draft=null;aSel={};bCard={};todoTab='a';repF={seal:'',who:''};
+ me=null;post=null;tab='home';stack=[{s:'login',p:{}}];render();
+}
+/* ================= 界面 ================= */
+function bar(t,showBack){return '<div class="bar">'+(showBack?'<div class="bk" onclick="back()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></div>':'<span style="width:34px"></span>')+'<b>'+t+'</b><span style="width:34px"></span></div>'}
+function tabbarHtml(){
+ return '<div class="tabbar"><div class="'+(tab==='home'?'on':'')+'" onclick="tab=\'home\';go(\'home\')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20h-5.5v-5h-5v5H4z"></path></svg>首页</div><div class="'+(tab==='mine'?'on':'')+'" onclick="tab=\'mine\';go(\'mine\')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.4"></circle><path d="M4.5 20c1-3.4 4-5.2 7.5-5.2s6.5 1.8 7.5 5.2"></path></svg>我的</div></div>';
+}
+var V={};
+/* ---- 登录 ---- */
+V.login=function(){
+ return '<div class="body" style="justify-content:center;background:#fff;gap:26px;padding:0 26px">'
+ +'<div><div style="display:inline-block;background:var(--acc);color:#fff;font-weight:800;font-size:20px;letter-spacing:.28em;padding:6px 14px 6px 18px;border-radius:8px">YUTO</div>'
+ +'<div style="font-size:27px;font-weight:750;margin-top:14px">裕慧家园</div></div>'
+ +'<div style="display:flex;flex-direction:column;gap:12px">'
+ +'<div class="lab">工号</div><div class="field"><input id="lg-b" placeholder="请输入工号" value="'+(me?me.badge:'')+'"></div>'
+ +'<div class="lab">密码</div><div class="field"><input type="password" value="12345678"></div>'
+ +'<div class="btn" style="margin-top:8px" onclick="doLogin()">登录</div>'
+ +'<div class="muted" style="text-align:center">与智慧园区电脑端共用工号密码<br>演示提示：在左侧控制台点账号即可一键登录</div></div>'
+ +'<div class="muted" style="text-align:center">许昌裕同印刷包装有限公司</div></div>';
+};
+function doLogin(){var b=$('lg-b').value.trim();var u=USERS.filter(function(x){return x.badge===b})[0]||USERS[0];loginAs(u.id)}
+/* ---- 岗位选择 ---- */
+V.postSel=function(){
+ return bar('选择当前岗位')+'<div class="body">'
+ +'<div class="muted">入口：登录后必选；之后可在首页顶部岗位标签随时切换。岗位随每条登记/确认记录留痕。</div>'
+ +POSTS.map(function(p){return '<div class="card'+(p===post?' sel':'')+'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="post=\''+p+'\';render()"><b>'+p+'</b>'+(p===post?'<span class="chip c-soft">当前</span>':'')+'</div>'}).join('')
+ +'</div><div class="foot"><div class="btn" onclick="go(\'home\')">进入工作台</div></div>';
+};
+/* ---- 首页 ---- */
+V.home=function(){
+ var c=counts();
+ var fns=[];
+ function fn(icon,name,scr,bdg){fns.push('<div class="fn" onclick="nav(\''+scr+'\')"><span style="color:var(--ink2)">'+icon+'</span><b>'+name+'</b>'+(bdg?'<span class="bdg">'+bdg+'</span>':'')+'</div>')}
+ var I={scan:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"></path><path d="M16 4h3a1 1 0 0 1 1 1v3"></path><path d="M20 16v3a1 1 0 0 1-1 1h-3"></path><path d="M8 20H5a1 1 0 0 1-1-1v-3"></path><line x1="4" y1="12" x2="20" y2="12"></line></svg>',
+ vis:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"></circle><path d="M3.5 19c.8-3 3-4.5 5.5-4.5S13.7 16 14.5 19"></path><polyline points="16 10 18 12 21.5 8.5"></polyline></svg>',
+ doc:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3.5h9l3.5 3.5v13.5H6z"></path><line x1="9" y1="12" x2="15.5" y2="12"></line><line x1="9" y1="15.5" x2="13.5" y2="15.5"></line></svg>',
+ add:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3.5h9l3.5 3.5v13.5H6z"></path><line x1="12" y1="10" x2="12" y2="16"></line><line x1="9" y1="13" x2="15" y2="13"></line></svg>',
+ seal:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 12.5 12.5 3.5l8 0 0 8-9 9z"></path><circle cx="16.5" cy="7.5" r="1.4"></circle></svg>',
+ rep:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="5" y1="20" x2="5" y2="12"></line><line x1="10.5" y1="20" x2="10.5" y2="6"></line><line x1="16" y1="20" x2="16" y2="9.5"></line><line x1="3" y1="20" x2="21" y2="20"></line></svg>',
+ chk:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="8.5 12.5 11 15 15.5 9.5"></polyline></svg>'};
+ if(me.type==='apply'){fn(I.add,'放行申请','apply');fn(I.doc,'我的申请','myList');fn(I.rep,'记录报表','report');}
+ if(me.type==='manager'){fn(I.chk,'放行审批','approveList',c.approve||'');fn(I.rep,'记录报表','report');}
+ if(me.type==='guard'){fn(I.scan,'访客进出登记','visScan');fn(I.vis,'访客核验','visScan');fn(I.doc,'放行待办','todo',(c.todoA+c.todoB)||'');fn(I.seal,'封条扫码','seal');fn(I.rep,'记录报表','report');}
+ var stats='';
+ if(me.type==='guard') stats='<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px"><div class="card"><div style="font-size:25px;font-weight:750;color:var(--acc)">'+(c.todoA+c.todoB)+'</div><div class="muted">放行待办</div></div><div class="card"><div style="font-size:25px;font-weight:750">'+db.entries.length+'</div><div class="muted">今日访客进出</div></div></div>';
+ if(me.type==='manager') stats='<div class="card"><div style="font-size:25px;font-weight:750;color:var(--acc)">'+c.approve+'</div><div class="muted">待我审批</div></div>';
+ return '<div class="bar" style="height:auto;padding:14px"><div class="row"><div class="avatar" style="background:var(--acc)">'+me.name[0]+'</div><div><b style="font-size:17px">'+me.name+'</b><div class="muted">'+me.badge+' · '+me.dept+'</div></div></div>'
+ +(me.type==='guard'?'<span class="chip c-soft" style="min-height:30px;cursor:pointer" onclick="nav(\'postSel\')">'+(post||'选择岗位')+' ▾</span>':'<span class="chip c-gray">'+me.tag+'</span>')+'</div>'
+ +'<div class="body">'+stats
+ +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px"><b style="font-size:15px">保密放行管理</b><span class="muted">模块按账号权限展示</span></div>'
+ +'<div class="gridfn">'+fns.join('')+'</div>'
+ +'<div class="card" style="margin-top:2px"><b style="font-size:13.5px;color:var(--ink2)">更多模块</b><div class="muted">后续移动端功能以模块形式加入本 App（无权限不显示）</div></div>'
+ +'</div>'+tabbarHtml();
+};
+/* ---- 我的 ---- */
+V.mine=function(){
+ return bar('我的')+'<div class="body">'
+ +'<div class="card row"><div class="avatar" style="background:var(--acc)">'+me.name[0]+'</div><div><b style="font-size:16px">'+me.name+'</b><div class="muted">'+me.badge+' · '+me.dept+' · '+me.tag+'</div></div></div>'
+ +(me.type==='guard'?'<div class="card kv"><s>当前岗位</s><b>'+(post||'未选择')+'</b></div>':'')
+ +'<div class="card kv"><s>登录方式</s><b>工号密码（与电脑端一致）</b></div>'
+ +'<div class="btn dgr" style="flex:none" onclick="logout()">退出登录</div>'
+ +'</div>'+tabbarHtml();
+};
+/* ---- 申请表单 ---- */
+var draft=null;
+function blankDraft(){return {from:'保密区A-南门岗',to:'成型车间B-收发室',things:[],seals:[],reason:'',editNo:null}}
+V.apply=function(){
+ if(!draft)draft=blankDraft();
+ var th=draft.things.map(function(t,i){return '<div class="kv"><s>'+esc(t.n)+' <span class="muted mono">'+esc(t.c)+'</span></s><b>× '+t.q+' <i style="font-style:normal;color:var(--dgr);cursor:pointer;margin-left:6px" onclick="draft.things.splice('+i+',1);render()">✕</i></b></div>'}).join('');
+ var se=draft.seals.map(function(s,i){return '<span class="sealtag">'+esc(s)+'<i onclick="draft.seals.splice('+i+',1);render()">✕</i></span>'}).join(' ');
+ return bar(draft.editNo?'修改申请 '+draft.editNo:'保密物品放行申请',true)+'<div class="body">'
+ +'<div class="card"><div class="kv"><s>放行事项</s><b>保密物品放行</b></div><div class="kv"><s>申请人</s><b>'+me.name+' · '+me.dept+'</b></div>'
+ +'<div class="lab">出发岗位 *</div><div class="field"><select onchange="draft.from=this.value">'+POSTS.map(function(p){return '<option'+(p===draft.from?' selected':'')+'>'+p+'</option>'}).join('')+'</select></div>'
+ +'<div class="lab">目的岗位 *</div><div class="field"><select onchange="draft.to=this.value">'+POSTS.map(function(p){return '<option'+(p===draft.to?' selected':'')+'>'+p+'</option>'}).join('')+'</select></div></div>'
+ +'<div class="card"><div class="h4">物料明细 *（已 '+draft.things.length+' 件）</div>'+th
+ +'<div class="row" style="margin-top:8px"><div class="field" style="flex:2"><input id="t-n" placeholder="物料名称"></div><div class="field" style="flex:1"><input id="t-q" placeholder="数量" value="1" style="width:40px"></div><div class="btn sm ghost" onclick="addThing()">添加</div></div></div>'
+ +'<div class="card"><div class="h4">封条条码 *（已录 '+draft.seals.length+' 枚）</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+(se||'<span class="muted">装货贴封后逐枚录入</span>')+'</div>'
+ +'<div class="row"><div class="field foc" style="flex:1"><input id="s-in" placeholder="扫码头对准封条 · 输入框保持焦点" class="mono"></div><div class="btn sm ghost" onclick="simScan()">模拟扫码</div><div class="btn sm ghost" onclick="addSeal()">录入</div></div>'
+ +'<div class="muted" style="margin-top:8px">按 PDA 侧键扫码自动填入并录入；条码不可与其他在途单据重复</div></div>'
+ +'<div class="card"><div class="lab" style="margin-top:0">事由</div><div class="field"><input id="r-in" placeholder="如：送成型车间对样加工" value="'+esc(draft.reason)+'" onchange="draft.reason=this.value"></div></div>'
+ +'</div><div class="foot"><div class="btn" onclick="submitApply()">提交申请（送直属主管审批）</div></div>';
+};
+function addThing(){var n=$('t-n').value.trim();var q=parseInt($('t-q').value)||1;if(!n){toast('请填写物料名称');return}db.seq++;draft.things.push({n:n,c:'ZC-2026-0'+(300+db.seq),q:q});render()}
+function simScan(){db.seq++;var code='F08210'+(db.seq<10?'0'+db.seq:db.seq);$('s-in').value=code;addSeal()}
+function addSeal(){var v=$('s-in').value.trim();if(!v){toast('请扫描或输入封条编号');return}
+ var used=db.orders.some(function(o){return o.status!=='archived'&&o.status!=='rejected'&&o.seals.indexOf(v)>=0})||draft.seals.indexOf(v)>=0;
+ if(used){toast('该封条已被在途单据占用');return}
+ draft.seals.push(v);render()}
+function submitApply(){
+ if(!draft.things.length){toast('请至少添加一件物料');return}
+ if(!draft.seals.length){toast('请至少录入一枚封条条码');return}
+ if(draft.from===draft.to){toast('出发岗位与目的岗位不能相同');return}
+ if(draft.editNo){var o=db.orders.filter(function(x){return x.no===draft.editNo})[0];o.from=draft.from;o.to=draft.to;o.things=draft.things;o.seals=draft.seals;o.reason=draft.reason;o.status='pending';o.tl.push([now(),me.name+' 修改后重新提交']);}
+ else{db.orders.unshift({no:newNo(),applicant:me.name,dept:me.dept,from:draft.from,to:draft.to,things:draft.things,seals:draft.seals,reason:draft.reason||'—',status:'pending',escort:null,tl:[[now(),me.name+' 提交申请（审批人：'+me.boss+'）']]});}
+ draft=null;toast('已提交，等待 '+me.boss+' 审批');go('myList');hint();
+}
+/* ---- 我的申请 / 详情 ---- */
+function orderCard(o,scr){
+ return '<div class="card" style="cursor:pointer" onclick="nav(\''+scr+'\',{no:\''+o.no+'\'})">'
+ +'<div style="display:flex;justify-content:space-between;align-items:center"><b class="mono">'+o.no+'</b>'+stChip(o)+'</div>'
+ +'<div style="font-size:13px;font-weight:650;margin-top:4px">'+o.from+' → '+o.to+'</div>'
+ +'<div class="muted">'+o.applicant+' · 物料 '+o.things.length+' 件 · 封条 '+o.seals.length+' 枚</div></div>';
+}
+V.myList=function(){
+ var mine=db.orders.filter(function(o){return o.applicant===me.name});
+ return bar('我的申请',true)+'<div class="body">'+(mine.length?mine.map(function(o){return orderCard(o,'detail')}).join(''):'<div class="empty">还没有申请记录</div>')+'</div>';
+};
+function detailBlocks(o){
+ var th=o.things.map(function(t){return '<div class="kv"><s>'+esc(t.n)+'<br><span class="muted mono">'+t.c+'</span></s><b>× '+t.q+'</b></div>'}).join('');
+ var se=o.seals.map(function(s){return '<span class="sealtag">'+s+'</span>'}).join(' ');
+ return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b class="mono" style="font-size:16px">'+o.no+'</b>'+stChip(o)+'</div>'
+ +'<div class="kv"><s>放行事项</s><b>保密物品放行</b></div><div class="kv"><s>申请人</s><b>'+o.applicant+' · '+o.dept+'</b></div>'
+ +'<div class="kv"><s>出发岗位</s><b>'+o.from+'</b></div><div class="kv"><s>目的岗位</s><b>'+o.to+'</b></div><div class="kv"><s>事由</s><b>'+esc(o.reason)+'</b></div>'
+ +(o.escort?'<div class="kv"><s>押运方式</s><b>'+(o.escort.type==='man'?'人工押运 · '+o.escort.name:'定位器锁 · '+o.escort.lockNo)+'</b></div>':'')+'</div>'
+ +'<div class="card"><div class="h4">物料明细 · '+o.things.length+' 件</div>'+th+'<div class="h4" style="margin-top:10px">封条条码 · '+o.seals.length+' 枚</div><div style="display:flex;gap:8px;flex-wrap:wrap">'+se+'</div></div>'
+ +'<div class="card"><div class="h4">流程轨迹</div><div class="tl">'+o.tl.map(function(t){return '<div class="it"><span class="muted mono" style="flex-shrink:0">'+t[0]+'</span><span>'+esc(t[1])+'</span></div>'}).join('')+'</div></div>';
+}
+V.detail=function(p){
+ var o=db.orders.filter(function(x){return x.no===p.no})[0];
+ var foot='';
+ if(o.status==='rejected'&&o.applicant===me.name) foot='<div class="foot"><div class="btn" data-order-no="'+esc(o.no)+'" onclick="editRejected(this.dataset.orderNo)">修改后重新提交</div></div>';
+ return bar('单据详情',true)+'<div class="body">'+detailBlocks(o)+'</div>'+foot;
+};
+/**
+ * 将被驳回的单据复制为可编辑草稿。
+ * 仅传递单据号并在函数内读取自由文本，避免把事由拼入内联事件处理器。
+ */
+function editRejected(no){
+ var o=db.orders.filter(function(x){return x.no===no})[0];
+ if(!me||!o||o.status!=='rejected'||o.applicant!==me.name){toast('该单据当前不可重新提交');return}
+ draft={from:o.from,to:o.to,things:JSON.parse(JSON.stringify(o.things)),seals:o.seals.slice(),reason:o.reason,editNo:o.no};
+ nav('apply');
+}
+/* ---- 主管审批 ---- */
+V.approveList=function(){
+ var l=db.orders.filter(function(o){return o.status==='pending'});
+ return bar('放行审批',true)+'<div class="body">'+(l.length?l.map(function(o){return orderCard(o,'approve')}).join(''):'<div class="empty">暂无待审批单据</div>')+'</div>';
+};
+V.approve=function(p){
+ var o=db.orders.filter(function(x){return x.no===p.no})[0];
+ return bar('放行审批',true)+'<div class="body">'+detailBlocks(o)
+ +'<div class="card"><div class="h4">审批意见</div><div class="field"><input id="ap-op" placeholder="选填，驳回时必填"></div>'
+ +'<div class="muted" style="margin-top:6px">走园区审批引擎 · 审批人=人员信息「直接上级」（DHR 同步）· 不经 OA</div></div>'
+ +'</div><div class="foot"><div class="btn dgr" onclick="doApprove(\''+o.no+'\',false)">驳回</div><div class="btn" style="flex:2" onclick="doApprove(\''+o.no+'\',true)">同意</div></div>';
+};
+function doApprove(no,ok){
+ var o=db.orders.filter(function(x){return x.no===no})[0];
+ var op=$('ap-op').value.trim();
+ if(!ok&&!op){toast('驳回必须填写审批意见');return}
+ if(ok){o.status='approved';o.tl.push([now(),me.name+'（直属主管）审批同意'])}
+ else{o.status='rejected';o.tl.push([now(),me.name+' 驳回：'+op])}
+ toast(ok?'已同意，进入 '+o.from+' 待办':'已驳回');go('approveList');hint();
+}
+/* ---- 安检待办 ---- */
+var todoTab='a';
+ /**
+  * 按当前岗位和页签生成安检待办列表。
+  * 依赖本地单据、岗位与页签状态并返回页面 HTML；不改变业务数据。
+  */
+ V.todo=function(){
+ var a=db.orders.filter(function(o){return o.status==='approved'&&o.from===post});
+ var b=db.orders.filter(function(o){return o.status==='escorting'&&o.to===post});
+ var done=db.orders.filter(function(o){return o.status==='archived'&&(o.from===post||o.to===post)});
+ var list=todoTab==='a'?a:(todoTab==='b'?b:done);
+ var scr=todoTab==='a'?'aConfirm':(todoTab==='b'?'bConfirm':'detail');
+ return bar('保密物品放行待办',true)+'<div class="body">'
+ +'<div class="seg"><div class="'+(todoTab==='a'?'on':'')+'" onclick="todoTab=\'a\';render()">待出发 '+a.length+'</div><div class="'+(todoTab==='b'?'on':'')+'" onclick="todoTab=\'b\';render()">待到达 '+b.length+'</div><div class="'+(todoTab==='d'?'on':'')+'" onclick="todoTab=\'d\';render()">已完成</div></div>'
+ +'<div class="muted">当前岗位：'+post+' · 仅显示与本岗位相关的保密放行单（与生活区/办公区放行条无关）</div>'
+ +(list.length?list.map(function(o){return orderCard(o,scr)}).join(''):'<div class="empty">本岗位暂无此类单据</div>')+'</div>';
+};
+/* ---- A点出发确认 ---- */
+var aSel={};
+V.aConfirm=function(p){
+ var o=db.orders.filter(function(x){return x.no===p.no})[0];
+ var s=aSel[o.no]||(aSel[o.no]={type:null,man:null,lock:''});
+ var escBlock='';
+ if(s.type==='man'){
+  escBlock=s.man
+   ?'<div class="card sel"><div class="row"><div class="avatar" style="background:var(--ok)">'+s.man.name[0]+'</div><div><b>'+s.man.name+'</b> <span class="chip c-ok">识别成功</span><div class="muted">'+s.man.dept+' · '+s.man.tag+' · 卡号 <span class="mono">8A02D14C</span></div></div></div></div>'
+   :'<div class="card" style="text-align:center"><div class="nfc" onclick="simCard(\''+o.no+'\')"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#EC6C00" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="3" width="13" height="18" rx="2.4"></rect><path d="M20 8.5c1.2 2.2 1.2 4.8 0 7"></path><path d="M9 10.5c.9.4 1.5 1.2 1.5 2s-.6 1.6-1.5 2"></path><path d="M12 8.8c1.6.7 2.6 2 2.6 3.7s-1 3-2.6 3.7"></path></svg></div><b>押运人刷卡</b><div class="muted">请押运人将 IC 卡贴近感应区（点击圆圈模拟刷卡）<br>NFC 读卡号 → 自动匹配人员 · 必须刷卡，无替代方式</div></div>';
+ }
+ if(s.type==='lock'){
+  escBlock='<div class="card"><div class="lab" style="margin-top:0">定位器锁编号 *（手动录入，供追溯）</div><div class="field foc"><input class="mono" id="lk-in" placeholder="如 SD-0233" value="'+esc(s.lock)+'" oninput="aSel[\''+o.no+'\'].lock=this.value"></div></div>';
+ }
+ var can=(s.type==='man'&&s.man)||(s.type==='lock'&&s.lock.trim());
+ return bar('出发确认 · A点',true)+'<div class="body">'+detailBlocks(o)
+ +'<div class="card"><div class="h4">押运方式 *</div><div class="opt2"><div class="'+(s.type==='man'?'on':'')+'" onclick="aSel[\''+o.no+'\'].type=\'man\';render()">人工押运</div><div class="'+(s.type==='lock'?'on':'')+'" onclick="aSel[\''+o.no+'\'].type=\'lock\';render()">定位器锁</div></div></div>'
+ +escBlock
+ +'<div class="card"><div class="h4">出发安检确认</div><div class="kv"><s>确认岗位</s><b>'+post+'</b></div><div class="kv"><s>确认安检</s><b>'+me.name+'（登录刷卡）</b></div><div class="muted">核对物料与封条一致即可，无需拍照</div></div>'
+ +'</div><div class="foot"><div class="btn dgr" onclick="rejectGo(\''+o.no+'\')">拒绝放行</div><div class="btn'+(can?'':' dis')+'" style="flex:2" onclick="'+(can?'departGo(\''+o.no+'\')':'toast(\'请先完成押运方式\')')+'">确认出发放行</div></div>';
+};
+function simCard(no){aSel[no].man=ESCORTS['8A02D14C'];toast('读卡成功：8A02D14C → 王强');render()}
+function rejectGo(no){var o=db.orders.filter(function(x){return x.no===no})[0];o.status='rejected';o.tl.push([now(),post+' '+me.name+' 拒绝放行']);toast('已拒绝');go('todo')}
+function departGo(no){
+ var o=db.orders.filter(function(x){return x.no===no})[0];var s=aSel[no];
+ o.escort=s.type==='man'?{type:'man',name:s.man.name}:{type:'lock',lockNo:s.lock.trim()};
+ o.status='escorting';
+ o.tl.push([now(),post+' '+me.name+' 确认出发 · '+(s.type==='man'?'押运 '+s.man.name+'（刷卡）':'定位器锁 '+o.escort.lockNo)]);
+ toast('已出发，状态：押运中');go('todo');hint();
+}
+/* ---- 封条扫码 ---- */
+V.seal=function(){
+ return bar('封条扫码',true)+'<div class="body">'
+ +'<div class="card"><div class="h4">封条编号</div><div class="field foc"><input class="mono" id="sc-in" placeholder="按 PDA 侧键扫码，自动填入并查询" style="font-size:17px;font-weight:700" onkeydown="if(event.key===\'Enter\')sealGo()"></div>'
+ +'<div class="row" style="margin-top:10px"><div class="btn sm ghost" onclick="sealSim()">模拟扫码头扫描</div><div class="btn sm" onclick="sealGo()">查询</div></div>'
+ +'<div class="muted" style="margin-top:8px">输入框常驻焦点：扫码头扫描结果自动填入并回车查询、直接打开对应放行单。任一封条条码均可定位。</div></div>'
+ +'<div class="card"><div class="h4">在途单据封条（演示提示）</div>'+db.orders.filter(function(o){return o.status==='escorting'||o.status==='approved'}).map(function(o){return '<div class="kv"><s class="mono">'+o.seals.join(' / ')+'</s><b class="mono">'+o.no+'</b></div>'}).join('')+'</div></div>';
+};
+function sealSim(){var o=db.orders.filter(function(x){return x.status==='escorting'})[0]||db.orders.filter(function(x){return x.status==='approved'})[0];if(!o){toast('当前没有在途单据');return}$('sc-in').value=o.seals[0];sealGo()}
+ /**
+  * 根据封条定位放行单，并仅允许当前岗位进入本岗位负责的确认流程。
+  * 无显式参数，读取扫码输入框；只会更新本地页面导航，找不到或无权限时提示并返回。
+  */
+ function sealGo(){
+ var v=$('sc-in').value.trim();if(!v){toast('请扫描或输入封条编号');return}
+ var o=db.orders.filter(function(x){return x.seals.indexOf(v)>=0})[0];
+ if(!o){toast('未找到该封条对应的放行单');return}
+ if(o.status==='archived'){toast(o.no+' 已归档（历史单据）');nav('detail',{no:o.no});return}
+ if(o.status==='rejected'){toast(o.no+' 已被拒绝/驳回');nav('detail',{no:o.no});return}
+ if(o.status==='escorting'){
+  if(post!==o.to){toast('当前岗位不是该单据的到达岗位');return}
+  nav('bConfirm',{no:o.no});
+ }
+ else if(o.status==='approved'){
+  if(post!==o.from){toast('当前岗位不是该单据的出发岗位');return}
+  nav('aConfirm',{no:o.no});
+ }
+ else nav('detail',{no:o.no});
+}
+/* ---- B点到达确认 ---- */
+var bCard={};
+V.bConfirm=function(p){
+ var o=db.orders.filter(function(x){return x.no===p.no})[0];
+ var ok=bCard[o.no];
+ return bar('到达确认 · B点',true)+'<div class="body">'+detailBlocks(o)
+ +'<div class="card"><div class="h4">到达确认</div><div class="kv"><s>到达岗位</s><b>'+post+'</b></div>'
+ +'<div class="kv"><s>核对</s><b>封条完好'+(o.escort&&o.escort.type==='lock'?' · 锁编号 '+o.escort.lockNo+' 一致':'')+'</b></div>'
+ +(ok?'<div class="kv"><s>到达安检</s><b>'+me.name+'（已刷卡）<span class="chip c-ok">已验证</span></b></div>'
+     :'<div style="text-align:center"><div class="nfc" onclick="bCard[\''+o.no+'\']=1;toast(\'安检刷卡验证通过\');render()" style="width:96px;height:96px;margin:12px auto 2px"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#EC6C00" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="3" width="13" height="18" rx="2.4"></rect><path d="M20 8.5c1.2 2.2 1.2 4.8 0 7"></path><path d="M9 10.5c.9.4 1.5 1.2 1.5 2s-.6 1.6-1.5 2"></path><path d="M12 8.8c1.6.7 2.6 2 2.6 3.7s-1 3-2.6 3.7"></path></svg></div><div class="muted">到达安检刷卡确认（点击模拟）</div></div>')
+ +'</div></div><div class="foot"><div class="btn'+(ok?'':' dis')+'" onclick="'+(ok?'arriveGo(\''+o.no+'\')':'toast(\'请先刷卡验证\')')+'">确认到达并归档</div></div>';
+};
+function arriveGo(no){var o=db.orders.filter(function(x){return x.no===no})[0];o.status='archived';o.tl.push([now(),post+' '+me.name+' 确认到达 · 单据归档']);toast('已归档');go('todo');hint();}
+/* ---- 报表 ---- */
+var repF={seal:'',who:''};
+V.report=function(){
+ var l=db.orders.filter(function(o){
+  if(repF.seal&&o.seals.join(',').indexOf(repF.seal)<0)return false;
+  if(repF.who&&o.applicant.indexOf(repF.who)<0)return false;return true;});
+ return bar('放行记录报表',true)+'<div class="body">'
+ +'<div class="card"><div class="row"><div class="field" style="flex:1"><input placeholder="封条条码" class="mono" value="'+esc(repF.seal)+'" oninput="repF.seal=this.value"></div><div class="field" style="flex:1"><input placeholder="申请人" value="'+esc(repF.who)+'" oninput="repF.who=this.value"></div></div>'
+ +'<div class="row" style="margin-top:8px"><div class="field" style="flex:1;color:var(--ink3)">出发岗位 ▾</div><div class="field" style="flex:1;color:var(--ink3)">到达岗位 ▾</div></div>'
+ +'<div class="row" style="margin-top:8px"><div class="field" style="flex:1;color:var(--ink3)">状态 ▾</div><div class="field" style="flex:1;color:var(--ink3)">出发/到达安检 ▾</div><div class="btn sm" onclick="render()">查询</div></div></div>'
+ +l.map(function(o){return orderCard(o,'detail')}).join('')+'</div>';
+};
+/* ---- 访客 ---- */
+V.visScan=function(){
+ return bar('访客核验 / 进出登记',true)+'<div class="body">'
+ +'<div class="card" style="text-align:center;padding:22px"><b>扫描访客厂牌二维码</b><div class="muted">仅访客厂牌二维码可识别；员工进出走门禁闸机。<br>（演示：点下方样例访客）</div></div>'
+ +db.visitors.map(function(v){return '<div class="card" style="cursor:pointer" onclick="nav(\'visVerify\',{id:\''+v.id+'\'})"><div style="display:flex;justify-content:space-between;align-items:center"><b>'+v.name+'</b>'+(v.valid?'<span class="chip c-ok">授权有效</span>':'<span class="chip c-dgr">已失效</span>')+'</div><div class="muted">'+v.comp+(v.secret?' · 保密供应商':'')+'</div></div>'}).join('')+'</div>';
+};
+V.visVerify=function(p){
+ var v=db.visitors.filter(function(x){return x.id===p.id})[0];
+ var head=v.valid
+  ?'<div class="banner" style="background:rgba(22,166,115,.10);color:var(--ok)">✓ 授权有效'+(v.inside?'<span class="muted" style="margin-left:auto;font-weight:400">当前：已在保密区内</span>':'')+'</div>'
+  :'<div class="banner" style="background:rgba(216,59,54,.10);color:var(--dgr)">✕ 已失效 · 禁止进入</div>';
+ return bar('访客核验',true)+'<div class="body">'+head
+ +'<div class="card"><div class="row"><div class="avatar">'+v.name[0]+'</div><div><b style="font-size:16px">'+v.name+'</b>'+(v.secret?' <span class="chip c-soft">保密供应商</span>':'')+'<div class="muted">'+v.comp+'</div></div></div>'
+ +(v.valid?'<div class="kv"><s>授权区域</s><b>'+v.area+'</b></div><div class="kv"><s>有效期</s><b>'+v.range+'</b></div><div class="kv"><s>接待人</s><b>'+v.host+'</b></div><div class="kv"><s>来访事由</s><b>'+v.cause+'</b></div>'
+  :'<div class="kv"><s>原因</s><b style="color:var(--dgr)">'+v.reason+'</b></div>')
+ +'</div>'
+ +(v.valid?'<div class="muted">进入与离开都需登记；已失效/过期时按钮禁用（供应商软删除保证历史码可识别并提示）</div>':'')
+ +'</div><div class="foot">'
+ +(v.valid?'<div class="btn ghost" onclick="doEntry(\''+v.id+'\',\'out\')">登记离开</div><div class="btn" onclick="doEntry(\''+v.id+'\',\'in\')">登记进入</div>'
+          :'<div class="btn dis">登记进入（禁用）</div>')+'</div>';
+};
+function doEntry(id,dir){
+ var v=db.visitors.filter(function(x){return x.id===id})[0];
+ if(dir==='in'&&v.inside){toast('该访客已在保密区内，请先登记离开');return}
+ if(dir==='out'&&!v.inside){toast('该访客当前不在保密区内');return}
+ v.inside=(dir==='in');
+ db.entries.unshift({t:now(),name:v.name,dir:dir==='in'?'进保密区':'出保密区',post:post,op:me.name});
+ toast((dir==='in'?'已登记进入':'已登记离开')+' · '+post);back();
+}
+/* ================= 渲染 ================= */
+function render(){
+ renderAccts();
+ var c=cur();
+ var html;
+ if(!me){stack=[{s:'login',p:{}}];html=V.login();}
+ else html=V[c.s](c.p);
+ $('scr').innerHTML=html+'<div class="toast" id="tst"></div>';
+ var f=document.querySelector('.field.foc input');if(f)try{f.focus()}catch(e){}
+ hint();
+}
+stack=[{s:'login',p:{}}];
+render();
+</script>
+<script>
+/* ================= V2 覆盖：登录 LOGO / 四页签 / 新工作台 / 待办 / 消息 ================= */
+V.login=function(){
+ return '<div class="body" style="justify-content:center;background:#fff;gap:26px;padding:0 26px">'
+ +'<div><div style="font-size:34px;font-weight:800;letter-spacing:.24em;color:#EC6C00;font-family:Arial,\'Helvetica Neue\',sans-serif">YUTO</div>'
+ +'<div style="font-size:27px;font-weight:750;margin-top:12px">裕慧家园</div></div>'
+ +'<div style="display:flex;flex-direction:column;gap:12px">'
+ +'<div class="lab">工号</div><div class="field"><input id="lg-b" placeholder="请输入工号" value="'+(me?me.badge:'')+'"></div>'
+ +'<div class="lab">密码</div><div class="field"><input type="password" value="12345678"></div>'
+ +'<div class="btn" style="margin-top:8px" onclick="doLogin()">登录</div>'
+ +'<div class="muted" style="text-align:center">与智慧园区电脑端共用工号密码<br>演示提示：在左侧控制台点账号即可一键登录</div></div>'
+ +'<div class="muted" style="text-align:center">许昌裕同印刷包装有限公司</div></div>';
+};
+function myTodos(){
+ var t=[];
+ if(!me)return t;
+ if(me.type==='manager') db.orders.filter(function(o){return o.status==='pending'}).forEach(function(o){t.push({k:'审批',tt:o.no+' 待审批',d:o.applicant+' · '+o.from+' → '+o.to,go:function(){nav('approve',{no:o.no})}})});
+ if(me.type==='guard'){
+  db.orders.filter(function(o){return o.status==='approved'&&o.from===post}).forEach(function(o){t.push({k:'出发',tt:o.no+' 待出发确认',d:'目的 '+o.to,go:function(){nav('aConfirm',{no:o.no})}})});
+  db.orders.filter(function(o){return o.status==='escorting'&&o.to===post}).forEach(function(o){t.push({k:'到达',tt:o.no+' 待到达确认',d:'来自 '+o.from,go:function(){nav('bConfirm',{no:o.no})}})});
+ }
+ if(me.type==='apply') db.orders.filter(function(o){return o.status==='rejected'&&o.applicant===me.name}).forEach(function(o){t.push({k:'驳回',tt:o.no+' 已被驳回',d:'可修改后重新提交',go:function(){nav('detail',{no:o.no})}})});
+ return t;
+}
+var MSGS=[
+ {t:'08-30 11:21',tt:'审批结果',d:'放行单 MF20260828011 已审批同意，等待出发确认',tp:'ok'},
+ {t:'08-30 10:12',tt:'删除失败告警',d:'陈晨 保密区A-门禁 权限删除失败（东门禁2号机离线），系统将自动重试并保留记录',tp:'dgr'},
+ {t:'08-29 09:00',tt:'协议到期提醒',d:'保密供应商「中天彩印科技」协议将于 2026-09-15 到期，到期自动解密并回收权限',tp:'warn'}
+];
+function tabbarHtml(){
+ var td=myTodos().length, msg=MSGS.length;
+ function it(id,name,icon,badge){
+  var on=tab===id;
+  return '<div class="'+(on?'on':'')+'" style="position:relative" onclick="tab=\''+id+'\';go(\''+({home:'home',todos:'todos',msgs:'msgs',mine:'mine'})[id]+'\')">'+icon
+  +(badge?'<span style="position:absolute;top:6px;right:50%;margin-right:-24px;background:#D83B36;color:#fff;font-size:9px;border-radius:8px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px">'+badge+'</span>':'')
+  +'<span style="font-size:11px;'+(on?'font-weight:650':'')+'">'+name+'</span></div>';
+ }
+ var I={
+ home:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20h-5.5v-5h-5v5H4z"></path></svg>',
+ todo:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="2.4"></rect><polyline points="8.5 12.5 11 15 15.5 9.5"></polyline></svg>',
+ msg:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5.5h16v11H9l-5 4z"></path></svg>',
+ mine:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.4"></circle><path d="M4.5 20c1-3.4 4-5.2 7.5-5.2s6.5 1.8 7.5 5.2"></path></svg>'};
+ return '<div class="tabbar">'+it('home','首页',I.home)+it('todos','待办',I.todo,td||'')+it('msgs','消息',I.msg,msg)+it('mine','我的',I.mine)+'</div>';
+}
+/* ---- 新工作台：分组模块 + 小图标网格（可长期扩展） ---- */
+function fnIcon(svg,name,scr,badge){
+ return '<div style="display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;position:relative;padding:4px 0" onclick="nav(\''+scr+'\')">'
+ +'<span style="width:46px;height:46px;border-radius:13px;background:#FFF1E3;display:flex;align-items:center;justify-content:center;color:#D95F00">'+svg+'</span>'
+ +(badge?'<span style="position:absolute;top:-2px;right:8px;background:#D83B36;color:#fff;font-size:9.5px;border-radius:8px;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 4px">'+badge+'</span>':'')
+ +'<span style="font-size:12px;color:#595757">'+name+'</span></div>';
+}
+V.home=function(){
+ var c=counts();var td=myTodos();
+ var I={scan:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"></path><path d="M16 4h3a1 1 0 0 1 1 1v3"></path><path d="M20 16v3a1 1 0 0 1-1 1h-3"></path><path d="M8 20H5a1 1 0 0 1-1-1v-3"></path><line x1="4" y1="12" x2="20" y2="12"></line></svg>',
+ vis:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"></circle><path d="M3.5 19c.8-3 3-4.5 5.5-4.5S13.7 16 14.5 19"></path><polyline points="16 10 18 12 21.5 8.5"></polyline></svg>',
+ doc:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3.5h9l3.5 3.5v13.5H6z"></path><line x1="9" y1="12" x2="15.5" y2="12"></line><line x1="9" y1="15.5" x2="13.5" y2="15.5"></line></svg>',
+ add:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3.5h9l3.5 3.5v13.5H6z"></path><line x1="12" y1="10" x2="12" y2="16"></line><line x1="9" y1="13" x2="15" y2="13"></line></svg>',
+ seal:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 12.5 12.5 3.5l8 0 0 8-9 9z"></path><circle cx="16.5" cy="7.5" r="1.4"></circle></svg>',
+ rep:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="5" y1="20" x2="5" y2="12"></line><line x1="10.5" y1="20" x2="10.5" y2="6"></line><line x1="16" y1="20" x2="16" y2="9.5"></line><line x1="3" y1="20" x2="21" y2="20"></line></svg>',
+ chk:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="8.5 12.5 11 15 15.5 9.5"></polyline></svg>'};
+ // 分组（按权限组装）
+ var groups=[];
+ if(me.type==='apply') groups.push(['保密放行',[ [I.add,'放行申请','apply'],[I.doc,'我的申请','myList'],[I.rep,'记录报表','report'] ]]);
+ if(me.type==='manager') groups.push(['保密放行',[ [I.chk,'放行审批','approveList',c.approve||''],[I.rep,'记录报表','report'] ]]);
+ if(me.type==='guard'){
+  groups.push(['保密放行',[ [I.doc,'放行待办','todo',(c.todoA+c.todoB)||''],[I.seal,'封条扫码','seal'],[I.rep,'记录报表','report'] ]]);
+  groups.push(['访客管理',[ [I.scan,'进出登记','visScan'],[I.vis,'访客核验','visScan'] ]]);
+ }
+ var gHtml=groups.map(function(g){
+  return '<div class="card" style="padding:14px 12px 8px"><div style="display:flex;justify-content:space-between;align-items:center;padding:0 4px 10px"><b style="font-size:14.5px">'+g[0]+'</b><span class="muted" style="font-size:11px">按权限展示</span></div>'
+  +'<div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:4px 0">'+g[1].map(function(f){return fnIcon(f[0],f[1],f[2],f[3])}).join('')+'</div></div>';
+ }).join('');
+ var todoCard = td.length
+  ?'<div class="card sel" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="tab=\'todos\';go(\'todos\')"><div><b style="font-size:14px;color:#5A2600">'+td.length+' 项待办等待处理</b><div class="muted">'+td[0].tt+(td.length>1?' 等':'')+'</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D95F00" stroke-width="2"><polyline points="9 6 15 12 9 18"></polyline></svg></div>'
+  :'<div class="card" style="display:flex;justify-content:space-between;align-items:center"><span class="muted">当前没有待办事项</span><span class="chip c-ok">全部处理完毕</span></div>';
+ return '<div style="background:#ffffff;border-bottom:1px solid #EFEEEE;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
+ +'<div style="display:flex;align-items:center;gap:11px"><span style="font-size:20px;font-weight:800;letter-spacing:.18em;color:#EC6C00;font-family:Arial,sans-serif">YUTO</span><span style="width:1px;height:16px;background:#E5E3E3"></span><span style="font-size:15px;font-weight:700">裕慧家园</span></div>'
+ +(me.type==='guard'?'<span class="chip c-soft" style="min-height:30px;cursor:pointer" onclick="nav(\'postSel\')">'+(post||'选择岗位')+' ▾</span>':'<span class="chip c-gray">'+me.tag+'</span>')+'</div>'
+ +'<div class="body">'
+ +'<div class="card" style="display:flex;gap:12px;align-items:center">'+ (typeof avatar==='function'?avatar(46):'') +'<div style="flex:1"><b style="font-size:16px">'+me.name+'</b><div class="muted">'+me.badge+' · '+me.dept+' · '+me.tag+'</div></div></div>'
+ + todoCard + gHtml
+ +'<div class="card" style="padding:14px 16px"><b style="font-size:13.5px;color:#6F6C6B">更多模块</b><div class="muted">考勤、宿舍、报修等后续模块将按账号权限陆续加入本工作台</div></div>'
+ +'</div>'+tabbarHtml();
+};
+V.todos=function(){
+ var td=myTodos();
+ window.__td=td;
+ return bar('待办')+'<div class="body">'
+ +(td.length?td.map(function(t,i){return '<div class="card" style="cursor:pointer;display:flex;align-items:center;gap:12px" onclick="__td['+i+'].go()"><span class="chip c-warn" style="flex-shrink:0">'+t.k+'</span><div style="flex:1"><b style="font-size:14px">'+t.tt+'</b><div class="muted">'+t.d+'</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#807D7C" stroke-width="2"><polyline points="9 6 15 12 9 18"></polyline></svg></div>'}).join('')
+ :'<div class="empty">当前角色没有待办<br><span style="font-size:12px">切换左侧账号可查看其他角色的待办</span></div>')
+ +'</div>'+tabbarHtml();
+};
+V.msgs=function(){
+ return bar('消息')+'<div class="body">'
+ +MSGS.map(function(m){return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:14px">'+m.tt+'</b><span class="muted mono" style="font-size:11px">'+m.t+'</span></div><div style="font-size:13px;color:#6F6C6B;margin-top:4px">'+m.d+'</div></div>'}).join('')
+ +'<div class="muted" style="text-align:center">消息通知按模块订阅，后续模块接入后在此聚合</div></div>'+tabbarHtml();
+};
+V.mine=function(){
+ return bar('我的')+'<div class="body">'
+ +'<div class="card row"><div class="avatar" style="background:#EC6C00">'+me.name[0]+'</div><div><b style="font-size:16px">'+me.name+'</b><div class="muted">'+me.badge+' · '+me.dept+' · '+me.tag+'</div></div></div>'
+ +(me.type==='guard'?'<div class="card kv"><s>当前岗位</s><b>'+(post||'未选择')+'</b></div>':'')
+ +'<div class="card kv"><s>登录方式</s><b>工号密码（与电脑端一致）</b></div>'
+ +'<div class="btn dgr" style="flex:none" onclick="logout()">退出登录</div>'
+ +'</div>'+tabbarHtml();
+};
+V.todosNav=V.todos;
+/* 登录后落到 home 且 tab 复位 */
+var _loginAs=loginAs;
+loginAs=function(id){tab='home';_loginAs(id)};
+render();
+</script>

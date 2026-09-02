@@ -1,0 +1,572 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>裕慧家园开发蓝图</title>
+<style>
+:root{
+  --paper:#f5f7f6;--card:#ffffff;--ink:#1c2620;--ink2:#47554d;--ink3:#6F6C6B;
+  --line:#dde4e0;--accent:#EC6C00;--accent2:#D95F00;--soft:#FFF1E3;--softink:#5A2600;
+  --ok:#16A673;--warn:#C98416;--dgr:#D83B36;--info:#2376D9;--code:#eef1ef;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;font-size:15px;line-height:1.85}
+*{box-sizing:border-box}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--accent2)}
+.layout{display:flex;min-height:100vh}
+.side{width:236px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);padding:20px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.side .brand{padding:0 10px 16px;border-bottom:2px solid var(--ink);margin-bottom:14px}
+.side .brand b{font-size:17px;display:block}
+.side .brand span{font-size:11px;color:var(--ink3);letter-spacing:.14em}
+.nav a{display:block;padding:8px 10px;border-radius:8px;color:var(--ink2);font-size:13.5px;margin-bottom:2px}
+.nav a.on{background:var(--soft);color:var(--softink);font-weight:700}
+.nav .grp{font-size:11px;color:#8b968f;letter-spacing:.1em;padding:12px 10px 4px}
+.main{flex:1;min-width:0;padding:36px 44px 80px;max-width:1060px}
+.page{display:none}.page.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+h1{font-size:30px;line-height:1.3;margin:0 0 8px;text-wrap:balance}
+h2{font-size:21px;margin:34px 0 12px;padding-top:18px;border-top:1px solid var(--line);text-wrap:balance}
+h2:first-of-type{border-top:none;padding-top:0}
+h3{font-size:16px;margin:22px 0 8px}
+p{color:var(--ink2);margin:0 0 12px}
+.kicker{font-size:12px;letter-spacing:.18em;color:var(--accent);font-weight:700;margin-bottom:10px}
+.lede{font-size:16px;color:var(--ink);border-left:3px solid var(--accent);padding-left:16px;margin:16px 0 22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0}
+.note{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:13.5px;color:var(--ink2)}
+.note.red{border-left-color:var(--dgr)}
+.note.blue{border-left-color:var(--info)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card);margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.7}
+th{background:var(--code);text-align:left;font-weight:700;font-size:12px;color:var(--ink2);white-space:nowrap}
+th,td{padding:8px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td{color:var(--ink2)} td:first-child{white-space:nowrap;font-weight:600;color:var(--ink)}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:5px;white-space:nowrap}
+.p-ok{background:rgba(22,166,115,.12);color:var(--ok)} .p-warn{background:rgba(201,132,22,.14);color:var(--warn)}
+.p-dgr{background:rgba(216,59,54,.12);color:var(--dgr)} .p-info{background:rgba(35,118,217,.12);color:var(--info)}
+.p-soft{background:var(--soft);color:var(--softink)} .p-gray{background:var(--code);color:var(--ink3)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:14px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.stat b{font-size:26px;color:var(--accent);display:block;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--ink3)}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.85em;background:var(--code);padding:1px 5px;border-radius:4px}
+.pager{display:flex;justify-content:space-between;margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}
+.pager a{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 18px;border-radius:9px;background:var(--card);border:1px solid var(--line);font-size:14px;font-weight:650;color:var(--ink2)}
+.pager a.next{background:var(--accent);border-color:var(--accent);color:#fff}
+pre.mermaid{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;overflow-x:auto;font-size:13px;text-align:center;font-family:inherit;white-space:pre-wrap}
+pre.mermaid svg{max-width:100%;height:auto}
+ol,ul{color:var(--ink2);margin:0 0 12px;padding-left:22px} li{margin-bottom:6px}
+li::marker{color:var(--accent);font-weight:700}
+/* 交互走查 */
+.walk{display:grid;grid-template-columns:300px minmax(0,1fr);gap:22px;align-items:start;margin:16px 0}
+.phone{width:300px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:0 14px 34px rgba(28,38,32,.08)}
+.ph-bar{font-size:14px;font-weight:700;text-align:center;padding-bottom:10px;border-bottom:1px solid #EFEEEE;margin-bottom:10px}
+.ph-card{background:#F7F7F7;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:var(--ink2)}
+.ph-card b{color:var(--ink);font-size:13px}
+.ph-btn{display:flex;align-items:center;justify-content:center;min-height:42px;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin-top:8px;user-select:none}
+.ph-btn:hover{background:var(--accent2)}
+.ph-btn.ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink2)}
+.ph-btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+.ph-chip{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:5px;margin-left:6px}
+.walk-note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.walk-note .who{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.06em}
+.walk-note h4{margin:6px 0 8px;font-size:16px}
+.walk-note p{font-size:13.5px;margin-bottom:8px}
+.stepper{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 18px}
+.stepper span{font-size:11.5px;padding:4px 10px;border-radius:14px;background:var(--code);color:var(--ink3);cursor:pointer;user-select:none}
+.stepper span.on{background:var(--accent);color:#fff;font-weight:700}
+.wstep{display:none}.wstep.on{display:grid}
+@media(max-width:900px){.layout{flex-direction:column}.side{position:static;width:100%;height:auto;display:flex;flex-wrap:wrap;gap:4px}.side .brand{width:100%}.nav{display:flex;flex-wrap:wrap;gap:4px}.walk{grid-template-columns:1fr}.main{padding:20px 16px 60px}}
+
+/* 静态流程图（离线可渲染） */
+.flow{display:flex;flex-direction:column;margin:16px 0}
+.fnode{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:13.5px;color:var(--ink2);text-align:center}
+.fnode b{color:var(--ink);display:block;font-size:13.5px}
+.fnode.acc{border-color:var(--accent);background:#FFF9F2}
+.fnode.dim{border-style:dashed;color:var(--ink3)}
+.farr{width:2px;height:20px;background:#c8d1ca;margin:0 auto;position:relative}
+.farr::after{content:"";position:absolute;bottom:-1px;left:-4px;border:5px solid transparent;border-top:6px solid #c8d1ca}
+.farr .ft{position:absolute;left:10px;top:-2px;font-size:11px;color:var(--ink3);white-space:nowrap;background:var(--paper);padding:0 4px}
+.fbr{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.fcol{display:flex;flex-direction:column}
+.flab{align-self:center;font-size:11px;font-weight:700;color:var(--accent);background:var(--soft);border-radius:10px;padding:2px 10px;margin-bottom:6px}
+.frow{display:grid;gap:10px;margin:0 auto;width:100%}
+
+@media print{.side,.pager{display:none}.page{display:block!important;page-break-after:always}.main{max-width:none;padding:0}}
+</style>
+
+<div class="layout">
+<aside class="side">
+  <div class="brand"><b>裕慧家园开发蓝图</b><span>YUTO · 2026-08-30 · V1.0</span></div>
+  <nav class="nav" id="nav">
+    <div class="grp">总述</div>
+    <a href="#p0" class="on">封面与阅读指南</a>
+    <a href="#p1">整体架构</a>
+    <a href="#p2">核心业务流程图</a>
+    <div class="grp">完整交互原型（Mock）</div>
+    <a href="#p3">原型入口与演示剧本</a>
+    <a href="#p4">40 项需求 × 原型对照表</a>
+    <div class="grp">功能模块详解</div>
+    <a href="#p5">一 · 厂牌打印与模板</a>
+    <a href="#p6">二 · 访客模块优化</a>
+    <a href="#p7">三 · 保密供应商管理</a>
+    <a href="#p8">四 · 裕慧家园 App</a>
+    <a href="#p9">五 · 权限管理与删除链路</a>
+    <a href="#p10">六/七 · 免检证与自助打印</a>
+    <div class="grp">计划与确认</div>
+    <a href="#p11">开发批次与里程碑</a>
+    <a href="#p12">风险 · 待办 · 确认清单</a>
+  </nav>
+</aside>
+<main class="main">
+
+<!-- ============ P0 封面 ============ -->
+<section class="page on" id="pg-p0">
+  <div class="kicker">裕同智慧园区 · 裕慧家园</div>
+  <h1>新增功能开发蓝图</h1>
+  <p style="color:var(--ink3);font-size:13px">需求方：刘文超　·　开发方：李世勋　·　基线：需求分析 v40 项 + 实施方案 v1.5 + UI 设计画布 v4　·　2026-08-30</p>
+  <div class="lede">本蓝图把 40 项需求整理成「用户需求 → 功能说明 → 界面 → 流程 → 实现方式 → 开发步骤」的完整闭环，供需求方逐项确认。左侧导航切换章节；第 4 章有两个<b>完整可操作原型</b>（App 全流程 Mock + 复刻现有风格的 Web 后台 Mock），可以像真系统一样点。</div>
+  <div class="grid2">
+    <div class="stat"><b>40</b><span>需求项（7 大模块，含 8-30 补充的封条扫码与权限清空改造）</span></div>
+    <div class="stat"><b>23</b><span>UI 设计稿（App 13 屏 + Web 后台 10 屏，已按最终阶段设计）</span></div>
+    <div class="stat"><b>7</b><span>开发批次（批次 0 缺陷修复 → 批次 6 远期），依赖关系已排定</span></div>
+    <div class="stat"><b>2</b><span>剩余开放项：生产任务开关核查、打印机与 PDA 机型采购</span></div>
+  </div>
+  <h2>这次要解决什么问题</h2>
+  <div class="card">
+  <ol>
+    <li><b>厂牌打印全面模板化</b>——现在访客凭条版式写死在代码里，改一个字都要发版。做一个可视化模板设计器，外包工 IC 卡厂牌、访客厂牌（保密带二维码）、免检证全部用模板打印，做完一次性切换。</li>
+    <li><b>保密物品放行搬上 PDA</b>——新建「裕慧家园」App（公司唯一移动端，按权限展示模块）：物料贴封条、扫封条直接带出单据、A点出发确认 → 押运（刷卡或定位器锁）→ B点到达归档，全程刷卡验证、全程留痕可查。</li>
+    <li><b>访客管理补短板</b>——申请判重按新厂/老厂分开、随行人员也判重、一键作废回收权限、搜索体验修复、访客手动下发权限带有效期。</li>
+    <li><b>保密权限管住生命周期</b>——考试不通过不给保密权限；供应商协议到期自动收权限；长期未进保密区自动删权限（先演练后启用）；<b>删除权限改成「设备确认删除成功后才清系统记录」</b>，杜绝系统删了、门禁机还能刷的漏洞。</li>
+  </ol>
+  </div>
+  <h2>怎么确认这份蓝图</h2>
+   <p>建议按顺序看：<b>核心流程图</b>（第 3 章，业务全貌）→ <b>交互原型</b>（第 4 章打开 App/Web 原型，按剧本把一张单据从申请点到归档）→ 逐个<b>功能模块</b>（确认功能描述与界面是否符合预期）→ <b>开发批次</b>（确认先后顺序）→ 最后在<b>确认清单</b>（第 8 章）逐项打勾回复。配套材料：<a href="https://claude.ai/code/artifact/9a59fbf7-032f-440f-b835-c040927ddad7" target="_blank">全套 UI 设计稿（可在线圈批）</a>。</p>
+  <div class="pager"><span></span><a class="next" href="#p1">下一章 · 整体架构 →</a></div>
+</section>
+
+<!-- ============ P1 架构 ============ -->
+<section class="page" id="pg-p1">
+  <div class="kicker">第 2 章</div>
+  <h1>整体架构</h1>
+  <p class="lede">三个用户端 + 一套后台服务。微信 H5 保持现状不动；新建的「裕慧家园」App 是公司唯一移动端，保密放行只是它的第一个模块。</p>
+  <pre class="mermaid">
+flowchart TB
+  subgraph U[用户端]
+    direction LR
+    APP["裕慧家园 App（新建）<br/>安卓 PDA / 手机<br/>保密放行模块 + 后续模块"]:::acc
+    WEB["Web 管理后台（smart-ui）<br/>模板设计器 / 打印 / 权限 / 报表"]
+    H5["微信 H5（保持现状）<br/>访客申请 / 原物品放行等"]:::dim
+  end
+  GW["统一网关 + 工号登录鉴权<br/>App 与电脑端同一套账号"]
+  subgraph S[后台服务]
+    direction LR
+    PT["平台服务<br/>保密放行新单据域 / 厂牌模板 / 访客 / 权限"]
+    AE["园区审批引擎<br/>直属主管审批 · 不走 OA"]
+    SC["定时任务<br/>到期清理 / 对账 / 自动删除"]
+  end
+  ISC["海康 ISC 平台"]
+  DEV["门禁机 / 闸机 / 考勤机"]
+  U --> GW --> S
+  PT --> ISC --> DEV
+  classDef acc fill:#FFF1E3,stroke:#EC6C00,color:#5A2600
+  classDef dim stroke-dasharray:4 3,color:#6F6C6B
+</pre>
+  <h2>关键架构决策（均已双方确认）</h2>
+  <div class="tbl"><table>
+    <tr><th>决策</th><th>结论</th><th>理由</th></tr>
+    <tr><td>App 形态</td><td>从 0 新建 uni-app 工程，旧 App 弃用仅作参考；功能模块化、按账号权限自动展示</td><td>旧工程冗余；一个 App 承载后续全部移动端功能</td></tr>
+    <tr><td>登录体系</td><td>工号 + 密码，与电脑端共用（认证服务现成，零改造）</td><td>正式工/外包工都有工号</td></tr>
+    <tr><td>保密放行单据</td><td>独立新单据域（厂内 A岗位 → B岗位流转），与现有出厂放行条、宿舍退宿放行完全分开</td><td>业务性质不同：无出厂、无返厂、按岗位流转</td></tr>
+    <tr><td>审批通道</td><td>园区审批引擎、直属主管审批、不走 OA（最终阶段）；第一阶段申请暂留 OA/现有系统</td><td>审批引擎与上级主管数据（DHR 同步）都已具备</td></tr>
+    <tr><td>模板切换</td><td>线上打印保持现状 → 设计器完整做好 → 一次性切换（带回退开关）</td><td>避免过渡版折腾现场</td></tr>
+    <tr><td>刷卡识人</td><td>NFC 读 IC 卡内置卡号 → 匹配人员信息里登记的卡号（绑定关系已存在）；刷卡为硬性要求、无降级</td><td>安全要求：必须人卡合一确认</td></tr>
+  </table></div>
+  <div class="pager"><a href="#p0">← 上一章</a><a class="next" href="#p2">下一章 · 核心流程图 →</a></div>
+</section>
+
+<!-- ============ P2 流程图 ============ -->
+<section class="page" id="pg-p2">
+  <div class="kicker">第 3 章 · 最重要的一章</div>
+  <h1>核心业务流程图</h1>
+
+  <h2>流程一 · 保密物品放行全流程（最终阶段）</h2>
+  <p>厂内 A 岗位 → B 岗位的保密物料流转。<span class="pill p-soft">第一阶段过渡</span> 申请环节暂在 OA/现有系统提交，其余环节不变。</p>
+  <pre class="mermaid">
+flowchart TD
+  A["① 申请人在 App 发起申请<br/>选出发/目的岗位 · 添加物料<br/>扫码头逐枚录入封条条码"] --> B{"② 直属主管审批<br/>园区审批引擎 · 不走 OA"}
+  B -- 驳回（须填意见） --> A1["退回申请人<br/>可修改后重新提交"] --> A
+  B -- 同意 --> C["③ 进入 A点出发岗位待办"]
+  C --> D["④ A点安检核对物料与封条<br/>可扫任一封条条码直接定位 · 不拍照"]
+  D --> E{"⑤ 选择押运方式"}
+  E -- 人工押运 --> F["押运人 IC 卡贴近 PDA<br/>NFC 读卡确认身份（硬性要求）"]
+  E -- 定位器锁 --> G["手动录入定位器锁编号<br/>必填 · 供追溯"]
+  F --> H["⑥ A点安检刷卡确认出发<br/>单据状态 → 押运中"]
+  G --> H
+  H --> I["⑦ B点安检扫封条条码<br/>单据自动带出"]
+  I --> J["⑧ 核对封条完好 / 锁编号一致<br/>B点安检刷卡确认到达"]
+  J --> K["⑨ 单据归档<br/>全程留痕：申请人 / 审批人 / 两端岗位 / 两端安检 / 押运 / 时间"]
+  K --> L["⑩ 记录报表<br/>按封条条码 · 申请人 · 出发/到达岗位 · 状态 · 两端安检筛选"]
+  classDef acc fill:#FFF1E3,stroke:#EC6C00,color:#5A2600
+  class B,E acc
+</pre><div class="note">第一阶段过渡：①申请暂在 OA/现有系统提交，其余环节不变；申请与审批进 App 为最终阶段（本蓝图 UI 即最终阶段）。</div>
+
+  <h2>流程二 · 访客全生命周期（含保密供应商）</h2>
+  <pre class="mermaid">
+flowchart TD
+  A["访客 / 供应商发起入场申请<br/>微信 H5 / 后台"] --> B["系统自动校验"]
+  B --> B1["① 重复申请判重<br/>按新厂/老厂分区域 · 含随行人员"]
+  B --> B2["② 保密供应商<br/>申请结束日期 ≤ 保密协议截止日"]
+  B --> B3["③ 涉保密权限<br/>校验保密考试是否通过"]
+  B1 & B2 & B3 --> C{"校验通过？"}
+  C -- 否 --> X["拦截并提示原因"]:::dim
+  C -- 是 --> D["审批通过 → 打印访客厂牌<br/>保密供应商=带二维码模板 / 普通=无码<br/>（自动选择 · 匹配不到带码模板则拒绝打印）"]
+  D --> E["权限按区域下发到门禁设备<br/>有效期 = 申请起止日期"]
+  E --> F["在园区活动<br/>闸机通行 + PDA 扫码核验 / 进出登记（进与出都登记）"]
+  F --> G{"单据到期 / 手动作废 /<br/>供应商协议到期自动解密"}
+  G --> H["权限回收（走可靠删除链路）<br/>设备确认删除成功后才清系统记录"]
+  H --> I["台账留痕 · 可重新申请<br/>解密同时清理供应商人员名单"]
+  classDef acc fill:#FFF1E3,stroke:#EC6C00,color:#5A2600
+  classDef dim stroke-dasharray:4 3,color:#6F6C6B
+  class B,C,G acc
+</pre>
+
+  <h2>流程三 · 权限删除的可靠链路（修复现网数据不一致）</h2>
+  <p><span class="pill p-dgr">现状问题</span> 清权限时系统先把记录删了再通知海康，海康执行失败就变成「系统没记录、门禁机还能刷」，而且没人知道。</p>
+  <pre class="mermaid">
+flowchart LR
+  A["发起删除<br/>清空 / 离职 / 到期 / 作废"] --> B["系统记录标记「删除中」<br/>不真删 · 界面灰显"]:::acc
+  B --> C["向海康 ISC 下发删除任务"]
+  C --> D{"设备端确认<br/>删除成功？"}
+  D -- 成功 --> E["再删除系统记录<br/>归档留痕"]
+  D -- 失败（重试 10 次后） --> F["标记「删除失败」+ 消息告警<br/>可一键重发"]:::acc
+  F --> C
+  D -. 超时 / 漏网 .-> G["每日自动对账<br/>发现残留自动补删除任务"]:::dim
+  G --> C
+  classDef acc fill:#FFF1E3,stroke:#EC6C00,color:#5A2600
+  classDef dim stroke-dasharray:4 3,color:#6F6C6B
+</pre>
+
+  <h2>流程四 · 厂牌模板切换（不影响现场打印）</h2>
+  <pre class="mermaid">
+flowchart LR
+  A["现状打印保持不动<br/>访客凭条照常出"] --> B["开发可视化模板设计器<br/>拖拽文字 / 照片 / 二维码 / 条码"]:::acc
+  B --> C["行政设计各类模板<br/>按公司 / 供应商 / 类型绑定"]
+  C --> D["试打验收<br/>保密访客模板必须含二维码<br/>否则禁止启用"]
+  D --> E["一次性切换上线<br/>带回退开关，可秒切回旧版"]:::acc
+  E --> F["全类型厂牌走模板自动匹配<br/>外包工 IC 厂牌 / 访客带码厂牌 / 免检证"]
+  classDef acc fill:#FFF1E3,stroke:#EC6C00,color:#5A2600
+</pre>
+  <div class="pager"><a href="#p1">← 上一章</a><a class="next" href="#p3">下一章 · 交互走查 →</a></div>
+</section>
+
+<!-- ============ P3 原型入口 ============ -->
+<section class="page" id="pg-p3">
+  <div class="kicker">第 4 章 · 真实可操作原型</div>
+  <h1>完整交互原型（Mock）</h1>
+  <p class="lede">两个可直接操作的完整原型：App 端手机原样尺寸、从登录开始全流程可点、带演示数据与角色切换（首页为可扩展分组工作台，底部四页签：首页/待办/消息/我的）；Web 端逐页复刻现有管理后台界面（左侧菜单、顶栏、表格样式与现系统一致），在原界面上叠加本次改动（橙「新」=新增、蓝「改」=改造）。微信 H5 本次无界面改动，无原型。本套蓝图+原型已存入代码仓库 docs/yuhui-prototype/，本地双击 index.html 即可离线演示。</p>
+  <div class="grid2">
+    <div class="card" style="border-left:4px solid var(--accent)">
+      <h3 style="margin-top:0">📱 App 端原型（裕慧家园）</h3>
+      <p>登录 → 角色化工作台 → 保密放行全流程（申请/主管审批/A点出发/押运刷卡/封条扫码/B点归档/报表）+ 访客核验与进出登记。左侧演示控制台可切换 4 个演示账号扮演不同角色，一张单据真实流转。</p>
+      <p><a href="./yuhui-app-proto.html" target="_blank"><b>→ 打开 App 原型</b></a></p>
+    </div>
+    <div class="card" style="border-left:4px solid var(--info)">
+      <h3 style="margin-top:0">🖥️ Web 管理后台原型</h3>
+      <p>复刻现有系统外壳与页面（入厂申请记录卡片流、员工信息、权限策略、保密供应商等原样呈现），全部改动可点击演示：作废回收、通关权限下发（含考试拦截与有效期）、清空权限「删除中→失败→重发」全过程、模板启用校验、供应商解密。</p>
+      <p><a href="./yuhui-web-proto.html" target="_blank"><b>→ 打开 Web 原型</b></a></p>
+    </div>
+  </div>
+  <h2>App 演示账号（原型左侧控制台一键切换）</h2>
+  <div class="tbl"><table>
+    <tr><th>账号</th><th>角色</th><th>能看到的功能（按权限展示）</th></tr>
+    <tr><td>陈明</td><td>申请人 · 结构设计部</td><td>放行申请、我的申请、记录报表</td></tr>
+    <tr><td>王志远</td><td>直属主管</td><td>放行审批（同意/驳回）、记录报表</td></tr>
+    <tr><td>李建军</td><td>A岗安检 · 保密区A-南门岗</td><td>访客进出登记、访客核验、放行待办（出发确认）、封条扫码、记录报表</td></tr>
+    <tr><td>赵磊</td><td>B岗安检 · 成型车间B-收发室</td><td>放行待办（到达确认）、封条扫码、记录报表</td></tr>
+  </table></div>
+  <h2>推荐演示剧本（约 5 分钟走完一单）</h2>
+  <div class="card"><ol>
+    <li><b>陈明</b>：放行申请 → 选出发/目的岗位 → 添加物料 → 「模拟扫码」录 2-3 枚封条 → 提交；</li>
+    <li><b>王志远</b>：放行审批 → 打开单据（可先试「驳回」看退回改重提）→ 同意；</li>
+    <li><b>李建军</b>：放行待办 → 打开单据 → 选「人工押运」→ 点感应圈模拟押运人刷卡 → 确认出发（也可选「定位器锁」录锁号走另一分支）；</li>
+    <li><b>赵磊</b>：封条扫码 → 「模拟扫码头扫描」任一封条 → 单据自动带出 → 刷卡 → 确认到达归档；</li>
+    <li>任意账号：记录报表查看全程轨迹。访客流程：李建军 → 访客核验 → 李芳（登记进入/离开）与刘建国（失效禁止态）。</li>
+  </ol>
+  <p style="margin:0"><b>Web 端剧本</b>：首页卡片按提示逐页点——重点看「权限策略→人员明细」点<b>清空权限</b>（3 秒后 3 人删除成功、1 人失败告警可重发，即 5.8 新删除链路）；「入厂申请记录」<b>勾选卡片</b>后用右上角<b>通关权限/作废</b>（勾李芳时保密权限组因未通过考试被禁用）；保密区菜单里有<b>保密考试通过管理</b>与<b>权限自动删除记录</b>报表。</p></div>
+  <div class="note">原型为演示 Mock：数据是演示样例，刷新页面即复位（App 原型有「重置演示数据」按钮）；界面即最终阶段形态（申请与审批在 App 内）。</div>
+  <div class="pager"><a href="#p2">← 上一章</a><a class="next" href="#p4">下一章 · 需求覆盖对照 →</a></div>
+</section>
+
+<!-- ============ P4 覆盖对照 ============ -->
+<section class="page" id="pg-p4">
+  <div class="kicker">第 5 章</div>
+  <h1>40 项需求 × 原型对照表</h1>
+  <p class="lede">每一项需求在哪个端、原型里的哪个位置、怎么演示。少数纯后台规则（无界面）标注说明。</p>
+  <div class="tbl"><table>
+    <tr><th>需求</th><th>端</th><th>原型位置 / 演示方法</th></tr>
+    <tr><td>1.1 外包工厂牌打印</td><td>Web</td><td>厂牌模板 → 外包工厂牌打印：选人 → 预览（按公司自动匹配模板）→ 打印</td></tr>
+    <tr><td>1.2 模板设计器</td><td>Web</td><td>模板管理 → 任一模板「编辑」：组件/画布/属性三栏，点画布元素可选中改属性</td></tr>
+    <tr><td>1.3 模板按公司绑定</td><td>Web</td><td>模板管理「绑定对象」列 + 外包打印页自动匹配文案</td></tr>
+    <tr><td>1.4 供应商模板与分类</td><td>Web</td><td>模板管理：保密访客-带二维码 / 普通访客-无码 两条分类模板</td></tr>
+    <tr><td>1.5 模板自动调用</td><td>Web</td><td>外包/免检证打印页：无需选模板自动带出</td></tr>
+    <tr><td>2.1 访客厂牌二维码</td><td>Web</td><td>模板设计器画布右下角二维码组件（可选中看属性）</td></tr>
+    <tr><td>2.2 访客模板可调化</td><td>Web</td><td>同 1.2 设计器</td></tr>
+    <tr><td>2.3 保密/非保密区分</td><td>Web</td><td>模板列表两条访客模板；对「派遣工-通用厂牌」点启用看 fail-closed 校验</td></tr>
+    <tr><td>2.4 搜索返回保留</td><td>Web</td><td>入厂申请记录：点搜索后出现「已保留查询条件」提示条</td></tr>
+    <tr><td>2.5 随行人员搜索</td><td>Web</td><td>入厂申请记录：在「访客/随行姓名」输入 王小雨 → 搜出主申请人李芳的卡片</td></tr>
+    <tr><td>2.6 入场申请作废</td><td>Web</td><td>勾选卡片（可多选）→ 右上角「作废」→ 绶带变灰、权限回收提示</td></tr>
+    <tr><td>2.7 判重按区域+随行</td><td>—</td><td>校验规则无界面；规则见第 7 章模块二（新厂/老厂分开判、随行纳入）</td></tr>
+    <tr><td>3.1 非保密转保密</td><td>—</td><td>后台联动无界面；逻辑见第 7 章模块三</td></tr>
+    <tr><td>3.2 保密到期全量删除</td><td>Web</td><td>保密区供应商人员页提示条 + 人员权限下发记录页删除任务明细</td></tr>
+    <tr><td>3.3 供应商软删除</td><td>Web+App</td><td>Web：供应商「删除」→ 行变灰「已失效」；App：访客核验-刘建国 红色禁止态</td></tr>
+    <tr><td>3.4 解密后重新申请</td><td>Web</td><td>供应商行「提前解密」→ 人员名单清理+权限回收（到期则自动解密，同口径）</td></tr>
+    <tr><td>4.1 App 基础框架</td><td>App</td><td>整个 App 原型；首页模块按账号权限变化（切账号对比）</td></tr>
+    <tr><td>4.2 工号登录</td><td>App</td><td>登录页（左侧账号一键登录）</td></tr>
+    <tr><td>4.3 统一登录与权限</td><td>App</td><td>四个账号首页功能各不相同 = 按权限展示</td></tr>
+    <tr><td>4.4 访客进出登记</td><td>App</td><td>李建军 → 访客核验 → 李芳 → 登记进入/离开（岗位与操作人留痕）</td></tr>
+    <tr><td>4.5 访客二维码核验</td><td>App</td><td>访客核验页：有效绿态 / 失效红色禁止态</td></tr>
+    <tr><td>4.6 岗位绑定</td><td>App</td><td>安检账号登录后强制选岗；首页顶部岗位标签可随时切换</td></tr>
+    <tr><td>4.7 A→B 放行确认</td><td>App</td><td>演示剧本全流程（出发确认/押运/到达归档）</td></tr>
+    <tr><td>4.8 记录报表</td><td>App</td><td>记录报表：封条/申请人等筛选 + 全程轨迹</td></tr>
+    <tr><td>4.9 NFC 刷卡</td><td>App</td><td>刷卡验证：点感应圈模拟读卡 → 卡号匹配人员（8A02D14C→王强）</td></tr>
+    <tr><td>4.10 上级主管同步</td><td>App</td><td>审批页「审批人取自直接上级（DHR 同步）」；陈明提交自动路由王志远</td></tr>
+    <tr><td>4.11 申请与审批进园区</td><td>App</td><td>放行申请 + 放行审批两页（园区审批引擎、不走 OA）</td></tr>
+    <tr><td>4.12 审批流可配置</td><td>App</td><td>审批页流程节点展示；配置界面随 4.11 详设（参考退宿审批流）</td></tr>
+    <tr><td>4.13 押运方式选择</td><td>App</td><td>A点确认：人工押运（刷卡）/ 定位器锁（录 SD-xxxx 编号）两分支都可走</td></tr>
+    <tr><td>4.14 封条扫码定位</td><td>App</td><td>封条扫码页：常驻焦点输入框 + 模拟扫码头 → 任一封条带出单据；申请页录入同理</td></tr>
+    <tr><td>5.1 考试通过管理</td><td>Web</td><td>保密区 → 保密考试通过管理（部门/人员/是否通过三维搜索）+ 入厂记录勾李芳「通关权限」保密组禁用</td></tr>
+    <tr><td>5.2 访客手动下发</td><td>Web</td><td>勾选单张卡片 → 右上角「通关权限」→ 选组 + 日期 → 确认下发</td></tr>
+    <tr><td>5.3 下发带期限</td><td>Web</td><td>员工信息 → 勾选员工 → 通关权限：对话框内「有效期 新」区块；确认后弹下发进度</td></tr>
+    <tr><td>5.4 保密区自动删除</td><td>Web</td><td>保密区 → 保密区设置：天数/过滤项/演练开关/白名单编辑表格</td></tr>
+    <tr><td>5.5 自动删除白名单</td><td>Web</td><td>同页白名单开关（已添加 12 人）</td></tr>
+    <tr><td>5.6 删除记录报表</td><td>Web</td><td>保密区 → 权限自动删除记录（独立报表，多条件筛选）</td></tr>
+    <tr><td>5.7 进出记录同步修复</td><td>—</td><td>底层修复无界面；「ISC人脸下发记录」页可见设备离线重试与延迟删除任务</td></tr>
+    <tr><td>5.8 权限清空一致性</td><td>Web</td><td>权限组人员 → 清空权限：删除中灰显 → 3秒回执 → 成功清除+1条失败告警 → 重发删除</td></tr>
+    <tr><td>6.1 免检证打印</td><td>Web</td><td>免检证打印：工号带出 → 有效期 → 打印（绿头卡面预览）</td></tr>
+    <tr><td>7.1 自助打印对接</td><td>—</td><td>远期规划无原型</td></tr>
+  </table></div>
+  <div class="note blue">微信 H5：本次无界面改动（物品放行申请等页面保持现状），故无 H5 原型；这是已确认口径，防止误改。</div>
+  <div class="pager"><a href="#p3">← 上一章</a><a class="next" href="#p5">下一章 · 模块详解 →</a></div>
+</section>
+
+<!-- ============ P5 模块一 ============ -->
+<section class="page" id="pg-p5">
+  <div class="kicker">第 6 章 · 模块详解</div>
+  <h1>模块一 · 厂牌打印与模板管理</h1>
+  <p class="lede">你要的：所有厂牌不再写死版式，行政自己就能改；外包工发 IC 卡厂牌；打印时按人自动选对模板。</p>
+  <div class="tbl"><table>
+    <tr><th>需求</th><th>功能说明（做成什么样）</th><th>涉及界面</th><th>实现方式</th><th>交付批次</th></tr>
+    <tr><td>1.2 模板设计器</td><td>网页上拖拽设计：文字、颜色、底板、照片位、二维码、条形码；模板按类型/分类管理，带版本、可回滚、启用前自动校验必填项</td><td>后台「模板管理列表」「模板设计器」</td><td>新建模板服务（模板表+版本）+ 画布编辑器；打印输出对接 Brother 标签机与 IC 证卡机</td><td>批次 1 启动，批次 2 交付</td></tr>
+    <tr><td>1.3 按公司绑定</td><td>外包单位/派遣公司各绑各的模板，打印时按人员所属公司自动调用</td><td>模板绑定管理</td><td>公司↔模板绑定表 + 打印入口解析链</td><td>批次 2</td></tr>
+    <tr><td>1.4 供应商/访客模板</td><td>访客按「保密供应商=带二维码 / 普通供应商=无码」自动二选一；匹配不到带码模板时<b>直接拒绝打印</b>，绝不误发无码厂牌</td><td>同上</td><td>打印时联查保密供应商台账（申请时落标记）</td><td>批次 2</td></tr>
+    <tr><td>1.1 外包工 IC 卡厂牌</td><td>选人 → 自动匹配公司模板 → 证卡机打印卡面。打印机不写卡：卡号是卡内置的，发卡时读出登记到人员信息（与员工同一套卡号体系）</td><td>后台「外包工厂牌打印」</td><td>复用现有 ISC 卡片登记/导入；新增打印页与证卡机对接</td><td>批次 2（机型确认为启动门）</td></tr>
+    <tr><td>1.5 模板自动调用</td><td>打印零选择：人员 → 公司/供应商 → 模板，自动带出</td><td>各打印页</td><td>解析链 + 默认模板兜底（保密类除外）</td><td>批次 2</td></tr>
+  </table></div>
+  <div class="note"><b>切换策略（已确认）：</b>设计器没做完之前，现场打印保持现状完全不动；设计器+绑定+试打全部验收后一次性切换，切换带回退开关，出问题可以秒切回旧版。</div>
+  <div class="pager"><a href="#p4">← 上一章</a><a class="next" href="#p6">下一模块 →</a></div>
+</section>
+
+<!-- ============ P6 模块二 ============ -->
+<section class="page" id="pg-p6">
+  <div class="kicker">第 6 章 · 模块详解</div>
+  <h1>模块二 · 访客模块优化</h1>
+  <div class="tbl"><table>
+    <tr><th>需求</th><th>功能说明</th><th>涉及界面</th><th>实现方式</th><th>交付批次</th></tr>
+    <tr><td>2.4 搜索返回不丢</td><td>列表搜完点详情，返回后搜索条件和页码还在</td><td>入场申请记录（改造）</td><td>查询条件持久化到地址栏，返回自动恢复</td><td>批次 1</td></tr>
+    <tr><td>2.5 随行人员搜索</td><td>按随行人员姓名或证件号也能搜出主申请人的单据</td><td>同上</td><td>查询 SQL 扩展到随行表（证件号现已支持，补姓名）</td><td>批次 1</td></tr>
+    <tr><td>2.6 一键作废</td><td>列表加「作废」按钮：单据失效 + 自动回收全部已下发权限 + 解除重复申请限制。<b>不联动 OA</b>，园区内直接作废；OA 后续回调对已作废单自动忽略</td><td>同上（作废态灰显）</td><td>新增作废端点 + 权限批量回收（走可靠删除链路）</td><td>批次 1 止血版 / 批次 4 完整版</td></tr>
+    <tr><td>2.7 判重按区域</td><td>新厂、老厂可各有一张有效申请互不影响（两区域绑定不同门岗设备）；<b>随行人员纳入判重</b></td><td>无界面变化（校验规则）</td><td>判重 SQL 加区域维度 + 随行证件号</td><td>批次 1</td></tr>
+    <tr><td>2.1-2.3 厂牌二维码</td><td>访客厂牌加二维码（仅保密供应商），版式可调</td><td>随模块一模板切换交付</td><td>见模块一</td><td>批次 2</td></tr>
+    <tr><td>申请强校验（模块说明）</td><td>①保密供应商的申请结束日期不得超过保密协议截止日期，超出拦截；②涉保密权限时未通过考试拦截</td><td>申请提交时提示</td><td>申请保存校验链加两道闸</td><td>①批次 4（可提前）②随 5.1 批次 1</td></tr>
+  </table></div>
+  <div class="pager"><a href="#p5">← 上一模块</a><a class="next" href="#p7">下一模块 →</a></div>
+</section>
+
+<!-- ============ P7 模块三 ============ -->
+<section class="page" id="pg-p7">
+  <div class="kicker">第 6 章 · 模块详解</div>
+  <h1>模块三 · 保密供应商管理</h1>
+  <p class="lede">保密供应商台账、协议期限本来就有，这次补的是「联动」：期限变了、到期了、解密了，访客单据和门禁权限要自动跟着动。</p>
+  <div class="tbl"><table>
+    <tr><th>需求</th><th>功能说明</th><th>实现方式</th><th>交付批次</th></tr>
+    <tr><td>3.1 非保密转保密</td><td>人员转为保密供应商后：原访客单据结束日期若超过保密协议截止日，自动收敛到截止日，并且①删除权限任务的执行时间同步改②所有已下发设备上的权限有效期<b>重新下发</b>更新（设备端有效期是下发时固化的，必须重发）</td><td>供应商加人/改期限两个入口挂联动，复用现成的批次化重发机制</td><td>批次 4</td></tr>
+    <tr><td>3.2 保密到期全量删权限</td><td>供应商协议到期 → 自动删除全部关联人员的全部权限（每日定时）。现状连到期通知都没发出去（顺带修复）</td><td>新增每日任务，建立在可靠删除链路（5.8）之上，失败可见可重发</td><td>批次 4（5.8 之后）</td></tr>
+    <tr><td>3.3 软删除</td><td>删除供应商=标记失效，历史保留；PDA 扫到失效供应商的码提示「已失效」而不是报错</td><td>加逻辑删除标志，查询过滤</td><td>批次 1</td></tr>
+    <tr><td>3.4 解密后重新申请</td><td>解密（终止保密身份）后原保密权限自动失效，人员重新走普通访客申请</td><td>新增「解密」动作，联动失效在途单据 + 生成删权限任务</td><td>批次 4</td></tr>
+  </table></div>
+  <div class="pager"><a href="#p6">← 上一模块</a><a class="next" href="#p8">下一模块 →</a></div>
+</section>
+
+<!-- ============ P8 模块四 ============ -->
+<section class="page" id="pg-p8">
+  <div class="kicker">第 6 章 · 模块详解</div>
+  <h1>模块四 · 裕慧家园 App（PDA + 保密放行）</h1>
+  <p class="lede">从 0 新建的公司唯一移动端。业务口径已在流程图与走查章节完整呈现，这里列功能与实现对照。</p>
+  <div class="tbl"><table>
+    <tr><th>需求</th><th>功能说明</th><th>涉及界面</th><th>实现方式</th><th>交付批次</th></tr>
+    <tr><td>4.1 App 框架</td><td>模块化 + 按账号权限展示功能；登录页仅「裕慧家园」品牌，落款许昌裕同印刷包装有限公司</td><td>登录 / 首页</td><td>新建 uni-app 工程（安卓 PDA/手机）；服务端权限校验必做</td><td>批次 1（骨架）</td></tr>
+    <tr><td>4.2 工号登录</td><td>与电脑端同一套工号密码</td><td>登录</td><td>现有认证服务，零改造</td><td>批次 1</td></tr>
+    <tr><td>4.6 岗位选择</td><td>首页顶部「岗位」标签点击进入选岗；岗位随每条记录留痕</td><td>岗位选择</td><td>岗位字典 + 选岗接口</td><td>批次 2</td></tr>
+    <tr><td>4.4 访客进出登记</td><td>扫访客厂牌码 → 核对 → 选进/出保密区 → 提交（仅访客；进出都登记）</td><td>访客进出登记</td><td>新增登记接口与台账表</td><td>批次 2</td></tr>
+    <tr><td>4.5 访客核验</td><td>扫码展示完整授权信息，失效/过期红色禁止态</td><td>访客核验</td><td>新增按码核验接口（有现成同构实现可仿）</td><td>批次 2</td></tr>
+    <tr><td>4.7 A→B 放行确认</td><td>见流程一与走查；A/B 双确认、不拍照、全程刷卡</td><td>待办/出发确认/到达确认</td><td><b>新建保密放行单据域</b>（主单+物料+封条+确认节点）</td><td>批次 2-3</td></tr>
+    <tr><td>4.9 NFC 刷卡</td><td>读 IC 卡内置卡号匹配人员；硬性要求无降级</td><td>刷卡验证</td><td>机型到位先做验证 demo（批次 2 启动门）；按卡号查人接口</td><td>批次 2 验证 / 批次 3 上线</td></tr>
+    <tr><td>4.13 押运方式</td><td>人工押运=押运人刷卡；定位器锁=手动录锁编号（必填留痕，无设备管理）</td><td>出发确认</td><td>单据加押运字段</td><td>批次 5（字段随单据域预留）</td></tr>
+    <tr><td>4.14 封条扫码</td><td>扫任一封条直接带出单据；PDA 扫码头 + 输入框常驻焦点</td><td>封条扫码 / 申请录入</td><td>封条表（条码唯一防串单）+ 按码反查接口</td><td>批次 2</td></tr>
+    <tr><td>4.8 记录报表</td><td>封条条码/申请人/两端岗位/状态/两端安检 七维筛选</td><td>记录报表</td><td>随新单据域新建</td><td>批次 2</td></tr>
+    <tr><td>4.10/4.11/4.12 申请与审批</td><td>最终阶段：申请+直属主管审批都在 App，园区审批引擎、不走 OA、审批流可配置（参考退宿）</td><td>放行申请 / 主管审批</td><td>审批引擎注册新事件类型；审批人取 DHR 同步的直接上级（数据已有）</td><td>批次 5</td></tr>
+  </table></div>
+  <div class="note blue"><b>阶段口径：</b>第一阶段申请暂留 OA/现有系统，App 先上执行环节（确认/押运/封条/进出/报表）；申请与审批进 App 是最终阶段（UI 已按最终阶段设计好）。</div>
+  <div class="pager"><a href="#p7">← 上一模块</a><a class="next" href="#p9">下一模块 →</a></div>
+</section>
+
+<!-- ============ P9 模块五 ============ -->
+<section class="page" id="pg-p9">
+  <div class="kicker">第 6 章 · 模块详解</div>
+  <h1>模块五 · 权限管理与可靠删除链路</h1>
+  <div class="tbl"><table>
+    <tr><th>需求</th><th>功能说明</th><th>涉及界面</th><th>实现方式</th><th>交付批次</th></tr>
+    <tr><td>5.1 考试通过管理</td><td>人员名单维护+批量导入（与保密承诺书同一套用法）；不在名单内的人，保密类型权限组不允许下发、不允许申请</td><td>后台「考试通过管理」</td><td>仿承诺书三件套；在下发与申请两个入口加拦截</td><td>批次 1</td></tr>
+    <tr><td>5.2 访客手动下发</td><td>入场申请记录加「通关权限」按钮，自选权限组下发（复用员工侧组件）；长期供应商也走这里</td><td>「通关权限下发」对话框</td><td>新增访客版下发接口，结束日期默认取申请单</td><td>批次 1</td></tr>
+    <tr><td>5.3 下发带期限</td><td>员工通关权限、权限组批量粘贴两处都加起止日期（默认当天~2030）；到期设备端自动失效</td><td>两处下发界面</td><td>入参和表单加日期；靠海康下发窗口在设备端到期</td><td>批次 1</td></tr>
+    <tr><td>5.8 可靠删除链路</td><td>见流程三：删除中/删除失败状态可视化、失败告警可重发、每日对账兜底、上线前先清一轮存量残留</td><td>「权限组人员·删除状态」列表</td><td>删除请求实体化 + 状态机 + 对账任务（技术方案已过对抗评审）</td><td>批次 4 之首</td></tr>
+    <tr><td>5.4 自动删除</td><td>N 天未进出保密区自动删权限（扣节假日/请假/出差）。现有实现有个会误删的 BUG（天数取错字段），先修复；开启前先跑一周「只记录不删除」演练</td><td>「自动删除配置与记录」</td><td>修 BUG + 演练开关 + 依赖进出记录修复（5.7）</td><td>缺陷立即修 / 批次 5 灰度开启</td></tr>
+    <tr><td>5.5/5.6 白名单与报表</td><td>白名单已有；删除记录报表新增（区分自动/手动来源）</td><td>同上</td><td>来源标记 + 报表页</td><td>批次 5</td></tr>
+    <tr><td>5.7 进出记录同步修复</td><td>海康进出记录漏同步的三个口子全堵上：订阅假活自动恢复、漏推事件定时拉取补齐（海康查询接口已核实存在）、异常事件不再丢弃</td><td>无界面（底层）</td><td>订阅健康检查 + 每日对账拉取 + 异常落表重处理</td><td>批次 4</td></tr>
+  </table></div>
+  <div class="note red"><b>随调研发现的 5 个现网缺陷</b>（自动删除天数取错字段、批量删除任务只发第一台设备、供应商到期通知没发出去、海康订阅假活、无人脸员工删记录不删设备）——独立于本清单<b>立即修复</b>（批次 0），全部小改可回滚。</div>
+  <div class="pager"><a href="#p8">← 上一模块</a><a class="next" href="#p10">下一模块 →</a></div>
+</section>
+
+<!-- ============ P10 模块六七 ============ -->
+<section class="page" id="pg-p10">
+  <div class="kicker">第 6 章 · 模块详解</div>
+  <h1>模块六 / 七 · 免检证与自助打印</h1>
+  <div class="tbl"><table>
+    <tr><th>需求</th><th>功能说明</th><th>实现方式</th><th>交付批次</th></tr>
+    <tr><td>6.1 免检证打印</td><td>输入工号自动带出员工信息与照片，设置有效期打印（申请审批在 OA，园区只管打印；年用量 3-5 张）</td><td>复用模板体系 + 现成的按工号查询接口，单页开发</td><td>批次 2（随模板切换）</td></tr>
+    <tr><td>7.1 自助打印硬件对接</td><td>本次仅规划不开发；模板体系已把打印输出留好对接口子，设备定制完成后再立项</td><td>—</td><td>批次 6（远期）</td></tr>
+  </table></div>
+  <div class="pager"><a href="#p9">← 上一模块</a><a class="next" href="#p11">下一章 · 开发批次 →</a></div>
+</section>
+
+<!-- ============ P11 开发批次 ============ -->
+<section class="page" id="pg-p11">
+  <div class="kicker">第 7 章</div>
+  <h1>开发批次与里程碑</h1>
+  <p class="lede">按「先修地基、再上功能、外部依赖不满足就顺延」排定。每个批次可独立验收、独立回滚。</p>
+  <pre class="mermaid">
+flowchart LR
+  B0["批次 0 · 立即<br/>5 个现网缺陷修复"]:::acc --> B1["批次 1 · P0<br/>访客小改造 + 作废止血<br/>保密考试管理 · 手动下发+期限<br/>设计器启动 · App 工程搭建"]
+  B1 --> B2["批次 2 · P1<br/>模板一次性切换（打印族）<br/>App 执行环节全部上线"]
+  B2 --> B3["批次 3 · P2<br/>NFC 三段刷卡正式接入"]
+  B1 --> B4["批次 4 · P3<br/>可靠删除链路 5.8<br/>进出同步修复 → 保密联动 3.1/3.2/3.4"]:::acc
+  B4 --> B5["批次 5 · P4<br/>自动删除演练后灰度<br/>App 申请 + 主管审批 · 押运完整交付"]
+  B3 --> B6["批次 6 · 远期<br/>自助打印硬件对接"]:::dim
+  B5 --> B6
+  classDef acc fill:#FFF1E3,stroke:#EC6C00,color:#5A2600
+  classDef dim stroke-dasharray:4 3,color:#6F6C6B
+</pre>
+  <div class="tbl"><table>
+    <tr><th>批次</th><th>交付内容</th><th>启动门（不满足就顺延，不带病排产）</th></tr>
+    <tr><td>批次 0（立即）</td><td>5 个现网缺陷修复（含会误删权限的高危 BUG）</td><td>无；建议先核查生产任务开关（待办 20）定应急等级</td></tr>
+    <tr><td>批次 1（P0）</td><td>搜索保留/随行搜索/区域判重/作废止血/供应商软删除/考试通过管理/访客手动下发+期限/模板设计器启动开发/App 工程与登录</td><td>无外部依赖，随时可开工</td></tr>
+    <tr><td>批次 2（P1）</td><td>设计器完成→模板一次性切换（外包厂牌/访客带码/免检证）；App 执行环节全部上线</td><td>①IC 证卡机型号确认（只打卡面）②PDA 机型确认且扫码头+NFC 读卡验证通过</td></tr>
+    <tr><td>批次 3（P2）</td><td>三段刷卡（A点安检→押运人→B点安检）正式接入</td><td>NFC 验证已在批次 2 前置完成</td></tr>
+    <tr><td>批次 4（P3）</td><td>可靠删除链路 5.8 → 进出记录同步修复 5.7 → 申请期限拦截 + 保密联动 3.1/3.2/3.4 → 作废完整版</td><td>严格按此顺序：先地基后联动</td></tr>
+    <tr><td>批次 5（P4）</td><td>自动删除演练一周后灰度开启 + 删除报表；App 申请与主管审批（园区引擎）；押运方式完整交付</td><td>5.4 开启前演练数据核对无误</td></tr>
+    <tr><td>批次 6（远期）</td><td>自助打印硬件对接</td><td>设备定制完成</td></tr>
+  </table></div>
+  <div class="pager"><a href="#p10">← 上一章</a><a class="next" href="#p12">下一章 · 确认清单 →</a></div>
+</section>
+
+<!-- ============ P12 确认清单 ============ -->
+<section class="page" id="pg-p12">
+  <div class="kicker">第 8 章</div>
+  <h1>风险 · 待办 · 确认清单</h1>
+  <h2>还开着的事项（仅 3 件）</h2>
+  <div class="tbl"><table>
+    <tr><th>事项</th><th>说明</th><th>谁来办</th></tr>
+    <tr><td>生产任务开关核查</td><td>确认生产环境「保密区自动删除」定时任务开关是否开启——若开着，误删 BUG 可能已在产生影响，需要紧急评估</td><td>需求方/运维（尽快）</td></tr>
+    <tr><td>IC 证卡打印机选型</td><td>只打卡面不写卡，确认型号与驱动/SDK 形态即可</td><td>需求方采购</td></tr>
+    <tr><td>PDA 机型选型</td><td>安卓已定；机型到位后先做扫码头 + NFC 读卡验证（批次 2 启动门）</td><td>需求方采购</td></tr>
+  </table></div>
+  <h2>主要风险与对策</h2>
+  <div class="tbl"><table>
+    <tr><th>风险</th><th>对策</th></tr>
+    <tr><td>权限删除数据不一致（历史存量）</td><td>5.8 上线时先跑一轮对账，清掉存量「系统已删、设备残留」数据</td></tr>
+    <tr><td>模板切换影响现场打印</td><td>切换前完整试打验收；带回退开关，可秒切回旧版</td></tr>
+    <tr><td>自动删除误删权限</td><td>先修 BUG；开启前跑一周「只记录不删除」演练并人工核对命中名单；白名单兜底</td></tr>
+    <tr><td>NFC 与扫码头机型兼容</td><td>机型到位立即做验证 demo，不通过则换外接读卡器（仍是刷卡）或换机型，验证不过不排产</td></tr>
+    <tr><td>海康事件订阅中断导致台账缺失</td><td>订阅健康检查 + 每日拉取对账双保险</td></tr>
+  </table></div>
+  <h2>请需求方逐项确认</h2>
+  <div class="card"><ol>
+    <li>核心流程图（第 3 章）四张流程是否与实际业务一致，特别是保密放行 A→B 全流程与审批口径；</li>
+    <li>交互走查（第 4-5 章）各步骤的操作人、动作、提示是否符合现场实际；</li>
+    <li>各模块功能说明与交付批次（第 6-7 章）是否认可，批次先后是否需要调整；</li>
+    <li>UI 设计稿（<a href="https://claude.ai/code/artifact/9a59fbf7-032f-440f-b835-c040927ddad7" target="_blank">在线画布</a>）可直接圈批修改意见；</li>
+    <li>三件开放事项（本章开头）的落实时间。</li>
+  </ol>
+  <p style="margin-top:8px">确认通过后，开发按批次 0 → 批次 1 顺序启动，每批次交付后单独验收。</p></div>
+  <p style="color:var(--ink3);font-size:12px;margin-top:24px">配套档案：《裕慧家园系统新增功能需求分析.md》（40 项清单与 25 项确认记录）·《调研与实施方案 v1.5》（代码级证据与技术方案，经四轮对抗评审定稿）· UI 设计画布 v4。本蓝图与上述档案口径一致，如有出入以最新确认记录为准。</p>
+  <div class="pager"><a href="#p11">← 上一章</a><a class="next" href="#p0">回到封面 ↺</a></div>
+</section>
+
+</main>
+</div>
+
+<script>
+(function(){
+  var pages=['p0','p1','p2','p3','p4','p5','p6','p7','p8','p9','p10','p11','p12'];
+  var nav=document.getElementById('nav');
+  function show(id){
+    if(pages.indexOf(id)<0) id='p0';
+    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on')});
+    var el=document.getElementById('pg-'+id); if(el){el.classList.add('on'); if(window.__renderMermaid) window.__renderMermaid(el);}
+    nav.querySelectorAll('a').forEach(function(a){a.classList.toggle('on', a.getAttribute('href')==='#'+id)});
+    window.scrollTo(0,0);
+  }
+  function fromHash(){ show((location.hash||'#p0').replace('#','')); }
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+  // 键盘翻页（不拦截修饰键组合）
+  document.addEventListener('keydown', function(e){
+    if(e.metaKey||e.ctrlKey||e.altKey) return;
+    var cur=(location.hash||'#p0').replace('#',''); var i=pages.indexOf(cur); if(i<0)i=0;
+    if(e.key==='ArrowRight'&&i<pages.length-1) location.hash='#'+pages[i+1];
+    if(e.key==='ArrowLeft'&&i>0) location.hash='#'+pages[i-1];
+  });
+  // 走查步进
+  function makeWalk(stepperId, goName){
+    var stp=document.getElementById(stepperId);
+    window[goName]=function(s){
+      var root=stp.parentElement;
+      root.querySelectorAll('.wstep').forEach(function(w){w.classList.toggle('on', w.getAttribute('data-w')===s)});
+      stp.querySelectorAll('span').forEach(function(t){t.classList.toggle('on', t.getAttribute('data-s')===s)});
+    };
+    stp.querySelectorAll('span').forEach(function(t){
+      t.addEventListener('click', function(){window[goName](t.getAttribute('data-s'))});
+    });
+  }
+  if(document.getElementById('stp-a'))makeWalk('stp-a','goA');
+  if(document.getElementById('stp-b'))makeWalk('stp-b','goB');
+})();
+</script>
+<script src="./mermaid.min.js"></script>
+<script>
+(function(){
+  if(!window.mermaid) return;
+  mermaid.initialize({startOnLoad:false,theme:'neutral',securityLevel:'loose',
+    flowchart:{curve:'basis',htmlLabels:true,useMaxWidth:true,padding:12,nodeSpacing:36,rankSpacing:46},
+    themeVariables:{fontFamily:'"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif',fontSize:'13px',primaryColor:'#ffffff',primaryBorderColor:'#8a958e',primaryTextColor:'#1c2620',lineColor:'#6F6C6B',clusterBkg:'#f5f7f6',clusterBorder:'#dde4e0'}});
+    /** 渲染当前章节未处理的流程图，并记录同步或异步渲染失败。 */
+    window.__renderMermaid=function(root){
+      var nodes=root.querySelectorAll('pre.mermaid:not([data-processed])');
+      if(nodes.length){
+       try{mermaid.run({nodes:nodes}).catch(function(error){console.error(error);});}
+       catch(error){console.error(error);}
+      }
+    };
+  var on=document.querySelector('.page.on'); if(on) window.__renderMermaid(on);
+})();
+</script>

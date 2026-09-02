@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>智慧园区后台原型</title>
+<style>
+/* ===== 全局（复刻 smart-ui 主题 theme-yutong） ===== */
+*{box-sizing:border-box}
+body{margin:0;font-family:"Microsoft YaHei","Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB",SimSun,sans-serif;font-size:14px;color:#333;background:#f0f2f5}
+a{text-decoration:none}
+/* 顶栏 */
+.hd{position:fixed;top:0;left:0;right:0;height:64px;background:#fff;box-shadow:0 1px 4px rgba(0,21,41,.08);z-index:100;display:flex;align-items:center;padding-left:240px}
+.logo{position:fixed;top:0;left:0;width:240px;height:64px;background:#141E37;z-index:101;display:flex;align-items:center;justify-content:center;gap:10px}
+.logo b{color:#fff;font-size:17px;letter-spacing:.2em;font-weight:600}
+.logo span{display:inline-block;background:#ed6d00;color:#fff;font-weight:800;font-size:13px;letter-spacing:.18em;padding:3px 8px 3px 10px;border-radius:4px}
+.hd .burger{margin-left:20px;font-size:20px;color:#666;cursor:pointer;user-select:none}
+.hd .tlink{margin-left:46px;color:#666;font-size:16px;cursor:pointer}
+.hd .sp{flex:1}
+.hd .r{display:flex;align-items:center;gap:26px;padding-right:20px;color:rgba(0,0,0,.65)}
+.hd .r .tbtn{color:#ed6d00;cursor:pointer;font-size:14px}
+.hd .r .usr{cursor:pointer}
+/* 侧栏 */
+.sb{position:fixed;top:0;left:0;bottom:0;width:240px;background:#0e1424;padding-top:74px;z-index:99;overflow-y:auto;box-shadow:2px 0 6px rgba(0,21,41,.35)}
+.sb::-webkit-scrollbar{width:0}
+.mi,.msub{height:45px;line-height:45px;padding:0 20px;color:rgba(255,255,255,.7);font-size:14px;cursor:pointer;position:relative;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.mi:hover,.msub:hover{color:#fff}
+.mi.on{background:rgba(0,0,0,.8);color:#fff}
+.mi.on::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#ed6d00}
+.msub{justify-content:space-between}
+.msub .ar{transition:transform .2s;font-size:12px}
+.msub.open .ar{transform:rotate(180deg)}
+.mgrp .mi{padding-left:44px}
+.mgrp{display:none}
+.mgrp.open{display:block}
+.newdot{background:#ed6d00;color:#fff;font-size:10px;border-radius:4px;padding:0 4px;line-height:16px;height:16px;margin-left:6px;font-weight:400}
+/* 标签页 */
+.wrap{padding:64px 0 0 240px}
+.tags{background:#fff;border-top:1px solid #f6f6f6;box-shadow:0 1px 2px rgba(0,0,0,.05);padding:0 106px 0 10px;margin-bottom:10px;display:flex;align-items:center;position:relative;height:40px}
+.tag{height:40px;line-height:40px;font-size:13px;color:#ccc;margin:0 3px;padding:0 14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tag.on{color:#ee6a00;border-bottom-color:#ee6a00}
+.tag i{font-style:normal;margin-left:6px;font-size:11px}
+.tags .more{position:absolute;right:10px;top:6px}
+/* 内容容器 */
+.page-box{padding:0 20px 60px}
+.inner{background:#fff;padding:20px;min-height:calc(100vh - 140px)}
+.top-menu{height:53px;padding:0 0 20px;border-bottom:1px solid #E8E9ED;display:flex;position:relative;align-items:flex-start}
+.top-menu .tl{display:flex;gap:15px}
+.top-menu .tr{position:absolute;top:0;right:0;display:flex;gap:15px}
+.topForm{padding-top:20px;display:flex;flex-wrap:wrap;gap:12px 0;align-items:center}
+.fi{display:flex;align-items:center;margin-right:10px}
+.fi label{width:130px;text-align:right;padding-right:12px;font-size:12px;color:#606266;flex-shrink:0}
+/* ===== element 复刻 ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:32px;padding:8px 15px;border-radius:4px;font-size:14px;cursor:pointer;border:1px solid transparent;user-select:none;white-space:nowrap;background:#fff}
+.btn.pri{background:#ed6d00;border-color:#ed6d00;color:#fff}
+.btn.pri:hover{background:#fa7b0c;border-color:#fa7b0c}
+.btn.plain{background:#FDF6EC;border-color:#ed6d00;color:#ed6d00}
+.btn.plain:hover{background:#ed6d00;color:#fff}
+.btn.mini{height:26px;padding:4px 10px;font-size:12px}
+.btn.dis{opacity:.5;cursor:not-allowed;pointer-events:none}
+.tbtn{color:#ed6d00;cursor:pointer;font-size:13px;background:none;border:none;padding:0 4px;font-family:inherit}
+.tbtn:hover{color:#fa7b0c}
+.tbtn.dis{color:#D4D5D9;cursor:not-allowed;pointer-events:none}
+.tbtn.dgr{color:#e7292e}
+.inp{height:28px;border:1px solid #DCDFE6;border-radius:4px;padding:0 10px;font-size:12px;color:#606266;outline:none;width:160px;background:#fff;font-family:inherit}
+.inp:focus{border-color:#ed6d00}
+.inp::placeholder{color:#c0c4cc}
+.sel{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#c0c4cc 50%),linear-gradient(135deg,#c0c4cc 50%,transparent 50%);background-position:calc(100% - 15px) 12px,calc(100% - 10px) 12px;background-size:5px 5px;background-repeat:no-repeat;padding-right:26px}
+/* 表格 */
+.tblw{margin-top:20px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{background:#f2f2f2;color:#333;font-weight:700;padding:10px 6px;text-align:center;border-bottom:1px solid #EBEEF5;font-size:13px;white-space:nowrap}
+.tbl td{padding:10px 6px;text-align:center;border-bottom:1px solid #EBEEF5;color:#606266;font-size:13px}
+.tbl tr:nth-child(even) td{background:#FAFAFA}
+.tbl tr.gray td{color:#B9BCC2;background:#FBFBFB}
+.tbl tr:hover td{background:#FDF6EC33}
+/* 分页 */
+.pg{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:20px;font-size:13px;color:#606266}
+.pg .n{min-width:28px;height:28px;border-radius:3px;background:#f4f4f5;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.pg .n.on{background:#ed6d00;color:#fff}
+/* tag 标签 */
+.etag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:4px;font-size:12px;white-space:nowrap}
+.t-ok{background:#f0f9eb;color:#67C23A;border:1px solid #e1f3d8}
+.t-warn{background:#fdf6ec;color:#E6A23C;border:1px solid #faecd8}
+.t-dgr{background:#fef0f0;color:#F56C6C;border:1px solid #fde2e2}
+.t-info{background:#f4f4f5;color:#909399;border:1px solid #e9e9eb}
+.t-orange{background:#FDF6EC;color:#ed6d00;border:1px solid #ed6d00}
+/* 弹窗 */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding-top:12vh}
+.dlg{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.3);width:700px;max-width:94vw;max-height:80vh;display:flex;flex-direction:column}
+.dlg .dh{padding:18px 20px 8px;font-size:17px;color:#303133;display:flex;justify-content:space-between}
+.dlg .dh i{font-style:normal;color:#909399;cursor:pointer;font-size:15px}
+.dlg .dh i:hover{color:#ed6d00}
+.dlg .db{padding:10px 50px 10px 40px;overflow-y:auto}
+.dlg .df{border-top:1px solid #EEF0F2;padding:14px 20px;display:flex;justify-content:flex-end;gap:15px}
+.small-dlg{background:#fff;border-radius:4px;min-width:420px;max-width:540px;padding:20px 30px;text-align:center;font-size:16px;color:#333}
+.small-dlg .ops{margin-top:22px;display:flex;justify-content:center;gap:15px}
+/* switch */
+.sw{width:40px;height:20px;border-radius:10px;background:#e7292e;position:relative;cursor:pointer;flex-shrink:0;transition:background .2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.sw.on{background:#10CC8F}.sw.on::after{left:22px}
+/* checkbox */
+.cb{width:14px;height:14px;border:1px solid #DCDFE6;border-radius:2px;display:inline-block;vertical-align:-2px;margin-right:6px;cursor:pointer;background:#fff;position:relative}
+.cb.on{background:#ed6d00;border-color:#ed6d00}
+.cb.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+/* 改动标记 */
+.mod{display:inline-flex;align-items:center;height:16px;padding:0 5px;border-radius:3px;background:#ed6d00;color:#fff;font-size:10px;font-weight:700;margin-left:6px;vertical-align:2px}
+.mod.g{background:#1980ff}
+/* 访客卡片流（复刻 visitor-card） */
+.vs-list{display:flex;flex-wrap:wrap;margin-top:20px}
+.visitor-card{position:relative;width:385px;min-height:280px;border:1px solid #ebeef5;border-radius:4px;background:#fff;box-shadow:0 2px 12px 0 rgba(0,0,0,.1);margin:0 10px 30px 0;padding:15px;cursor:pointer;color:#303133}
+.vs-status{position:absolute;top:0;right:20px;width:70px;height:25px;color:#fff;font-size:12px;text-align:center;line-height:26px}
+.vs-status::after{content:"";position:absolute;top:25px;left:0;border-top:8px solid;border-left:35px solid transparent!important;border-right:35px solid transparent!important;border-top-color:inherit}
+.vs-info{display:flex;gap:12px;margin-top:10px;height:186px}
+.vs-left{width:40%;height:170px;border:1px solid #e0e0e0;display:flex;align-items:center;justify-content:center;color:#c0c4cc;flex-direction:column;gap:6px;font-size:12px}
+.vs-right{flex:1;font-size:13px;line-height:28px;overflow:hidden}
+.vs-right p{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vs-right .dot{display:inline-block;width:8px;height:8px;border-radius:2px;background:#ed6d00;margin-right:8px;vertical-align:1px}
+.vs-btm{border-top:1px dashed #E7EAF1;margin-top:8px;padding:11px 0 0;display:flex;font-size:12.5px;text-align:center}
+.vs-btm>div{width:49%}
+.vs-btm>div:first-child{border-right:1px solid #E7EAF1}
+.notify{position:fixed;right:16px;top:80px;z-index:400;display:flex;flex-direction:column;gap:10px}
+.ntc{background:#fff;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,.14);padding:14px 18px;min-width:280px;font-size:13px;color:#606266;border-left:4px solid #67C23A;animation:slin .3s}
+.ntc.warn{border-left-color:#E6A23C}.ntc.err{border-left-color:#F56C6C}
+.ntc b{display:block;color:#303133;font-size:15px;margin-bottom:2px}
+@keyframes slin{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.tip-orange{color:#ed6d00;font-size:16px;padding-bottom:10px;margin-bottom:20px;font-weight:600}
+.ft-danger{color:#e7292e}
+.gtip{color:#999;font-size:12px;line-height:2}
+</style>
+</head>
+<body>
+<div class="logo"><b style="color:#EC6C00;font-family:Arial,sans-serif;font-size:23px;font-weight:800;letter-spacing:.2em">YUTO</b><b style="color:#EC6C00;font-size:16px;font-weight:600;letter-spacing:.14em">裕同科技</b></div>
+<div class="hd"><span class="burger">☰</span><span class="tlink">可视化面板</span><span class="sp"></span>
+ <div class="r"><span class="tbtn">打印访客条</span><span class="usr">刘文超 ▾</span></div></div>
+<div class="sb" id="sb"></div>
+<div class="wrap">
+  <div class="tags" id="tags"></div>
+  <div class="page-box"><div class="inner" id="main"></div></div>
+</div>
+<div class="notify" id="ntf"></div>
+<div id="modal"></div>
+<script>
+/* ============ 菜单 / 路由 / 通知 ============ */
+var MENUS=[
+ {g:'访客管理',items:[['visitor','入厂申请记录','改'],['x','预约记录',''],['x','当天预约',''],['x','黑名单','']]},
+ {g:'厂牌模板',nw:1,items:[['tpl','模板管理','新'],['badge','外包工厂牌打印','新'],['exempt','免检证打印','新']]},
+ {g:'区域管理',items:[['authg','权限策略','改'],['x','区域管理',''],['x','园区管理','']]},
+ {g:'基础信息',items:[['staff','员工信息','改'],['x','人员管理',''],['x','组织管理','']]},
+ {g:'保密区',items:[['supplier','保密区供应商人员','改'],['secset','保密区设置','改'],['secexam','保密考试通过管理','新'],['delreport','权限自动删除记录','新'],['x','保密区门禁申请',''],['x','保密项目签署管理','']]},
+ {g:'日志管理',items:[['iscrec','ISC人脸下发记录','改'],['x','人员权限下发记录',''],['x','IC卡片同步任务','']]}
+ ];
+ var openG={'访客管理':1,'厂牌模板':1,'保密区':1};
+ var tabs=[['home','首页']], curPage='home', pageParam={};
+ /** 将外部输入转为 HTML 文本和属性可安全使用的字符串。 */
+ function escapeHtml(value){return String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+ function ntfy(t,m,tp){var d=document.createElement('div');d.className='ntc '+(tp||'');d.innerHTML='<b>'+t+'</b>'+m;document.getElementById('ntf').appendChild(d);setTimeout(function(){d.remove()},3200)}
+ /** 打开页面并将当前调用的页面参数保存到对应页签。 */
+ function openPage(id,name,param){
+  if(id==='x'){ntfy('提示','该菜单不在本次改动范围，原型未包含','warn');return}
+  pageParam=param||{};
+  var tab=tabs.filter(function(t){return t[0]===id})[0];
+  if(tab)tab[2]=pageParam;else tabs.push([id,name,pageParam]);
+  curPage=id;draw();
+ }
+ /** 激活已有页签，并恢复该页签上次打开时的页面参数。 */
+ function activateTab(id){var tab=tabs.filter(function(t){return t[0]===id})[0];if(!tab)return;pageParam=tab[2]||{};curPage=id;draw()}
+ /** 关闭页签；若关闭当前页，则切换到最后一个保留页签。 */
+ function closeTab(id,e){e.stopPropagation();tabs=tabs.filter(function(t){return t[0]!==id});if(curPage===id)activateTab(tabs[tabs.length-1][0]);else draw()}
+ /**
+  * 渲染左侧菜单与顶部页签，并保留页签关联的页面参数。
+  * 读取本地菜单和页签状态，更新 DOM；不写入外部数据。
+  */
+ function drawShell(){
+ var sb='';
+ MENUS.forEach(function(m){
+  sb+='<div class="msub'+(openG[m.g]?' open':'')+'" onclick="openG[\''+m.g+'\']=!openG[\''+m.g+'\'];draw()"><span>'+m.g+(m.nw?'<span class="newdot">新</span>':'')+'</span><span class="ar">▾</span></div>';
+  sb+='<div class="mgrp'+(openG[m.g]?' open':'')+'">'+m.items.map(function(it){
+    return '<div class="mi'+(curPage===it[0]?' on':'')+'" onclick="event.stopPropagation();openPage(\''+it[0]+'\',\''+it[1]+'\')">'+it[1]+(it[2]?'<span class="newdot"'+(it[2]==='改'?' style="background:#1980ff"':'')+'>'+it[2]+'</span>':'')+'</div>';
+  }).join('')+'</div>';
+ });
+ document.getElementById('sb').innerHTML=sb;
+ document.getElementById('tags').innerHTML=tabs.map(function(t){
+  return '<span class="tag'+(curPage===t[0]?' on':'')+'" onclick="activateTab(\''+t[0]+'\')">'+t[1]+(t[0]!=='home'?'<i onclick="closeTab(\''+t[0]+'\',event)">✕</i>':'')+'</span>';
+ }).join('')+'<span class="more"><span class="btn pri mini">更多 ▾</span></span>';
+}
+function modal(html){document.getElementById('modal').innerHTML=html}
+function closeModal(){modal('')}
+function confirmBox(msg,cb,okTxt){
+ window.__cb=cb;
+ modal('<div class="mask"><div class="small-dlg"><div style="display:flex;align-items:center;gap:16px;text-align:left"><span style="font-size:40px">🗑</span><span>'+msg+'</span></div><div class="ops"><span class="btn pri" onclick="closeModal();window.__cb&&window.__cb()">'+(okTxt||'确定')+'</span><span class="btn plain" onclick="closeModal()">取消</span></div></div></div>');
+}
+/* ============ 演示数据 ============ */
+var visitors=[
+ {id:1,name:'李芳',phone:'138****2210',comp:'深圳市恒兴印务有限公司',park:'新厂',status:2,secret:true,fellow:'王小雨、张倩',start:'2026-08-28 09:00',end:'2026-08-30 18:00',dev:1,hasAuth:1,exam:false},
+ {id:2,name:'王大成',phone:'137****8871',comp:'顺丰速运',park:'老厂',status:0,secret:false,fellow:'',start:'2026-08-30 08:00',end:'2026-08-30 20:00',dev:1,hasAuth:1,exam:true},
+ {id:3,name:'刘倩',phone:'139****0034',comp:'中天彩印',park:'新厂',status:5,secret:false,fellow:'赵敏',start:'2026-08-25 09:00',end:'2026-08-25 18:00',dev:4,hasAuth:1,exam:true},
+ {id:4,name:'张国立',phone:'136****5520',comp:'深圳市恒兴印务有限公司',park:'新厂',status:0,secret:true,fellow:'',start:'2026-08-28 09:00',end:'2026-12-31 18:00',dev:1,hasAuth:1,exam:true}
+];
+var VST={0:['审批通过','#6AC83C'],1:['已拒绝','#F02832'],2:['待审批','#F07000'],3:['已到达','#01C587'],4:['超时未到','#b3b3b3'],5:['已离开','#2b9fd9'],6:['预约超时','#26c7cd'],9:['已作废','#909399']};
+var DEVST=['待下发','下发成功','下发失败','下发中','已下发'];
+var tpls=[
+ {n:'保密访客-带二维码',t:'访客',c:'保密供应商',v:'v3',on:1,bind:'全部保密供应商',qr:1,tm:'2026-08-28 10:12'},
+ {n:'普通访客-无码',t:'访客',c:'普通供应商',v:'v2',on:1,bind:'默认',qr:0,tm:'2026-08-28 10:05'},
+ {n:'鸿达外包-标准厂牌',t:'外包工',c:'IC卡厂牌',v:'v1',on:1,bind:'鸿达人力',qr:0,tm:'2026-08-26 16:40'},
+ {n:'派遣工-通用厂牌',t:'派遣工',c:'IC卡厂牌',v:'v1',on:0,bind:'—',qr:0,tm:'2026-08-30 09:20'},
+ {n:'免检证-标准',t:'员工',c:'免检证',v:'v1',on:1,bind:'默认',qr:0,tm:'2026-08-25 14:33'}];
+var authPersons=[
+ {b:'YT05127',n:'张伟',tp:'保密区',exp:'长期',iss:'已下发 3/3 台',del:0},
+ {b:'YT06233',n:'刘洋',tp:'保密区',exp:'长期',iss:'已下发 3/3 台',del:0},
+ {b:'YT07541',n:'陈晨',tp:'保密区',exp:'长期',iss:'已下发 3/3 台',del:0},
+ {b:'YT02890',n:'孙浩',tp:'保密区',exp:'2026-12-31 止',iss:'已下发 3/3 台',del:0}];
+var suppliers=[
+ {n:'深圳市恒兴印务有限公司',cls:'A类',ppl:12,range:'2025-09-01 ~ 2026-12-31',st:'ok'},
+ {n:'中天彩印科技',cls:'非A类',ppl:5,range:'2026-01-15 ~ 2026-09-15',st:'warn'},
+ {n:'宏图纸品',cls:'非A类',ppl:3,range:'2025-03-01 ~ 2026-03-01',st:'off'}];
+ var staffSel=[]; var oc={sel:null,rehearse:1,wl:1};
+var P={};
+ /* ============ 入厂申请记录（卡片流，复刻 incoming_record） ============ */
+var vq={name:'',kept:false};
+ function grantDlg(id){
+ var v=visitors.filter(function(x){return x.id===id})[0];
+ var groups=[['新厂-东门闸机',0],['新厂-访客通道',0],['保密区A-门禁',1],['保密区B-门禁',1]];
+ var rows=groups.map(function(g,i){
+  var lock=g[1]&&!v.exam;
+  return '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #EBEEF5;'+(lock?'opacity:.55':'')+'">'
+  +'<span class="cb'+(i<2&&!lock?' on':'')+'" onclick="this.classList.toggle(\'on\')"></span><span style="font-size:13px">'+g[0]+'</span>'
+  +(g[1]?'<span class="etag t-orange" style="height:18px;font-size:10px">保密</span>':'')
+  +(lock?'<span style="margin-left:auto;font-size:11px;color:#e7292e">未通过考试，不可下发</span>':'')+'</div>';
+ }).join('');
+ modal('<div class="mask"><div class="dlg"><div class="dh">通关权限下发<span class="mod">新</span><i onclick="closeModal()">✕</i></div><div class="db">'
+ +'<div style="background:#f9f9f9;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px;display:flex;gap:10px;align-items:center"><span style="color:#ed6d00">👤</span>'+v.name+' · '+v.comp+(v.secret?' <span class="etag t-orange" style="height:18px;font-size:10px">保密供应商</span>':'')+(v.exam?'':'<span style="margin-left:auto;color:#e7292e;font-size:12px">考试未通过</span>')+'</div>'
+ +'<div style="border:1px solid #DCDFE6;border-radius:8px;overflow:hidden;margin-bottom:12px"><div style="padding:9px 12px;background:#f2f2f2;font-size:12px;font-weight:700;color:#606266">可选权限组（长期供应商权限亦由此下发）</div>'+rows+'</div>'
+ +'<div style="display:flex;gap:14px;margin-bottom:10px"><span class="fi" style="margin:0"><label style="width:auto;padding-right:8px">开始日期<span class="mod">新</span></label><input class="inp" value="2026-08-30"></span>'
+ +'<span class="fi" style="margin:0"><label style="width:auto;padding-right:8px">结束日期</label><input class="inp" value="'+(v.end||'').slice(0,10)+'"></span></div>'
+ +'<div class="gtip">结束日期默认取申请单结束日期；到期由设备端权限窗口自动失效。未通过保密考试者，保密类型权限组禁止下发（5.1）。</div>'
+ +'</div><div class="df"><span class="btn plain" onclick="closeModal()">取 消</span><span class="btn pri" onclick="closeModal();ntfy(\'成功\',\'配置通关权限成功，已生成下发任务\')">确 定</span></div></div></div>');
+}
+/* ============ 模板管理 / 设计器 ============ */
+P.tpl=function(){
+ var rows=tpls.map(function(t,i){
+  return '<tr'+(t.on?'':' class="gray"')+'><td style="font-weight:600;color:#333">'+t.n+'</td><td>'+t.t+'</td><td>'+t.c+'</td><td>'+t.v+'</td>'
+  +'<td>'+(t.on?'<span class="etag t-ok">启用</span>':'<span class="etag t-info">草稿</span>')+'</td><td>'+t.bind+'</td><td>'+t.tm+'</td>'
+  +'<td><button class="tbtn" onclick="openPage(\'designer\',\'模板设计器\',{i:'+i+'})">编辑</button><button class="tbtn">预览</button>'
+  +(t.on?'<button class="tbtn dgr" onclick="tpls['+i+'].on=0;draw()">停用</button>':'<button class="tbtn" onclick="enableTpl('+i+')">启用</button>')+'</td></tr>';
+ }).join('');
+ return '<div class="top-menu"><div class="tr"><span class="btn plain">分类管理</span><span class="btn pri">+ 新建模板</span></div></div>'
+ +'<div class="topForm"><span class="fi"><label>人员类型</label><select class="inp sel"><option>全部</option><option>访客</option><option>外包工</option><option>派遣工</option><option>员工</option></select></span>'
+ +'<span class="fi"><label>模板名称</label><input class="inp" placeholder="搜索模板名称"></span><span class="btn pri" style="margin-left:6px">🔍 搜索</span></div>'
+ +'<div class="tblw"><table class="tbl"><tr><th>模板名称</th><th>人员类型</th><th>分类</th><th>版本</th><th>状态</th><th>绑定对象</th><th>更新时间</th><th>操作</th></tr>'+rows+'</table></div>'
+ +'<div class="gtip" style="margin-top:14px">模板按版本保留可回滚；线上打印保持现状，设计器整体验收后一次性切换（带回退开关）。保密访客模板缺二维码组件时禁止启用。</div>'
+ +'<div class="pg"><span>共 '+tpls.length+' 条</span><span class="n">‹</span><span class="n on">1</span><span class="n">›</span></div>';
+};
+function enableTpl(i){
+ var t=tpls[i];
+ if(t.c==='保密供应商'&&!t.qr){ntfy('失败','启用校验不通过：保密访客模板必须包含二维码组件','err');return}
+ t.on=1;draw();ntfy('成功','模板已启用');
+}
+var dsel='qr';
+P.designer=function(p){
+ var t=tpls[pageParam.i!=null?pageParam.i:0];
+ function comp(id,name){return '<div style="padding:9px 12px;border:1px solid #EBEEF5;border-radius:6px;margin-bottom:8px;cursor:pointer;font-size:13px;'+(dsel===id?'border-color:#ed6d00;background:#FDF6EC':'')+'" onclick="dsel=\''+id+'\';draw()">'+name+'</div>'}
+ var qrBox = t.qr? '<div onclick="event.stopPropagation();dsel=\'qr\';draw()" style="position:absolute;right:16px;bottom:14px;width:84px;height:84px;border:2px solid '+(dsel==='qr'?'#ed6d00':'#c9c9c9')+';border-radius:4px;background:#FFF7EF;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:#5A2600">二维码</div>':'';
+ var props = dsel==='qr'
+  ? '<div class="fi" style="margin:0 0 10px"><label style="width:70px">数据源</label><select class="inp sel" style="flex:1"><option>访客通行码</option><option>申请单ID</option></select></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><span class="fi" style="margin:0"><label style="width:40px">宽</label><input class="inp" style="width:70px" value="22mm"></span><span class="fi" style="margin:0"><label style="width:40px">高</label><input class="inp" style="width:70px" value="22mm"></span></div><div class="gtip" style="margin-top:10px">必填组件：保密访客模板必须包含二维码，缺失时禁止启用</div>'
+  : '<div class="fi" style="margin:0 0 10px"><label style="width:70px">字段</label><select class="inp sel" style="flex:1"><option>visitorName 访客姓名</option><option>company 单位</option></select></div><div class="fi" style="margin:0"><label style="width:70px">字号</label><input class="inp" style="width:80px" value="16px"></div>';
+ return '<div class="top-menu"><div class="tl"><span class="btn plain" onclick="openPage(\'tpl\',\'模板管理\')">← 返回</span><span style="line-height:32px;font-size:16px;font-weight:600">'+t.n+'　<span class="etag t-info">'+t.v+' · 编辑中</span></span></div>'
+ +'<div class="tr"><span class="btn plain">预览打印</span><span class="btn plain">保存草稿</span><span class="btn pri" onclick="tpls[pageParam.i!=null?pageParam.i:0].qr='+(t.qr?1:0)+';enableTpl(pageParam.i!=null?pageParam.i:0)">保存并启用</span></div></div>'
+ +'<div style="display:grid;grid-template-columns:190px 1fr 250px;gap:16px;margin-top:20px">'
+ +'<div><div class="tip-orange" style="font-size:14px;margin-bottom:10px">组件</div>'+comp('txt','文本')+comp('img','照片位')+comp('qr','二维码')+comp('bar','条形码')+comp('bg','底板')
+ +'<div class="gtip" style="margin-top:8px">点画布中的元素可选中并在右侧改属性（演示：点姓名/二维码）</div></div>'
+ +'<div style="background:#f0f2f5;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:30px">'
+ +'<div style="width:462px;height:291px;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.14);position:relative;overflow:hidden">'
+ +'<div style="height:56px;background:#ed6d00;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px"><b style="letter-spacing:.3em">访 客 证</b><span style="font-weight:800;letter-spacing:.2em">YUTO</span></div>'
+ +'<div style="position:absolute;top:76px;left:20px;width:96px;height:118px;background:#eee;border-radius:4px"></div>'
+ +'<div onclick="dsel=\'txt\';draw()" style="position:absolute;top:78px;left:132px;cursor:pointer;padding:2px 4px;border:1.5px dashed '+(dsel==='txt'?'#ed6d00':'transparent')+'"><b style="font-size:16px">{visitorName}</b><div style="font-size:12px;color:#666">{company}<br>接待：{receptionistName}<br>区域：{permitArea}<br>有效期：{startTime}~{endTime}</div></div>'
+ + qrBox
+ +'<span style="position:absolute;left:20px;bottom:12px;font-size:11px;color:#999">85.6 × 54 mm · 1:1</span></div></div>'
+ +'<div><div class="tip-orange" style="font-size:14px;margin-bottom:10px">属性 · '+(dsel==='qr'?'二维码':'文本')+'</div>'+props
+ +'<div style="margin-top:14px;padding:10px 12px;background:#f9f9f9;border-radius:6px;font-size:12px;color:#666">演示：把上方「保存并启用」用于含/不含二维码的模板，可看到 fail-closed 校验（在模板列表对「派遣工-通用厂牌」点启用同样演示）。</div></div></div>';
+};
+/* ============ 外包工厂牌打印 / 免检证 ============ */
+var badgeSel=0;
+P.badge=function(){
+ var ppl=[['赵小军','WB20411'],['钱峰','WB20415'],['孙丽','WB20418'],['李涛','WB20422']];
+ var rows=ppl.map(function(x,i){return '<tr'+(i===badgeSel?' style="background:#FDF6EC"':'')+' onclick="badgeSel='+i+';draw()" style="cursor:pointer"><td><span class="cb'+(i===badgeSel?' on':'')+'"></span></td><td>'+x[1]+'</td><td>'+x[0]+'</td><td>鸿达人力资源有限公司</td></tr>'}).join('');
+ var p=ppl[badgeSel];
+ return '<div class="top-menu"><div class="tl"><span style="line-height:32px;font-size:16px;font-weight:600">外包工厂牌打印<span class="mod">新</span></span></div><div class="tr"><span class="gtip" style="line-height:32px">证卡打印机就绪 · 只打卡面不写卡（卡号发卡时读卡登记）</span></div></div>'
+ +'<div style="display:grid;grid-template-columns:440px 1fr;gap:20px;margin-top:20px">'
+ +'<div><div class="topForm" style="padding-top:0"><span class="fi"><label style="width:60px">工号/姓名</label><input class="inp" placeholder="请输入"></span>'
+ +'<span class="fi"><label style="width:60px">公司</label><select class="inp sel"><option>鸿达人力</option></select></span><span class="btn pri">🔍</span></div>'
+ +'<table class="tbl" style="margin-top:12px"><tr><th style="width:40px"></th><th>工号</th><th>姓名</th><th>所属公司</th></tr>'+rows+'</table></div>'
+ +'<div style="background:#f0f2f5;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:26px">'
+ +'<div style="width:400px;height:252px;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.14);position:relative;overflow:hidden">'
+ +'<div style="height:48px;background:#595757;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px"><b>外包工作证</b><span style="font-weight:800;letter-spacing:.2em">YUTO</span></div>'
+ +'<div style="position:absolute;top:66px;left:18px;width:84px;height:104px;background:#eee;border-radius:4px"></div>'
+ +'<div style="position:absolute;top:66px;left:118px;font-size:12px;color:#666;line-height:2"><b style="font-size:16px;color:#333">'+p[0]+'</b><br>工号 '+p[1]+'<br>鸿达人力资源有限公司<br>岗位：注塑车间辅助</div>'
+ +'<span style="position:absolute;left:18px;bottom:12px;font-size:11px;color:#999">模板：鸿达外包-标准厂牌 v1（按所属公司自动匹配）</span></div>'
+ +'<div style="display:flex;gap:15px"><span class="btn plain">更换模板</span><span class="btn pri" onclick="ntfy(\'成功\',\'已发送打印：'+p[0]+'（1 张）\')">打印厂牌（1 张）</span></div></div></div>';
+};
+P.exempt=function(){
+ return '<div class="top-menu"><div class="tl"><span style="line-height:32px;font-size:16px;font-weight:600">免检证打印<span class="mod">新</span></span></div><div class="tr"><span class="gtip" style="line-height:32px">申请与审批在 OA 完成，此处仅打印</span></div></div>'
+ +'<div style="display:grid;grid-template-columns:440px 1fr;gap:20px;margin-top:20px">'
+ +'<div><div class="fi" style="margin-bottom:14px"><label style="width:80px">员工工号</label><input class="inp" value="YT02216"><span class="btn plain" style="margin-left:10px" onclick="ntfy(\'成功\',\'已带出员工：何静 · 印刷一车间\')">查询</span></div>'
+ +'<div style="background:#f9f9f9;border-radius:8px;padding:14px;display:flex;gap:14px;align-items:center;margin-bottom:14px"><div style="width:64px;height:64px;border-radius:8px;background:#e0e0e0"></div><div><b>何静</b><div class="gtip">印刷一车间 · 在职</div></div></div>'
+ +'<div class="fi" style="margin-bottom:14px"><label style="width:80px">有效期</label><input class="inp" style="width:230px" value="2026-08-30 ~ 2027-02-28"></div>'
+ +'<div class="fi" style="margin-bottom:18px"><label style="width:80px">备注原因</label><input class="inp" style="width:230px" value="孕期 · 免过安检门"></div>'
+ +'<span class="btn pri" style="margin-left:80px" onclick="ntfy(\'成功\',\'免检证已发送打印\')">打印免检证</span></div>'
+ +'<div style="background:#f0f2f5;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:26px">'
+ +'<div style="width:400px;height:252px;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.14);position:relative;overflow:hidden">'
+ +'<div style="height:48px;background:#10cc8e;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px"><b>免 检 证</b><span style="font-weight:800;letter-spacing:.2em">YUTO</span></div>'
+ +'<div style="position:absolute;top:66px;left:18px;width:84px;height:104px;background:#eee;border-radius:4px"></div>'
+ +'<div style="position:absolute;top:66px;left:118px;font-size:12px;color:#666;line-height:2"><b style="font-size:16px;color:#333">何静</b><br>工号 YT02216 · 印刷一车间<br>有效期 2026-08-30 ~ 2027-02-28<br>凭证免过电子安检门</div>'
+ +'<span style="position:absolute;left:18px;bottom:12px;font-size:11px;color:#999">模板：免检证-标准 v1</span></div></div></div>';
+};
+/* ============ 权限策略 / 权限组人员（5.8） ============ */
+P.authg=function(){
+ var gs=[['保密区A-门禁','保密区域',3,86],['保密区B-门禁','保密区域',2,54],['新厂-东门闸机','公共区域',6,1204],['新厂-访客通道','公共区域',2,388]];
+ var rows=gs.map(function(g,i){return '<tr><td style="font-weight:600;color:#333">'+g[0]+'</td><td>'+(g[1]==='保密区域'?'<span class="etag t-orange">保密区域</span>':'<span class="etag t-info">公共区域</span>')+'</td><td>'+g[2]+'</td><td>'+g[3]+'</td><td><button class="tbtn" onclick="openPage(\'authp\',\'权限组人员\',{g:\''+g[0]+'\'})">人员明细</button><button class="tbtn">车辆明细</button><button class="tbtn">编辑</button></td></tr>'}).join('');
+ return '<div class="top-menu"><div class="tr"><span class="btn pri">+ 新增策略</span></div></div>'
+ +'<div class="topForm"><span class="fi"><label>策略名称</label><input class="inp" placeholder="请输入"></span><span class="fi"><label>区域类型</label><select class="inp sel"><option>全部</option><option>公共区域</option><option>保密区域</option></select></span><span class="btn pri" style="margin-left:6px">🔍 搜索</span></div>'
+ +'<div class="tblw"><table class="tbl"><tr><th>策略名称</th><th>区域类型</th><th>关联设备</th><th>关联人员</th><th>操作</th></tr>'+rows+'</table></div>';
+};
+P.authp=function(){
+ var rows=authPersons.map(function(p,i){
+  var delCell = p.del===0?'<span style="color:#c0c4cc">—</span>'
+   : p.del===1?'<span class="etag t-warn">删除中 · 待设备确认</span>'
+   : p.del===2?'<span class="etag t-dgr">删除失败 · 设备离线</span>':'<span class="etag t-ok">已确认删除</span>';
+  var op = p.del===2?'<button class="tbtn" onclick="resend('+i+')">重发删除</button>'
+   : p.del===1?'<span style="font-size:12px;color:#909399">不可操作</span>'
+   : p.del===3?'':'<button class="tbtn dgr" onclick="delOne('+i+')">删除</button>';
+  return '<tr'+(p.del===1?' class="gray"':'')+'><td><span class="cb"></span></td><td>'+p.b+'</td><td>'+p.n+'</td><td><span class="etag t-orange">'+p.tp+'</span></td><td>'+p.exp+'</td><td>'+(p.del?'<span class="etag t-info">回收中</span>':'<span class="etag t-ok">'+p.iss+'</span>')+'</td><td>'+delCell+'</td><td>'+op+'</td></tr>';
+ }).join('');
+ var failN=authPersons.filter(function(p){return p.del===2}).length;
+ return '<div class="top-menu"><div class="tl"><span class="btn plain" onclick="openPage(\'authg\',\'权限策略\')">← 返回</span>'
+ +'<span style="line-height:32px;font-size:16px;font-weight:600">'+(pageParam.g||'保密区A-门禁')+'　<span class="etag t-orange">保密区域</span></span></div>'
+ +'<div class="tr">'+(failN?'<span class="tbtn dgr" style="line-height:32px" onclick="ntfy(\'提示\',\'删除失败清单：陈晨（东门禁2号机离线）\',\'warn\')">删除失败清单（'+failN+'）</span>':'')
+ +'<span class="btn plain">批量粘贴</span><span class="btn plain">批量删除</span><span class="btn pri" style="background:#e7292e;border-color:#e7292e" onclick="clearAll()">清空权限</span></div></div>'
+ +'<div class="gtip" style="background:#f4f8ff;border-radius:4px;padding:8px 12px;margin-top:14px">删除改为「先下发设备任务 → 设备确认成功 → 再清系统记录」<span class="mod">新</span>：删除中灰显不可操作；失败自动告警可重发；每日对账兜底。（点「清空权限」观看全过程）</div>'
+ +'<div class="tblw"><table class="tbl"><tr><th style="width:40px"></th><th>工号</th><th>姓名</th><th>权限类型</th><th>有效期</th><th>下发状态</th><th>删除状态<span class="mod">新</span></th><th>操作</th></tr>'+rows+'</table></div>'
+ +'<div class="pg"><span>共 86 人（演示显示 4 人）</span><span class="n">‹</span><span class="n on">1</span><span class="n">›</span></div>';
+};
+/** 将一个人员对象加入删除任务，避免异步回执依赖易变的数组下标。 */
+function delOne(i){var person=authPersons[i];confirmBox('确认删除该人员通行权限？ ',function(){startDel([person])})}
+/** 为当前权限组内的全部人员创建删除任务。 */
+function clearAll(){confirmBox('确认清空该权限组所有人员权限？系统记录将在设备确认删除成功后清除。 ',function(){startDel(authPersons.slice())})}
+/** 模拟设备删除回执，并仅按目标对象更新或清理人员记录。 */
+function startDel(persons){
+ persons.forEach(function(person){person.del=1});draw();
+ ntfy('成功','删除任务已下发，等待设备确认（约 3 秒演示回执）');
+ setTimeout(function(){
+  persons.forEach(function(person){person.del=(person.n==='陈晨')?2:3});
+  var fail=persons.some(function(person){return person.del===2});
+ authPersons=authPersons.filter(function(p){return persons.indexOf(p)<0||p.del!==3});
+  draw();
+  if(fail)ntfy('失败','陈晨 删除失败（东门禁2号机离线），已告警，可点「重发删除」','err');
+  else ntfy('成功','设备已确认删除，系统记录已清除并归档留痕');
+ },3000);
+}
+/** 为删除失败人员重发任务；设备确认后只删除该对象仍存在时的记录。 */
+function resend(i){var person=authPersons[i];person.del=1;draw();ntfy('成功','已重发删除任务');setTimeout(function(){authPersons=authPersons.filter(function(p){return p!==person});draw();ntfy('成功','设备已确认删除，记录已清除')},2500)}
+/* ============ 员工信息（通关权限对话框 + 期限） ============ */
+P.staff=function(){
+ var ppl=[['YT05127','张伟','包装事业部','模切二车间','在职','新厂-东门闸机 等2项'],['YT02216','何静','印刷BU','印刷一车间','在职','新厂-东门闸机'],['YT02890','孙浩','安保部','安保部','在职','保密区A-门禁 等3项']];
+ var rows=ppl.map(function(x,i){return '<tr><td><span class="cb'+(staffSel.indexOf(i)>=0?' on':'')+'" onclick="var k=staffSel.indexOf('+i+');k>=0?staffSel.splice(k,1):staffSel.push('+i+');draw()"></span></td><td>'+x[0]+'</td><td>'+x[1]+'</td><td>'+x[2]+'</td><td>'+x[3]+'</td><td>'+x[4]+'</td><td>'+x[5]+'</td><td><button class="tbtn">员工详情</button><button class="tbtn">查看通关权限</button></td></tr>'}).join('');
+ var has=staffSel.length>0;
+ return '<div class="top-menu"><div class="tr"><span class="btn pri">🔍 搜索</span><span class="btn plain">✕ 清空</span><span class="btn pri">导出员工信息</span><span class="btn pri">导入员工照片</span>'
+ +'<span class="btn pri'+(has?'':' dis')+'" onclick="staffAuthDlg()">通关权限</span><span class="btn pri'+(has?'':' dis')+'">APP权限</span><span class="btn pri'+(has?'':' dis')+'" onclick="confirmBox(\'是否重新下发所选员工权限？\',function(){issueDlg()})">重新下发</span></div></div>'
+ +'<div class="topForm"><span class="fi"><label>工号</label><input class="inp" placeholder="请输入"></span><span class="fi"><label>姓名</label><input class="inp" placeholder="请输入"></span><span class="fi"><label>员工状态</label><select class="inp sel"><option>在职</option></select></span></div>'
+ +'<div class="gtip">勾选员工后点「通关权限」——对话框已按 5.3 增加起止日期。</div>'
+ +'<div class="tblw"><table class="tbl"><tr><th style="width:40px"></th><th>工号</th><th>姓名</th><th>BU</th><th>部门</th><th>员工状态</th><th>通关权限</th><th>操作</th></tr>'+rows+'</table></div>';
+};
+ function issueDlg(){
+ modal('<div class="mask"><div class="dlg" style="width:900px"><div class="dh">下发权限</div><div class="db">'
+ +'<div class="gtip">可在 “日志管理 → ISC人脸下发记录” 查看下载详情或失败原因</div>'
+ +'<div style="font-size:13px;margin:6px 0 12px">待下发 <b style="color:#E6A23C">1</b> 个，已下发 <b style="color:#67C23A">2</b> 个，下载失败 <b style="color:#F56C6C">0</b> 个</div>'
+ +'<table class="tbl"><tr><th>序号</th><th>工号</th><th>姓名</th><th>设备名称</th><th>区域</th><th>下发结果</th><th>描述</th></tr>'
+ +'<tr><td>1</td><td>YT05127</td><td>张伟</td><td>东门闸机1号</td><td>新厂东门</td><td><span class="etag t-ok">已下发</span></td><td>-</td></tr>'
+ +'<tr><td>2</td><td>YT05127</td><td>张伟</td><td>东门闸机2号</td><td>新厂东门</td><td><span class="etag t-ok">已下发</span></td><td>-</td></tr>'
+ +'<tr><td>3</td><td>YT05127</td><td>张伟</td><td>访客通道闸机</td><td>新厂东门</td><td><span class="etag t-warn">待下发</span></td><td>排队中</td></tr></table>'
+ +'</div><div class="df" style="justify-content:center"><span class="btn plain" onclick="closeModal()">不想等了，去操作其他功能</span></div></div></div>');
+}
+ /* ============ 渲染 ============ */
+ function draw(){drawShell();document.getElementById('main').innerHTML=(P[curPage]||P.home)(pageParam)}
+ /* ---- 入厂申请记录：卡片可勾选 + 右上按钮操作 ---- */
+var vsel=[];
+ /**
+  * 渲染入厂申请卡片及其批量操作入口。
+  * 读取本地访客和查询状态并返回 HTML；用户查询内容会在插入属性前转义。
+  */
+ P.visitor=function(){
+ var list=visitors.filter(function(v){return !vq.name||v.name.indexOf(vq.name)>=0||(v.fellow&&v.fellow.indexOf(vq.name)>=0)});
+ var cards=list.map(function(v){
+  var st=VST[v.status];var disabled=v.status===9;var sel=vsel.indexOf(v.id)>=0;
+  return '<div class="visitor-card"'+(disabled?' style="opacity:.62"':(sel?' style="border:1.5px solid #ed6d00;box-shadow:0 2px 12px rgba(237,109,0,.18)"':''))+'>'
+  +'<span class="cb'+(sel?' on':'')+'" style="position:absolute;top:12px;left:12px;z-index:2;width:17px;height:17px" onclick="toggleSel('+v.id+')"></span>'
+  +'<div class="vs-status" style="background:'+st[1]+';border-top-color:'+st[1]+'">'+st[0]+'</div>'
+  +'<div class="vs-info"><div class="vs-left"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#c0c4cc" stroke-width="1.6"><circle cx="12" cy="8.5" r="3.6"></circle><path d="M4.5 20c1-3.6 4-5.4 7.5-5.4s6.5 1.8 7.5 5.4"></path></svg>访客照片</div>'
+  +'<div class="vs-right">'
+  +'<p style="display:flex;justify-content:space-between"><span><span class="dot"></span><b>'+v.name+'</b>'+(v.secret?' <span class="etag t-orange" style="height:18px;font-size:10px">保密供应商</span>':'')+'</span><span style="color:#909399;font-size:12px">'+(v.status===9?'权限已回收':DEVST[v.dev])+'</span></p>'
+  +'<p><span class="dot"></span>'+v.phone+'</p>'
+  +'<p><span class="dot"></span>'+v.comp+'</p>'
+  +'<p><span class="dot"></span>'+v.park+(v.fellow?' · 随行：'+v.fellow:'')+'</p>'
+  +'<p style="line-height:24px">'
+   +'<button class="tbtn'+(disabled||v.status===1||v.status===2?' dis':'')+'" onclick="ntfy(\'成功\',\'重新下发成功\')">重新下发</button>'
+   +'<button class="tbtn'+(v.hasAuth!==1||disabled?' dis':'')+'" onclick="confirmBox(\'确认删除所选通行权限？ \',function(){ntfy(\'成功\',\'删除权限任务已下发，设备确认后回收\')})">删除通行权限</button>'
+  +'</p></div></div>'
+  +'<div class="vs-btm"><div>预约来访时间<br>'+v.start+'</div><div>预约离开时间<br>'+v.end+'</div></div></div>';
+ }).join('');
+ var n=vsel.length;
+ return '<div class="top-menu"><div class="tr">'
+ +'<span class="btn pri" onclick="vq.kept=true;draw();ntfy(\'成功\',\'已按条件查询（返回详情后条件保留）\')">🔍 搜索</span><span class="btn plain" onclick="vq={name:\'\',kept:false};vsel=[];draw()">✕ 清空</span>'
+ +'<span class="btn pri'+(n===1?'':' dis')+'" onclick="grantDlg(vsel[0])">通关权限<span class="mod" style="vertical-align:1px">新</span></span>'
+ +'<span class="btn pri'+(n?'':' dis')+'" style="background:#e7292e;border-color:#e7292e" onclick="voidSel()">作废'+(n>1?'（'+n+'）':'')+'<span class="mod" style="vertical-align:1px;background:#fff;color:#e7292e">新</span></span>'
+ +'<span class="btn pri">⬇ 导出表格</span><span class="btn pri">🖶 打印访客条</span></div></div>'
+ +'<div class="topForm">'
+ +'<span class="fi"><label>访客/随行姓名<span class="mod">新</span></label><input class="inp" placeholder="访客或随行人员姓名" value="'+escapeHtml(vq.name)+'" oninput="vq.name=this.value"></span>'
+ +'<span class="fi"><label>访客证件号</label><input class="inp" placeholder="访客证件号（含随行）"></span>'
+ +'<span class="fi"><label>手机号</label><input class="inp" placeholder="手机号"></span>'
+ +'<span class="fi"><label>所属单位</label><input class="inp" placeholder="所属单位"></span>'
+ +'<span class="fi"><label>来访状态</label><select class="inp sel"><option>请来访状态</option><option>已通过</option><option>待审批</option><option>已作废</option></select></span>'
+ +'<span class="fi"><label>预约来访时间</label><input class="inp" style="width:220px" placeholder="起始时间 - 截止时间"></span>'
+ +'</div>'
+ +'<div class="gtip" style="margin-top:8px">勾选卡片左上角复选框（可多选）后，用右上角「通关权限 / 作废」操作；通关权限一次一人，作废支持批量。'+(vq.kept?'　<span style="color:#ed6d00">已保留查询条件与页码</span>':'')+'</div>'
+ +'<div class="vs-list">'+cards+'</div>'
+ +'<div class="pg"><span>共 '+visitors.length+' 条</span><span class="n">‹</span><span class="n on">1</span><span class="n">›</span></div>';
+};
+function toggleSel(id){var k=vsel.indexOf(id);k>=0?vsel.splice(k,1):vsel.push(id);draw()}
+function voidSel(){
+ if(!vsel.length)return;
+ confirmBox('确认作废选中的 '+vsel.length+' 张入场申请？作废后单据失效并自动回收已下发权限，可重新申请。 ',function(){
+  vsel.forEach(function(id){var v=visitors.filter(function(x){return x.id===id})[0];v.status=9;v.hasAuth=0});
+  vsel=[];draw();ntfy('成功','已作废，权限回收任务已下发（设备确认后清除记录）');
+ });
+}
+/* ---- 员工通关权限弹窗：有效期移到分配方式上方 ---- */
+function staffAuthDlg(){
+ if(!staffSel.length)return;
+ var gs=[['新厂-东门闸机',0],['新厂-访客通道',0],['保密区A-门禁',1],['保密区B-门禁',1]];
+ var l=gs.map(function(g){return '<div style="padding:8px 12px;border-radius:4px;font-size:13px;cursor:pointer" onmouseover="this.style.background=\'#F5F7FA\'" onmouseout="this.style.background=\'\'"><span class="cb"></span>'+g[0]+(g[1]?' <span class="etag t-orange" style="height:18px;font-size:10px">保密</span>':'')+'</div>'}).join('');
+ modal('<div class="mask"><div class="dlg" style="width:700px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.1)"><div class="dh">通关权限分配<i onclick="closeModal()">✕</i></div><div class="db">'
+ +'<div style="background:#f9f9f9;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:12px"><span style="color:#ed6d00">👤</span>已选择 '+staffSel.length+' 名员工 <span class="etag t-info">YT05127 - 张伟</span></div>'
+ +'<div style="display:flex;gap:8px;height:230px;margin-bottom:12px">'
+ +'<div style="flex:1;border:1px solid #DCDFE6;border-radius:8px;overflow:hidden"><div style="padding:10px 12px;border-bottom:1px solid #EBEEF5;font-weight:600;font-size:13px;color:#303133;display:flex;justify-content:space-between">待选权限<input class="inp" style="width:130px;height:24px" placeholder="搜索权限"></div><div style="overflow-y:auto;height:180px">'+l+'</div></div>'
+ +'<div style="width:40px;display:flex;flex-direction:column;justify-content:center;gap:12px"><span class="btn pri mini" style="width:36px;height:36px;padding:0">→</span><span class="btn mini" style="width:36px;height:36px;padding:0;background:#F5F7FA;color:#C0C4CC;border:1px solid #E4E7ED">←</span></div>'
+ +'<div style="flex:1;border:1px solid #DCDFE6;border-radius:8px;overflow:hidden"><div style="padding:10px 12px;border-bottom:1px solid #EBEEF5;font-weight:600;font-size:13px;display:flex;justify-content:space-between">已选权限 (1)<span class="tbtn">清空</span></div><div style="padding:8px 12px;font-size:13px"><span class="cb on"></span>新厂-东门闸机</div></div></div>'
+ +'<div style="display:flex;gap:14px;align-items:center;background:#FFF9F2;border:1px solid #f5c6a5;border-radius:8px;padding:10px 14px;margin-bottom:12px"><b style="font-size:13px;color:#5A2600">有效期<span class="mod">新</span></b>'
+ +'<span class="fi" style="margin:0"><label style="width:auto;padding-right:6px">开始</label><input class="inp" value="2026-08-30" style="width:120px"></span>'
+ +'<span class="fi" style="margin:0"><label style="width:auto;padding-right:6px">结束</label><input class="inp" value="2030-12-31" style="width:120px"></span>'
+ +'<span class="gtip">默认当天 ~ 2030；到期设备端自动失效并生成清理任务</span></div>'
+ +'<div style="background:#f9f9f9;border-radius:8px;padding:12px 16px;display:flex;gap:26px;font-size:13px;align-items:center"><span><input type="radio" name="at" checked> 追加权限</span><span><input type="radio" name="at"> 覆盖权限</span></div>'
+ +'</div><div class="df"><span class="btn plain" onclick="closeModal()">取 消</span><span class="btn pri" onclick="closeModal();ntfy(\'成功\',\'配置通关权限成功\');issueDlg()">确 定</span></div></div></div>');
+}
+/* ---- 保密考试通过管理（保密区菜单 · 全员视角三维搜索） ---- */
+var examQ={dep:'全部部门',kw:'',pass:'全部'};
+var examStaff=[
+ {b:'YT05127',n:'张伟',d:'包装事业部 / 模切二车间',pass:1,t:'2026-08-12',m:'安全办 · 周敏'},
+ {b:'YT03150',n:'王强',d:'工艺部',pass:1,t:'2026-08-12',m:'安全办 · 周敏'},
+ {b:'YT02890',n:'孙浩',d:'安保部',pass:1,t:'2026-08-25',m:'安全办 · 周敏'},
+ {b:'YT06233',n:'刘洋',d:'包装事业部 / 模切二车间',pass:0,t:'',m:''},
+ {b:'WB20411',n:'赵小军',d:'鸿达人力（外包）',pass:1,t:'2026-08-25',m:'安全办 · 周敏'},
+ {b:'外部人员',n:'李芳',d:'恒兴印务 · 保密供应商人员',pass:0,t:'',m:''}];
+ /**
+  * 渲染保密考试通过名单和三维筛选条件。
+  * 读取本地考试数据并返回 HTML；筛选关键字在回显到属性前转义。
+  */
+ P.secexam=function(){
+ var list=examStaff.filter(function(x){
+  if(examQ.dep!=='全部部门'&&x.d.indexOf(examQ.dep)<0)return false;
+  if(examQ.kw&&x.n.indexOf(examQ.kw)<0&&x.b.indexOf(examQ.kw)<0)return false;
+  if(examQ.pass==='已通过'&&!x.pass)return false;
+  if(examQ.pass==='未通过'&&x.pass)return false;return true;});
+ var rows=list.map(function(x){
+  var i=examStaff.indexOf(x);
+  return '<tr><td>'+x.b+'</td><td>'+x.n+'</td><td>'+x.d+'</td>'
+  +'<td>'+(x.pass?'<span class="etag t-ok">已通过</span>':'<span class="etag t-dgr">未通过</span>')+'</td>'
+  +'<td>'+(x.t||'—')+'</td><td>'+(x.m||'—')+'</td>'
+  +'<td>'+(x.pass?'<button class="tbtn dgr" onclick="confirmBox(\'确认移除该人员的考试通过标记？ \',function(){examStaff['+i+'].pass=0;examStaff['+i+'].t=\'\';draw();ntfy(\'成功\',\'已移除\')})">移除</button>'
+              :'<button class="tbtn" onclick="examStaff['+i+'].pass=1;examStaff['+i+'].t=\'2026-08-30\';examStaff['+i+'].m=\'安全办 · 周敏\';draw();ntfy(\'成功\',\'已标记通过\')">标记通过</button>')+'</td></tr>';
+ }).join('');
+ return '<div class="top-menu"><div class="tl"><span style="line-height:32px;font-size:16px;font-weight:600">保密考试通过管理<span class="mod">新</span></span></div>'
+ +'<div class="tr"><span class="btn pri" onclick="draw()">🔍 搜索</span><span class="btn plain" onclick="examQ={dep:\'全部部门\',kw:\'\',pass:\'全部\'};draw()">✕ 清空</span><span class="btn plain">下载导入模板</span><span class="btn pri" onclick="ntfy(\'成功\',\'已导入 128 人（演示）\')">批量导入</span></div></div>'
+ +'<div class="gtip" style="background:#FDF6EC;border-radius:4px;padding:8px 12px;margin-top:14px;color:#5A2600">此处为<b>保密区专项培训考试</b>的通过名单（与其他企业内部考试无关），机制仿保密承诺书。未通过人员不允许下发或申请「保密」类型权限组权限——可到「入厂申请记录 → 勾选李芳 → 通关权限」查看拦截效果。</div>'
+ +'<div class="topForm">'
+ +'<span class="fi"><label>部门</label><select class="inp sel" onchange="examQ.dep=this.value;draw()">'+['全部部门','包装事业部','工艺部','安保部','鸿达人力','恒兴印务'].map(function(d){return '<option'+(examQ.dep===d?' selected':'')+'>'+d+'</option>'}).join('')+'</select></span>'
+  +'<span class="fi"><label>姓名/工号</label><input class="inp" placeholder="请输入" value="'+escapeHtml(examQ.kw)+'" oninput="examQ.kw=this.value"></span>'
+ +'<span class="fi"><label>是否通过</label><select class="inp sel" onchange="examQ.pass=this.value;draw()">'+['全部','已通过','未通过'].map(function(d){return '<option'+(examQ.pass===d?' selected':'')+'>'+d+'</option>'}).join('')+'</select></span></div>'
+ +'<div class="tblw"><table class="tbl"><tr><th>工号</th><th>姓名</th><th>部门 / 单位</th><th>是否通过</th><th>通过时间</th><th>维护人</th><th>操作</th></tr>'+rows+'</table></div>'
+ +'<div class="pg"><span>共 '+list.length+' 条（演示）</span><span class="n">‹</span><span class="n on">1</span><span class="n">›</span></div>';
+};
+/* ---- 保密供应商：到期自动解密口径 ---- */
+P.supplier=function(){
+ var tree='<div style="font-size:14px;line-height:2.2;color:#333">'
+ +'<div>▾ 许昌新厂园区</div>'
+ +'<div style="padding-left:18px">▾ A类</div>'
+ +suppliers.filter(function(s){return s.cls==="A类"}).map(function(s){return '<div style="padding-left:36px;'+(s.st==='off'?'color:#B9BCC2':'')+'">[GY'+(100+suppliers.indexOf(s))+'] '+s.n+(s.st==='off'?'（已解密/失效）':'')+'</div>'}).join('')
+ +'<div style="padding-left:18px">▾ 非A类</div>'
+ +suppliers.filter(function(s){return s.cls!=="A类"}).map(function(s){return '<div style="padding-left:36px;'+(s.st==='off'?'color:#B9BCC2':'')+'">[GY'+(100+suppliers.indexOf(s))+'] '+s.n+(s.st==='off'?'（已解密/失效）':'')+'</div>'}).join('')+'</div>';
+ var rows=suppliers.map(function(s,i){
+  var st=s.st==='ok'?'<span class="etag t-ok">生效中</span>':s.st==='warn'?'<span class="etag t-warn">30天内到期</span>':'<span class="etag t-info">已解密/失效</span>';
+  var ops=s.st==='off'?'<button class="tbtn">查看</button><span class="gtip">人员已清理 · 权限已回收</span>'
+   :'<button class="tbtn">编辑</button><button class="tbtn">人员</button>'
+   +'<button class="tbtn" style="color:#E6A23C" onclick="confirmBox(\'确认提前解密？将回收关联人员保密权限并清理供应商人员名单（'+s.ppl+' 人），此后该单位人员申请不再按保密供应商校验。 \',function(){suppliers['+i+'].st=\'off\';suppliers['+i+'].ppl=0;draw();ntfy(\'成功\',\'已解密：人员名单已清理、权限回收任务已下发\')})">提前解密<span class="mod">新</span></button>'
+   +'<button class="tbtn dgr" onclick="confirmBox(\'确认删除该供应商？删除为标记失效（保留历史），PDA 扫码将提示已失效。 \',function(){suppliers['+i+'].st=\'off\';suppliers['+i+'].ppl=0;draw();ntfy(\'成功\',\'已标记失效（软删除），人员名单已清理\')})">删除</button>';
+  return '<tr'+(s.st==='off'?' class="gray"':'')+'><td style="font-weight:600;color:'+(s.st==='off'?'#B9BCC2':'#333')+'">'+s.n+'</td><td>'+s.cls+'</td><td>'+s.ppl+' 人</td><td>'+s.range+'</td><td>'+st+'</td><td>'+ops+'</td></tr>';
+ }).join('');
+ return '<div style="display:grid;grid-template-columns:400px 1fr;gap:15px">'
+ +'<div style="border-right:15px solid #F0F2F5;padding-right:15px"><div class="fi" style="margin-bottom:10px"><input class="inp" style="flex:1" placeholder="请输入"><span class="btn pri mini" style="margin-left:6px">🔍</span></div>'+tree+'</div>'
+ +'<div><div class="top-menu"><div class="tr"><span class="btn pri">导入供应商</span><span class="btn pri">导出供应商</span><span class="btn pri">导入人员</span><span class="btn pri">更新授权项目</span><span class="btn pri">到期设置</span><span class="btn pri">批量删除</span></div></div>'
+ +'<div class="gtip" style="background:#FDF6EC;border-radius:4px;padding:8px 12px;margin-top:14px;color:#5A2600"><b>解密口径</b><span class="mod">新</span>：协议到期后系统<b>自动解密</b>——回收全部关联人员权限并<b>清理供应商人员名单</b>（此后该单位人员申请不再命中保密供应商校验，重新合作时再添加人员）；「提前解密」为人工兜底，效果相同。删除=标记失效保留历史，PDA 扫历史码提示「已失效」。</div>'
+ +'<div class="tblw"><table class="tbl"><tr><th>供应商</th><th>分类</th><th>授权人员</th><th>协议期限（到期自动解密）</th><th>状态<span class="mod">新</span></th><th>操作</th></tr>'+rows+'</table></div></div></div>';
+};
+/* ---- 保密区设置：白名单编辑 + 演练开关（记录移到独立报表） ---- */
+var wlist=[['YT05561','许静'],['YT01208','马俊']];
+ /**
+  * 渲染保密区自动删除与白名单配置页面。
+  * 读取本地白名单和开关状态并返回 HTML；白名单字段在回显前转义。
+  */
+ P.secset=function(){
+ var wl=wlist.map(function(w,i){return '<tr><td><input class="inp" style="width:90%;border:none;text-align:center" value="'+escapeHtml(w[0])+'" readonly></td><td style="position:relative"><input class="inp" style="width:90%;border:none;text-align:center" value="'+escapeHtml(w[1])+'" readonly><button class="tbtn dgr" style="position:absolute;right:-6px;top:12px" onclick="wlist.splice('+i+',1);draw()">删</button></td></tr>'}).join('');
+ return '<div class="top-menu"><div class="tl"><span class="btn plain">← 返回</span><span style="line-height:32px;font-size:16px;font-weight:600">保密区设置 · 许昌新厂园区</span></div>'
+ +'<div class="tr"><span class="tbtn" style="line-height:32px" onclick="openPage(\'delreport\',\'权限自动删除记录\')">查看删除记录报表 →</span></div></div>'
+ +'<div style="width:820px;padding:30px 0 0 20px">'
+ +'<div class="tip-orange">保密区权限自动删除配置</div>'
+ +'<div style="font-size:14px;line-height:2.6">系统检测员工保密区设备上，<input class="inp" style="width:60px;text-align:center" value="15">　天没有进出记录，则删除员工权限。</div>'
+ +'<div style="font-size:14px;margin:6px 0 16px">其中过滤掉以下场景的天数：　<span class="cb on"></span>节假日　<span class="cb on"></span>出差　<span class="cb on"></span>请假　<span class="cb on"></span>调休</div>'
+ +'<div style="display:flex;align-items:center;gap:15px;margin:14px 0"><div class="sw'+(oc.rehearse?' on':'')+'" onclick="oc.rehearse=oc.rehearse?0:1;draw();ntfy(oc.rehearse?\'提示\':\'警告\',oc.rehearse?\'演练模式已开启：只记录不删除\':\'演练模式已关闭：任务将真实删除权限！\',oc.rehearse?\'warn\':\'err\')"></div>'
+ +'<span style="font-size:14px">演练模式（只记录不删除）<span class="mod">新</span>　<span class="gtip">上线先演练一周、在删除记录报表核对命中名单无误后再关闭</span></span></div>'
+ +'<div style="display:flex;align-items:center;gap:15px;margin-bottom:10px"><div class="sw'+(oc.wl?' on':'')+'" onclick="oc.wl=oc.wl?0:1;draw()"></div><span style="font-size:14px">启动白名单后，白名单里的人员将不受检测规则影响</span></div>'
+ +(oc.wl?'<div style="margin:8px 0 4px;font-size:14px">已添加 <b style="color:#ed6d00">'+wlist.length+'</b> 个白名单信息</div>'
+ +'<table style="width:70%;border-collapse:collapse;margin-bottom:8px"><tr><td style="border:1px solid #e0e0e0;padding:8px;text-align:center;background:#f6f7fb;width:50%">工号</td><td style="border:1px solid #e0e0e0;padding:8px;text-align:center;background:#f6f7fb">姓名</td></tr>'
+ +wl.replace(/<tr><td>/g,'<tr><td style="border:1px solid #e0e0e0;padding:4px">').replace(/<td style="position:relative">/g,'<td style="border:1px solid #e0e0e0;padding:4px;position:relative">')
+ +'<tr><td style="border:1px solid #e0e0e0;padding:4px"><input class="inp" id="wl-b" style="width:90%;border:none;text-align:center" placeholder="点击输入工号，按回车查询姓名" onkeydown="if(event.key===\'Enter\'){document.getElementById(\'wl-n\').value=\'（演示）李强\'}"></td>'
+ +'<td style="border:1px solid #e0e0e0;padding:4px;position:relative"><input class="inp" id="wl-n" style="width:90%;border:none;text-align:center" placeholder="姓名自动获取" readonly><button class="tbtn" style="position:absolute;right:-6px;top:12px;font-size:16px" onclick="var b=document.getElementById(\'wl-b\').value.trim();var n=document.getElementById(\'wl-n\').value;if(!b){ntfy(\'提示\',\'请输入工号\',\'warn\');return}if(!n){ntfy(\'提示\',\'请在工号输入框按回车查询姓名\',\'warn\');return}wlist.push([b,n.replace(\'（演示）\',\'\')]);draw()">＋</button></td></tr></table>'
+ +'<div class="gtip">输入工号后，按回车键查询姓名。（输入后要点击右侧的 " + " 才视为完成一条白名单信息的添加）</div>':'')
+ +'<div style="margin-top:20px"><span class="btn pri" onclick="ntfy(\'成功\',\'修改成功\')">保存</span></div></div>';
+};
+/* ---- 权限自动删除记录（独立报表页） ---- */
+var drQ={kw:'',res:'全部结果'};
+var drRows=[
+ ['2026-08-30 00:00','钱进','YT04412','包装事业部','保密区A-门禁','08-11 17:02','连续16天未进出（扣节假日）','演练命中'],
+ ['2026-08-30 00:00','冯磊','YT03378','工艺部','保密区B-门禁','08-10 09:44','连续17天未进出','演练命中'],
+ ['2026-08-29 00:00','许静','YT05561','品质部','保密区A-门禁','—','白名单人员','已跳过'],
+ ['2026-08-28 00:00','历史示例','YT09901','设备部','保密区A-门禁','08-09 15:30','连续18天未进出','已删除（设备确认）'],
+ ['2026-08-28 00:00','历史示例2','YT09902','设备部','保密区B-门禁','08-08 11:02','连续19天未进出','删除失败（已告警）']];
+ /**
+  * 渲染权限自动删除记录和筛选条件。
+  * 读取本地演示记录并返回 HTML；查询关键字在回显前转义。
+  */
+ P.delreport=function(){
+ var list=drRows.filter(function(r){
+  if(drQ.kw&&r[1].indexOf(drQ.kw)<0&&r[2].indexOf(drQ.kw)<0)return false;
+  if(drQ.res!=='全部结果'&&r[7].indexOf(drQ.res)<0)return false;return true;});
+ var rows=list.map(function(r){
+  var chip=r[7].indexOf('演练')>=0?'<span class="etag t-warn">'+r[7]+'</span>':r[7].indexOf('已跳过')>=0?'<span class="etag t-info">已跳过</span>':r[7].indexOf('失败')>=0?'<span class="etag t-dgr">'+r[7]+'</span>':'<span class="etag t-ok">'+r[7]+'</span>';
+  return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+r[6]+'</td><td>'+chip+'</td></tr>';
+ }).join('');
+ return '<div class="top-menu"><div class="tl"><span style="line-height:32px;font-size:16px;font-weight:600">保密区权限自动删除记录<span class="mod">新</span></span></div>'
+ +'<div class="tr"><span class="btn pri" onclick="draw()">🔍 搜索</span><span class="btn plain" onclick="drQ={kw:\'\',res:\'全部结果\'};draw()">✕ 清空</span><span class="btn pri">⬇ 导出</span></div></div>'
+ +'<div class="topForm">'
+ +'<span class="fi"><label>执行日期</label><input class="inp" style="width:200px" placeholder="起始日期 - 截止日期"></span>'
+  +'<span class="fi"><label>姓名/工号</label><input class="inp" placeholder="请输入" value="'+escapeHtml(drQ.kw)+'" oninput="drQ.kw=this.value"></span>'
+ +'<span class="fi"><label>部门</label><select class="inp sel"><option>全部部门</option><option>包装事业部</option><option>工艺部</option></select></span>'
+ +'<span class="fi"><label>权限组</label><select class="inp sel"><option>全部</option><option>保密区A-门禁</option><option>保密区B-门禁</option></select></span>'
+ +'<span class="fi"><label>结果</label><select class="inp sel" onchange="drQ.res=this.value;draw()">'+['全部结果','演练命中','已删除','删除失败','已跳过'].map(function(d){return '<option'+(drQ.res===d?' selected':'')+'>'+d+'</option>'}).join('')+'</select></span></div>'
+ +'<div class="tblw"><table class="tbl"><tr><th>执行时间</th><th>姓名</th><th>工号</th><th>部门</th><th>权限组</th><th>最后进出</th><th>触发原因</th><th>结果</th></tr>'+rows+'</table></div>'
+ +'<div class="gtip" style="margin-top:10px">演练模式产生「演练命中」记录（只记录不删除）；正式启用后结果为「已删除（设备确认）/ 删除失败（告警可重发）」，删除动作走 5.8 可靠链路。</div>'
+ +'<div class="pg"><span>共 '+list.length+' 条</span><span class="n">‹</span><span class="n on">1</span><span class="n">›</span></div>';
+};
+/* ---- ISC人脸下发记录（对齐现有 person_isc 枚举） ---- */
+P.iscrec=function(){
+ var rows=[
+ ['YT06233','刘洋','保密区A门禁1号','门禁','新厂保密区A','2026-08-30 10:12','变更员工权限','成功','删除','设备确认删除成功，本地记录已清除'],
+ ['YT07541','陈晨','东门禁2号机','门禁','新厂保密区A','2026-08-30 10:12','变更员工权限','设备离线','删除','重试中（3/10）；终态失败将告警并保留系统记录'],
+ ['YT04412','钱进','保密区A门禁1号','门禁','新厂保密区A','2026-08-30 00:00','变更员工权限','初始化','延迟删除','自动删除任务生成（演练模式不执行）'],
+ ['YT05127','张伟','东门闸机1号','闸机','新厂东门','2026-08-30 09:40','变更员工权限','成功','下发','-'],
+ ['访客-李芳','李芳','访客通道闸机','闸机','新厂东门','2026-08-30 09:35','访客预约','权限已过期','删除','单据到期自动回收']
+ ].map(function(r){
+  var st=r[7]==='成功'?'<span class="etag t-ok">成功</span>':r[7]==='设备离线'?'<span class="etag t-dgr">设备离线</span>':r[7]==='初始化'?'<span class="etag t-info">初始化</span>':r[7]==='权限已过期'?'<span class="etag t-warn">权限已过期</span>':'<span class="etag t-dgr">'+r[7]+'</span>';
+  return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+r[6]+'</td><td>'+st+'</td><td>'+r[8]+'</td><td style="max-width:230px">'+r[9]+'</td></tr>'}).join('');
+ return '<div class="top-menu"><div class="tl"><span style="line-height:32px;font-size:16px;font-weight:600">ISC人脸下发记录</span><span class="mod g" style="align-self:center">改</span></div><div class="tr"><span class="btn pri">🔍 搜索</span><span class="btn plain">✕ 清空</span></div></div>'
+ +'<div class="topForm">'
+ +'<span class="fi"><label>姓名</label><input class="inp" placeholder="姓名"></span><span class="fi"><label>员工号</label><input class="inp" placeholder="员工号"></span>'
+ +'<span class="fi"><label>业务类型</label><select class="inp sel"><option>请选择</option><option>变更员工权限</option><option>APP信息完善</option><option>访客预约</option><option>员工扫码登记</option><option>招聘入职</option><option>入厂申请</option><option>导入员工照片</option></select></span>'
+ +'<span class="fi"><label>状态</label><select class="inp sel"><option>请选择</option><option>初始化</option><option>成功</option><option>失败</option><option>处理中</option><option>已取消</option><option>权限已过期</option><option>设备离线</option></select></span>'
+ +'<span class="fi"><label>任务类型</label><select class="inp sel"><option>请选择</option><option>下发</option><option>删除</option><option>修改</option><option>延迟下发</option><option>延迟删除</option><option>延迟修改</option></select></span>'
+ +'<span class="fi"><label>下发时间</label><input class="inp" style="width:200px" placeholder="起始日期 - 截止日期（默认近7天）"></span></div>'
+ +'<div class="gtip" style="background:#f4f8ff;border-radius:4px;padding:8px 12px">页面为现有「ISC人脸下发记录」（业务/状态/任务类型枚举与现网一致）。5.8 改造后的增强<span class="mod">新</span>：删除任务重试耗尽转失败时推送告警，并与「权限组人员」页的删除失败状态联动（本页仍可查每台设备执行明细）。</div>'
+ +'<div class="tblw"><table class="tbl"><tr><th>员工号</th><th>姓名</th><th>设备</th><th>设备类型</th><th>所在区域</th><th>下发时间</th><th>业务类型</th><th>状态</th><th>任务类型</th><th>下发结果</th></tr>'+rows+'</table></div>';
+};
+ /* ---- 首页卡片 ---- */
+P.home=function(){
+ function card(id,name,tag,desc){return '<div style="border:1px solid #EBEEF5;border-radius:6px;padding:16px 18px;cursor:pointer;background:#fff" onclick="openPage(\''+id+'\',\''+name+'\')"><b style="font-size:15px;color:#303133">'+name+'</b><span class="mod'+(tag==='改'?' g':'')+'">'+tag+'</span><div class="gtip" style="margin-top:6px">'+desc+'</div></div>'}
+ return '<div class="tip-orange">裕慧家园新增功能 · Web 端原型（界面与现有系统一致；橙「新」=新增页面，蓝「改」=现有页面改造）</div>'
+ +'<div class="gtip" style="margin-bottom:14px">全部按钮可点演示。入厂申请记录改为「勾选卡片 → 右上角按钮操作」；权限策略/人员车辆明细为现有页面（5.8 落在其上）；保密考试、删除记录报表在「保密区」菜单组。</div>'
+ +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">'
+ +card('visitor','入厂申请记录','改','勾选卡片→右上角作废/通关权限；随行姓名搜索；查询保留（2.4/2.5/2.6/5.2）')
+ +card('tpl','模板管理','新','模板列表+设计器+启用校验（1.2-1.5/2.1-2.3）')
+ +card('badge','外包工厂牌打印','新','选人→按公司自动匹配→打印卡面（1.1）')
+ +card('exempt','免检证打印','新','工号带出→有效期→打印（6.1）')
+ +card('authg','权限策略（现有页）','改','人员/车辆明细上落 5.8：清空权限→删除中→失败可重发')
+ +card('staff','员工信息 · 通关权限','改','分配对话框新增有效期（在分配方式上方）（5.3）')
+ +card('secexam','保密考试通过管理','新','保密区专项考试：部门/人员/是否通过三维搜索（5.1）')
+ +card('supplier','保密区供应商人员','改','到期自动解密+人员清理；软删除（3.2/3.3/3.4）')
+ +card('secset','保密区设置','改','自动删除配置+演练模式+白名单编辑（5.4/5.5）')
+ +card('delreport','权限自动删除记录','新','独立报表：多条件筛选（5.6）')
+ +card('iscrec','ISC人脸下发记录','改','现有枚举+5.8 告警联动（5.7/5.8）')
+ +'</div>';
+};
+ draw();
+ </script>
+</body>
+</html>
