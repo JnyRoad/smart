@@ -1,3 +1,4 @@
+<!doctype html>
 <meta charset="utf-8">
 <title>裕慧家园开发蓝图</title>
 <style>
@@ -138,7 +139,7 @@ li::marker{color:var(--accent);font-weight:700}
   </ol>
   </div>
   <h2>怎么确认这份蓝图</h2>
-  <p>建议按顺序看：<b>核心流程图</b>（第 3 章，业务全貌）→ <b>交互原型</b>（第 4 章打开 App/Web 原型，按剧本把一张单据从申请点到归档）→ 逐个<b>功能模块</b>（确认功能描述与界面是否符合预期）→ <b>开发批次</b>（确认先后顺序）→ 最后在<b>确认清单</b>（第 12 章）逐项打勾回复。配套材料：<a href="https://claude.ai/code/artifact/9a59fbf7-032f-440f-b835-c040927ddad7" target="_blank">全套 UI 设计稿（可在线圈批）</a>。</p>
+   <p>建议按顺序看：<b>核心流程图</b>（第 3 章，业务全貌）→ <b>交互原型</b>（第 4 章打开 App/Web 原型，按剧本把一张单据从申请点到归档）→ 逐个<b>功能模块</b>（确认功能描述与界面是否符合预期）→ <b>开发批次</b>（确认先后顺序）→ 最后在<b>确认清单</b>（第 8 章）逐项打勾回复。配套材料：<a href="https://claude.ai/code/artifact/9a59fbf7-032f-440f-b835-c040927ddad7" target="_blank">全套 UI 设计稿（可在线圈批）</a>。</p>
   <div class="pager"><span></span><a class="next" href="#p1">下一章 · 整体架构 →</a></div>
 </section>
 
@@ -558,10 +559,14 @@ flowchart LR
   mermaid.initialize({startOnLoad:false,theme:'neutral',securityLevel:'loose',
     flowchart:{curve:'basis',htmlLabels:true,useMaxWidth:true,padding:12,nodeSpacing:36,rankSpacing:46},
     themeVariables:{fontFamily:'"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif',fontSize:'13px',primaryColor:'#ffffff',primaryBorderColor:'#8a958e',primaryTextColor:'#1c2620',lineColor:'#6F6C6B',clusterBkg:'#f5f7f6',clusterBorder:'#dde4e0'}});
-  window.__renderMermaid=function(root){
-    var nodes=root.querySelectorAll('pre.mermaid:not([data-processed])');
-    if(nodes.length){ try{ mermaid.run({nodes:nodes}); }catch(e){ console.error(e); } }
-  };
+    /** 渲染当前章节未处理的流程图，并记录同步或异步渲染失败。 */
+    window.__renderMermaid=function(root){
+      var nodes=root.querySelectorAll('pre.mermaid:not([data-processed])');
+      if(nodes.length){
+       try{mermaid.run({nodes:nodes}).catch(function(error){console.error(error);});}
+       catch(error){console.error(error);}
+      }
+    };
   var on=document.querySelector('.page.on'); if(on) window.__renderMermaid(on);
 })();
 </script>

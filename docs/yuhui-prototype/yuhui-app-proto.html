@@ -1,3 +1,4 @@
+<!doctype html>
 <meta charset="utf-8">
 <title>裕慧家园 App 原型</title>
 <style>
@@ -128,7 +129,14 @@ function esc(s){return String(s).replace(/</g,'&lt;')}
 function toast(m){var t=$('tst');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},1800)}
 function nav(s,p){stack.push({s:s,p:p||{}});render()}
 function back(){if(stack.length>1)stack.pop();render()}
-function go(s,p){stack=[{s:s,p:p||{}}];render()}
+/**
+ * 跳转到指定页面，并阻止安检人员在未选择岗位时进入工作台。
+ * 参数为目标页面及其页面参数；仅更新本地演示导航状态，不产生外部副作用。
+ */
+function go(s,p){
+ if(s==='home'&&me&&me.type==='guard'&&!post){toast('请先选择当前岗位');return}
+ stack=[{s:s,p:p||{}}];render();
+}
 function cur(){return stack[stack.length-1]}
 function stChip(o){
  var m={pending:['待审批','c-warn'],rejected:['已驳回','c-dgr'],approved:['待出发确认','c-warn'],escorting:['押运中','c-info'],archived:['已归档','c-ok']};
@@ -169,7 +177,14 @@ function loginAs(id){
  tab='home';render();
 }
 function logout(){me=null;post=null;stack=[{s:'login',p:{}}];render()}
-function resetAll(){db=seed();me=null;post=null;stack=[{s:'login',p:{}}];render();}
+/**
+ * 还原演示数据与全部临时流程状态，避免上一次演示的缓存影响下一次流程。
+ * 无输入和返回值；会重建本地数据、清空会话状态并重新渲染界面。
+ */
+function resetAll(){
+ db=seed();draft=null;aSel={};bCard={};todoTab='a';repF={seal:'',who:''};
+ me=null;post=null;tab='home';stack=[{s:'login',p:{}}];render();
+}
 /* ================= 界面 ================= */
 function bar(t,showBack){return '<div class="bar">'+(showBack?'<div class="bk" onclick="back()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#595757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></div>':'<span style="width:34px"></span>')+'<b>'+t+'</b><span style="width:34px"></span></div>'}
 function tabbarHtml(){
@@ -313,10 +328,14 @@ function doApprove(no,ok){
 }
 /* ---- 安检待办 ---- */
 var todoTab='a';
-V.todo=function(){
+ /**
+  * 按当前岗位和页签生成安检待办列表。
+  * 依赖本地单据、岗位与页签状态并返回页面 HTML；不改变业务数据。
+  */
+ V.todo=function(){
  var a=db.orders.filter(function(o){return o.status==='approved'&&o.from===post});
  var b=db.orders.filter(function(o){return o.status==='escorting'&&o.to===post});
- var done=db.orders.filter(function(o){return o.status==='archived'});
+ var done=db.orders.filter(function(o){return o.status==='archived'&&(o.from===post||o.to===post)});
  var list=todoTab==='a'?a:(todoTab==='b'?b:done);
  var scr=todoTab==='a'?'aConfirm':(todoTab==='b'?'bConfirm':'detail');
  return bar('保密物品放行待办',true)+'<div class="body">'
@@ -363,14 +382,24 @@ V.seal=function(){
  +'<div class="card"><div class="h4">在途单据封条（演示提示）</div>'+db.orders.filter(function(o){return o.status==='escorting'||o.status==='approved'}).map(function(o){return '<div class="kv"><s class="mono">'+o.seals.join(' / ')+'</s><b class="mono">'+o.no+'</b></div>'}).join('')+'</div></div>';
 };
 function sealSim(){var o=db.orders.filter(function(x){return x.status==='escorting'})[0]||db.orders.filter(function(x){return x.status==='approved'})[0];if(!o){toast('当前没有在途单据');return}$('sc-in').value=o.seals[0];sealGo()}
-function sealGo(){
+ /**
+  * 根据封条定位放行单，并仅允许当前岗位进入本岗位负责的确认流程。
+  * 无显式参数，读取扫码输入框；只会更新本地页面导航，找不到或无权限时提示并返回。
+  */
+ function sealGo(){
  var v=$('sc-in').value.trim();if(!v){toast('请扫描或输入封条编号');return}
  var o=db.orders.filter(function(x){return x.seals.indexOf(v)>=0})[0];
  if(!o){toast('未找到该封条对应的放行单');return}
  if(o.status==='archived'){toast(o.no+' 已归档（历史单据）');nav('detail',{no:o.no});return}
  if(o.status==='rejected'){toast(o.no+' 已被拒绝/驳回');nav('detail',{no:o.no});return}
- if(o.status==='escorting'){nav('bConfirm',{no:o.no})}
- else if(o.status==='approved'){nav('aConfirm',{no:o.no})}
+ if(o.status==='escorting'){
+  if(post!==o.to){toast('当前岗位不是该单据的到达岗位');return}
+  nav('bConfirm',{no:o.no});
+ }
+ else if(o.status==='approved'){
+  if(post!==o.from){toast('当前岗位不是该单据的出发岗位');return}
+  nav('aConfirm',{no:o.no});
+ }
  else nav('detail',{no:o.no});
 }
 /* ---- B点到达确认 ---- */
