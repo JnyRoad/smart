@@ -168,6 +168,8 @@ public class HandleServiceImpl implements HandleService {
 						} else {
 							// 记录成功处理的事件
 							ISCEventDiagnosticUtil.recordSuccess(eventObj.getStr("srcParentIndex"));
+							// 仅业务分发成功后刷新订阅健康状态，避免将处理失败误判为链路健康。
+							bridgeISCService.recordSuccessfulEventCallback();
 						}
 						break;
 					case UNKNOWN:

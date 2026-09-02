@@ -49,6 +49,7 @@ public class HandleServiceImplTest {
 		Assert.assertEquals("isc-person-1", payload.getStr("personId"));
 		Assert.assertEquals("device-1", payload.getStr("deviceCode"));
 		Assert.assertFalse(payload.containsKey("cardNo"));
+		Mockito.verify(bridgeISCService).recordSuccessfulEventCallback();
 	}
 
 	private void setField(Object target, String name, Object value) throws Exception {

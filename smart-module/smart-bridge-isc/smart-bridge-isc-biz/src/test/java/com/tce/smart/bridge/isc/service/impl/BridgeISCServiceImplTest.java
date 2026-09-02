@@ -6,10 +6,58 @@ import com.tce.smart.dispatcher.api.enums.EventEnum;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 public class BridgeISCServiceImplTest {
+
+	/**
+	 * 验证本地订阅标志失真且长期无成功回调时，巡检会重新向ISC发起订阅。
+	 */
+	@Test
+	public void subscribeTaskResubscribesWhenLocalStatusIsStale() throws Exception {
+		RecordingBridgeISCService service = new RecordingBridgeISCService();
+		setField(service, "eventSubscribeEnabled", true);
+		setField(service, "subscribeCallbackUrl", "http://callback.example/isc");
+		setField(service, "lastSuccessfulEventCallbackTime",
+				System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(10));
+		boolean originalSubscribeStatus = BridgeISCServiceImpl.SUBSCRIBE_STATUS;
+		try {
+			BridgeISCServiceImpl.SUBSCRIBE_STATUS = true;
+
+			service.subscribeTask();
+
+			Assert.assertEquals(1, service.getSubscribeRequestCount());
+			Assert.assertTrue(BridgeISCServiceImpl.SUBSCRIBE_STATUS);
+		} finally {
+			BridgeISCServiceImpl.SUBSCRIBE_STATUS = originalSubscribeStatus;
+		}
+	}
+
+	/**
+	 * 验证成功回调仍在十分钟健康窗口内时，巡检不会重复向ISC订阅。
+	 */
+	@Test
+	public void subscribeTaskDoesNotResubscribeWhenCallbackIsHealthy() throws Exception {
+		RecordingBridgeISCService service = new RecordingBridgeISCService();
+		setField(service, "eventSubscribeEnabled", true);
+		setField(service, "subscribeCallbackUrl", "http://callback.example/isc");
+		setField(service, "lastSuccessfulEventCallbackTime",
+				System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(10) + 1000);
+		boolean originalSubscribeStatus = BridgeISCServiceImpl.SUBSCRIBE_STATUS;
+		try {
+			BridgeISCServiceImpl.SUBSCRIBE_STATUS = true;
+
+			service.subscribeTask();
+
+			Assert.assertEquals(0, service.getSubscribeRequestCount());
+			Assert.assertTrue(BridgeISCServiceImpl.SUBSCRIBE_STATUS);
+		} finally {
+			BridgeISCServiceImpl.SUBSCRIBE_STATUS = originalSubscribeStatus;
+		}
+	}
 
 	@Test
 	public void rawPostResponseUsesEventSpecificErrorDescription() {
@@ -85,6 +133,39 @@ public class BridgeISCServiceImplTest {
 				Assert.assertTrue(e.getMessage().contains("没有资源权限"));
 				Assert.assertTrue(e.getMessage().contains("0x8bf19091"));
 				Assert.assertTrue(e.getMessage().contains("raw message"));
+		}
+	}
+
+	/**
+	 * 通过反射设置服务私有配置，避免测试依赖Spring容器启动。
+	 */
+	private void setField(Object target, String name, Object value) throws Exception {
+		Field field = target.getClass().getSuperclass().getDeclaredField(name);
+		field.setAccessible(true);
+		field.set(target, value);
+	}
+
+	/**
+	 * 记录订阅请求次数，隔离真实ISC网络调用。
+	 */
+	private static class RecordingBridgeISCService extends BridgeISCServiceImpl {
+		private int subscribeRequestCount;
+
+		@Override
+		public ISCResponse post(EventEnum eventEnum, String data) {
+			if (EventEnum.ISC_EVENT_SUBSCRIBE.equals(eventEnum)) {
+				subscribeRequestCount++;
 			}
+			ISCResponse response = new ISCResponse();
+			response.setCode("0");
+			return response;
+		}
+
+		/**
+		 * 返回测试期间记录的订阅请求次数。
+		 */
+		private int getSubscribeRequestCount() {
+			return subscribeRequestCount;
+		}
 	}
 }
