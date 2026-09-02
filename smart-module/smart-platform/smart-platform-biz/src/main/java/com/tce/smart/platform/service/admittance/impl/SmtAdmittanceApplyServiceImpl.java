@@ -69,6 +69,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
@@ -587,10 +589,16 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 
 	@Override
 	public void updateStatus(SmtAdmittanceApply apply) {
+		// 作废是本地终态。OA 回调与定时对账可能在作废请求前后并发，
+		// 每次处理前均以数据库当前状态为准，避免把作废单重新下发权限。
+		if (isApplyRevoked(apply)) {
+			log.info("入厂申请已作废，跳过审批后置处理，id={}，processId={}", apply.getId(), apply.getProcessId());
+			return;
+		}
 		//过期审批不下发 只修改状态
 		if (apply.getEndTime() != null && LocalDateTime.now().isAfter(apply.getEndTime())) {
 			apply.setStatus(VisitorStatusEnum.CAUSE_6.getCode());
-			this.updateById(apply);
+			updateByIdUnlessRevoked(apply);
 			return;
 		}
 		if (AdmittanceTypeEnum.CAR.getCode().equals(apply.getApplyType())) {
@@ -599,7 +607,7 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 				apply.setSmsCode(RandomUtil.randomNumbers(6));
 			}
 			apply.setDeviceStatus(DeviceDownStatusEnum.WAIT.getCode());
-			this.updateById(apply);
+			updateByIdUnlessRevoked(apply);
 			return;
 		}
 		//审批通过
@@ -610,8 +618,60 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			}
 			apply.setDeviceStatus(DeviceDownStatusEnum.ALRAEDY.getCode());
 			//原子提交本次批次的全部下发任务（同一事务内建任务 + 回写 isc_submit_batch），任一环节失败整体回滚
-			this.submitIscBatch(apply);
-			//照片推送为过渡期尽力而为行为：与权限下发解耦，事务外执行，失败不影响已下发状态（照片由 FileReceiver 拉取兜底）
+			if (!this.submitIscBatch(apply)) {
+				// 作废在批次提交前已生效，停止照片推送、通知和旧对象状态回写。
+				return;
+			}
+			if (!this.sendApprovedEffectsUnlessRevoked(apply)) {
+				return;
+			}
+		}
+		updateByIdUnlessRevoked(apply);
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public Boolean revokeApply(SmtAdmittanceApply apply) {
+		if (apply == null || apply.getId() == null) {
+			throw new SmartException("申请单不存在");
+		}
+		if (VisitorStatusEnum.CAUSE_7.getCode().equals(apply.getStatus())) {
+			throw new SmartException("申请单已作废");
+		}
+		Integer originalStatus = apply.getStatus();
+		boolean revoked = this.update(Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+				.eq(SmtAdmittanceApply::getId, apply.getId())
+				.ne(SmtAdmittanceApply::getStatus, VisitorStatusEnum.CAUSE_7.getCode())
+				.set(SmtAdmittanceApply::getStatus, VisitorStatusEnum.CAUSE_7.getCode()));
+		if (!revoked) {
+			throw new SmartException("申请单已作废");
+		}
+		closePendingApprovalRecords(apply.getId());
+		// 删除能力会取消尚未执行的下发任务，并为已下发的人员、车辆权限创建删除任务。
+		if (!Boolean.TRUE.equals(this.delDeviceAuth(apply.getId()))) {
+			throw new SmartException("权限回收任务提交失败");
+		}
+		// OA 已完成的单据无需撤销；待审批单则尽力撤销，失败不能使本地作废失效。
+		if (VisitorStatusEnum.Status_2.getCode().equals(originalStatus)) {
+			schedulePendingOaRevokeAfterCommit(apply);
+		}
+		return Boolean.TRUE;
+	}
+
+	/**
+	 * 在申请单仍处于已通过状态时，以事务行锁串行发送审批通过后的外部效果。
+	 * 作废先提交时条件更新失败，照片和通知均不会发送；本流程先取得锁时，作废会等待本次通知完成后再回收权限。
+	 */
+	private boolean sendApprovedEffectsUnlessRevoked(SmtAdmittanceApply apply) {
+		Boolean delivered = transactionTemplate.execute(status -> {
+			LambdaUpdateWrapper<SmtAdmittanceApply> claimWrapper = Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+					.eq(SmtAdmittanceApply::getId, apply.getId())
+					.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
+					.set(SmtAdmittanceApply::getDeviceStatus, DeviceDownStatusEnum.ALRAEDY.getCode());
+			if (!this.update(null, claimWrapper)) {
+				return Boolean.FALSE;
+			}
+			// 照片推送为过渡期尽力而为行为：与权限下发解耦，失败不影响已下发状态（照片由 FileReceiver 拉取兜底）。
 			if (Boolean.TRUE.equals(photoPushEnabled)) {
 				try {
 					if (!Boolean.TRUE.equals(this.smbPutPhoto(apply.getId()))) {
@@ -621,14 +681,97 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 					log.error("【入厂申请照片推送】推送异常（不影响下发状态，等待客户端拉取），id={}", apply.getId(), e);
 				}
 			}
+			try {
+				this.sendPassMsg(apply);
+			} catch (Exception e) {
+				log.error("【入厂申请微信消息推送失败】{},{}", e.getMessage(), e.getStackTrace());
+			}
+			return Boolean.TRUE;
+		});
+		if (!Boolean.TRUE.equals(delivered)) {
+			log.info("入厂申请在通过通知前已作废，跳过照片和通知，id={}，processId={}", apply.getId(), apply.getProcessId());
 		}
-		//预约通知
+		return Boolean.TRUE.equals(delivered);
+	}
+
+	/**
+	 * 关闭本地待办并更新尚未审批的流程记录，保留已同意、已拒绝的历史审批痕迹。
+	 */
+	private void closePendingApprovalRecords(Long applyId) {
+		approveListService.update(new ApproveList(), Wrappers.<ApproveList>lambdaUpdate()
+				.eq(ApproveList::getBusinessId, applyId.toString())
+				.eq(ApproveList::getApproveType, ApproveListTypeConstants.VISITOR)
+				.in(ApproveList::getApproveState, ApproveListStateEnum.PENDING.getCode(), ApproveListStateEnum.WAITING.getCode())
+				.set(ApproveList::getApproveState, ApproveListStateEnum.CLOSE.getCode()));
+		smtVisitorProcessRecordService.update(new SmtVisitorProcessRecord(), Wrappers.<SmtVisitorProcessRecord>lambdaUpdate()
+				.eq(SmtVisitorProcessRecord::getVisitorId, applyId)
+				.eq(SmtVisitorProcessRecord::getStatus, VisitorProcessEnum.WATING_2.getCode())
+				.set(SmtVisitorProcessRecord::getStatus, VisitorProcessEnum.REVOKED_4.getCode())
+				.set(SmtVisitorProcessRecord::getStatusName, VisitorProcessEnum.REVOKED_4.getDesc()));
+	}
+
+	/**
+	 * 本地作废已先持久化；OA 撤销仅用于关闭外部待办，异常只告警，不能恢复本地有效状态。
+	 */
+	private void schedulePendingOaRevokeAfterCommit(SmtAdmittanceApply apply) {
+		if (StrUtil.isBlank(apply.getProcessId()) || StrUtil.isBlank(apply.getReceptionistBadge())) {
+			return;
+		}
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			log.error("入厂申请本地作废缺少事务同步，跳过 OA 撤销以避免未提交的外部副作用，id={}，processId={}",
+					apply.getId(), apply.getProcessId());
+			return;
+		}
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+			@Override
+			public void afterCommit() {
+				revokePendingOaProcess(apply);
+			}
+		});
+	}
+
+	/**
+	 * 事务提交后的 OA 撤销调用。失败只记录日志，不会恢复本地已作废终态。
+	 */
+	private void revokePendingOaProcess(SmtAdmittanceApply apply) {
+		if (StrUtil.isBlank(apply.getProcessId()) || StrUtil.isBlank(apply.getReceptionistBadge())) {
+			return;
+		}
 		try {
-			this.sendPassMsg(apply);
-		} catch (Exception e) {
-			log.error("【入厂申请微信消息推送失败】{},{}", e.getMessage(), e.getStackTrace());
+			Result<Boolean> result = remoteOaWorkFlowService.sendOaRevoke(Integer.valueOf(apply.getProcessId()),
+					apply.getReceptionistBadge());
+			if (result == null || !result.isSuccess() || !Boolean.TRUE.equals(result.getData())) {
+				log.warn("入厂申请本地已作废，但 OA 撤销未确认成功，id={}，processId={}",
+						apply.getId(), apply.getProcessId());
+			}
+		} catch (Exception error) {
+			log.warn("入厂申请本地已作废，但 OA 撤销调用异常，id={}，processId={}",
+					apply.getId(), apply.getProcessId(), error);
 		}
-		this.updateById(apply);
+	}
+
+	private boolean isApplyRevoked(SmtAdmittanceApply apply) {
+		if (apply == null) {
+			return false;
+		}
+		if (VisitorStatusEnum.CAUSE_7.getCode().equals(apply.getStatus())) {
+			return true;
+		}
+		SmtAdmittanceApply current = this.getById(apply.getId());
+		return current != null && VisitorStatusEnum.CAUSE_7.getCode().equals(current.getStatus());
+	}
+
+	/**
+	 * 审批回调可能拿着作废前的旧对象执行到最后。状态条件确保旧对象不能覆盖已作废终态。
+	 */
+	private void updateByIdUnlessRevoked(SmtAdmittanceApply apply) {
+		boolean updated = this.update(apply, Wrappers.<SmtAdmittanceApply>lambdaUpdate()
+				.eq(SmtAdmittanceApply::getId, apply.getId())
+				.ne(SmtAdmittanceApply::getStatus, VisitorStatusEnum.CAUSE_7.getCode()));
+		if (!updated) {
+			log.info("入厂申请在审批处理期间已作废，跳过旧状态回写，id={}，processId={}",
+					apply.getId(), apply.getProcessId());
+		}
 	}
 
 	/**
@@ -643,20 +786,29 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 	 *
 	 * @param apply 已判定为审批通过的入厂申请
 	 */
-	private void submitIscBatch(SmtAdmittanceApply apply) {
+	private boolean submitIscBatch(SmtAdmittanceApply apply) {
 		Long batchId = IdWorker.getId();
 		//Spring 5.1 无 executeWithoutResult，用 execute(callback) 并返回 null 承载"无返回值"语义
-		transactionTemplate.execute(status -> {
-			//下发权限：建任务集时把 applyId/batchId 写入 DeviceTaskVO，最终经 ISC 路由分支落库到 SmtIscDeviceTask
-			this.addDeviceTask(apply, batchId);
-			//记录本次成功提交的批次号，作为后续补偿任务的判定依据
+		Boolean submitted = transactionTemplate.execute(status -> {
+			// 先以 status != 已作废抢占行锁。若作废已先提交，本次不再创建任何下发任务；
+			// 若本次先抢占，作废会在本事务提交后继续执行，并能看到完整批次后创建回收任务。
 			LambdaUpdateWrapper<SmtAdmittanceApply> updateWrapper = Wrappers.<SmtAdmittanceApply>lambdaUpdate()
 					.eq(SmtAdmittanceApply::getId, apply.getId())
+					.ne(SmtAdmittanceApply::getStatus, VisitorStatusEnum.CAUSE_7.getCode())
 					.set(SmtAdmittanceApply::getIscSubmitBatch, batchId);
-			this.update(null, updateWrapper);
-			return null;
+			if (!this.update(null, updateWrapper)) {
+				return Boolean.FALSE;
+			}
+			//下发权限：建任务集时把 applyId/batchId 写入 DeviceTaskVO，最终经 ISC 路由分支落库到 SmtIscDeviceTask
+			this.addDeviceTask(apply, batchId);
+			return Boolean.TRUE;
 		});
-		apply.setIscSubmitBatch(batchId);
+		if (Boolean.TRUE.equals(submitted)) {
+			apply.setIscSubmitBatch(batchId);
+			return true;
+		}
+		log.info("入厂申请已作废，跳过 ISC 权限下发批次，id={}，processId={}", apply.getId(), apply.getProcessId());
+		return false;
 	}
 
 	/**

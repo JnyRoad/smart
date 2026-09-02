@@ -11,6 +11,7 @@ import com.tce.smart.common.log.annotation.SysLog;
 import com.tce.smart.common.security.annotation.Inner;
 import com.tce.smart.platform.api.dto.SmtVisitorDTO;
 import com.tce.smart.platform.api.dto.req.admittance.VisitorSelfQueryReqDTO;
+import com.tce.smart.platform.api.dto.req.admittance.VisitorRevokeApplyReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.SaveAdmittanceApplyReqDTO;
 import com.tce.smart.platform.api.dto.req.admittance.SaveAdmittanceCarApplyReqDTO;
 import com.tce.smart.platform.api.dto.resp.VisitorListRespDTO;
@@ -157,6 +158,13 @@ public class SmtAdmittanceApplyController extends BaseController {
 	public Result<VisitorApprovalProgressRespDTO> approvalProgress(@RequestParam("applyId") String applyId,
 			@RequestHeader(value = "X-Visitor-Query-Token", required = false) String queryToken) {
 		return success(visitorSelfQueryService.getApprovalProgress(applyId, queryToken));
+	}
+
+	@ApiOperation("访客自助作废本人入厂申请")
+	@PostMapping("/app/revoke")
+	public Result<Boolean> revokeApply(@RequestBody VisitorRevokeApplyReqDTO request,
+			@RequestHeader(value = "X-Visitor-Query-Token", required = false) String queryToken) {
+		return success(visitorSelfQueryService.revokeApply(request == null ? null : request.getApplyId(), queryToken));
 	}
 
 	/**

@@ -28,6 +28,7 @@ import com.tce.smart.platform.service.SmtOutDormitoryStaffService;
 import com.tce.smart.platform.service.SmtParkService;
 import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceFellowService;
+import com.tce.smart.platform.service.admittance.SmtAdmittanceApplyService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceVehicleService;
 import com.tce.smart.platform.service.admittance.VisitorSelfQueryService;
 import com.tce.smart.tool.constant.ApproveListTypeConstants;
@@ -85,6 +86,8 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 	private SmtApprovalNodeService smtApprovalNodeService;
 	@Autowired
 	private SmtOutDormitoryStaffService smtOutDormitoryStaffService;
+	@Autowired
+	private SmtAdmittanceApplyService smtAdmittanceApplyService;
 
 	private Supplier<String> queryTokenSupplier = () -> UUID.randomUUID().toString().replace("-", "");
 
@@ -112,6 +115,13 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 		VisitorApprovalProgressRespDTO response = new VisitorApprovalProgressRespDTO();
 		response.setNodes(approvalNodes(apply));
 		return response;
+	}
+
+	@Override
+	public Boolean revokeApply(String applyId, String queryToken) {
+		// 先复用详情查询的本人校验，禁止仅凭可猜测的申请单 ID 作废他人单据。
+		SmtAdmittanceApply apply = requireOwnedApply(applyId, queryToken);
+		return smtAdmittanceApplyService.revokeApply(apply);
 	}
 
 	private QueryCredential resolveCredential(VisitorSelfQueryReqDTO request, String queryToken) {
@@ -434,6 +444,9 @@ public class VisitorSelfQueryServiceImpl extends ServiceImpl<SmtAdmittanceApplyM
 	}
 
 	private String applyStatus(SmtAdmittanceApply apply) {
+		if (Objects.equals(apply.getStatus(), VisitorStatusEnum.CAUSE_7.getCode())) {
+			return "REVOKED";
+		}
 		if (Objects.equals(apply.getStatus(), VisitorStatusEnum.Status_1.getCode())) {
 			return "REJECTED";
 		}

@@ -363,7 +363,7 @@
 		INNER JOIN SMT_ADMITTANCE_FELLOW F ON F.VISITOR_ID = A.ID
 		WHERE F.CERT_NO = #{certNo}
 			AND F.IS_MAIN = 1
-			AND A.STATUS != 1
+      AND A.STATUS NOT IN (1, 7)
 			AND A.START_TIME &lt; #{endTime}
 			AND A.END_TIME &gt; #{startTime}
 	</select>

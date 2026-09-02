@@ -23,7 +23,7 @@ describe('applyStatusBadge', () => {
     expect(applyStatusBadge('PASSED')).toEqual({ text: '已通过', tone: 'success' })
     expect(applyStatusBadge('REJECTED')).toEqual({ text: '已拒绝', tone: 'danger' })
     expect(applyStatusBadge('EXPIRED')).toEqual({ text: '已过期', tone: 'muted' })
-    expect(applyStatusBadge('REVOKED')).toEqual({ text: '已撤销', tone: 'muted' })
+    expect(applyStatusBadge('REVOKED')).toEqual({ text: '已作废', tone: 'muted' })
   })
 
   it('未知状态回退原值灰调（快速暴露契约漂移）', () => {

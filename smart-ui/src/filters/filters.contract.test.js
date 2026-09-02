@@ -53,6 +53,12 @@ describe('filters 注册契约', () => {
   })
 })
 
+describe('visitorStatusFormat', () => {
+  it('状态 7 显示为已作废，避免后台记录页出现空状态', () => {
+    expect(filters.visitorStatusFormat(7)).toBe('已作废')
+  })
+})
+
 // ---- spot-check：钉死现状真实返回值 ----
 // 时间相关函数都用「本地时间」getter（getMonth/getDate/getHours...），
 // 测试与实现同处一个时区，故用本地构造的 Date 断言不会随时区漂移。

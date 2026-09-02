@@ -813,8 +813,9 @@ $apply-color:#6AC83D,#1990FE,#F4222C,red,blue,yellow,gray,goldenrod;
   border-right: 35px solid transparent;
   display: inline-block;
 }
-$visitor-color:#6AC83C,#F02832,#F07000,#01C587,#b3b3b3,#2b9fd9,#26c7cd;
-@for $i from 1 through 7 {
+
+$visitor-color:#6AC83C,#F02832,#F07000,#01C587,#b3b3b3,#2b9fd9,#26c7cd,#8c8a8a;
+@for $i from 1 through 8 {
   .visitorStatus#{$i}.vs-status{
     background: list.nth($visitor-color,$i);
   }

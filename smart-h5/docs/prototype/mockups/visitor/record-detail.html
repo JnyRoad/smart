@@ -13,7 +13,8 @@
       页面按数组渲染，不写死级数；本原型的两级节点仅为演示数据。
     - 节点状态：done（已通过）/ current（审批中）/ wait（未到达）/ rejected（已拒绝）。
     - 审批人仅展示脱敏姓名；部门、职务、已等待时长、手机号均不对访客展示。
-    - 不向访客提供「撤销申请」「催办」操作，审批中状态只读。
+    - 访客可作废本人名下的任一非作废申请；作废后单据在园区系统内失效，
+      已下发的门禁权限进入异步回收流程。
     - 已通过状态提供「查看通行码」入口 → /xuchang/visitor/code（code.html）。
     - 权限下发状态（dispatchStatus，applyDetail 返回）：审批通过后权限需下发到门岗
       闸机/门禁设备，门岗可能有多台机器，对访客只展示聚合状态、不展示设备明细：
@@ -90,6 +91,7 @@ button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2
 .banner.passed   { background: linear-gradient(120deg, #2DB888, #16A673); }
 .banner.rejected { background: linear-gradient(120deg, #E45B56, #D83B36); }
 .banner.expired  { background: linear-gradient(120deg, #9C9A9A, #807E7E); }
+.banner.revoked  { background: linear-gradient(120deg, #9C9A9A, #807E7E); }
 .banner .b-icon { flex: none; width: 44px; height: 44px; border-radius: 999px; background: rgba(255,255,255,.2); display: grid; place-items: center; }
 .banner .b-main { font-size: 16px; font-weight: 750; margin: 0; }
 .banner .b-sub { font-size: 12px; margin: 4px 0 0; opacity: .92; line-height: 1.5; }
@@ -185,6 +187,7 @@ button:focus-visible { outline: 3px solid rgba(236,108,0,.22); outline-offset: 2
   <button onclick="setState('passedFailed', this)">通过·下发失败</button>
   <button onclick="setState('rejected', this)">已拒绝</button>
   <button onclick="setState('expired', this)">已过期</button>
+  <button onclick="setState('revoked', this)">已作废</button>
 </div>
 
 <div class="app">
@@ -284,6 +287,11 @@ const FLOWS = {
     { title: '部门负责人审批', state: 'done', meta: '<span class="who">张伟</span> 已同意 · 2026-04-16 08:55' },
     { title: '审批完成', state: 'done', meta: '2026-04-16 08:55 · 通行码已随来访时间结束失效' },
   ],
+  revoked: [
+    { title: '提交申请', state: 'done', meta: '访客 李明 · 2026-06-10 15:08' },
+    { title: '申请已作废', state: 'rejected', meta: '访客主动作废 · 已进入通行权限回收流程',
+      opinion: '该申请已失效，如需入园请重新预约。', bad: true },
+  ],
 };
 
 const BANNERS = {
@@ -299,6 +307,8 @@ const BANNERS = {
     icon: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5 5 15" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>' },
   expired: { cls: 'expired', main: '申请已过期', sub: '来访时间已结束，本记录仅供查阅',
     icon: '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="#fff" stroke-width="2"/><path d="M7 11h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>' },
+  revoked: { cls: 'revoked', main: '申请已作废', sub: '本申请已经失效，如需入园请重新预约',
+    icon: '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.5" stroke="#fff" stroke-width="2"/><path d="M7 11h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>' },
 };
 
 const TAGS = { done: ['t-done', '已通过'], current: ['t-current', '审批中'], wait: ['t-wait', '未到达'], rejected: ['t-rejected', '已拒绝'],
@@ -311,7 +321,10 @@ const ACTIONS = {
   passedFailed: '',
   rejected: '<button class="primary-btn" onclick="toast(\'跳转入厂申请 /xuchang/visitor，预填本次信息\')">修改信息重新预约</button>',
   expired: '<button class="ghost-btn" onclick="toast(\'跳转入厂申请 /xuchang/visitor，预填本次信息\')">再次预约</button>',
+  revoked: '<button class="ghost-btn" onclick="toast(\'跳转入厂申请 /xuchang/visitor，预填本次信息\')">再次预约</button>',
 };
+
+const VOID_ACTION = '<button class="ghost-btn" onclick="voidApply()">作废申请</button>';
 
 function setState(s, btn) {
   if (btn) {
@@ -337,7 +350,7 @@ function setState(s, btn) {
       + '</li>';
   }).join('');
 
-  document.getElementById('actions').innerHTML = ACTIONS[s];
+  document.getElementById('actions').innerHTML = ACTIONS[s] + (s === 'revoked' ? '' : VOID_ACTION);
   document.getElementById('refreshTip').hidden = s !== 'pending' && s !== 'passedIssuing';
 }
 
@@ -347,8 +360,14 @@ function toast(msg) {
   clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+function voidApply() {
+  if (confirm('确认作废该申请？作废后单据立即失效，已下发的通行权限将进入回收流程，且不可恢复。')) {
+    toast('原型演示：申请已作废，可重新预约');
+  }
+}
+
 // 支持从列表页带 hash 进入指定状态；hash 变化（浏览器前进/后退）时同步切换
-const STATES = ['pending', 'passed', 'passedIssuing', 'passedFailed', 'rejected', 'expired'];
+const STATES = ['pending', 'passed', 'passedIssuing', 'passedFailed', 'rejected', 'expired', 'revoked'];
 function applyHash() {
   const s = STATES.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'pending';
   setState(s, document.querySelectorAll('.demo-bar button')[STATES.indexOf(s)]);

@@ -12,4 +12,13 @@ public interface VisitorSelfQueryService {
 	VisitorApplyRecordDetailRespDTO getApplyDetail(String applyId, String queryToken);
 
 	VisitorApprovalProgressRespDTO getApprovalProgress(String applyId, String queryToken);
+
+	/**
+	 * 作废当前查询凭证所属访客的入厂申请。
+	 *
+	 * @param applyId    入厂申请单 ID
+	 * @param queryToken 本人查询凭证
+	 * @return 是否已作废并提交权限回收任务
+	 */
+	Boolean revokeApply(String applyId, String queryToken);
 }

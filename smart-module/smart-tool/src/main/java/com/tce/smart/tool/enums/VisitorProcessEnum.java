@@ -15,7 +15,8 @@ public enum VisitorProcessEnum {
 	PASS_0(0,"已通过"),
 	REFUSE_1(1,"已拒绝"),
 	WATING_2(2,"待审批"),
-	WATING_3(3,"超时未审批");
+	WATING_3(3,"超时未审批"),
+	REVOKED_4(4,"已作废");
 
     private final Integer code;
 

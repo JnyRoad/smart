@@ -73,6 +73,7 @@ vi.mock('@/features/visitor/records-api', () => ({
   fetchApprovalProgress: vi.fn(() => Promise.resolve(recordsMock.progress)),
   getQuerySession: () => ({ queryToken: 'query-token', maskedName: '张三', maskedMobile: '137****1234' }),
   isAuthRejected: () => false,
+  revokeApply: vi.fn(() => Promise.resolve({ code: 0, data: true })),
 }))
 
 beforeEach(() => {
@@ -110,6 +111,12 @@ afterEach(() => {
 })
 
 describe('访客申请详情审批意见', () => {
+  it('非作废申请显示作废入口', async () => {
+    await renderRecordDetail()
+
+    expect(await screen.findByText('作废申请')).toBeTruthy()
+  })
+
   it('安全解析后端返回的 HTML 意见，不把标签源码显示给用户', async () => {
     await renderRecordDetail()
 

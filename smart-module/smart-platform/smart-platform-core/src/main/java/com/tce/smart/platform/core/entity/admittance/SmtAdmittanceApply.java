@@ -48,7 +48,7 @@ private static final long serialVersionUID = 1L;
 	 */
     private String certNo;
     /**
-   * 来访状态 来访状态 0:已通过1:已驳回2:未处理3:已到达4超时未到5:已离开
+   * 来访状态 0:已通过1:已驳回2:未处理3:已到达4:超时未到5:已离开6:预约超时7:已作废
    */
     private Integer status;
     /**

@@ -1,8 +1,8 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { ErrorBlock, PullToRefresh, SpinLoading } from 'antd-mobile'
+import { ErrorBlock, PullToRefresh, SpinLoading, Toast } from 'antd-mobile'
 import { useRouter } from 'next/navigation'
-import { use, useEffect, useMemo } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { PageShell } from '@/components/page-shell'
 import { useVisitorFlow } from '@/features/visitor/flow-store'
 import { approvalNodeStatusText, formatVisitRange } from '@/features/visitor/record-status'
@@ -12,10 +12,12 @@ import {
   fetchApprovalProgress,
   getQuerySession,
   isAuthRejected,
+  revokeApply,
   type ApplyRecordDetail,
   type ApprovalNode,
 } from '@/features/visitor/records-api'
 import { sanitizeRichText } from '@/lib/sanitize'
+import { confirmIrreversible } from '@/lib/confirm-irreversible'
 import { useMounted } from '@/lib/use-mounted'
 
 function heroFor(detail: ApplyRecordDetail, nodes: ApprovalNode[]) {
@@ -57,7 +59,7 @@ function heroFor(detail: ApplyRecordDetail, nodes: ApprovalNode[]) {
   if (applyStatus === 'EXPIRED') {
     return { tone: 'muted' as const, main: '申请已过期', sub: '来访时间已过，如需入园请重新预约' }
   }
-  return { tone: 'muted' as const, main: '申请已撤销', sub: '本次申请已撤销，如需入园请重新预约' }
+  return { tone: 'muted' as const, main: '申请已作废', sub: '本次申请已作废，如需入园请重新预约' }
 }
 
 const HERO_TONES = {
@@ -209,6 +211,7 @@ function RecordDetailInner({ applyId }: { applyId: string }) {
   }, [detail.data, deniedKey])
 
   const reset = useVisitorFlow((s) => s.reset)
+  const [isVoiding, setIsVoiding] = useState(false)
 
   if (accessDenied) {
     return (
@@ -250,8 +253,10 @@ function RecordDetailInner({ applyId }: { applyId: string }) {
   }
 
   const hero = heroFor(info, nodes)
+  const currentApplyId = info.applyId
   const showPassCode = info.applyStatus === 'PASSED' && info.dispatchStatus !== 'FAILED'
-  const showRebook = info.applyStatus === 'REJECTED' || info.applyStatus === 'EXPIRED'
+  const showRebook = info.applyStatus === 'REJECTED' || info.applyStatus === 'EXPIRED' || info.applyStatus === 'REVOKED'
+  const showVoid = info.applyStatus !== 'REVOKED'
 
   function rebook() {
     // 详情载荷仍是展示形状（手机号脱敏、区域名/事由文本已格式化），
@@ -262,6 +267,26 @@ function RecordDetailInner({ applyId }: { applyId: string }) {
 
   async function refreshBoth() {
     await Promise.all([detail.refetch(), progress.refetch()])
+  }
+
+  async function voidApply() {
+    const confirmed = await confirmIrreversible(
+      '确认作废该申请？作废后单据立即失效，已下发的通行权限将进入回收流程，且不可恢复。',
+    )
+    if (!confirmed) return
+    setIsVoiding(true)
+    try {
+      const result = await revokeApply(currentApplyId)
+      if (result.code !== 0 || result.data !== true) {
+        throw new Error(result.message ?? '作废申请失败')
+      }
+      await refreshBoth()
+      Toast.show({ icon: 'success', content: '申请已作废' })
+    } catch (error) {
+      Toast.show({ content: error instanceof Error ? error.message : '作废申请失败' })
+    } finally {
+      setIsVoiding(false)
+    }
   }
 
   return (
@@ -292,6 +317,16 @@ function RecordDetailInner({ applyId }: { applyId: string }) {
                 className="mt-3 flex h-11 w-full items-center justify-center rounded-[14px] bg-brand text-[15px] font-semibold text-white active:bg-[#d95f00]"
               >
                 {info.applyStatus === 'REJECTED' ? '修改信息重新预约' : '再次预约'}
+              </button>
+            )}
+            {showVoid && (
+              <button
+                type="button"
+                onClick={voidApply}
+                disabled={isVoiding}
+                className="mt-3 flex h-11 w-full items-center justify-center rounded-[14px] border-[1.5px] border-[#d83b36] bg-white text-[15px] font-semibold text-[#d83b36] disabled:opacity-50"
+              >
+                {isVoiding ? '作废中…' : '作废申请'}
               </button>
             )}
           </div>

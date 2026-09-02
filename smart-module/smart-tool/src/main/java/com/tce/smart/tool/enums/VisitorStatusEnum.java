@@ -18,7 +18,8 @@ public enum VisitorStatusEnum {
 	Status_3(3,"已到达"),
 	CAUSE_4(4,"超时未到"),
 	CAUSE_5(5,"已离开"),
-	CAUSE_6(6,"预约超时");
+	CAUSE_6(6,"预约超时"),
+	CAUSE_7(7,"已作废");
     private final Integer code;
 
     private final String desc;
