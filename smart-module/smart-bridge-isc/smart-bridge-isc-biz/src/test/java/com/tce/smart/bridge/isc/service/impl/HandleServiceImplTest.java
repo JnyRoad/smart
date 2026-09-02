@@ -18,6 +18,9 @@ import java.lang.reflect.Field;
 
 public class HandleServiceImplTest {
 
+	/**
+	 * 验证人员工号为空时不写入卡号，且业务分发成功后刷新订阅健康时间。
+	 */
 	@Test
 	public void eventHandleSendsPersonIdAndOmitsBlankCardNoWhenIscJobNoMissing() throws Exception {
 		RemoteDispatcherService dispatcherService = Mockito.mock(RemoteDispatcherService.class);
@@ -52,6 +55,9 @@ public class HandleServiceImplTest {
 		Mockito.verify(bridgeISCService).recordSuccessfulEventCallback();
 	}
 
+	/**
+	 * 通过反射注入依赖，避免测试启动Spring容器。
+	 */
 	private void setField(Object target, String name, Object value) throws Exception {
 		Field field = target.getClass().getDeclaredField(name);
 		field.setAccessible(true);

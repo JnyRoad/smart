@@ -321,7 +321,7 @@ flowchart LR
     <li><b>赵磊</b>：封条扫码 → 「模拟扫码头扫描」任一封条 → 单据自动带出 → 刷卡 → 确认到达归档；</li>
     <li>任意账号：记录报表查看全程轨迹。访客流程：李建军 → 访客核验 → 李芳（登记进入/离开）与刘建国（失效禁止态）。</li>
   </ol>
-  <p style="margin:0"><b>Web 端剧本</b>：首页卡片按提示逐页点——重点看「权限策略→人员明细」点<b>清空权限</b>（3 秒后 3 人删除成功、1 人失败告警可重发，即 5.8 新删除链路）；「入厂申请记录」<b>勾选卡片</b>后用右上角<b>通关权限/作废</b>（勾李芳时保密权限组因未通过考试被禁用）；保密区菜单里有<b>保密考试通过管理</b>与<b>权限自动删除记录</b>报表。</p></div>
+  <p style="margin:0"><b>Web 端剧本</b>：首页卡片按提示逐页点——重点看「权限策略→人员明细」点<b>清空权限</b>（3 秒后 3 人删除成功、1 人失败告警可重发，即 5.8 新删除链路）；「入厂申请记录」<b>选中单条卡片</b>后可用右上角<b>通关权限</b>或「作废申请」确认操作（李芳的保密权限组因未通过考试被禁用）；保密区菜单里有<b>保密考试通过管理</b>与<b>权限自动删除记录</b>报表。</p></div>
   <div class="note">原型为演示 Mock：数据是演示样例，刷新页面即复位（App 原型有「重置演示数据」按钮）；界面即最终阶段形态（申请与审批在 App 内）。</div>
   <div class="pager"><a href="#p2">← 上一章</a><a class="next" href="#p4">下一章 · 需求覆盖对照 →</a></div>
 </section>
@@ -343,7 +343,7 @@ flowchart LR
     <tr><td>2.3 保密/非保密区分</td><td>Web</td><td>模板列表两条访客模板；对「派遣工-通用厂牌」点启用看 fail-closed 校验</td></tr>
     <tr><td>2.4 搜索返回保留</td><td>Web</td><td>入厂申请记录：点搜索后出现「已保留查询条件」提示条</td></tr>
     <tr><td>2.5 随行人员搜索</td><td>Web</td><td>入厂申请记录：在「访客/随行姓名」输入 王小雨 → 搜出主申请人李芳的卡片</td></tr>
-    <tr><td>2.6 入场申请作废</td><td>Web</td><td>勾选卡片（可多选）→ 右上角「作废」→ 绶带变灰、权限回收提示</td></tr>
+    <tr><td>2.6 入场申请作废</td><td>Web</td><td>单条申请点击「作废申请」并确认 → 状态灰显、权限回收任务提示</td></tr>
     <tr><td>2.7 判重按区域+随行</td><td>—</td><td>校验规则无界面；规则见第 7 章模块二（新厂/老厂分开判、随行纳入）</td></tr>
     <tr><td>3.1 非保密转保密</td><td>—</td><td>后台联动无界面；逻辑见第 7 章模块三</td></tr>
     <tr><td>3.2 保密到期全量删除</td><td>Web</td><td>保密区供应商人员页提示条 + 人员权限下发记录页删除任务明细</td></tr>
@@ -1115,7 +1115,7 @@ flowchart LR
     <dd>入厂申请记录卡片支持单选，右上「通关权限」按钮触发弹窗，UI 复用员工双栏权限选择组件；新增访客专用下发接口——选权限组→查该权限组关联设备→建带 applyId/batchId 的下发任务；结束日期默认取申请单 endTime；长期供应商也走这个功能完成下发（无需单独登记供应商）；下发涉密权限组前必须先过 5.1 的考试通过校验。</dd>
     <dt>实现方式</dt>
     <dd>
-      后端：新增访客版下发接口（如 <code>POST /apply/device/auth</code>，入参 applyId + fellowId/vehicleId + 选中的 authId 列表），落库方式参照 <code>addCard</code>（860-880 行）：<code>cardNo=fellow.getId().toString()</code>、<code>applyId</code>=当前申请单 ID、<code>batchId</code>=本次操作生成的新批次号、<code>startTime</code> 按现有 <code>putOffsetHour</code> 提前量、<code>overTime</code>=申请单的 <code>endTime</code>（不接受页面输入自定义值，需求已明确"结束日期默认取申请单 endTime"）；下发前若选中权限组 <code>areaType=1</code>（保密），调用 5.1 新增的证件号版 <code>getAuthRemark</code> 分支校验考试通过状态，未通过则拒绝并提示。前端：<code>incoming_record/index.vue</code> 卡片改支持单选（与 2.6 的多选并存，用不同交互区分：普通点击单选进入通关权限操作，勾选框多选走批量作废），右上工具条新增「通关权限」按钮，弹窗复用员工侧的双栏权限选择组件（<code>staff_info/issueAuth.vue</code> 的 UI 结构），接口指向新的访客端点。
+      后端：新增访客版下发接口（如 <code>POST /apply/device/auth</code>，入参 applyId + fellowId/vehicleId + 选中的 authId 列表），落库方式参照 <code>addCard</code>（860-880 行）：<code>cardNo=fellow.getId().toString()</code>、<code>applyId</code>=当前申请单 ID、<code>batchId</code>=本次操作生成的新批次号、<code>startTime</code> 按现有 <code>putOffsetHour</code> 提前量、<code>overTime</code>=申请单的 <code>endTime</code>（不接受页面输入自定义值，需求已明确"结束日期默认取申请单 endTime"）；下发前若选中权限组 <code>areaType=1</code>（保密），调用 5.1 新增的证件号版 <code>getAuthRemark</code> 分支校验考试通过状态，未通过则拒绝并提示。前端：<code>incoming_record/index.vue</code> 卡片改支持单选，用于进入通关权限操作；2.6 已实现的作废保持单条确认，不在本项实现批量作废。右上工具条新增「通关权限」按钮，弹窗复用员工侧的双栏权限选择组件（<code>staff_info/issueAuth.vue</code> 的 UI 结构），接口指向新的访客端点。
     </dd>
     <dt>处理流程</dt>
     <dd>
@@ -1141,7 +1141,7 @@ flowchart LR
     <dt>测试与验证</dt>
     <dd>单测覆盖新接口的落库字段（cardNo/applyId/batchId/overTime）正确性；集成测试覆盖"选中涉密权限组但证件号未通过考试"应被拒绝；手工验证长期供应商场景可复用同一入口完成下发。</dd>
     <dt>依赖与风险</dt>
-    <dd>依赖 5.1 先落地（考试通过表与证件号校验分支），若排期上 5.1 滞后，5.2 涉密权限组下发校验需要先用占位逻辑（如临时跳过校验并打日志告警）过渡，避免互相阻塞；本项与 2.6 在同一列表页面新增了单选+多选两套交互模式，前端需要仔细设计选择框样式或明确的模式切换，避免用户混淆。</dd>
+    <dd>依赖 5.1 先落地（考试通过表与证件号校验分支），若排期上 5.1 滞后，5.2 涉密权限组下发校验需要先用占位逻辑（如临时跳过校验并打日志告警）过渡，避免互相阻塞；本项的单选下发入口与 2.6 的单条作废入口共处同一列表页面，前端需清晰区分操作按钮和确认语义，避免用户误触。</dd>
   </dl>
 </section>
 

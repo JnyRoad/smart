@@ -503,7 +503,9 @@ public class BridgeISCServiceImpl implements BridgeISCService, CommandLineRunner
 		log.info("请求参数：event={},参数={}", eventEnum.getKey(), object);
 	}
 
-	//每2分钟执行一次
+	/**
+	 * 每两分钟检查一次订阅健康状态，超时才重新向ISC订阅。
+	 */
 	@Scheduled(initialDelay = 1000 * 60, fixedDelay = 1000 * 60 * 2)
 	public void subscribeTask() {
 		if (!isEventSubscribeEnabled()) {
@@ -542,6 +544,9 @@ public class BridgeISCServiceImpl implements BridgeISCService, CommandLineRunner
 		lastSuccessfulEventCallbackTime = System.currentTimeMillis();
 	}
 
+	/**
+	 * 判断当前环境是否开启ISC事件订阅。
+	 */
 	private boolean isEventSubscribeEnabled() {
 		return Boolean.TRUE.equals(eventSubscribeEnabled);
 	}

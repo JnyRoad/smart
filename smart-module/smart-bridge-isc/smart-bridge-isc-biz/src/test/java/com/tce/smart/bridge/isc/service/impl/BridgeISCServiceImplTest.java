@@ -59,6 +59,9 @@ public class BridgeISCServiceImplTest {
 		}
 	}
 
+	/**
+	 * 验证订阅接口错误时会保留对应的官方错误描述和原始消息。
+	 */
 	@Test
 	public void rawPostResponseUsesEventSpecificErrorDescription() {
 		BridgeISCServiceImpl service = new BridgeISCServiceImpl();
@@ -72,6 +75,9 @@ public class BridgeISCServiceImplTest {
 		Assert.assertTrue(response.getMsg().contains("raw message"));
 	}
 
+	/**
+	 * 验证人脸图片接口的业务错误会映射为门禁管理错误描述。
+	 */
 	@Test
 	public void imageFailureResponseUsesAccessControlManagementDescription() {
 		BridgeISCServiceImpl service = new BridgeISCServiceImpl();
@@ -85,6 +91,9 @@ public class BridgeISCServiceImplTest {
 		Assert.assertTrue(response.getMsg().contains("raw message"));
 	}
 
+	/**
+	 * 验证运行时删除卡片失败码会保留「卡号不存在」和原始消息。
+	 */
 	@Test
 	public void rawPostResponseMapsRuntimeCardDeleteNotExistsCodeAndKeepsRawMessage() {
 		BridgeISCServiceImpl service = new BridgeISCServiceImpl();
@@ -98,6 +107,9 @@ public class BridgeISCServiceImplTest {
 		Assert.assertTrue(response.getMsg().contains("cardNo 12345678 is not exists"));
 	}
 
+	/**
+	 * 验证图片接口返回JSON业务错误时不会被错误地作为图片字节返回。
+	 */
 	@Test
 	public void imageSuccessHttpResponseWithJsonBusinessErrorIsNotReturnedAsImage() {
 		BridgeISCServiceImpl service = new BridgeISCServiceImpl();
@@ -110,6 +122,9 @@ public class BridgeISCServiceImplTest {
 		Assert.assertNull(imageBytes);
 	}
 
+	/**
+	 * 验证图片接口返回二进制载荷时可原样返回图片字节。
+	 */
 	@Test
 	public void imageSuccessHttpResponseWithBinaryPayloadReturnsImageBytes() {
 		BridgeISCServiceImpl service = new BridgeISCServiceImpl();
@@ -121,6 +136,9 @@ public class BridgeISCServiceImplTest {
 		Assert.assertTrue(Arrays.equals(responseBytes, imageBytes));
 	}
 
+	/**
+	 * 验证超出本地整型范围的ISC错误码仍能映射错误描述。
+	 */
 	@Test
 	public void failedDispatchResponseWithLargeOfficialCodeUsesDescriptionWithoutParsingFailure() {
 		BridgeISCServiceImpl service = new BridgeISCServiceImpl();
@@ -151,6 +169,9 @@ public class BridgeISCServiceImplTest {
 	private static class RecordingBridgeISCService extends BridgeISCServiceImpl {
 		private int subscribeRequestCount;
 
+		/**
+		 * 拦截订阅请求并返回成功响应，避免测试访问真实ISC。
+		 */
 		@Override
 		public ISCResponse post(EventEnum eventEnum, String data) {
 			if (EventEnum.ISC_EVENT_SUBSCRIBE.equals(eventEnum)) {
