@@ -335,8 +335,20 @@ export default {
         })
         .catch(aa => { console.error(aa) })
     },
+    /**
+     * 返回来源申请列表，并恢复进入详情前的查询条件和分页。
+     * 根据受限的货车来源标记选择列表路由；替换当前详情历史，避免浏览器后退再次进入详情页。
+     */
     goBack() {
-      this.$router.go(-1)
+      const isTruckRecord = this.$route.query.recordType === 'truck'
+      this.$router.replace({
+        path: isTruckRecord ? '/platform/visitor/incoming_record/truck' : '/platform/visitor/incoming_record',
+        query: {
+          queryPage: this.$route.query.queryPage,
+          queryForm: this.$route.query.queryForm,
+          ...(isTruckRecord ? { recordType: 'truck' } : {})
+        }
+      })
     }
   }
 }
