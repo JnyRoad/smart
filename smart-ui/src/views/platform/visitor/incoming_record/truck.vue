@@ -395,7 +395,8 @@ export default {
         path: src,
         query: {
           queryPage: this.page,
-          queryForm: this.searchForm
+          queryForm: this.searchForm,
+          recordType: 'truck'
         }
       })
     },
