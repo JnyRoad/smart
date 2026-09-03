@@ -23,6 +23,8 @@
 		left join SMT_SECURITYAREA_SUPPLIER ss on sp.SUPPLIER_ID=ss.ID
 		left join SMT_PARK park on ss.PARK_ID=park.ID
 		<where>
+			AND sp.DEL_FLAG = 0
+			AND ss.DEL_FLAG = 0
 			<if test="query.parkId != null">
 				AND ss.PARK_ID=#{query.parkId}
 			</if>
@@ -49,5 +51,25 @@
 		ORDER BY sp.CREATE_TIME desc
 	</select>
 
+	<!-- 使用单条关联查询，避免父供应商在两次读取之间被删除。 -->
+	<select id="getActiveSupplierPersonList" resultType="com.tce.smart.platform.core.entity.SmtSupplierPerson">
+		select sp.*
+		from SMT_SUPPLIER_PERSON sp
+		join SMT_SECURITYAREA_SUPPLIER ss on sp.SUPPLIER_ID=ss.ID
+		where sp.SUPPLIER_ID=#{supplierId}
+		and sp.DEL_FLAG = 0
+		and ss.DEL_FLAG = 0
+	</select>
+
+	<!-- 访客校验同时约束人员与所属供应商均有效。 -->
+	<select id="existsActiveSupplierPerson" resultType="java.lang.Integer">
+		select count(1)
+		from SMT_SUPPLIER_PERSON sp
+		join SMT_SECURITYAREA_SUPPLIER ss on sp.SUPPLIER_ID=ss.ID
+		where sp.SUPPLIER_ID=#{supplierId}
+		and sp.ID_CARD=#{idCard}
+		and sp.DEL_FLAG = 0
+		and ss.DEL_FLAG = 0
+	</select>
 
 </mapper>

@@ -2,6 +2,7 @@ package com.tce.smart.platform.core.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.activerecord.Model;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -32,6 +33,12 @@ public class SmtSecurityAreaSupplier extends Model<SmtSecurityAreaSupplier> {
 	 */
 	@TableId(value = "id", type = IdType.ID_WORKER)
 	private Long id;
+
+	/**
+	 * 逻辑删除标识：0 为有效，1 为已删除。
+	 */
+	@TableLogic(value = "0", delval = "1")
+	private Integer delFlag;
 
 	/**
      * 园区ID

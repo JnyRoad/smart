@@ -232,7 +232,7 @@ public class SmtSecurityAreaOrderServiceImpl extends ServiceImpl<SmtSecurityArea
 	}
 
 	/**
-	 * 获取保密区预约OA审批流程id
+	 * 获取保密区预约 OA 审批流程 ID，并确认供应商尚未被逻辑删除。
 	 */
 	private String getProcessId(SmtSecurityAreaOrder smtSecurityAreaOrder, SmtSecurityAreaOrderReqDTO smtSecurityAreaOrderReqDTO) {
 		String processId = "";
@@ -244,6 +244,9 @@ public class SmtSecurityAreaOrderServiceImpl extends ServiceImpl<SmtSecurityArea
 		SmtStaff smtStaff = smtStaffService.getOne(Wrappers.<SmtStaff>query().lambda().eq(SmtStaff::getBadge, smtSecurityAreaOrder.getStaffBadge()));
 		//获取供应商信息
 		SmtSecurityAreaSupplier smtSecurityAreaSupplier = smtSecurityAreaSupplierService.getById(smtSecurityAreaOrder.getSupplierId());
+		if (smtSecurityAreaSupplier == null) {
+			throw new TCEException("供应商记录不存在或已删除");
+		}
 
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
 

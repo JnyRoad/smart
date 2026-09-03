@@ -25,4 +25,12 @@ public interface SmtSecurityAreaSupplierMapper extends BaseMapper<SmtSecurityAre
 	List<SmtSecurityAreaSupplierDTO> getNotifyList(@Param("parkId")Integer parkId,@Param("days")Integer days);
 
 	List<SecuritySupplierDTO> getSupplierList(@Param("compName") String compName,@Param("parkId")Integer parkId,@Param("parks") List<Integer> parkIdList);
+
+	/**
+	 * 锁定有效供应商行，使人员新增与供应商删除串行执行。
+	 *
+	 * @param id 供应商标识
+	 * @return 已锁定的有效供应商；不存在或已删除时返回空
+	 */
+	SmtSecurityAreaSupplier selectActiveSupplierForUpdate(@Param("id") Long id);
 }

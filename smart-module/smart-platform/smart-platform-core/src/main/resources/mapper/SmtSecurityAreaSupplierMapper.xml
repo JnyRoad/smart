@@ -20,6 +20,7 @@
 		from SMT_SECURITYAREA_SUPPLIER ss
 		left join SMT_PARK park on ss.PARK_ID=park.ID
 		<where>
+			AND ss.DEL_FLAG = 0
 			<if test="query.parkId != null and  query.parkId !=''">
 				AND ss.PARK_ID=#{query.parkId}
 			</if>
@@ -51,6 +52,7 @@
 		select ID,PARK_ID,BEGIN_EFFECT_TIME,END_EFFECT_TIME,CARRY_ITEM from SMT_SECURITYAREA_SUPPLIER
 		WHERE PARK_ID=#{parkId}
 		AND NOTIFY_FLAG=0
+		AND DEL_FLAG = 0
 		and (END_EFFECT_TIME-BEGIN_EFFECT_TIME) &lt; #{days}
 		order by ID asc
 	</select>
@@ -66,6 +68,7 @@
 		JOIN SMT_PARK PARK
 		ON SUPPLIER.PARK_ID=PARK.ID
 		<where>
+			AND SUPPLIER.DEL_FLAG = 0
 			<if test="parkId !=null">
 				and SUPPLIER.PARK_ID=#{parkId}
 			</if>
@@ -80,5 +83,14 @@
 			</if>
 		</where>
 		order by SUPPLIER.CREATE_TIME desc
+	</select>
+
+	<!-- 锁定有效供应商行，避免新增人员与删除供应商并发穿透。 -->
+	<select id="selectActiveSupplierForUpdate" resultType="com.tce.smart.platform.core.entity.SmtSecurityAreaSupplier">
+		select *
+		from SMT_SECURITYAREA_SUPPLIER
+		where ID=#{id}
+		and DEL_FLAG = 0
+		for update
 	</select>
 </mapper>
