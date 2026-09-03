@@ -1009,43 +1009,47 @@ flowchart LR
 </section>
 
 <section class="item" id="item-3-3">
-  <div class="ih"><span class="ino">3.3</span><h3>保密供应商软删除</h3><span class="ibatch">批次 1</span></div>
+  <div class="ih"><span class="ino">3.3</span><h3>保密供应商软删除</h3><span class="ibatch">批次 1 · 已合入 main</span></div>
   <dl>
-    <dt>现状与问题</dt>
+    <dt>实施状态</dt>
+    <dd><strong>已合入 main</strong>：PR #176 已于 2026-09-03 合并（合并提交 <code>a85d2746d85c</code>）。批次 1 已覆盖实体逻辑删除、供应商相关手写查询过滤、供应商删除与人员写入的并发保护；根据本轮用户执行反馈，目标 Oracle 迁移脚本已完成执行。本 PR 仅记录该状态，未连接或执行目标 Oracle。PDA/扫码命中失效记录的提示明确留待后续实现；本轮未对已部署服务做真实 UI/API 端到端验收，因此不得标为“已上线”。</dd>
+    <dt>实施前现状与问题</dt>
     <dd>
-      <code>SmtSecurityAreaSupplierServiceImpl.delSecurityAreaSupplier</code>（297-304 行）唯一的前置校验是"该供应商名下是否还有在册人员"（<code>SmtSupplierPerson</code>，299-302 行，有则拒绝删除），通过后直接 <code>this.removeById(id)</code> 物理删除（303 行）。<code>SmtSecurityAreaSupplier</code>、<code>SmtSupplierPerson</code> 两个实体均无 <code>del_flag</code>/<code>isDelete</code> 字段，也无 <code>@TableLogic</code> 注解。仓内确实有 <code>@TableLogic</code> 用法先例，但需要注意：<code>SmtOrganizeRelation.java</code>（37-38 行）与 <code>SmtExternalDept.java</code>（49-50 行）的 <code>@TableLogic</code> 字段其实是被整段注释掉的，并未生效；真正生效可参照的先例是 <code>SmtWaterMeter.java</code>（106-107 行：<code>@TableLogic private Integer isDelete;</code>）。
+      改造前，<code>delSecurityAreaSupplier</code> 只检查供应商名下是否还有在册人员，通过后直接调用 <code>removeById</code>；两个实体都没有 <code>del_flag</code>/<code>@TableLogic</code>，手写 XML 查询也不会自动得到 MyBatis-Plus 的逻辑删除过滤。因此，物理删除会造成历史关系断裂，且只补实体字段仍可能让失效记录从自定义分页、人员查询或订单关联中重新出现。
     </dd>
     <dt>目标与验收标准</dt>
-    <dd>删除供应商记录后历史数据可追溯、不产生物理空洞；已逻辑删除的供应商在常规查询（列表、详情、下拉选择）中不再出现；PDA/扫码等场景命中已失效供应商关联记录时给出明确的"已过期/失效"提示。</dd>
+    <dd>批次 1 删除供应商记录后保留历史数据，不产生物理空洞；已逻辑删除的供应商及其人员在常规查询（列表、详情、下拉选择）中不再出现，订单主记录仍可读取但不展示失效供应商名称。PDA/扫码等场景命中已失效供应商关联记录时的“已过期/失效”提示不属于本批次，后续另行实现和验收。</dd>
     <dt>实现方式</dt>
     <dd>
-      数据库/实体：<code>SmtSecurityAreaSupplier</code>、<code>SmtSupplierPerson</code> 各加 <code>del_flag</code>（Integer，0 未删/1 已删）字段，实体加 <code>@TableLogic</code> 注解（写法参照 <code>SmtWaterMeter.java:106-107</code>），启用后 MyBatis-Plus 内置的 <code>removeById</code> 自动变为 <code>UPDATE del_flag=1</code>，<code>delSecurityAreaSupplierServiceImpl</code> 的调用代码无需改。删除入口的"有在册人员则拒绝删除"这条硬校验批次 1 保持不变（需求未明确是否允许级联软删）。查询层：MyBatis-Plus 逻辑删除只对内置方法（<code>selectById</code>/<code>selectList</code> 等）自动生效，凡是这两张表相关的手写 XML SQL 需要人工逐条核对补 <code>AND DEL_FLAG = 0</code>。
+      数据库/实体：<code>20260902_add_supplier_soft_delete.sql</code> 为 <code>SMT_SECURITYAREA_SUPPLIER</code>、<code>SMT_SUPPLIER_PERSON</code> 增加 <code>DEL_FLAG</code>（0 有效/1 已删除）、回填空值并加约束；对本次新增字段的校验使用动态 SQL，避免 Oracle 在匿名块编译期报 <code>ORA-00904</code>。两个实体均以 <code>@TableLogic(value = "0", delval = "1")</code> 启用逻辑删除，MyBatis-Plus 的 <code>removeById</code> 因而写入 <code>DEL_FLAG=1</code>。
+      <br/><br/>
+      服务/查询：<code>delSecurityAreaSupplier</code> 在事务内先锁定有效供应商，再检查有效人员，仍有关联人员时拒绝删除；人员新增、导入和修改都确认所属供应商仍有效。供应商分页、通知候选、下拉列表、人员分页与访客校验的手写 SQL 均显式过滤 <code>DEL_FLAG=0</code>；订单详情保留订单主记录，但左连接条件过滤已删除供应商，避免展示其名称。
     </dd>
     <dt>处理流程</dt>
     <dd>
       <ol>
         <li>管理员在保密供应商列表点删除</li>
         <li>后端校验该供应商名下是否还有在册人员，有则拒绝（沿用现状）</li>
-        <li>无在册人员则执行逻辑删除（<code>UPDATE del_flag=1</code>），由 MyBatis-Plus 自动生效</li>
-        <li>常规查询（分页/下拉/详情）自动过滤已软删记录</li>
-        <li>PDA/扫码命中该供应商关联的失效人员/记录时，判断 <code>del_flag=1</code> 返回"该记录已失效"提示</li>
+        <li>无在册人员则执行逻辑删除（<code>UPDATE DEL_FLAG=1</code>），由 MyBatis-Plus 自动生效</li>
+        <li>常规查询（分页/下拉/详情）通过内置逻辑删除或手写 SQL 的 <code>DEL_FLAG=0</code> 条件过滤失效记录</li>
+        <li>PDA/扫码的失效提示不在批次 1 范围内，后续单独接入和验收</li>
       </ol>
     </dd>
     <dt>改动清单</dt>
     <dd>
       <table>
         <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
-        <tr><td>数据库</td><td>SMT_SECURITYAREA_SUPPLIER、SMT_SUPPLIER_PERSON</td><td>各加 del_flag 字段（默认 0）</td></tr>
-        <tr><td>后端实体</td><td>SmtSecurityAreaSupplier.java、SmtSupplierPerson.java</td><td>加 del_flag 字段 + @TableLogic 注解</td></tr>
-        <tr><td>后端</td><td>SmtSecurityAreaSupplierServiceImpl.delSecurityAreaSupplier（297-304 行）</td><td>调用代码不变，removeById 语义由物理删自动变逻辑删</td></tr>
-        <tr><td>后端</td><td>供应商相关手写 XML（分页/详情等自定义查询）</td><td>逐个核对补 DEL_FLAG=0 过滤条件</td></tr>
-        <tr><td>前端/PDA</td><td>扫码校验分支</td><td>命中 del_flag=1 记录时提示"已过期/失效"</td></tr>
+        <tr><td>数据库</td><td>20260902_add_supplier_soft_delete.sql</td><td>两张表增加 <code>DEL_FLAG</code>、回填与 0/1 约束；新增字段校验改为动态 SQL</td></tr>
+        <tr><td>后端实体</td><td>SmtSecurityAreaSupplier.java、SmtSupplierPerson.java</td><td>增加 <code>delFlag</code> + <code>@TableLogic</code> 注解</td></tr>
+        <tr><td>后端</td><td>SmtSecurityAreaSupplierServiceImpl、SmtSupplierPersonServiceImpl</td><td>供应商删除锁定有效行并保留“有人员则拒绝”；人员读写同时约束人员与所属供应商有效</td></tr>
+        <tr><td>后端 Mapper</td><td>SmtSecurityAreaSupplierMapper.xml、SmtSupplierPersonMapper.xml、SmtSecurityAreaOrderMapper.xml</td><td>分页、通知、下拉、人员/访客读取显式过滤 <code>DEL_FLAG=0</code>；订单详情隐藏失效供应商展示字段</td></tr>
+        <tr><td>PDA/扫码</td><td>失效提示分支</td><td><strong>后续实现</strong>，本批次未改动</td></tr>
       </table>
     </dd>
     <dt>测试与验证</dt>
-    <dd>单测覆盖 <code>delSecurityAreaSupplier</code> 删除后 <code>getById</code>/<code>list</code> 均查不到该记录；专门核对现有手写 XML 查询是否会把已软删记录漏出来（这是最容易遗漏的点）；PDA/扫码集成测试模拟命中软删记录，验证提示文案符合预期。</dd>
+    <dd>在合并后的 <code>main</code> 基线执行定向 Maven 测试：<code>SmtSecurityAreaSupplierSoftDeleteMapperXmlTest</code> 7 项、<code>SupplierSoftDeleteServiceTest</code> 7 项，均为 0 failure / 0 error。测试覆盖两个实体的逻辑删除契约、供应商/人员自定义 SQL 过滤、订单详情隐藏失效供应商、删除与人员写入边界，以及迁移/回滚脚本对新增字段的动态 SQL 前置检查。PDA/扫码集成测试尚未执行，属于后续范围。</dd>
     <dt>依赖与风险</dt>
-    <dd>MyBatis-Plus 逻辑删除不会自动处理手写原生 SQL，遗漏某处 XML 未加 DEL_FLAG 过滤是本项最大风险点，需要对 <code>SmtSecurityAreaSupplierMapper.xml</code>、供应商人员相关 XML 及所有引用这两张表的查询做一次全文复核；升级为逻辑删除只管住未来的删除动作，不处理历史上已发生的物理删除数据。</dd>
+    <dd>MyBatis-Plus 不会自动处理手写原生 SQL；本次已对当前源码中直接引用两张表的 Mapper 做复核并有契约测试保护，后续新增手写查询仍必须显式处理 <code>DEL_FLAG</code>。逻辑删除只约束未来删除动作，不恢复历史物理删除数据。目标库执行状态来自本轮用户反馈；本 PR 未执行脚本、工作区也未直连目标 Oracle，字段/约束的实际库状态与已部署服务的真实 UI/API 验收仍需由发布环境确认。</dd>
   </dl>
 </section>
 

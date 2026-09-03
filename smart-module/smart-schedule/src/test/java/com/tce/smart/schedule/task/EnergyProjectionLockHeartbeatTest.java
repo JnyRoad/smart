@@ -13,6 +13,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class EnergyProjectionLockHeartbeatTest {
 
+	/**
+	 * 验证心跳会按固定间隔续租两把锁，并在任务收尾时停止后台调度。
+	 */
 	@Test
 	public void renewsBothOwnedLocksDuringLongRunningRemoteCallAndShutsDownHeartbeat() {
 		ISwitchService switchService = Mockito.mock(ISwitchService.class);
@@ -29,7 +32,8 @@ public class EnergyProjectionLockHeartbeatTest {
 		heartbeat.renewLocks();
 		heartbeat.close();
 
-		Mockito.verify(executorService).scheduleAtFixedRate(Mockito.any(Runnable.class), 60L, 60L, TimeUnit.SECONDS);
+		Mockito.verify(executorService).scheduleAtFixedRate(Mockito.any(Runnable.class), Mockito.eq(60L),
+				Mockito.eq(60L), Mockito.eq(TimeUnit.SECONDS));
 		Mockito.verify(switchService).renew(TimerTaskEnum.ENERGY_PROJECTION_DAILY, "daily-token", 90L, TimeUnit.MINUTES);
 		Mockito.verify(switchService).renew(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, "execution-token", 90L,
 				TimeUnit.MINUTES);
