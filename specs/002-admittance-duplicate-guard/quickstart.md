@@ -1,0 +1,33 @@
+# Quickstart: 入厂申请区域并发判重验证
+
+## Prerequisites
+
+1. 使用隔离的 Oracle 测试库，先由数据库负责人执行并复核 [data-model.md](data-model.md) 中的协调表定义；不要连接或写入生产库。
+2. 准备一个有效被访人，以及可重复使用的测试证件号、两个不相同的区域 ID（例如 `1` 与 `11`）和可控预约时间。
+3. 确认测试环境中不存在同证件号的有效重叠申请，或记录该基线。
+
+## Automated checks
+
+```bash
+cd smart-module
+mvn -pl smart-platform/smart-platform-core,smart-platform/smart-platform-biz -am test \
+  -Dtest=SmtAdmittanceApplyMapperXmlTest,SmtAdmittanceApplyServiceImplTest \
+  -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+## Functional checks
+
+1. 主申请人同证件号、同区域、时间重叠：第二份提交被拒绝。
+2. 已有随行人员与新申请主申请人/随行人员同证件号、同区域、时间重叠：新申请被拒绝。
+3. 同证件号、时间重叠、区域没有交集：两份申请均可提交。
+4. 区域 `1` 与 `11`：不得被视为同一区域。
+5. 已拒绝、已作废或仅在时间端点相接的申请：不阻止新申请。
+6. 对区域为空或格式异常的有效历史申请：同证件号、时间重叠的新申请被拒绝。
+
+## Concurrent submission check
+
+1. 使用两个独立数据库连接或两个独立 HTTP 客户端，在屏障放行后同时提交同一证件号、相同区域和重叠时间段的申请。
+2. 连续运行 20 轮；每轮应恰好一个成功、一个返回重复申请或“当前证件号申请处理中，请稍后重试”的业务结果。
+3. 每轮结束后仅查询测试数据，确认最终只有一张有效申请；清理由测试环境负责人按既有测试数据策略执行。
+
+若任一轮出现两个请求同时成功、无限等待、死锁或非业务错误，停止发布并保留请求时间线与数据库错误信息供诊断。

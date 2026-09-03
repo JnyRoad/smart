@@ -42,8 +42,34 @@ public interface SmtAdmittanceApplyMapper extends BaseMapper<SmtAdmittanceApply>
 
 	Boolean updateSmsCode(@Param("id") Long id);
 
-	int countActiveMainFellowOverlapByCertNo(@Param("certNo") String certNo,
+	/**
+	 * 按证件号、有效时间和申请区域统计未失效的重叠申请；所有随行人员均参与判重。
+	 *
+	 * @param certNo 需要校验的访客证件号，不能为空
+	 * @param startTime 待申请通行开始时间
+	 * @param endTime 待申请通行结束时间
+	 * @param areaTypes 待申请区域；为空时按未知区域与全部区域冲突处理
+	 * @return 重叠申请数量
+	 */
+	int countActiveFellowOverlapByCertNo(@Param("certNo") String certNo,
 			@Param("startTime") LocalDateTime startTime,
-			@Param("endTime") LocalDateTime endTime);
+			@Param("endTime") LocalDateTime endTime,
+			@Param("areaTypes") List<Integer> areaTypes);
+
+	/**
+	 * 对已存在的证件哈希锁行加 Oracle 行锁；无锁行时返回空，由调用方创建后重试。
+	 *
+	 * @param certNoHash 证件号的 SHA-256 哈希，不能记录明文证件号
+	 * @return 被锁定的证件哈希；不存在时返回空
+	 */
+	String lockAdmittanceCertByHash(@Param("certNoHash") String certNoHash);
+
+	/**
+	 * 创建证件哈希锁行，唯一键冲突由调用方重新获取行锁。
+	 *
+	 * @param certNoHash 证件号的 SHA-256 哈希，不能记录明文证件号
+	 * @return 新增锁行数量
+	 */
+	int insertAdmittanceCertLock(@Param("certNoHash") String certNoHash);
 
 }

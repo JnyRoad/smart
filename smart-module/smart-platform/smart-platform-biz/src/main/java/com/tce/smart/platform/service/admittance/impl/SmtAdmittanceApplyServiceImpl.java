@@ -64,6 +64,8 @@ import net.sf.json.JSONArray;
 import org.apache.poi.ss.formula.functions.T;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -75,6 +77,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -187,13 +192,16 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 
 
 	/**
-	 * 入厂申请去预约添加
+	 * 在同一事务内锁定全部访客证件、完成区域重复校验并保存入厂申请及 OA 流程。
 	 *
-	 * @throws ParseException
+	 * @param saveSmtVisitor 待保存的人员入厂申请；每位随行人员必须提供证件号
+	 * @return 已保存并写入 OA 流程 ID 的申请单
+	 * @throws SmartException 证件锁竞争、重复申请、被访人不存在或 OA 流程失败时抛出并回滚
 	 */
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public SmtAdmittanceApply saveAdmittanceApply(SaveAdmittanceApplyReqDTO saveSmtVisitor) {
+		lockAdmittanceCertificates(saveSmtVisitor);
 		visitorEqualCheck(saveSmtVisitor);
 		//添加申请信息
 		SmtAdmittanceApply apply = this.saveApply(saveSmtVisitor);
@@ -252,8 +260,16 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 		return apply;
 	}
 
+	/**
+	 * 校验提交或预检中的每位访客均未与有效申请在相同区域和时间重叠。
+	 *
+	 * @param saveSmtVisitor 入厂申请；每位随行人员必须提供证件号
+	 * @return 未命中重复申请时返回 true
+	 * @throws SmartException 被访人不存在、证件号缺失或存在重叠申请时抛出
+	 */
 	@Override
 	public Boolean visitorEqualCheck(SaveAdmittanceApplyReqDTO saveSmtVisitor) {
+		validateAdmittanceFellowCertificates(saveSmtVisitor);
 		SmtStaff staff = smtStaffService.getSimpleSttaffByBadge(saveSmtVisitor.getReceptionistBadge());
 		if (Objects.isNull(staff)) {
 			throw new SmartException("被访人不存在");
@@ -263,18 +279,95 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			if (StrUtil.isNotEmpty(staffCert) && staffCert.equals(fellow.getCertNo())) {
 				throw new SmartException("访客" + fellow.getFellowName() + "与被访人重复");
 			}
-			if (Integer.valueOf(1).equals(fellow.getIsMain())) {
-				if (StrUtil.isEmpty(fellow.getCertNo())) {
-					throw new SmartException("访客" + fellow.getFellowName() + "证件号码不能为空");
-				}
-				int count = baseMapper.countActiveMainFellowOverlapByCertNo(fellow.getCertNo(),
-						saveSmtVisitor.getStartTime(), saveSmtVisitor.getEndTime());
-				if (count > 0) {
-					throw new SmartException(fellow.getFellowName() + "此时间段[" + saveSmtVisitor.getStartTime() + "~" + saveSmtVisitor.getEndTime() + "]已有预约，不能重复申请");
-				}
+			int count = baseMapper.countActiveFellowOverlapByCertNo(fellow.getCertNo(),
+					saveSmtVisitor.getStartTime(), saveSmtVisitor.getEndTime(), saveSmtVisitor.getAreaType());
+			if (count > 0) {
+				throw new SmartException(fellow.getFellowName() + "此时间段[" + saveSmtVisitor.getStartTime() + "~" + saveSmtVisitor.getEndTime() + "]已有预约，不能重复申请");
 			}
 		});
 		return Boolean.TRUE;
+	}
+
+	/**
+	 * 在保存事务内按固定顺序锁定本次全部证件，串行化同证件的并发重复申请判定。
+	 *
+	 * @param saveSmtVisitor 待保存的入厂申请；随行人员证件号不能为空
+	 * @throws SmartException 锁等待超时或证件号缺失时抛出，事务将整体回滚
+	 */
+	private void lockAdmittanceCertificates(SaveAdmittanceApplyReqDTO saveSmtVisitor) {
+		validateAdmittanceFellowCertificates(saveSmtVisitor);
+		List<String> certificateNumbers = saveSmtVisitor.getFellowList().stream()
+				.map(AdmittanceFellowReqDTO::getCertNo)
+				.distinct()
+				.sorted()
+				.collect(Collectors.toList());
+		for (String certificateNumber : certificateNumbers) {
+			lockAdmittanceCertificate(certificateNumber);
+		}
+	}
+
+	/**
+	 * 获取指定证件的数据库行锁；首次使用时创建锁行，并处理并发创建的唯一键竞争。
+	 *
+	 * @param certificateNumber 已校验非空的访客证件号
+	 * @throws SmartException 其他事务在等待窗口内未释放锁时抛出
+	 */
+	private void lockAdmittanceCertificate(String certificateNumber) {
+		String certificateHash = hashAdmittanceCertificate(certificateNumber);
+		try {
+			String lockedCertificateHash = baseMapper.lockAdmittanceCertByHash(certificateHash);
+			if (StrUtil.isEmpty(lockedCertificateHash)) {
+				// 首建同一哈希时 Oracle 会等待先行事务结束；成功或唯一键冲突后均不会形成双成功。
+				baseMapper.insertAdmittanceCertLock(certificateHash);
+			}
+		} catch (DuplicateKeyException exception) {
+			// 并发首建时，唯一键失败的一方改为锁定已由另一事务创建的同一行。
+			try {
+				baseMapper.lockAdmittanceCertByHash(certificateHash);
+			} catch (PessimisticLockingFailureException retryException) {
+				throw new SmartException("当前证件号申请处理中，请稍后重试");
+			}
+		} catch (PessimisticLockingFailureException exception) {
+			throw new SmartException("当前证件号申请处理中，请稍后重试");
+		}
+	}
+
+	/**
+	 * 校验随行人员集合及其证件号，为预检与保存事务使用同一输入约束。
+	 *
+	 * @param saveSmtVisitor 入厂申请；随行人员必须至少有一人且每人都有证件号
+	 * @throws SmartException 随行人员为空或存在空证件号时抛出
+	 */
+	private void validateAdmittanceFellowCertificates(SaveAdmittanceApplyReqDTO saveSmtVisitor) {
+		if (CollUtil.isEmpty(saveSmtVisitor.getFellowList())) {
+			throw new SmartException("访客信息不能为空");
+		}
+		for (AdmittanceFellowReqDTO fellow : saveSmtVisitor.getFellowList()) {
+			if (StrUtil.isEmpty(fellow.getCertNo())) {
+				String fellowName = StrUtil.isEmpty(fellow.getFellowName()) ? "访客" : fellow.getFellowName();
+				throw new SmartException("访客" + fellowName + "证件号码不能为空");
+			}
+		}
+	}
+
+	/**
+	 * 计算用于锁表唯一键的 SHA-256 哈希，避免在锁表额外保存明文证件号。
+	 *
+	 * @param certificateNumber 已校验非空的访客证件号
+	 * @return 64 位小写十六进制 SHA-256 哈希
+	 */
+	private String hashAdmittanceCertificate(String certificateNumber) {
+		try {
+			byte[] digest = MessageDigest.getInstance("SHA-256")
+					.digest(certificateNumber.getBytes(StandardCharsets.UTF_8));
+			StringBuilder hash = new StringBuilder(digest.length * 2);
+			for (byte value : digest) {
+				hash.append(String.format("%02x", value & 0xff));
+			}
+			return hash.toString();
+		} catch (NoSuchAlgorithmException exception) {
+			throw new IllegalStateException("当前 Java 运行时不支持 SHA-256", exception);
+		}
 	}
 
 	@Override
