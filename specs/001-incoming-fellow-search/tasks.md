@@ -18,7 +18,7 @@
 
 - [X] T002 [US1] 在 `smart-module/smart-platform/smart-platform-core/src/test/java/com/tce/smart/platform/core/mapper/SmtAdmittanceApplyMapperXmlTest.java` 先增加姓名搜索的失败 Mapper 动态 SQL 契约测试
 - [X] T003 [US1] 在 `smart-module/smart-platform/smart-platform-core/src/main/resources/mapper/SmtAdmittanceApplyMapper.xml` 用姓名相关 `EXISTS` 替换随行人员外连接筛选
-- [X] T004 [P] [US1] 将 `smart-ui/src/views/platform/visitor/incoming_record/index.vue` 的姓名筛选标签改为“访客/随行姓名”
+- [X] T004 [P] [US1] 保持 `smart-ui/src/views/platform/visitor/incoming_record/index.vue` 的姓名、证件号筛选文案为“访客姓名”“访客证件号”，不改变既有参数
 
 ---
 
