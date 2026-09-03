@@ -20,6 +20,6 @@
 
 ## Decision 4: 将 Oracle 并发验证作为发布前门槛
 
-- **Decision**: 代码级验证覆盖锁协议调用与绑定 SQL；最终上线前必须在隔离 Oracle 测试库运行至少 20 轮双事务竞争。
+- **Decision**: 代码级验证覆盖锁协议调用与绑定 SQL；最终上线前必须在隔离 Oracle 测试库，或在明确授权且使用随机哈希、全程回滚的正式 Oracle 锁表中，运行至少 20 轮双事务竞争。
 - **Rationale**: Mock 不能证明 Oracle 唯一键竞争与 `FOR UPDATE` 等待语义；本地工作区没有可确认的测试 Oracle 状态。
 - **Alternatives considered**: 仅以单元测试宣布并发安全会超过其证据能力。

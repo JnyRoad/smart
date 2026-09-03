@@ -61,9 +61,9 @@
 - [X] T015 [US3] 在 `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/admittance/impl/SmtAdmittanceApplyServiceImpl.java` 实现满足 T014 的最小重试和异常转换，避免不同人员顺序导致死锁。
 - [X] T016 [US3] 在 `smart-module/smart-platform/smart-platform-core/src/test/java/com/tce/smart/platform/core/mapper/SmtAdmittanceApplyMapperXmlTest.java` 增加锁表创建与 `FOR UPDATE` 绑定 SQL 的契约测试，并在 `smart-module/smart-platform/smart-platform-core/src/main/resources/mapper/SmtAdmittanceApplyMapper.xml` 实现相应语句。
 - [X] T017 [US3] 运行核心与业务的定向 Maven 测试，验证锁协议的单元/契约覆盖均通过。
-- [ ] T018 [US3] 依据 `specs/002-admittance-duplicate-guard/quickstart.md` 在隔离 Oracle 测试库执行 20 轮双事务并发验收，并记录结果；该任务不执行生产 DDL/DML。
+- [X] T018 [US3] 已于 2026-09-02 经明确授权在正式 Oracle 目标业务 schema 完成锁表 20 轮双事务竞争验收：每轮使用随机 SHA-256 哈希，持锁连接不提交，竞争连接均在约 12.1 秒后收到 `SQLTimeoutException`（ORA-01013）；两连接均回滚并逐轮确认零残留。该任务未执行 DDL、未提交 DML、未写入申请业务表。
 
-**Checkpoint**: T018 通过前不得宣称 Oracle 层并发保证已完成验证。
+**Checkpoint**: 锁表的 Oracle 并发语义已由 T018 验证；已部署服务的双 HTTP 提交和业务落库仍须另行端到端验收，不得混同。
 
 ---
 
@@ -72,7 +72,7 @@
 **Purpose**: 将实际设计与验证边界同步回蓝图，完成全链路检查。
 
 - [X] T019 在 `docs/yuhui-prototype/yuhui-blueprint.html` 更新 2.7：以区域 ID 精确交集替换子串匹配、声明全人员校验与证件号锁协议、注明区域未知保守策略和 Oracle 并发验收前置。
-- [X] T020 已于 2026-09-02 从 `smart-module` 运行 `quickstart.md` 的 Maven 命令：核心模块 Mapper 5 项；业务模块共 74 项（目标服务 65 项、同名历史服务 9 项）；两个目标模块合计 79 项，均为 0 failures / 0 errors。Oracle 验收因当前工作区没有隔离 Oracle 测试库而未执行，现场步骤保留在 `quickstart.md`。
+- [X] T020 已于 2026-09-02 从 `smart-module` 运行 `quickstart.md` 的 Maven 命令：核心模块 Mapper 5 项；业务模块共 74 项（目标服务 65 项、同名历史服务 9 项）；两个目标模块合计 79 项，均为 0 failures / 0 errors。正式 Oracle 锁表 20 轮并发验收也已完成并记录在 `quickstart.md`；业务接口端到端验收未执行。
 - [X] T021 运行 `git diff --check`，执行规格、方案、任务与实际改动的一致性复核，确保未写入 DDL/DML、密钥或无关文件。
 
 ## Dependencies & Execution Order
@@ -87,5 +87,5 @@
 
 1. 先用 Mapper/服务测试锁定原始失败行为，再实现区域精确交集与全人员判重。
 2. 仅在正式保存事务使用证件号锁；保留提交前检查的即时提示语义。
-3. 单元与 SQL 契约测试通过后，才在隔离 Oracle 环境做并发竞争验收。
-4. Oracle 验收未执行或失败时，交付必须明确标为“代码已验证、数据库并发语义未完成验收”。
+3. 单元与 SQL 契约测试通过后，才在隔离 Oracle 环境或经明确授权的正式 Oracle 锁表做并发竞争验收。
+4. Oracle 锁表验收未执行或失败时，交付必须明确标为“代码已验证、数据库并发语义未完成验收”；锁表验收不替代已部署服务的业务端到端验收。
