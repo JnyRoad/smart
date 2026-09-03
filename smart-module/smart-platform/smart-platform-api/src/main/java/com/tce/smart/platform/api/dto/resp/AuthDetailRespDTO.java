@@ -26,6 +26,12 @@ public class AuthDetailRespDTO extends BaseDTO {
 	@ApiModelProperty(value = "创建时间")
 	private LocalDateTime createTime;
 
+	@ApiModelProperty(value = "权限生效时间")
+	private LocalDateTime startTime;
+
+	@ApiModelProperty(value = "权限失效时间")
+	private LocalDateTime endTime;
+
 	@ApiModelProperty(value = "员工状态")
 	private Integer staffStatus;
 }

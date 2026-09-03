@@ -12,6 +12,8 @@ import com.tce.smart.platform.api.dto.resp.AreaTypeSwitchRespDTO;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthority;
 import com.tce.smart.platform.core.entity.SmtDeviceAuthorityRelation;
+import com.tce.smart.platform.core.entity.SmtDevice;
+import com.tce.smart.platform.core.entity.SmtDeviceTask;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.entity.SmtStaffDeviceAuth;
 import com.tce.smart.platform.core.entity.SmtVehicleApply;
@@ -29,6 +31,7 @@ import com.tce.smart.platform.service.SmtStaffDeviceAuthService;
 import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.platform.service.SmtVehicleApplyService;
 import com.tce.smart.tool.enums.DeviceAuthTypeEnum;
+import com.tce.smart.platform.core.enums.StaffSyncEnum;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -37,6 +40,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -724,6 +729,82 @@ public class SmtDeviceAuthorityServiceImplTest {
 		long distinctStaffCount = ((Collection<SmtStaffDeviceAuth>) savedAuthCaptor.getValue()).stream()
 				.map(SmtStaffDeviceAuth::getStaffId).distinct().count();
 		Assert.assertEquals(1000, distinctStaffCount);
+	}
+
+	/**
+	 * 权限组批量下发的自定义窗口应同时写入非 ISC 任务与人员关联记录。
+	 */
+	@Test
+	public void deviceAuthRelationAddSavesCustomValidityWindow() {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtDeviceTaskService deviceTaskService = Mockito.mock(SmtDeviceTaskService.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtDeviceAuthorityServiceImpl service = new SmtDeviceAuthorityServiceImpl(
+				Mockito.mock(SmtDeviceService.class), authorityMapper, relationService,
+				Mockito.mock(SmtBusinessDeviceAuthService.class), staffAuthService, deviceMapper,
+				deviceTaskService, Mockito.mock(SmtIscDeviceTaskService.class),
+				Mockito.mock(SmtVehicleApplyService.class), staffService, Mockito.mock(SmtVehicleMapper.class),
+				Mockito.mock(SmtIscDeviceTaskServiceImpl.class), Mockito.mock(SmtBatchDeviceTaskService.class));
+
+		SmtStaff staff = new SmtStaff();
+		staff.setId(1001L);
+		staff.setBadge("B1001");
+		staff.setName("张三");
+		staff.setFacePicId("face-1");
+		SmtDevice device = new SmtDevice();
+		device.setId("device-1");
+		device.setIsSync(StaffSyncEnum.NO.getCode());
+		Mockito.when(staffAuthService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.when(relationService.list(Mockito.any())).thenReturn(Collections.singletonList(relation(100, "device-1")));
+		Mockito.when(staffService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
+		Mockito.when(deviceMapper.selectById("device-1")).thenReturn(device);
+
+		DeviceAuthRelationAddReqDTO reqDTO = new DeviceAuthRelationAddReqDTO();
+		reqDTO.setAuthId(100);
+		reqDTO.setType(DeviceAuthTypeEnum.PERSON.getCode());
+		reqDTO.setBadges(Collections.singletonList("B1001"));
+		reqDTO.setStartTime("2026-09-03");
+		reqDTO.setEndTime("2026-09-05");
+
+		service.deviceAuthRelationAdd(reqDTO);
+
+		ArgumentCaptor<Collection<SmtDeviceTask>> taskCaptor = ArgumentCaptor.forClass(Collection.class);
+		Mockito.verify(deviceTaskService).saveBatch(taskCaptor.capture());
+		SmtDeviceTask task = taskCaptor.getValue().iterator().next();
+		Assert.assertEquals(Long.valueOf(LocalDate.of(2026, 9, 3).atStartOfDay(ZoneId.systemDefault()).toEpochSecond()), task.getStartTime());
+		Assert.assertEquals(Long.valueOf(LocalDate.of(2026, 9, 6).atStartOfDay(ZoneId.systemDefault()).toEpochSecond() - 1), task.getOverTime());
+		ArgumentCaptor<Collection<SmtStaffDeviceAuth>> relationCaptor = ArgumentCaptor.forClass(Collection.class);
+		Mockito.verify(staffAuthService).saveBatch(relationCaptor.capture());
+		SmtStaffDeviceAuth staffAuth = relationCaptor.getValue().iterator().next();
+		Assert.assertEquals(LocalDate.of(2026, 9, 3), staffAuth.getStartTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
+		Assert.assertEquals(LocalDate.of(2026, 9, 5), staffAuth.getEndTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
+	}
+
+	/**
+	 * 权限组日期倒置时必须在员工、设备和关联查询前失败，确保事务内零写入。
+	 */
+	@Test
+	public void deviceAuthRelationAddRejectsInvertedValidityWindowBeforeWrites() {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceAuthorityServiceImpl service = newService(authorityMapper, relationService, staffAuthService);
+		DeviceAuthRelationAddReqDTO reqDTO = new DeviceAuthRelationAddReqDTO();
+		reqDTO.setAuthId(100);
+		reqDTO.setType(DeviceAuthTypeEnum.PERSON.getCode());
+		reqDTO.setBadges(Collections.singletonList("B1001"));
+		reqDTO.setStartTime("2026-09-05");
+		reqDTO.setEndTime("2026-09-03");
+
+		try {
+			service.deviceAuthRelationAdd(reqDTO);
+			Assert.fail("倒置有效期不应进入批量授权流程");
+		} catch (RuntimeException expected) {
+			Mockito.verifyZeroInteractions(staffAuthService, relationService);
+		}
 	}
 
 	/** 构造 [from, to] 区间的在职、有人脸图片的员工（id=i，工号 B+i） */

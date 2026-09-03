@@ -533,14 +533,14 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 
 	@Override
 	public void updateStaffAuthNew(SmtStaff staff, List<Integer> oldAuthIds, List<Integer> newAuthIds,
-								   Integer serviceType, String taskRecordNum, Integer type) {
+								   Integer serviceType, String taskRecordNum, Integer type, Long startTime, Long overTime) {
 		if (StringUtils.isEmpty(staff.getFacePicId())) {
 			//员工没有人脸 不生成下发任务
 			return;
 		}
 		String general = staff.getBadge() + SymbolConstants.MINUS + staff.getName();
 		updateDeviceAuthNew(newAuthIds, oldAuthIds, staff.getId().toString(), serviceType,
-				DeviceTaskConstants.CARD, false, staff.getFacePicId(), taskRecordNum, general, type);
+				DeviceTaskConstants.CARD, false, staff.getFacePicId(), taskRecordNum, general, type, startTime, overTime);
 	}
 
 	@Override
@@ -612,7 +612,7 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 	@Transactional(rollbackFor = Exception.class)
 	public void updateDeviceAuthNew(List<Integer> newAuthIds, List<Integer> oldAuthIds, String cardNo,
 									Integer serviceType, Integer deviceType, Boolean isDelay, String imageId,
-									String taskRecordNum, String general, Integer type) {
+									String taskRecordNum, String general, Integer type, Long startTime, Long overTime) {
 		List<String> oldDev = new ArrayList<>();
 
 		// 1.查询旧权限关联的设备
@@ -658,6 +658,10 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 
 			oldDev.removeAll(tempList);
 			newDev.removeAll(tempList);
+			// 覆盖权限虽保留同设备的授权关系，但日期窗口可能已变化，必须重新下发以刷新设备端有效期。
+			if (Integer.valueOf(2).equals(type) && CollUtil.isNotEmpty(tempList)) {
+				newDev.addAll(tempList);
+			}
 			if (CollUtil.isNotEmpty(temp2List)) {
 				newDev.addAll(temp2List);
 			}
@@ -677,7 +681,8 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 			downAction = DeviceTaskActionEnum.DELAY_DOWN;
 		}
 
-		addDeviceTask(newDev, cardNo, general, serviceType, downAction.getCode(), SmtVisitorEnum.CAR_CARD_TYPE_1, deviceType, imageId, taskRecordNum);
+		addDeviceTaskWithValidity(newDev, cardNo, general, serviceType, downAction.getCode(),
+				SmtVisitorEnum.CAR_CARD_TYPE_1, deviceType, imageId, taskRecordNum, startTime, overTime);
 		if (CollUtil.isEmpty(newDev)) {
 			String[] idsArray = StringUtils.split(general, SymbolConstants.MINUS);
 			SmtDeviceTaskDetail deviceTaskDetail = SmtDeviceTaskDetail.builder()
@@ -739,6 +744,16 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 	@Override
 	public void addDeviceTask(List<String> devList, String cardNo, String general, Integer serviceType, Integer action,
 							  SmtVisitorEnum smtVisitorEnum, Integer deviceType, String imageId, String taskRecordNum) {
+		addDeviceTaskWithValidity(devList, cardNo, general, serviceType, action, smtVisitorEnum, deviceType,
+				imageId, taskRecordNum, DateUtil.currentSeconds(), DeviceTaskConstants.maxTime);
+	}
+
+	/**
+	 * 为手动权限下发创建指定有效期的设备任务。
+	 */
+	private void addDeviceTaskWithValidity(List<String> devList, String cardNo, String general, Integer serviceType,
+									 Integer action, SmtVisitorEnum smtVisitorEnum, Integer deviceType, String imageId,
+									 String taskRecordNum, Long startTime, Long overTime) {
 		for (String devCode : devList) {
 			DeviceTaskVO deviceTaskVO = new DeviceTaskVO();
 			deviceTaskVO.setAction(action);
@@ -750,8 +765,8 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 			deviceTaskVO.setDeviceType(deviceType);
 			deviceTaskVO.setImageId(imageId);
 			deviceTaskVO.setStatus(DeviceTaskStatusEnum.INIT.getCode());
-			deviceTaskVO.setOverTime(DeviceTaskConstants.maxTime);
-			deviceTaskVO.setStartTime(DateUtil.currentSeconds());
+			deviceTaskVO.setOverTime(overTime);
+			deviceTaskVO.setStartTime(startTime);
 			String taskId = saveTask(deviceTaskVO);
 			if (StringUtils.isNotEmpty(taskRecordNum)) {
 				String[] idsArray = StringUtils.split(general, SymbolConstants.MINUS);

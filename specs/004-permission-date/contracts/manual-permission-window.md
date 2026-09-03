@@ -1,0 +1,36 @@
+# 人工权限下发有效期契约
+
+## 员工信息入口
+
+`POST /platform/staff/device/auth/updateAuth/{type}`
+
+```json
+{
+  "ids": ["1001"],
+  "deviceAuthIds": [2001],
+  "startTime": "2026-09-03",
+  "endTime": "2030-12-31"
+}
+```
+
+- `type=1` 为追加，`type=2` 为覆盖；`type=3` 的重新下发不属于本期新增日期交互。
+- 日期可省略，服务端必须采用默认区间。
+- 截止早于开始必须返回业务校验失败，且没有关系或任务写入。
+
+## 权限组人员入口
+
+`POST /platform/device/authority/relation/add`
+
+```json
+{
+  "authId": 2001,
+  "type": 1,
+  "badges": ["1001", "1002"],
+  "startTime": "2026-09-03",
+  "endTime": "2030-12-31"
+}
+```
+
+- 该契约供通行权限、门禁通关权限、考勤通关权限的人员批量粘贴入口共用。
+- 既有 `badges` 最大 1000 项限制不变。
+- 下发任务中的秒级时间值必须对应归一化后的整日时间窗口。

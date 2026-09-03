@@ -28,6 +28,7 @@ import com.tce.smart.platform.core.dto.UpdateDeviceAuthDTO;
 import com.tce.smart.platform.core.entity.*;
 import com.tce.smart.platform.core.mapper.SmtStaffDeviceAuthMapper;
 import com.tce.smart.platform.core.service.*;
+import com.tce.smart.platform.core.util.PermissionValidityWindow;
 import com.tce.smart.platform.service.SmtDeviceAuthorityRelationService;
 import com.tce.smart.platform.service.SmtParkBuService;
 import com.tce.smart.platform.service.SmtStaffDeviceAuthService;
@@ -188,9 +189,11 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 		return tasks;*/
 	}
 
-    @Transactional
+	@Transactional
 	@Override
 	public String updateAuthNew(Integer type, UpdateDeviceAuthDTO auth) {
+		// 在任何关联或任务写入前校验日期，非法请求必须零写入。
+		PermissionValidityWindow validityWindow = PermissionValidityWindow.resolve(auth.getStartTime(), auth.getEndTime());
 		List<String> staffIds = auth.getIds();
 		String taskRecordNum = UUID.randomUUID().toString();
 		for (String staffId : staffIds) {
@@ -235,6 +238,8 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 					staffDeviceAuth.setStaffId(Long.parseLong(staffId));
 					staffDeviceAuth.setAuthId(newAuthId);
 					staffDeviceAuth.setCreateTime(new Date());
+					staffDeviceAuth.setStartTime(validityWindow.getStartDateTime());
+					staffDeviceAuth.setEndTime(validityWindow.getEndDateTime());
 					deviceAuthList.add(staffDeviceAuth);
 					newAuthIds.add(newAuthId);
 				}
@@ -247,7 +252,8 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 			if (!staff.getStatus().equals(StaffStatusEnum.STAFF_STATUS_QUIT.getCode())) {
 				smtIscDeviceTaskService.cancelSupersededStaffAuthTasks(staffId);
 				smtDeviceTaskService.updateStaffAuthNew(staff, oldAuthIds, newAuthIds,
-						DeviceTaskConstants.CARD_STAFF_IMPORT, taskRecordNum, type);
+						DeviceTaskConstants.CARD_STAFF_IMPORT, taskRecordNum, type,
+						validityWindow.getStartTime(), validityWindow.getOverTime());
 			} else {
 				SmtDeviceTaskDetail deviceTaskDetail = SmtDeviceTaskDetail.builder()
 						.action(DeviceTaskActionEnum.DOWN.getCode())

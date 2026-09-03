@@ -36,6 +36,7 @@ import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
 import com.tce.smart.platform.core.service.impl.SmtIscDeviceTaskServiceImpl;
 import com.tce.smart.platform.core.service.SmtBatchDeviceTaskService;
 import com.tce.smart.platform.core.util.DeviceAuthorityChangesCalculator;
+import com.tce.smart.platform.core.util.PermissionValidityWindow;
 import com.tce.smart.platform.core.vo.DeviceAuthorityVO;
 import com.tce.smart.platform.service.*;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
@@ -811,6 +812,8 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public List<String> deviceAuthRelationAdd(DeviceAuthRelationAddReqDTO reqDTO) {
+		// 在查询或写入前统一校验有效期，批量入口与员工入口保持相同语义。
+		PermissionValidityWindow validityWindow = PermissionValidityWindow.resolve(reqDTO.getStartTime(), reqDTO.getEndTime());
 		List<SmtStaffDeviceAuth> existAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getAuthId, reqDTO.getAuthId()));
 		List<Long> existList = existAuthList.stream().map(SmtStaffDeviceAuth::getStaffId).collect(Collectors.toList());
 
@@ -868,8 +871,8 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 						smtDeviceTask.setDeviceType(DeviceTaskConstants.CARD);
 						smtDeviceTask.setImageId(staff.getFacePicId());
 						smtDeviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
-						smtDeviceTask.setOverTime(DeviceTaskConstants.maxTime);
-						smtDeviceTask.setStartTime(DateUtil.currentSeconds());
+						smtDeviceTask.setOverTime(validityWindow.getOverTime());
+						smtDeviceTask.setStartTime(validityWindow.getStartTime());
 						smtDeviceTask.setCreateTime(LocalDateTime.now());
 
 						deviceTaskList.add(smtDeviceTask);
@@ -883,8 +886,8 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 						smtIscDeviceTask.setDeviceType(DeviceTaskConstants.CARD);
 						smtIscDeviceTask.setImageId(staff.getFacePicId());
 						smtIscDeviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
-						smtIscDeviceTask.setOverTime(DeviceTaskConstants.maxTime);
-						smtIscDeviceTask.setStartTime(DateUtil.currentSeconds());
+						smtIscDeviceTask.setOverTime(validityWindow.getOverTime());
+						smtIscDeviceTask.setStartTime(validityWindow.getStartTime());
 						smtIscDeviceTask.setCreateTime(LocalDateTime.now());
 
 						if (DeviceTaskConstants.CARD_VISITOR.equals(smtIscDeviceTask.getServiceType())) {
@@ -906,6 +909,8 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 				staffDeviceAuth.setStaffId(staff.getId());
 				staffDeviceAuth.setAuthId(reqDTO.getAuthId());
 				staffDeviceAuth.setCreateTime(new Date());
+				staffDeviceAuth.setStartTime(validityWindow.getStartDateTime());
+				staffDeviceAuth.setEndTime(validityWindow.getEndDateTime());
 				// smtStaffDeviceAuthService.save(staffDeviceAuth);
 				smtStaffDeviceAuthList.add(staffDeviceAuth);
 			}else{

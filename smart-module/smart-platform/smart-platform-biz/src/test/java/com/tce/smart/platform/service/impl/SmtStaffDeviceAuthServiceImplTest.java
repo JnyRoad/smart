@@ -28,6 +28,8 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -95,7 +97,66 @@ public class SmtStaffDeviceAuthServiceImplTest {
 				Mockito.eq(Collections.singletonList(2001)),
 				Mockito.anyInt(),
 				Mockito.anyString(),
-				Mockito.eq(3));
+				Mockito.eq(3),
+				Mockito.anyLong(),
+				Mockito.anyLong());
+	}
+
+	/**
+	 * 员工窗口提交的日期必须同时写入关联记录和设备任务，任务不以延迟删除方式失效。
+	 */
+	@Test
+	public void updateAuthNewSavesAndPropagatesCustomValidityWindow() {
+		SmtDeviceTaskService deviceTaskService = Mockito.mock(SmtDeviceTaskService.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtStaffDeviceAuthServiceImpl service = newSpyService(deviceTaskService, staffService);
+		Mockito.doReturn(Collections.emptyList()).when(service).list(Mockito.any());
+		Mockito.doReturn(true).when(service).saveBatch(Mockito.anyCollection());
+
+		SmtStaff staff = buildStaff(1001L, StaffStatusEnum.STAFF_STATUS_IN.getCode());
+		Mockito.when(staffService.getById(1001L)).thenReturn(staff);
+
+		UpdateDeviceAuthDTO auth = new UpdateDeviceAuthDTO();
+		auth.setIds(Collections.singletonList("1001"));
+		auth.setDeviceAuthIds(Collections.singletonList(2001));
+		auth.setStartTime("2026-09-03");
+		auth.setEndTime("2026-09-05");
+
+		service.updateAuthNew(1, auth);
+
+		ArgumentCaptor<Collection<SmtStaffDeviceAuth>> relationCaptor = ArgumentCaptor.forClass(Collection.class);
+		Mockito.verify(service).saveBatch(relationCaptor.capture());
+		SmtStaffDeviceAuth relation = relationCaptor.getValue().iterator().next();
+		Assert.assertEquals(LocalDate.of(2026, 9, 3), relation.getStartTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
+		Assert.assertEquals(LocalDate.of(2026, 9, 5), relation.getEndTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
+		Mockito.verify(deviceTaskService).updateStaffAuthNew(
+				Mockito.eq(staff), Mockito.eq(Collections.emptyList()), Mockito.eq(Collections.singletonList(2001)),
+				Mockito.eq(DeviceTaskConstants.CARD_STAFF_IMPORT), Mockito.anyString(), Mockito.eq(1),
+				Mockito.eq(LocalDate.of(2026, 9, 3).atStartOfDay(ZoneId.systemDefault()).toEpochSecond()),
+				Mockito.eq(LocalDate.of(2026, 9, 6).atStartOfDay(ZoneId.systemDefault()).toEpochSecond() - 1));
+	}
+
+	/**
+	 * 倒置有效期必须在员工关联和设备任务写入前失败。
+	 */
+	@Test
+	public void updateAuthNewRejectsInvertedValidityWindowBeforeWrites() {
+		SmtDeviceTaskService deviceTaskService = Mockito.mock(SmtDeviceTaskService.class);
+		SmtStaffDeviceAuthServiceImpl service = newSpyService(deviceTaskService, Mockito.mock(SmtStaffService.class));
+		UpdateDeviceAuthDTO auth = new UpdateDeviceAuthDTO();
+		auth.setIds(Collections.singletonList("1001"));
+		auth.setDeviceAuthIds(Collections.singletonList(2001));
+		auth.setStartTime("2026-09-05");
+		auth.setEndTime("2026-09-03");
+
+		try {
+			service.updateAuthNew(1, auth);
+			Assert.fail("倒置有效期不应进入授权写入流程");
+		} catch (RuntimeException expected) {
+			Mockito.verify(service, Mockito.never()).list(Mockito.any());
+			Mockito.verify(service, Mockito.never()).saveBatch(Mockito.anyCollection());
+			Mockito.verifyZeroInteractions(deviceTaskService);
+		}
 	}
 
 	@Test
