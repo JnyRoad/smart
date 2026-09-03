@@ -12,6 +12,7 @@
 #   --require-tasks     Require tasks.md to exist (for implementation phase)
 #   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
 #   --paths-only        Only output path variables (no validation)
+#   --no-persist        Resolve feature paths without writing feature.json
 #   --template NAME     Include composed template content in JSON output
 #   --help, -h          Show help message
 #
@@ -27,6 +28,7 @@ JSON_MODE=false
 REQUIRE_TASKS=false
 INCLUDE_TASKS=false
 PATHS_ONLY=false
+NO_PERSIST=false
 TEMPLATE_NAME=""
 
 while [[ $# -gt 0 ]]; do
@@ -42,6 +44,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --paths-only)
             PATHS_ONLY=true
+            ;;
+        --no-persist)
+            NO_PERSIST=true
             ;;
         --template)
             shift
@@ -62,6 +67,7 @@ OPTIONS:
   --require-tasks     Require tasks.md to exist (for implementation phase)
   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
   --paths-only        Only output path variables (no prerequisite validation)
+  --no-persist        Resolve feature paths without writing feature.json
   --template NAME     Include composed template content in JSON output
   --help, -h          Show this help message
 
@@ -97,9 +103,8 @@ SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 # Get feature paths.
-# In --paths-only mode this is pure resolution, so pass --no-persist to opt out
-# of the feature.json write side effect (issue #3025).
-if $PATHS_ONLY; then
+# 路径查询和显式只读调用都不得更新 feature.json，避免分析/收敛工作流产生隐藏写入。
+if $PATHS_ONLY || $NO_PERSIST; then
     _paths_output=$(get_feature_paths --no-persist) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }
 else
     _paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }

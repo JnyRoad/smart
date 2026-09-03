@@ -6,18 +6,17 @@ SCRIPT_DIR="$(CDPATH="" cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(CDPATH="" cd -- "$SCRIPT_DIR/../.." && pwd)"
 INTEGRATION_FILE="$REPO_ROOT/.specify/integration.json"
 MANIFEST_FILE="$SCRIPT_DIR/generic.manifest.json"
+COMMAND_PATHS="$(mktemp)"
+
+# 先收集并校验清单路径，避免进程替换中的 Python 失败被 while 循环吞掉。
+cleanup() {
+    rm -f "$COMMAND_PATHS"
+}
+
+trap cleanup EXIT
 
 # 验证默认 generic 集成引用的命令文件均在仓库中受 Git 跟踪，确保干净检出可直接调用。
-while IFS= read -r command_path; do
-    if ! git -C "$REPO_ROOT" ls-files --error-unmatch "$command_path" >/dev/null 2>&1; then
-        echo "FAIL: generic 命令未受 Git 跟踪: $command_path" >&2
-        exit 1
-    fi
-    if [[ ! -f "$REPO_ROOT/$command_path" ]]; then
-        echo "FAIL: generic 命令文件不存在: $command_path" >&2
-        exit 1
-    fi
-done < <(python3 - "$INTEGRATION_FILE" "$MANIFEST_FILE" "$REPO_ROOT" <<'PY'
+if ! python3 - "$INTEGRATION_FILE" "$MANIFEST_FILE" "$REPO_ROOT" >"$COMMAND_PATHS" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -39,6 +38,20 @@ for command_path, expected_hash in manifest["files"].items():
         raise SystemExit(f"FAIL: 清单命令文件摘要不匹配: {command_path}")
     print(command_path)
 PY
-)
+then
+    echo "FAIL: generic 命令清单无效" >&2
+    exit 1
+fi
+
+while IFS= read -r command_path; do
+    if ! git -C "$REPO_ROOT" ls-files --error-unmatch "$command_path" >/dev/null 2>&1; then
+        echo "FAIL: generic 命令未受 Git 跟踪: $command_path" >&2
+        exit 1
+    fi
+    if [[ ! -f "$REPO_ROOT/$command_path" ]]; then
+        echo "FAIL: generic 命令文件不存在: $command_path" >&2
+        exit 1
+    fi
+done < "$COMMAND_PATHS"
 
 echo "PASS: generic 集成命令可在干净检出中获取"

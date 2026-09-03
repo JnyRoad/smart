@@ -4,18 +4,30 @@ set -euo pipefail
 
 WORKFLOW_FILE="${WORKFLOW_FILE:-$(CDPATH="" cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/workflow.yml}"
 
-# 验证工作流输入与当前四个命令实际支持的 spec、integration 契约完全一致。
-python3 - "$WORKFLOW_FILE" <<'PY'
+# 此契约测试只读取顶层 inputs 映射，使用 Python 标准库并禁用 site-packages，避免把 PyYAML
+# 作为干净环境的隐式前置依赖。
+python3 -S - "$WORKFLOW_FILE" <<'PY'
 import pathlib
+import re
 import sys
 
-import yaml
-
 workflow_path = pathlib.Path(sys.argv[1])
-workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8")) or {}
-inputs = workflow.get("inputs") or {}
+lines = workflow_path.read_text(encoding="utf-8").splitlines()
+try:
+    inputs_start = next(index for index, line in enumerate(lines) if line == "inputs:")
+except StopIteration:
+    raise SystemExit("FAIL: workflow is missing the top-level inputs mapping")
+
+inputs = set()
+for line in lines[inputs_start + 1:]:
+    if line and not line.startswith((" ", "\t")):
+        break
+    match = re.fullmatch(r"  ([A-Za-z][A-Za-z0-9_-]*):", line)
+    if match:
+        inputs.add(match.group(1))
+
 supported = {"spec", "integration"}
-declared = set(inputs)
+declared = inputs
 
 if declared != supported:
     raise SystemExit(
