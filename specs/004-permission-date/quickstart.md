@@ -22,7 +22,7 @@
 
 ## 本轮自动化结果
 
-- Maven：`PermissionValidityWindowTest`、`SmtDeviceTaskServiceImplTest` 共 14 项通过；`SmtStaffDeviceAuthServiceImplTest`、`SmtDeviceAuthorityServiceImplTest` 共 23 项通过。
-- Vitest：全量 79 个测试文件、399 项测试通过。
+- Maven：`PermissionValidityWindowTest`、`SmtDeviceTaskServiceImplTest` 共 18 项通过；`SmtStaffDeviceAuthServiceImplTest`、`SmtDeviceAuthorityServiceImplTest` 共 25 项通过。
+- Vitest：全量 79 个测试文件、402 项测试通过。
 - 管理端生产构建：在只对本次命令设置临时 `VUE_APP_PLATFORM_URL`、`VUE_APP_BASE_URL` 的前提下通过；未创建或修改 `.env`。
 - `pnpm lint` 无 error；仓库已有大量历史 warning，本次未将其作为通过门槛。

@@ -8,12 +8,14 @@ import com.tce.smart.platform.core.dto.*;
 import com.tce.smart.platform.core.entity.SmtDeviceTask;
 import com.tce.smart.platform.core.entity.SmtStaff;
 import com.tce.smart.platform.core.entity.SmtVehicle;
+import com.tce.smart.platform.core.util.PermissionValidityWindow;
 import com.tce.smart.platform.core.vo.ISCTaskDownRecordVO;
 import com.tce.smart.platform.core.vo.TaskDownRecordVO;
 import io.swagger.models.auth.In;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 设备任务信息表
@@ -146,11 +148,11 @@ public interface SmtDeviceTaskService extends IService<SmtDeviceTask> {
 	/**
 	 * 按手动授权的有效期更新员工人脸权限任务。
 	 *
-	 * @param startTime 生效日零点的秒级时间戳
-	 * @param overTime 失效日最后一秒的秒级时间戳
+	 * @param validityWindowsByDevice 每台设备最近一次授权对应的有效期
 	 */
 	void updateStaffAuthNew(SmtStaff staff, List<Integer> oldAuthIds, List<Integer> newAuthIds,
-							Integer serviceType, String taskRecordNum, Integer type, Long startTime, Long overTime);
+							Integer serviceType, String taskRecordNum, Integer type,
+							Map<String, PermissionValidityWindow> validityWindowsByDevice);
 
 	/**
 	 * 获得最新任务进度

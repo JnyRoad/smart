@@ -125,7 +125,7 @@ export default {
           this.$notify({
             title: '失败',
             message: msg,
-            type: 'success',
+            type: 'error',
             duration: 5000
           })
         }
@@ -150,6 +150,8 @@ export default {
       this.currVisible = false
     },
     open() {
+      // 弹窗复用时刷新当天默认值，避免跨天仍提交上次打开时的日期。
+      this.addform.dateRange = getDefaultPermissionDateRange()
       this.currVisible = true
     },
     close() {

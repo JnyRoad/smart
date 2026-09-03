@@ -70,4 +70,23 @@ describe('员工通关权限有效期窗口', () => {
     expect(context.$message.warning).toHaveBeenCalledWith('权限结束日期不能早于开始日期')
     expect(mocks.upDeviceAuthList).not.toHaveBeenCalled()
   })
+
+  it('打开员工通关权限窗口时刷新当天的默认日期范围', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-04T08:00:00'))
+    const context = {
+      selectStaffs: [{ badge: 'B1001', facePicId: 'face-1' }],
+      validatenull: vi.fn().mockReturnValue(false),
+      entryForm: { dateRange: ['2026-09-03', '2030-12-31'] },
+      entryFormVisible: false,
+      deviceAuthList: vi.fn()
+    }
+
+    StaffInfo.methods.getDeviceAuthList.call(context)
+
+    expect(context.entryForm.dateRange).toEqual(['2026-09-04', '2030-12-31'])
+    expect(context.entryFormVisible).toBe(true)
+    expect(context.deviceAuthList).toHaveBeenCalledOnce()
+    vi.useRealTimers()
+  })
 })

@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -781,6 +782,54 @@ public class SmtDeviceAuthorityServiceImplTest {
 		SmtStaffDeviceAuth staffAuth = relationCaptor.getValue().iterator().next();
 		Assert.assertEquals(LocalDate.of(2026, 9, 3), staffAuth.getStartTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
 		Assert.assertEquals(LocalDate.of(2026, 9, 5), staffAuth.getEndTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
+	}
+
+	/**
+	 * 权限组新增的设备与既有权限组重叠时，应按本次最新授权窗口创建任务。
+	 */
+	@Test
+	public void deviceAuthRelationAddUsesLatestWindowForSharedDevice() {
+		SmtDeviceAuthorityMapper authorityMapper = Mockito.mock(SmtDeviceAuthorityMapper.class);
+		SmtDeviceAuthorityRelationService relationService = Mockito.mock(SmtDeviceAuthorityRelationService.class);
+		SmtStaffDeviceAuthService staffAuthService = Mockito.mock(SmtStaffDeviceAuthService.class);
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtDeviceTaskService deviceTaskService = Mockito.mock(SmtDeviceTaskService.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtDeviceAuthorityServiceImpl service = new SmtDeviceAuthorityServiceImpl(
+				Mockito.mock(SmtDeviceService.class), authorityMapper, relationService,
+				Mockito.mock(SmtBusinessDeviceAuthService.class), staffAuthService, deviceMapper,
+				deviceTaskService, Mockito.mock(SmtIscDeviceTaskService.class),
+				Mockito.mock(SmtVehicleApplyService.class), staffService, Mockito.mock(SmtVehicleMapper.class),
+				Mockito.mock(SmtIscDeviceTaskServiceImpl.class), Mockito.mock(SmtBatchDeviceTaskService.class));
+		SmtStaff staff = buildStaffs(1001, 1001).get(0);
+		SmtStaffDeviceAuth existing = new SmtStaffDeviceAuth();
+		existing.setStaffId(1001L);
+		existing.setAuthId(100);
+		existing.setStartTime(Date.from(LocalDate.of(2026, 9, 1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+		existing.setEndTime(Date.from(LocalDate.of(2026, 9, 30).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+		SmtDevice device = new SmtDevice();
+		device.setId("device-1");
+		device.setIsSync(StaffSyncEnum.NO.getCode());
+		Mockito.when(staffAuthService.list(Mockito.any())).thenReturn(Collections.emptyList(), Collections.singletonList(existing));
+		Mockito.when(relationService.list(Mockito.any())).thenReturn(
+				Collections.singletonList(relation(200, "device-1")),
+				Arrays.asList(relation(100, "device-1"), relation(200, "device-1")));
+		Mockito.when(staffService.list(Mockito.any())).thenReturn(Collections.singletonList(staff));
+		Mockito.when(deviceMapper.selectById("device-1")).thenReturn(device);
+
+		DeviceAuthRelationAddReqDTO reqDTO = new DeviceAuthRelationAddReqDTO();
+		reqDTO.setAuthId(200);
+		reqDTO.setType(DeviceAuthTypeEnum.PERSON.getCode());
+		reqDTO.setBadges(Collections.singletonList("B1001"));
+		reqDTO.setStartTime("2026-09-15");
+		reqDTO.setEndTime("2026-10-31");
+		service.deviceAuthRelationAdd(reqDTO);
+
+		ArgumentCaptor<Collection<SmtDeviceTask>> taskCaptor = ArgumentCaptor.forClass(Collection.class);
+		Mockito.verify(deviceTaskService).saveBatch(taskCaptor.capture());
+		SmtDeviceTask task = taskCaptor.getValue().iterator().next();
+		Assert.assertEquals(Long.valueOf(LocalDate.of(2026, 9, 15).atStartOfDay(ZoneId.systemDefault()).toEpochSecond()), task.getStartTime());
+		Assert.assertEquals(Long.valueOf(LocalDate.of(2026, 11, 1).atStartOfDay(ZoneId.systemDefault()).toEpochSecond() - 1), task.getOverTime());
 	}
 
 	/**

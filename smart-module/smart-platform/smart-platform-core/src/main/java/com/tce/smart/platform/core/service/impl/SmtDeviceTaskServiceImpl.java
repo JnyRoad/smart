@@ -12,6 +12,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tce.smart.common.core.constant.enums.SmtVisitorEnum;
+import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.util.BeanUtils;
 import com.tce.smart.common.core.util.CollectionUtils;
 import com.tce.smart.platform.core.dto.*;
@@ -24,6 +25,7 @@ import com.tce.smart.platform.core.service.SmtDeviceTaskService;
 import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
 import com.tce.smart.platform.core.service.SmtIscDownRecordService;
 import com.tce.smart.platform.core.service.SmtTaskDownRecordService;
+import com.tce.smart.platform.core.util.PermissionValidityWindow;
 import com.tce.smart.platform.core.vo.DeviceVO;
 import com.tce.smart.platform.core.vo.ISCTaskDownRecordVO;
 import com.tce.smart.platform.core.vo.TaskDownRecordVO;
@@ -533,14 +535,15 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 
 	@Override
 	public void updateStaffAuthNew(SmtStaff staff, List<Integer> oldAuthIds, List<Integer> newAuthIds,
-								   Integer serviceType, String taskRecordNum, Integer type, Long startTime, Long overTime) {
+								   Integer serviceType, String taskRecordNum, Integer type,
+								   Map<String, PermissionValidityWindow> validityWindowsByDevice) {
 		if (StringUtils.isEmpty(staff.getFacePicId())) {
 			//员工没有人脸 不生成下发任务
 			return;
 		}
 		String general = staff.getBadge() + SymbolConstants.MINUS + staff.getName();
 		updateDeviceAuthNew(newAuthIds, oldAuthIds, staff.getId().toString(), serviceType,
-				DeviceTaskConstants.CARD, false, staff.getFacePicId(), taskRecordNum, general, type, startTime, overTime);
+				DeviceTaskConstants.CARD, false, staff.getFacePicId(), taskRecordNum, general, type, validityWindowsByDevice);
 	}
 
 	@Override
@@ -612,7 +615,8 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 	@Transactional(rollbackFor = Exception.class)
 	public void updateDeviceAuthNew(List<Integer> newAuthIds, List<Integer> oldAuthIds, String cardNo,
 									Integer serviceType, Integer deviceType, Boolean isDelay, String imageId,
-									String taskRecordNum, String general, Integer type, Long startTime, Long overTime) {
+									String taskRecordNum, String general, Integer type,
+									Map<String, PermissionValidityWindow> validityWindowsByDevice) {
 		List<String> oldDev = new ArrayList<>();
 
 		// 1.查询旧权限关联的设备
@@ -658,14 +662,17 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 
 			oldDev.removeAll(tempList);
 			newDev.removeAll(tempList);
-			// 覆盖权限虽保留同设备的授权关系，但日期窗口可能已变化，必须重新下发以刷新设备端有效期。
-			if (Integer.valueOf(2).equals(type) && CollUtil.isNotEmpty(tempList)) {
+			// 追加或覆盖权限均可能改变同设备的有效期，必须重新下发以刷新设备端有效期。
+			if ((Integer.valueOf(1).equals(type) || Integer.valueOf(2).equals(type)) && CollUtil.isNotEmpty(tempList)) {
 				newDev.addAll(tempList);
 			}
+			// 已在交集内的设备不应再由差集重复加入，避免生成两条相同下发任务。
+			temp2List.removeAll(tempList);
 			if (CollUtil.isNotEmpty(temp2List)) {
 				newDev.addAll(temp2List);
 			}
 		}
+		newDev = new ArrayList<>(new LinkedHashSet<>(newDev));
 
 		// 5. 生成旧权限删除的任务
 		DeviceTaskActionEnum delAction = DeviceTaskActionEnum.DEL;
@@ -681,8 +688,8 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 			downAction = DeviceTaskActionEnum.DELAY_DOWN;
 		}
 
-		addDeviceTaskWithValidity(newDev, cardNo, general, serviceType, downAction.getCode(),
-				SmtVisitorEnum.CAR_CARD_TYPE_1, deviceType, imageId, taskRecordNum, startTime, overTime);
+		addDeviceTaskWithDeviceValidity(newDev, cardNo, general, serviceType, downAction.getCode(),
+				SmtVisitorEnum.CAR_CARD_TYPE_1, deviceType, imageId, taskRecordNum, validityWindowsByDevice);
 		if (CollUtil.isEmpty(newDev)) {
 			String[] idsArray = StringUtils.split(general, SymbolConstants.MINUS);
 			SmtDeviceTaskDetail deviceTaskDetail = SmtDeviceTaskDetail.builder()
@@ -746,6 +753,25 @@ public class SmtDeviceTaskServiceImpl extends ServiceImpl<SmtDeviceTaskMapper, S
 							  SmtVisitorEnum smtVisitorEnum, Integer deviceType, String imageId, String taskRecordNum) {
 		addDeviceTaskWithValidity(devList, cardNo, general, serviceType, action, smtVisitorEnum, deviceType,
 				imageId, taskRecordNum, DateUtil.currentSeconds(), DeviceTaskConstants.maxTime);
+	}
+
+	/**
+	 * 按设备最近一次授权对应的有效期创建手动下发任务。
+	 */
+	private void addDeviceTaskWithDeviceValidity(List<String> devList, String cardNo, String general,
+													Integer serviceType, Integer action, SmtVisitorEnum smtVisitorEnum,
+													Integer deviceType, String imageId, String taskRecordNum,
+													Map<String, PermissionValidityWindow> validityWindowsByDevice) {
+		for (String devCode : devList) {
+			PermissionValidityWindow validityWindow = validityWindowsByDevice == null
+					? null : validityWindowsByDevice.get(devCode);
+			if (validityWindow == null) {
+				throw new SmartException("未找到设备" + devCode + "的权限有效期，无法下发");
+			}
+			addDeviceTaskWithValidity(Collections.singletonList(devCode), cardNo, general, serviceType, action,
+					smtVisitorEnum, deviceType, imageId, taskRecordNum,
+					validityWindow.getStartTime(), validityWindow.getOverTime());
+		}
 	}
 
 	/**

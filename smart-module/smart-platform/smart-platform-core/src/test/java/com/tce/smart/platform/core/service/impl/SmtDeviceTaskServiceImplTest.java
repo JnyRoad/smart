@@ -17,6 +17,7 @@ import com.tce.smart.platform.core.mapper.SmtDeviceTaskMapper;
 import com.tce.smart.platform.core.service.SmtIscDeviceTaskService;
 import com.tce.smart.platform.core.service.SmtIscDownRecordService;
 import com.tce.smart.platform.core.service.SmtTaskDownRecordService;
+import com.tce.smart.platform.core.util.PermissionValidityWindow;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
 import com.tce.smart.tool.enums.DeviceTaskActionEnum;
 import com.tce.smart.tool.enums.DeviceTaskStatusEnum;
@@ -30,6 +31,8 @@ import org.mockito.Mockito;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class SmtDeviceTaskServiceImplTest {
@@ -99,12 +102,12 @@ public class SmtDeviceTaskServiceImplTest {
 		staff.setFacePicId("face-1");
 
 		service.updateStaffAuthNew(staff, Collections.<Integer>emptyList(), Collections.singletonList(2001),
-				DeviceTaskConstants.CARD_STAFF_IMPORT, null, 3, 1788393600L, 1788652799L);
+				DeviceTaskConstants.CARD_STAFF_IMPORT, null, 3, validityWindows("isc-device-1"));
 
 		ArgumentCaptor<DeviceTaskVO> taskCaptor = ArgumentCaptor.forClass(DeviceTaskVO.class);
 		Mockito.verify(service).saveTask(taskCaptor.capture());
-		Assert.assertEquals(Long.valueOf(1788393600L), taskCaptor.getValue().getStartTime());
-		Assert.assertEquals(Long.valueOf(1788652799L), taskCaptor.getValue().getOverTime());
+		Assert.assertEquals(Long.valueOf(manualWindow().getStartTime()), taskCaptor.getValue().getStartTime());
+		Assert.assertEquals(Long.valueOf(manualWindow().getOverTime()), taskCaptor.getValue().getOverTime());
 		Assert.assertEquals(DeviceTaskActionEnum.DOWN.getCode(), taskCaptor.getValue().getAction());
 	}
 
@@ -136,15 +139,46 @@ public class SmtDeviceTaskServiceImplTest {
 
 		service.updateDeviceAuthNew(Collections.singletonList(2002), Collections.singletonList(2001), "1001",
 				DeviceTaskConstants.CARD_STAFF_IMPORT, DeviceTaskConstants.CARD, false, "face-1", null,
-				"B1001-张三", 2, 1788393600L, 1788652799L);
+				"B1001-张三", 2, validityWindows("device-shared", "device-new"));
 
 		ArgumentCaptor<DeviceTaskVO> taskCaptor = ArgumentCaptor.forClass(DeviceTaskVO.class);
 		Mockito.verify(service, Mockito.times(2)).saveTask(taskCaptor.capture());
 		Assert.assertEquals(Arrays.asList("device-new", "device-shared"), Arrays.asList(
 				taskCaptor.getAllValues().get(0).getDeviceCode(),
 				taskCaptor.getAllValues().get(1).getDeviceCode()));
-		Assert.assertEquals(Long.valueOf(1788393600L), taskCaptor.getAllValues().get(1).getStartTime());
-		Assert.assertEquals(Long.valueOf(1788652799L), taskCaptor.getAllValues().get(1).getOverTime());
+		Assert.assertEquals(Long.valueOf(manualWindow().getStartTime()), taskCaptor.getAllValues().get(1).getStartTime());
+		Assert.assertEquals(Long.valueOf(manualWindow().getOverTime()), taskCaptor.getAllValues().get(1).getOverTime());
+	}
+
+	/**
+	 * 覆盖权限时，未留下成功下发记录的共享设备也只能重下发一次。
+	 */
+	@Test
+	public void updateDeviceAuthNewDeduplicatesSharedDeviceWithoutDownRecord() {
+		SmtTaskDownRecordService downRecordService = Mockito.mock(SmtTaskDownRecordService.class);
+		SmtDeviceAuthorityRelationMapper relationMapper = Mockito.mock(SmtDeviceAuthorityRelationMapper.class);
+		SmtDeviceTaskServiceImpl service = Mockito.spy(new SmtDeviceTaskServiceImpl(
+				downRecordService, Mockito.mock(SmtIscDownRecordService.class), relationMapper,
+				Mockito.mock(SmtDeviceMapper.class), Mockito.mock(SmtIscDeviceTaskService.class)));
+		SmtDeviceAuthorityRelation oldRelation = new SmtDeviceAuthorityRelation();
+		oldRelation.setAuthorityId(2001);
+		oldRelation.setDeviceId("device-shared");
+		SmtDeviceAuthorityRelation newRelation = new SmtDeviceAuthorityRelation();
+		newRelation.setAuthorityId(2002);
+		newRelation.setDeviceId("device-shared");
+		Mockito.when(relationMapper.selectList(Mockito.any()))
+				.thenReturn(Collections.singletonList(oldRelation))
+				.thenReturn(Collections.singletonList(newRelation));
+		Mockito.when(downRecordService.list(Mockito.any())).thenReturn(Collections.emptyList());
+		Mockito.doReturn("task-1").when(service).saveTask(Mockito.any(DeviceTaskVO.class));
+
+		service.updateDeviceAuthNew(Collections.singletonList(2002), Collections.singletonList(2001), "1001",
+				DeviceTaskConstants.CARD_STAFF_IMPORT, DeviceTaskConstants.CARD, false, "face-1", null,
+				"B1001-张三", 2, validityWindows("device-shared"));
+
+		ArgumentCaptor<DeviceTaskVO> taskCaptor = ArgumentCaptor.forClass(DeviceTaskVO.class);
+		Mockito.verify(service).saveTask(taskCaptor.capture());
+		Assert.assertEquals("device-shared", taskCaptor.getValue().getDeviceCode());
 	}
 
 	/**
@@ -528,6 +562,24 @@ public class SmtDeviceTaskServiceImplTest {
 		downRecord.setDeviceType(DeviceTaskConstants.CARD);
 		downRecord.setServiceType(DeviceTaskConstants.CARD_STAFF_IMPORT);
 		return downRecord;
+	}
+
+	/**
+	 * 构造同一连续有效期的设备窗口映射。
+	 */
+	private Map<String, PermissionValidityWindow> validityWindows(String... deviceCodes) {
+		Map<String, PermissionValidityWindow> windows = new LinkedHashMap<>();
+		for (String deviceCode : deviceCodes) {
+			windows.put(deviceCode, manualWindow());
+		}
+		return windows;
+	}
+
+	/**
+	 * 手动下发日期窗口的公共测试夹具。
+	 */
+	private PermissionValidityWindow manualWindow() {
+		return PermissionValidityWindow.resolve("2026-09-03", "2026-09-05");
 	}
 
 	/**

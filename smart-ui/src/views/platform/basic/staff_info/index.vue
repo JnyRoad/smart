@@ -912,6 +912,8 @@ export default {
           duration: 0
         })
       } else {
+        // 弹窗复用时按本次打开日期重置默认有效期，避免跨天停留页面提交过期默认值。
+        this.entryForm.dateRange = getDefaultPermissionDateRange()
         this.entryFormVisible = true
         this.deviceAuthList()
       }

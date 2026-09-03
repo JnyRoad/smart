@@ -815,10 +815,11 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 		// 在查询或写入前统一校验有效期，批量入口与员工入口保持相同语义。
 		PermissionValidityWindow validityWindow = PermissionValidityWindow.resolve(reqDTO.getStartTime(), reqDTO.getEndTime());
 		List<SmtStaffDeviceAuth> existAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getAuthId, reqDTO.getAuthId()));
-		List<Long> existList = existAuthList.stream().map(SmtStaffDeviceAuth::getStaffId).collect(Collectors.toList());
+		List<Long> existList = existAuthList.stream().map(SmtStaffDeviceAuth::getStaffId).distinct().collect(Collectors.toList());
 
 		List<SmtDeviceAuthorityRelation> authDeviceList = smtDeviceAuthorityRelationService.list(Wrappers.<SmtDeviceAuthorityRelation>lambdaQuery().eq(SmtDeviceAuthorityRelation::getAuthorityId, reqDTO.getAuthId()));
-		List<String> newDeviceList = authDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId).collect(Collectors.toList());
+		List<String> newDeviceList = authDeviceList.stream().map(SmtDeviceAuthorityRelation::getDeviceId)
+				.filter(StringUtils::isNotEmpty).distinct().collect(Collectors.toList());
 
 		List<String> noExist = new ArrayList<>();
 		// badges 来自 HTTP 外部输入，条数无上界，IN 查询必须分批（超 1000 即 ORA-01795 整批回滚）。
@@ -829,6 +830,20 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 				badgeBatch -> smtStaffService.list(Wrappers.<SmtStaff>query().lambda()
 						.ne(SmtStaff::getStatus, StaffStatusEnum.STAFF_STATUS_QUIT.getCode())
 						.in(SmtStaff::getBadge, badgeBatch)));
+		List<Long> staffIds = staffList.stream().map(SmtStaff::getId).distinct().collect(Collectors.toList());
+		// 同一批人员可能已拥有其他权限组；统一查询其全部关联，才能选择设备最近一次授权的有效期。
+		List<SmtStaffDeviceAuth> allStaffAuths = OracleInBatchUtils.listInBatches(staffIds,
+				staffIdBatch -> smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery()
+						.in(SmtStaffDeviceAuth::getStaffId, staffIdBatch)));
+		Map<Long, List<SmtStaffDeviceAuth>> authsByStaffId = allStaffAuths.stream()
+				.collect(Collectors.groupingBy(SmtStaffDeviceAuth::getStaffId));
+		List<Integer> involvedAuthIds = allStaffAuths.stream().map(SmtStaffDeviceAuth::getAuthId)
+				.filter(Objects::nonNull).collect(Collectors.toList());
+		involvedAuthIds.add(reqDTO.getAuthId());
+		List<SmtDeviceAuthorityRelation> allAuthorityRelations = OracleInBatchUtils.listInBatches(
+				involvedAuthIds.stream().distinct().collect(Collectors.toList()),
+				authIdBatch -> smtDeviceAuthorityRelationService.list(Wrappers.<SmtDeviceAuthorityRelation>lambdaQuery()
+						.in(SmtDeviceAuthorityRelation::getAuthorityId, authIdBatch)));
 
 		Collection<SmtDeviceTask> deviceTaskList = new ArrayList<>();
 		Collection<SmtIscDeviceTask> iscDeviceTaskList = new ArrayList<>();
@@ -842,8 +857,23 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 			// 员工存在人脸图片
 			if(StrUtil.isNotBlank(staff.getFacePicId())) {
 				String gen = staff.getBadge() + SymbolConstants.MINUS + staff.getName();
+				SmtStaffDeviceAuth staffDeviceAuth = new SmtStaffDeviceAuth();
+				staffDeviceAuth.setStaffId(staff.getId());
+				staffDeviceAuth.setAuthId(reqDTO.getAuthId());
+				staffDeviceAuth.setCreateTime(new Date());
+				staffDeviceAuth.setStartTime(validityWindow.getStartDateTime());
+				staffDeviceAuth.setEndTime(validityWindow.getEndDateTime());
+				List<SmtStaffDeviceAuth> effectiveStaffAuths = new ArrayList<>(
+						authsByStaffId.getOrDefault(staff.getId(), Collections.emptyList()));
+				effectiveStaffAuths.add(staffDeviceAuth);
+				Map<String, PermissionValidityWindow> validityWindowsByDevice =
+						PermissionValidityWindow.resolveByDevice(effectiveStaffAuths, allAuthorityRelations);
 
 				for (String devCode : newDeviceList) {
+					PermissionValidityWindow deviceValidityWindow = validityWindowsByDevice.get(devCode);
+					if (deviceValidityWindow == null) {
+						throw new SmartException("未找到设备" + devCode + "的权限有效期，无法下发");
+					}
 					// 判断设备是否为ISC同步的 是则把任务创建在新表中
 					SmtDevice smtDevice = smtDeviceMapper.selectById(devCode);
 					if (smtDevice == null) {
@@ -871,8 +901,8 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 						smtDeviceTask.setDeviceType(DeviceTaskConstants.CARD);
 						smtDeviceTask.setImageId(staff.getFacePicId());
 						smtDeviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
-						smtDeviceTask.setOverTime(validityWindow.getOverTime());
-						smtDeviceTask.setStartTime(validityWindow.getStartTime());
+						smtDeviceTask.setOverTime(deviceValidityWindow.getOverTime());
+						smtDeviceTask.setStartTime(deviceValidityWindow.getStartTime());
 						smtDeviceTask.setCreateTime(LocalDateTime.now());
 
 						deviceTaskList.add(smtDeviceTask);
@@ -886,8 +916,8 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 						smtIscDeviceTask.setDeviceType(DeviceTaskConstants.CARD);
 						smtIscDeviceTask.setImageId(staff.getFacePicId());
 						smtIscDeviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
-						smtIscDeviceTask.setOverTime(validityWindow.getOverTime());
-						smtIscDeviceTask.setStartTime(validityWindow.getStartTime());
+						smtIscDeviceTask.setOverTime(deviceValidityWindow.getOverTime());
+						smtIscDeviceTask.setStartTime(deviceValidityWindow.getStartTime());
 						smtIscDeviceTask.setCreateTime(LocalDateTime.now());
 
 						if (DeviceTaskConstants.CARD_VISITOR.equals(smtIscDeviceTask.getServiceType())) {
@@ -905,13 +935,6 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 
 				}
 
-				SmtStaffDeviceAuth staffDeviceAuth = new SmtStaffDeviceAuth();
-				staffDeviceAuth.setStaffId(staff.getId());
-				staffDeviceAuth.setAuthId(reqDTO.getAuthId());
-				staffDeviceAuth.setCreateTime(new Date());
-				staffDeviceAuth.setStartTime(validityWindow.getStartDateTime());
-				staffDeviceAuth.setEndTime(validityWindow.getEndDateTime());
-				// smtStaffDeviceAuthService.save(staffDeviceAuth);
 				smtStaffDeviceAuthList.add(staffDeviceAuth);
 			}else{
 				noExist.add(staff.getBadge());

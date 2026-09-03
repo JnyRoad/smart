@@ -8,6 +8,7 @@ DECLARE
     v_start_column_count NUMBER;
     v_end_column_count NUMBER;
     v_invalid_window_count NUMBER;
+    v_backfill_started BOOLEAN := FALSE;
 BEGIN
     SELECT COUNT(*) INTO v_table_count
     FROM USER_TABLES
@@ -35,6 +36,9 @@ BEGIN
         EXECUTE IMMEDIATE 'ALTER TABLE SMT_STAFF_DEVICE_AUTH ADD (END_TIME DATE)';
     END IF;
 
+    -- Oracle DDL 会隐式提交，无法回滚已新增字段；保存点仅保护以下可回滚的数据回填。
+    SAVEPOINT permission_window_backfill;
+    v_backfill_started := TRUE;
     -- 旧关联没有有效期概念：保留创建日作为生效日，并以产品默认的 2030-12-31 作为失效日。
     -- 动态 SQL 避免匿名块在字段刚新增时于编译期触发 ORA-00904。
     EXECUTE IMMEDIATE 'UPDATE SMT_STAFF_DEVICE_AUTH '
@@ -52,5 +56,12 @@ BEGIN
     END IF;
 
     COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- 校验失败或回填失败时撤销本次 DML，避免遗留半回填数据；DDL 按 Oracle 事务语义保留。
+        IF v_backfill_started THEN
+            ROLLBACK TO permission_window_backfill;
+        END IF;
+        RAISE;
 END;
 /

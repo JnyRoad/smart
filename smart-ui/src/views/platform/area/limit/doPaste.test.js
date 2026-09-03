@@ -67,4 +67,33 @@ describe('权限组人员批量下发有效期窗口', () => {
       duration: 5000
     })
   })
+
+  it('再次打开弹窗时刷新当天的默认日期范围', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-04T08:00:00'))
+    const context = {
+      addform: { badges: '', dateRange: ['2026-09-03', '2030-12-31'] },
+      currVisible: false
+    }
+
+    DoPasteDialog.methods.open.call(context)
+
+    expect(context.addform.dateRange).toEqual(['2026-09-04', '2030-12-31'])
+    expect(context.currVisible).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('不符合条件的员工使用失败提示样式', async () => {
+    const context = createPasteContext(['2026-09-03', '2026-09-05'])
+    mocks.batchAdd.mockResolvedValue({ data: { code: 0, data: ['B1002'] } })
+
+    await DoPasteDialog.methods.addSubmit.call(context)
+
+    expect(context.$notify).toHaveBeenCalledWith({
+      title: '失败',
+      message: '不符合条件员工：B1002',
+      type: 'error',
+      duration: 5000
+    })
+  })
 })
