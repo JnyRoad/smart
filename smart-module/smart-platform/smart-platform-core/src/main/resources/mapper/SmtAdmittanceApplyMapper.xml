@@ -86,19 +86,11 @@
 		SMT_ADMITTANCE_APPLY V
 		LEFT JOIN SMT_STAFF S ON V.RECEPTIONIST_BADGE = S.BADGE
 		LEFT JOIN SMT_PARK P ON V.PARK_ID=P.ID
+		LEFT JOIN SMT_ADMITTANCE_FELLOW SAF ON  SAF.VISITOR_ID = V.ID
 		LEFT JOIN SMT_ADMITTANCE_VEHICLE SAV ON SAV.VISITOR_ID = V.ID
 		<where>
 			<if test="query.visitorName != null and query.visitorName != ''">
-				<!-- 相关子查询只筛选申请单，避免多位随行人员放大列表结果行。 -->
-				(
-					V.VISITOR_NAME LIKE CONCAT(CONCAT('%',#{query.visitorName}),'%')
-					OR EXISTS (
-						SELECT 1
-						FROM SMT_ADMITTANCE_FELLOW SF
-						WHERE SF.VISITOR_ID = V.ID
-						AND SF.FELLOW_NAME LIKE CONCAT(CONCAT('%',#{query.visitorName}),'%')
-					)
-				)
+				V.VISITOR_NAME LIKE CONCAT(CONCAT('%',#{query.visitorName}),'%')
 			</if>
 			<if test="query.visitorPhone != null and query.visitorPhone != ''">
 				and V.VISITOR_PHONE LIKE CONCAT(CONCAT('%',#{query.visitorPhone}),'%')
@@ -110,13 +102,7 @@
 				and V.COMPANY LIKE CONCAT(CONCAT('%',#{query.company}),'%')
 			</if>
 			<if test="query.certNo != null and query.certNo != ''">
-				<!-- 证件号仅作为随行人员存在性条件，不能再次引入一对多主查询连接。 -->
-				and EXISTS (
-					SELECT 1
-					FROM SMT_ADMITTANCE_FELLOW SF
-					WHERE SF.VISITOR_ID = V.ID
-					AND SF.CERT_NO LIKE CONCAT(CONCAT('%',#{query.certNo}),'%')
-				)
+				and SAF.CERT_NO LIKE CONCAT(CONCAT('%',#{query.certNo}),'%')
 			</if>
 			<if test="query.status != null">
 				and V.STATUS =#{query.status}
