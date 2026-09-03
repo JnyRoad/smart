@@ -160,9 +160,12 @@ public class SmtSecurityAreaSupplierServiceImpl extends ServiceImpl<SmtSecurityA
 		return resp;
 	}
 
+	/**
+	 * 获取有效供应商名下的有效授权人员。
+	 */
 	@Override
 	public List<SmtSecurityAreaSupplierPersonRespDTO> getSecurityAreaSupplierPersonList(Long spId) {
-		List<SmtSupplierPerson> smtSupplierPeople = smtSupplierPersonService.list(new LambdaQueryWrapper<SmtSupplierPerson>().eq(SmtSupplierPerson::getSupplierId, spId));
+		List<SmtSupplierPerson> smtSupplierPeople = smtSupplierPersonService.getActiveSupplierPersonList(spId);
 		List<SmtSecurityAreaSupplierPersonRespDTO> list = new ArrayList<>();
 		smtSupplierPeople.forEach(item -> {
 			SmtSecurityAreaSupplierPersonRespDTO respDTO = new SmtSecurityAreaSupplierPersonRespDTO();
@@ -293,8 +296,15 @@ public class SmtSecurityAreaSupplierServiceImpl extends ServiceImpl<SmtSecurityA
 		return true;
 	}
 
+	/**
+	 * 锁定供应商后检查在册人员，再执行逻辑删除。
+	 */
+	@Transactional
 	@Override
 	public boolean delSecurityAreaSupplier(Long id) {
+		if (smtSecurityAreaSupplierMapper.selectActiveSupplierForUpdate(id) == null) {
+			return false;
+		}
 		//判断供应商人员是否存在
 		List<SmtSupplierPerson> supplierPersonList = smtSupplierPersonService.list(new QueryWrapper<SmtSupplierPerson>().lambda().eq(SmtSupplierPerson::getSupplierId, id));
 		if (CollectionUtil.isNotEmpty(supplierPersonList)) {
@@ -335,9 +345,16 @@ public class SmtSecurityAreaSupplierServiceImpl extends ServiceImpl<SmtSecurityA
 		return detailDTO;
 	}
 
+	/**
+	 * 逐个锁定供应商后执行批量逻辑删除，保留原有“有在册人员则跳过”的语义。
+	 */
+	@Transactional
 	@Override
 	public boolean delBatchSupplier(List<Long> ids) {
 		for (Long id : ids) {
+			if (smtSecurityAreaSupplierMapper.selectActiveSupplierForUpdate(id) == null) {
+				continue;
+			}
 			//判断供应商人员是否存在
 			List<SmtSupplierPerson> supplierPersonList = smtSupplierPersonService.list(new QueryWrapper<SmtSupplierPerson>().lambda().eq(SmtSupplierPerson::getSupplierId, id));
 			if (CollectionUtil.isEmpty(supplierPersonList)) {

@@ -1,0 +1,85 @@
+-- 保密区供应商软删除字段
+-- 执行条件：应用版本已包含供应商、供应商人员的逻辑删除实体映射和查询过滤；由 DBA 在目标 Oracle schema 执行。
+-- 影响表：SMT_SECURITYAREA_SUPPLIER、SMT_SUPPLIER_PERSON。
+-- 可重复性：字段不存在时新增；已有字段时只回填 NULL，并校验所有值均为 0 或 1。
+
+DECLARE
+    v_supplier_table_count NUMBER;
+    v_person_table_count NUMBER;
+    v_supplier_column_count NUMBER;
+    v_person_column_count NUMBER;
+    v_supplier_constraint_count NUMBER;
+    v_person_constraint_count NUMBER;
+    v_invalid_value_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_supplier_table_count
+    FROM USER_TABLES
+    WHERE TABLE_NAME = 'SMT_SECURITYAREA_SUPPLIER';
+
+    SELECT COUNT(*) INTO v_person_table_count
+    FROM USER_TABLES
+    WHERE TABLE_NAME = 'SMT_SUPPLIER_PERSON';
+
+    IF v_supplier_table_count = 0 OR v_person_table_count = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, '缺少保密区供应商或供应商人员表，停止执行软删除字段变更。');
+    END IF;
+
+    SELECT COUNT(*) INTO v_supplier_column_count
+    FROM USER_TAB_COLUMNS
+    WHERE TABLE_NAME = 'SMT_SECURITYAREA_SUPPLIER'
+      AND COLUMN_NAME = 'DEL_FLAG';
+
+    IF v_supplier_column_count = 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE SMT_SECURITYAREA_SUPPLIER ADD (DEL_FLAG NUMBER(1) DEFAULT 0)';
+    END IF;
+
+    SELECT COUNT(*) INTO v_person_column_count
+    FROM USER_TAB_COLUMNS
+    WHERE TABLE_NAME = 'SMT_SUPPLIER_PERSON'
+      AND COLUMN_NAME = 'DEL_FLAG';
+
+    IF v_person_column_count = 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE SMT_SUPPLIER_PERSON ADD (DEL_FLAG NUMBER(1) DEFAULT 0)';
+    END IF;
+
+    -- 本次字段可能刚由动态 DDL 新增，校验也必须延后到运行期解析，避免 ORA-00904。
+    EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM SMT_SECURITYAREA_SUPPLIER WHERE DEL_FLAG IS NOT NULL AND DEL_FLAG NOT IN (0, 1)'
+        INTO v_invalid_value_count;
+
+    IF v_invalid_value_count > 0 THEN
+        RAISE_APPLICATION_ERROR(-20002, 'SMT_SECURITYAREA_SUPPLIER.DEL_FLAG 存在非 0/1 值，停止执行。');
+    END IF;
+
+    -- 同上：不能在匿名块编译期静态引用刚新增的 DEL_FLAG 字段。
+    EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM SMT_SUPPLIER_PERSON WHERE DEL_FLAG IS NOT NULL AND DEL_FLAG NOT IN (0, 1)'
+        INTO v_invalid_value_count;
+
+    IF v_invalid_value_count > 0 THEN
+        RAISE_APPLICATION_ERROR(-20003, 'SMT_SUPPLIER_PERSON.DEL_FLAG 存在非 0/1 值，停止执行。');
+    END IF;
+
+    EXECUTE IMMEDIATE 'UPDATE SMT_SECURITYAREA_SUPPLIER SET DEL_FLAG = 0 WHERE DEL_FLAG IS NULL';
+    EXECUTE IMMEDIATE 'UPDATE SMT_SUPPLIER_PERSON SET DEL_FLAG = 0 WHERE DEL_FLAG IS NULL';
+
+    EXECUTE IMMEDIATE 'ALTER TABLE SMT_SECURITYAREA_SUPPLIER MODIFY (DEL_FLAG DEFAULT 0 NOT NULL)';
+    EXECUTE IMMEDIATE 'ALTER TABLE SMT_SUPPLIER_PERSON MODIFY (DEL_FLAG DEFAULT 0 NOT NULL)';
+
+    SELECT COUNT(*) INTO v_supplier_constraint_count
+    FROM USER_CONSTRAINTS
+    WHERE CONSTRAINT_NAME = 'CK_SMT_SECURITYAREA_SUPPLIER_DEL_FLAG';
+
+    IF v_supplier_constraint_count = 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE SMT_SECURITYAREA_SUPPLIER ADD CONSTRAINT CK_SMT_SECURITYAREA_SUPPLIER_DEL_FLAG CHECK (DEL_FLAG IN (0, 1))';
+    END IF;
+
+    SELECT COUNT(*) INTO v_person_constraint_count
+    FROM USER_CONSTRAINTS
+    WHERE CONSTRAINT_NAME = 'CK_SMT_SUPPLIER_PERSON_DEL_FLAG';
+
+    IF v_person_constraint_count = 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE SMT_SUPPLIER_PERSON ADD CONSTRAINT CK_SMT_SUPPLIER_PERSON_DEL_FLAG CHECK (DEL_FLAG IN (0, 1))';
+    END IF;
+
+    COMMIT;
+END;
+/

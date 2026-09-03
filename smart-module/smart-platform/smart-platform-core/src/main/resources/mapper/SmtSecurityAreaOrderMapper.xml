@@ -34,7 +34,7 @@
 		,staff.NAME,staff.DEP_NAME,supplier.COMPANY_NAME
 		from SMT_SECURITYAREA_ORDER sord
 		left join SMT_STAFF staff on sord.STAFF_BADGE=staff.BADGE
-		left join SMT_SECURITYAREA_SUPPLIER supplier on sord.SUPPLIER_ID=supplier.ID
+		left join SMT_SECURITYAREA_SUPPLIER supplier on sord.SUPPLIER_ID=supplier.ID and supplier.DEL_FLAG=0
 		where sord.ID=#{id}
 	</select>
 </mapper>

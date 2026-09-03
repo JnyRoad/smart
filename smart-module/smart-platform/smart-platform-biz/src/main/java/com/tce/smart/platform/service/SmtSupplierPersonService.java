@@ -37,6 +37,14 @@ public interface SmtSupplierPersonService extends IService<SmtSupplierPerson> {
 	Boolean getVisitorSupplier(SmtVisitorSupplierFindDTO dto);
 
 	/**
+	 * 查询有效供应商名下的有效人员。
+	 *
+	 * @param supplierId 供应商标识
+	 * @return 可展示的人员列表
+	 */
+	List<SmtSupplierPerson> getActiveSupplierPersonList(Long supplierId);
+
+	/**
 	 * 保存保密区供应商人员数据
 	 * 新记录添加
 	 * 已存在的记录则修改
