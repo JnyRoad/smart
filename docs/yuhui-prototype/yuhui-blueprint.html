@@ -968,7 +968,7 @@ flowchart LR
       原有 <code>visitorEqualCheck</code> 只校验 <code>isMain=1</code> 的主申请人，未将 <code>areaType</code> 纳入 SQL，且“先查后写”在两个并发请求都先完成查询时可能双双通过。<code>SmtAdmittanceApply.areaType</code> 是逗号拼接的多选区域 ID，不能用普通子串匹配：区域 <code>1</code> 不能误命中 <code>11</code>。
     </dd>
     <dt>实施状态</dt>
-    <dd><strong>已实现</strong>：PR #173 已完成代码、定向 Maven 测试和正式 Oracle 锁表并发验收；合入 <code>main</code> 后等待随 <code>smart-platform-biz</code> 服务发布。正式库锁表验证不等同于已部署服务的业务端到端验收。</dd>
+    <dd><strong>已合入 main</strong>：PR #173 已完成代码、定向 Maven 测试和正式 Oracle 锁表并发验收，并已合入 <code>main</code>；等待随 <code>smart-platform-biz</code> 服务发布。正式库锁表验证不等同于已部署服务的业务端到端验收。</dd>
     <dt>目标与验收标准</dt>
     <dd>
       同一证件号在有效申请的开区间时间重叠且区域存在精确交集时，主申请人与任一随行人员均不得重复申请；有效且区域完全不交集的新厂/老厂申请可并存。任一随行人员缺少证件号即拒绝。正式保存入口的并发请求共享任一证件号时，至多一方可通过判重；另一方必须得到“已有预约”或“申请处理中”的业务结果，不能同时通过。
