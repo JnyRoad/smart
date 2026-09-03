@@ -16,11 +16,11 @@
         <tce-Search-bar>
           <el-form ref="searchForm" :inline="true" :model="searchForm" class="topForm" size="mini">
             <div class="form-outer">
-              <el-form-item label="访客/随行姓名" prop="visitorName">
-                <el-input v-model="searchForm.visitorName" placeholder="访客/随行姓名" clearable></el-input>
+              <el-form-item label="访客姓名" prop="visitorName">
+                <el-input v-model="searchForm.visitorName" placeholder="访客姓名" clearable></el-input>
               </el-form-item>
-              <el-form-item label="访客/随行人员证件号" prop="certNo">
-                <el-input v-model="searchForm.certNo" placeholder="访客/随行人员证件号" clearable>
+              <el-form-item label="访客证件号" prop="certNo">
+                <el-input v-model="searchForm.certNo" placeholder="访客证件号" clearable>
                   <!-- <template slot="append">
                     <el-button @click="readIDCard()">读取证件</el-button>
                   </template> -->

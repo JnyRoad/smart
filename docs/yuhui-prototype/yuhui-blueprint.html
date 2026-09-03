@@ -342,7 +342,7 @@ flowchart LR
     <tr><td>2.2 访客模板可调化</td><td>Web</td><td>同 1.2 设计器</td></tr>
     <tr><td>2.3 保密/非保密区分</td><td>Web</td><td>模板列表两条访客模板；对「派遣工-通用厂牌」点启用看 fail-closed 校验</td></tr>
     <tr><td>2.4 搜索返回保留</td><td>Web</td><td>入厂申请记录：点搜索后出现「已保留查询条件」提示条</td></tr>
-    <tr><td>2.5 随行人员搜索</td><td>Web</td><td>入厂申请记录：在「访客/随行姓名」输入 王小雨 → 搜出主申请人李芳的卡片</td></tr>
+    <tr><td>2.5 随行人员搜索</td><td>Web</td><td>入厂申请记录：在「访客姓名」输入 王小雨 → 搜出主申请人李芳的卡片</td></tr>
     <tr><td>2.6 入场申请作废</td><td>Web</td><td>单条申请点击「作废申请」并确认 → 状态灰显、权限回收任务提示</td></tr>
     <tr><td>2.7 判重按区域+随行</td><td>—</td><td>校验规则无界面；规则见第 7 章模块二（新厂/老厂分开判、随行纳入）</td></tr>
     <tr><td>3.1 非保密转保密</td><td>—</td><td>后台联动无界面；逻辑见第 7 章模块三</td></tr>
@@ -912,12 +912,12 @@ flowchart LR
             WHERE SF.VISITOR_ID = V.ID
               AND SF.FELLOW_NAME LIKE CONCAT(CONCAT('%',#{query.visitorName}),'%')))</pre>
       <p>证件号条件也改为 <code>EXISTS (... SF.CERT_NO LIKE ...)</code>。随行人员只充当筛选条件，不再参与主查询行组合；
-      前端继续传 <code>visitorName</code>/<code>certNo</code>，不新增接口参数，姓名筛选标签和输入提示均更新为“访客/随行姓名”。</p>
+      前端继续传 <code>visitorName</code>/<code>certNo</code>，不新增接口参数；筛选标签和输入提示保持简短的“访客姓名”与“访客证件号”。</p>
     </dd>
     <dt>处理流程</dt>
     <dd>
       <ol>
-        <li>用户在“访客/随行姓名”输入主申请人或任一随行人员姓名。</li>
+        <li>用户在“访客姓名”输入主申请人或任一随行人员姓名。</li>
         <li>前端沿用 <code>visitorName</code> 参数提交既有分页接口。</li>
         <li>后端以“主申请人姓名命中 OR 存在关联随行人员姓名命中”筛选申请单；证件号同理。</li>
         <li>返回主申请单。多位随行人员不会再因本功能的关联方式增加申请单结果行。</li>
@@ -936,7 +936,7 @@ flowchart LR
         <tr><th>层</th><th>文件/类</th><th>已完成改动</th></tr>
         <tr><td>数据库/SQL</td><td>smart-module/smart-platform/smart-platform-core/src/main/resources/mapper/SmtAdmittanceApplyMapper.xml（getSmtVisitorPage）</td><td>移除随行表外连接；姓名改为主申请人 OR 随行人员 EXISTS；证件号改为随行人员 EXISTS</td></tr>
         <tr><td>后端测试</td><td>smart-module/smart-platform/smart-platform-core/src/test/java/com/tce/smart/platform/core/mapper/SmtAdmittanceApplyMapperXmlTest.java</td><td>解析真实 MyBatis Mapper 生成的绑定 SQL，断言姓名/证件号 EXISTS、参数绑定与无随行表外连接</td></tr>
-        <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/index.vue</td><td>姓名筛选 label 与 placeholder 均改为“访客/随行姓名”</td></tr>
+        <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/index.vue</td><td>保留简短的“访客姓名”“访客证件号” label 与 placeholder，查询参数和行为不变</td></tr>
       </table>
     </dd>
     <dt>已完成测试与待验收项</dt>
