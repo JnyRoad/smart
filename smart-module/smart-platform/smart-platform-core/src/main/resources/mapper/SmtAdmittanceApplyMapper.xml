@@ -374,15 +374,42 @@
 	</update>
 
 
-	<select id="countActiveMainFellowOverlapByCertNo" resultType="int">
+	<select id="countActiveFellowOverlapByCertNo" resultType="int">
 		SELECT COUNT(1)
 		FROM SMT_ADMITTANCE_APPLY A
 		INNER JOIN SMT_ADMITTANCE_FELLOW F ON F.VISITOR_ID = A.ID
 		WHERE F.CERT_NO = #{certNo}
-			AND F.IS_MAIN = 1
-      AND A.STATUS NOT IN (1, 7)
+			AND A.STATUS NOT IN (1, 7)
 			AND A.START_TIME &lt; #{endTime}
 			AND A.END_TIME &gt; #{startTime}
+			AND (
+				A.AREA_TYPE IS NULL
+				OR NOT REGEXP_LIKE(A.AREA_TYPE, '^[0-9]+(,[0-9]+)*$')
+				<choose>
+					<when test="areaTypes != null and areaTypes.size() > 0">
+						OR (
+							<foreach collection="areaTypes" item="areaType" separator=" OR ">
+								INSTR(',' || A.AREA_TYPE || ',', ',' || TO_CHAR(#{areaType}) || ',') &gt; 0
+							</foreach>
+						)
+					</when>
+					<otherwise>
+						OR 1 = 1
+					</otherwise>
+				</choose>
+			)
 	</select>
+
+	<select id="lockAdmittanceCertByHash" resultType="java.lang.String">
+		SELECT CERT_NO_HASH
+		FROM SMT_ADMITTANCE_CERT_LOCK
+		WHERE CERT_NO_HASH = #{certNoHash}
+		FOR UPDATE WAIT 10
+	</select>
+
+	<insert id="insertAdmittanceCertLock" timeout="10">
+		INSERT INTO SMT_ADMITTANCE_CERT_LOCK (CERT_NO_HASH, CREATE_TIME)
+		VALUES (#{certNoHash}, SYSTIMESTAMP)
+	</insert>
 
 </mapper>

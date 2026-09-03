@@ -965,36 +965,46 @@ flowchart LR
   <dl>
     <dt>现状与问题</dt>
     <dd>
-      <code>visitorEqualCheck</code>（<code>SmtAdmittanceApplyServiceImpl.java</code>，253-276 行）遍历 <code>fellowList</code>，只对 <code>Integer.valueOf(1).equals(fellow.getIsMain())</code>（264 行）的记录（即主申请人本人）做重复校验，调用 <code>baseMapper.countActiveMainFellowOverlapByCertNo(certNo, startTime, endTime)</code>；对应 SQL（<code>Mapper.xml</code>，360-369 行）条件为 <code>F.CERT_NO=? AND F.IS_MAIN=1 AND A.STATUS!=1</code> 加时间重叠，既没有区域维度，也不校验非主随行人员（<code>IS_MAIN!=1</code>）。<code>SmtAdmittanceApply</code> 实体已有 <code>areaType</code> 字段（entity.java:134，String 类型，供 detail.vue 拆分展示"新工厂/老工厂"多选结果），SQL 里完全没有引用。
+      原有 <code>visitorEqualCheck</code> 只校验 <code>isMain=1</code> 的主申请人，未将 <code>areaType</code> 纳入 SQL，且“先查后写”在两个并发请求都先完成查询时可能双双通过。<code>SmtAdmittanceApply.areaType</code> 是逗号拼接的多选区域 ID，不能用普通子串匹配：区域 <code>1</code> 不能误命中 <code>11</code>。
     </dd>
+    <dt>实施状态</dt>
+    <dd><strong>已实现</strong>：PR #173 已完成代码、定向 Maven 测试和正式 Oracle 锁表并发验收；合入 <code>main</code> 后等待随 <code>smart-platform-biz</code> 服务发布。正式库锁表验证不等同于已部署服务的业务端到端验收。</dd>
     <dt>目标与验收标准</dt>
-    <dd>同一证件号在同一时间段、同一区域（新厂或老厂，因二者绑定不同门岗设备、各自独立管控）下不能有两条有效申请；跨区域可以并存，无需额外管控；随行人员（非主申请人）也要按同样规则纳入判重，不再只挡主申请人自己。</dd>
+    <dd>
+      同一证件号在有效申请的开区间时间重叠且区域存在精确交集时，主申请人与任一随行人员均不得重复申请；有效且区域完全不交集的新厂/老厂申请可并存。任一随行人员缺少证件号即拒绝。正式保存入口的并发请求共享任一证件号时，至多一方可通过判重；另一方必须得到“已有预约”或“申请处理中”的业务结果，不能同时通过。
+    </dd>
     <dt>实现方式</dt>
     <dd>
-      SQL 层：<code>countActiveMainFellowOverlapByCertNo</code> 去掉 <code>F.IS_MAIN=1</code> 限制，改为按证件号对 <code>SMT_ADMITTANCE_FELLOW</code> 全表（含主申请人与随行人）判重；新增区域交集条件，传入本次申请的 <code>areaType</code>，与已存在申请的 <code>A.AREA_TYPE</code> 做子串匹配（因为该字段是多选拼接的字符串，需用 Oracle <code>INSTR</code>/<code>LIKE</code> 判断两侧是否存在交集，而非精确等值）。Java 层：<code>visitorEqualCheck</code> 循环里去掉 <code>isMain</code> 判断分支，对 <code>fellowList</code> 里所有人统一跑判重；调用改为多传一个 <code>areaType</code> 入参。
+      SQL 层使用 <code>countActiveFellowOverlapByCertNo</code> 查询 <code>SMT_ADMITTANCE_FELLOW</code> 的全部人员，不再依赖 <code>F.IS_MAIN</code>；仅统计 <code>STATUS NOT IN (1, 7)</code> 且满足 <code>START_TIME &lt; endTime AND END_TIME &gt; startTime</code> 的申请。区域交集使用 Oracle 精确分隔边界表达式 <code>INSTR(',' || A.AREA_TYPE || ',', ',' || TO_CHAR(areaType) || ',') &gt; 0</code>，避免 <code>1</code>/<code>11</code> 误判。历史申请的 <code>AREA_TYPE</code> 为 NULL 或不符合 <code>^[0-9]+(,[0-9]+)*$</code> 时，按“与所有区域冲突”处理；本次申请未携带区域时同样走保守冲突分支。
+      <br/><br/>
+      并发层在 <code>saveAdmittanceApply</code> 的同一事务中，先对本次所有非空证件号去重并排序，计算 SHA-256 后查询 <code>SMT_ADMITTANCE_CERT_LOCK</code> 的锚点行（<code>SELECT ... FOR UPDATE WAIT 10</code>），再运行上述判重并写入申请。首次创建锁行的唯一键竞争不受该 <code>FOR UPDATE</code> 直接约束，因此锁行 <code>INSERT</code> 额外设置 MyBatis/JDBC 10 秒语句超时，并将超时转换为“当前证件号申请处理中，请稍后重试”；2026-09-02 在经授权的正式 Oracle 锁表完成 20 轮首建竞争验证，竞争连接均收到 <code>SQLTimeoutException</code>（ORA-01013），实测约 12.1 秒后取消，说明 JDBC 取消不是精确 10 秒硬上限。锁表只保存哈希，不额外保存明文证件号。<code>/equal/check</code> 保留即时预检且不持锁，只有正式保存入口承载并发互斥。
     </dd>
     <dt>处理流程</dt>
     <dd>
       <ol>
-        <li>用户提交入厂申请（含主申请人+随行人员列表+ <code>areaType</code>）</li>
-        <li><code>visitorEqualCheck</code> 遍历 <code>fellowList</code>（不再按 <code>isMain</code> 跳过）</li>
-        <li>对每个人的证件号，查询同证件号+区域有交集+时间重叠+状态非终态（"已拒绝"及 2.6 新增的"已作废"）的记录数</li>
-        <li>命中则抛异常阻止提交，提示对应随行人姓名及冲突时间段</li>
+        <li>用户提交申请，服务先校验每位随行人员均有证件号。</li>
+        <li>正式保存时按证件号排序、去重后依次取得哈希锁；预检接口跳过本步。</li>
+        <li>遍历所有主申请人和随行人员，查询同证件号、精确区域相交、开区间时间重叠、未拒绝且未作废的申请。</li>
+        <li>命中时阻止整单保存并提示冲突人员和时间；未命中时才继续保存申请、车辆、人员及 OA 流程。</li>
       </ol>
     </dd>
     <dt>改动清单</dt>
     <dd>
       <table>
         <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
-        <tr><td>数据库/SQL</td><td>SmtAdmittanceApplyMapper.xml（countActiveMainFellowOverlapByCertNo，360-369 行）</td><td>去掉 IS_MAIN=1 限制；加 AREA_TYPE 交集匹配入参</td></tr>
-        <tr><td>后端</td><td>SmtAdmittanceApplyServiceImpl.visitorEqualCheck（253-276 行）</td><td>去掉 isMain 分支，统一对所有随行人判重；透传 areaType</td></tr>
-        <tr><td>后端（跨项联动）</td><td>同 SQL 的 STATUS!=1 条件</td><td>2.6 上线后追加排除"已作废"状态</td></tr>
+        <tr><td>Mapper</td><td>SmtAdmittanceApplyMapper.java / SmtAdmittanceApplyMapper.xml</td><td>全人员区域精确判重；新增锁行查询和首次创建语句</td></tr>
+        <tr><td>后端</td><td>SmtAdmittanceApplyServiceImpl</td><td>全人员证件校验、区域参数透传、保存事务内的排序去重哈希锁与异常转换</td></tr>
+        <tr><td>发布前置</td><td>目标 Oracle 业务 schema</td><td>已创建 <code>SMT_ADMITTANCE_CERT_LOCK(CERT_NO_HASH VARCHAR2(64 CHAR) PRIMARY KEY, CREATE_TIME TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL)</code>；本工作区不含 DDL/DML</td></tr>
       </table>
     </dd>
     <dt>测试与验证</dt>
-    <dd>单测覆盖：同证件号同区域时段重叠应拦截；同证件号跨区域（一新厂一老厂）不应拦截；非主随行人员与其他申请证件号重叠时应拦截（当前会漏判，是本项修复的核心场景）。</dd>
+    <dd>
+      已有 Mapper 绑定 SQL 契约测试覆盖全人员、状态排除、开区间时间、<code>1</code>/<code>11</code> 精确边界、未知区域保守冲突、锁 SQL 及首次锁行 <code>INSERT</code> 的 10 秒语句超时；服务测试覆盖非主随行人员重复、空证件拒绝、保存前先锁再查、哈希不落明文、锁行首建竞争、首次创建超时和重试超时的业务错误转换。
+      <br/><br/>
+      <b>正式 Oracle 锁行并发验收（已完成）</b>：2026-09-02 在经授权的目标业务 schema 以两个独立连接执行 20 轮同一随机 SHA-256 哈希的首次锁行插入竞争。持锁连接全程不提交；竞争连接全部在约 12.1 秒后收到 <code>SQLTimeoutException</code>（ORA-01013）；两连接均回滚，并逐轮复核锁表零残留。因此，锁表的首次唯一键竞争不会让两个事务同时获得锁。该验证仅覆盖协调锁的数据库语义；真实已部署服务的双 HTTP 提交、业务申请落库和 OA 调用未在本轮执行，不能据此声称生产业务端到端已验收。
+    </dd>
     <dt>依赖与风险</dt>
-    <dd><code>AREA_TYPE</code> 的实际存储格式（分隔符、编码是否有歧义）需要先抽样核对线上数据再定 SQL 匹配写法，避免误判/漏判；判重收紧后，同证件号同区域的重复提交会比现状更容易被拦，需要在上线说明里提前告知一线操作人员，避免误认为是新缺陷。</dd>
+    <dd>锁表已在目标业务 schema 部署；历史区域缺失或异常会被保守拦截，可能增加人工确认量。首次创建同一锁行时，第二笔请求由 JDBC 语句超时尝试取消等待并转为业务错误；正式库 20 轮验证显示 Oracle 驱动实际取消约晚于 10 秒 2.1 秒，若业务需要精确硬性响应上限，必须另行评审 Oracle 会话/锁创建协议。判重收紧后，同证件号同区域的重复提交会比现状更容易被拦，应在上线说明中告知一线人员。<code>AREA_TYPE</code> 的真实 Oracle 存量格式、索引与执行计划，以及已部署服务的业务端到端并发路径仍需在隔离或经授权的目标库核验。</dd>
   </dl>
 </section>
 
@@ -1914,7 +1924,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
   <dt>现状与问题</dt>
   <dd>
    <ul>
-    <li>入厂申请从未引用保密供应商表：<code>[PB]/service/admittance/impl/SmtAdmittanceApplyServiceImpl.java</code> 全文 grep <code>supplier</code>（忽略大小写）零命中。保存入口 <code>saveAdmittanceApply :194</code>、<code>saveAdmittanceCarApply :229</code>；校验链 <code>visitorEqualCheck :254-276</code> 只做「访客与被访人重复」「主访客证件号非空」「时间重叠判重」（SQL <code>[PX]/SmtAdmittanceApplyMapper.xml:360-369 countActiveMainFellowOverlapByCertNo</code>）。</li>
+    <li>入厂申请仍未引用保密供应商表：<code>[PB]/service/admittance/impl/SmtAdmittanceApplyServiceImpl.java</code> 全文 grep <code>supplier</code>（忽略大小写）零命中。保存入口为 <code>saveAdmittanceApply</code>、<code>saveAdmittanceCarApply</code>；现有 <code>visitorEqualCheck</code> 已校验访客与被访人证件号不可重复、全体访客证件号非空，以及全人员的区域精确时间重叠判重（<code>[PX]/SmtAdmittanceApplyMapper.xml: countActiveFellowOverlapByCertNo</code>），但尚无保密供应商协议期限校验。</li>
     <li>数据齐全但无联动：<code>SMT_SECURITYAREA_SUPPLIER.endEffectTime</code>（<code>[PC]/entity/SmtSecurityAreaSupplier.java:73</code>）、<code>SMT_SUPPLIER_PERSON.idCard / supplierId</code>（<code>[PC]/entity/SmtSupplierPerson.java:51,36</code>）。已有一个「按证件号 + 供应商查是否在名单」的方法 <code>[PB]/service/impl/SmtSupplierPersonServiceImpl.java:45-53 getVisitorSupplier</code>（接口 <code>/securityarea/supplier/person/visitor/find :48</code>），但它要求传 supplierId，不适合申请侧「只知道证件号」的场景。</li>
     <li>考试拦截点：5.1（批次 1）在 <code>[PB]/service/securityzone/impl/SmtSecurityZoneServiceImpl.java:217-254 getAuthRemark</code> 追加「未通过考试且目标含 area_type=1 权限组 → 拦截」。该方法按 <code>apply.getStaffId()</code> 查员工（<code>:229</code>），<strong>没有访客证件号分支</strong>，访客入厂申请涉及保密区域时无法复用。</li>
     <li>申请单区域字段 <code>SmtAdmittanceApply.areaType :134</code>（授权进入区域选项）→ <code>getDeviceList :783-797</code> 经 <code>SmtAdmittanceAreaTypeAuth</code> 映射到权限组 authId，可据此判断本次申请是否命中 <code>area_type=1</code> 的保密权限组。</li>

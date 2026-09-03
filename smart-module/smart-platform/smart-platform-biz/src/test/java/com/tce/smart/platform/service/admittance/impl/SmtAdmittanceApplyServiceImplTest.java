@@ -71,6 +71,9 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -645,6 +648,9 @@ public class SmtAdmittanceApplyServiceImplTest {
 				sqlSegment.contains("isc_submit_batch is null"));
 	}
 
+	/**
+	 * 验证证件号不同的同名访客仍可通过，并将所选区域传入重复申请查询。
+	 */
 	@Test
 	public void visitorEqualCheckIgnoresSameNameWhenCertNoDiffers() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
@@ -666,13 +672,18 @@ public class SmtAdmittanceApplyServiceImplTest {
 		request.setReceptionistBadge("host-1");
 		request.setStartTime(startTime);
 		request.setEndTime(endTime);
+		request.setAreaType(Collections.singletonList(1));
 		request.setFellowList(Collections.singletonList(fellow));
 
 		Assert.assertTrue(service.visitorEqualCheck(request));
-		Mockito.verify(mapper).countActiveMainFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime);
+		Mockito.verify(mapper).countActiveFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime,
+				Collections.singletonList(1));
 		Mockito.verify(mapper, Mockito.never()).selectCount(Mockito.any());
 	}
 
+	/**
+	 * 验证主申请人证件号与有效预约重叠时，会按所选区域拒绝重复申请。
+	 */
 	@Test
 	public void visitorEqualCheckRejectsOverlappingMainFellowByCertNo() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
@@ -685,7 +696,8 @@ public class SmtAdmittanceApplyServiceImplTest {
 		SmtStaff receptionist = new SmtStaff();
 		receptionist.setCertno("500101199001010000");
 		Mockito.when(staffService.getSimpleSttaffByBadge("host-1")).thenReturn(receptionist);
-		Mockito.when(mapper.countActiveMainFellowOverlapByCertNo("411281199606254513", startTime, endTime))
+		Mockito.when(mapper.countActiveFellowOverlapByCertNo("411281199606254513", startTime, endTime,
+				Collections.singletonList(1)))
 				.thenReturn(1);
 		AdmittanceFellowReqDTO fellow = new AdmittanceFellowReqDTO();
 		fellow.setFellowName("张鑫");
@@ -695,6 +707,7 @@ public class SmtAdmittanceApplyServiceImplTest {
 		request.setReceptionistBadge("host-1");
 		request.setStartTime(startTime);
 		request.setEndTime(endTime);
+		request.setAreaType(Collections.singletonList(1));
 		request.setFellowList(Collections.singletonList(fellow));
 
 		try {
@@ -703,8 +716,166 @@ public class SmtAdmittanceApplyServiceImplTest {
 		} catch (SmartException error) {
 			Assert.assertTrue(error.getMessage().contains("已有预约，不能重复申请"));
 		}
-		Mockito.verify(mapper).countActiveMainFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime);
+		Mockito.verify(mapper).countActiveFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime,
+				Collections.singletonList(1));
 		Mockito.verify(mapper, Mockito.never()).selectCount(Mockito.any());
+	}
+
+	/**
+	 * 验证非主随行人员的证件号命中有效重叠申请时，同样必须拒绝重复申请。
+	 */
+	@Test
+	public void visitorEqualCheckRejectsOverlappingNonMainFellowByCertNo() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtAdmittanceApplyServiceImpl service = new SmtAdmittanceApplyServiceImpl();
+		setField(service, "baseMapper", mapper);
+		setField(service, "smtStaffService", staffService);
+		LocalDateTime startTime = LocalDateTime.of(2026, 6, 8, 18, 28, 0);
+		LocalDateTime endTime = LocalDateTime.of(2026, 10, 8, 15, 20, 0);
+		SmtStaff receptionist = new SmtStaff();
+		receptionist.setCertno("500101199001010000");
+		Mockito.when(staffService.getSimpleSttaffByBadge("host-1")).thenReturn(receptionist);
+		Mockito.when(mapper.countActiveFellowOverlapByCertNo("411281199606254513", startTime, endTime,
+				Collections.singletonList(11)))
+				.thenReturn(1);
+		AdmittanceFellowReqDTO fellow = new AdmittanceFellowReqDTO();
+		fellow.setFellowName("张鑫");
+		fellow.setCertNo("411281199606254513");
+		fellow.setIsMain(0);
+		SaveAdmittanceApplyReqDTO request = new SaveAdmittanceApplyReqDTO();
+		request.setReceptionistBadge("host-1");
+		request.setStartTime(startTime);
+		request.setEndTime(endTime);
+		request.setAreaType(Collections.singletonList(11));
+		request.setFellowList(Collections.singletonList(fellow));
+
+		try {
+			service.visitorEqualCheck(request);
+			Assert.fail("非主随行人员证件号重叠时必须拒绝申请");
+		} catch (SmartException error) {
+			Assert.assertTrue(error.getMessage().contains("已有预约，不能重复申请"));
+		}
+		Mockito.verify(mapper).countActiveFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime,
+				Collections.singletonList(11));
+	}
+
+	/**
+	 * 验证任一随行人员缺少证件号时，不能借由非主身份绕过重复申请校验。
+	 */
+	@Test
+	public void visitorEqualCheckRejectsBlankCertNoForNonMainFellow() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtStaffService staffService = Mockito.mock(SmtStaffService.class);
+		SmtAdmittanceApplyServiceImpl service = new SmtAdmittanceApplyServiceImpl();
+		setField(service, "baseMapper", mapper);
+		setField(service, "smtStaffService", staffService);
+		SmtStaff receptionist = new SmtStaff();
+		receptionist.setCertno("500101199001010000");
+		Mockito.when(staffService.getSimpleSttaffByBadge("host-1")).thenReturn(receptionist);
+		AdmittanceFellowReqDTO fellow = new AdmittanceFellowReqDTO();
+		fellow.setFellowName("张鑫");
+		fellow.setCertNo("");
+		fellow.setIsMain(0);
+		SaveAdmittanceApplyReqDTO request = new SaveAdmittanceApplyReqDTO();
+		request.setReceptionistBadge("host-1");
+		request.setStartTime(LocalDateTime.of(2026, 6, 8, 18, 28, 0));
+		request.setEndTime(LocalDateTime.of(2026, 10, 8, 15, 20, 0));
+		request.setAreaType(Collections.singletonList(1));
+		request.setFellowList(Collections.singletonList(fellow));
+
+		try {
+			service.visitorEqualCheck(request);
+			Assert.fail("非主随行人员缺少证件号时必须拒绝申请");
+		} catch (SmartException error) {
+			Assert.assertTrue(error.getMessage().contains("证件号码不能为空"));
+		}
+		Mockito.verify(mapper, Mockito.never()).countActiveFellowOverlapByCertNo(
+				Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.anyList());
+	}
+
+	/**
+	 * 验证并发首建锁行后重试取锁超时时，服务会返回业务拒绝而非泄露数据库锁异常。
+	 */
+	@Test
+	public void lockAdmittanceCertificateConvertsRetryLockTimeoutToBusinessError() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = new SmtAdmittanceApplyServiceImpl();
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.lockAdmittanceCertByHash(Mockito.anyString()))
+				.thenReturn(null)
+				.thenThrow(new PessimisticLockingFailureException("lock timeout"));
+		Mockito.when(mapper.insertAdmittanceCertLock(Mockito.anyString()))
+				.thenThrow(new DuplicateKeyException("concurrent insert"));
+		Method lockAdmittanceCertificate = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("lockAdmittanceCertificate", String.class);
+		lockAdmittanceCertificate.setAccessible(true);
+
+		try {
+			lockAdmittanceCertificate.invoke(service, "411281199606254513");
+			Assert.fail("重试取锁超时时应转换为业务拒绝");
+		} catch (java.lang.reflect.InvocationTargetException error) {
+			Assert.assertTrue(error.getCause() instanceof SmartException);
+			Assert.assertEquals("当前证件号申请处理中，请稍后重试", error.getCause().getMessage());
+		}
+	}
+
+	/**
+	 * 验证首次创建锁行的 JDBC 语句超时也必须转换为业务拒绝，不能把数据库异常暴露给申请人。
+	 */
+	@Test
+	public void lockAdmittanceCertificateConvertsCreateTimeoutToBusinessError() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = new SmtAdmittanceApplyServiceImpl();
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.lockAdmittanceCertByHash(Mockito.anyString())).thenReturn(null);
+		Mockito.when(mapper.insertAdmittanceCertLock(Mockito.anyString()))
+				.thenThrow(new QueryTimeoutException("first-use lock timeout"));
+		Method lockAdmittanceCertificate = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("lockAdmittanceCertificate", String.class);
+		lockAdmittanceCertificate.setAccessible(true);
+
+		try {
+			lockAdmittanceCertificate.invoke(service, "411281199606254513");
+			Assert.fail("首次创建锁行超时时应转换为业务拒绝");
+		} catch (java.lang.reflect.InvocationTargetException error) {
+			Assert.assertTrue(error.getCause() instanceof SmartException);
+			Assert.assertEquals("当前证件号申请处理中，请稍后重试", error.getCause().getMessage());
+		}
+	}
+
+	/**
+	 * 验证同一申请内重复证件只加锁一次，并按原始证件号稳定排序以降低多证件死锁风险。
+	 */
+	@Test
+	public void lockAdmittanceCertificatesDeduplicatesAndSortsCertificateNumbers() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = new SmtAdmittanceApplyServiceImpl();
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.lockAdmittanceCertByHash(Mockito.anyString())).thenReturn("certificate-lock");
+		AdmittanceFellowReqDTO zCertificate = new AdmittanceFellowReqDTO();
+		zCertificate.setFellowName("访客乙");
+		zCertificate.setCertNo("z-cert");
+		AdmittanceFellowReqDTO aCertificate = new AdmittanceFellowReqDTO();
+		aCertificate.setFellowName("访客甲");
+		aCertificate.setCertNo("a-cert");
+		AdmittanceFellowReqDTO repeatedZCertificate = new AdmittanceFellowReqDTO();
+		repeatedZCertificate.setFellowName("访客丙");
+		repeatedZCertificate.setCertNo("z-cert");
+		SaveAdmittanceApplyReqDTO request = new SaveAdmittanceApplyReqDTO();
+		request.setFellowList(Arrays.asList(zCertificate, aCertificate, repeatedZCertificate));
+		Method lockAdmittanceCertificates = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("lockAdmittanceCertificates", SaveAdmittanceApplyReqDTO.class);
+		lockAdmittanceCertificates.setAccessible(true);
+
+		lockAdmittanceCertificates.invoke(service, request);
+
+		ArgumentCaptor<String> certificateHashCaptor = ArgumentCaptor.forClass(String.class);
+		Mockito.verify(mapper, Mockito.times(2)).lockAdmittanceCertByHash(certificateHashCaptor.capture());
+		Assert.assertEquals(Arrays.asList(
+				"065b4072a1d275850a809f282523ea493307e94d6db7537447fb857ae5a5cd4b",
+				"5d9d764230e419ada1e70eb00caa64f08014121841ccfa32881e030bd21016d6"),
+				certificateHashCaptor.getAllValues());
 	}
 
 	@Test
@@ -759,6 +930,9 @@ public class SmtAdmittanceApplyServiceImplTest {
 		}
 	}
 
+	/**
+	 * 验证被访人证件号缺失不影响访客证件号重复校验。
+	 */
 	@Test
 	public void visitorEqualCheckRejectsDuplicateWhenReceptionistCertNoIsMissing() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
@@ -770,7 +944,8 @@ public class SmtAdmittanceApplyServiceImplTest {
 		LocalDateTime endTime = LocalDateTime.of(2026, 10, 8, 15, 20, 0);
 		SmtStaff receptionist = new SmtStaff();
 		Mockito.when(staffService.getSimpleSttaffByBadge("host-1")).thenReturn(receptionist);
-		Mockito.when(mapper.countActiveMainFellowOverlapByCertNo("411281199606254513", startTime, endTime))
+		Mockito.when(mapper.countActiveFellowOverlapByCertNo("411281199606254513", startTime, endTime,
+				Collections.singletonList(1)))
 				.thenReturn(1);
 		AdmittanceFellowReqDTO fellow = new AdmittanceFellowReqDTO();
 		fellow.setFellowName("张鑫");
@@ -780,6 +955,7 @@ public class SmtAdmittanceApplyServiceImplTest {
 		request.setReceptionistBadge("host-1");
 		request.setStartTime(startTime);
 		request.setEndTime(endTime);
+		request.setAreaType(Collections.singletonList(1));
 		request.setFellowList(Collections.singletonList(fellow));
 
 		try {
@@ -788,9 +964,13 @@ public class SmtAdmittanceApplyServiceImplTest {
 		} catch (SmartException error) {
 			Assert.assertTrue(error.getMessage().contains("已有预约，不能重复申请"));
 		}
-		Mockito.verify(mapper).countActiveMainFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime);
+		Mockito.verify(mapper).countActiveFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime,
+				Collections.singletonList(1));
 	}
 
+	/**
+	 * 验证保存流程先锁定证件哈希，再查询重复申请，避免并发提交同时通过判重。
+	 */
 	@Test
 	public void saveAdmittanceApplyRunsDuplicateCheckBeforePersisting() throws Exception {
 		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
@@ -803,7 +983,9 @@ public class SmtAdmittanceApplyServiceImplTest {
 		SmtStaff receptionist = new SmtStaff();
 		receptionist.setCertno("500101199001010000");
 		Mockito.when(staffService.getSimpleSttaffByBadge("host-1")).thenReturn(receptionist);
-		Mockito.when(mapper.countActiveMainFellowOverlapByCertNo("411281199606254513", startTime, endTime))
+		Mockito.when(mapper.lockAdmittanceCertByHash(Mockito.anyString())).thenReturn("certificate-lock");
+		Mockito.when(mapper.countActiveFellowOverlapByCertNo("411281199606254513", startTime, endTime,
+				Collections.singletonList(1)))
 				.thenReturn(1);
 		AdmittanceFellowReqDTO fellow = new AdmittanceFellowReqDTO();
 		fellow.setFellowName("张鑫");
@@ -813,6 +995,7 @@ public class SmtAdmittanceApplyServiceImplTest {
 		request.setReceptionistBadge("host-1");
 		request.setStartTime(startTime);
 		request.setEndTime(endTime);
+		request.setAreaType(Collections.singletonList(1));
 		request.setFellowList(Collections.singletonList(fellow));
 
 		try {
@@ -821,7 +1004,13 @@ public class SmtAdmittanceApplyServiceImplTest {
 		} catch (SmartException error) {
 			Assert.assertTrue(error.getMessage().contains("已有预约，不能重复申请"));
 		}
-		Mockito.verify(mapper).countActiveMainFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime);
+		ArgumentCaptor<String> certificateHashCaptor = ArgumentCaptor.forClass(String.class);
+		InOrder mapperOrder = Mockito.inOrder(mapper);
+		mapperOrder.verify(mapper).lockAdmittanceCertByHash(certificateHashCaptor.capture());
+		mapperOrder.verify(mapper).countActiveFellowOverlapByCertNo(fellow.getCertNo(), startTime, endTime,
+				Collections.singletonList(1));
+		Assert.assertNotEquals("锁表不能写入明文证件号", fellow.getCertNo(), certificateHashCaptor.getValue());
+		Assert.assertTrue("锁表键必须是 SHA-256 十六进制哈希", certificateHashCaptor.getValue().matches("[0-9a-f]{64}"));
 		Mockito.verify(mapper, Mockito.never()).insert(Mockito.any());
 	}
 
