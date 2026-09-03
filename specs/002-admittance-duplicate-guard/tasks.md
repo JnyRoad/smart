@@ -72,7 +72,7 @@
 **Purpose**: 将实际设计与验证边界同步回蓝图，完成全链路检查。
 
 - [X] T019 在 `docs/yuhui-prototype/yuhui-blueprint.html` 更新 2.7：以区域 ID 精确交集替换子串匹配、声明全人员校验与证件号锁协议、注明区域未知保守策略和 Oracle 并发验收前置。
-- [X] T020 已于 2026-09-02 从 `smart-module` 运行 `quickstart.md` 的 Maven 命令：Mapper 5 项、目标服务 65 项、同名历史服务 9 项，共 74 项均为 0 failures / 0 errors；Oracle 验收因当前工作区没有隔离 Oracle 测试库而未执行，现场步骤保留在 `quickstart.md`。
+- [X] T020 已于 2026-09-02 从 `smart-module` 运行 `quickstart.md` 的 Maven 命令：核心模块 Mapper 5 项；业务模块共 74 项（目标服务 65 项、同名历史服务 9 项）；两个目标模块合计 79 项，均为 0 failures / 0 errors。Oracle 验收因当前工作区没有隔离 Oracle 测试库而未执行，现场步骤保留在 `quickstart.md`。
 - [X] T021 运行 `git diff --check`，执行规格、方案、任务与实际改动的一致性复核，确保未写入 DDL/DML、密钥或无关文件。
 
 ## Dependencies & Execution Order

@@ -15,7 +15,7 @@ mvn -pl smart-platform/smart-platform-core,smart-platform/smart-platform-biz -am
   -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
-本工作区于 2026-09-02 从 `smart-module` 目录执行上述命令：Mapper 测试 5 项、目标服务测试 65 项、同名历史服务测试 9 项，共 74 项，均为 0 failures / 0 errors。真实 Oracle 验收仍未执行。
+本工作区于 2026-09-02 从 `smart-module` 目录执行上述命令：核心模块 Mapper 测试 5 项；业务模块共 74 项（目标服务测试 65 项、同名历史服务测试 9 项）。两个目标模块合计 79 项，均为 0 failures / 0 errors。真实 Oracle 验收仍未执行。
 
 ## Functional checks
 
