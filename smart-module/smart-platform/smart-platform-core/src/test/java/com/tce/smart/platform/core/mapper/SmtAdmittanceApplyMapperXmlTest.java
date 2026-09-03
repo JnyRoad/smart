@@ -166,6 +166,8 @@ public class SmtAdmittanceApplyMapperXmlTest {
 		Assert.assertTrue(insertSql.contains("INSERT INTO SMT_ADMITTANCE_CERT_LOCK"));
 		Assert.assertTrue(insertSql.contains("CERT_NO_HASH, CREATE_TIME"));
 		Assert.assertTrue(insertSql.contains("VALUES (?, SYSTIMESTAMP)"));
+		Assert.assertEquals("首次创建锁行的 INSERT 必须设置 JDBC 等待超时", Integer.valueOf(10),
+				insertStatement.getTimeout());
 	}
 
 	/**

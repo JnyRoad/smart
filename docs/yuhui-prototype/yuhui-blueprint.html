@@ -975,7 +975,7 @@ flowchart LR
     <dd>
       SQL 层使用 <code>countActiveFellowOverlapByCertNo</code> 查询 <code>SMT_ADMITTANCE_FELLOW</code> 的全部人员，不再依赖 <code>F.IS_MAIN</code>；仅统计 <code>STATUS NOT IN (1, 7)</code> 且满足 <code>START_TIME &lt; endTime AND END_TIME &gt; startTime</code> 的申请。区域交集使用 Oracle 精确分隔边界表达式 <code>INSTR(',' || A.AREA_TYPE || ',', ',' || TO_CHAR(areaType) || ',') &gt; 0</code>，避免 <code>1</code>/<code>11</code> 误判。历史申请的 <code>AREA_TYPE</code> 为 NULL 或不符合 <code>^[0-9]+(,[0-9]+)*$</code> 时，按“与所有区域冲突”处理；本次申请未携带区域时同样走保守冲突分支。
       <br/><br/>
-      并发层在 <code>saveAdmittanceApply</code> 的同一事务中，先对本次所有非空证件号去重并排序，计算 SHA-256 后查询 <code>SMT_ADMITTANCE_CERT_LOCK</code> 的锚点行（<code>SELECT ... FOR UPDATE WAIT 10</code>），再运行上述判重并写入申请。首次创建锁行的唯一键竞争会在先行事务结束后转为重新取锁，因此不产生双成功；但该首次竞争并不受 <code>FOR UPDATE WAIT 10</code> 直接约束，实际等待上界必须由 Oracle 验收确认。已存在锁行的等待超时转换为“当前证件号申请处理中，请稍后重试”。锁表只保存哈希，不额外保存明文证件号。<code>/equal/check</code> 保留即时预检且不持锁，只有正式保存入口承载并发互斥。
+      并发层在 <code>saveAdmittanceApply</code> 的同一事务中，先对本次所有非空证件号去重并排序，计算 SHA-256 后查询 <code>SMT_ADMITTANCE_CERT_LOCK</code> 的锚点行（<code>SELECT ... FOR UPDATE WAIT 10</code>），再运行上述判重并写入申请。首次创建锁行的唯一键竞争不受该 <code>FOR UPDATE</code> 直接约束，因此锁行 <code>INSERT</code> 额外设置 MyBatis/JDBC 10 秒语句超时，并将超时转换为“当前证件号申请处理中，请稍后重试”；Oracle JDBC 的取消时刻并非精确硬上限，实际等待与异常映射仍须由 Oracle 验收确认。锁表只保存哈希，不额外保存明文证件号。<code>/equal/check</code> 保留即时预检且不持锁，只有正式保存入口承载并发互斥。
     </dd>
     <dt>处理流程</dt>
     <dd>
@@ -997,12 +997,12 @@ flowchart LR
     </dd>
     <dt>测试与验证</dt>
     <dd>
-      已有 Mapper 绑定 SQL 契约测试覆盖全人员、状态排除、开区间时间、<code>1</code>/<code>11</code> 精确边界、未知区域保守冲突及锁 SQL；服务测试覆盖非主随行人员重复、空证件拒绝、保存前先锁再查、哈希不落明文、锁行首建竞争和重试超时的业务错误转换。
+      已有 Mapper 绑定 SQL 契约测试覆盖全人员、状态排除、开区间时间、<code>1</code>/<code>11</code> 精确边界、未知区域保守冲突、锁 SQL 及首次锁行 <code>INSERT</code> 的 10 秒语句超时；服务测试覆盖非主随行人员重复、空证件拒绝、保存前先锁再查、哈希不落明文、锁行首建竞争、首次创建超时和重试超时的业务错误转换。
       <br/><br/>
       <b>发布前硬门槛（当前未执行）</b>：在隔离 Oracle 测试库先执行经评审的锁表 DDL，再进行 20 轮双事务并发提交验收；每轮必须恰一方通过，另一方收到重复或处理中业务结果。未完成该验收前，只能表述为“代码和 SQL 契约已验证，Oracle 真实并发语义未验收”。
     </dd>
     <dt>依赖与风险</dt>
-    <dd>锁表 DDL 未部署时正式保存会因表不存在而失败，因此必须作为本功能的发布前置；历史区域缺失或异常会被保守拦截，可能增加人工确认量。首次创建同一锁行时，第二笔请求会等待首笔事务（含 OA 调用）结束后再得到唯一键竞争结果，可能超过 10 秒；若业务需要硬性响应上限，必须另行评审 Oracle 会话/锁创建协议。判重收紧后，同证件号同区域的重复提交会比现状更容易被拦，应在上线说明中告知一线人员。<code>AREA_TYPE</code> 的真实 Oracle 存量格式、索引与执行计划仍需在隔离或经授权的目标库核验。</dd>
+    <dd>锁表 DDL 未部署时正式保存会因表不存在而失败，因此必须作为本功能的发布前置；历史区域缺失或异常会被保守拦截，可能增加人工确认量。首次创建同一锁行时，第二笔请求由 JDBC 语句超时尝试取消等待并转为业务错误；Oracle 驱动取消可能晚于 10 秒，若业务需要精确硬性响应上限，必须另行评审 Oracle 会话/锁创建协议。判重收紧后，同证件号同区域的重复提交会比现状更容易被拦，应在上线说明中告知一线人员。<code>AREA_TYPE</code> 的真实 Oracle 存量格式、索引与执行计划仍需在隔离或经授权的目标库核验。</dd>
   </dl>
 </section>
 

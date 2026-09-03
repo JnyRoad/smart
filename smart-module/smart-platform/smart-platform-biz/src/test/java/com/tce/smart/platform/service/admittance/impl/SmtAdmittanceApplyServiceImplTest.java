@@ -73,6 +73,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -813,6 +814,30 @@ public class SmtAdmittanceApplyServiceImplTest {
 		try {
 			lockAdmittanceCertificate.invoke(service, "411281199606254513");
 			Assert.fail("重试取锁超时时应转换为业务拒绝");
+		} catch (java.lang.reflect.InvocationTargetException error) {
+			Assert.assertTrue(error.getCause() instanceof SmartException);
+			Assert.assertEquals("当前证件号申请处理中，请稍后重试", error.getCause().getMessage());
+		}
+	}
+
+	/**
+	 * 验证首次创建锁行的 JDBC 语句超时也必须转换为业务拒绝，不能把数据库异常暴露给申请人。
+	 */
+	@Test
+	public void lockAdmittanceCertificateConvertsCreateTimeoutToBusinessError() throws Exception {
+		SmtAdmittanceApplyMapper mapper = Mockito.mock(SmtAdmittanceApplyMapper.class);
+		SmtAdmittanceApplyServiceImpl service = new SmtAdmittanceApplyServiceImpl();
+		setField(service, "baseMapper", mapper);
+		Mockito.when(mapper.lockAdmittanceCertByHash(Mockito.anyString())).thenReturn(null);
+		Mockito.when(mapper.insertAdmittanceCertLock(Mockito.anyString()))
+				.thenThrow(new QueryTimeoutException("first-use lock timeout"));
+		Method lockAdmittanceCertificate = SmtAdmittanceApplyServiceImpl.class
+				.getDeclaredMethod("lockAdmittanceCertificate", String.class);
+		lockAdmittanceCertificate.setAccessible(true);
+
+		try {
+			lockAdmittanceCertificate.invoke(service, "411281199606254513");
+			Assert.fail("首次创建锁行超时时应转换为业务拒绝");
 		} catch (java.lang.reflect.InvocationTargetException error) {
 			Assert.assertTrue(error.getCause() instanceof SmartException);
 			Assert.assertEquals("当前证件号申请处理中，请稍后重试", error.getCause().getMessage());

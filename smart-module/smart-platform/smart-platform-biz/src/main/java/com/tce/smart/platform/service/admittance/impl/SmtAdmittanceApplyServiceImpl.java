@@ -66,6 +66,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -327,6 +328,9 @@ public class SmtAdmittanceApplyServiceImpl extends ServiceImpl<SmtAdmittanceAppl
 			} catch (PessimisticLockingFailureException retryException) {
 				throw new SmartException("当前证件号申请处理中，请稍后重试");
 			}
+		} catch (QueryTimeoutException exception) {
+			// 首建 INSERT 的 JDBC 超时同样代表证件锁仍被其他事务占用。
+			throw new SmartException("当前证件号申请处理中，请稍后重试");
 		} catch (PessimisticLockingFailureException exception) {
 			throw new SmartException("当前证件号申请处理中，请稍后重试");
 		}

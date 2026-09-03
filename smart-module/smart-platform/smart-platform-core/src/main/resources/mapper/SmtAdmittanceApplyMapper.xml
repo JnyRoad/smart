@@ -407,7 +407,7 @@
 		FOR UPDATE WAIT 10
 	</select>
 
-	<insert id="insertAdmittanceCertLock">
+	<insert id="insertAdmittanceCertLock" timeout="10">
 		INSERT INTO SMT_ADMITTANCE_CERT_LOCK (CERT_NO_HASH, CREATE_TIME)
 		VALUES (#{certNoHash}, SYSTIMESTAMP)
 	</insert>
