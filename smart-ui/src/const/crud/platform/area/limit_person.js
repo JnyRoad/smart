@@ -44,6 +44,14 @@ export const tableOption = {
     {
       label: '创建时间',
       prop: 'createTime'
+    },
+    {
+      label: '生效时间',
+      prop: 'startTime'
+    },
+    {
+      label: '失效时间',
+      prop: 'endTime'
     }
   ]
 }

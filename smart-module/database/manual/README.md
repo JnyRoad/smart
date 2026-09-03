@@ -1,5 +1,10 @@
 # manual
 
+## 2026-09-03 员工通关权限有效期
+
+- `20260903_add_staff_device_auth_window.sql`：为 `SMT_STAFF_DEVICE_AUTH` 增加 `START_TIME`、`END_TIME`，将历史记录回填为创建日零点至 `2030-12-31 23:59:59`，并拒绝结束时间早于开始时间的异常数据；脚本由 DBA 在目标 Oracle schema 执行，仓库未执行任何真实数据库变更。
+- `20260903_rollback_staff_device_auth_window.sql`：只做应用回滚前置检查。日期字段和已配置的业务数据刻意保留，避免破坏性 DDL 造成有效期丢失；旧应用不读取这两个字段。
+
 ## 2026-09-02 保密区供应商软删除
 
 - `20260902_add_supplier_soft_delete.sql`：为 `SMT_SECURITYAREA_SUPPLIER` 和 `SMT_SUPPLIER_PERSON` 增加 `DEL_FLAG`，将历史空值回填为 `0`，并校验字段只含 `0` 或 `1`。字段默认 `0`、不可为空，并以检查约束限制为 `0/1`；脚本由 DBA 在目标 Oracle schema 执行，仓库未执行任何真实数据库变更。

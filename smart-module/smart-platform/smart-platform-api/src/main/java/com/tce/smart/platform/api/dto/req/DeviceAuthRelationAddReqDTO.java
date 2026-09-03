@@ -29,4 +29,14 @@ public class DeviceAuthRelationAddReqDTO extends BaseDTO {
 	@NotEmpty(message = "工号列表不能为空")
 	@Size(max = 1000, message = "单次批量授权最多 1000 个工号")
 	private List<String> badges;
+
+	/**
+	 * 权限开始日期，格式为 yyyy-MM-dd；未传时服务端默认当天。
+	 */
+	private String startTime;
+
+	/**
+	 * 权限结束日期，格式为 yyyy-MM-dd；未传时服务端默认 2030-12-31。
+	 */
+	private String endTime;
 }

@@ -40,6 +40,16 @@ public class SmtStaffDeviceAuth  extends  Model<SmtStaffDeviceAuth>{
 	private Date createTime;
 
 	/**
+	 * 权限生效时间，用于人员关联明细展示。
+	 */
+	private Date startTime;
+
+	/**
+	 * 权限失效时间，用于人员关联明细展示。
+	 */
+	private Date endTime;
+
+	/**
 	 * 权限类型 1:基础权限  2:保密区权限
 	 */
 	private Integer authType;

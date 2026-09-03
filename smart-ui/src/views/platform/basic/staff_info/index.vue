@@ -271,6 +271,19 @@
             </div>
           </div>
 
+          <!-- 权限有效期：日期字符串由共享工具归一化后再提交给后端 -->
+          <div class="assign-validity">
+            <span class="assign-validity__label">权限有效期</span>
+            <el-date-picker
+              v-model="entryForm.dateRange"
+              :clearable="false"
+              type="daterange"
+              value-format="yyyy-MM-dd"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期" />
+          </div>
+
           <!-- 分配方式 -->
           <div class="assign-type">
             <el-radio-group v-model="addType" size="small">
@@ -319,6 +332,7 @@ import { enumStaffStatus } from '@/const/crud/platform/enum'
 import { mapGetters } from 'vuex'
 import { isArrayFn } from '@/util/util'
 import { staffStatusInit } from '@/filters/index'
+import { buildPermissionDatePayload, getDefaultPermissionDateRange } from '@/util/permission-validity'
 import DoPasteDialogs from './doPasteBadge'
 import IssueAuthDialogs from './issueAuth'
 // issueAuth
@@ -364,7 +378,8 @@ export default {
       appList: [],
       entryForm: {
         ids: [],
-        deviceAuthIds: undefined //通关权限策略
+        deviceAuthIds: undefined, //通关权限策略
+        dateRange: getDefaultPermissionDateRange()
       },
       addType: 1,
       appForm: {
@@ -747,23 +762,33 @@ export default {
       this.entryForm.ids = idArr
       this.appForm.staffId = idArr
     },
-    entrySubmit(formName) {
-      // 数据验证
+    /**
+     * 提交员工手动通关权限，并在请求前阻止倒置的有效期。
+     */
+    entrySubmit() {
       if (!this.selectStaffs.length || !this.selectedAuth.length) {
         this.$message.warning('请选择员工和权限');
         return;
       }
 
-      // 设置提交数据
-      this.entryForm = {
+      let validityPayload;
+      try {
+        validityPayload = buildPermissionDatePayload(this.entryForm.dateRange);
+      } catch (error) {
+        this.$message.warning(error.message);
+        return;
+      }
+
+      const requestData = {
         ids: this.selectStaffs.map(staff => staff.id),
-        deviceAuthIds: this.selectedAuth
+        deviceAuthIds: this.selectedAuth,
+        ...validityPayload
       };
 
       // console.log('提交的数据:', this.entryForm); // 打印提交数据
 
       this.entryLoading = true;
-      upDeviceAuthList(this.entryForm, this.addType)
+      upDeviceAuthList(requestData, this.addType)
         .then((response) => {
           // console.log('接口返回:', response);
           if (response.data.code === 0) {
@@ -797,6 +822,9 @@ export default {
       this.entryFormVisible = false;
       this.resetEntry();
     },
+    /**
+     * 重置员工通关权限弹窗，下一次打开时恢复默认有效期。
+     */
     resetEntry() {
       this.tempSelectedAuth = [];
       this.tempRemovedAuth = [];
@@ -804,8 +832,9 @@ export default {
       this.authSearchKey = '';
       this.addType = 1;
       this.entryForm = {
-        staffIds: [],
-        deviceAuthIds: []
+        ids: [],
+        deviceAuthIds: [],
+        dateRange: getDefaultPermissionDateRange()
       };
     },
     appSubmit(formName) {
@@ -883,6 +912,8 @@ export default {
           duration: 0
         })
       } else {
+        // 弹窗复用时按本次打开日期重置默认有效期，避免跨天停留页面提交过期默认值。
+        this.entryForm.dateRange = getDefaultPermissionDateRange()
         this.entryFormVisible = true
         this.deviceAuthList()
       }
@@ -1328,6 +1359,20 @@ export default {
     background: #f9f9f9;
     border-radius: 8px;
     margin-top: 16px;
+  }
+
+  .assign-validity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f9f9f9;
+    border-radius: 8px;
+
+    &__label {
+      color: #606266;
+      white-space: nowrap;
+    }
   }
 }
 

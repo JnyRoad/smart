@@ -28,6 +28,7 @@ import com.tce.smart.platform.core.dto.UpdateDeviceAuthDTO;
 import com.tce.smart.platform.core.entity.*;
 import com.tce.smart.platform.core.mapper.SmtStaffDeviceAuthMapper;
 import com.tce.smart.platform.core.service.*;
+import com.tce.smart.platform.core.util.PermissionValidityWindow;
 import com.tce.smart.platform.service.SmtDeviceAuthorityRelationService;
 import com.tce.smart.platform.service.SmtParkBuService;
 import com.tce.smart.platform.service.SmtStaffDeviceAuthService;
@@ -35,6 +36,7 @@ import com.tce.smart.platform.service.SmtStaffService;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
 import com.tce.smart.tool.constant.SymbolConstants;
 import com.tce.smart.tool.enums.*;
+import com.tce.smart.tool.util.OracleInBatchUtils;
 import io.swagger.models.auth.In;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -188,9 +190,12 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 		return tasks;*/
 	}
 
-    @Transactional
+	@Transactional
 	@Override
 	public String updateAuthNew(Integer type, UpdateDeviceAuthDTO auth) {
+		// 重新下发必须沿用已保存的关联有效期，不能用请求缺省日期覆盖历史自定义日期。
+		PermissionValidityWindow requestValidityWindow = Integer.valueOf(3).equals(type)
+				? null : PermissionValidityWindow.resolve(auth.getStartTime(), auth.getEndTime());
 		List<String> staffIds = auth.getIds();
 		String taskRecordNum = UUID.randomUUID().toString();
 		for (String staffId : staffIds) {
@@ -206,38 +211,46 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 			} else {
 				oldAuthIds = new ArrayList<>();
 			}
-			// 覆盖权限，删除旧权限
+			// 根据本次操作构造待生效的关联集合；窗口计算必须早于任何删除、保存或任务清理。
 			List<Integer> newAuthIds = new ArrayList<>();
-
-			if (type == 2) {
-				this.remove(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getStaffId, Long.parseLong(staffId)));
-			}else if(type == 3) {
-				//删除下发记录
-				smtTaskDownRecordService.remove(buildStaffDownRecordCleanupQuery(staffId));
-				iscDownRecordService.remove(buildStaffIscDownRecordCleanupQuery(staffId));
-				smtDeviceTaskService.remove(buildStaffDeviceTaskCleanupQuery(staffId));
-				//重新下发不删除权限
-				newAuthIds.addAll(oldAuthIds);
-				oldAuthIds.clear();
-			}else{
-				// 追加权限，保留旧权限
-				newAuthIds.addAll(oldAuthIds);
-			}
 			// 添加新权限
 			List<SmtStaffDeviceAuth> deviceAuthList = new ArrayList<>();
-			if(CollUtil.isNotEmpty(auth.getDeviceAuthIds())) {
+			if (!Integer.valueOf(3).equals(type) && CollUtil.isNotEmpty(auth.getDeviceAuthIds())) {
 				for (Integer newAuthId : auth.getDeviceAuthIds()) {
 					// 若为追加权限，过滤已存在的权限
-					if (type.equals(1) && oldAuthIds.contains(newAuthId)) {
+					if (Integer.valueOf(1).equals(type) && oldAuthIds.contains(newAuthId)) {
 						continue;
 					}
 					SmtStaffDeviceAuth staffDeviceAuth = new SmtStaffDeviceAuth();
 					staffDeviceAuth.setStaffId(Long.parseLong(staffId));
 					staffDeviceAuth.setAuthId(newAuthId);
 					staffDeviceAuth.setCreateTime(new Date());
+					staffDeviceAuth.setStartTime(requestValidityWindow.getStartDateTime());
+					staffDeviceAuth.setEndTime(requestValidityWindow.getEndDateTime());
 					deviceAuthList.add(staffDeviceAuth);
 					newAuthIds.add(newAuthId);
 				}
+			}
+			List<SmtStaffDeviceAuth> effectiveDeviceAuths = new ArrayList<>();
+			if (!Integer.valueOf(2).equals(type)) {
+				effectiveDeviceAuths.addAll(reStaffDevAuths);
+			}
+			effectiveDeviceAuths.addAll(deviceAuthList);
+			Map<String, PermissionValidityWindow> validityWindowsByDevice = resolveDeviceValidityWindows(effectiveDeviceAuths);
+
+			if (Integer.valueOf(2).equals(type)) {
+				// 覆盖权限在连续性校验通过后才删除旧关联。
+				this.remove(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getStaffId, Long.parseLong(staffId)));
+			} else if (Integer.valueOf(3).equals(type)) {
+				// 删除下发记录，并沿用现有权限关联及其有效期重新下发。
+				smtTaskDownRecordService.remove(buildStaffDownRecordCleanupQuery(staffId));
+				iscDownRecordService.remove(buildStaffIscDownRecordCleanupQuery(staffId));
+				smtDeviceTaskService.remove(buildStaffDeviceTaskCleanupQuery(staffId));
+				newAuthIds.addAll(oldAuthIds);
+				oldAuthIds.clear();
+			} else {
+				// 追加权限，保留旧权限。
+				newAuthIds.addAll(oldAuthIds);
 			}
 			saveBatch(deviceAuthList);
 			//更新员工设备权限
@@ -247,7 +260,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 			if (!staff.getStatus().equals(StaffStatusEnum.STAFF_STATUS_QUIT.getCode())) {
 				smtIscDeviceTaskService.cancelSupersededStaffAuthTasks(staffId);
 				smtDeviceTaskService.updateStaffAuthNew(staff, oldAuthIds, newAuthIds,
-						DeviceTaskConstants.CARD_STAFF_IMPORT, taskRecordNum, type);
+						DeviceTaskConstants.CARD_STAFF_IMPORT, taskRecordNum, type, validityWindowsByDevice);
 			} else {
 				SmtDeviceTaskDetail deviceTaskDetail = SmtDeviceTaskDetail.builder()
 						.action(DeviceTaskActionEnum.DOWN.getCode())
@@ -258,6 +271,23 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 
 		}
 		return taskRecordNum;
+	}
+
+	/**
+	 * 将员工待生效的权限关联映射为设备最近一次授权的有效期，查询按 Oracle IN 上限分批执行。
+	 */
+	private Map<String, PermissionValidityWindow> resolveDeviceValidityWindows(
+			List<SmtStaffDeviceAuth> effectiveDeviceAuths) {
+		List<Integer> authIds = effectiveDeviceAuths.stream()
+				.map(SmtStaffDeviceAuth::getAuthId)
+				.filter(Objects::nonNull)
+				.distinct()
+				.collect(Collectors.toList());
+		List<SmtDeviceAuthorityRelation> authorityRelations = OracleInBatchUtils.listInBatches(authIds,
+				batchAuthIds -> deviceAuthorityRelationService.list(
+						new LambdaQueryWrapper<SmtDeviceAuthorityRelation>()
+								.in(SmtDeviceAuthorityRelation::getAuthorityId, batchAuthIds)));
+		return PermissionValidityWindow.resolveByDevice(effectiveDeviceAuths, authorityRelations);
 	}
 
 	private LambdaQueryWrapper<SmtTaskDownRecord> buildStaffDownRecordCleanupQuery(String staffId) {
