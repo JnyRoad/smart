@@ -66,6 +66,9 @@ public class SmtAdmittanceApplyMapperXmlTest {
 						.collect(Collectors.toList()));
 	}
 
+	/**
+	 * 验证主申请人与主随行人员的证件号重叠校验使用证件号和开区间时间条件。
+	 */
 	@Test
 	public void countActiveMainFellowOverlapByCertNoUsesCertNoAndOpenInterval() throws Exception {
 		Configuration configuration = new Configuration();
