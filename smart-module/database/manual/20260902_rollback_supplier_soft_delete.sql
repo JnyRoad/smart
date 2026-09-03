@@ -38,15 +38,13 @@ BEGIN
         RAISE_APPLICATION_ERROR(-20012, '软删除字段不存在，无需回滚本次字段变更。');
     END IF;
 
-    SELECT COUNT(*) INTO v_supplier_deleted_count
-    FROM SMT_SECURITYAREA_SUPPLIER
-    WHERE DEL_FLAG <> 0
-       OR DEL_FLAG IS NULL;
+    -- DEL_FLAG 可能不存在；字段存在性校验通过后再在运行期解析，避免 ORA-00904。
+    EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM SMT_SECURITYAREA_SUPPLIER WHERE DEL_FLAG <> 0 OR DEL_FLAG IS NULL'
+        INTO v_supplier_deleted_count;
 
-    SELECT COUNT(*) INTO v_person_deleted_count
-    FROM SMT_SUPPLIER_PERSON
-    WHERE DEL_FLAG <> 0
-       OR DEL_FLAG IS NULL;
+    -- 同上：不能在匿名块编译期静态引用可能不存在的 DEL_FLAG 字段。
+    EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM SMT_SUPPLIER_PERSON WHERE DEL_FLAG <> 0 OR DEL_FLAG IS NULL'
+        INTO v_person_deleted_count;
 
     IF v_supplier_deleted_count > 0 OR v_person_deleted_count > 0 THEN
         RAISE_APPLICATION_ERROR(-20013, '存在失效或非法逻辑删除标识数据，禁止回滚旧版本以防记录重新展示。');

@@ -152,6 +152,27 @@ public class SmtSecurityAreaSupplierSoftDeleteMapperXmlTest {
 	}
 
 	/**
+	 * 验证回滚前置检查也将 DEL_FLAG 统计延后到运行期解析。
+	 *
+	 * 字段存在性判断本身不足以避免编译期错误；匿名块内的静态查询仍会在判断前解析。
+	 */
+	@Test
+	public void rollbackPreflightDefersDeleteFlagStatisticsUntilAfterColumnCheck() throws Exception {
+		String sql = new String(Files.readAllBytes(Paths.get("..", "..", "database", "manual",
+				"20260902_rollback_supplier_soft_delete.sql")), StandardCharsets.UTF_8).toUpperCase();
+		String normalizedSql = sql.replaceAll("\\s+", " ");
+
+		Assert.assertTrue("供应商 DEL_FLAG 统计必须通过动态 SQL 执行", normalizedSql.contains(
+				"EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM SMT_SECURITYAREA_SUPPLIER WHERE DEL_FLAG <> 0 OR DEL_FLAG IS NULL' INTO V_SUPPLIER_DELETED_COUNT;"));
+		Assert.assertTrue("供应商人员 DEL_FLAG 统计必须通过动态 SQL 执行", normalizedSql.contains(
+				"EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM SMT_SUPPLIER_PERSON WHERE DEL_FLAG <> 0 OR DEL_FLAG IS NULL' INTO V_PERSON_DELETED_COUNT;"));
+		Assert.assertFalse("匿名块中不能静态统计供应商 DEL_FLAG", sql.contains(
+				"FROM SMT_SECURITYAREA_SUPPLIER\n    WHERE DEL_FLAG <> 0"));
+		Assert.assertFalse("匿名块中不能静态统计供应商人员 DEL_FLAG", sql.contains(
+				"FROM SMT_SUPPLIER_PERSON\n    WHERE DEL_FLAG <> 0"));
+	}
+
+	/**
 	 * 验证单个实体的逻辑删除字段和注解值。
 	 *
 	 * 字段不存在、没有注解或值不符合数据契约都会立即抛出断言失败。

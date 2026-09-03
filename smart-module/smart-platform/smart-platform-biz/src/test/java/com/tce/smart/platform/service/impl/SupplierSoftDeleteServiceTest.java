@@ -10,13 +10,18 @@ import com.tce.smart.platform.core.service.SmtImageService;
 import com.tce.smart.platform.service.ImageService;
 import com.tce.smart.platform.service.SmtParkService;
 import com.tce.smart.platform.service.SmtSupplierPersonService;
+import com.tce.smart.tool.exception.TCEException;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.util.Arrays;
+import java.util.Collections;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * 保密供应商软删除服务边界测试。
@@ -80,6 +85,97 @@ public class SupplierSoftDeleteServiceTest {
 
 		assertTrue(service.getSecurityAreaSupplierPersonList(8L).isEmpty());
 		Mockito.verify(personService).getActiveSupplierPersonList(8L);
+	}
+
+	/**
+	 * 已删除或不存在的供应商不能再次执行删除，也不应查询人员。
+	 */
+	@Test
+	public void deleteInactiveSupplierReturnsFalseWithoutReadingPeople() {
+		SmtSecurityAreaSupplierMapper supplierMapper = Mockito.mock(SmtSecurityAreaSupplierMapper.class);
+		SmtSupplierPersonService personService = Mockito.mock(SmtSupplierPersonService.class);
+		TestableSecurityAreaSupplierService service = newSupplierService(supplierMapper, personService);
+		Mockito.when(supplierMapper.selectActiveSupplierForUpdate(8L)).thenReturn(null);
+
+		assertFalse(service.delSecurityAreaSupplier(8L));
+		Mockito.verify(supplierMapper).selectActiveSupplierForUpdate(8L);
+		Mockito.verify(personService, Mockito.never()).list(Mockito.any(Wrapper.class));
+		Mockito.verify(supplierMapper, Mockito.never()).deleteById(Mockito.any());
+	}
+
+	/**
+	 * 供应商仍有关联有效人员时，单条删除必须拒绝，不能写入逻辑删除标识。
+	 */
+	@Test
+	public void deleteSupplierWithActivePeopleIsRejected() {
+		SmtSecurityAreaSupplierMapper supplierMapper = Mockito.mock(SmtSecurityAreaSupplierMapper.class);
+		SmtSupplierPersonService personService = Mockito.mock(SmtSupplierPersonService.class);
+		TestableSecurityAreaSupplierService service = newSupplierService(supplierMapper, personService);
+		Mockito.when(supplierMapper.selectActiveSupplierForUpdate(8L)).thenReturn(activeSupplier(8L));
+		Mockito.when(personService.list(Mockito.any(Wrapper.class))).thenReturn(Collections.singletonList(new SmtSupplierPerson()));
+
+		try {
+			service.delSecurityAreaSupplier(8L);
+			fail("有关联人员时必须拒绝删除供应商");
+		} catch (TCEException expected) {
+			assertTrue(expected.getMessage().contains("已关联授权人员"));
+		}
+		Mockito.verify(supplierMapper, Mockito.never()).deleteById(Mockito.any());
+	}
+
+	/**
+	 * 无关联人员的有效供应商应通过 MyBatis-Plus 逻辑删除入口删除。
+	 */
+	@Test
+	public void deleteActiveSupplierWithoutPeopleUsesLogicalDeleteMapper() {
+		SmtSecurityAreaSupplierMapper supplierMapper = Mockito.mock(SmtSecurityAreaSupplierMapper.class);
+		SmtSupplierPersonService personService = Mockito.mock(SmtSupplierPersonService.class);
+		TestableSecurityAreaSupplierService service = newSupplierService(supplierMapper, personService);
+		Mockito.when(supplierMapper.selectActiveSupplierForUpdate(8L)).thenReturn(activeSupplier(8L));
+		Mockito.when(personService.list(Mockito.any(Wrapper.class))).thenReturn(Collections.emptyList());
+		Mockito.when(supplierMapper.deleteById(8L)).thenReturn(1);
+
+		assertTrue(service.delSecurityAreaSupplier(8L));
+		Mockito.verify(supplierMapper).deleteById(8L);
+	}
+
+	/**
+	 * 批量删除保留原语义：失效供应商和仍有关联人员的供应商均跳过，其余供应商删除。
+	 */
+	@Test
+	public void batchDeleteSkipsInactiveAndSupplierWithPeople() {
+		SmtSecurityAreaSupplierMapper supplierMapper = Mockito.mock(SmtSecurityAreaSupplierMapper.class);
+		SmtSupplierPersonService personService = Mockito.mock(SmtSupplierPersonService.class);
+		TestableSecurityAreaSupplierService service = newSupplierService(supplierMapper, personService);
+		Mockito.when(supplierMapper.selectActiveSupplierForUpdate(8L)).thenReturn(null);
+		Mockito.when(supplierMapper.selectActiveSupplierForUpdate(9L)).thenReturn(activeSupplier(9L));
+		Mockito.when(supplierMapper.selectActiveSupplierForUpdate(10L)).thenReturn(activeSupplier(10L));
+		Mockito.when(personService.list(Mockito.any(Wrapper.class))).thenReturn(Collections.emptyList(),
+				Collections.singletonList(new SmtSupplierPerson()));
+		Mockito.when(supplierMapper.deleteById(9L)).thenReturn(1);
+
+		assertTrue(service.delBatchSupplier(Arrays.asList(8L, 9L, 10L)));
+		Mockito.verify(supplierMapper).deleteById(9L);
+		Mockito.verify(supplierMapper, Mockito.never()).deleteById(8L);
+		Mockito.verify(supplierMapper, Mockito.never()).deleteById(10L);
+	}
+
+	/**
+	 * 构造处于有效状态的供应商记录，供删除分支测试复用。
+	 */
+	private SmtSecurityAreaSupplier activeSupplier(Long id) {
+		SmtSecurityAreaSupplier supplier = new SmtSecurityAreaSupplier();
+		supplier.setId(id);
+		return supplier;
+	}
+
+	/**
+	 * 构造注入必要依赖的供应商服务测试实例。
+	 */
+	private TestableSecurityAreaSupplierService newSupplierService(SmtSecurityAreaSupplierMapper supplierMapper,
+			SmtSupplierPersonService personService) {
+		return new TestableSecurityAreaSupplierService(supplierMapper, personService,
+				Mockito.mock(SmtImageService.class), Mockito.mock(SmtParkService.class), Mockito.mock(ImageService.class));
 	}
 
 	/**

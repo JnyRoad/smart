@@ -8,8 +8,8 @@
 ## 自动化验证
 
 ```bash
-cd /Users/lvtu/.codex/worktrees/51a3/smart/smart-module
-mvn -pl smart-platform/smart-platform-core -am test -Dtest=SmtSecurityAreaSupplierSoftDeleteMapperXmlTest -Dsurefire.failIfNoSpecifiedTests=false
+cd smart-module
+mvn -pl smart-platform/smart-platform-core test -Dtest=SmtSecurityAreaSupplierSoftDeleteMapperXmlTest
 ```
 
 预期：测试验证两实体的逻辑删除值、供应商/人员各读取 SQL 的失效过滤，以及订单详情对失效供应商的隐藏规则。
