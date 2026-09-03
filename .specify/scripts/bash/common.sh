@@ -160,6 +160,7 @@ _persist_feature_json() {
     fi
 }
 
+# 解析当前功能目录及其规格、计划、任务等派生路径，可按参数禁止写入本地功能指针。
 get_feature_paths() {
     # Read-only callers (e.g. check-prerequisites.sh --paths-only) pass
     # --no-persist so pure path resolution never writes .specify/feature.json,
@@ -235,6 +236,7 @@ has_jq() {
     command -v jq >/dev/null 2>&1
 }
 
+# 读取当前集成的命令分隔符，并按仓库根目录缓存结果。
 get_invoke_separator() {
     local repo_root="${1:-$(get_repo_root)}"
     if [[ "${_SPECIFY_INVOKE_SEPARATOR_CACHE_REPO_ROOT:-}" == "$repo_root" && -n "${_SPECIFY_INVOKE_SEPARATOR_CACHE_VALUE:-}" ]]; then
@@ -347,6 +349,7 @@ PY
     printf '%s\n' "$separator"
 }
 
+# 将任意兼容写法规范化为当前集成使用的 Speckit 命令提示。
 format_speckit_command() {
     local command_name="$1"
     local repo_root="${2:-$(get_repo_root)}"
@@ -395,9 +398,13 @@ json_escape() {
     done
 }
 
+# 输出单个文件是否存在的检查结果。
 check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
+
+# 输出单个非空目录是否存在的检查结果。
 check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2>/dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
 
+# 探测可用的 Python 3 命令，兼容 python3、python 与 Windows py 启动器。
 _python3_command() {
     if command -v python3 >/dev/null 2>&1 &&
         python3 -c 'import sys; raise SystemExit(sys.version_info.major != 3)' >/dev/null 2>&1; then
@@ -413,6 +420,7 @@ _python3_command() {
     fi
 }
 
+# 按注册表优先级或目录名稳定排序扩展标识。
 _sorted_extension_ids() {
     local ext_dir="$1"
     local python_spec

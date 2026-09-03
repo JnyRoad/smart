@@ -86,6 +86,12 @@ EOF
     shift
 done
 
+# 纯路径模式不会解析模板，必须显式拒绝该组合，不能返回缺少模板内容的伪成功结果。
+if $PATHS_ONLY && [[ -n "$TEMPLATE_NAME" ]]; then
+    echo "ERROR: --template is not supported with --paths-only" >&2
+    exit 1
+fi
+
 # Source common functions
 SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"

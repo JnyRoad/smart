@@ -7,6 +7,7 @@ COMMON_SCRIPT="$SCRIPT_DIR/common.sh"
 TEMP_REPO=""
 TEMP_OUTPUT=""
 
+# 清理测试期间创建的临时仓库和输出文件。
 cleanup() {
     if [ -n "$TEMP_REPO" ]; then
         rm -rf "$TEMP_REPO"

@@ -7,9 +7,9 @@
   "integration_settings": {
     "generic": {
       "script": "sh",
-      "raw_options": "--commands-dir .specify/_unused",
+      "raw_options": "--commands-dir .specify/commands",
       "parsed_options": {
-        "commands_dir": ".specify/_unused"
+        "commands_dir": ".specify/commands"
       },
       "invoke_separator": "."
     }

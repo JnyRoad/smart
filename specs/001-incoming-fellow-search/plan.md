@@ -30,7 +30,8 @@
 **Constraints**: 保持 Oracle 兼容、既有包含式搜索和接口参数；不执行数据库 DML/DDL、
 索引创建或统计信息刷新
 
-**Scale/Scope**: 2026-09-02 快照中主申请约 7,753 行、随行人员约 9,316 行；只改一个 Mapper SQL
+**Scale/Scope**: 2026-09-03 的 <code>USER_TABLES</code> 统计估算主申请约 7,753 行、随行人员约 9,316 行；
+2026-09-02 的默认列表聚合基线（7,756 个不同申请单）单列在 <code>research.md</code>，两者的采样时间和口径不同。只改一个 Mapper SQL
 及其定向测试，管理端沿用既有简短筛选文案
 
 ## Constitution Check

@@ -948,9 +948,9 @@ flowchart LR
     <dt>已完成测试与待验收项</dt>
     <dd>
       <p>已完成 TDD 红绿验证：分别先新增姓名、证件号的 Mapper 动态 SQL 契约测试，旧 SQL 均按预期失败；实现后执行
-      <code>mvn -pl smart-platform/smart-platform-core -am test -Dtest=SmtAdmittanceApplyMapperXmlTest -Dsurefire.failIfNoSpecifiedTests=false</code>，
+      <code>cd smart-module &amp;&amp; mvn -pl smart-platform/smart-platform-core -am test -Dtest=SmtAdmittanceApplyMapperXmlTest -Dsurefire.failIfNoSpecifiedTests=false</code>，
       结果为 3 个测试、0 个失败。测试覆盖主申请人姓名分支、主访客/随行人员证件号、关联键和参数绑定，以及主查询不再
-      LEFT JOIN 随行表。</p>
+      直接 JOIN 随行表。</p>
       <p><b>待真实验收（未完成）</b>：在可控数据环境准备主申请人、仅随行姓名命中、主访客/随行人员证件号命中和多随行人员数据，按申请单 ID 分组验证匹配随行人员前后行数不变；
       当前账号无 <code>DBMS_XPLAN.DISPLAY_CURSOR</code> 所需查询权限，尚未取得生产实际执行计划或 p95 数据。</p>
     </dd>

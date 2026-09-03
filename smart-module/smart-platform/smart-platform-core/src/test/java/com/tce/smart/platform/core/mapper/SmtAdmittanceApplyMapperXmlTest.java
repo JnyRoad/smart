@@ -37,7 +37,7 @@ public class SmtAdmittanceApplyMapperXmlTest {
 		Assert.assertTrue("随行人员姓名子查询应关联当前申请单",
 				sql.contains("SF.VISITOR_ID = V.ID AND SF.FELLOW_NAME LIKE CONCAT(CONCAT('%',?),'%')"));
 		Assert.assertFalse("随行人员不能再以主查询外连接参与列表，以免一对多放大结果行",
-				sql.contains("LEFT JOIN SMT_ADMITTANCE_FELLOW"));
+				sql.contains("JOIN SMT_ADMITTANCE_FELLOW"));
 		Assert.assertEquals(Arrays.asList("query.visitorName", "query.visitorName"),
 				boundSql.getParameterMappings().stream()
 						.map(parameterMapping -> parameterMapping.getProperty())
@@ -62,6 +62,8 @@ public class SmtAdmittanceApplyMapperXmlTest {
 		Assert.assertTrue("随行人员证件号子查询应关联当前申请单",
 				sql.contains("SF.VISITOR_ID = V.ID AND SF.CERT_NO LIKE CONCAT(CONCAT('%',?),'%')"));
 		Assert.assertFalse("证件号筛选不能依赖已删除的随行人员外连接别名", sql.contains("SAF.CERT_NO"));
+		Assert.assertFalse("证件号筛选不能让随行表直接参与主查询",
+				sql.contains("JOIN SMT_ADMITTANCE_FELLOW"));
 		Assert.assertEquals(Arrays.asList("query.certNo", "query.certNo"),
 				boundSql.getParameterMappings().stream()
 						.map(parameterMapping -> parameterMapping.getProperty())
