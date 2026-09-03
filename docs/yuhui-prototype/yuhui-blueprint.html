@@ -1012,7 +1012,7 @@ flowchart LR
   <div class="ih"><span class="ino">3.3</span><h3>保密供应商软删除</h3><span class="ibatch">批次 1 · 已合入 main</span></div>
   <dl>
     <dt>实施状态</dt>
-    <dd><strong>已合入 main</strong>：PR #176 已于 2026-09-03 合并（合并提交 <code>a85d2746d85c</code>）。批次 1 已覆盖实体逻辑删除、供应商相关手写查询过滤、供应商删除与人员写入的并发保护；目标 Oracle 迁移脚本已按本轮执行反馈完成。PDA/扫码命中失效记录的提示明确留待后续实现；本轮未对已部署服务做真实 UI/API 端到端验收，因此不得标为“已上线”。</dd>
+    <dd><strong>已合入 main</strong>：PR #176 已于 2026-09-03 合并（合并提交 <code>a85d2746d85c</code>）。批次 1 已覆盖实体逻辑删除、供应商相关手写查询过滤、供应商删除与人员写入的并发保护；根据本轮用户执行反馈，目标 Oracle 迁移脚本已完成执行。本 PR 仅记录该状态，未连接或执行目标 Oracle。PDA/扫码命中失效记录的提示明确留待后续实现；本轮未对已部署服务做真实 UI/API 端到端验收，因此不得标为“已上线”。</dd>
     <dt>实施前现状与问题</dt>
     <dd>
       改造前，<code>delSecurityAreaSupplier</code> 只检查供应商名下是否还有在册人员，通过后直接调用 <code>removeById</code>；两个实体都没有 <code>del_flag</code>/<code>@TableLogic</code>，手写 XML 查询也不会自动得到 MyBatis-Plus 的逻辑删除过滤。因此，物理删除会造成历史关系断裂，且只补实体字段仍可能让失效记录从自定义分页、人员查询或订单关联中重新出现。
@@ -1049,7 +1049,7 @@ flowchart LR
     <dt>测试与验证</dt>
     <dd>在合并后的 <code>main</code> 基线执行定向 Maven 测试：<code>SmtSecurityAreaSupplierSoftDeleteMapperXmlTest</code> 7 项、<code>SupplierSoftDeleteServiceTest</code> 7 项，均为 0 failure / 0 error。测试覆盖两个实体的逻辑删除契约、供应商/人员自定义 SQL 过滤、订单详情隐藏失效供应商、删除与人员写入边界，以及迁移/回滚脚本对新增字段的动态 SQL 前置检查。PDA/扫码集成测试尚未执行，属于后续范围。</dd>
     <dt>依赖与风险</dt>
-    <dd>MyBatis-Plus 不会自动处理手写原生 SQL；本次已对当前源码中直接引用两张表的 Mapper 做复核并有契约测试保护，后续新增手写查询仍必须显式处理 <code>DEL_FLAG</code>。逻辑删除只约束未来删除动作，不恢复历史物理删除数据。迁移脚本已按本轮反馈执行，但本工作区未直连目标 Oracle，字段/约束的实际库状态与已部署服务的真实 UI/API 验收仍需由发布环境确认。</dd>
+    <dd>MyBatis-Plus 不会自动处理手写原生 SQL；本次已对当前源码中直接引用两张表的 Mapper 做复核并有契约测试保护，后续新增手写查询仍必须显式处理 <code>DEL_FLAG</code>。逻辑删除只约束未来删除动作，不恢复历史物理删除数据。目标库执行状态来自本轮用户反馈；本 PR 未执行脚本、工作区也未直连目标 Oracle，字段/约束的实际库状态与已部署服务的真实 UI/API 验收仍需由发布环境确认。</dd>
   </dl>
 </section>
 
