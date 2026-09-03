@@ -24,13 +24,13 @@
 
 ## Phase 3: User Story 2 - 按随行人员证件号定位申请单（P1）
 
-**Goal**: 证件号命中任一随行人员时，列表返回对应主申请单并保留其他筛选语义。
+**Goal**: 证件号命中主访客或任一随行人员时，列表返回对应主申请单并保留其他筛选语义。
 
-**Independent Test**: 用随行人员证件号生成 `getSmtVisitorPage` 的真实 MyBatis 绑定 SQL，确认它以
-相关 `EXISTS` 作为筛选条件，且参数仍通过现有 `query.certNo` 绑定。
+**Independent Test**: 用证件号生成 `getSmtVisitorPage` 的真实 MyBatis 绑定 SQL，确认它以主访客
+匹配 OR 随行人员相关 `EXISTS` 作为筛选条件，且参数仍通过现有 `query.certNo` 绑定。
 
 - [X] T005 [US2] 在 `smart-module/smart-platform/smart-platform-core/src/test/java/com/tce/smart/platform/core/mapper/SmtAdmittanceApplyMapperXmlTest.java` 先增加证件号搜索的失败 Mapper 动态 SQL 契约测试
-- [X] T006 [US2] 在 `smart-module/smart-platform/smart-platform-core/src/main/resources/mapper/SmtAdmittanceApplyMapper.xml` 将证件号筛选改为相关 `EXISTS`
+- [X] T006 [US2] 在 `smart-module/smart-platform/smart-platform-core/src/main/resources/mapper/SmtAdmittanceApplyMapper.xml` 将证件号筛选改为主访客匹配 OR 随行人员相关 `EXISTS`
 
 ---
 

@@ -911,7 +911,7 @@ flowchart LR
  OR EXISTS (SELECT 1 FROM SMT_ADMITTANCE_FELLOW SF
             WHERE SF.VISITOR_ID = V.ID
               AND SF.FELLOW_NAME LIKE CONCAT(CONCAT('%',#{query.visitorName}),'%')))</pre>
-      <p>证件号条件也改为 <code>EXISTS (... SF.CERT_NO LIKE ...)</code>。随行人员只充当筛选条件，不再参与主查询行组合；
+      <p>证件号条件改为主访客 <code>V.CERT_NO LIKE ...</code> 或 <code>EXISTS (... SF.CERT_NO LIKE ...)</code>。随行人员只充当筛选条件，不再参与主查询行组合；
       前端继续传 <code>visitorName</code>/<code>certNo</code>，不新增接口参数；筛选标签和输入提示保持简短的“访客姓名”与“访客证件号”。</p>
     </dd>
     <dt>处理流程</dt>
@@ -919,23 +919,24 @@ flowchart LR
       <ol>
         <li>用户在“访客姓名”输入主申请人或任一随行人员姓名。</li>
         <li>前端沿用 <code>visitorName</code> 参数提交既有分页接口。</li>
-        <li>后端以“主申请人姓名命中 OR 存在关联随行人员姓名命中”筛选申请单；证件号同理。</li>
+        <li>后端以“主申请人姓名命中 OR 存在关联随行人员姓名命中”筛选申请单；证件号以“主访客命中 OR 存在关联随行人员命中”筛选。</li>
         <li>返回主申请单。多位随行人员不会再因本功能的关联方式增加申请单结果行。</li>
       </ol>
     </dd>
     <dt>性能与索引评估（2026-09-02 快照）</dt>
     <dd>
-      Oracle 实库聚合中，默认列表保留随行表外连接时为 9,648 个连接结果行、7,756 张不同申请单；移除随行表外连接后为
-      7,764 个连接结果行。现有查询保持 <code>LIKE '%关键字%'</code> 的包含式匹配，普通 B-tree 无法有效加速
-      <code>FELLOW_NAME</code>/<code>CERT_NO</code>，因此本次没有创建索引、刷新统计信息或执行任何 DML/DDL。后续若要改索引，
-      必须以更新后的统计信息和实际执行计划单独评估。
+      2026-09-02 实库聚合中，默认列表保留随行表外连接时为 9,648 个连接结果行、7,756 张不同申请单；移除随行表外连接后为
+      7,764 个连接结果行，其中多出的 8 行来自既有车辆外连接及不同车牌，不能被 <code>SELECT DISTINCT</code> 合并。
+      2026-09-03 只读数据字典复核显示，申请表与随行表统计行数分别为 7,753、9,316；随行表仅有 <code>ID</code> 主键，未见
+      <code>VISITOR_ID</code>/<code>FELLOW_NAME</code>/<code>CERT_NO</code> 关联或搜索索引。现有查询保持 <code>LIKE '%关键字%'</code> 的包含式匹配，普通 B-tree 无法有效加速，
+      因此本次没有创建索引、刷新统计信息或执行任何 DML/DDL。后续若要改索引，必须以更新后的统计信息和实际执行计划单独评估。
     </dd>
     <dt>改动清单</dt>
     <dd>
       <table>
         <tr><th>层</th><th>文件/类</th><th>已完成改动</th></tr>
-        <tr><td>数据库/SQL</td><td>smart-module/smart-platform/smart-platform-core/src/main/resources/mapper/SmtAdmittanceApplyMapper.xml（getSmtVisitorPage）</td><td>移除随行表外连接；姓名改为主申请人 OR 随行人员 EXISTS；证件号改为随行人员 EXISTS</td></tr>
-        <tr><td>后端测试</td><td>smart-module/smart-platform/smart-platform-core/src/test/java/com/tce/smart/platform/core/mapper/SmtAdmittanceApplyMapperXmlTest.java</td><td>解析真实 MyBatis Mapper 生成的绑定 SQL，断言姓名/证件号 EXISTS、参数绑定与无随行表外连接</td></tr>
+        <tr><td>数据库/SQL</td><td>smart-module/smart-platform/smart-platform-core/src/main/resources/mapper/SmtAdmittanceApplyMapper.xml（getSmtVisitorPage）</td><td>移除随行表外连接；姓名改为主申请人 OR 随行人员 EXISTS；证件号改为主访客 OR 随行人员 EXISTS</td></tr>
+        <tr><td>后端测试</td><td>smart-module/smart-platform/smart-platform-core/src/test/java/com/tce/smart/platform/core/mapper/SmtAdmittanceApplyMapperXmlTest.java</td><td>解析真实 MyBatis Mapper 生成的绑定 SQL，断言姓名、主访客/随行人员证件号、参数绑定与无随行表外连接</td></tr>
         <tr><td>前端</td><td>smart-ui/src/views/platform/visitor/incoming_record/index.vue</td><td>保留简短的“访客姓名”“访客证件号” label 与 placeholder，查询参数和行为不变</td></tr>
       </table>
     </dd>
@@ -943,9 +944,9 @@ flowchart LR
     <dd>
       <p>已完成 TDD 红绿验证：分别先新增姓名、证件号的 Mapper 动态 SQL 契约测试，旧 SQL 均按预期失败；实现后执行
       <code>mvn -pl smart-platform/smart-platform-core -am test -Dtest=SmtAdmittanceApplyMapperXmlTest -Dsurefire.failIfNoSpecifiedTests=false</code>，
-      结果为 3 个测试、0 个失败。测试覆盖主申请人姓名分支、随行人员姓名/证件号 EXISTS、关联键和参数绑定，以及主查询不再
+      结果为 3 个测试、0 个失败。测试覆盖主申请人姓名分支、主访客/随行人员证件号、关联键和参数绑定，以及主查询不再
       LEFT JOIN 随行表。</p>
-      <p><b>待真实验收（未完成）</b>：在可控数据环境准备主申请人、仅随行姓名命中和多随行人员数据，验证页面结果及组合筛选；
+      <p><b>待真实验收（未完成）</b>：在可控数据环境准备主申请人、仅随行姓名命中、主访客/随行人员证件号命中和多随行人员数据，按申请单 ID 分组验证匹配随行人员前后行数不变；
       当前账号无 <code>DBMS_XPLAN.DISPLAY_CURSOR</code> 所需查询权限，尚未取得生产实际执行计划或 p95 数据。</p>
     </dd>
     <dt>边界与风险</dt>

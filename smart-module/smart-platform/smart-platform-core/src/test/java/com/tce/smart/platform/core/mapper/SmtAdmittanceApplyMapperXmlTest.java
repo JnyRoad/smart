@@ -45,22 +45,24 @@ public class SmtAdmittanceApplyMapperXmlTest {
 	}
 
 	/**
-	 * 验证随行人员证件号通过相关子查询筛选主申请单，不依赖已移除的随行人员外连接别名。
+	 * 验证证件号同时匹配主访客和随行人员，并且随行人员分支不依赖已移除的外连接别名。
 	 */
 	@Test
-	public void getSmtVisitorPageFindsApplyByFellowCertNoWithoutJoinMultiplication() throws Exception {
+	public void getSmtVisitorPageFindsApplyByMainOrFellowCertNoWithoutJoinMultiplication() throws Exception {
 		SearchSmtVisitorDTO query = new SearchSmtVisitorDTO();
 		query.setCertNo("440100200001010001");
 
 		BoundSql boundSql = visitorPageBoundSql(query);
 		String sql = boundSql.getSql().replaceAll("\\s+", " ").trim();
 
+		Assert.assertTrue("证件号筛选应保留主访客证件号匹配",
+				sql.contains("V.CERT_NO LIKE CONCAT(CONCAT('%',?),'%')"));
 		Assert.assertTrue("证件号筛选应关联匹配任一随行人员证件号",
 				sql.contains("EXISTS ( SELECT 1 FROM SMT_ADMITTANCE_FELLOW SF"));
 		Assert.assertTrue("随行人员证件号子查询应关联当前申请单",
 				sql.contains("SF.VISITOR_ID = V.ID AND SF.CERT_NO LIKE CONCAT(CONCAT('%',?),'%')"));
 		Assert.assertFalse("证件号筛选不能依赖已删除的随行人员外连接别名", sql.contains("SAF.CERT_NO"));
-		Assert.assertEquals(Collections.singletonList("query.certNo"),
+		Assert.assertEquals(Arrays.asList("query.certNo", "query.certNo"),
 				boundSql.getParameterMappings().stream()
 						.map(parameterMapping -> parameterMapping.getProperty())
 						.collect(Collectors.toList()));

@@ -110,12 +110,15 @@
 				and V.COMPANY LIKE CONCAT(CONCAT('%',#{query.company}),'%')
 			</if>
 			<if test="query.certNo != null and query.certNo != ''">
-				<!-- 证件号仅作为随行人员存在性条件，不能再次引入一对多主查询连接。 -->
-				and EXISTS (
-					SELECT 1
-					FROM SMT_ADMITTANCE_FELLOW SF
-					WHERE SF.VISITOR_ID = V.ID
-					AND SF.CERT_NO LIKE CONCAT(CONCAT('%',#{query.certNo}),'%')
+				<!-- 保留主访客证件号语义；随行人员仍只通过存在性条件参与筛选，不能引入一对多主查询连接。 -->
+				and (
+					V.CERT_NO LIKE CONCAT(CONCAT('%',#{query.certNo}),'%')
+					OR EXISTS (
+						SELECT 1
+						FROM SMT_ADMITTANCE_FELLOW SF
+						WHERE SF.VISITOR_ID = V.ID
+						AND SF.CERT_NO LIKE CONCAT(CONCAT('%',#{query.certNo}),'%')
+					)
 				)
 			</if>
 			<if test="query.status != null">

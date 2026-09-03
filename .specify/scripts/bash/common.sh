@@ -902,12 +902,14 @@ except Exception as exc:
                     *'{CORE_TEMPLATE}'*) ;;
                     *) echo "Error: wrap strategy missing {CORE_TEMPLATE} placeholder" >&2; return 2 ;;
                 esac
-                while [[ "$layer_content" == *'{CORE_TEMPLATE}'* ]]; do
-                    local before="${layer_content%%\{CORE_TEMPLATE\}*}"
-                    local after="${layer_content#*\{CORE_TEMPLATE\}}"
-                    layer_content="${before}${content}${after}"
+                # 只遍历包装层原始内容，避免基础内容里的同名文字占位符被再次替换而无法收敛。
+                local wrapped=""
+                local remainder="$layer_content"
+                while [[ "$remainder" == *'{CORE_TEMPLATE}'* ]]; do
+                    wrapped+="${remainder%%\{CORE_TEMPLATE\}*}${content}"
+                    remainder="${remainder#*\{CORE_TEMPLATE\}}"
                 done
-                content="$layer_content"
+                content="${wrapped}${remainder}"
                 ;;
             *) echo "Error: unknown strategy '$strat'" >&2; return 2 ;;
         esac
