@@ -18,6 +18,13 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## 工作区与既有产物门禁
+
+在任何写入前，先读取根 `AGENTS.md` 和 `docs/agent-rules/git-worktree.md`。`main` 或共享主目录
+禁止生成或修改计划；已有本任务 worktree、分支和规格优先复用。若本地
+`.specify/feature.json` 缺失，显式设置 `SPECIFY_FEATURE_DIRECTORY=specs/<已有目录>`，不要重新
+初始化或运行 `/speckit.specify` 来恢复指针。
+
 ## Pre-Execution Checks
 
 **Check for extension hooks (before planning)**:
@@ -55,9 +62,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. **Setup**: Run `.specify/scripts/bash/setup-plan.sh --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. **Setup**: Run `.specify/scripts/bash/setup-plan.sh --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. Set `SPECIFY_FEATURE_DIRECTORY` explicitly when resuming an existing spec without the local pointer. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
-2. **Load context**: Read FEATURE_SPEC and `.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
+2. **Load context**: Read FEATURE_SPEC and `.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied). If IMPL_PLAN already exists, preserve its content; the setup script must skip template copy and the command must not overwrite prior plan decisions.
 
 3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
@@ -66,6 +73,9 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md
    - Re-evaluate Constitution Check post-design
+
+   Preserve any existing research, data model, contract, quickstart, or plan artifact. Update only
+   the portions explicitly requested by the user; do not regenerate a template over prior decisions.
 
 ## Mandatory Post-Execution Hooks
 

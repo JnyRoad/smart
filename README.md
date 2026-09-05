@@ -33,7 +33,13 @@ smart/
 | `smart-app-uniapp/` | 「裕慧家园」移动 App 客户端（Android / iOS），与 `smart-h5` 并行使用：App 场景用它、公众号场景用 H5；对接网关后的认证和 `smart-module/smart-app` 业务 API。 | uni-app（HBuilderX 工程）、Vue 2、Vuex、UniPush |
 | `docker/` | 本地 Docker Compose 的 Nacos 配置初始化脚本和配置文件。 | Docker Compose、Nacos、shell |
 | `scripts/` | 后端发布 Jar 汇总脚本、脚本测试和发布清单。 | Bash、Maven、zip/sha256 |
-| `docs/` | 项目级文档和跨模块资料，目前包含管理端页面功能清单。 | Markdown |
+| `docs/` | 项目级文档和跨模块资料，包含 Agent 规则、管理端页面功能清单及开发资料导航。 | Markdown |
+
+## Agent 协作与开发资料
+
+开始任务先读 [AGENTS.md](AGENTS.md)，按需加载 [Git 与 worktree](docs/agent-rules/git-worktree.md)、[规格工作流](docs/agent-rules/spec-workflow.md)、[开发与模块边界](docs/agent-rules/development.md)。任何开发文件首次写入前，先进入本任务独立 linked worktree 和非 `main` 分支。
+
+项目规格在 [specs/](specs/)，工作流与宪法在 [.specify/](.specify/)，项目级资料入口见 [docs/README.md](docs/README.md)。先复用已有规格，显式绑定 `SPECIFY_FEATURE_DIRECTORY`；本机 `feature.json` 缺失不触发重复创建。规格分析通过后将 `tasks.md` 交给 superpowers 执行。
 
 ## 常用入口
 
@@ -109,12 +115,14 @@ scripts/build-release-jars.sh
 
 项目 `.gitignore` 忽略以下内容：
 
-- macOS / IDE / Agent 工作树本地文件。
+- macOS / IDE / Agent 工作树本地文件，以及 `feature.json`、local-config、缓存等本机状态。
 - Node 依赖、缓存、构建产物、测试报告，包括旧 Vue2 H5 的 `dist-h5/` 和 `node_modules/`。
 - uni-app App 工程的 `unpackage/` 编译产物（`dist/` / `debug/` / `release/` / `cache/`）；但 `unpackage/res/` 是 manifest.json 引用的图标和启动图，必须入库，不要把 `unpackage/` 整体忽略。
 - Maven / Gradle `target/`、`.flattened-pom.xml`、压缩包、发布产物。
 - 真实 `.env` / `.env.local` / `.env.*.local`，但保留 `.env.example` 和 `.env.local.example`。
 - 本地数据库、日志、临时文件、release-artifacts。
+
+`.specify/`、`specs/`、`.superpowers/` 及子项目 `docs/superpowers/` 内的持久规格、设计和验收资料允许入库；任务完成不删除设计历史。资料是否可从新检出取得，以已提交内容为准。
 
 提交前至少检查：
 

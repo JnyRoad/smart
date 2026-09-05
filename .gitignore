@@ -18,11 +18,14 @@ Thumbs.db
 # Local agent / worktree scratch
 .claude/worktrees/
 **/.claude/worktrees/
-.superpowers/
+.worktrees/
 .codebase-memory/
 
-# 已完成的开发过程文档仅保留在本地，不提交到仓库
-**/docs/superpowers/
+# 项目规格、设计、计划和验收资料需要共享，不整体忽略 .specify、specs、
+# .superpowers 或各子项目的 docs/superpowers；这里只排除本机临时状态。
+**/.superpowers/cache/
+**/.superpowers/tmp/
+**/.superpowers/logs/
 
 # Node dependencies and package-manager caches
 node_modules/

@@ -38,7 +38,7 @@
 
 - Mark items `[x]` only after review confirms the requirement-quality criterion is satisfied
 - Leave items unchecked when they still require clarification, correction, or reviewer evaluation
-- `/speckit.implement` reads checklist checkbox state as a gate and must not modify markers
+- The superpowers implementation phase reads checklist checkbox state as a gate and must not modify markers
 - `checklists/requirements.md` has a separate built-in lifecycle maintained by `/speckit.specify` and `/speckit.clarify`
 - Add comments or findings inline
 - Link to relevant resources or documentation
