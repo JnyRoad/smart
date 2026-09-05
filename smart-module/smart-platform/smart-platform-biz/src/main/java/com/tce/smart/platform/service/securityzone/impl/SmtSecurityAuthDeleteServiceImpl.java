@@ -218,15 +218,19 @@ public class SmtSecurityAuthDeleteServiceImpl extends ServiceImpl<SmtSecurityAut
 	}
 
 	/**
-	 * 计算间隔中的允许空白时间
+	 * 按园区配置的删除天数及过滤项计算某段未进出时间是否应删除权限。
 	 *
-	 * @param config
-	 * @return false:未超过限制时间  true:已超过限制时间
+	 * @param config 园区自动删除配置；删除天数必须来自 deleteDay，白名单开关不参与阈值计算。
+	 * @param badge 员工工号，用于查询节假日、出差、请假与调休记录。
+	 * @param startTime 最后一次进出时间；没有进出记录时由调用方传入权限创建时间。
+	 * @param endTime 本次任务的判定时间，通常为当前时间。
+	 * @return false 表示未超过删除阈值，true 表示超过删除阈值。
+	 * <p>该方法不修改本地数据；启用过滤项时会读取远程考勤与业务记录，相关调用异常会向上抛出并中止本次权限删除。</p>
 	 */
 	private Boolean freeDay(SmtSecurityAuthDelete config, String badge, Date startTime, Date endTime) {
 		List<DateTime> dateTimes = DateUtil.rangeToList(startTime, endTime, DateField.DAY_OF_YEAR);
 		Integer initDays = dateTimes.size();
-		Integer limitDays = config.getIsWhiteList();
+		Integer limitDays = config.getDeleteDay();
 		if (limitDays >= initDays) {
 			return Boolean.FALSE;
 		}
