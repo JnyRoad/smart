@@ -5,13 +5,15 @@
 | ID | 旧组件组 | 第一版目标组件组 | 核心操作 | 详细规格 |
 |---|---|---|---|---|
 | WEB-L-001 | views/platform/lock/lock_list 与 detail | src/views/platform/lock/lock_list/ | 锁卡片查询、远程开门、四页签详情、设备配置。 | [锁列表与详情](surfaces/WEB-L-001-lock-list-detail.md) |
-| WEB-L-002 | views/platform/facility/device | src/views/platform/facility/device/ | 设备筛选、编辑、解绑、启停、管理员密码及批量修改。 | [设备管理](surfaces/WEB-L-002-device-management.md) |
-| WEB-L-003 | views/platform/facility/gateway、type | src/views/platform/facility/gateway/、type/ | 网关准入、关联设备、删除；设备型号 CRUD。 | [网关与型号](surfaces/WEB-L-003-gateway-and-model.md) |
+| WEB-L-002 | views/platform/facility/device | src/views/platform/facility/device/ | 设备筛选、编辑；解绑、启停、管理员密码及批量修改待核验并受控不可用。 | [设备管理](surfaces/WEB-L-002-device-management.md) |
+| WEB-L-003 | views/platform/facility/gateway、type | src/views/platform/facility/gateway/、type/ | 网关准入、关联设备；删除待核验并受控不可用；设备型号 CRUD。 | [网关与型号](surfaces/WEB-L-003-gateway-and-model.md) |
 | WEB-L-004 | views/platform/key/person | src/views/platform/key/person/ | 人员、密码、卡片、导入导出和员工查询。 | [人员与凭据](surfaces/WEB-L-004-person-credentials.md) |
 | WEB-L-005 | views/platform/key/auth | src/views/platform/key/auth/ | 按人员/设备授权、取消、重新授权、编辑、删除、导出。 | [权限管理](surfaces/WEB-L-005-authorizations.md) |
 | WEB-L-006 | views/platform/key/auth-result | src/views/platform/key/auth-result/ | 授权下发任务结果查询和分页。 | [下发结果](surfaces/WEB-L-006-delivery-results.md) |
 | WEB-L-007 | views/platform/lock/open_record、pwd_record、report | src/views/platform/lock/open_record/、pwd_record/、report/ | 开门记录、密码修改记录、设备通信日志、导出和 JSON 查看。 | [记录与日志](surfaces/WEB-L-007-records-and-logs.md) |
 | WEB-L-008 | views/platform/lock/alarm_record、views/platform/setting/alarm | src/views/platform/lock/alarm_record/、src/views/platform/setting/alarm/ | 告警查询、批量处理、详情、园区级告警设置。 | [告警与设置](surfaces/WEB-L-008-alarms-settings.md) |
+
+设备可用开关、解绑、启停、单台/批量/全量管理员密码操作及网关删除均未被现有运行态证据确认；在版本、账号角色、资源权限、API 和设备状态能力全部核实前，相关字段和入口保持待核验或受控不可用，属于 OPEN-008。设备编辑以及网关准入、关联设备仍按现有运行态证据保留。
 
 ## 现有 Smart 页面处理
 
@@ -31,4 +33,3 @@ smart-ui 现有的 platform/dormitory/lock_list、lock_bind、grant_auth、door_
 3. 对每个写操作显示“请求校验中、已受理、待网关/设备确认、完成、失败/待人工处理”等真实状态；
 4. 使用服务端权限和状态机作为最终裁定；前端隐藏或禁用不等于授权控制；
 5. 有旧运行态证据、新页面截图/录屏、自动化用例和安全差异清单。
-

@@ -6,11 +6,11 @@
 
 | 语义 | 当前路径表达 | 前端边界 |
 |---|---|---|
-| 获取本人动态密码/门锁结果 | GET /dormitory/staff/me/pwd | 不传入任意人员标识。 |
-| 修改本人门锁密码 | POST /dormitory/staff/me/lock/pwd | 仅提交受控密码输入；结果需区分已受理与设备确认。 |
-| 刷新本人动态密码 | POST /dormitory/staff/me/pwd | 人脸或其他服务端校验结果必须由后端裁定。 |
+| 获取本人动态密码/门锁结果 | `GET /dormitory/staff/get/pwd`（query：`badge`） | 页面应使用当前员工的 `badge`；结果需区分空值未入住。 |
+| 修改本人门锁密码 | `POST /dormitory/staff/update/lock/pwd`（body：`badge`、`newPwd`） | 仅提交受控密码输入；结果需区分已受理与设备确认。 |
+| 刷新本人动态密码 | `POST /dormitory/staff/update/pwd`（body：`badge`、`facePic`） | 人脸或其他服务端校验结果必须由后端裁定。 |
 
-这些当前路径是现有 Smart 平台接口表达，不是未来 smart-lock 的最终路径。切换前不得仅改前端 URL；必须先冻结版本化 DTO、错误码、鉴权、幂等、状态和回退兼容策略。
+以上仅确认客户端调用事实；携带 `badge` 不能证明后端已将其与 token 身份绑定，服务端鉴权需单独验证。这些当前路径是现有 Smart 平台接口表达，不是未来 smart-lock 的最终路径。切换前不得仅改前端 URL；必须先冻结版本化 DTO、错误码、鉴权、幂等、状态和回退兼容策略。
 
 ## 新接口必须保证的语义
 
@@ -30,4 +30,3 @@
 2. 用 mock/契约测试覆盖所有状态，而非用生产旧系统做开发依赖；
 3. 在 SHADOW 期间只显示安全的只读或受控不可用状态，绝不触发新旧双下发；
 4. 正式 NEW_ONLY 前完成旧路径移除或由网关统一兼容，前端不得保留可切换到旧系统的 URL、开关或人员参数。
-

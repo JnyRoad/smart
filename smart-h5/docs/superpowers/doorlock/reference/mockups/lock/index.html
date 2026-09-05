@@ -76,6 +76,10 @@ body { font-family: var(--font-main); background: var(--surface); color: var(--y
   color: var(--white); font-size: 16px; font-weight: 650; cursor: pointer;
 }
 .btn-primary:active { background: var(--accent-strong); }
+.btn-primary:disabled, .btn-secondary:disabled {
+  background: var(--light-gray); border-color: var(--light-gray); color: var(--weak-gray);
+  cursor: not-allowed; box-shadow: none;
+}
 .btn-secondary {
   height: 48px; border-radius: 14px; background: var(--white); border: 1px solid var(--border-soft);
   color: var(--yuto-black); font-size: 16px; font-weight: 650; cursor: pointer; box-shadow: var(--shadow-panel);
@@ -135,8 +139,8 @@ body { font-family: var(--font-main); background: var(--surface); color: var(--y
   </div>
 
   <div class="actions">
-    <button class="btn-primary" onclick="openEdit()">修改动态码</button>
-    <button class="btn-secondary" onclick="alert('原型演示：跳转 /xuchang/dorm/getCode（人脸识别刷新动态码）')">刷新动态码（人脸识别）</button>
+    <button id="editBtn" class="btn-primary" onclick="openEdit()">修改动态码</button>
+    <button id="refreshBtn" class="btn-secondary" onclick="refreshLock()">刷新动态码（人脸识别）</button>
   </div>
 
   <div class="foot">裕同智慧园区 · 高保真原型</div>
@@ -180,13 +184,19 @@ body { font-family: var(--font-main); background: var(--surface); color: var(--y
 
 <script>
 var curCode = '638274';
+// 原型状态切换：未入住时锁住门锁动作，恢复入住后重新启用。
 function setState(s) {
+  var unavailable = s === 'out';
   document.getElementById('s1').className = s === 'in' ? 'on' : '';
   document.getElementById('s2').className = s === 'out' ? 'on' : '';
+  document.getElementById('editBtn').disabled = unavailable;
+  document.getElementById('refreshBtn').disabled = unavailable;
   if (s === 'out') {
+    closeEdit();
     document.getElementById('codeNum').textContent = '******';
     document.getElementById('outMask').classList.add('show');
   } else {
+    document.getElementById('outMask').classList.remove('show');
     document.getElementById('codeNum').textContent = curCode;
   }
 }
@@ -194,13 +204,20 @@ function confirmOut() {
   document.getElementById('outMask').classList.remove('show');
   showToast('原型演示：跳回 /xuchang/dorm');
 }
+// 编辑入口再次校验状态，防止绕过按钮触发不可用动作。
 function openEdit() {
+  if (document.getElementById('editBtn').disabled) return;
   document.getElementById('newPwd').value = '';
   document.getElementById('editErr').textContent = '';
   document.getElementById('editMask').classList.add('show');
 }
 function closeEdit() { document.getElementById('editMask').classList.remove('show'); }
+// 提交入口复用状态门禁，避免状态切换后残留弹窗继续提交。
 function submitEdit() {
+  if (document.getElementById('editBtn').disabled) {
+    closeEdit();
+    return;
+  }
   var v = document.getElementById('newPwd').value;
   if (!/^[0-9]{6}$/.test(v)) { showToast('请输入6位数字动态码'); return; }
   if (v === curCode) { showToast('请输入跟当前动态码不一样的新的动态码'); return; }
@@ -215,6 +232,11 @@ function submitEdit() {
   closeEdit();
   showToast('修改成功，已重新获取动态码');
 }
+// 刷新入口复用按钮状态门禁，保持未入住态不可触发刷新。
+function refreshLock() {
+  if (document.getElementById('refreshBtn').disabled) return;
+  alert('原型演示：跳转 /xuchang/dorm/getCode（人脸识别刷新动态码）');
+}
 var toastTimer = null;
 function showToast(msg) {
   var t = document.getElementById('toast');
@@ -225,4 +247,3 @@ function showToast(msg) {
 </script>
 </body>
 </html>
-
