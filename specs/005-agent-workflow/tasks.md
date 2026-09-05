@@ -20,8 +20,14 @@
 
 - [x] T008 [US1] 检查资料完整性、本机状态忽略、规则链接和干净检出规格复用。
 - [x] T009 [US3] 运行相关现有测试并完成独立评审，修复已确认问题。
-- [ ] T010 提交本任务文件并推送 origin 功能分支，创建 PR，报告验证与限制。
+- [x] T010 提交本任务文件并推送 origin 功能分支，创建 PR，报告验证与限制。
 
 ## Dependencies & Parallel Work
 
 T001 → T002；T003 与 T004/T005 与 T006/T007 可并行但文件所有权不重叠；T006 的失败检查先于 T007；全部汇合到 T008/T009，最后 T010。纯文档不新增镜像实现的测试。
+
+## 交付结果
+
+规则、资料和工作流已在 `chore/project-agent-workflow` 提交并推送至 origin，PR：
+[PR #179](https://github.com/JnyRoad/smart/pull/179)。独立评审与验证见 [quickstart.md](quickstart.md)。
+PR 尚未合并；合并后 main 才包含本次资料及规则。
