@@ -57,7 +57,7 @@ public class SmtSecurityAuthDeleteLogServiceImpl implements SmtSecurityAuthDelet
 	private static final DateTimeFormatter CSV_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 	private static final Set<String> VALID_RESULTS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
 			"SKIPPED_WHITELIST", "SKIPPED_NOT_DUE", "SKIPPED_NO_DEVICE", "SKIPPED_STAFF_MISSING",
-			"DRY_RUN", "PROCESSING", "SUCCESS", "FAILED", "UNKNOWN")));
+			"SKIPPED_MISSING_TIME", "DRY_RUN", "PROCESSING", "SUCCESS", "FAILED", "UNKNOWN")));
 
 	private final SmtSecurityAuthDeleteLogMapper logMapper;
 	private final SmtSecurityAuthDeleteTaskMapper taskMapper;
@@ -495,6 +495,8 @@ public class SmtSecurityAuthDeleteLogServiceImpl implements SmtSecurityAuthDelet
 				return "无关联设备";
 			case "SKIPPED_STAFF_MISSING":
 				return "人员不存在";
+			case "SKIPPED_MISSING_TIME":
+				return "缺少判定时间";
 			case "DRY_RUN":
 				return "演练命中";
 			case "PROCESSING":

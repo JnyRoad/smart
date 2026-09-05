@@ -4,6 +4,19 @@
 
 <mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityAuthDeleteLogMapper">
 
+	<!-- 展示与结果筛选复用同一口径，避免状态聚合规则变更后出现筛选和显示不一致。 -->
+	<sql id="displayResult">
+		CASE
+			WHEN L.RESULT <![CDATA[<>]]> 'PROCESSING' THEN L.RESULT
+			WHEN NVL(S.FAIL_COUNT, 0) <![CDATA[>]]> 0 THEN 'FAILED'
+			WHEN NVL(S.TASK_COUNT, 0) = 0 OR NVL(S.UNKNOWN_COUNT, 0) <![CDATA[>]]> 0 THEN 'UNKNOWN'
+			WHEN NVL(S.PENDING_COUNT, 0) <![CDATA[>]]> 0 THEN 'PROCESSING'
+			WHEN NVL(S.TASK_COUNT, 0) <![CDATA[>]]> 0
+				AND NVL(S.SUCCESS_COUNT, 0) = S.TASK_COUNT THEN 'SUCCESS'
+			ELSE 'UNKNOWN'
+		END
+	</sql>
+
 	<!--
 		任务状态在查询时从标准任务表和 ISC 任务表实时读取。
 		TASK_SOURCE 控制关联来源，任务被清理后 LEFT JOIN 保留未知状态。
@@ -22,15 +35,7 @@
 			L.AUTH_NAME,
 			L.LAST_SNAP_TIME,
 			L.TRIGGER_REASON,
-			CASE
-				WHEN L.RESULT <![CDATA[<>]]> 'PROCESSING' THEN L.RESULT
-				WHEN NVL(S.FAIL_COUNT, 0) <![CDATA[>]]> 0 THEN 'FAILED'
-				WHEN NVL(S.TASK_COUNT, 0) = 0 OR NVL(S.UNKNOWN_COUNT, 0) <![CDATA[>]]> 0 THEN 'UNKNOWN'
-				WHEN NVL(S.PENDING_COUNT, 0) <![CDATA[>]]> 0 THEN 'PROCESSING'
-				WHEN NVL(S.TASK_COUNT, 0) <![CDATA[>]]> 0
-					AND NVL(S.SUCCESS_COUNT, 0) = S.TASK_COUNT THEN 'SUCCESS'
-				ELSE 'UNKNOWN'
-			END AS RESULT,
+			<include refid="displayResult"/> AS RESULT,
 			L.REMARK,
 			NVL(S.TASK_COUNT, 0) AS TASK_COUNT,
 			NVL(S.SUCCESS_COUNT, 0) AS SUCCESS_COUNT,
@@ -94,17 +99,7 @@
 				AND L.AUTH_NAME LIKE CONCAT(CONCAT('%', #{query.authName}), '%')
 			</if>
 			<if test="query != null and query.result != null and query.result != ''">
-				AND (
-					CASE
-						WHEN L.RESULT <![CDATA[<>]]> 'PROCESSING' THEN L.RESULT
-						WHEN NVL(S.FAIL_COUNT, 0) <![CDATA[>]]> 0 THEN 'FAILED'
-						WHEN NVL(S.TASK_COUNT, 0) = 0 OR NVL(S.UNKNOWN_COUNT, 0) <![CDATA[>]]> 0 THEN 'UNKNOWN'
-						WHEN NVL(S.PENDING_COUNT, 0) <![CDATA[>]]> 0 THEN 'PROCESSING'
-						WHEN NVL(S.TASK_COUNT, 0) <![CDATA[>]]> 0
-							AND NVL(S.SUCCESS_COUNT, 0) = S.TASK_COUNT THEN 'SUCCESS'
-						ELSE 'UNKNOWN'
-					END
-				) = #{query.result}
+				AND (<include refid="displayResult"/>) = #{query.result}
 			</if>
 		</where>
 		ORDER BY L.EXEC_TIME DESC, L.ID DESC

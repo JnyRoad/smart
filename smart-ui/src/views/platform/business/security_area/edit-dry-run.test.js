@@ -9,6 +9,7 @@ const editWhiteListObj = vi.fn()
 const editAreaListObj = vi.fn()
 const getWhiteListObj = vi.fn()
 const getOaArea = vi.fn()
+const getStaffDetail = vi.fn()
 
 vi.mock('./_service', () => ({
   bsSecurityAreaApi: {
@@ -21,7 +22,7 @@ vi.mock('./_service', () => ({
 }))
 
 vi.mock('@/api/platform/_publicService', () => ({
-  getStaffDetail: vi.fn()
+  getStaffDetail
 }))
 
 vi.mock('./components/batchAuth', () => ({ default: { name: 'AuthDialog' } }))
@@ -35,6 +36,7 @@ describe('保密区自动删权演练配置', () => {
     editAreaListObj.mockReset()
     getWhiteListObj.mockReset()
     getOaArea.mockReset()
+    getStaffDetail.mockReset()
     editWhiteListObj.mockResolvedValue({ data: { code: 0, data: true } })
     editAreaListObj.mockResolvedValue({ data: { code: 0, data: true } })
     getOaArea.mockResolvedValue({ data: { code: 0, data: [] } })
@@ -53,8 +55,8 @@ describe('保密区自动删权演练配置', () => {
       }
     })
     const context = {
-    areaForm: { parkId: 1001 },
-    whiteListForm: {},
+      areaForm: { parkId: 1001 },
+      whiteListForm: {},
       $set: (target, key, value) => { target[key] = value },
       normalizeDryRun: component.methods.normalizeDryRun
     }
@@ -119,12 +121,72 @@ describe('保密区自动删权演练配置', () => {
     const switchWrapper = wrapper.find('.el-switch')
     expect(switchWrapper.exists()).toBe(true)
     expect(switchWrapper.classes()).not.toContain('is-checked')
-    expect(Object.getOwnPropertyDescriptor(wrapper.vm.whiteListForm, 'dryRun').get).toBeTypeOf('function')
 
     await switchWrapper.trigger('click')
     await Vue.nextTick()
 
     expect(switchWrapper.classes()).toContain('is-checked')
+    wrapper.destroy()
+  })
+
+  it('真实挂载后添加白名单会保留人员并清空临时输入', async () => {
+    getStaffDetail.mockResolvedValue({ data: { code: 0, data: { id: 'staff-1', name: '张三' } } })
+    getWhiteListObj.mockResolvedValue({
+      data: {
+        code: 0,
+        data: {
+          parkId: 1001,
+          deleteDay: 30,
+          isWhiteList: 1,
+          whiteList: []
+        }
+      }
+    })
+    const wrapper = mount(component, {
+      mocks: {
+        $route: { params: { parkId: '0' } },
+        $router: { push: vi.fn() },
+        $message: vi.fn(),
+        $notify: { error: vi.fn() },
+        validatenull: value => value === null || value === undefined || value === ''
+      },
+      stubs: {
+        parkSelect: true,
+        AuthDialog: true,
+        DelAuthDialog: true
+      }
+    })
+
+    await Vue.nextTick()
+    await Promise.resolve()
+    await Vue.nextTick()
+
+    // 固定无关表单校验，通过工号查询、人员回填与添加按钮验证真实输入清空。
+    wrapper.vm.$refs.whiteListForm.validateField = (field, callback) => callback('', {})
+    const badgeInput = wrapper.find('input[placeholder="点击输入工号，按回车查询姓名"]')
+    const nameInput = wrapper.find('input[placeholder="姓名自动获取"]')
+    await badgeInput.setValue('A001')
+    await badgeInput.trigger('keyup.enter')
+    await Promise.resolve()
+    await Vue.nextTick()
+
+    expect(getStaffDetail).toHaveBeenCalledWith('A001')
+    expect(badgeInput.element.value).toBe('A001')
+    expect(nameInput.element.value).toBe('张三')
+
+    await wrapper.find('.line-btn .el-button').trigger('click')
+    await Vue.nextTick()
+
+    expect(wrapper.vm.whiteListForm.whiteList).toStrictEqual([{
+      staffId: 'staff-1',
+      staffBadge: 'A001',
+      staffName: '张三'
+    }])
+    expect(wrapper.vm.whiteListForm.staffId).toBe('')
+    expect(wrapper.vm.whiteListForm.staffBadge).toBe('')
+    expect(wrapper.vm.whiteListForm.staffName).toBe('')
+    expect(badgeInput.element.value).toBe('')
+    expect(nameInput.element.value).toBe('')
     wrapper.destroy()
   })
 })

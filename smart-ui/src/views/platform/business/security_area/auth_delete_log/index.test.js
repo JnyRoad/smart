@@ -200,4 +200,37 @@ describe('保密区自动删权记录报表', () => {
     expect(component.methods.taskStatusLabel(null)).toBe('任务状态未知')
     expect(component.methods.displayValue(null)).toBe('-')
   })
+
+  it('支持缺少判定时间结果筛选并明确展示标签', () => {
+    expect(component.data().resultOptions).toContainEqual({
+      value: 'SKIPPED_MISSING_TIME',
+      label: '缺少判定时间'
+    })
+    expect(component.methods.resultLabel('SKIPPED_MISSING_TIME')).toBe('缺少判定时间')
+  })
+
+  it('NORMAL 和 ISC 任务的 null 状态均显示未知，合法状态按统一口径展示', () => {
+    const tasks = [
+      { taskSource: 'NORMAL', status: null },
+      { taskSource: 'NORMAL', status: 1 },
+      { taskSource: 'ISC', status: null },
+      { taskSource: 'ISC', status: 6 },
+      { taskSource: 'ISC', status: 5 }
+    ]
+
+    expect(tasks.map(task => component.methods.taskSourceLabel(task.taskSource))).toStrictEqual([
+      '普通设备',
+      '普通设备',
+      'ISC',
+      'ISC',
+      'ISC'
+    ])
+    expect(tasks.map(task => component.methods.taskStatusLabel(task.status))).toStrictEqual([
+      '任务状态未知',
+      '成功（任务记录）',
+      '任务状态未知',
+      '执行中',
+      '失败'
+    ])
+  })
 })

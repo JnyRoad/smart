@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 /**
  * 自动删除审计任务明细的数据库投影。
  *
- * <p>状态从当前任务表实时读取；任务不存在时 status 保持为空，由服务转成未知状态。</p>
+ * <p>状态从当前任务表实时读取；任务不存在时 status 保持为空，按接口契约由展示端呈现未知状态。</p>
  */
 @Data
 public class SecurityAuthDeleteLogTaskDTO implements Serializable {

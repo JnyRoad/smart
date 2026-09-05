@@ -239,6 +239,61 @@ public class SmtSecurityAuthDeleteServiceImplTest {
 		assertTrue(record.taskRefs.isEmpty());
 	}
 
+	/** 历史权限缺少全部时间依据时明确跳过，并继续处理后续有依据的权限。 */
+	@Test
+	public void deleteAuthTask_missingAnchor_skipsWithoutRollbackAndContinues() throws Exception {
+		SmtSecurityAuthDeleteMapper mapper = Mockito.mock(SmtSecurityAuthDeleteMapper.class);
+		SmtSecurityAuthDelete config = dueConfig();
+		SmtStaffDeviceAuth missingTime = authRelation(100L, 7, 701);
+		missingTime.setCreateTime(null);
+		SmtStaffDeviceAuth validTime = authRelation(101L, 8, 702);
+		Mockito.when(mapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(config));
+		SmtSecurityAuthDeleteServiceImpl service = newDeleteService(mapper, config,
+				Arrays.asList(missingTime, validTime), Collections.singletonList(Boolean.TRUE));
+
+		service.deleteAuthTask();
+
+		List<AuditRecord> records = verifyAuditRecords(service, 2);
+		assertAuditRecord(records.get(0), "SKIPPED_MISSING_TIME", 100L, "badge-100", "staff-100", "dept-100", 7, "保密区权限");
+		assertEquals("缺少进出记录和授权创建时间", records.get(0).log.getTriggerReason());
+		assertNull(records.get(0).log.getLastSnapTime());
+		assertTrue(records.get(0).taskRefs.isEmpty());
+		assertEquals("PROCESSING", records.get(1).log.getResult());
+		SmtStaffDeviceAuthService authService = (SmtStaffDeviceAuthService) readField(service, "smtStaffDeviceAuthService");
+		Mockito.verify(authService, Mockito.never()).removeById(missingTime.getId());
+		Mockito.verify(authService).removeById(validTime.getId());
+		SmtStaffService staffService = (SmtStaffService) readField(service, "smtStaffService");
+		Mockito.verify(staffService, Mockito.times(1)).savePersonCardTasksWithResult(Mockito.anyInt(), Mockito.anyLong(),
+				Mockito.anyLong(), Mockito.any(SmtStaff.class), Mockito.anyList());
+		PlatformTransactionManager manager = (PlatformTransactionManager) readField(service, "transactionManager");
+		Mockito.verify(manager, Mockito.never()).rollback(Mockito.any(TransactionStatus.class));
+	}
+
+	/** 授权创建时间缺失但有真实进出记录时，仍按进出时间正常计算演练命中。 */
+	@Test
+	public void deleteAuthTask_missingCreateTime_usesActualSnapTime() throws Exception {
+		SmtSecurityAuthDeleteMapper mapper = Mockito.mock(SmtSecurityAuthDeleteMapper.class);
+		SmtSecurityAuthDelete config = dueConfig();
+		config.setDryRun(1);
+		SmtStaffDeviceAuth relation = authRelation(100L, 7, 701);
+		relation.setCreateTime(null);
+		Mockito.when(mapper.selectList(Mockito.any())).thenReturn(Collections.singletonList(config));
+		SmtSecurityAuthDeleteServiceImpl service = newDeleteService(mapper, config,
+				Collections.singletonList(relation), Collections.singletonList(Boolean.FALSE));
+		SmtSnapPerson snap = new SmtSnapPerson();
+		snap.setSnapTime(DateUtil.offsetDay(new Date(), -10));
+		SmtSnapPersonService snapService = (SmtSnapPersonService) readField(service, "smtSnapPersonService");
+		Mockito.when(snapService.list(Mockito.any())).thenReturn(Collections.singletonList(snap));
+
+		service.deleteAuthTask();
+
+		AuditRecord record = verifySingleAudit(service);
+		assertEquals("DRY_RUN", record.log.getResult());
+		assertNotNull(record.log.getLastSnapTime());
+		assertTrue(record.log.getTriggerReason().contains("最后进出时间"));
+		assertTrue(record.taskRefs.isEmpty());
+	}
+
 	/** 白名单判定在查询抓拍记录之前完成，命中时不读取最后进出时间。 */
 	@Test
 	public void deleteAuthTask_whitelistSkipsBeforeSnapQuery() throws Exception {

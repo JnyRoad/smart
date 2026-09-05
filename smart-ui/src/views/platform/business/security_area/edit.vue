@@ -205,6 +205,9 @@ export default {
         isHoliday: '',
         isLeave: '',
         isWhiteList: 0,
+        staffId: '',
+        staffBadge: '',
+        staffName: '',
         dryRun: 0,
         whiteList: []
       },
@@ -347,6 +350,9 @@ export default {
           isHoliday: '',
           isLeave: '',
           isWhiteList: 0,
+          staffId: '',
+          staffBadge: '',
+          staffName: '',
           dryRun: 0,
           whiteList: []
         }, res.data.data)

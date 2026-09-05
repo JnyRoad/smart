@@ -53,6 +53,8 @@
 
 ## 升级交付方案
 
+PR #189 评审修复沿用本方案：缺失全部时间依据时保存 `SKIPPED_MISSING_TIME`，列表、筛选和导出同步支持；任务详情 null 状态沿用契约，在 UI 显示未知。恢复白名单临时输入字段的响应式默认值，路由测试改为核对实际导出路由；复用既有演练校验及 SQL 结果片段。Oracle 执行计划与索引使用仍列为现场验收，未取得计划前不更换聚合算法。
+
 迁移目录为 `smart-module/database/manual/20260905_security_auth_delete_report/`。提供 `precheck.sql`、`upgrade.sql`、`verify.sql`、`rollback_check.sql`，必要的共享校验由同目录脚本复用。检查连接用户/current schema与显式目标一致；在已有结构兼容时跳过已完成 DDL，拒绝不兼容结构。新结构与既有实体和 XML 对齐；不回填历史任务、不重置 dryRun。候选性能索引保持独立、需执行计划依据，不由升级脚本自动创建。
 
 升级顺序：备份并暂停相关自动任务 → 核对 schema → 执行迁移并验证 → 部署 smart-platform-biz → 部署 smart-ui → 配置菜单/角色 → 在测试园区验收 → 按原调度配置恢复任务。应用回滚保留新表和字段；若存在 dryRun=1，旧版本不支持演练，必须先保持调度停用并处理回退条件，不能直接恢复任务。Oracle DDL 隐式提交，异常后的已建对象不由ROLLBACK撤销；应核查后重跑同一增量迁移或由DBA处理漂移。

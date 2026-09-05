@@ -62,6 +62,7 @@ public class SmtSecurityAuthDeleteServiceImpl extends ServiceImpl<SmtSecurityAut
 	private static final String RESULT_SKIPPED_NOT_DUE = "SKIPPED_NOT_DUE";
 	private static final String RESULT_SKIPPED_NO_DEVICE = "SKIPPED_NO_DEVICE";
 	private static final String RESULT_SKIPPED_STAFF_MISSING = "SKIPPED_STAFF_MISSING";
+	private static final String RESULT_SKIPPED_MISSING_TIME = "SKIPPED_MISSING_TIME";
 	private static final String RESULT_DRY_RUN = "DRY_RUN";
 	private static final String RESULT_PROCESSING = "PROCESSING";
 	private static final String RESULT_FAILED = "FAILED";
@@ -70,6 +71,7 @@ public class SmtSecurityAuthDeleteServiceImpl extends ServiceImpl<SmtSecurityAut
 	private static final String TRIGGER_LAST_SNAP_TIME = "按最后进出时间计算";
 	private static final String TRIGGER_NO_DEVICE = "权限组未关联设备";
 	private static final String TRIGGER_STAFF_MISSING = "员工主数据缺失";
+	private static final String TRIGGER_MISSING_TIME = "缺少进出记录和授权创建时间";
 	private static final String TRIGGER_AUDIT_FAILURE = "判定过程异常";
 	private static final int MAX_REMARK_LENGTH = 1000;
 
@@ -141,10 +143,8 @@ public class SmtSecurityAuthDeleteServiceImpl extends ServiceImpl<SmtSecurityAut
 		if (reqDTO == null) {
 			throw new SmartException("权限自动删除配置不能为空");
 		}
-		if (reqDTO.getDryRun() != null
-				&& !OneOrZeroEnum.ZERO.getCode().equals(reqDTO.getDryRun())
-				&& !OneOrZeroEnum.ONE.getCode().equals(reqDTO.getDryRun())) {
-			throw new SmartException("dryRun 参数只能是0或1");
+		if (reqDTO.getDryRun() != null) {
+			normalizeDryRun(reqDTO.getDryRun());
 		}
 		SmtSecurityAuthDelete existing = null;
 		if (reqDTO.getId() != null) {
@@ -268,6 +268,13 @@ public class SmtSecurityAuthDeleteServiceImpl extends ServiceImpl<SmtSecurityAut
 			// 无真实进出记录时只用授权创建时间参与计算，审计字段 lastSnapTime 保持为空。
 			context.triggerReason = TRIGGER_AUTH_CREATE_TIME;
 			anchorTime = authRelation.getCreateTime();
+		}
+		// 历史授权可能没有创建时间；缺少全部判定依据时保留权限并记录明确的跳过原因。
+		if (anchorTime == null) {
+			context.triggerReason = TRIGGER_MISSING_TIME;
+			recordLog(context, RESULT_SKIPPED_MISSING_TIME, TRIGGER_MISSING_TIME,
+					"无法计算自动删除期限，未执行权限删除", Collections.emptyList());
+			return;
 		}
 		Boolean isDelete = this.freeDay(deleteConfig, context.staff.getBadge(), anchorTime, new Date());
 		if (!Boolean.TRUE.equals(isDelete)) {

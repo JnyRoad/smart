@@ -13,11 +13,11 @@
 
 `id`（字符串）、`parkId`、`execTime`、`staffId`（字符串）、`staffBadge`、`staffName`、`department`、`authId`（Integer）、`authName`、`lastSnapTime`、`triggerReason`、`result`、`remark`、`taskCount`、`successCount`、`failCount`、`pendingCount`、`unknownCount`。
 
-结果：`SKIPPED_WHITELIST` 白名单跳过、`SKIPPED_NOT_DUE` 未到删除期限、`SKIPPED_NO_DEVICE` 无关联设备、`SKIPPED_STAFF_MISSING` 人员不存在、`DRY_RUN` 演练命中、`PROCESSING` 任务执行中、`SUCCESS` 任务执行成功、`FAILED` 处理或任务失败、`UNKNOWN` 任务状态未知。
+结果：`SKIPPED_WHITELIST` 白名单跳过、`SKIPPED_NOT_DUE` 未到删除期限、`SKIPPED_NO_DEVICE` 无关联设备、`SKIPPED_STAFF_MISSING` 人员不存在、`SKIPPED_MISSING_TIME` 缺少判定时间、`DRY_RUN` 演练命中、`PROCESSING` 任务执行中、`SUCCESS` 任务执行成功、`FAILED` 处理或任务失败、`UNKNOWN` 任务状态未知。
 
 状态聚合：任务失败/取消/过期（2/4/5）优先FAILED；无关联、缺失、非法状态为UNKNOWN；状态0、3或6（离线）为PROCESSING；全部状态1才SUCCESS。非正式删权结果直接使用主表结果。
 
-任务详情字段：`taskSource`（NORMAL/ISC）、`taskId`（字符串）、`deviceCode`（生成时快照）、`action`、`status`（缺失null）、`code`、`remark`、`createTime`、`updateTime`。仅从该记录的关联表取任务，不暴露任意任务查询。
+任务详情字段：`taskSource`（NORMAL/ISC）、`taskId`（字符串）、`deviceCode`（生成时快照）、`action`、`status`（任务缺失或状态为空时为null，界面显示“未知”；不伪造成功或引入设备状态码）、`code`、`remark`、`createTime`、`updateTime`。仅从该记录的关联表取任务，不暴露任意任务查询。
 
 ## 审计写入接口
 

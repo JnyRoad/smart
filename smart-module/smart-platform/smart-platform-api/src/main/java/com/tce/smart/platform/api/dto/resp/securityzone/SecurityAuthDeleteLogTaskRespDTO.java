@@ -23,6 +23,7 @@ public class SecurityAuthDeleteLogTaskRespDTO implements Serializable {
 
 	private String deviceCode;
 	private Integer action;
+	@ApiModelProperty("设备任务原始状态；任务缺失或状态为空时为null，展示为未知")
 	private Integer status;
 	private Integer code;
 	private String remark;

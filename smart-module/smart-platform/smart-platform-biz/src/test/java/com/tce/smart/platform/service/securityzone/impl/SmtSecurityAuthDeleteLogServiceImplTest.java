@@ -264,6 +264,57 @@ public class SmtSecurityAuthDeleteLogServiceImplTest {
 		assertTrue(containsBytes(body, "'\u0000=CMD(4)"));
 	}
 
+	/** 缺少判定时间的记录可按相同结果筛选，并以清晰中文导出。 */
+	@Test
+	public void missingTimeResult_supportsPageFilterAndExport() throws Exception {
+		setUserParks(Collections.singletonList(10));
+		SecurityAuthDeleteLogPageQueryReqDTO query = new SecurityAuthDeleteLogPageQueryReqDTO();
+		query.setResult("SKIPPED_MISSING_TIME");
+		SecurityAuthDeleteLogPageDTO row = new SecurityAuthDeleteLogPageDTO();
+		row.setResult("SKIPPED_MISSING_TIME");
+		row.setTriggerReason("缺少进出记录和授权创建时间");
+		Page<SecurityAuthDeleteLogPageDTO> sourcePage = new Page<>(1, 20);
+		sourcePage.setTotal(1);
+		sourcePage.setRecords(Collections.singletonList(row));
+		when(logMapper.selectPageWithTaskSummary(any(Page.class), any(SecurityAuthDeleteLogPageQueryReqDTO.class), anyList()))
+				.thenReturn(sourcePage);
+
+		assertEquals("SKIPPED_MISSING_TIME", service.page(new Page<>(1, 20), query).getRecords().get(0).getResult());
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		service.export(query, response);
+
+		String csv = new String(response.getContentAsByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(csv.contains("缺少判定时间"));
+		assertTrue(csv.contains("缺少进出记录和授权创建时间"));
+	}
+
+	/** 缺失普通或 ISC 任务时保留 null 未知契约，不把有效状态改成另一种设备状态码。 */
+	@Test
+	public void tasks_preservesMissingStatusAndKnownStatusesForBothSources() {
+		setUserParks(Collections.singletonList(10));
+		when(logMapper.selectAuthorizedLog(eq(55L), anyList())).thenReturn(processingLog());
+		List<SecurityAuthDeleteLogTaskDTO> rows = new ArrayList<>();
+		for (String source : Arrays.asList("NORMAL", "ISC")) {
+			for (Integer status : Arrays.asList(null, 0, 1, 2, 3, 4, 5, 6)) {
+				SecurityAuthDeleteLogTaskDTO row = new SecurityAuthDeleteLogTaskDTO();
+				row.setTaskSource(source);
+				row.setTaskId(String.valueOf(rows.size() + 1));
+				row.setStatus(status);
+				rows.add(row);
+			}
+		}
+		when(logMapper.selectTasks(eq(55L), anyList())).thenReturn(rows);
+
+		List<SecurityAuthDeleteLogTaskRespDTO> response = service.tasks("55");
+
+		assertEquals(rows.size(), response.size());
+		for (int i = 0; i < rows.size(); i++) {
+			assertEquals(rows.get(i).getTaskSource(), response.get(i).getTaskSource());
+			assertEquals(rows.get(i).getTaskId(), response.get(i).getTaskId());
+			assertEquals(rows.get(i).getStatus(), response.get(i).getStatus());
+		}
+	}
+
 	/** 验证任务详情先用令牌园区范围授权主记录，再返回两表统一的任务 ID 文本。 */
 	@Test
 	 public void tasks_checksAuthorizedLogWithTokenParkScope() {
