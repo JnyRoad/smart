@@ -51,6 +51,10 @@ private static final long serialVersionUID = 1L;
    */
     private Integer isWhiteList;
     /**
+     * 是否演练模式：0-正式删除，1-只记录判定不执行删除。
+     */
+    private Integer dryRun;
+    /**
    * 空白字段1
    */
     private String blank1;

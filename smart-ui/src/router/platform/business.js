@@ -52,6 +52,10 @@ export const businessSecurityAreaEditRoute = {
       path: 'edit/:parkId',
       component: () =>
         import ('@/views/platform/business/security_area/edit')
+    }, {
+      path: 'auth_delete_log/index',
+      component: () =>
+        import ('@/views/platform/business/security_area/auth_delete_log/index')
     }]
   }
 

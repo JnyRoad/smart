@@ -1,0 +1,17 @@
+# 数据模型
+
+## SMT_SECURITY_AUTH_DELETE_LOG
+
+主键 ID NUMBER(19)；PARK_ID NUMBER(10) NOT NULL；EXEC_TIME TIMESTAMP NOT NULL；STAFF_ID NUMBER(19)；STAFF_BADGE VARCHAR2(64 CHAR)；STAFF_NAME VARCHAR2(128 CHAR)；DEPARTMENT VARCHAR2(256 CHAR)；AUTH_ID NUMBER(10)；AUTH_NAME VARCHAR2(256 CHAR)；LAST_SNAP_TIME TIMESTAMP；TRIGGER_REASON VARCHAR2(256 CHAR)；RESULT VARCHAR2(32 CHAR) NOT NULL；REMARK VARCHAR2(1000 CHAR)；CREATE_TIME TIMESTAMP NOT NULL。
+
+人员与权限字段为判定时快照，不在分页时依赖员工或权限组主表。主表原始正式提交结果PROCESSING，显示结果由关联任务实时聚合，不伪造设备确认。
+
+## SMT_SECURITY_AUTH_DELETE_TASK
+
+主键 ID NUMBER(19)；LOG_ID NUMBER(19) NOT NULL；TASK_SOURCE VARCHAR2(16 CHAR) NOT NULL；TASK_ID NUMBER(19) NOT NULL；DEVICE_CODE VARCHAR2(128 CHAR)；ACTION NUMBER(10)。LOG_ID + TASK_SOURCE + TASK_ID 唯一，LOG_ID 索引；不对设备任务设置外键，任务历史清理后仍保留审计关联且显示未知。
+
+## SMT_SECURITY_AUTH_DELETE
+
+增加 DRY_RUN NUMBER(1) DEFAULT 0；0正式、1演练；兼容旧配置null按0。
+
+可执行结构定义见 [版本化迁移](../../smart-module/database/manual/20260905_security_auth_delete_report/upgrade.sql)，操作顺序见 [升级说明](../../smart-module/docs/releases/security-auth-delete-report.md)。主表园区+执行时间+ID索引仅是候选，不随迁移自动创建，不为前置通配符模糊搜索承诺B-tree效果。真实schema、约束、索引与执行计划由发布前现场核验。

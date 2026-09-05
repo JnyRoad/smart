@@ -1,0 +1,19 @@
+-- 保密区权限自动删除报表迁移后最终只读校验。
+-- 用法：@verify.sql EXPECTED_SCHEMA
+-- 本脚本只核对列、类型、可空性和必要约束，不写入业务数据。
+SET SERVEROUTPUT ON SIZE UNLIMITED
+SET SQLBLANKLINES ON
+SET VERIFY OFF
+SET FEEDBACK ON
+SET DEFINE ON
+WHENEVER OSERROR EXIT FAILURE ROLLBACK
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
+
+DEFINE EXPECTED_SCHEMA = &1
+DEFINE VALIDATION_MODE = FINAL
+
+@@validation.sql
+
+PROMPT
+PROMPT 迁移后校验通过：报表主表、任务关联表、DRY_RUN 及必要约束均已就绪。
+PROMPT 以上结果仅表示目标 schema 结构通过校验，不表示已完成真实 Oracle 性能、设备或业务验收。
