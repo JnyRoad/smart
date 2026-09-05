@@ -58,30 +58,6 @@ export const xcIncomingRecordApi = {
       data: data
     })
   },
-  /**
-   * 查询申请单可手动下发的人员和权限组。
-   * @param {string|number} applyId 申请单 ID；请求只读且不改变页面状态。
-   * @returns {Promise} 网关返回的申请单授权选项；网络或权限错误由调用方处理。
-   */
-  getManualAuthOptions (applyId) {
-    return request({
-      url: '/platform/manage/admittance/apply/device/auth/options',
-      method: 'get',
-      params: { applyId }
-    })
-  },
-  /**
-   * 提交单个访客对象的手动权限下发任务。
-   * @param {Object} data 只允许包含申请单、人员身份及权限 ID；不包含日期字段。
-   * @returns {Promise} 网关返回的批次号；失败由调用方展示并允许重试。
-   */
-  submitManualAuth (data) {
-    return request({
-      url: '/platform/manage/admittance/apply/device/auth',
-      method: 'post',
-      data
-    })
-  },
   getFactoryList(){
     return request({
       url: `/platform/admittance/area/type/security/factory/list`,

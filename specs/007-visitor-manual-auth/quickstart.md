@@ -14,25 +14,27 @@
 
 | 检查 | 实际结果 |
 | --- | --- |
-| 访客列表、弹窗、请求契约及原详情返回测试 | 5 files / 22 tests passed |
-| 后端新增服务、ACL 和原申请业务回归 | 5 classes / 98 tests，0 failures / errors / skipped |
-| 6 个改动 Vue/JS 文件 ESLint | 0 errors / 193 warnings，含既有格式规则和文件行数等告警 |
-| 管理端生产模式构建 | exit 0；使用本地占位 URL 验证编译，未部署构建产物 |
+| 访客列表、弹窗、请求契约及原详情返回测试 | PR 审查修复后：6 files / 22 tests passed |
+| 后端新增服务、ACL 和原申请业务回归 | PR 审查修复后：5 classes / 100 tests，0 failures / errors / skipped |
+| 8 个相关 Vue/JS 文件 ESLint | PR 审查修复后：0 errors / 193 warnings，含既有格式规则和文件行数等告警 |
+| 管理端生产模式构建 | 首次提交前 exit 0；使用本地占位 URL 验证编译，未部署构建产物；本轮接口迁移未重复构建 |
 | 差异及新增文件空白检查、蓝图规格链接 | 通过 |
-| 本地浏览器，真实 Vue 2 / Element UI / common.scss / theme-yutong | 1280×720 下左右栏均为 302px；有效期在双栏之后；页脚完整可见；主按钮颜色为 rgb(237,109,0) |
-| 浏览器交互（合成数据） | 两个时间输入框 readOnly=true；涉密禁选；选择/移动权限后请求只有 applyId、fellowId、authIds；提示任务提交成功 |
+| 本地浏览器，真实 Vue 2 / Element UI / common.scss / theme-yutong | 首次提交前：1280×720 下左右栏均为 302px；有效期在双栏之后；页脚完整可见；主按钮颜色为 rgb(237,109,0) |
+| 浏览器交互（合成数据） | 首次提交前：两个时间输入框 readOnly=true；涉密禁选；选择/移动权限后请求只有 applyId、fellowId、authIds；提示任务提交成功。本轮未修改模板与样式，未重复浏览器验证 |
 
-后端 98 项包括：新增服务 18 项、新增 Controller ACL 4 项、原管理 Controller ACL 2 项，以及两个包下原 `SmtAdmittanceApplyServiceImplTest` 的 65 和 9 项。新增测试覆盖任务字段、设备去重、车辆/涉密/跨园区/禁用设备拒绝、匿名和缺权限方法代理拦截，以及第二个设备保存失败时事务回滚且不提交。
+后端 100 项包括：新增服务 20 项、新增 Controller ACL 4 项、原管理 Controller ACL 2 项，以及两个包下原 `SmtAdmittanceApplyServiceImplTest` 的 65 和 9 项。新增测试覆盖任务字段、设备去重、车辆/涉密/跨园区/禁用设备拒绝、匿名和缺权限方法代理拦截，以及第二个设备保存失败时事务回滚且不提交。
 
 实现前已观察 RED：前端新增行为测试 4 项失败；后端因待实现 DTO/服务类缺失而 testCompile 失败。实现后再运行上述测试为 GREEN。
+
+PR #184 审查修复：请求 DTO 明确 fellowId 必填且为正数，vehicleId 传入即拒绝；选项过滤 null、空字符串或仅空白的照片 ID，提交时仍重新校验照片。新增 2 项后端回归先出现预期失败（混合列表预期 1 人、实际 4 人；全无照片列表未返回空），修复后通过。两个手动授权接口及请求契约测试迁移至 `src/api/platform/visitor/`，弹窗通过真实 API 模块调用，保留原 URL、方法和载荷。
 
 ## 复现命令
 
 从任务 worktree 的 `smart-ui/` 执行（先按项目 README 准备依赖）：
 
 ```bash
-node node_modules/vitest/vitest.mjs run src/views/platform/visitor/incoming_record/
-node node_modules/eslint/bin/eslint.js src/views/platform/visitor/incoming_record/index.vue src/views/platform/visitor/incoming_record/manualAuth.vue src/views/platform/visitor/incoming_record/_service.js src/views/platform/visitor/incoming_record/index.test.js src/views/platform/visitor/incoming_record/manualAuth.test.js src/views/platform/visitor/incoming_record/_service.test.js
+node node_modules/vitest/vitest.mjs run src/views/platform/visitor/incoming_record/ src/api/platform/visitor/manualAuth.test.js
+node node_modules/eslint/bin/eslint.js src/views/platform/visitor/incoming_record/index.vue src/views/platform/visitor/incoming_record/manualAuth.vue src/views/platform/visitor/incoming_record/_service.js src/views/platform/visitor/incoming_record/index.test.js src/views/platform/visitor/incoming_record/manualAuth.test.js src/views/platform/visitor/incoming_record/_service.test.js src/api/platform/visitor/manualAuth.js src/api/platform/visitor/manualAuth.test.js
 VUE_APP_PLATFORM_URL=http://127.0.0.1:9 VUE_APP_BASE_URL=http://127.0.0.1:9 node node_modules/@vue/cli-service/bin/vue-cli-service.js build
 ```
 

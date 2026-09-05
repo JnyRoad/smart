@@ -152,7 +152,8 @@
 </template>
 
 <script>
-import { buildManualAuthPayload, filterManualAuthAuthorities, xcIncomingRecordApi } from './_service'
+import { getManualAuthOptions, submitManualAuth } from '@/api/platform/visitor/manualAuth'
+import { buildManualAuthPayload, filterManualAuthAuthorities } from './_service'
 
 /**
  * 创建手动授权弹窗的空选项结构。
@@ -278,7 +279,7 @@ export default {
       }
 
       try {
-        const response = await xcIncomingRecordApi.getManualAuthOptions(applyId)
+        const response = await getManualAuthOptions(applyId)
         if (!this.isCurrentRequest(requestSerial)) return
         const result = response && response.data ? response.data : {}
         if (result.code !== 0) {
@@ -388,7 +389,7 @@ export default {
       const submitSerial = ++this.requestSerial
       this.submitLoading = true
       try {
-        const response = await xcIncomingRecordApi.submitManualAuth(payload)
+        const response = await submitManualAuth(payload)
         if (!this.isCurrentRequest(submitSerial)) return
         const result = response && response.data ? response.data : {}
         if (result.code !== 0) {

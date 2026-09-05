@@ -39,6 +39,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -352,6 +353,47 @@ public class VisitorManualAuthServiceImplTest {
 		assertTrue(response.getVehicles().isEmpty());
 		assertEquals(1, response.getAuthorities().size());
 		assertEquals(Integer.valueOf(401), response.getAuthorities().get(0).getId());
+	}
+
+	@Test
+	public void optionsOnlyReturnsCurrentApplyFellowsWithPhotos() {
+		List<SmtAdmittanceFellow> candidates = new ArrayList<>();
+		candidates.add(fellow);
+		candidates.add(null);
+		for (String photoId : Arrays.asList(null, "", " \t\r\n")) {
+			SmtAdmittanceFellow withoutPhoto = new SmtAdmittanceFellow();
+			withoutPhoto.setId(202L);
+			withoutPhoto.setVisitorId(apply.getId());
+			withoutPhoto.setFellowPhotoId(photoId);
+			candidates.add(withoutPhoto);
+		}
+		SmtAdmittanceFellow withoutId = new SmtAdmittanceFellow();
+		withoutId.setVisitorId(apply.getId());
+		withoutId.setFellowPhotoId("photo-without-id");
+		candidates.add(withoutId);
+		SmtAdmittanceFellow anotherApply = new SmtAdmittanceFellow();
+		anotherApply.setId(203L);
+		anotherApply.setVisitorId(999L);
+		anotherApply.setFellowPhotoId("photo-203");
+		candidates.add(anotherApply);
+		Mockito.when(fellowService.getByApplyId(apply.getId())).thenReturn(candidates);
+
+		VisitorManualAuthOptionsRespDTO response = service.getOptions(apply.getId());
+
+		assertEquals(1, response.getFellows().size());
+		assertEquals("201", response.getFellows().get(0).getId());
+		assertEquals("测试访客", response.getFellows().get(0).getName());
+		Mockito.verifyZeroInteractions(taskService);
+	}
+
+	@Test
+	public void optionsReturnsEmptyFellowsWhenAllPhotosAreMissing() {
+		for (String photoId : Arrays.asList(null, "", " \t\r\n")) {
+			fellow.setFellowPhotoId(photoId);
+
+			assertTrue("无照片的人员不能成为可下发选项", service.getOptions(apply.getId()).getFellows().isEmpty());
+		}
+		Mockito.verifyZeroInteractions(taskService);
 	}
 
 	private void expectSmartException(String message, VisitorManualAuthReqDTO request) {

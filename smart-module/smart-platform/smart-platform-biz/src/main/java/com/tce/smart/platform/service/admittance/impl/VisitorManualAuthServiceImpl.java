@@ -93,7 +93,8 @@ public class VisitorManualAuthServiceImpl extends ServiceImpl<SmtAdmittanceApply
 		if (fellows != null) {
 			response.setFellows(fellows.stream()
 					.filter(fellow -> fellow != null && fellow.getId() != null
-							&& apply.getId().equals(fellow.getVisitorId()))
+							&& apply.getId().equals(fellow.getVisitorId())
+							&& StrUtil.isNotBlank(fellow.getFellowPhotoId()))
 					.map(this::toFellowOption)
 					.collect(Collectors.toList()));
 		}

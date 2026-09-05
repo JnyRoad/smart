@@ -20,38 +20,6 @@ describe('incoming_record _service 请求签名契约', () => {
     })
   })
 
-  it('手动授权选项查询使用受保护的申请单路径和 applyId 查询参数', () => {
-    expect(typeof api.xcIncomingRecordApi.getManualAuthOptions).toBe('function')
-
-    api.xcIncomingRecordApi.getManualAuthOptions('101')
-
-    expect(request).toHaveBeenCalledWith({
-      url: '/platform/manage/admittance/apply/device/auth/options',
-      method: 'get',
-      params: { applyId: '101' }
-    })
-  })
-
-  it('手动授权提交只把后端契约载荷放入 body', () => {
-    expect(typeof api.xcIncomingRecordApi.submitManualAuth).toBe('function')
-
-    api.xcIncomingRecordApi.submitManualAuth({
-      applyId: '101',
-      fellowId: '201',
-      authIds: [401]
-    })
-
-    expect(request).toHaveBeenCalledWith({
-      url: '/platform/manage/admittance/apply/device/auth',
-      method: 'post',
-      data: {
-        applyId: '101',
-        fellowId: '201',
-        authIds: [401]
-      }
-    })
-  })
-
   it('人员授权只保留 ISC 类型 1 的权限组，并保留涉密项供界面解释后禁选', () => {
     expect(typeof api.filterManualAuthAuthorities).toBe('function')
 

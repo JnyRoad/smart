@@ -23,7 +23,8 @@
 - `smart-module/smart-platform/smart-platform-api/src/main/java/com/tce/smart/platform/api/dto/resp/admittance/VisitorManualAuthOptionsRespDTO.java`：申请固定有效期、候选对象、权限组。
 - `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/controller/admittance/SmtAdmittanceApplyManageController.java`：新查询/下发端点，统一操作权限 `platform_visitor_incoming_auth`。
 - `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/admittance/`：校验与创建任务。使用独立 `VisitorManualAuthService` / `impl/VisitorManualAuthServiceImpl` 处理本次授权；依赖现有 Mapper、人员/权限/设备服务和任务保存契约，不反向依赖原申请服务。
-- `smart-ui/src/views/platform/visitor/incoming_record/`：列表单选、`manualAuth.vue` 弹窗、`_service.js` 接口封装及行为测试；双栏结构沿用员工页样式与交互，不改员工功能。视觉依据为 `docs/yuhui-prototype/yuhui-web-proto.html` 的访客授权/员工授权弹窗及 `staff_info/index.vue`：700px 弹窗、12px 外圆角、8px 面板圆角、系统橙色主按钮、灰色对象信息区；只读有效期放在双栏之后、页脚按钮之前。
+- `smart-ui/src/api/platform/visitor/manualAuth.js`：手动授权选项查询与提交接口封装及对应请求契约测试。
+- `smart-ui/src/views/platform/visitor/incoming_record/`：列表单选、`manualAuth.vue` 弹窗、`_service.js` 视图辅助函数及既有接口、行为测试；双栏结构沿用员工页样式与交互，不改员工功能。视觉依据为 `docs/yuhui-prototype/yuhui-web-proto.html` 的访客授权/员工授权弹窗及 `staff_info/index.vue`：700px 弹窗、12px 外圆角、8px 面板圆角、系统橙色主按钮、灰色对象信息区；只读有效期放在双栏之后、页脚按钮之前。
 
 ## 关键流程
 

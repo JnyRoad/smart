@@ -16,10 +16,10 @@ public class VisitorManualAuthReqDTO implements Serializable {
 	@ApiModelProperty(value = "入厂申请单 ID", required = true)
 	private Long applyId;
 
-	@ApiModelProperty("本申请中的人员 ID；与 vehicleId 二选一")
+	@ApiModelProperty(value = "本申请中的人员 ID；当前版本必填且必须为正数", required = true)
 	private Long fellowId;
 
-	@ApiModelProperty("本申请中的车辆 ID；当前版本明确不支持车辆下发")
+	@ApiModelProperty("车辆 ID；当前版本不支持，传入时请求被拒绝")
 	private Long vehicleId;
 
 	@ApiModelProperty(value = "人员权限组 ID", required = true)

@@ -10,7 +10,7 @@
 {"applyId":"101","startTime":"2026-09-05 08:00:00","endTime":"2026-09-06 18:00:00","fellows":[{"id":"201","name":"测试访客"}],"vehicles":[],"authorities":[{"id":401,"authorityName":"园区公共权限","type":1,"areaType":0}]}
 ```
 
-startTime 为申请开始减现有 putOffsetHour；endTime 固定，均只读。type 与现有权限类型保持一致，人员支持 1；车辆 3 当前不开放；后端为最后校验权威。只返回当前申请人员和当前园区人员权限组，不返回证件号等无关信息。
+startTime 为申请开始减现有 putOffsetHour；endTime 固定，均只读。type 与现有权限类型保持一致，人员支持 1；车辆 3 当前不开放；后端为最后校验权威。只返回当前申请中照片 ID 非空且非空白的人员和当前园区人员权限组；无可用人员时 fellows 返回空数组，不返回证件号等无关信息。提交时再次校验照片，防止查询后数据变化。
 
 ## POST /manage/admittance/apply/device/auth
 
@@ -18,7 +18,7 @@ startTime 为申请开始减现有 putOffsetHour；endTime 固定，均只读。
 {"applyId":"101","fellowId":"201","authIds":[401]}
 ```
 
-当前仅支持 fellowId；vehicleId 输入明确拒绝，二者同时传也拒绝。无日期、无覆盖/追加参数。返回 `Result.data` 批次号字符串。业务校验失败使用现有 Result 异常约定；非零 code 前端显示 msg，网络异常展示错误。提交成功只表示任务入队。
+当前 fellowId 必填且必须为正数；vehicleId 输入明确拒绝，二者同时传也拒绝。无日期、无覆盖/追加参数。返回 `Result.data` 批次号字符串。业务校验失败使用现有 Result 异常约定；非零 code 前端显示 msg，网络异常展示错误。提交成功只表示任务入队。
 
 ## 部署前条件
 
