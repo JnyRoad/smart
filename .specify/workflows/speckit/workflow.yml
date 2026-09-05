@@ -55,7 +55,7 @@ steps:
     command: speckit.tasks
     integration: "{{ inputs.integration }}"
     input:
-      args: "{{ inputs.spec }}；业务行为改动必须按测试先行排序，纯文档和低风险配置使用适当验证。"
+      args: "{{ inputs.spec }}；验证标准见 docs/agent-rules/development.md#验证。"
 
   - id: analyze
     command: speckit.analyze

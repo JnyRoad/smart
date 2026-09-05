@@ -1,59 +1,122 @@
 # smart
 
-`smart` 是裕同智慧园区项目代码目录，包含后端基础平台、业务微服务、管理端前端、微信 H5、「裕慧家园」移动 App、历史 Vue2 H5 参考工程、本地 Docker 环境、发布脚本和项目文档。
+`smart` 是裕同智慧园区项目代码目录，包含基础平台后端、业务微服务、管理端前端、微信 H5、「裕慧家园」移动 App、历史 Vue2 H5 参考工程、本地 Docker 环境、发布脚本和项目级文档。
+
+本 README 是模块目录、声明版本和常用入口的集中说明。模块的接口、页面和专项约定以对应模块 README 为准；本文中的版本来自当前 `pom.xml` 或 `package.json` 声明。
 
 ## 目录结构
 
 ```text
 smart/
-├── AGENTS.md                 # 项目 Agent / 协作规则
-├── README.md                 # 项目入口说明
-├── .gitignore                # 提交忽略规则
-├── docker-compose.dev.yml    # 本地 Docker 编排：Nacos / Redis / Kafka / Oracle / Mock / 后端 / 前端
-├── docker/                   # Docker 本地环境辅助配置
-├── docs/                     # 项目级资料和跨模块文档
+├── AGENTS.md                 # 项目 Agent / 协作规则入口
+├── README.md                 # 模块总览、版本和运行入口
+├── .gitignore                # 仓库级忽略规则
+├── docker-compose.dev.yml    # 本地 Docker 编排
+├── docker/                   # 本地 Docker 配置和 Nacos 初始化
+├── docs/                     # 项目级规则与跨模块资料
 ├── scripts/                  # 发布包构建和校验脚本
 ├── smart/                    # 基础平台后端：网关、认证、UPMS、公共组件
-├── smart-module/             # 业务微服务后端：App、平台、桥接、数据、调度等
-├── smart-ui/                 # 管理后台前端：Vue 2 + Element UI + Avue
-├── smart-h5/                 # 当前维护的微信 H5：Next.js + React + antd-mobile
-├── smart-h5-vue2/            # 历史 Vue2 微信 H5，仅作功能参考
-└── smart-app-uniapp/         # 「裕慧家园」移动 App：uni-app + Vue 2，HBuilderX 打包
+├── smart-module/             # 业务微服务后端及 FileReceiver
+├── smart-ui/                 # 管理端前端：Vue 2 + Element UI + Avue
+├── smart-h5/                 # 当前维护的微信 H5：Next.js + React
+├── smart-h5-vue2/            # 历史 Vue2 微信 H5，只读参考
+└── smart-app-uniapp/         # 「裕慧家园」App：uni-app + Vue 2
 ```
 
-## 模块说明
+## 模块总览
 
-| 目录 | 用途 | 主要技术 |
+| 目录 | 责任 | 当前技术与声明版本 |
 | --- | --- | --- |
-| `smart/` | 基础平台后端，提供 API 网关、OAuth2 认证、UPMS 权限和 `smart-common-*` 公共组件。 | Java 8、Spring Boot 2.1、Spring Cloud Greenwich、Maven |
-| `smart-module/` | 园区业务微服务聚合工程，覆盖 App、管理平台、数据同步、设备桥接、ISC、算法、推送、调度和发布 Jar 清单中的可部署服务。 | Java 8、Spring Boot、Spring Cloud、MyBatis/MyBatis-Plus、Maven |
-| `smart-ui/` | 管理端中后台 SPA，对接 `smart-gateway` 后的认证、UPMS 和园区业务 API。 | Vue 2.7、Element UI、Avue、Vue CLI、pnpm |
-| `smart-h5/` | 当前维护的微信内嵌移动 H5，覆盖登录、首页、访客、宿舍、放行、待办等移动端流程；后续 H5 功能更新统一在这里开发。 | Next.js 16、React 19、TypeScript、antd-mobile、Tailwind CSS |
-| `smart-h5-vue2/` | 历史 Vue2 微信公众号版 H5，仅用于查阅旧页面、旧交互和接口调用方式；不再维护、不再用于新功能开发或发布。 | Vue 2、Vue CLI、Vue Router、Vuex、cube-ui |
-| `smart-app-uniapp/` | 「裕慧家园」移动 App 客户端（Android / iOS），与 `smart-h5` 并行使用：App 场景用它、公众号场景用 H5；对接网关后的认证和 `smart-module/smart-app` 业务 API。 | uni-app（HBuilderX 工程）、Vue 2、Vuex、UniPush |
-| `docker/` | 本地 Docker Compose 的 Nacos 配置初始化脚本和配置文件。 | Docker Compose、Nacos、shell |
-| `scripts/` | 后端发布 Jar 汇总脚本、脚本测试和发布清单。 | Bash、Maven、zip/sha256 |
-| `docs/` | 项目级文档和跨模块资料，包含 Agent 规则、管理端页面功能清单及开发资料导航。 | Markdown |
+| [`smart/`](smart/README.md) | 基础平台后端，提供网关、OAuth2 认证、UPMS 和公共组件。 | Java 8、Maven、Spring Boot `2.1.3.RELEASE`、Spring Cloud `Greenwich.RELEASE`（见 [`smart/pom.xml`](smart/pom.xml)） |
+| [`smart-module/`](smart-module/README.md) | 业务微服务聚合工程，包含 App、平台、数据、桥接、算法、推送、调度等模块。 | Java 8、Spring Cloud 业务服务、Maven；聚合关系见 [`smart-module/pom.xml`](smart-module/pom.xml) |
+| [`smart-ui/`](smart-ui/README.md) | 管理端中后台 SPA，对接网关、认证、UPMS 和园区业务 API。 | Vue `^2.7.16`、Element UI `^2.4.11`、Avue、Vue CLI、pnpm `11.3.0`（见 [`smart-ui/package.json`](smart-ui/package.json)） |
+| [`smart-h5/`](smart-h5/README.md) | 当前维护的微信公众号 / 微信内嵌移动 H5。 | Next.js `16.2.9`、React `19.2.4`、TypeScript `^5`、antd-mobile `^5.42.3`、Tailwind CSS `^4`（见 [`smart-h5/package.json`](smart-h5/package.json)） |
+| [`smart-h5-vue2/`](smart-h5-vue2/README.md) | 历史 Vue2 微信 H5，仅用于查阅旧页面和调用方式。 | Vue `2.6.11`、Vue Router `3.1.3`、Vuex `3.1.2`、cube-ui `^1.12.44`、pnpm `11.4.0`（见 [`smart-h5-vue2/package.json`](smart-h5-vue2/package.json)） |
+| [`smart-app-uniapp/`](smart-app-uniapp/README.md) | 「裕慧家园」Android / iOS App 客户端。 | uni-app / Vue 2 / Vuex，HBuilderX 可视化工程；无命令行构建脚本 |
+| [`docker/`](docker/README.md) | 本地 Docker Compose 的依赖服务和 Nacos 初始化配置。 | Docker Compose、Nacos、shell |
+| [`scripts/`](scripts/README.md) | 后端发布 Jar 汇总、构建和校验脚本。 | Bash、Maven、zip / sha256 |
+| [`docs/`](docs/README.md) | 项目级规则、跨模块说明和资料导航。 | Markdown |
 
-## Agent 协作与开发资料
+### 目录约定
 
-开始任务先读 [AGENTS.md](AGENTS.md)，按需加载 [Git 与 worktree](docs/agent-rules/git-worktree.md)、[规格工作流](docs/agent-rules/spec-workflow.md)、[开发与模块边界](docs/agent-rules/development.md)。任何开发文件首次写入前，先进入本任务独立 linked worktree 和非 `main` 分支。
+- `smart-ui/` 的 `src/api/` 放接口封装，`src/views/` 放业务页面，`src/router/` 放路由与 axios 配置，`src/store/` 放 Vuex，`public/` 保存原样静态资源。
+- `smart-h5/` 使用 TypeScript strict；`src/app/` 是页面壳，`src/features/` 是业务域，`src/lib/` 是共享设施，`src/components/` 是通用组件。
+- `smart-h5-vue2/` 是历史只读工程，旧页面、路由、接口和组件分别位于 `src/views-mobile/`、`src/router/`、`src/services/`、`src/components/`。
+- `smart-app-uniapp/` 的客户端目录包括 `api/`、`pages/page/`、`components/`、`config/`、`tools/` 和 `static/`；资源保留约定见 [App README](smart-app-uniapp/README.md)。
 
-项目规格在 [specs/](specs/)，工作流与宪法在 [.specify/](.specify/)，项目级资料入口见 [docs/README.md](docs/README.md)。先复用已有规格，显式绑定 `SPECIFY_FEATURE_DIRECTORY`；本机 `feature.json` 缺失不触发重复创建。规格分析通过后将 `tasks.md` 交给 superpowers 执行。
+### 基础平台后端
+
+`smart/` 的本地 Maven reactor 包含以下一级模块：
+
+| 模块 | 用途 |
+| --- | --- |
+| `smart-gateway` | API 网关、路由和网关过滤器。 |
+| `smart-auth` | OAuth2 认证授权和令牌相关能力。 |
+| `smart-upms` | 用户、角色、菜单、部门、客户端等通用权限管理。 |
+| `smart-common` | BOM、核心工具、数据、安全、网关、日志和 Swagger 等公共组件。 |
+
+### 业务后端模块
+
+`smart-module/` 按一级目录划分业务；拆分为 `api`、`biz`、`core` 的模块中，`api` 放对外契约，`biz` 放可部署服务，`core` 放领域复用代码。下表模块均位于该目录，模块有自己的特殊结构时，以对应模块 README 为准。
+
+| 模块 | 用途 |
+| --- | --- |
+| `smart-app` | App 业务模块。 |
+| `smart-platform` | 平台业务模块。 |
+| `smart-data` | 数据通讯模块。 |
+| `smart-push` | App 消息推送模块。 |
+| `smart-schedule` | 定时任务模块。 |
+| `smart-algorithm` | 算法模块。 |
+| `smart-tool` | 智慧园区服务公共模块。 |
+| `smart-bridge` | 设备桥接。 |
+| `smart-bridge-isc` | ISC（综合安防平台）集成桥接。 |
+| `smart-bridge-concentrator` | 设备集中器（YUTO Nexus）。 |
+| `smart-dispatcher` | 调度 / 分发。 |
+| `smart-file` | 文件服务。 |
+| `smart-transfer` | 数据传输。 |
+| `smart-park-service` | 历史园区服务模块；当前仅存 POM、没有 `src/` 源码，是废弃占位。 |
+| [`FileReceiver`](smart-module/FileReceiver/README.md) | 独立 Spring Boot 程序，接收入厂申请的人脸照片，部署在许昌打印机 Windows 机；启动类为 `FileApplication`，接口类为 `FileController`，发布产物为 `build/file.jar`。 |
+
+`smart-bridge`、`smart-bridge-isc`、`smart-bridge-concentrator`、`smart-dispatcher`、`smart-file`、`smart-transfer` 的 POM 未写描述，上表用途按模块名标注；需要精确判断时阅读对应模块 README、POM 和源码。
+
+后端服务包名约定为 `com.tce.smart`。`FileReceiver` 是独立程序，目录结构和自身源码包名以其 [README](smart-module/FileReceiver/README.md) 为准。
+
+## 客户端关系
+
+`smart-app-uniapp/` 是移动客户端，`smart-module/smart-app/` 是后端业务模块，两者不是同一个工程。App 与微信 H5 并行使用、互不替代：App 场景使用 uni-app 客户端，公众号场景使用 [`smart-h5/`](smart-h5/)。
 
 ## 常用入口
 
-后端基础平台：
+Maven 命令从对应 reactor 根目录运行：基础平台从 `smart/`，业务服务从 `smart-module/`。具体模块的接口和打包产物见模块 README。
+
+基础平台：
 
 ```bash
 cd smart
-mvn clean install -DskipTests
+mvn -pl smart-gateway -am test
+mvn -pl smart-auth -am package -DskipTests
 ```
 
 业务微服务：
 
 ```bash
 cd smart-module
+mvn -pl smart-app/smart-app-biz -am test
+mvn -pl smart-platform/smart-platform-biz -am package -DskipTests
+```
+
+`smart-data/smart-xcvehicle-core/` 物理上位于 `smart-data/` 下，但由 `smart-module/pom.xml` 直接聚合；构建它时使用该业务 reactor 路径：
+
+```bash
+cd smart-module
+mvn -pl smart-data/smart-xcvehicle-core -am package -DskipTests
+```
+
+FileReceiver 使用自己的 POM：
+
+```bash
+cd smart-module/FileReceiver
+mvn test
 mvn clean package -DskipTests
 ```
 
@@ -63,33 +126,45 @@ mvn clean package -DskipTests
 cd smart-ui
 pnpm install
 pnpm dev
+pnpm lint
+pnpm test
 pnpm build
+pnpm gate
 ```
 
-微信 H5：
+当前微信 H5：
 
 ```bash
 cd smart-h5
 pnpm install
+pnpm dev
 pnpm check
 pnpm test
+pnpm e2e
 pnpm build
 ```
 
-历史 Vue2 微信 H5 参考：
+历史 Vue2 H5 仅作参考：
 
 ```bash
 cd smart-h5-vue2
 pnpm install
 pnpm run serve
+pnpm run lint
 pnpm run test
 ```
 
-`smart-h5-vue2/` 仅作为旧版本页面参考。新需求、缺陷修复和发布验证应落在 `smart-h5/`，不要把新业务继续加回历史 Vue2 工程。
+App 是 HBuilderX 可视化工程，没有 CLI 构建脚本。首次安装依赖可在 [`smart-app-uniapp/`](smart-app-uniapp/) 目录执行 `npm install`，运行到真机 / 模拟器和云打包 APK / IPA 使用 HBuilderX，细节见 [App README](smart-app-uniapp/README.md)。
 
-「裕慧家园」移动 App：`smart-app-uniapp/` 是 HBuilderX 可视化工程，无命令行构建脚本；用 HBuilderX 打开目录，`npm install` 安装依赖后，通过 IDE 菜单运行到真机 / 模拟器或云打包生成 APK / IPA。详见 `smart-app-uniapp/README.md`。
+后端发布包：
 
-本地 Docker 环境：
+```bash
+scripts/build-release-jars.sh
+```
+
+## 本地环境与线上运行
+
+本地 Docker 配置由 [`docker/.env.local.example`](docker/.env.local.example) 派生：
 
 ```bash
 cp docker/.env.local.example .env.local
@@ -99,35 +174,34 @@ docker compose --env-file .env.local -f docker-compose.dev.yml --profile backend
 docker compose --env-file .env.local -f docker-compose.dev.yml --profile backend --profile frontend up
 ```
 
-桥接服务按接入场景启用：`--profile bridge` 启动直连海康设备终端的 `smart-bridge`，`--profile bridge-isc` 启动对接海康 ISC 平台的 `smart-bridge-isc`。水电表集中器使用 `--profile bridge-concentrator` 单独启动 `smart-bridge-concentrator`。
-
-本地开发测试必须使用 `docker/.env.local.example` 派生的 `.env.local`。核心系统数据库只使用本地 Oracle；OA、EHR、DHR、XCC6、BG/出差、考勤、临时人员、门禁等第三方系统不由本项目容器化部署，也不提供本地数据库替身。需要专项联调时，只在本地 env 中填写对应第三方测试环境地址。提交前可以运行 `scripts/test-docker-compose-dev.sh` 校验 Compose 覆盖、危险默认环境变量、profile 依赖和基础镜像 tag。
-
-线上测试和线上生产不要复用 `docker-compose.dev.yml`。线上环境应使用独立 runtime 编排和独立 env 文件，只注入镜像版本、域名、真实中间件地址和密钥；这些 env 文件不进入仓库。
-
-后端发布包：
+桥接服务按接入场景启用：
 
 ```bash
-scripts/build-release-jars.sh
+# 直连海康设备终端
+docker compose --env-file .env.local -f docker-compose.dev.yml --profile bridge up smart-bridge
+
+# 对接海康 ISC 平台
+docker compose --env-file .env.local -f docker-compose.dev.yml --profile bridge-isc up smart-bridge-isc
+
+# 水电表集中器
+docker compose --env-file .env.local -f docker-compose.dev.yml --profile bridge-concentrator up smart-bridge-concentrator
 ```
 
-## Git 忽略规则
+本地核心系统数据库使用 Oracle。OA、EHR、DHR、XCC6、BG/出差、考勤、临时人员、门禁等第三方系统不由本项目容器化部署，也不提供本地数据库替身；专项联调时只在本地 env 中填写对应第三方测试环境地址。Compose 中的 `smart-mock-http` 只用于本地测试桩，不代表第三方系统。
 
-项目 `.gitignore` 忽略以下内容：
+线上测试和线上生产使用独立 runtime 编排和独立 env，不复用 `docker-compose.dev.yml`。运行时注入镜像版本、域名、中间件地址和密钥；线上环境文件不放在仓库中。
 
-- macOS / IDE / Agent 工作树本地文件，以及 `feature.json`、local-config、缓存等本机状态。
-- Node 依赖、缓存、构建产物、测试报告，包括旧 Vue2 H5 的 `dist-h5/` 和 `node_modules/`。
-- uni-app App 工程的 `unpackage/` 编译产物（`dist/` / `debug/` / `release/` / `cache/`）；但 `unpackage/res/` 是 manifest.json 引用的图标和启动图，必须入库，不要把 `unpackage/` 整体忽略。
-- Maven / Gradle `target/`、`.flattened-pom.xml`、压缩包、发布产物。
-- 真实 `.env` / `.env.local` / `.env.*.local`，但保留 `.env.example` 和 `.env.local.example`。
-- 本地数据库、日志、临时文件、release-artifacts。
+更多本地服务、profile 和配置项见 [docker/README.md](docker/README.md)。
 
-`.specify/`、`specs/`、`.superpowers/` 及子项目 `docs/superpowers/` 内的持久规格、设计和验收资料允许入库；任务完成不删除设计历史。资料是否可从新检出取得，以已提交内容为准。
+## 生成物与资源
 
-提交前至少检查：
+仓库级 `.gitignore` 覆盖 Node 依赖、前端构建产物、Maven `target/`、测试报告、日志和本地环境文件；样例环境文件保留在仓库中。App 的 `unpackage/res/` 是 manifest 引用的资源，保留约定见 [smart-app-uniapp/README.md](smart-app-uniapp/README.md)。
 
-```bash
-git status --short --ignored
-```
+## 规则与资料入口
 
-不要把依赖目录、构建产物、测试报告、环境文件、日志、证书或数据库快照纳入提交。
+- [AGENTS.md](AGENTS.md)：项目任务入口和规则路由。
+- [Git 与 worktree](docs/agent-rules/git-worktree.md)：工作区隔离、分支和交付边界。
+- [规格工作流](docs/agent-rules/spec-workflow.md)：规格复用、Spec Kit 产物和执行交接。
+- [开发规则](docs/agent-rules/development.md)：代码中文约定、权限 / Oracle 边界和验证政策。
+- [docs/README.md](docs/README.md)：项目级文档归属和资料导航。
+- [specs/](specs/) 与 [.specify/](.specify/)：项目规格和 Spec Kit 工作流资料。

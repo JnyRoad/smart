@@ -9,11 +9,11 @@
     ".specify/scripts/bash/check-prerequisites.sh": "1e52bac6c96dc8eefd7d33f0a407955fab382bb40c9c8bfb92284f0e7faf130d",
     ".specify/scripts/bash/resolve-template.sh": "829e227096abc8bf0889889ec9f792f503ca5d395b7836a8a7eb739ee75214e7",
     ".specify/scripts/bash/create-new-feature.sh": "6e7270cabf76a377c06a43987d6ee81221668219581f30900e97e2462362913a",
-    ".specify/templates/constitution-template.md": "ce7549540fa45543cca797a150201d868e64495fdff39dc38246fb17bd4024b3",
-    ".specify/templates/checklist-template.md": "e3a1a2fc1846a30a0fd8d0de30cad3226ac5b0628ccc76e9f43a0f4d8f899c1b",
-    ".specify/templates/tasks-template.md": "818390ce3f62c2dc6c95b0bc0503248126ad2831a13cd7f4377e7ee0856c60ee",
-    ".specify/templates/spec-template.md": "3945437fc35cd30a5b2bf7beea680337c3516826d3efa5a6b92c4a7eca1ba28e",
-    ".specify/templates/plan-template.md": "5ef0e4c97b36e9f91372dc6eb8e5a7e515af8958cf1a9286e43a1ebd9bd48540",
+    ".specify/templates/constitution-template.md": "da0661045c6031d32d923062ce44de8be279ce7cff8f628f8296b0708fff1539",
+    ".specify/templates/checklist-template.md": "17726dd2932fb5e51aabc516ccf2d8b04c16c3238d6446c449df833bdb943652",
+    ".specify/templates/tasks-template.md": "3dfc56b5c677a64c339613d1f4b546834be0d4def44bdd61012d485951fe7f15",
+    ".specify/templates/spec-template.md": "e4819647fe6adb31237a4c0039c5bd3b1cb2e81e5188d14938b37e911e15e99b",
+    ".specify/templates/plan-template.md": "5e44c6fe344f3aed5f6369dee430b5734e0ae3c485c714917272494ef06f464e",
     ".specify/.gitignore": "b91875c796064763bd6c00e9c63eef2869850a4b0763f5c1cea7bb00e2140bec"
   }
 }
