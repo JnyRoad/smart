@@ -1179,17 +1179,21 @@ flowchart LR
 <section class="item" id="item-5-2">
   <div class="ih"><span class="ino">5.2</span><h3>访客手动下发权限</h3><span class="ibatch">批次 1</span></div>
   <dl>
-    <dt>现状与问题</dt>
+    <dt>当前实现状态</dt>
+    <dd><b>已实现 ISC 公共人员手动下发（功能分支，未合并、未部署）</b>。申请卡片单选 → 通关权限 → 选择本单人员与权限组 → 创建可追溯批次。弹窗对齐 Web 原型和现有员工通关权限风格，只读有效期位于双栏下方、操作按钮上方。涉密、车辆及非 ISC 设备仍受下述依赖限制，不能视为 5.2 全场景验收。规格与验证记录见 <a href="../../specs/007-visitor-manual-auth/quickstart.md">007 访客手动下发权限</a>。</dd>
+    <dt>原有现状与问题</dt>
     <dd>
       现仅"重新下发"能力（走 <code>updateAuthNew</code> 的 <code>type=3</code> 分支，内容由区域类型→权限组映射决定，不能自选权限组）；员工侧"通关权限分配"对话框存在于 <code>staff_info/index.vue:157</code>，调 <code>/staff/device/auth/updateAuth/{type}</code> → <code>updateAuthNew</code>（193-261 行），该链路落库主键是 <code>staffId</code>（<code>SmtStaffDeviceAuth</code> 实体：staffId+authId+createTime+authType，无 applyId/batchId 概念），无法直接套用到访客身上。访客侧任务落库已有另一套现成模式可参照：<code>addCard(SmtAdmittanceApply apply, SmtAdmittanceFellow fellow, List&lt;String&gt; deviceId, Long batchId)</code>（<code>SmtAdmittanceApplyServiceImpl.java:860-880</code>）以 <code>fellow.getId().toString()</code> 作为 <code>cardNo</code>（865 行），把 <code>apply.getId()</code> 写入 <code>deviceTaskVO.setApplyId</code>（873 行）、<code>batchId</code> 写入 <code>setBatchId</code>（874 行），<code>startTime</code> 取 <code>apply.getStartTime().plusHours(-putOffsetHour)</code>（870 行）、<code>overTime</code> 取 <code>apply.getEndTime()</code>（871 行），最终经 <code>saveRequiredDeviceTask(deviceTaskVO)</code>（877 行）落库。
     </dd>
     <dt>目标与验收标准</dt>
     <dd>入厂申请记录卡片支持单选，右上「通关权限」按钮触发弹窗，UI 复用员工双栏权限选择组件；新增访客专用下发接口——选权限组→查该权限组关联设备→建带 applyId/batchId 的下发任务；结束日期默认取申请单 endTime；长期供应商也走这个功能完成下发（无需单独登记供应商）；下发涉密权限组前必须先过 5.1 的考试通过校验。</dd>
-    <dt>实现方式</dt>
+    <dt>本次实现</dt>
+    <dd>新增 <code>GET /platform/manage/admittance/apply/device/auth/options</code> 和 <code>POST /platform/manage/admittance/apply/device/auth</code>，均受 <code>platform_visitor_incoming_auth</code> 控制。POST 只处理 <code>applyId + fellowId + authIds</code>，时间完全从申请读取。<code>VisitorManualAuthServiceImpl</code> 在园区、状态和有效期条件下锁定申请行，校验人员归属与照片、权限组/关联/设备同园区、启用的 ISC 人员设备，设备去重后原子建任务。返回本次批次字符串，仅表示任务已提交；不改审批自动批次指针 <code>iscSubmitBatch</code>，不新增延迟删除。前端独立组件 <code>incoming_record/manualAuth.vue</code> 沿用 <code>staff_info/index.vue</code> 双栏交互和现有主题。</dd>
+    <dt>完整目标设计与后续接入</dt>
     <dd>
-      后端：新增访客版下发接口（如 <code>POST /apply/device/auth</code>，入参 applyId + fellowId/vehicleId + 选中的 authId 列表），落库方式参照 <code>addCard</code>（860-880 行）：<code>cardNo=fellow.getId().toString()</code>、<code>applyId</code>=当前申请单 ID、<code>batchId</code>=本次操作生成的新批次号、<code>startTime</code> 按现有 <code>putOffsetHour</code> 提前量、<code>overTime</code>=申请单的 <code>endTime</code>（不接受页面输入自定义值，需求已明确"结束日期默认取申请单 endTime"）；下发前若选中权限组 <code>areaType=1</code>（保密），调用 5.1 新增的证件号版 <code>getAuthRemark</code> 分支校验考试通过状态，未通过则拒绝并提示。前端：<code>incoming_record/index.vue</code> 卡片改支持单选，用于进入通关权限操作；2.6 已实现的作废保持单条确认，不在本项实现批量作废。右上工具条新增「通关权限」按钮，弹窗复用员工侧的双栏权限选择组件（<code>staff_info/issueAuth.vue</code> 的 UI 结构），接口指向新的访客端点。
+      后端：新增访客版下发接口（<code>POST /manage/admittance/apply/device/auth</code>，入参 applyId + fellowId/vehicleId + 选中的 authId 列表），落库方式参照 <code>addCard</code>（860-880 行）：<code>cardNo=fellow.getId().toString()</code>、<code>applyId</code>=当前申请单 ID、<code>batchId</code>=本次操作生成的新批次号、<code>startTime</code> 按现有 <code>putOffsetHour</code> 提前量、<code>overTime</code>=申请单的 <code>endTime</code>（不接受页面输入自定义值，需求已明确"结束日期默认取申请单 endTime"）；下发前若选中权限组 <code>areaType=1</code>（保密），调用 5.1 新增的证件号版 <code>getAuthRemark</code> 分支校验考试通过状态，未通过则拒绝并提示。前端：<code>incoming_record/index.vue</code> 卡片改支持单选，用于进入通关权限操作；2.6 已实现的作废保持单条确认，不在本项实现批量作废。右上工具条新增「通关权限」按钮，弹窗复用员工侧的双栏权限选择组件（<code>staff_info/index.vue</code> 的 UI 结构），接口指向新的访客端点。
     </dd>
-    <dt>处理流程</dt>
+    <dt>完整目标流程（涉密步骤待 5.1 接通）</dt>
     <dd>
       <ol>
         <li>管理员在入厂申请记录列表单选一条记录（该访客或长期供应商的申请单）</li>
@@ -1197,23 +1201,23 @@ flowchart LR
         <li>管理员勾选目标权限组（可能含涉密权限组）</li>
         <li>提交前后端校验：若含涉密权限组，按证件号查 5.1 考试通过表，未通过则拒绝</li>
         <li>通过校验后，后端按 fellow.id 为 cardNo、申请单 endTime 为 overTime，建立新的下发任务（带 applyId/batchId）</li>
-        <li>任务下发成功后设备端在申请单结束时间自动失效（批次 1 不建本地延迟删除，同 5.3 口径）</li>
+        <li>设备端应按任务有效期在申请单结束时失效；真实 ISC 回执与到期拒行须现场验收（批次 1 不建本地延迟删除，同 5.3 口径）</li>
       </ol>
     </dd>
-    <dt>改动清单</dt>
+    <dt>完整目标改动清单</dt>
     <dd>
       <table>
         <tr><th>层</th><th>文件/类</th><th>改动内容</th></tr>
         <tr><td>后端</td><td>新增访客版权限下发 Controller/ServiceImpl</td><td>参照 addCard（860-880 行）落库模式，cardNo=fellow.id</td></tr>
         <tr><td>后端</td><td>下发前置校验</td><td>涉密权限组时调用 5.1 的证件号版 getAuthRemark</td></tr>
         <tr><td>前端</td><td>smart-ui/.../incoming_record/index.vue</td><td>卡片支持单选 + 右上「通关权限」按钮</td></tr>
-        <tr><td>前端</td><td>复用 staff_info/issueAuth.vue 的双栏选择组件 UI，指向新接口</td><td>结束日期展示为申请单 endTime（不可编辑）</td></tr>
+        <tr><td>前端</td><td>新增 manualAuth.vue，沿用 staff_info/index.vue 双栏交互和系统样式，指向新接口</td><td>双栏下方展示申请单有效期（不可编辑）</td></tr>
       </table>
     </dd>
-    <dt>测试与验证</dt>
+    <dt>完整目标验收要求</dt>
     <dd>单测覆盖新接口的落库字段（cardNo/applyId/batchId/overTime）正确性；集成测试覆盖"选中涉密权限组但证件号未通过考试"应被拒绝；手工验证长期供应商场景可复用同一入口完成下发。</dd>
     <dt>依赖与风险</dt>
-    <dd>依赖 5.1 先落地（考试通过表与证件号校验分支），若排期上 5.1 滞后，5.2 涉密权限组下发校验需要先用占位逻辑（如临时跳过校验并打日志告警）过渡，避免互相阻塞；本项的单选下发入口与 2.6 的单条作废入口共处同一列表页面，前端需清晰区分操作按钮和确认语义，避免用户误触。</dd>
+    <dd>5.1 尚无考试通过表及证件号校验服务，当前明确拒绝涉密下发，禁止临时跳过校验。ISC 任务服务当前拒绝车辆，标准设备任务缺少 applyId/batchId，车辆和非 ISC 权限组不开放；须补齐对应底层能力后再接通。上线前需在现有权限管理中配置并授予新权限码；本次未写入真实权限库。真实 Oracle 并发作废/事务回滚、长期供应商现场流程、ISC 下发和到期失效仍待集成验收。另有既有回收风险：旧 ISC 作废查询以 cardNo 或证件号匹配且无园区约束，同证件号跨园区申请可能误回收；本次未修改该历史链路，上线前需专项收窄并验证。单选下发与 2.6 单条作废入口保持独立，不扩展批量作废。</dd>
   </dl>
 </section>
 
