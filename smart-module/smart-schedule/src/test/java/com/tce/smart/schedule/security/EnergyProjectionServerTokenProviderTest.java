@@ -75,10 +75,25 @@ public class EnergyProjectionServerTokenProviderTest {
 		Mockito.verifyZeroInteractions(restOperations);
 	}
 
+	/** 默认能耗调用直接申请 server，无需单独配置细分 scope。 */
 	@Test
+	public void energyProjectionAuthorizationHeaderDefaultsToServer() {
+		assertProjectionScope(null, "server");
+	}
+
+	/** 旧部署明确指定的能耗细分权限仍按原值申请，避免升级时要求立即修改存量应用。 */
+	@Test
+	public void energyProjectionAuthorizationHeaderKeepsExplicitHistoricalScope() {
+		assertProjectionScope("internal:energy:projection:run", "internal:energy:projection:run");
+	}
+
+	/** 校验实际 OAuth 请求中的授权域；Mock 授权端点只提供令牌响应，不连接外部服务。 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public void energyProjectionAuthorizationHeaderUsesDedicatedScopeInsteadOfLegacyScope() {
+	private void assertProjectionScope(String configuredScope, String expectedScope) {
 		EnergyProjectionOAuthProperties properties = configuredProperties();
+		if (configuredScope != null) {
+			properties.setEnergyProjectionRunScope(configuredScope);
+		}
 		RestOperations restOperations = Mockito.mock(RestOperations.class);
 		Map response = new HashMap();
 		response.put("access_token", "projection-token");
@@ -95,7 +110,7 @@ public class EnergyProjectionServerTokenProviderTest {
 		Mockito.verify(restOperations).exchange(Mockito.eq("http://auth.example/oauth/token"), Mockito.eq(HttpMethod.POST),
 				requestCaptor.capture(), Mockito.eq(Map.class));
 		MultiValueMap<String, String> form = (MultiValueMap<String, String>) requestCaptor.getValue().getBody();
-		Assert.assertEquals("internal:energy:projection:run", form.getFirst("scope"));
+		Assert.assertEquals(expectedScope, form.getFirst("scope"));
 	}
 
 	@Test
@@ -137,13 +152,12 @@ public class EnergyProjectionServerTokenProviderTest {
 		Assert.assertEquals("internal:energy:meter:sync", secondForm.getFirst("scope"));
 	}
 
+	/** 只填必需凭据，scope 使用运行配置默认值，避免夹具掩盖默认授权回归。 */
 	private EnergyProjectionOAuthProperties configuredProperties() {
 		EnergyProjectionOAuthProperties properties = new EnergyProjectionOAuthProperties();
 		properties.setAccessTokenUri("http://auth.example/oauth/token");
 		properties.setClientId("schedule-client");
 		properties.setClientSecret("schedule-secret");
-		properties.setScope("server");
-		properties.setEnergyProjectionRunScope("internal:energy:projection:run");
 		properties.setRefreshBeforeExpirySeconds(60L);
 		return properties;
 	}

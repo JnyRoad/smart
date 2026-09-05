@@ -39,20 +39,20 @@ public class EnergyProjectionController {
 		return Result.success(energyProjectionService.getCurrentMonthToDate(parkId));
 	}
 
-	/** 处理有限批量的待投影请求，仅允许具备能耗投影能力的调度服务调用。 */
+	/** 处理有限批量的待投影请求，允许持有 server 授权的内部服务调用。 */
 	@Inner
-	@OpenApi(value = OpenApiScopeCatalog.ENERGY_PROJECTION_RUN,
-			compatibilityScopes = {OpenApiScopeCatalog.LEGACY_SERVER})
+	@OpenApi(value = OpenApiScopeCatalog.SERVER,
+			compatibilityScopes = {OpenApiScopeCatalog.ENERGY_PROJECTION_RUN})
 	@PostMapping("/inner/energy/projection/process-pending")
 	public Result<Boolean> processPending() {
 		energyProjectionService.processPending();
 		return Result.success(Boolean.TRUE);
 	}
 
-	/** 回算指定业务日，仅允许定时服务内部调用。 */
+	/** 回算指定业务日，供持有 server 授权的内部服务调用。 */
 	@Inner
-	@OpenApi(value = OpenApiScopeCatalog.ENERGY_PROJECTION_RUN,
-			compatibilityScopes = {OpenApiScopeCatalog.LEGACY_SERVER})
+	@OpenApi(value = OpenApiScopeCatalog.SERVER,
+			compatibilityScopes = {OpenApiScopeCatalog.ENERGY_PROJECTION_RUN})
 	@PostMapping("/inner/energy/projection/reconcile/{businessDate}")
 	public Result<Boolean> reconcile(@PathVariable("businessDate") String businessDate) {
 		energyProjectionService.reconcile(LocalDate.parse(businessDate));
@@ -61,8 +61,8 @@ public class EnergyProjectionController {
 
 	/** 受上限保护的当月回填入口，不接受调用方指定日期。 */
 	@Inner
-	@OpenApi(value = OpenApiScopeCatalog.ENERGY_PROJECTION_RUN,
-			compatibilityScopes = {OpenApiScopeCatalog.LEGACY_SERVER})
+	@OpenApi(value = OpenApiScopeCatalog.SERVER,
+			compatibilityScopes = {OpenApiScopeCatalog.ENERGY_PROJECTION_RUN})
 	@PostMapping("/inner/energy/projection/backfill-month-to-date")
 	public Result<Boolean> backfillMonthToDate() {
 		energyProjectionService.backfillCurrentMonthToDate();
@@ -71,8 +71,8 @@ public class EnergyProjectionController {
 
 	/** 将同一业务日的回算和受控回填置于一次内部远程调用，避免调度端两次 Feign 间失锁。 */
 	@Inner
-	@OpenApi(value = OpenApiScopeCatalog.ENERGY_PROJECTION_RUN,
-			compatibilityScopes = {OpenApiScopeCatalog.LEGACY_SERVER})
+	@OpenApi(value = OpenApiScopeCatalog.SERVER,
+			compatibilityScopes = {OpenApiScopeCatalog.ENERGY_PROJECTION_RUN})
 	@PostMapping("/inner/energy/projection/daily/{businessDate}")
 	public Result<Boolean> daily(@PathVariable("businessDate") String businessDate, @RequestParam("reconcile") boolean reconcile,
 			@RequestParam("backfill") boolean backfill) {

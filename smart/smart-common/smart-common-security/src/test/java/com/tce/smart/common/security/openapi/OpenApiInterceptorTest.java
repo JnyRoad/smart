@@ -40,11 +40,13 @@ public class OpenApiInterceptorTest {
 		public void openApiHandlerMethod() {
 		}
 
-		@OpenApi(value = "internal:energy:projection:run", compatibilityScopes = {"server"})
+		/** 提供兼容历史能耗权限的 server 空入口，仅供反射读取授权注解，不执行业务。 */
+		@OpenApi(value = "server", compatibilityScopes = {"internal:energy:projection:run"})
 		public void migrationHandlerMethod() {
 		}
 
-		@OpenApi(value = "internal:energy:projection:run", compatibilityScopes = {"open:admittance:photo:read"})
+		/** 提供含未登记兼容权限的空入口，用于验证注解不能绕过目录校验，不执行业务。 */
+		@OpenApi(value = "server", compatibilityScopes = {"internal:unknown:scope"})
 		public void invalidMigrationHandlerMethod() {
 		}
 
@@ -118,27 +120,28 @@ public class OpenApiInterceptorTest {
 		assertEquals(403, response.getStatus());
 	}
 
+	/** 验证未登记的 scope 即使写入兼容注解也返回 403，防止未知授权被误放行。 */
 	@Test
-	public void migrationDoesNotTreatActiveScopeAsCompatibilityScope() throws Exception {
-		Set<String> activeScope = new HashSet<>();
-		activeScope.add("open:admittance:photo:read");
-		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("photo-client", activeScope));
+	public void migrationDoesNotTreatUnknownScopeAsCompatibilityScope() throws Exception {
+		Set<String> unregisteredScope = new HashSet<>();
+		unregisteredScope.add("internal:unknown:scope");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("unknown-scope-client", unregisteredScope));
 
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		assertFalse(interceptor.preHandle(new MockHttpServletRequest(), response, invalidMigrationHandler()));
 		assertEquals(403, response.getStatus());
 	}
 
+	/** 验证关闭历史兼容后 server 仍获放行，避免迁移开关误禁用当前主授权。 */
 	@Test
-	public void migrationCompatibilityCanBeExplicitlyDisabledAfterCutover() throws Exception {
-		Set<String> legacyScope = new HashSet<>();
-		legacyScope.add("server");
-		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("legacy-schedule", legacyScope));
+	public void primaryServerScopeRemainsAllowedWhenCompatibilityIsDisabled() throws Exception {
+		Set<String> serverScope = new HashSet<>();
+		serverScope.add("server");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("server-client", serverScope));
 		OpenApiInterceptor cutoverInterceptor = new OpenApiInterceptor(adapter, false);
 
 		MockHttpServletResponse response = new MockHttpServletResponse();
-		assertFalse(cutoverInterceptor.preHandle(new MockHttpServletRequest(), response, migrationHandler()));
-		assertEquals(403, response.getStatus());
+		assertTrue(cutoverInterceptor.preHandle(new MockHttpServletRequest(), response, migrationHandler()));
 	}
 
 	@Test
@@ -189,17 +192,18 @@ public class OpenApiInterceptorTest {
 		assertEquals(403, response.getStatus());
 	}
 
+	/** 验证 server 与明确声明的历史能耗权限可用，同时拒绝仅名称相近的 server:read。 */
 	@Test
-	public void migrationScopeAcceptsOnlyDedicatedOrExplicitLegacyScope() throws Exception {
+	public void migrationScopeAcceptsPrimaryServerOrExplicitHistoricalScope() throws Exception {
 		Set<String> dedicatedScope = new HashSet<>();
 		dedicatedScope.add("internal:energy:projection:run");
 		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("smart-schedule", dedicatedScope));
 		assertTrue(interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), migrationHandler()));
 
 		SecurityContextHolder.clearContext();
-		Set<String> legacyScope = new HashSet<>();
-		legacyScope.add("server");
-		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("legacy-schedule", legacyScope));
+		Set<String> serverScope = new HashSet<>();
+		serverScope.add("server");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("server-schedule", serverScope));
 		assertTrue(interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), migrationHandler()));
 
 		SecurityContextHolder.clearContext();

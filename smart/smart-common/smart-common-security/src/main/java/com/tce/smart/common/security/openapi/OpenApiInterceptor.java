@@ -71,7 +71,7 @@ public class OpenApiInterceptor implements HandlerInterceptor {
 		boolean allow;
 		if (openApi != null) {
 			// 规则1：标注了 @OpenApi 的接口，必须是纯客户端 token 且主 scope 或迁移兼容 scope 命中。
-			// compatibilityScopes 只服务于有限迁移期，不能替代按能力划分的新主 scope。
+			// server 等主 scope 不受兼容开关影响；compatibilityScopes 只服务于有限迁移期。
 			allow = clientOnly && hasRequiredScope(adapter.scopes(authentication), openApi);
 		} else {
 			// 规则2：deny-by-default——纯客户端 token 不允许访问未显式标注 @OpenApi 的接口
@@ -97,7 +97,7 @@ public class OpenApiInterceptor implements HandlerInterceptor {
 
 	/**
 	 * 主 scope 始终是长期授权边界；兼容 scope 必须先被目录标记为已废弃，才会作为迁移期
-	 * 的精确额外候选项。不支持通配符、前缀或层级匹配，避免泛化为大权限授权。
+	 * 的精确额外候选项。不支持通配符、前缀或层级匹配，避免把历史细分授权泛化为通配权限。
 	 */
 	private boolean hasRequiredScope(Set<String> tokenScopes, OpenApi openApi) {
 		if (tokenScopes == null || tokenScopes.isEmpty()) {

@@ -18,10 +18,11 @@ public interface AdmittancePhotoOpenService {
 	List<String> listPendingPhotoIds(List<Integer> allowedParkIds);
 
 	/**
-	 * 按 photoId 读取照片二进制。
+	 * 按 photoId 读取获授权园区内有效申请关联的照片二进制，仅查询，不写数据。
 	 *
 	 * @param photoId 照片ID（格式校验由控制器完成）
-	 * @return 图片字节；不存在时返回 null（控制器映射为 404）
+	 * @param allowedParkIds 应用 token 中的园区范围；null 或空列表直接拒绝
+	 * @return 图片字节；无有效申请授权或图片不存在时返回 null（控制器统一映射为 404）
 	 */
-	byte[] loadPhoto(String photoId);
+	byte[] loadPhoto(String photoId, List<Integer> allowedParkIds);
 }

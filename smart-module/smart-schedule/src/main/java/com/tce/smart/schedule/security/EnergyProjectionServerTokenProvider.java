@@ -19,9 +19,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * 为无 HTTP 请求上下文的能耗投影调度任务按 capability scope 申请并缓存 Bearer 令牌。
+ * 为无 HTTP 请求上下文的内部调度任务申请并缓存 Bearer 令牌，默认使用 server 授权。
  *
- * <p>缓存按 scope 隔离，避免后续新增能力后将一个大权限 token 复用于不同内部接口。</p>
+ * <p>缓存按实际申请的 scope 隔离，兼容旧配置时不串用不同授权域的令牌。</p>
  */
 public class EnergyProjectionServerTokenProvider {
 
@@ -38,16 +38,14 @@ public class EnergyProjectionServerTokenProvider {
 	}
 
 	/**
-	 * 获取历史默认 scope 的 Authorization 请求头。仅为已编译调用方的迁移兼容保留；
-	 * 新代码必须改用 {@link #authorizationHeader(String)} 或具体能力方法。
+	 * 获取配置的通用服务 Authorization 请求头；缺少凭据或换取令牌失败时抛错。
 	 */
-	@Deprecated
 	public String authorizationHeader() {
 		return authorizationHeader(properties.getScope());
 	}
 
 	/**
-	 * 获取能耗投影内部调用所需的最小能力令牌。
+	 * 获取能耗投影内部调用令牌，默认申请 server，并沿用显式配置的历史授权域。
 	 */
 	public String energyProjectionAuthorizationHeader() {
 		return authorizationHeader(properties.getEnergyProjectionRunScope());

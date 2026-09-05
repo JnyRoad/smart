@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mock;
 /** 客户端管理页应从后端读取 capability scope 目录，而不是维护独立前端白名单。 */
 public class OauthClientDetailsControllerTest {
 
+	/** 校验管理页取得的目录顺序及两项历史权限标记；使用服务替身，不查询客户端记录。 */
 	@Test
 	public void scopesReturnsAuthoritativeCatalogWithoutClientSecrets() {
 		SysOauthClientDetailsService service = mock(SysOauthClientDetailsService.class);
@@ -22,9 +23,10 @@ public class OauthClientDetailsControllerTest {
 		Result<List<OpenApiScope>> result = controller.scopes();
 
 		assertThat(result.getData()).extracting(OpenApiScope::getValue)
-				.contains(OpenApiScopeCatalog.ADMITTANCE_PHOTO_READ, OpenApiScopeCatalog.ENERGY_PROJECTION_RUN,
-						OpenApiScopeCatalog.LEGACY_SERVER);
+				.containsExactly("server", OpenApiScopeCatalog.ADMITTANCE_PHOTO_READ,
+						OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
 		assertThat(result.getData()).filteredOn(OpenApiScope::isDeprecated)
-				.extracting(OpenApiScope::getValue).containsExactly(OpenApiScopeCatalog.LEGACY_SERVER);
+				.extracting(OpenApiScope::getValue).containsExactly(OpenApiScopeCatalog.ADMITTANCE_PHOTO_READ,
+						OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
 	}
 }

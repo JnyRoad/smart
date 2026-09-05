@@ -30,13 +30,13 @@ smart:
     zone-id: Asia/Shanghai #能耗业务日口径时区
     projection:
       oauth:
-        # Scheduler 在无 HTTP 请求上下文时申请最小 capability scope 令牌；生产必须覆写为可达的授权端点。
+        # Scheduler 在无 HTTP 请求上下文时申请 server scope 令牌；生产必须覆写为可达的授权端点。
         access-token-uri: "${SMART_SCHEDULE_OAUTH_TOKEN_URI:${SMART_OAUTH_TOKEN_URI:http://smart-gateway:9990/auth/oauth/token}}"
         client-id: "${SMART_SCHEDULE_OAUTH_CLIENT_ID:${SMART_OAUTH_CLIENT_ID:}}"
         client-secret: "${SMART_SCHEDULE_OAUTH_CLIENT_SECRET:${SMART_OAUTH_CLIENT_SECRET:}}"
-        # 仅保留给旧版无参取令牌方法，新的能耗投影任务不使用该历史大权限 scope。
+        # 内部服务统一使用 server；保留能耗配置键兼容已有显式设置。
         scope: server
-        energy-projection-run-scope: "${SMART_SCHEDULE_ENERGY_PROJECTION_RUN_SCOPE:internal:energy:projection:run}"
+        energy-projection-run-scope: "${SMART_SCHEDULE_ENERGY_PROJECTION_RUN_SCOPE:server}"
         refresh-before-expiry-seconds: 60
   image:
     #内网访问地址

@@ -5,6 +5,7 @@ import com.tce.smart.admin.api.feign.RemoteTokenService;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
+import com.tce.smart.common.security.openapi.OpenApiScopeCatalog;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.cache.Cache;
@@ -198,7 +199,7 @@ public class SysOauthClientDetailsServiceImplTest {
 		SysOauthClientDetails entity = new SysOauthClientDetails();
 		entity.setClientId("new-app");
 		entity.setClientSecret("plain-secret-123");
-		entity.setScope("open:admittance:photo:read");
+		entity.setScope("server");
 
 		boolean result = service.save(entity);
 
@@ -218,7 +219,7 @@ public class SysOauthClientDetailsServiceImplTest {
 		SysOauthClientDetails entity = new SysOauthClientDetails();
 		entity.setClientId("legacy-app");
 		entity.setClientSecret("{noop}plain-secret");
-		entity.setScope("open:admittance:photo:read");
+		entity.setScope("server");
 
 		service.save(entity);
 
@@ -235,7 +236,7 @@ public class SysOauthClientDetailsServiceImplTest {
 		entity.setClientId("migrated-app");
 		String alreadyEncoded = SecurityConstants.BCRYPT + BCRYPT_ENCODER_FOR_TEST.encode("some-secret");
 		entity.setClientSecret(alreadyEncoded);
-		entity.setScope("open:admittance:photo:read");
+		entity.setScope("server");
 
 		service.save(entity);
 
@@ -381,30 +382,26 @@ public class SysOauthClientDetailsServiceImplTest {
 		}
 	}
 
-	/** 历史 server scope 不得被新客户端重新授予，避免大权限继续扩散。 */
+	/** 新客户端可直接授予 server，作为内部开放接口的统一授权边界。 */
 	@Test
-	public void save_rejectsDeprecatedLegacyServerScope() throws Exception {
+	public void save_acceptsServerScope() throws Exception {
 		mockBaseMapperForSave();
 		SysOauthClientDetails entity = new SysOauthClientDetails();
 		entity.setClientId("new-server-scope-app");
 		entity.setClientSecret("plain-secret");
 		entity.setScope("server");
 
-		try {
-			service.save(entity);
-			org.junit.Assert.fail("历史 server scope 必须拒绝新增授予");
-		} catch (TCEException expected) {
-			assertThat(expected.getMessage()).contains("历史");
-		}
+		assertThat(service.save(entity)).isTrue();
+		assertThat(entity.getScope()).isEqualTo("server");
 	}
 
-	/** 存量客户端可在不移除原有 server scope 的前提下补充最小能力 scope，便于滚动迁移。 */
+	/** 存量细分 scope 客户端可补充 server，变更成功后仍必须吊销旧 token。 */
 	@Test
-	public void update_preservesExistingLegacyServerScopeDuringMigration() {
+	public void update_addsServerToExistingHistoricalScope_andRevokesTokens() {
 		String clientId = "legacy-schedule";
 		SysOauthClientDetails existing = new SysOauthClientDetails();
 		existing.setClientId(clientId);
-		existing.setScope("server");
+		existing.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
 		doReturn(existing).when(service).getById(clientId);
 		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
 		SysOauthClientDetails update = new SysOauthClientDetails();
@@ -418,17 +415,34 @@ public class SysOauthClientDetailsServiceImplTest {
 		verify(remoteTokenService).removeTokensByClientId(clientId, SecurityConstants.FROM_IN);
 	}
 
-	/** 合法 scope 写库前统一去空格并稳定为逗号分隔格式。 */
+	/** server 写库前统一去空格并稳定为单项逗号分隔格式。 */
 	@Test
-	public void save_normalizesKnownCapabilityScopes() throws Exception {
+	public void save_normalizesServerScope() throws Exception {
 		mockBaseMapperForSave();
 		SysOauthClientDetails entity = new SysOauthClientDetails();
 		entity.setClientId("projection-app");
 		entity.setClientSecret("plain-secret");
-		entity.setScope(" open:admittance:photo:read , internal:energy:projection:run ");
+		entity.setScope(" server ");
 
 		service.save(entity);
 
-		assertThat(entity.getScope()).isEqualTo("open:admittance:photo:read,internal:energy:projection:run");
+		assertThat(entity.getScope()).isEqualTo("server");
+	}
+
+	/** 新客户端不得重新授予已降级为历史兼容的细分 scope。 */
+	@Test
+	public void save_rejectsDeprecatedHistoricalScope() throws Exception {
+		mockBaseMapperForSave();
+		SysOauthClientDetails entity = new SysOauthClientDetails();
+		entity.setClientId("new-historical-scope-app");
+		entity.setClientSecret("plain-secret");
+		entity.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
+
+		try {
+			service.save(entity);
+			org.junit.Assert.fail("历史细分 scope 必须拒绝新增授予");
+		} catch (TCEException expected) {
+			assertThat(expected.getMessage()).contains("历史");
+		}
 	}
 }

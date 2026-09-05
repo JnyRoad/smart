@@ -175,8 +175,8 @@
         }
       },
       /**
-       * 从服务端读取 capability scope 目录。新增时隐藏已废弃的历史 scope；编辑/查看时保留，
-       * 以便存量客户端在迁移期可见且不会因打开表单而丢失原有授权。
+       * 从服务端读取 capability scope 目录。新增时只展示 active scope（当前为 server），
+       * 编辑/查看时保留已废弃的细分 scope，以便存量客户端在迁移期可见且不会因打开表单而丢失原有授权。
        */
       loadScopeOptions(type) {
         return fetchScopes().then(response => {
@@ -191,8 +191,8 @@
         })
       },
       /**
-       * 编辑老客户端时，已废弃的目录 scope 和历史未知 scope 都以禁用项展示，
-       * 避免保存时被静默删除，也避免通过编辑窗口重新授予历史大权限。
+       * 编辑老客户端时，已废弃的细分 scope 和历史未知 scope 都以禁用项展示，
+       * 避免保存时被静默删除，也避免通过编辑窗口重新授予历史授权域。
        */
       mergeHistoricalScopeOptions(catalog) {
         return mergeEditableScopeOptions(catalog, this.form.scope || [])

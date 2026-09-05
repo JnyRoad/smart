@@ -13,6 +13,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -175,15 +179,122 @@ public class AdmittancePhotoOpenServiceImplTest {
 	/** 图片不存在返回 null（由控制器映射 404），不抛异常 */
 	@Test
 	public void loadPhoto_missingImage_returnsNull() {
+		allowPhotoApplication();
 		when(imageService.getImageBinaryByCode(anyString())).thenReturn(null);
-		assertNull(service.loadPhoto("eed9a5c2-2b38-4ff5-96d2-e56c237337e1"));
+		assertNull(service.loadPhoto("eed9a5c2-2b38-4ff5-96d2-e56c237337e1", Collections.singletonList(7)));
 	}
 
 	/** 图片存在返回二进制 */
 	@Test
 	public void loadPhoto_existingImage_returnsBytes() {
+		allowPhotoApplication();
 		byte[] bytes = new byte[] {1, 2, 3};
 		when(imageService.getImageBinaryByCode("eed9a5c2-2b38-4ff5-96d2-e56c237337e1")).thenReturn(bytes);
-		assertEquals(bytes, service.loadPhoto("eed9a5c2-2b38-4ff5-96d2-e56c237337e1"));
+		assertEquals(bytes, service.loadPhoto("eed9a5c2-2b38-4ff5-96d2-e56c237337e1", Collections.singletonList(7)));
+	}
+
+	/** 授权查询必须同时绑定目标照片、申请 ID、token 园区和与 pending 相同的有效条件。 */
+	@Test
+	public void loadPhoto_checksExactPhotoAndApplicationPredicatesBeforeImageRead() {
+		allowPhotoApplication();
+		String photoId = "eed9a5c2-2b38-4ff5-96d2-e56c237337e1";
+		LocalDateTime before = LocalDateTime.now();
+		service.loadPhoto(photoId, Arrays.asList(7, 8));
+		LocalDateTime after = LocalDateTime.now();
+
+		@SuppressWarnings("rawtypes")
+		ArgumentCaptor<LambdaQueryWrapper> fellowCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		verify(fellowService).list(fellowCaptor.capture());
+		LambdaQueryWrapper<?> fellowQuery = fellowCaptor.getValue();
+		assertEquals(photoId, boundValue(fellowQuery, "fellow_photo_id", "="));
+
+		@SuppressWarnings("rawtypes")
+		ArgumentCaptor<LambdaQueryWrapper> applyCaptor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		verify(applyService).list(applyCaptor.capture());
+		LambdaQueryWrapper<?> applyQuery = applyCaptor.getValue();
+		assertEquals(Collections.singletonList(100L), inValues(applyQuery, "id"));
+		assertEquals(Arrays.asList(7, 8), inValues(applyQuery, "park_id"));
+		assertEquals(0, boundValue(applyQuery, "status", "="));
+		assertEquals(2, boundValue(applyQuery, "apply_type", "<>"));
+		LocalDateTime cutoff = (LocalDateTime) boundValue(applyQuery, "end_time", ">");
+		assertFalse(cutoff.isBefore(before));
+		assertFalse(cutoff.isAfter(after));
+		org.mockito.InOrder order = org.mockito.Mockito.inOrder(fellowService, applyService, imageService);
+		order.verify(fellowService).list(any());
+		order.verify(applyService).list(any());
+		order.verify(imageService).getImageBinaryByCode(photoId);
+	}
+
+	/** 空园区范围立即拒绝，连随行人员和图片也不应查询。 */
+	@Test
+	public void loadPhoto_nullParkIds_returnsNullWithoutQuery() {
+		assertNull(service.loadPhoto("eed9a5c2-2b38-4ff5-96d2-e56c237337e1", null));
+		org.mockito.Mockito.verifyZeroInteractions(applyService, fellowService, imageService);
+	}
+
+	/** 孤立关联没有申请 ID 时拒绝，避免空 IN 退化成全表查询。 */
+	@Test
+	public void loadPhoto_fellowWithoutApplication_returnsNullWithoutImageRead() {
+		when(fellowService.list(any())).thenReturn(Collections.singletonList(new SmtAdmittanceFellow()));
+		assertNull(service.loadPhoto("eed9a5c2-2b38-4ff5-96d2-e56c237337e1", Collections.singletonList(7)));
+		org.mockito.Mockito.verifyZeroInteractions(applyService, imageService);
+	}
+
+	/** 同一照片关联大量申请时分批校验，允许后续批次命中，并去重和过滤空申请 ID。 */
+	@Test
+	public void loadPhoto_splitsApplicationIdsAndAcceptsLaterAuthorizedBatch() {
+		List<SmtAdmittanceFellow> fellows = new ArrayList<>();
+		for (long id = 1; id <= 1001; id++) {
+			SmtAdmittanceFellow fellow = new SmtAdmittanceFellow();
+			fellow.setVisitorId(id);
+			fellows.add(fellow);
+		}
+		fellows.add(fellows.get(0));
+		fellows.add(new SmtAdmittanceFellow());
+		when(fellowService.list(any())).thenReturn(fellows);
+		SmtAdmittanceApply apply = new SmtAdmittanceApply();
+		apply.setId(1001L);
+		when(applyService.list(any())).thenReturn(Collections.emptyList(), Collections.singletonList(apply));
+		byte[] bytes = {1};
+		when(imageService.getImageBinaryByCode(anyString())).thenReturn(bytes);
+		assertEquals(bytes, service.loadPhoto("eed9a5c2-2b38-4ff5-96d2-e56c237337e1", Collections.singletonList(7)));
+		@SuppressWarnings("rawtypes")
+		ArgumentCaptor<LambdaQueryWrapper> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+		verify(applyService, times(2)).list(captor.capture());
+		assertEquals(1000, inValues(captor.getAllValues().get(0), "id").size());
+		assertEquals(Collections.singletonList(1001L), inValues(captor.getAllValues().get(1), "id"));
+		verify(imageService).getImageBinaryByCode(anyString());
+	}
+
+	/** 构造允许读取的关联查询结果；实际查询条件由专门用例核验。 */
+	private void allowPhotoApplication() {
+		SmtAdmittanceFellow fellow = new SmtAdmittanceFellow();
+		fellow.setVisitorId(100L);
+		when(fellowService.list(any())).thenReturn(Collections.singletonList(fellow));
+		SmtAdmittanceApply apply = new SmtAdmittanceApply();
+		apply.setId(100L);
+		when(applyService.list(any())).thenReturn(Collections.singletonList(apply));
+	}
+
+	/** 从实际生成的参数化 SQL 提取指定比较谓词的绑定值；缺少条件直接失败。 */
+	private Object boundValue(LambdaQueryWrapper<?> query, String column, String operator) {
+		Matcher predicate = Pattern.compile("(?<![a-zA-Z_])" + column + " " + Pattern.quote(operator)
+				+ " #\\{ew\\.paramNameValuePairs\\.([^}]+)}").matcher(query.getSqlSegment());
+		assertTrue("缺少条件: " + column + " " + operator + "，实际: " + query.getSqlSegment(), predicate.find());
+		return query.getParamNameValuePairs().get(predicate.group(1));
+	}
+
+	/** 读取 IN 子句的实际绑定列表，不假设参数编号或谓词排列顺序。 */
+	private List<Object> inValues(LambdaQueryWrapper<?> query, String column) {
+		Matcher predicate = Pattern.compile("(?<![a-zA-Z_])" + column + " IN \\(([^)]*)\\)")
+				.matcher(query.getSqlSegment());
+		assertTrue("缺少 IN 条件: " + column, predicate.find());
+		Matcher keys = Pattern.compile("#\\{ew\\.paramNameValuePairs\\.([^}]+)}").matcher(predicate.group(1));
+		Map<String, Object> bindings = query.getParamNameValuePairs();
+		List<Object> values = new ArrayList<>();
+		while (keys.find()) {
+			values.add(bindings.get(keys.group(1)));
+		}
+		return values;
 	}
 }

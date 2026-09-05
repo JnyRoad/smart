@@ -39,12 +39,13 @@ public class EnergyProjectionControllerTest {
 		catch (AccessDeniedException expected) { assertEquals("无权访问该园区能耗数据", expected.getMessage()); }
 	}
 
+	/** 四个内部入口都声明 server 主授权，并继续保留内部调用标记。 */
 	@Test
-	public void internalProjectionEndpointsRequireDedicatedProjectionScope() throws Exception {
-		assertDedicatedProjectionScope("processPending");
-		assertDedicatedProjectionScope("reconcile", String.class);
-		assertDedicatedProjectionScope("backfillMonthToDate");
-		assertDedicatedProjectionScope("daily", String.class, boolean.class, boolean.class);
+	public void internalProjectionEndpointsRequireServerScope() throws Exception {
+		assertServerScope("processPending");
+		assertServerScope("reconcile", String.class);
+		assertServerScope("backfillMonthToDate");
+		assertServerScope("daily", String.class, boolean.class, boolean.class);
 	}
 
 	@Test
@@ -81,13 +82,13 @@ public class EnergyProjectionControllerTest {
 	}
 
 	/**
-	 * 所有能耗投影内部入口使用同一个最小能力 scope，并在滚动升级期精确兼容旧 server scope。
+	 * 所有能耗内部入口以 server 为主授权，并精确兼容原能耗细分权限。
 	 */
-	private void assertDedicatedProjectionScope(String methodName, Class<?>... parameterTypes) throws Exception {
+	private void assertServerScope(String methodName, Class<?>... parameterTypes) throws Exception {
 		Method method = EnergyProjectionController.class.getMethod(methodName, parameterTypes);
 		OpenApi openApi = method.getAnnotation(OpenApi.class);
-		assertEquals("internal:energy:projection:run", openApi.value());
-		assertArrayEquals(new String[] {"server"}, openApi.compatibilityScopes());
+		assertEquals("server", openApi.value());
+		assertArrayEquals(new String[] {"internal:energy:projection:run"}, openApi.compatibilityScopes());
 		assertEquals(Inner.class, method.getAnnotation(Inner.class).annotationType());
 	}
 }
