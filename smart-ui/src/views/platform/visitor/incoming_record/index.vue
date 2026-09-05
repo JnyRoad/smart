@@ -7,6 +7,13 @@
           <div class="top-right">
             <el-button type="primary" icon="el-icon-search" @click="searchSubmit(searchForm)">搜索</el-button>
             <el-button type="primary" icon="el-icon-delete" @click="resetFrom('searchForm')" plain>清空</el-button>
+            <el-button
+              v-if="permissions['platform_visitor_incoming_auth']"
+              type="primary"
+              icon="el-icon-key"
+              @click="openManualAuth"
+              :disabled="!selectedRecord"
+            >通关权限</el-button>
             <el-tooltip class="item" effect="light" content="最多导出1000条" placement="bottom">
               <el-button type="primary" :loading="exportLoading" @click="export2Excel" icon="icon-yutong-download">导出表格</el-button>
             </el-tooltip>
@@ -83,7 +90,15 @@
           <template v-if="hasData">
             <div class="vs-list clear" style="margin-top: 20px">
               <template v-for="(item, key, index) in visitor">
-                <div class="visitor-card" :key="item.id">
+                <div class="visitor-card" :class="{ 'is-selected': selectedRecordId === item.id }" :key="item.id">
+                  <div class="record-select" @click.stop>
+                    <el-radio
+                      v-model="selectedRecordId"
+                      :label="item.id"
+                      :aria-label="`选择申请 ${item.visitorName || item.id}`"
+                      @change="selectIncomingRecord(item)"
+                    >选择</el-radio>
+                  </div>
                   <div class="vs-inner" @click="handleDetail(item, index)">
                     <div class="vs-status" :class="item.status | visitorStatusClassFormat">
                       <p>{{ item.status | visitorStatusFormat }}</p>
@@ -172,6 +187,11 @@
         </div>
       </section>
     </el-scrollbar>
+    <ManualAuthDialog
+      :visible.sync="manualAuthVisible"
+      :record="selectedRecord"
+      @submitted="handleManualAuthSubmitted"
+    />
   </div>
 </template>
 
@@ -185,9 +205,13 @@ import { xcIncomingRecordApi } from './_service'
 import { getCompTree } from '@/api/platform/_publicService'
 import { mapGetters } from 'vuex'
 import { isArrayFn } from '@/util/util'
+import ManualAuthDialog from './manualAuth'
 
 export default {
   name: 'visitor',
+  components: {
+    ManualAuthDialog
+  },
   data() {
     return {
       loading: true,
@@ -225,7 +249,10 @@ export default {
       },
       depIds: [],
       options: [],
-      visitor: []
+      visitor: [],
+      selectedRecordId: null,
+      selectedRecord: null,
+      manualAuthVisible: false
     }
   },
   watch: {
@@ -318,6 +345,42 @@ export default {
   },
   methods: {
     test() {},
+    /**
+     * 记录列表当前唯一的手动授权申请，并同步单选控件的值。
+     * @param {Object|null} record 当前卡片对应的申请单；传空值表示取消选择。
+     * @returns {void} 只更新本地选择状态，不打开详情或发起请求。
+     */
+    selectIncomingRecord(record) {
+      this.selectedRecord = record || null
+      this.selectedRecordId = record ? record.id : null
+    },
+    /**
+     * 清除申请列表的当前选择，防止搜索或翻页后沿用旧申请单。
+     * @returns {void} 只重置本地选择状态。
+     */
+    clearIncomingRecordSelection() {
+      this.selectedRecord = null
+      this.selectedRecordId = null
+    },
+    /**
+     * 打开手动授权弹窗；没有选中申请单时仅提示用户补选。
+     * @returns {void} 改变弹窗可见状态或展示校验提示，不直接发起授权请求。
+     */
+    openManualAuth() {
+      if (!this.selectedRecord) {
+        this.$message.warning('请选择申请单')
+        return
+      }
+      this.manualAuthVisible = true
+    },
+    /**
+     * 接收手动授权弹窗的提交完成事件并刷新当前记录列表。
+     * @returns {void} 清空旧选择并触发一次列表查询；设备是否成功由后续状态查询决定。
+     */
+    handleManualAuthSubmitted() {
+      this.clearIncomingRecordSelection()
+      this.getList(this.page, this.searchForm)
+    },
     async getCauseEnum() {
       const res = await xcIncomingRecordApi.getCauseEnum()
       this.causes = res.data.data
@@ -418,6 +481,7 @@ export default {
         })
     },
     getList(page, params) {
+      this.clearIncomingRecordSelection()
       this.loading = true
       params = Object.assign(
         {
@@ -611,6 +675,7 @@ export default {
      * 搜索回调
      */
     searchSubmit(form) {
+      this.clearIncomingRecordSelection()
       this.page.currentPage = 1
       this.getList(this.page, form)
     },
@@ -618,6 +683,7 @@ export default {
      * 清空搜索
      */
     resetFrom(formName) {
+      this.clearIncomingRecordSelection()
       if (this.$refs[formName] != undefined) {
         this.$refs[formName].resetFields()
         this.depIds = []
@@ -625,10 +691,12 @@ export default {
       }
     },
     handleSizeChange(val) {
+      this.clearIncomingRecordSelection()
       this.page.pageSize = val
       this.getList(this.page, this.searchForm)
     },
     handleCurrentChange(val) {
+      this.clearIncomingRecordSelection()
       this.page.currentPage = val
       this.getList(this.page, this.searchForm)
     }
@@ -640,6 +708,34 @@ export default {
 .topForm ::v-deep {
   .el-form-item__label {
     width: 130px;
+  }
+}
+.visitor-card {
+  &.is-selected {
+    border-color: #ed6d00;
+    box-shadow: 0 0 0 1px rgba(237, 109, 0, 0.15), 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  }
+}
+.record-select {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 2px 6px;
+  border: 1px solid #f5c6a5;
+  border-radius: 4px;
+  background: #fff9f2;
+  cursor: pointer;
+
+  ::v-deep .el-radio {
+    margin-right: 0;
+    line-height: 20px;
+  }
+
+  ::v-deep .el-radio__label {
+    padding-left: 4px;
+    color: #606266;
+    font-size: 12px;
   }
 }
 .name_p {

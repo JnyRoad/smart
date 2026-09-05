@@ -2,6 +2,7 @@ package com.tce.smart.platform.controller.admittance;
 
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceApplyService;
+import com.tce.smart.platform.service.admittance.VisitorManualAuthService;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -40,7 +41,8 @@ public class SmtAdmittanceApplyManageControllerAclTest {
 	@Test
 	public void revokeRejectsNonNumericIdWithBusinessError() {
 		SmtAdmittanceApplyService applyService = Mockito.mock(SmtAdmittanceApplyService.class);
-		SmtAdmittanceApplyManageController controller = new SmtAdmittanceApplyManageController(applyService);
+		VisitorManualAuthService manualAuthService = Mockito.mock(VisitorManualAuthService.class);
+		SmtAdmittanceApplyManageController controller = new SmtAdmittanceApplyManageController(applyService, manualAuthService);
 
 		try {
 			controller.revokeApply("not-a-number");

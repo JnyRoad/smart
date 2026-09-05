@@ -19,4 +19,37 @@ describe('incoming_record _service 请求签名契约', () => {
       data: { id: 3201 }
     })
   })
+
+  it('人员授权只保留 ISC 类型 1 的权限组，并保留涉密项供界面解释后禁选', () => {
+    expect(typeof api.filterManualAuthAuthorities).toBe('function')
+
+    const authorities = [
+      { id: 401, authorityName: '人员公共权限', type: 1, areaType: 0 },
+      { id: 402, authorityName: '人员涉密权限', type: 1, areaType: 1 },
+      { id: 404, authorityName: '访客类型权限', type: 2, areaType: 0 },
+      { id: 403, authorityName: '车辆公共权限', type: 3, areaType: 0 }
+    ]
+
+    expect(api.filterManualAuthAuthorities(authorities)).toEqual([
+      authorities[0],
+      authorities[1]
+    ])
+  })
+
+  it('手动授权载荷只包含申请单、人员身份和权限 ID，不带日期或员工字段', () => {
+    expect(typeof api.buildManualAuthPayload).toBe('function')
+
+    expect(api.buildManualAuthPayload({
+      applyId: '101',
+      fellowId: '201',
+      authIds: [401, 402],
+      startTime: '2026-09-05 08:00:00',
+      endTime: '2026-09-06 18:00:00',
+      staffId: 'should-not-be-sent'
+    })).toEqual({
+      applyId: '101',
+      fellowId: '201',
+      authIds: [401, 402]
+    })
+  })
 })
