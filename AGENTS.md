@@ -1,97 +1,39 @@
 # AGENTS.md
 
-裕同智慧园区 `smart` 项目，子项目平铺为同级目录。
+裕同智慧园区 `smart` 项目的 Agent 入口。规则随仓库维护，不依赖机器上的个人规则文件；项目介绍与运行方式见 [README.md](README.md)。
 
-> 边界：通用方法论（工程原则、TDD、代码评审、提交/PR 规范、分支命名、Git 认证）走各 agent
-> 自己的全局规则；详细介绍看 README；本文件只记本项目特有的规则、结构、技术栈和架构。
+## 必须遵守
 
-## 仓库组织
+- **任何开发的首次文件写入前**，必须已处于本任务独立 linked worktree 和本任务非 `main` 分支；写入包括规格、计划、配置、文档、代码和测试。只读分析可以留在 `main`。共享主 checkout 即使已切功能分支，也不得用于开发。
+- 复用已属于本任务的 worktree / 分支；本任务 worktree 为 detached HEAD 时从当前 HEAD 建立任务分支。不得混用旧任务目录或强制重复检出已被其他 worktree 占用的分支。隔离失败就停止依赖写入，禁止退回 `main` 或共享目录；不得自动 stash、reset、clean 或覆盖他人未提交改动。
+- 所有修改通过功能分支和 PR 合并 `main`，禁止直推 `main`。修改、提交、推送、建 PR、合并、部署分别按已有授权执行；不把前一动作视为后续动作授权，也不对已明确授权的动作重复审批。
+- 先检索已有 `specs/`，显式设置 `SPECIFY_FEATURE_DIRECTORY` 绑定本任务规格；缺少本机 `feature.json` 不代表没有规格，不得据此重新创建功能或重建已有 `.specify/`。
+- Spec Kit 负责 spec / plan / tasks / analyze；分析通过的 `tasks.md` 交给 superpowers 执行。禁止 `speckit.implement`（`speckit-implement`），不得用 `writing-plans` / `executing-plans` 再建一套计划。
+- 持久规格、设计和验收资料允许入库；本机状态、密钥、环境文件、缓存、日志、构建产物和数据库快照不得夹带提交。完成任务不删除设计历史。
+- 注释一律使用中文。只读分析不授权修改；真实数据写入、数据库变更、生产和部署须核实目标、范围及现有授权。worktree 只隔离文件，端口、数据库等外部资源须另行确认。
 
-- 子项目按目录平铺，例如 `smart/`、`smart-module/`、`smart-ui/`、`smart-h5/`、`smart-h5-vue2/`、`smart-app-uniapp/`，后续新增模块继续作为根目录同级子目录。
-- 子项目不要初始化独立 `.git`；需要例外时先说明原因。
-- 新增子项目时，同步更新根 `README.md` 和本文件的“子项目”清单。
-- 设计文档放在对应子项目自己的 `docs/` 下；实现时以当前代码、当前 README、当前配置为准。
+## 按任务加载
 
-## 开发约定
+首次相关行动前读取下表对应规则；同一对话已读取的内容直接复用，任务变化时补读新增场景，内容因压缩丢失时重读。只读任务不因位于代码仓库而加载完整开发流程。所需文件缺失时报告具体路径并暂停依赖步骤，不自动重生成规则。
 
-- 代码必须充分写注释，且注释一律用中文（行/块注释、JSDoc / TSDoc、JavaDoc、SQL、配置、测试注释）；历史代码普遍缺注释，新开发把补齐必要注释作为完成标准，改到的复杂逻辑同步补上。
-- 所有改动走功能分支 + PR 合并 `main`，禁止直推 `main`；提交前确认依赖、构建产物、测试报告、环境文件、日志、证书、数据库快照都没进暂存区。
+| 任务 | 必读规则 |
+| --- | --- |
+| 任意文件修改，或 worktree / 分支 / 提交 / 推送 / PR 操作 | [Git 与 worktree](docs/agent-rules/git-worktree.md) |
+| 新功能、规格创建或续作、计划、任务拆分，以及进入开发执行 | [规格工作流](docs/agent-rules/spec-workflow.md) |
+| 实现、修复、配置、文档修改或测试验证 | [开发与模块边界](docs/agent-rules/development.md) |
+| 只读分析、评审 | 本入口与目标模块 README；涉及规格一致性或 Git 状态时追加对应规则 |
 
-## 子项目与技术栈
+## 子项目入口
 
-| 目录 | 用途 | 技术栈 | 常用命令 |
-|---|---|---|---|
-| `smart/` | 基础平台后端，包含网关、认证、UPMS 和公共组件 | Java 8、Maven、Spring Boot 2.1、Spring Cloud Greenwich、Nacos、Redis | `mvn clean install -DskipTests`；单服务 `mvn -pl <module> -am package -DskipTests` |
-| `smart-module/` | 业务微服务后端，包含 App、平台、数据、桥接、ISC、推送、调度等业务模块（清单见下） | Java 8、Maven、Spring Boot、Spring Cloud、MyBatis / MyBatis-Plus、Nacos、Kafka | `mvn clean package -DskipTests`；单服务 `mvn -pl <module>/<service> -am test` 或 `package` |
-| `smart-ui/` | 管理后台前端 | Vue 2、Element UI、Avue、Vue CLI、pnpm | `pnpm install`、`pnpm dev`、`pnpm lint`、`pnpm test`、`pnpm build` |
-| `smart-h5/` | 当前维护的微信 H5 应用，本次开发的模块（功能与目录见下） | Next.js 16、React 19、TypeScript strict、antd-mobile 5、Tailwind CSS 4、TanStack Query、Zustand、Vitest、Playwright | `pnpm check`、`pnpm test`、`pnpm e2e`、`pnpm build` |
-| `smart-h5-vue2/` | 历史 Vue2 微信公众号版 H5，只读参考，不再维护/发布 | Vue 2、Vue CLI、Vue Router、Vuex、cube-ui、pnpm | 默认不执行；`pnpm install`、`pnpm run serve`、`pnpm run test`、`pnpm run build` |
-| `smart-app-uniapp/` | 「裕慧家园」移动 App 客户端（Android / iOS），与 `smart-h5` 并行使用：App 场景用它、公众号场景用 H5；对接 `smart-module/smart-app` 后端（注意二者是客户端与后端模块的关系，勿混淆） | uni-app（HBuilderX 可视化工程、App-plus）、Vue 2、Vuex、UniPush | 无 CLI 构建；HBuilderX 打开目录，`npm install` 后用 IDE 运行 / 云打包 |
+子项目平铺为同级目录，禁止在子项目内另建 `.git`。新增子项目同步维护本清单与根 README；设计文档放对应子项目自己的 `docs/`。
 
-### `smart-module` 模块清单
+| 目录 | 范围 |
+| --- | --- |
+| `smart/` | 基础平台后端：网关、认证、UPMS、公共组件 |
+| `smart-module/` | 业务微服务后端：App、平台、设备桥接、数据、调度等 |
+| `smart-ui/` | Vue 2 管理后台 |
+| [smart-h5/](smart-h5/README.md) | 当前维护的 Next.js 微信 H5 |
+| `smart-h5-vue2/` | 历史 Vue2 H5，只读参考，不再维护或发布 |
+| [smart-app-uniapp/](smart-app-uniapp/README.md) | 「裕慧家园」App 客户端，与 H5 并行，对接 `smart-module/smart-app` 后端 |
 
-| 模块 | 用途 |
-|---|---|
-| `smart-app` | App 业务模块 |
-| `smart-platform` | 平台业务模块 |
-| `smart-data` | 数据通讯模块 |
-| `smart-push` | App 消息推送模块 |
-| `smart-schedule` | 定时任务模块 |
-| `smart-algorithm` | 算法模块 |
-| `smart-tool` | 智慧园区服务公共模块 |
-| `smart-bridge` | 设备桥接 |
-| `smart-bridge-isc` | ISC（综合安防平台）集成桥接 |
-| `smart-bridge-concentrator` | 设备集中器（YUTO Nexus，含协议层 `-protocol`） |
-| `smart-dispatcher` | 调度 / 分发 |
-| `smart-file` | 文件服务 |
-| `smart-transfer` | 数据传输 |
-| `smart-park-service` | 历史园区服务模块，仅存 pom、无 `src/` 源码，视为废弃占位 |
-| `FileReceiver` | 独立 Spring Boot 程序，接收入厂申请的人脸照片，部署在许昌打印机 Windows 机（`FileController` / `FileApplication`，产物 `build/file.jar`） |
-
-> `smart-bridge`/`-isc`/`-concentrator`/`smart-dispatcher`/`smart-file`/`smart-transfer` 的 pom 未写描述，用途按模块名标注，要精确可逐个核实。
-
-### `smart-h5` 功能清单
-
-> 当前已覆盖以下移动端流程，后续在 `src/app/` 路由 + `src/features/` 业务域结构内扩展。
-
-| 功能 | 路由 `src/app/` |
-|---|---|
-| 认证 / 登录 | `login`、`dev-login` |
-| 首页 / 公告 | `home` |
-| 我的 | `mine` |
-| 访客（邀请 / 通行） | `visitor` |
-| 通行码 | `code` |
-| 帮助中心 | `help` |
-| 宿舍 / 门锁 | `dorm` |
-| 宿舍报修 | `dorm-repairs` |
-| 入住 / 退宿 | `check-in`、`dorm-exit` |
-| 物品放行 | `good-release` |
-| 返厂 | `return-factory` |
-| 待办审批 | `backlog` |
-
-### `smart-h5` 目录结构（以实际代码为准）
-
-- `src/app/`：App Router 路由页面壳，每个功能一个目录（共 14 个，见功能清单）+ `layout.tsx` / `page.tsx` / `globals.css`；无 `api/` 路由，接口经 `next.config` rewrites 代理到网关，非 BFF。
-- `src/features/<域>/`：业务域逻辑，每域含 `api.ts`（接口调用）、纯函数业务规则、`flow-store.ts`（Zustand 流程状态）、`*-mock.ts`（mock 数据）和大量 `*.test.ts`（Vitest 单测）。现有 9 域：`auth`、`home`、`visitor`、`dorm`、`dorm-services`、`employee`、`good-release`、`help`、`backlog`。
-- `src/lib/`：共享基础设施。
-  - `api/`：API 兼容层（`client` 请求封装、`endpoints` 端点、`types`）
-  - `auth/`：认证态（`session` token 存储、`tenant` 租户、`wx-oauth` 微信网页授权）
-  - `wechat/`：微信 JS-SDK（`jssdk`）
-  - `config/`：运行时 / 环境配置（`runtime`、`env`）
-  - `crypto/`：加解密（`aes`、国密 `sm`）
-  - `format/`：格式化（`datetime`、`photo`）
-  - 通用 hooks 与工具：`use-mounted`、`use-list-pager`、`react19-compat`、`photo-id`、`text`
-- `src/components/`：跨模块通用组件 —— `page-shell`（页面壳）、`face-upload` / `face-avatar`（人脸采集 / 头像）、`plate-input`（车牌输入）、`sms-code-field`（短信验证码）、`approval-timeline`（审批时间线）、`visitor-steps`（访客步骤）、`image-list-upload`、`segment-tabs`、`rich-text-body`、`query-provider` 等。
-
-## 目录边界（各子项目，原版逐字保留）
-
-- `smart/`：`smart-gateway/` 放网关服务，`smart-auth/` 放认证服务，`smart-upms/` 放用户权限服务，`smart-common/` 放跨服务公共组件。
-- `smart-module/`：业务按一级目录划分；`api` 放服务契约，`biz` 放可部署服务，`core` 放领域复用代码；数据库变更以发布记录和已上线版本为准，不保留人工脚本目录。
-- `smart-ui/`：`src/api/` 放接口封装，`src/views/` 放业务页面，`src/router/` 放路由和 axios 配置，`src/store/` 放 Vuex，`public/` 放原样发布静态资源。
-- `smart-h5/`：见上方「`smart-h5` 目录结构」。
-- `smart-h5-vue2/`：`src/views-mobile/` 放旧移动端页面，`src/router/` 放旧路由，`src/services/` 放旧接口封装，`src/components/` 放旧通用组件；只读对标优先，不主动扩展业务。
-- `smart-app-uniapp/`：`api/` 放接口封装，`pages/page/` 放业务页面，`components/` 放通用组件，`config/` 放端点常量与权限字典，`tools/` 放请求与存储封装，`static/` 放运行时静态资源，`unpackage/res/` 放 HBuilderX 生成的图标与启动图（被 manifest.json 引用必须入库，勿把 `unpackage/` 整体加入忽略）。
-
-## 架构骨架
-
-后端是 Spring Cloud 微服务：Nacos 做注册 / 配置中心；`smart-gateway`（Spring Cloud Gateway）是统一入口；`smart-auth` 负责认证、签发 token，`smart-upms` 管权限；服务间走 OpenFeign 调用；后端包名统一 `com.tce.smart`。
+模块技术栈与命令见 [根 README](README.md)，细分目录及验证约定见 [开发规则](docs/agent-rules/development.md)，项目级资料见 [docs/README.md](docs/README.md)。架构与功能判断以当前源码、README 和配置为准，历史设计不等于已实现行为。

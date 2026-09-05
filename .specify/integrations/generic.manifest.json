@@ -3,15 +3,15 @@
   "version": "1.0.1",
   "installed_at": "2026-09-03T01:27:07.414874+00:00",
   "files": {
-    ".specify/commands/speckit.analyze.md": "0a3a02b73219372e55e5d8ecd208696bfaee5e5ebc880c45c858e1b4450718d9",
+    ".specify/commands/speckit.analyze.md": "a3863d0925bf9e9ef4e9b2d5c37c6b829fea3182266bc71e5beab089d8757968",
     ".specify/commands/speckit.clarify.md": "68fb0aa8fde8cfe590da892caffaeca35fbdfb379b3d5d028a370d80dd4fd497",
     ".specify/commands/speckit.constitution.md": "d76a1ecf2ada88befb6f055650db92f5e3d2ac0ed25795de9e3072fc9cb6484f",
-    ".specify/commands/speckit.implement.md": "f97b04c981e76e9d08518e85ecb775520fd51965c7cff8b43997bc3e59d4a37f",
-    ".specify/commands/speckit.converge.md": "1790575bcf59b0e14b26dda8f2d31a495d6ff4743680aee7fcb81bcd7f0b8c0f",
-    ".specify/commands/speckit.plan.md": "ff1809d5d72b399ec364414a150c1a20e782677972d11f0bdf8c65c73f898a71",
-    ".specify/commands/speckit.checklist.md": "efca0a3d9dd3e34712a3f9b7bbad5832fca2584ae977b286f56e57d50f53803b",
-    ".specify/commands/speckit.specify.md": "4317296c28a8ccdbe41c7769147a6d85090815c91634250330f107485607b246",
-    ".specify/commands/speckit.tasks.md": "aa4b299eb052a31e0ab22d3b2e85324c8247f65b873a2125b4f32dc316201fec",
+    ".specify/commands/speckit.implement.md": "0df65b232ac2c32c65ffa438f8697edef05fab78213d912ad052461396bd64ea",
+    ".specify/commands/speckit.converge.md": "66455790abe42b3f97052e98312c42149eb6fc6998b6fe46f0bef16755cf6a2b",
+    ".specify/commands/speckit.plan.md": "b32c711697e90e8efb9f3bf698271abfadfb00791551aef7376d9f10f60df75f",
+    ".specify/commands/speckit.checklist.md": "4c7cecca7ec31d6a57c31e4a7f34ed2d5bbd3e93b1a0cba33cb29f282ba1cdcf",
+    ".specify/commands/speckit.specify.md": "2118a4e42d1d1ae3c485cd1a1c3189b0b496f7d5fe1a129d14417c521274044d",
+    ".specify/commands/speckit.tasks.md": "b897999ca6d5488de9cc4420283491eded34fd487d3b65ae5c3374b550231cb5",
     ".specify/commands/speckit.taskstoissues.md": "1e9a2e305c17195a65e855ef468043e320ef7d1c01181c80fde40925eb5b448c"
   }
 }
