@@ -551,7 +551,7 @@ flowchart LR
   <p class="chapter-lede">批次 0 是《裕慧家园系统新增功能调研与实施方案》第四节里排在最前面的一批：修复调研顺带发现的 5 个现网缺陷（第六节①③④⑤，②做止血），并核查待确认问题 20（生产 5.4 任务开关状态）。这批改动共同点是"小、独立、可单独回滚"——每一项都不依赖其他项，不需要等厂牌打印、APP、决策 C（5.8 权限删除链路改造）任何一个大项先落地；相反，⑤/②/待办20 都是后续 P3 批次（5.8、2.6 完整版）验收前必须先清场的地基问题，因此排在最前面立即修。上线顺序建议：先做纯代码修复的①③⑤（互不依赖，可并行、可任意顺序合并），②因为同时涉及"止血"与"决策C 长期方案"的边界，修复口径需要先对齐（只做本批次列出的最小止血，不做完整状态机），④涉及订阅健康判定需要单独设计止血方案、且和 5.7 完整对账批次（批次4）有部分重叠面，建议放在①③⑤之后单独走查；待办 20 是纯核查+可能的应急处置，不改代码，可以和以上代码修复并行进行，但如果核查出生产已经误删，应急处置（关开关、核实名单、补发权限）要优先于①的代码合并上线节奏单独走应急流程。全部 5 项代码修复均为独立 PR、独立发布、独立回滚，互不阻塞；待办 20 产出一份可执行的运维核查手册，不产生代码提交。</p>
 
 <section class="item" id="item-d1">
- <div class="ih"><span class="ino">缺陷①</span><h3>保密区自动删除天数取错字段</h3><span class="ibatch">批次 0</span></div>
+ <div class="ih"><span class="ino">缺陷①</span><h3>保密区自动删除天数取错字段</h3><span class="ibatch">批次 0 · 已合入 main（PR #180）</span></div>
  <dl>
   <dt>现状与问题</dt>
   <dd>
@@ -560,6 +560,10 @@ flowchart LR
    <p><code>Integer limitDays = config.getIsWhiteList();</code></p>
    <p>这里应取管理员配置的天数阈值 <code>config.getDeleteDay()</code>（实体 <code>SmtSecurityAuthDelete.java</code> 注释"超过多少天后删除权限"，典型取值如 30/60/90），却错取了 <code>isWhiteList</code>——一个"是否启用白名单"的 0/1 开关字段。第 284 行判定 <code>if (limitDays &lt; dateTimes.size()) return Boolean.TRUE;</code>（真则删除）。由于 <code>limitDays</code> 恒为 0 或 1，只要员工距最近一次进出（或权限创建时间，187-192 行的兜底逻辑）已经过去 1 天以上——这在任何一次 0 点定时任务里几乎必然成立——就会被判定应删，与管理员在页面上实际配置的 30/60/90 天完全无关。也就是说：只要某园区管理员把 <code>deleteDay</code> 从 0 改成任意正数打算"启用自动删除"，实际生效的宽限期立刻从"他配置的天数"退化成"0~1 天"，属地雷型缺陷（配置越"正常"，误删越快出现）。</p>
    <p>影响范围：命中的每条权限，先经白名单校验（156-161 行 <code>smtSecurityWhiteService.isExist</code>）放行后，200 行 <code>smtStaffDeviceAuthService.removeById(authRelation.getId())</code> 物理删除本地 <code>smt_staff_device_auth</code> 记录，再于 207-208 行 <code>smtStaffService.savePersonCardTask(DeviceTaskConstants.DEL, ...)</code> 下发设备端删除任务——即整个园区非白名单的保密区权限，理论上会在开关生效当天几乎全部被清空。</p>
+  </dd>
+  <dt>实施状态（已合入 main，PR #180，最新修复提交 <code>e2b61abb</code>）</dt>
+  <dd>
+   <p>已在 <code>SmtSecurityAuthDeleteServiceImpl.freeDay()</code> 将宽限期阈值改为读取 <code>config.getDeleteDay()</code>，不再错误使用白名单开关 <code>isWhiteList</code>；新增未满、等于、超过 <code>deleteDay</code> 三个边界单测并通过。PR #180 已合入 <code>main</code>；生产发布与历史误删核查仍应按待办 20 的手册单独执行。</p>
   </dd>
   <dt>目标与验收标准</dt>
   <dd>修复后，<code>freeDay()</code> 的宽限期判定应使用 <code>config.getDeleteDay()</code>：员工在 <code>deleteDay</code> 天内有进出记录（或权限创建未满 <code>deleteDay</code> 天）不应被删除，超过才删除；<code>isWhiteList</code> 字段继续只用于原有白名单判定（156-161 行），不参与宽限期计算。验收：单测覆盖 <code>limitDays</code>（即 deleteDay）与 <code>dateTimes.size()</code> 的边界（相等/小于/大于）；灰度园区把 <code>deleteDay</code> 设为较大值（如 30）观察一个执行周期，只有"最近 30 天无进出记录且非白名单"的员工被建删除任务，其余不受影响。</dd>
