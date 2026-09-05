@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mock;
 /** 客户端管理页应从后端读取 capability scope 目录，而不是维护独立前端白名单。 */
 public class OauthClientDetailsControllerTest {
 
+	/** 校验管理页取得的目录顺序及两项历史权限标记；使用服务替身，不查询客户端记录。 */
 	@Test
 	public void scopesReturnsAuthoritativeCatalogWithoutClientSecrets() {
 		SysOauthClientDetailsService service = mock(SysOauthClientDetailsService.class);

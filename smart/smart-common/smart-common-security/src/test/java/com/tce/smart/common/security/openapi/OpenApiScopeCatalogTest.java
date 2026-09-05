@@ -11,6 +11,7 @@ import static org.junit.Assert.assertTrue;
 /** 后端 capability scope 目录必须是管理端和资源服务共用的唯一权威来源。 */
 public class OpenApiScopeCatalogTest {
 
+	/** 校验目录仅将 server 列为正常授权，保留两项废弃细分权限并拒绝通配值，不访问外部资源。 */
 	@Test
 	public void catalogContainsActiveServerAndMarksFineGrainedScopesDeprecated() {
 		List<OpenApiScope> scopes = OpenApiScopeCatalog.all();

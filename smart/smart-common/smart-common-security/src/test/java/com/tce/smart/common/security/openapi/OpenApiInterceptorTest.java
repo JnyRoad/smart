@@ -40,10 +40,12 @@ public class OpenApiInterceptorTest {
 		public void openApiHandlerMethod() {
 		}
 
+		/** 提供兼容历史能耗权限的 server 空入口，仅供反射读取授权注解，不执行业务。 */
 		@OpenApi(value = "server", compatibilityScopes = {"internal:energy:projection:run"})
 		public void migrationHandlerMethod() {
 		}
 
+		/** 提供含未登记兼容权限的空入口，用于验证注解不能绕过目录校验，不执行业务。 */
 		@OpenApi(value = "server", compatibilityScopes = {"internal:unknown:scope"})
 		public void invalidMigrationHandlerMethod() {
 		}
@@ -118,6 +120,7 @@ public class OpenApiInterceptorTest {
 		assertEquals(403, response.getStatus());
 	}
 
+	/** 验证未登记的 scope 即使写入兼容注解也返回 403，防止未知授权被误放行。 */
 	@Test
 	public void migrationDoesNotTreatUnknownScopeAsCompatibilityScope() throws Exception {
 		Set<String> unregisteredScope = new HashSet<>();
@@ -129,6 +132,7 @@ public class OpenApiInterceptorTest {
 		assertEquals(403, response.getStatus());
 	}
 
+	/** 验证关闭历史兼容后 server 仍获放行，避免迁移开关误禁用当前主授权。 */
 	@Test
 	public void primaryServerScopeRemainsAllowedWhenCompatibilityIsDisabled() throws Exception {
 		Set<String> serverScope = new HashSet<>();
@@ -188,6 +192,7 @@ public class OpenApiInterceptorTest {
 		assertEquals(403, response.getStatus());
 	}
 
+	/** 验证 server 与明确声明的历史能耗权限可用，同时拒绝仅名称相近的 server:read。 */
 	@Test
 	public void migrationScopeAcceptsPrimaryServerOrExplicitHistoricalScope() throws Exception {
 		Set<String> dedicatedScope = new HashSet<>();

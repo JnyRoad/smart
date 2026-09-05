@@ -74,3 +74,10 @@ mvn -B -o -Dmaven.repo.local=/private/tmp/smart-oauth-server-scope-m2-20260905 \
 ### PR 交付
 
 用户追加授权提交、推送并创建 PR；变更已提交 [PR #183](https://github.com/JnyRoad/smart/pull/183)，目标为 `JnyRoad/smart:main`，分支为 `fix/restore-oauth-server-scope`。蓝图已回填 PR 编号；未合并、未部署。上述测试结果来自创建 PR 前的本地验证，不代表远端 CI 通过。暂存后发现的规格 Markdown 行尾空格已清除，最终整体差异重新通过空白检查。
+
+### PR 注释检查反馈
+
+- 核对 PR #183 反馈对应的 head `1277b9d8c4b7c605a8db020ab51f5e023f5aff2a`：无行内评审线程，CodeRabbit 唯一检查警告为 Docstring Coverage 78.65%，要求 80%。来源：[评审检查说明](https://github.com/JnyRoad/smart/pull/183#issuecomment-5549009317)。
+- 对该 PR 已修改的 OpenApiInterceptorTest、OpenApiScopeCatalogTest、OauthClientDetailsControllerTest 共补齐 7 处中文 JavaDoc，说明主授权、历史兼容、未知权限拒绝及目录契约。
+- 与修复前 HEAD 比较，3 个 Java 文件去除注释后的全部代码词法内容一致，git diff --check 通过；纯注释修改未重复运行业务测试。
+- 本地修复完成后，用户已追加授权提交并推送至 PR #183；不宣称远端 Docstring Coverage 已通过，具体百分比待 CodeRabbit 复检。
