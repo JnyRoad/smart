@@ -2443,7 +2443,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
 <section class="item" id="item-5-6">
  <div class="ih"><span class="ino">5.6</span><h3>自动删除记录报表</h3><span class="ibatch">批次 5</span></div>
  <dl>
-  <dt>本次实现状态（源码已落地，未部署）</dt>
+  <dt>本次实现状态（已实现，<a href="https://github.com/JnyRoad/smart/pull/189" target="_blank" rel="noopener noreferrer">PR #189</a>，未合并、未部署）</dt>
   <dd>
    已实现独立“权限自动删除记录”页面、分页/组合筛选、CSV 导出和任务明细；审计保存执行时间、人员、部门、权限组及判定依据快照，覆盖白名单、未到期、无设备、人员缺失、演练、正式任务与异常。配置增加 <code>dryRun</code>，演练只记录、不删除权限或创建设备任务。<br>
    实际采用 <code>SMT_SECURITY_AUTH_DELETE_LOG</code> 与 <code>SMT_SECURITY_AUTH_DELETE_TASK</code> 两表，关联一条判定产生的全部任务；通过 <code>TASK_SOURCE + TASK_ID</code> 区分普通/ISC 任务。查询实时汇总执行中、任务执行成功、失败、未知；成功只表示任务表状态成功，不代表已完成 5.8 的设备确认闭环。单条权限变更、任务创建和审计使用独立事务，失败回滚后另存失败记录。<br>
