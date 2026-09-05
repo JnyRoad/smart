@@ -1,8 +1,8 @@
 # Feature Specification: 内部开放接口恢复 server 授权
 
-**Feature Branch**: `fix/restore-oauth-server-scope`  
-**Created**: 2026-09-05  
-**Status**: server 恢复与照片园区校验已实现，待 PR 合并，未部署  
+**Feature Branch**: `fix/restore-oauth-server-scope`
+**Created**: 2026-09-05
+**Status**: server 恢复与照片园区校验已提交 [PR #183](https://github.com/JnyRoad/smart/pull/183)，未合并、未部署
 **Input**: 旅途要求内部使用只管理 server，并放开 PR #161 已收敛的权限。
 
 ## User Scenarios & Testing

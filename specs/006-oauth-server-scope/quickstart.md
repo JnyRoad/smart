@@ -70,3 +70,7 @@ mvn -B -o -Dmaven.repo.local=/private/tmp/smart-oauth-server-scope-m2-20260905 \
 - 真实 Oracle、网关 token 签发链路及生产下载尚未验证；未执行提交、推送、合并、部署或真实数据库写入。
 - T013 独立复审：本轮照片增量无阻断问题；认证上下文取园区、有效申请查询、拒绝前不读图、旧一参调用移除及 FileReceiver 404 兼容已核验。`git diff --check` 与蓝图目标条目解析/唯一性检查通过。
 - 规格续作一致性分析：8 个功能需求与 4 个验收标准均由 T001–T013 覆盖，追加 FR-007/FR-008/SC-004 对应 T011–T013；无未映射任务或需求冲突，Oracle 现场验证限制保留。
+
+### PR 交付
+
+用户追加授权提交、推送并创建 PR；变更已提交 [PR #183](https://github.com/JnyRoad/smart/pull/183)，目标为 `JnyRoad/smart:main`，分支为 `fix/restore-oauth-server-scope`。蓝图已回填 PR 编号；未合并、未部署。上述测试结果来自创建 PR 前的本地验证，不代表远端 CI 通过。暂存后发现的规格 Markdown 行尾空格已清除，最终整体差异重新通过空白检查。
