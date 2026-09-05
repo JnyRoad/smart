@@ -1,25 +1,27 @@
 # docs
 
-`docs/` 保存项目级规则、跨子项目说明和不属于单一子项目的资料。它不是 `smart/` 后端的开发文档目录；后端文档在 [smart/docs/](../smart/docs/)，H5 资料在 [smart-h5/docs/](../smart-h5/docs/)。
+`docs/` 保存项目级规则、跨子项目说明和不属于单一子项目的资料。它不是 `smart/` 后端的开发文档目录：后端资料在 [smart/docs/](../smart/docs/)，当前 H5 资料在 [smart-h5/docs/](../smart-h5/docs/)，各业务模块的专项资料在对应模块目录的 `docs/`。
 
 ## 规则入口
 
 从 [AGENTS.md](../AGENTS.md) 开始，按当前任务读取并复用：
 
-- [Git 与 worktree](agent-rules/git-worktree.md)：首次写入前隔离、复用决策、分支和授权边界。
-- [规格工作流](agent-rules/spec-workflow.md)：已有规格绑定、Spec Kit 与 superpowers 交接、资料版本管理。
-- [开发与模块边界](agent-rules/development.md)：子项目职责、数据边界、中文注释及模块验证。
+- [Git 与 worktree](agent-rules/git-worktree.md)：工作区隔离、分支和交付边界。
+- [规格工作流](agent-rules/spec-workflow.md)：规格复用、Spec Kit 产物和执行交接。
+- [开发规则](agent-rules/development.md)：代码中文约定、权限 / Oracle 边界和验证政策。
 
-## 开发资料
+技术栈、模块目录和运行命令集中在[项目 README](../README.md)；App 资源和打包细节见 [App README](../smart-app-uniapp/README.md)。
 
-- [specs/](../specs/)：持久规格、计划、任务清单与验收记录。
-- [.specify/](../.specify/)：项目工作流、命令、模板和宪法；本机指针与缓存按具体路径忽略。
-- [管理端门锁资料](../smart-ui/docs/superpowers/doorlock/) 与 [H5 门锁资料](../smart-h5/docs/superpowers/doorlock/)：保留设计、计划和验收历史；内容是否已实现需核对当前代码与验证证据。
-- 管理端页面功能清单文档：管理端页面、功能与对版参考。
+## 资料导航
 
-## 维护规则
+- [项目规格](../specs/)：持久规格、计划、任务清单与验收记录。
+- [Spec Kit 工作流资料](../.specify/)：命令、模板、工作流和项目宪法。
+- [管理端页面功能清单](legacy-smart-ui-页面功能清单.md)：从旧版 smart-ui 逆向整理的页面与组件参考，用于对照和 H5 重写；它不单独证明当前代码已实现这些能力。
+- [管理端门锁资料](../smart-ui/docs/superpowers/doorlock/) 与 [H5 门锁资料](../smart-h5/docs/superpowers/doorlock/)：设计、计划和验收历史；当前实现状态需回到对应源码和验证记录核对。
+- [H5 文档](../smart-h5/docs/README.md)：当前 H5 的评估、设计、原型与实施资料。
+- [Docker 本地环境说明](../docker/README.md)：本地 Compose 服务、profile 和配置说明。
+- [发布脚本说明](../scripts/README.md)：Jar 汇总、发布清单和脚本校验。
 
-- 项目级文档放这里；子项目独占的设计、接口、原型和 ADR 放回该子项目的 `docs/`。
-- `.specify/`、`specs/`、`.superpowers/` 和子项目 `docs/superpowers/` 的持久资料允许入库，不因任务完成删除设计历史；本机状态、缓存、日志和环境文件不提交。
-- 清单类文档标明来源及适用范围，避免被误读为当前实现承诺。
-- 涉及生产配置、账号、密钥、真实客户数据的材料不要提交。
+## 文档归属
+
+项目级规则、跨模块约定和资料索引放在本目录；单一子项目独占的设计、接口、原型和 ADR 放回该子项目的 `docs/`。设计、计划和验收材料描述其对应阶段的结论，是否已进入当前实现以源码、配置和验证证据为准。
