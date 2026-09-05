@@ -6,14 +6,14 @@
 
 | 来源 | 本轮核实的基线 | 使用方式 |
 | --- | --- | --- |
-| Smart 主项目 | `/Users/lvtu/source/YUTO/smart`，main `157d4ca1060873c480644714965093b81b514c2e` | 当前技术栈、住宿入口、认证/权限、前端与规格工作流；不修改其用户未提交内容 |
-| 重建门锁工程 | `/Users/lvtu/source/YUTO/smart-lock`，HEAD `e236793` | 优先参考可维护源码与已有可靠投递修复；不是直接复制的最终模块 |
-| 最早反编译参考 | `/Users/lvtu/source/门锁系统/smart-jar/smart-lock-biz-decompiled`、`/Users/lvtu/source/门锁系统/smart-jar/device-server-biz-decompiled` | 解释原协议与旧业务；不得用旧缺陷覆盖重建版本的修复 |
-| Web 对标 | `/Users/lvtu/source/门锁系统/smart-ui` | 旧构建产物/操作参考，结合已存页面清单；动态菜单和运行态仍需现场证据 |
-| 当前前端设计 | [Web](../../smart-ui/docs/superpowers/doorlock/README.md)、[H5](../../smart-h5/docs/superpowers/doorlock/README.md) | 保留页面对版历史，新契约和统一身份优先 |
+| Smart 主项目 | [JnyRoad/smart](https://github.com/JnyRoad/smart/tree/157d4ca1060873c480644714965093b81b514c2e/)，固定 commit `157d4ca1060873c480644714965093b81b514c2e` | 当前技术栈、住宿入口、认证/权限、前端与规格工作流；不修改其用户未提交内容 |
+| 重建门锁工程 | [JnyRoad/smart-lock](https://github.com/JnyRoad/smart-lock/tree/e236793bbbd894b43fc06958595c2e9577d8da4a/)，固定 commit `e236793bbbd894b43fc06958595c2e9577d8da4a` | 优先参考可维护源码与已有可靠投递修复；不是直接复制的最终模块 |
+| 最早反编译参考 | 离线资料标识 `LEGACY-LOCK-BIZ-DECOMPILED`、`LEGACY-DEVICE-SERVER-BIZ-DECOMPILED`（无可核实仓库 URL/commit；版本与文件摘要均 `[UNVERIFIED]`） | 解释原协议与旧业务；不得用旧缺陷覆盖重建版本的修复 |
+| Web 对标 | 离线资料标识 `LEGACY-LOCK-WEB-UI`（无可核实仓库 URL/commit，版本与文件摘要 `[UNVERIFIED]`） | 旧构建产物/操作参考，结合已存页面清单；动态菜单和运行态仍需现场证据 |
+| 当前前端设计 | [Web（Smart pinned commit）](https://github.com/JnyRoad/smart/tree/157d4ca1060873c480644714965093b81b514c2e/smart-ui/docs/superpowers/doorlock/README.md)、[H5（Smart pinned commit）](https://github.com/JnyRoad/smart/tree/157d4ca1060873c480644714965093b81b514c2e/smart-h5/docs/superpowers/doorlock/README.md) | 保留页面对版历史，新契约和统一身份优先 |
 | 源码盘点 | [source-inventory.md](source-inventory.md) | 表、字段、状态与来源路径的详细证据 |
 
-图谱按 Tier 2 使用：Smart 项目 `Users-lvtu-source-YUTO-smart`（代次 `2026-09-05T04:00:36Z`），重建门锁项目 `doorlock-smart-lock-reconstructed-20260804`（代次 `2026-09-05T04:34:36Z`）。涉及实体、关键调用及配置均用精确源码补证。Java 动态/继承调用不能靠“入边为零”证明没有调用方；前端构建、文档、被排除目录采用文件级证据。全量实体清单仍不是实际数据库完整表清单。
+图谱按 Tier 2 使用：Smart 项目 `Users-lvtu-source-YUTO-smart`（代次 `2026-09-05T04:00:36Z`），重建门锁项目 `Users-lvtu-source-YUTO-smart-lock`（代次 `2026-09-05T06:29:29Z`）。外部门锁仓库的 22 个实体和 17 个 Mapper XML 以固定 commit 的 Git manifest 为准；图谱 coverage 只是交叉核对信号，不能替代清单完整性或实际数据库表清单。Java 动态/继承调用不能靠“入边为零”证明没有调用方；前端构建、文档、被排除目录采用文件级证据。
 
 ## R-01 统一产品，保留清晰内部模块
 

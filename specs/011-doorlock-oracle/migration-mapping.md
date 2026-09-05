@@ -93,15 +93,20 @@ DDL、DML、真实迁移或生产切换。
 `remark -> evidence_note`；`del_flag -> archive_status`；`create_user/create_time/
 update_user/update_time -> 审计`。旧配置存在不等于设备型号和固件已验证支持。
 
-### 2.6 `lk_device_permissions`：人员-设备授权 → `DL_ACCESS_GRANT`
+旧表没有 gateway/device/profile 五元组的实测证据，不能直接导成已验证能力行，
+也不能构造“通配所有设备”的能力记录。先保留来源配置/归档引用；取得实际
+`gatewayId + deviceId + model + firmware + protocolProfileId` 和对应能力证据后，
+才建立精确匹配的候选能力行。缺任一维保持待核验，不跨设备继承通过结论。
+
+### 2.6 `lk_device_permissions`：人员-设备授权 → 父授权与设备目标
 
 来源：`.../entity/LkDevicePermissions.java:17-62`，XML 明确字段见
 `.../mapper/LkDevicePermissionsMapper.xml:7-20`，联表投影见 `:22-44,46-156`。
 
 | 旧列 | 目标候选 | 规则 |
 |---|---|---|
-| `id` | `DL_ACCESS_GRANT.source_legacy_id` | 新授权 ID 不与旧 ID 直接假定相同。 |
-| `park_id/person_id/device_id` | 平台园区/人员引用、`DL_DEVICE.id` | `person_id` 先经 `lk_person.person_num` 和平台人员匹配。 |
+| `id` | `DL_LEGACY_ID_MAP` 中父授权/设备目标两种 target_role 的来源键 | 新 grantId 和目标 ID 不与旧 ID 假定相同；多条旧设备权限可在证据确认后关联同一父授权，完整来源关系不能塞进父行的单个 source_legacy_id。 |
+| `park_id/person_id/device_id` | 父 `DL_ACCESS_GRANT` 的平台园区/人员引用；子 `DL_GRANT_TARGET.device_id` | `person_id` 先经 `lk_person.person_num` 和平台人员匹配，设备维度不再作为父授权身份。 |
 | `valid_time_start/valid_time_end` | `effective_from/effective_to` | 时区、精度、空值和结束边界需验证。 |
 | `status` | `authorization_status` 的迁移分类 | 不把旧 ACTIVE 直接写成“设备已确认”；以当前 membership、回执和对账证据重建。 |
 | `del_flag` | 迁移 `disposition`/`classification` 和撤权待处理线索 | 逻辑删除不等于设备撤权完成；只有明确设备 ACK 或人工核验设备已无凭据时才可进入 `REVOKED`，否则保留 `PENDING_REVOKE` 或 `RECONCILIATION_REQUIRED`。 |
@@ -110,6 +115,12 @@ update_user/update_time -> 审计`。旧配置存在不等于设备型号和固�
 `person_num/person_name/device_name/connect_status` 等在 XML 的
 `personDeviceMap` 中是联表投影，不是 `lk_device_permissions` 自身列；不得
 在目标表重复存成可变主数据。
+
+父授权的一版以 `grantId + grantRevision + membershipId` 固定身份；每设备目标
+进入 `DL_GRANT_TARGET`，目标下凭据通过 `DL_GRANT_CREDENTIAL` 关联。归组必须
+有平台住宿、授权原因及有效窗口等证据，不能仅按相同人员把历史权限自动合并；
+无法确认关系的记录保留来源归档并隔离。只有当前 revision 的全部必需目标/凭据
+完成设备确认后父授权才可 `ACTIVE`，旧库任一设备行成功不能代表整个父授权完成。
 
 ### 2.7 `lk_key`：设备凭据 → `DL_CREDENTIAL`
 
@@ -159,8 +170,9 @@ FAILED/EXPIRED/CANCELLED/RECONCILIATION_REQUIRED`。旧未完成任务必须保�
 - 旧 `lk_device_permissions` 与 `lk_key` 只提供候选人员/设备/钥匙来源；
   `membership_id`、生命周期 `event_id` 和有效期由平台事实/`smart-lock` Inbox
   消费时确定。`DL_GRANT_CREDENTIAL` 允许多个有效 grant 共享一条设备凭据。
-  撤销单个 grant 只解除关系并发撤权命令；无其它有效关系、无在途命令且设备侧
-  撤销/槽位收敛有证据时，才收敛凭据状态。
+  撤销非最后有效 grant 只解除关系并记录 `RETAINED_BY_OTHER_ACTIVE_GRANT`，
+  不发送物理删钥；只有最后有效引用结束且历史目标/槽位仍匹配时才生成撤权命令。
+  存在未知在途效果或槽位冲突须隔离核验；设备撤销/槽位收敛有证据后才确认凭据状态。
 - 生命周期事件的 `event_id`、字符串 `aggregate_id`、`aggregate_version` 和
   `membership_id` 必须随 Inbox、授权、命令和回执保留；旧行没有这些字段时不得
   编造，使用迁移批次/来源引用并标记待补证。

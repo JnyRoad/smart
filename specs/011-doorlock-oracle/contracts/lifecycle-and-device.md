@@ -76,12 +76,15 @@
 事件消费规则：
 
 1. 先验证服务身份、`schemaVersion`、`payloadHash` 和 `eventId`，再写 Inbox/处理记录。
-2. 相同 `eventId` 的重复投递返回原处理结果，不再创建授权或命令；相同业务事实不能靠生成新 `eventId` 绕过去。
-3. 对采用 aggregateVersion 的事件，小于等于已处理版本时，旧版本只记录重复/迟到，不回退状态；高于当前版本但存在缺口时先入待处理/对账，不跳过缺失版本直接推进物理权限。
+2. 只有相同 `eventId` 且不可变载荷摘要一致的精确重投才返回该事件原处理结果，不再创建授权或命令；同 ID 不同载荷须隔离冲突，相同业务事实不能靠生成新 `eventId` 绕过去。
+3. 对采用 aggregateVersion 的事件，新 `eventId` 携带小于等于已处理版本时，为本事件持久记录 `STALE_EVENT`/迟到结果，不返回另一事件的成功；事实冲突或无法核实一致性则进入 `RECONCILIATION_REQUIRED`。不得推进或回退当前授权；高于当前版本但存在缺口时先入持久待处理/对账，不跳过缺失版本直接推进物理权限。
 4. `membershipId` 是授权关系和撤权围栏，但“当前有效”只适用于新增/修改凭据和新授权。撤权/删钥命令可以针对已关闭 membership，只要能够匹配历史 `grantId + grantRevision`、`credentialId`、物理/逻辑 `credentialSlot` 和目标设备，并重新核验当前仍有效的其他 grant 引用；旧 membership 的迟到新增成功只能记录证据并生成补偿撤权/人工核验，不能使新 membership 或人员状态恢复为 `ACTIVE`。
 5. 重放必须带 `replayBatchId` 与环境标志；影子/演练只更新模拟投影和审计，不发送真实设备命令。
 6. `STAFF_IDENTITY_MAPPING_CHANGED_V1` 使用人员住宿聚合的 `aggregateId`/`aggregateVersion`，由 platform Outbox 产生；`ROOM_DEVICE_BINDING_CHANGED_V1` 使用独立的 `ROOM_DEVICE_BINDING:{roomId}` 事实聚合和 `bindingVersion`，由 lock 的 `RoomBindingService` 在自身事务中持久化并排队重算。二者是拆分的显式事实记录，不能被五种住宿事件替代；绑定事实不要求额外 MQ 或 platform 跨表写，重算时通过住房 API 核对。
-7. 跨房调宿的安全顺序是“旧目标撤权命令获得明确 `DEVICE_ACK` 且旧授权进入 `REVOKED` → 再排队新目标 provision”。旧目标离线、无回执或结果未知时不自动发新房授权，进入 `RECONCILIATION_REQUIRED` 和人工应急通行流程。
+7. 跨房调宿的安全顺序是“旧授权关系撤销、所需物理删钥均获得明确 `DEVICE_ACK` 且旧授权进入 `REVOKED` → 再排队新目标 provision”。仍被其他有效 grant 引用的共享凭据按 3.2 记录 `RETAINED_BY_OTHER_ACTIVE_GRANT`，属于经核验无需删钥，不伪造 ACK。需要实际撤权的旧目标离线、无回执或结果未知时不自动发新房授权，进入 `RECONCILIATION_REQUIRED` 和人工应急通行流程。
+8. 绑定事实的 `bindingId` 稳定对应房间绑定聚合，`bindingVersion` 在该聚合单调递增，一版可包含多个设备目标。锁域同事务保存绑定事实、重算任务和本地已知的受影响 membership；提交后才分页核对平台住房，以 `scopeWatermark` 和 `scopeStatus=SEALED` 封存完整范围。不得把跨服务分页当作同事务原子快照；范围缺口、住房版本变化或绑定版本过期时停止新目标 provision，保留可恢复的分项进度和错误。持久字段及 claim/retry 规则见 [数据模型](../data-model.md) 的绑定重算两表。
+9. 范围收集与授权执行分阶段领取：`claimPhase=SCOPE_COLLECTION` 可在范围未封存时领取、分页和重试，但不能发送命令；只有范围已封存且绑定版本仍匹配时才可 `claimPhase=EXECUTION`。平台住房读取须提供可复用的稳定快照，或提供所有相关住房变更都递增的水位，并在遍历前、每页和结束时确认一致；变更/快照失效须重新收集，不能混合不同水位的页面。现有 API 若无法提供上述证据，任务保持 `GAP/RECONCILIATION_REQUIRED`，由 T038 补齐只读契约，不能假定普通分页天然一致。
+10. 同 `eventId` 异载荷不覆盖 Inbox 的原记录：以原 Inbox 行为审计对象，向 `DL_AUDIT_EVENT` 追加冲突摘要、来源/接收时间及独立不可变的受控 `evidenceRef`，保留原载荷与冲突载荷的对应关系；冲突记录同事务落账且不产生授权或命令。普通审计只存脱敏字段，完整载荷仅保存在批准的证据存储中。
 
 ## 3. 授权与设备状态
 
@@ -99,9 +102,9 @@
 
 ### 3.2 授权记录、凭据共享与撤权
 
-1. 授权记录的业务身份至少为 `grantId + grantRevision + membershipId`；设备凭据引用为 `credentialId`，不等于密码/卡号等秘密本身，并保留可审计的物理/逻辑 `credentialSlot` 映射。一次授权可能要求多个设备凭据，只有全部要求都确认成功才是 `ACTIVE`。
+1. 授权记录的业务身份至少为 `grantId + grantRevision + membershipId`；由 `DL_ACCESS_GRANT` 保存父记录、`DL_GRANT_TARGET` 保存每个真实设备目标、`DL_GRANT_CREDENTIAL` 保存各目标凭据关系，不能为每个设备创建互不关联的父授权。设备凭据引用为 `credentialId`，不等于密码/卡号等秘密本身，并保留可审计的物理/逻辑 `credentialSlot` 映射。一次授权可能要求多个设备凭据，只有全部必需目标及其必需凭据都确认成功才是 `ACTIVE`。
 2. 多个有效 grant 可以引用同一设备上的同一 `credentialId`。撤销其中一个 grant 时，只撤销该 grant 的关系；只有该 `credentialId` 已没有其他当前有效 grant 引用，才可生成物理删钥命令。仍有其他有效 grant 时，物理钥匙必须保留，并在审计中记录 `RETAINED_BY_OTHER_ACTIVE_GRANT`。
-3. 重新授权不能复活旧 `grantId`；管理员在同一有效 membership 下重新授权必须生成新 `grantRevision`/新记录，旧回执按旧 grant 围栏。membership 结束后的新入住仍必须使用新的 `membershipId`。
+3. 重新授权不能复活旧 `grantId + grantRevision`；管理员在同一有效 membership 下重新授权必须生成新 `grantRevision`/新记录，同一 revision 下的多个设备目标共享父授权身份，旧回执按旧 revision 围栏。membership 结束后的新入住必须使用新的 `membershipId` 和授权身份。
 4. 撤权不是“当前 membership 有效”检查：已关闭 membership 的撤权必须保留历史 grant、credential、slot 和设备目标，按当前其他有效 grant 引用重新计算是否需要物理删钥；历史关系不存在、slot 已被复用或引用计数冲突时进入 `RECONCILIATION_REQUIRED`，不能盲删。
 
 ### 3.3 命令状态
@@ -112,7 +115,7 @@
 | `DISPATCHED` | 已交给桥接并登记本次尝试 | 等待桥接传输证据。 |
 | `WAITING_ACK` | 已有传输层接收或写出证据，但没有设备结果 | 等待设备回执/超时；不算成功。 |
 | `SUCCEEDED` | 设备明确确认本次操作成功，且业务围栏仍匹配 | 推进相应授权/配置状态。 |
-| `RETRY_PENDING` | 当前尝试可安全重试，已按策略等待 | 产生下一 `attemptNo`；不能无限重试。 |
+| `RETRY_PENDING` | 已证明未出线，或已获得明确设备失败且 profile 证明无未知副作用；operation/profile 批准重试，当前授权、版本和有效期均仍满足 | 产生下一 `attemptNo`；不能无限重试，不适用于未知物理结果。 |
 | `FAILED` | 明确的设备失败、协议拒绝或业务不可重试错误 | 保留原因；必要时进入补偿/人工处理。 |
 | `EXPIRED` | 超过命令有效期或目标版本已失效 | 不发送、不重放；需要新业务意图。 |
 | `CANCELLED` | 在安全发送前由业务或系统取消 | 不得由迟到成功回执恢复业务授权。 |
@@ -166,6 +169,7 @@
 - 每个 `commandId + attemptNo` 只对应一个 `wireTaskId`。同一次尝试可以产生传输 ACK、多个分包 ACK、最终设备 ACK；Bridge 回传 outbox 以事件 ID 去重，不能对 commandId+attemptNo 建唯一约束从而丢掉后续回执。协议无法安全复用关联号时，下一尝试必须生成新的映射并明确旧尝试为未知/终止；不能借旧线任务号制造“看似同一”的确认。
 - `payloadReference` 指向受控密文/短时秘密存储；普通日志只保存类型、长度和摘要。服务间不传明文密码、完整卡号、指纹模板或可重放原始报文。
 - 命令快照必须按 `targetKind` 包含创建时的目标事实：`CREDENTIAL` 必须有 `grantId`、`grantRevision`、`credentialId`、`credentialSlot`、`membershipId`、目标设备、园区和 `targetAggregateVersion`；新增/修改快照对应当前有效 membership，撤权/删钥快照可对应已关闭 membership 但必须保留历史关系和当前引用校验结果；资产/危险动作必须有目标设备或网关、园区、`expectedVersion` 和未过期的 `operatorAuthorization`。桥接只能执行快照，不可自行从平台查询另一人员或房间，也不能把缺失的人员字段补成默认值。
+- 上述快照由 `DL_COMMAND` 不可变字段及受控、脱敏的授权声明引用持久保存，不能仅依赖重启后查询当前表重建，也不保存可重放 bearer token。每次发送/重试仍需重新核验当前权限、目标版本和有效期，核验记录归 `DL_COMMAND_ATTEMPT`；快照用于追溯原意图，不取代当前授权门禁。
 
 ### 4.1 命令接收响应
 
@@ -216,7 +220,7 @@
 1. Outbox、内部调用和桥接回传均按至少一次投递；消费者先按 `eventId` 去重，再按 `commandId + attemptNo` 和 `wireTaskId` 检查重复/冲突。
 2. 同一回执重复到达时返回已记录结果；相同关联号但 payload/hash/设备身份冲突时进入 `RECONCILIATION_REQUIRED` 和安全告警。
 3. 进程重启不得丢失 `QUEUED`、`DISPATCHED`、`WAITING_ACK`、`RETRY_PENDING` 或待投递回执；恢复扫描必须尊重 `expiresAt`、membership 和单活租约。
-4. 设备不承诺物理 exactly-once。系统承诺的是业务消息至少一次、数据库幂等、协议关联可追溯、未知结果显式对账；重试是否安全必须按 `operation` 和 profile 单独批准。
+4. 设备不承诺物理 exactly-once。系统承诺的是业务消息至少一次、数据库幂等、协议关联可追溯、未知结果显式对账。断线、崩溃或回执丢失场景只有持久证据证明未出线，且当前授权/版本/有效期和 `operation`/profile 安全重试门禁均满足，才允许 `RETRY_PENDING`；已经写出、是否写出未知或关联号不确定则进入 `RECONCILIATION_REQUIRED`，不生成新物理发送。明确的设备失败是另一条已知结果路径，只有 profile 证据排除未知副作用并批准该错误码重试才可受控重试；不能借此放行无回执场景。
 5. 迟到 `DEVICE_ACK` 先按命令/尝试去重，再检查当前 membership 与聚合版本；过期、取消或撤权后的新增成功不得恢复授权，只能触发补偿撤权或人工核验。
 
 ### 5.2 网关健康与设备事件
@@ -243,6 +247,8 @@
 ```
 
 健康/设备事件只更新通信投影、告警和审计；只有同时具备合法 `commandId + attemptNo`、未冲突的 `wireTaskId` 和明确设备结果时，才可作为命令回执参与授权状态机。非法帧、未知 profile、身份冲突、重复键冲突和频率超限进入隔离/告警，不直接改变授权终态；`safeSummary` 不能替代原始敏感报文，也不能让前端重放。
+
+`DL_DEVICE_EVENT` 持久保存 `deduplicationKey`，其范围为 `gatewayId + deviceId + protocolProfileId`；同键跨 `eventId` 重投也要去重。相同内容只保留一个 canonical 事件，并为新 `eventId` 保存可追溯 alias；不同内容保留冲突行和受控证据，不覆盖原事件。canonical 的并发唯一性必须在 Oracle 本地事务中保证，不能只查询后插入；后续迁移事件仍使用来源系统/表/主键定位，不以历史事件重放设备操作。
 
 ## 6. 安全、审计和错误语义
 

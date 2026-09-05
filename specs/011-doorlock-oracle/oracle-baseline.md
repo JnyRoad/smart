@@ -114,14 +114,22 @@
   `DL_ACCESS_GRANT`、`DL_CREDENTIAL` 或设备命令。Outbox 事件持久化
   `event_id`、字符串 `aggregate_id`、`aggregate_version` 和 `membership_id`。
 - publisher 提交后至少一次投递到 smart-lock Inbox；smart-lock 在独立消费事务中
-  原子写入 `DL_INBOX`、消费版本游标、`DL_ACCESS_GRANT`、
-  `DL_GRANT_CREDENTIAL` 及需要的命令事实。重复 `event_id` 或旧
-  `aggregate_version` 返回既有处理结果，不跨服务改写平台事务。
+  原子写入 `DL_INBOX`、消费版本游标、`DL_ACCESS_GRANT`、`DL_GRANT_TARGET`、
+  `DL_GRANT_CREDENTIAL` 及需要的命令事实。只有相同 `event_id` 且不可变载荷
+  摘要一致的精确重投才返回该事件既有处理结果；同 ID 不同载荷须隔离冲突。
+  新 `event_id` 携带已处理或更旧的 `aggregate_version` 时，必须为该事件保存
+  显式 `STALE_EVENT`/迟到处置结果；无法核实其事实一致性或发现冲突时进入
+  `RECONCILIATION_REQUIRED`，不能冒用另一事件的成功结果，也不推进或回退
+  当前授权。高版本存在缺口时持久待处理并对账，不跨服务改写平台事务。
 - publisher claim 需要明确 `SELECT ... FOR UPDATE`/版本号/claim token、超时
   回收、并发实例和索引方案；本轮不指定具体 SQL，因为目标 Oracle 版本和权限
   未验证。
 - Bridge 不创建授权/命令，不凭缓存重建业务决策；发送失败、回执丢失、迟到或
   冲突均通过 `DL_COMMAND_ATTEMPT`、`DL_RECEIPT`、`DL_RECONCILIATION` 处理。
+- 房间绑定变化在锁域同事务写入 `DL_DEVICE_ROOM_BINDING`、独立绑定版本、
+  `DL_BINDING_RECALC_TASK` 和本地已知的 `DL_BINDING_RECALC_MEMBERSHIP`；
+  提交后再通过平台住房 API 核对并封存受影响范围。分页未完成、水位有缺口或
+  绑定版本过期时不得创建新目标授权；跨服务查询不被描述为原子住房快照。
 
 ### 4.2 至少一次与对账
 
@@ -129,7 +137,8 @@
   承诺 exact-once。
 - `DL_ACCESS_GRANT.authorization_status` 只使用
   `PENDING_PROVISION/ACTIVE/PENDING_REVOKE/REVOKED/RECONCILIATION_REQUIRED`；
-  `ACTIVE` 同时要求目标设备凭据确认和当前 membership 资格有效，不能把
+  `ACTIVE` 同时要求该父授权下全部必需 `DL_GRANT_TARGET` 的必需凭据确认
+  和当前 membership 资格有效，不能把
   `EXPIRED` 作为授权状态。多个 grant 可通过 `DL_GRANT_CREDENTIAL` 共享凭据，
   单个撤权不应删除仍被其它有效 grant 使用的凭据。
 - `DL_COMMAND.command_status` 只使用：

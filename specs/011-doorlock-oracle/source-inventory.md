@@ -3,24 +3,39 @@
 ## 1. 范围、来源和证据等级
 
 本文只盘点可读的重构源码，不把实体类、Mapper XML 或本地配置当作真实
-Oracle DDL。外部源码来源根固定为：
+Oracle DDL。权威源码来源固定为仓库
+[JnyRoad/smart-lock](https://github.com/JnyRoad/smart-lock.git)，提交
+`e236793bbbd894b43fc06958595c2e9577d8da4a`；该提交已核实为 `origin` 的完整
+commit。下文所有外部源码路径均为该提交根目录下的相对路径，不提交本机
+checkout 路径、临时 worktree、JAR 内部绝对路径或环境文件。
 
-`/Users/lvtu/source/YUTO/smart-lock`
+机器可读清单见
+[evidence/source-inventory.json](evidence/source-inventory.json)，包含 22 个
+`@TableName("lk_*")` 实体和 17 个 Mapper XML 的相对路径、表/namespace、声明
+行及 Git blob OID。用固定提交重建时，确定性查询为：
 
-下文所有外部源码路径均相对于该根目录；不引用临时 worktree、JAR 内部绝对
-路径或环境文件。源码仓库自己的 `AGENTS.md` 明确说明该仓库不重构数据库
-schema、凭据或设备网络夹具；本仓库的 `smart-module/README.md` 也明确把
-数据库 schema 列为运行边界。
+```sh
+COMMIT=e236793bbbd894b43fc06958595c2e9577d8da4a
+git grep -n -E '@TableName\("lk_[^\"]+"\)' "$COMMIT" -- \
+  'smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/*.java' | LC_ALL=C sort
+git ls-tree -r --name-only "$COMMIT" -- \
+  smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper | LC_ALL=C sort
+```
 
-本次结构证据来自代码图谱项目
-`doorlock-smart-lock-reconstructed-20260804`，索引生成时间
-`2026-09-05T04:34:36Z`，generation 与 coverage metadata 匹配，当前没有
-`parse_partial` 或 `skipped` 文件。图谱精确搜索
-`^LkPerson$|^LkKey$|^LkDeviceTask$` 返回 3 个类、无分页；源码盘点再以
-`@TableName("lk_...")` 和精确文件读取交叉核对。对 22 个实体文件和 17 个
-Mapper XML 执行过一次 `check_index_coverage`：均为
-`metadata_match / no_recorded_issue`。这是 best-effort 覆盖信号，不证明
-数据库或源码之外没有对象。
+两条查询的计数分别为 22、17；查询输出 SHA-256 分别为
+`a05e1bbe682dca5684bb8c8fa756c8ab7de8d68c6aff916e6209b8738f4f9c97` 和
+`54c2ec281a2d45701d5897f4fee3e6f2b84534185c31c6686a3507333293f240`。清单的
+记录投影（`relativepath<TAB>table_or_namespace<TAB>declaration_line<TAB>blob_oid`，
+先实体后 XML）SHA-256 为
+`f88bfaedb53772634d5b500246dd4ea1d04d0eb52027e94253ff74012fbd2ca3`。
+
+代码图谱仅作结构交叉核对：项目
+`Users-lvtu-source-YUTO-smart-lock` 的 generation 为
+`2026-09-05T06:29:29Z`，Tier 2/full，coverage metadata 完整；对本清单 39
+条路径执行的 `check_index_coverage` 均返回 `metadata_match /
+no_recorded_issue`。这是 best-effort 覆盖信号，不证明图谱或数据库完整；
+Smart 主仓扫描不能得到外部仓库的 22/17 清单，完整性以固定 commit 的 Git
+查询、计数和 OID 清单为准。
 
 证据等级：
 
@@ -40,27 +55,27 @@ Mapper XML 执行过一次 `check_index_coverage`：均为
 | 旧表 | 实体来源（相对路径:行） | 源码可见类别 | 本轮处置 | 在线主数据结论 |
 |---|---|---|---|---|
 | `lk_device` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDevice.java:12-45` | 设备资产 | 映射 `DL_DEVICE`，房间与网关关系拆表 | 采用；不保留排它 owner |
-| `lk_device_log` | `.../entity/LkDeviceLog.java:11-21` | 设备操作/历史日志 | 映射 `DL_DEVICE_EVENT` 或归档 | 不作为命令真相 |
-| `lk_device_model` | `.../entity/LkDeviceModel.java:12-29` | 型号能力配置 | 映射 `DL_DEVICE_MODEL_CAPABILITY`，需能力证据 | 仅候选能力 |
-| `lk_device_permissions` | `.../entity/LkDevicePermissions.java:17-62` | 人员-设备授权 | 映射 `DL_ACCESS_GRANT` | 采用；状态不等于物理确认 |
-| `lk_device_task` | `.../entity/LkDeviceTask.java:14-53` | 旧设备任务 | 分类映射 `DL_COMMAND`/`DL_COMMAND_ATTEMPT` | 不整表重放 |
-| `lk_event_record` | `.../entity/LkEventRecord.java:16-48` | 网关/设备事件历史 | 映射 `DL_DEVICE_EVENT` | 仅历史证据 |
-| `lk_gateway` | `.../entity/LkGateway.java:11-32` | 网关资产 | 映射 `DL_GATEWAY` | 采用；与设备多对多 |
-| `lk_key` | `.../entity/LkKey.java:14-46` | 设备凭据 | 映射 `DL_CREDENTIAL` | 采用；敏感值不直接导入普通表 |
-| `lk_message_config` | `.../entity/LkMessageConfig.java:11-21` | 消息/通知设置 | 映射设置候选或保留归档 | 不作为授权状态 |
-| `lk_message_record` | `.../entity/LkMessageRecord.java:11-25` | 消息历史 | 映射 `DL_OPERATIONS_ALERT` 或归档 | 不作为命令真相 |
-| `lk_modify_pwd_log` | `.../entity/LkModifyPwdLog.java:13-30` | 密码变更历史 | 映射 `DL_AUDIT_EVENT`，敏感值脱敏 | 不复用密码列 |
-| `lk_open_record` | `.../entity/LkOpenRecord.java:14-47` | 开门历史 | 映射 `DL_DEVICE_EVENT` | 仅历史记录 |
-| `lk_park` | `.../entity/LkPark.java:16-45` | 旧园区副本 | 以 `target_park_id` 对接平台园区 | 不建立第二套在线园区主表 |
-| `lk_person` | `.../entity/LkPerson.java:17-64` | 旧人员/凭据混合副本 | 人员映射平台；凭据字段分流归档/迁移 | 不建立第二套在线人员主表 |
-| `lk_system_config` | `.../entity/LkSystemConfig.java:17-46` | 独立后台设置 | 非敏感设置候选映射；原图标受控归档 | 不沿用独立后台配置权威 |
-| `lk_system_menu` | `.../entity/LkSystemMenu.java:16-62` | 独立后台菜单 | 账号/菜单归档 | 不沿用 |
-| `lk_system_role` | `.../entity/LkSystemRole.java:16-53` | 独立后台角色 | 账号/角色归档 | 不沿用 |
-| `lk_system_role_menu` | `.../entity/LkSystemRoleMenu.java:7-13` | 角色-菜单关联 | 账号/菜单归档 | 不沿用 |
-| `lk_system_user` | `.../entity/LkSystemUser.java:16-48` | 独立后台账号 | 受控账号归档 | 不沿用登录体系 |
-| `lk_system_user_park` | `.../entity/LkSystemUserPark.java:7-13` | 账号-园区关联 | 账号/园区授权归档 | 不沿用园区权限 |
-| `lk_system_user_role` | `.../entity/LkSystemUserRole.java:7-13` | 账号-角色关联 | 账号/角色归档 | 不沿用 |
-| `lk_warn_config` | `.../entity/LkWarnConfig.java:11-32` | 告警设置 | 映射通知策略候选或归档 | 不作为授权状态 |
+| `lk_device_log` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDeviceLog.java:11-21` | 设备操作/历史日志 | 映射 `DL_DEVICE_EVENT` 或归档 | 不作为命令真相 |
+| `lk_device_model` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDeviceModel.java:12-29` | 型号能力配置 | 映射 `DL_DEVICE_MODEL_CAPABILITY`，需能力证据 | 仅候选能力 |
+| `lk_device_permissions` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDevicePermissions.java:17-62` | 人员-设备授权 | 映射 `DL_ACCESS_GRANT` 与 `DL_GRANT_TARGET` | 采用；状态不等于物理确认，父授权归组需核实 |
+| `lk_device_task` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDeviceTask.java:14-53` | 旧设备任务 | 分类映射 `DL_COMMAND`/`DL_COMMAND_ATTEMPT` | 不整表重放 |
+| `lk_event_record` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkEventRecord.java:16-48` | 网关/设备事件历史 | 映射 `DL_DEVICE_EVENT` | 仅历史证据 |
+| `lk_gateway` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkGateway.java:11-32` | 网关资产 | 映射 `DL_GATEWAY` | 采用；与设备多对多 |
+| `lk_key` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkKey.java:14-46` | 设备凭据 | 映射 `DL_CREDENTIAL` | 采用；敏感值不直接导入普通表 |
+| `lk_message_config` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkMessageConfig.java:11-21` | 消息/通知设置 | 映射设置候选或保留归档 | 不作为授权状态 |
+| `lk_message_record` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkMessageRecord.java:11-25` | 消息历史 | 映射 `DL_OPERATIONS_ALERT` 或归档 | 不作为命令真相 |
+| `lk_modify_pwd_log` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkModifyPwdLog.java:13-30` | 密码变更历史 | 映射 `DL_AUDIT_EVENT`，敏感值脱敏 | 不复用密码列 |
+| `lk_open_record` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkOpenRecord.java:14-47` | 开门历史 | 映射 `DL_DEVICE_EVENT` | 仅历史记录 |
+| `lk_park` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkPark.java:16-45` | 旧园区副本 | 以 `target_park_id` 对接平台园区 | 不建立第二套在线园区主表 |
+| `lk_person` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkPerson.java:17-64` | 旧人员/凭据混合副本 | 人员映射平台；凭据字段分流归档/迁移 | 不建立第二套在线人员主表 |
+| `lk_system_config` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemConfig.java:17-46` | 独立后台设置 | 非敏感设置候选映射；原图标受控归档 | 不沿用独立后台配置权威 |
+| `lk_system_menu` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemMenu.java:16-62` | 独立后台菜单 | 账号/菜单归档 | 不沿用 |
+| `lk_system_role` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemRole.java:16-53` | 独立后台角色 | 账号/角色归档 | 不沿用 |
+| `lk_system_role_menu` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemRoleMenu.java:7-13` | 角色-菜单关联 | 账号/菜单归档 | 不沿用 |
+| `lk_system_user` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemUser.java:16-48` | 独立后台账号 | 受控账号归档 | 不沿用登录体系 |
+| `lk_system_user_park` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemUserPark.java:7-13` | 账号-园区关联 | 账号/园区授权归档 | 不沿用园区权限 |
+| `lk_system_user_role` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemUserRole.java:7-13` | 账号-角色关联 | 账号/角色归档 | 不沿用 |
+| `lk_warn_config` | `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkWarnConfig.java:11-32` | 告警设置 | 映射通知策略候选或归档 | 不作为授权状态 |
 
 `Lk*Ext` 是查询投影/扩展对象，没有新的 `@TableName` 实体表；不能把其
 投影字段误列为物理列。
@@ -69,22 +84,22 @@ Mapper XML 执行过一次 `check_index_coverage`：均为
 
 1. `smart-module/smart-lock/smart-lock-biz/src/main/resources/application.yml:9-21`
    使用 MySQL 驱动和 `SMART_LOCK_DATASOURCE_*` 占位符；
-   `.../config/MybatisPlusConfig2.java:10-15` 显式使用
+   `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/config/MybatisPlusConfig2.java:10-15` 显式使用
    `PaginationInnerInterceptor(DbType.MYSQL)`。这只说明重构源码的旧运行配置
    倾向 MySQL，不能推导旧生产实例版本，也不能推导 Oracle DDL。
-2. `.../mapper/LkDeviceTaskMapper.xml:46-59` 使用 `COALESCE`、旧状态数字、
+2. `smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkDeviceTaskMapper.xml:46-59` 使用 `COALESCE`、旧状态数字、
    `start_time/end_time` 和单一 `gateway_id` 查询；`:70-73` 把
    `command_id` 联到 `lk_key.id`。目标模型必须把命令、尝试、回执及网关关系
    拆开，不能把 `command_id` 当协议 taskId。
-3. `.../mapper/LkKeyMapper.xml:28-41` 以 `lk_key.id` 关联最近任务状态，并使用
+3. `smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkKeyMapper.xml:28-41` 以 `lk_key.id` 关联最近任务状态，并使用
    `LIMIT 1`；这是旧 MySQL 查询，不是 Oracle 分页/排序证据。
-4. `.../mapper/LkDevicePermissionsMapper.xml:22-44,46-156` 的
+4. `smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkDevicePermissionsMapper.xml:22-44,46-156` 的
    `personDeviceMap` 含人员和设备联表投影；`person_num`、`device_name` 等
    并不都是 `lk_device_permissions` 的物理列。
-5. `.../mapper/LkSystemUserMapper.xml:7-19` 映射了实体中不存在的 `parkId` 属性
+5. `smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkSystemUserMapper.xml:7-19` 映射了实体中不存在的 `parkId` 属性
    (`park_id`)；这是源码/Mapper 不一致，不能未经旧库 metadata 核实就迁移。
-6. `.../entity/LkDevice.java:30-45` 的 `isAvailable`、`reportStateTime` 和
-   `.../mapper/LkDeviceMapper.xml:5-29` 的 resultMap 并不完全一致；
+6. `smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDevice.java:30-45` 的 `isAvailable`、`reportStateTime` 和
+   `smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkDeviceMapper.xml:5-29` 的 resultMap 并不完全一致；
    `LkPerson.status`、`LkKey.personId/deviceId/delFlag`、`LkOpenRecord.personId`
    也存在实体/投影不完整情形。迁移必须以旧库列元数据和抽样数据复核。
 

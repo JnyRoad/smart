@@ -27,6 +27,10 @@
 | `reason` | 人工写操作必填 | 不允许自行伪造操作者原因 | 进入审计；敏感内容不得写入 reason。 |
 | `parkId`、`staffId`、`deviceId` | 可作查询/目标候选 | **禁止作为身份依据** | Web 由 platform 数据权限和 lock scope 裁定；H5 忽略或拒绝客户端提供的人员/设备标识。 |
 
+幂等记录必须与请求/命令同事务持久化，`requestId` 不是 `idempotencyKey` 的替代。唯一查找范围由服务端确定为“租户 + callerService + subject + operation + targetKind + 规范化目标 + idempotencyKey”；H5 的目标包含当前 membership，不能沿用上次入住的请求结果。相同范围和 key 且载荷一致时返回既有命令/请求；载荷不一致返回 `409 DUPLICATE_REQUEST`，不得把 payload 摘要并入唯一键以创建第二条记录。摘要使用批准的规范化规则与算法/密钥版本，密码等低熵敏感字段不得使用可离线枚举的裸 hash，应使用受控 HMAC 等方案。重复查询仍需校验当前身份/访问范围；一次性 reveal 还受消费规则限制，不重返秘密。
+
+一次 HTTP 意图允许拆成多个目标命令，`requestId` 不能在命令表上单列或仅按主体范围唯一；命令级请求去重还须包含操作和规范化目标，凭据目标包括真实设备、凭据/槽位及 grant revision。本人请求作为父记录保存冻结的目标集合和预期命令数，子命令通过 `selfServiceRequestId` 关联；本地 reveal 可以有零条命令。请求受理与必需子命令集合在锁域同事务持久化，重投返回原集合，不随重试扩展设备范围。
+
 门锁页面不另存 token，也不改变或重做 Smart 现有认证态及其存储规则；密码、动态码、人脸原图、卡号、指纹模板、网关密钥不得放入 URL、日志、分析 query、门锁业务缓存、浏览器 localStorage/sessionStorage 或普通审计文本。密码输入仅在当前请求和受控服务端密文引用生命周期内存在；除下文明确的受控一次性 reveal 响应外，成功/失败响应都不回显明文。
 
 ### 2.2 通用响应 envelope
@@ -50,6 +54,8 @@
 ```
 
 写请求的 `2xx` 只表示业务请求被校验并持久化/受理：通常为 `202 Accepted`；读取为 `200 OK`。只有响应中的 `deviceConfirmed=true` 且 `status` 为相应终态，才可展示设备已确认。下列错误语义对 Web/H5 均适用：
+
+上例为单命令响应；多目标响应使用 `commands[]` 返回每个授权范围内目标的 `commandId/commandStatus/deviceConfirmed`，并返回 `expectedCommandCount`、`completedCommandCount` 与父请求/授权状态。Web 按服务端租户、主体和 request scope 查询完整命令集合，H5 按父请求查询子命令；不能只取第一条命令代表全部结果。部分失败/待核验必须逐项保留，只有全部必需目标确认才可显示整体完成；幂等重投不新建第二套子命令，也不跨主体泄露状态。
 
 `code/message` 保留 Smart 现有响应兼容语义，新字段放在既有 envelope 或 `data` 中；必须经过当前 Web axios 拦截器、H5 request 封装的集成测试，不只测 DTO。旧路径在保留期继续返回其已冻结的 `code/data/msg` 等形态，由服务端兼容门面适配，不要求未升级客户端猜新字段；但本人身份和园区校验不得为兼容放宽。涉及旧接口无法表达的异步结果，需要明确等待/拒绝语义和版本退出条件，不能返回旧“成功”冒充设备已生效。
 
@@ -89,7 +95,7 @@
 1. platform 门面从 Smart token 解析操作者、租户、角色和园区数据范围；客户端提供的 `parkId` 只能作为筛选候选，不能扩大范围。`smart-platform` 负责入口和园区裁定，`smart-lock` 对内部 subject/scope 再验证后执行领域规则。
 2. 管理员可看到的人员、房间、设备、网关和记录均必须按园区 scope 过滤；猜测 ID、导出 URL 或直接调用内部接口不能越权。
 3. Web 将业务状态与命令状态分开显示：授权显示 `PENDING_PROVISION`、`ACTIVE`、`PENDING_REVOKE`、`REVOKED`、`RECONCILIATION_REQUIRED`；命令显示 `QUEUED`、`DISPATCHED`、`WAITING_ACK`、`SUCCEEDED`、`RETRY_PENDING`、`FAILED`、`EXPIRED`、`CANCELLED`、`RECONCILIATION_REQUIRED`。
-4. `transportAccepted=true, deviceConfirmed=false` 的命令必须显示“传输已受理/等待设备确认”，不显示“已授权/已撤权/已开门”。无回执、超时或断线进入等待、重试或对账，不进入成功。
+4. `transportAccepted=true, deviceConfirmed=false` 的命令必须显示“传输已受理/等待设备确认”，不显示“已授权/已撤权/已开门”。等待期结束后无回执、出线后断线或出线状态未知进入对账；只有服务端证明未出线且满足安全重试门禁，或有明确可重试的设备失败证据，才显示受控重试，不进入成功。
 5. 页面操作审计至少关联 `traceId`、`requestId`、操作者 subject、园区 scope、目标、原因、命令/事件 ID、前后状态和脱敏摘要；原始 TCP、密钥和明文凭据不进页面、导出或普通日志。
 
 ## 4. H5 本人 API

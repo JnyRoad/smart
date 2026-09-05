@@ -13,9 +13,9 @@
 
 已使用的主要资料：
 
-- Web 八组：stable canonical root `/Users/lvtu/source/YUTO/smart` 下 `smart-ui/docs/superpowers/doorlock/` 的 `WEB-L-001`—`WEB-L-008`、`legacy-reference.md`、`parity-acceptance.md`；H5 为同一 root 下 `smart-h5/docs/superpowers/doorlock/` 的 `api-cutover-contract.md`、`page-and-state-contract.md`、`legacy-parity-and-scope.md`、`test-and-acceptance.md`。
-- 旧控制面/桥接资料：同一 stable canonical root 下 `smart-module/smart-lock/docs/superpowers/07-api/` 的 API-001—004、事件信封和幂等文档；`smart-module/smart-bridge-lock/docs/superpowers/06-data/`、`07-api/`、协议证据台账。这里的相对路径不能简写成另一个独立仓库的 `smart-lock/docs`。
-- 父任务提供的图谱证据：`Users-lvtu-source-YUTO-smart` generation `2026-09-05T04:00:36Z`，以及独立 `doorlock-smart-lock-reconstructed-20260804` generation `2026-09-05T04:34:36Z`。图谱显示 `RemoteSmartLockService`、`ConnectLockServiceImpl`、`SmtDormitoryStaffController`、`SmtDormitoryBedServiceImpl` 等精确路径已读取并有 coverage `metadata_match/noissue`；这仍是源码证据，不是生产 E2E。
+- Web 八组：Smart 固定 commit `157d4ca1060873c480644714965093b81b514c2e` 的相对路径 `smart-ui/docs/superpowers/doorlock/`（[稳定目录链接](https://github.com/JnyRoad/smart/tree/157d4ca1060873c480644714965093b81b514c2e/smart-ui/docs/superpowers/doorlock/)）中的 `WEB-L-001`—`WEB-L-008`、`legacy-reference.md`、`parity-acceptance.md`；H5 为同一 commit 下相对路径 `smart-h5/docs/superpowers/doorlock/`（[稳定目录链接](https://github.com/JnyRoad/smart/tree/157d4ca1060873c480644714965093b81b514c2e/smart-h5/docs/superpowers/doorlock/)）中的 `api-cutover-contract.md`、`page-and-state-contract.md`、`legacy-parity-and-scope.md`、`test-and-acceptance.md`。
+- 旧控制面/桥接资料：历史离线资料标识 `LEGACY-LOCK-DESIGN`、`LEGACY-BRIDGE-LOCK-DESIGN`，分别记录于相对目录 `smart-module/smart-lock/docs/superpowers/` 与 `smart-module/smart-bridge-lock/docs/superpowers/`。本轮核对的 Smart 固定 commit `157d4ca1060873c480644714965093b81b514c2e` 不包含这些目录，不能声称新 checkout 可从该 commit 获得 API-001—004、协议台账或 ADR；版本和内容摘要仍为 `[UNVERIFIED]`，只作已阅读的历史背景。实施依据为本规格的版本化 contracts/model，不以这批离线材料为必需依赖。
+- 父任务提供并复核的图谱证据：`Users-lvtu-source-YUTO-smart` generation `2026-09-05T04:00:36Z`，以及 `Users-lvtu-source-YUTO-smart-lock` generation `2026-09-05T06:29:29Z`。门锁仓库 39 条 manifest 路径的 coverage 均为 `metadata_match/no_recorded_issue`；图谱仍只是源码证据，不是生产 E2E，也不能证明外部仓库之外的数据库对象完整。
 
 ## 2. 修订登记
 
@@ -24,7 +24,7 @@
 | 项目 | 内容 |
 |---|---|
 | 旧前提 | `smart-platform` 的业务入口可直接调用独立门锁服务；实现只要异步发送 HTTP 即可，门锁模块更像远程适配器。 |
-| 当前证据 | `[SRC-VERIFIED]` stable canonical root `/Users/lvtu/source/YUTO/smart` 下 `smart-module/smart-platform/smart-platform-api/.../RemoteSmartLockService.java` 仍是独立远程服务接口；`smart-module/smart-platform/smart-platform-biz/.../ConnectLockServiceImpl.java` 存在 `@Async`/`sendSave` HTTP 发送路径；`smart-module/smart-platform/.../SmtDormitoryBedServiceImpl.java` 仍有直接 `remove` 类生命周期路径。`[DOC-LEGACY]` 旧 API-001/项目简述也把平台→门锁列为接口耦合。调用链负结果不能仅依赖图谱：父任务确认 trace 实现 method caller=0/eq 误关联，需以 interface 和源码 fallback 为准。 |
+| 当前证据 | `[SRC-VERIFIED]` Smart 固定 commit `157d4ca1060873c480644714965093b81b514c2e` 下相对路径 `smart-module/smart-platform/smart-platform-api/src/main/java/com/tce/smart/platform/api/feign/RemoteSmartLockService.java` 仍是独立远程服务接口；相对路径 `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/remoteLock/impl/ConnectLockServiceImpl.java` 存在 `@Async`/`sendSave` HTTP 发送路径；相对路径 `smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/impl/SmtDormitoryBedServiceImpl.java` 仍有直接 `remove` 类生命周期路径。`[DOC-LEGACY]` 旧 API-001/项目简述也把平台→门锁列为接口耦合。调用链负结果不能仅依赖图谱：父任务确认 trace 实现 method caller=0/eq 误关联，需以 interface 和源码 fallback 为准。 |
 | 替代决策 | 平台保留兼容门面，只负责提交住宿事实和园区入口；同事务写 Outbox 后由 `smart-lock` 统一裁定授权、命令、回执和审计；`smart-bridge-lock` 负责设备通道。业务 controller 不再散落“旧服务/新服务”分支，内部命令只走版本化 LC-CMD-001。 |
 | 影响/未验证 | 现有调用方清单、旧路径退出时间和部署路由仍需实现任务验证；本修订不授权删除旧接口或执行切换。 |
 
@@ -96,7 +96,7 @@
 | 项目 | 内容 |
 |---|---|
 | 旧前提 | 旧代码里有密码、卡、指纹、管理员密码、恢复出厂、双重验证等分支，所以所有型号都可上线这些按钮。 |
-| 当前证据 | `[SRC-VERIFIED]` 独立重建源码 `LkKeyServiceImpl` 已有 `ADD_FINGER_KEY`/B8 分包、指纹回执处理和 22/24-hex 测试形态；这已经推翻 stable canonical root 下旧 `smart-module/smart-lock/docs/superpowers/14-decisions/ADR-004-credential-migration.md` “没有远程指纹下发命令”的说法。`[DOC-LEGACY]` 旧协议台账仍确认 B6/B8、B2/B3/BD/配置能力和设备 RET 语义，同时记录网关 TCP 分帧、稳定身份、关联位、双重验证组合等缺口/矛盾。 `[UNVERIFIED]` 重建源码和离线测试不能证明每个型号/固件、现场网关链路或生产指纹 profile 均可用。 |
+| 当前证据 | `[SRC-VERIFIED]` 独立重建源码 `LkKeyServiceImpl` 已有 `ADD_FINGER_KEY`/B8 分包、指纹回执处理和 22/24-hex 测试形态；这已经推翻早期资料中“没有远程指纹下发命令”的说法。该旧 ADR-004 资料无法在 Smart 固定 commit `157d4ca1060873c480644714965093b81b514c2e` 中定位稳定 URL/commit，故只标为 `[DOC-LEGACY][UNVERIFIED]`，不作为权威来源。`[DOC-LEGACY]` 旧协议台账仍确认 B6/B8、B2/B3/BD/配置能力和设备 RET 语义，同时记录网关 TCP 分帧、稳定身份、关联位、双重验证组合等缺口/矛盾。 `[UNVERIFIED]` 重建源码和离线测试不能证明每个型号/固件、现场网关链路或生产指纹 profile 均可用。 |
 | 替代决策 | 不再把远程指纹一概判定为“不支持”；能力按 `gateway + device + model + firmware + profile` 矩阵冻结，明确登记 `ADD_FINGER_KEY`/B8 分包格式、22/24-hex 变体、回执和撤权语义。缺少对应 profile 证据仍为 `UNVERIFIED`，Web/H5 受控拒绝或禁用，不能以旧 ADR、旧数据库状态或单一重建测试推断全域支持。 |
 | 影响/未验证 | 每个 profile 要有抓包、设备 ACK/失败、撤权、状态读取、重连和安全证据；现场门禁关闭前不能进入 `NEW_ONLY`。 |
 
