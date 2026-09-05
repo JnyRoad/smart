@@ -825,10 +825,10 @@ flowchart LR
 <section class="item" id="item-oauth-scope">
  <div class="ih"><span class="ino">清单外</span><h3>OAuth 开放接口统一 server 授权（PR #183，调整 PR #161）</h3><span class="ibatch">不计入批次 · 内部授权管理</span></div>
  <dl>
-  <dt>实施状态（已提交 PR #183，未合并；PR #161 为原收敛记录）</dt>
-  <dd>按内部使用需求恢复统一 <code>server</code> 授权：新建及编辑应用均可授予，入厂照片与能耗投影开放接口以 <code>server</code> 为主权限，调度默认申请 <code>server</code>，无需逐资源维护授权。当前变更已提交 <a href="https://github.com/JnyRoad/smart/pull/183" target="_blank" rel="noopener noreferrer">PR #183</a>，尚未合并、部署，不能视为生产已放开。</dd>
+  <dt>实施状态（已合入 main，PR #183，最新修复提交 <code>3a32e374</code>）</dt>
+  <dd>按内部使用需求恢复统一 <code>server</code> 授权：新建及编辑应用均可授予，入厂照片与能耗投影开放接口以 <code>server</code> 为主权限，调度默认申请 <code>server</code>，无需逐资源维护授权。当前变更已通过 <a href="https://github.com/JnyRoad/smart/pull/183" target="_blank" rel="noopener noreferrer">PR #183</a> 合入 <code>main</code>，待随服务发布；生产生效尚未验证。</dd>
   <dt>存量兼容与认证边界</dt>
-  <dd>已授予的 <code>open:admittance:photo:read</code>、<code>internal:energy:projection:run</code> 保留为各自接口的历史兼容项，新建应用仅提供 <code>server</code> 正常授权。默认开启的 <code>SMART_OPEN_API_ALLOW_DEPRECATED_COMPATIBILITY_SCOPES</code> 仅控制历史细分权限，关闭后仍接受 <code>server</code>。保留应用 token 认证、未开放路由默认拒绝、待拉取照片清单的原有园区过滤及授权变更后的旧 token 吊销。照片下载已补齐 token 园区校验：目标照片必须关联获授权园区内审批通过、未过期的非车辆申请，校验通过后才读取图片；无权与缺图统一返回 404。该修复与统一 server 授权一同处于未合并、未部署状态。</dd>
+  <dd>已授予的 <code>open:admittance:photo:read</code>、<code>internal:energy:projection:run</code> 保留为各自接口的历史兼容项，新建应用仅提供 <code>server</code> 正常授权。默认开启的 <code>SMART_OPEN_API_ALLOW_DEPRECATED_COMPATIBILITY_SCOPES</code> 仅控制历史细分权限，关闭后仍接受 <code>server</code>。保留应用 token 认证、未开放路由默认拒绝、待拉取照片清单的原有园区过滤及授权变更后的旧 token 吊销。照片下载已补齐 token 园区校验：目标照片必须关联获授权园区内审批通过、未过期的非车辆申请，校验通过后才读取图片；无权与缺图统一返回 404。该修复与统一 server 授权已一同合入 <code>main</code>，尚未部署验证。</dd>
   <dt>与本蓝图的关系</dt>
   <dd>本项不在《裕慧家园系统新增功能需求分析》40 项清单与 5 个现网缺陷范围内。PR #161 已于 2026-09-02 合入 main，本次按内部维护成本调整其细粒度授权方向，保留历史记录；后续仅按实际合并和发布验证结果推进状态。</dd>
  </dl>
