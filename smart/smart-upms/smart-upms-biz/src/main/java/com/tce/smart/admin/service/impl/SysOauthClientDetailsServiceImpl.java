@@ -123,8 +123,8 @@ public class SysOauthClientDetailsServiceImpl extends ServiceImpl<SysOauthClient
 	 * 校验并规范化逗号分隔 scope。前端下拉只是体验层；所有写库入口都必须在这里拦截未知、空白
 	 * 和重复 capability，避免绕过管理页直接扩大 OAuth 客户端权限。
 	 *
-	 * <p>已经存在的废弃或历史未知 scope 仅可在原客户端编辑时原样保留，不能被新客户端或其他
-	 * 客户端新增授予。这使历史记录可安全维护，同时不会把 {@code server} 等大权限重新扩散。</p>
+	 * <p>已经存在的废弃或历史未知 scope 仅可在原客户端编辑时原样保留，不能被没有该存量授权的
+	 * 客户端新增授予；{@code server} 是内部开放接口唯一正常可授予的 scope。</p>
 	 */
 	private void validateAndNormalizeScopes(SysOauthClientDetails clientDetails, Set<String> existingScopes) {
 		String rawScopes = clientDetails.getScope();

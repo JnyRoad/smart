@@ -10,8 +10,8 @@ spring:
     port: "${SMART_REDIS_PORT:6379}"
     password: "${SMART_REDIS_PASSWORD:}"
 
-# 开放 API 迁移控制：初次发布保持 true；确认已无旧 scope 调用后在配置中心切为 false，
-# 再滚动重启资源服务，以关闭所有 Controller 的 deprecated compatibility scope 入口。
+# 开放 API 默认兼容存量细分 scope；server 是正常主授权，不受此开关影响。
+# 仅当确认不再使用历史细分权限时，才按发布流程关闭其兼容入口。
 smart:
   openapi:
     allow-deprecated-compatibility-scopes: "${SMART_OPEN_API_ALLOW_DEPRECATED_COMPATIBILITY_SCOPES:true}"

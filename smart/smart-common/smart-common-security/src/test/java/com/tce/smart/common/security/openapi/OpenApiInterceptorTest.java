@@ -40,11 +40,11 @@ public class OpenApiInterceptorTest {
 		public void openApiHandlerMethod() {
 		}
 
-		@OpenApi(value = "internal:energy:projection:run", compatibilityScopes = {"server"})
+		@OpenApi(value = "server", compatibilityScopes = {"internal:energy:projection:run"})
 		public void migrationHandlerMethod() {
 		}
 
-		@OpenApi(value = "internal:energy:projection:run", compatibilityScopes = {"open:admittance:photo:read"})
+		@OpenApi(value = "server", compatibilityScopes = {"internal:unknown:scope"})
 		public void invalidMigrationHandlerMethod() {
 		}
 
@@ -119,10 +119,10 @@ public class OpenApiInterceptorTest {
 	}
 
 	@Test
-	public void migrationDoesNotTreatActiveScopeAsCompatibilityScope() throws Exception {
-		Set<String> activeScope = new HashSet<>();
-		activeScope.add("open:admittance:photo:read");
-		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("photo-client", activeScope));
+	public void migrationDoesNotTreatUnknownScopeAsCompatibilityScope() throws Exception {
+		Set<String> unregisteredScope = new HashSet<>();
+		unregisteredScope.add("internal:unknown:scope");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("unknown-scope-client", unregisteredScope));
 
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		assertFalse(interceptor.preHandle(new MockHttpServletRequest(), response, invalidMigrationHandler()));
@@ -130,15 +130,14 @@ public class OpenApiInterceptorTest {
 	}
 
 	@Test
-	public void migrationCompatibilityCanBeExplicitlyDisabledAfterCutover() throws Exception {
-		Set<String> legacyScope = new HashSet<>();
-		legacyScope.add("server");
-		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("legacy-schedule", legacyScope));
+	public void primaryServerScopeRemainsAllowedWhenCompatibilityIsDisabled() throws Exception {
+		Set<String> serverScope = new HashSet<>();
+		serverScope.add("server");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("server-client", serverScope));
 		OpenApiInterceptor cutoverInterceptor = new OpenApiInterceptor(adapter, false);
 
 		MockHttpServletResponse response = new MockHttpServletResponse();
-		assertFalse(cutoverInterceptor.preHandle(new MockHttpServletRequest(), response, migrationHandler()));
-		assertEquals(403, response.getStatus());
+		assertTrue(cutoverInterceptor.preHandle(new MockHttpServletRequest(), response, migrationHandler()));
 	}
 
 	@Test
@@ -190,16 +189,16 @@ public class OpenApiInterceptorTest {
 	}
 
 	@Test
-	public void migrationScopeAcceptsOnlyDedicatedOrExplicitLegacyScope() throws Exception {
+	public void migrationScopeAcceptsPrimaryServerOrExplicitHistoricalScope() throws Exception {
 		Set<String> dedicatedScope = new HashSet<>();
 		dedicatedScope.add("internal:energy:projection:run");
 		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("smart-schedule", dedicatedScope));
 		assertTrue(interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), migrationHandler()));
 
 		SecurityContextHolder.clearContext();
-		Set<String> legacyScope = new HashSet<>();
-		legacyScope.add("server");
-		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("legacy-schedule", legacyScope));
+		Set<String> serverScope = new HashSet<>();
+		serverScope.add("server");
+		SecurityContextHolder.getContext().setAuthentication(clientOnlyAuthentication("server-schedule", serverScope));
 		assertTrue(interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), migrationHandler()));
 
 		SecurityContextHolder.clearContext();

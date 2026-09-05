@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,7 +28,7 @@ import java.util.stream.Collectors;
  * 设计要点（照片拉取 spec §3.1）：
  * - 园区范围只来自应用 token claim（调用方传入），空范围直接短路返回空，禁止全量兜底；
  * - 清单只返回非空 photoId（历史数据存在空值，直接下发会让客户端反复 404 空转）；
- * - 图片存在性不在清单阶段逐张校验（代价高），由 download 阶段对缺图返回 404、客户端跳过。
+ * - 下载按目标照片关联的申请重新校验园区和有效状态，通过后才读取图片；无权或缺图统一返回 404。
  */
 @Slf4j
 @Service
@@ -36,7 +37,7 @@ public class AdmittancePhotoOpenServiceImpl implements AdmittancePhotoOpenServic
 
 	/**
 	 * Oracle IN 列表单批上限：表达式超过 1000 个直接 ORA-01795，
-	 * 有效申请单一旦过千整个 /pending 接口会 500，必须分批查询。
+	 * 清单查询和下载授权均须按此上限分批查询申请关联。
 	 */
 	private static final int ORACLE_IN_MAX_EXPRESSIONS = 1000;
 
@@ -88,14 +89,47 @@ public class AdmittancePhotoOpenServiceImpl implements AdmittancePhotoOpenServic
 		return new ArrayList<>(photoIds);
 	}
 
+	/** 按 token 园区及有效申请关联授权读图；无权或缺图返回 null，仅执行查询，不写数据。 */
 	@Override
-	public byte[] loadPhoto(String photoId) {
-		// 不存在返回 null 由控制器映射 404；缺图属数据质量问题记 WARN 便于排查（spec 错误处理约定）
+	public byte[] loadPhoto(String photoId, List<Integer> allowedParkIds) {
+		// 先检查业务授权，避免仅凭 UUID 读到无权访问的图片。
+		if (CollUtil.isEmpty(allowedParkIds) || !hasAuthorizedApplication(photoId, allowedParkIds)) {
+			return null;
+		}
+		// 获授权后才读取图片字节；缺图与无权由控制器统一映射为 404。
 		byte[] bytes = smtImageService.getImageBinaryByCode(photoId);
 		if (bytes == null || bytes.length == 0) {
 			log.warn("【照片开放接口】photoId={} 无对应图片数据", photoId);
 			return null;
 		}
 		return bytes;
+	}
+
+	/** 判断目标照片是否关联获授权园区内的有效入厂申请；无关联或失效返回 false，仅查询关联信息。 */
+	private boolean hasAuthorizedApplication(String photoId, List<Integer> allowedParkIds) {
+		// 先按目标照片定位申请 ID，避免为单张下载扫描整个待拉取清单。
+		List<SmtAdmittanceFellow> fellows = smtAdmittanceFellowService.list(Wrappers.<SmtAdmittanceFellow>lambdaQuery()
+				.select(SmtAdmittanceFellow::getVisitorId)
+				.eq(SmtAdmittanceFellow::getFellowPhotoId, photoId));
+		List<Long> applyIds = fellows.stream().map(SmtAdmittanceFellow::getVisitorId)
+				.filter(Objects::nonNull).distinct().collect(Collectors.toList());
+		if (applyIds.isEmpty()) {
+			return false;
+		}
+		// 同一照片可能被多个申请引用；逐批检查任一有效关联，条件与 pending 保持一致。
+		LocalDateTime now = LocalDateTime.now();
+		for (List<Long> applyIdBatch : CollUtil.split(applyIds, ORACLE_IN_MAX_EXPRESSIONS)) {
+			List<SmtAdmittanceApply> applies = smtAdmittanceApplyService.list(Wrappers.<SmtAdmittanceApply>lambdaQuery()
+					.select(SmtAdmittanceApply::getId)
+					.in(SmtAdmittanceApply::getId, applyIdBatch)
+					.eq(SmtAdmittanceApply::getStatus, VisitorStatusEnum.Status_0.getCode())
+					.gt(SmtAdmittanceApply::getEndTime, now)
+					.ne(SmtAdmittanceApply::getApplyType, AdmittanceTypeEnum.CAR.getCode())
+					.in(SmtAdmittanceApply::getParkId, allowedParkIds));
+			if (!applies.isEmpty()) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

@@ -22,9 +22,10 @@ public class OauthClientDetailsControllerTest {
 		Result<List<OpenApiScope>> result = controller.scopes();
 
 		assertThat(result.getData()).extracting(OpenApiScope::getValue)
-				.contains(OpenApiScopeCatalog.ADMITTANCE_PHOTO_READ, OpenApiScopeCatalog.ENERGY_PROJECTION_RUN,
-						OpenApiScopeCatalog.LEGACY_SERVER);
+				.containsExactly("server", OpenApiScopeCatalog.ADMITTANCE_PHOTO_READ,
+						OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
 		assertThat(result.getData()).filteredOn(OpenApiScope::isDeprecated)
-				.extracting(OpenApiScope::getValue).containsExactly(OpenApiScopeCatalog.LEGACY_SERVER);
+				.extracting(OpenApiScope::getValue).containsExactly(OpenApiScopeCatalog.ADMITTANCE_PHOTO_READ,
+						OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
 	}
 }

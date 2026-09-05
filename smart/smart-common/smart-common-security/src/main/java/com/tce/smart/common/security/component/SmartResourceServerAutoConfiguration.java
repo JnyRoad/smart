@@ -43,8 +43,8 @@ public class SmartResourceServerAutoConfiguration {
 	private Integer validateAfterInactivity;
 
 	/**
-	 * 已废弃开放 API scope 的迁移开关。初始发布保持 true，确认没有旧调用后由配置中心切为 false
-	 * 并滚动重启资源服务；即使 Controller 注解尚未移除兼容项也会拒绝旧大权限 token。
+	 * 已废弃开放 API 细分 scope 的迁移开关。初始发布保持 true，确认没有旧调用后由配置中心切为 false
+	 * 并滚动重启资源服务；server 主 scope 不受此开关影响，关闭后仅拒绝兼容项中的历史细分 scope。
 	 */
 	@Value("${smart.openapi.allow-deprecated-compatibility-scopes:true}")
 	private boolean allowDeprecatedOpenApiCompatibilityScopes;

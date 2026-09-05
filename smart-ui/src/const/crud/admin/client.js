@@ -33,19 +33,22 @@ export function normalizeScopeFormValue (rawScope) {
 }
 
 /**
- * 合并编辑表单可展示的 scope 选项，并禁止新增或重新选择已废弃、未知的历史授权域。
+ * 合并编辑表单可展示的 scope 选项，并禁止新增或重新选择已废弃的细分 scope 与未知历史授权域。
  *
- * <p>历史客户端已持有的废弃 scope 需要保留显示，避免管理员打开表单后被静默删除；但它们不能
- * 再被主动授予。后端仍是最终校验边界，前端禁用只用于避免无效操作。</p>
+ * <p>历史客户端已持有的废弃细分 scope 需要保留显示，避免管理员打开表单后被静默删除；但它们不能
+ * 再被主动授予。当前新增授权由后端目录中的 active scope（server）提供。</p>
  *
  * @param {Array<{value: string, label: string, deprecated?: boolean, disabled?: boolean}>} catalog 后端目录
  * @param {string[]} selectedScopes 当前客户端已保存的授权域
  * @returns {Array<{value: string, label: string, deprecated?: boolean, disabled?: boolean}>} 表单选项
  */
 export function mergeEditableScopeOptions (catalog, selectedScopes = []) {
-  const catalogOptions = catalog.map(scope => Object.assign({}, scope, {
-    disabled: Boolean(scope.disabled || scope.deprecated)
-  }))
+  const selectedScopeSet = new Set(selectedScopes)
+  const catalogOptions = catalog
+    .filter(scope => !scope.deprecated || selectedScopeSet.has(scope.value))
+    .map(scope => Object.assign({}, scope, {
+      disabled: Boolean(scope.disabled || scope.deprecated)
+    }))
   const knownValues = new Set(catalogOptions.map(scope => scope.value))
   const historicalOptions = selectedScopes
     .filter(scope => !knownValues.has(scope))
@@ -59,7 +62,7 @@ export function mergeEditableScopeOptions (catalog, selectedScopes = []) {
 }
 
 /**
- * 根据后端返回的权威 capability scope 目录创建表单配置。
+ * 根据后端返回的权威 capability scope 目录创建表单配置。目录中的 active scope 是新客户端可授予的范围。
  *
  * @param {Array<{value: string, label: string, deprecated?: boolean}>} scopeOptions 授权域选项
  * @returns {object} Avue 客户端管理表格配置

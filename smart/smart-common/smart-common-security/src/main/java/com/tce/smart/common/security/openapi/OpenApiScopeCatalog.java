@@ -9,16 +9,24 @@ import java.util.Map;
 /**
  * 开放 API capability scope 的后端权威目录。
  *
- * <p>目录与 Controller 的精确 scope 同版本发布，避免前端静态常量、数据库录入值和资源服务鉴权值
- * 各自演进。新增能力时只新增明确的资源/动作 scope，不引入 {@code energy:*} 一类通配授权。</p>
+ * <p>目录与 Controller 的 scope 同版本发布，避免前端静态常量、数据库录入值和资源服务鉴权值
+ * 各自演进。内部开放接口统一使用 {@code server}；既有细分 scope 仅作为存量兼容项保留，
+ * 不引入 {@code energy:*} 一类通配授权。</p>
  */
 public final class OpenApiScopeCatalog {
 
-	/** 历史通用服务 scope，仅用于迁移兼容，禁止新增授予。 */
-	public static final String LEGACY_SERVER = "server";
-	/** 入厂申请照片读取 capability。 */
+	/** 内部开放接口统一使用的通用服务 scope。 */
+	public static final String SERVER = "server";
+	/**
+	 * 兼容既有代码引用的通用服务 scope 别名。
+	 *
+	 * @deprecated 请使用 {@link #SERVER}；该值仍是正常可授予的 scope。
+	 */
+	@Deprecated
+	public static final String LEGACY_SERVER = SERVER;
+	/** 既有入厂申请照片读取细分 scope，仅用于存量兼容。 */
 	public static final String ADMITTANCE_PHOTO_READ = "open:admittance:photo:read";
-	/** 能耗投影任务执行 capability。 */
+	/** 既有能耗投影任务执行细分 scope，仅用于存量兼容。 */
 	public static final String ENERGY_PROJECTION_RUN = "internal:energy:projection:run";
 
 	private static final Map<String, OpenApiScope> BY_VALUE;
@@ -26,9 +34,9 @@ public final class OpenApiScopeCatalog {
 
 	static {
 		Map<String, OpenApiScope> scopes = new LinkedHashMap<>();
-		register(scopes, new OpenApiScope(ADMITTANCE_PHOTO_READ, "入厂申请照片-读取", false));
-		register(scopes, new OpenApiScope(ENERGY_PROJECTION_RUN, "能耗投影-运行", false));
-		register(scopes, new OpenApiScope(LEGACY_SERVER, "通用服务（历史兼容，禁止新增）", true));
+		register(scopes, new OpenApiScope(SERVER, "通用服务", false));
+		register(scopes, new OpenApiScope(ADMITTANCE_PHOTO_READ, "入厂申请照片-读取（历史兼容）", true));
+		register(scopes, new OpenApiScope(ENERGY_PROJECTION_RUN, "能耗投影-运行（历史兼容）", true));
 		BY_VALUE = Collections.unmodifiableMap(scopes);
 		ALL = Collections.unmodifiableList(new ArrayList<>(scopes.values()));
 	}
