@@ -2,7 +2,7 @@
 
 **Input**: [spec.md](spec.md)、[plan.md](plan.md)、[data-model.md](data-model.md)、[契约](contracts/print-api.md)、[research.md](research.md)、[quickstart.md](quickstart.md)
 
-**Status**: 批次1设计器与批次2绑定、真实人员预览、冻结任务、Windows 客户端、人工恢复及切换代码已实现，软件组独立复审与整体验证已完成，最终整分支代理复审未返回有效报告，需在PR中继续审查。自动化与模拟驱动结果不等于真实环境验收。T005/T006/T012/T037/T039/T051/T025/T031/T036/T043/T045 保留目标 Oracle、登录读回、全入口权限联调、DHR 映射或实机验收缺口；功能默认关闭，供应商实体卡来源未确认时拒绝创建。实际证据见 [quickstart.md](quickstart.md)。
+**Status**: 批次1设计器与批次2绑定、真实人员预览、冻结任务、Windows 客户端、人工恢复及切换代码已实现，软件组独立复审与整体验证已完成，最终整分支代理复审未返回有效报告，需在[PR #190](https://github.com/JnyRoad/smart/pull/190)中继续审查。自动化与模拟驱动结果不等于真实环境验收。T005/T006/T012/T037/T039/T051/T025/T031/T036/T043/T045 保留目标 Oracle、登录读回、全入口权限联调、DHR 映射或实机验收缺口；功能默认关闭，供应商实体卡来源未确认时拒绝创建。实际证据见 [quickstart.md](quickstart.md)。
 
 **测试先行**：每组行为实现必须先运行对应测试并观察预期失败，完成最小实现后再转绿。`[P]` 仅表示同阶段、依赖满足且文件不重叠时可并行。已勾选任务对应源码已创建，其余源码路径为规划路径；新增模块首次创建时同步根 README/AGENTS。
 
@@ -123,7 +123,7 @@ T001—T003 是前次兼容验证历史；本次改变模板语义，不把原�
 
 - [x] T044 整理组件/字体/SDK与客户端安装分发清单、设备校准步骤和运维文档：`smart-print-client/README.md`、`smart-print-renderer/README.md`、`specs/009-print-template-designer/research.md`；核实所有商用及再分发条款。（FR-017，SC-008）
 - [ ] T045 运行影响范围内的前后端/渲染器/Windows测试与构建，核对所有SC、FR及真实Oracle/实机证据，回写 `specs/009-print-template-designer/quickstart.md` 和本任务清单；未验证项保持未完成。（SC-001/SC-002/SC-003/SC-004/SC-005/SC-006/SC-007/SC-008）
-- [ ] T046 根据真实交付状态更新 `docs/yuhui-prototype/yuhui-blueprint.html`，审查新模块入口和迁移/回退资料；提交、PR、生产切换仅按当时已有授权执行，不因任务完成自动部署。（FR-016/FR-018）
+- [x] T046 根据真实交付状态更新 `docs/yuhui-prototype/yuhui-blueprint.html`，审查新模块入口和迁移/回退资料；提交、PR、生产切换仅按当时已有授权执行，不因任务完成自动部署。（FR-016/FR-018）
 
 ## Dependencies & Execution Order
 

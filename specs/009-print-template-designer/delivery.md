@@ -1,6 +1,6 @@
 # 模板设计器与受控打印软件交付记录
 
-日期：2026-09-05。功能分支 `feat/pdfme-template-designer`，已同步 `origin/main` 的 `8c9d728e`。唯一规格为本目录的 [tasks.md](tasks.md)；本记录是交付证据，不建立第二套计划。
+日期：2026-09-05。已创建正式 [PR #190](https://github.com/JnyRoad/smart/pull/190)，目标 main，尚未合并或部署。功能分支 `feat/pdfme-template-designer`，已同步 `origin/main` 的 `8c9d728e`。唯一规格为本目录的 [tasks.md](tasks.md)；本记录是交付证据，不建立第二套计划。
 
 ## 软件范围
 
