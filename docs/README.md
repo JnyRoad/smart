@@ -12,6 +12,7 @@
 
 ## 开发资料
 
+- [裕慧家园门锁统一接入与 Oracle 基线](../specs/011-doorlock-oracle/spec.md)：当前跨模块规格、数据映射、契约、任务和验收；不表示已经实现或上线。
 - [specs/](../specs/)：持久规格、计划、任务清单与验收记录。
 - [.specify/](../.specify/)：项目工作流、命令、模板和宪法；本机指针与缓存按具体路径忽略。
 - [管理端门锁资料](../smart-ui/docs/superpowers/doorlock/) 与 [H5 门锁资料](../smart-h5/docs/superpowers/doorlock/)：保留设计、计划和验收历史；内容是否已实现需核对当前代码与验证证据。
