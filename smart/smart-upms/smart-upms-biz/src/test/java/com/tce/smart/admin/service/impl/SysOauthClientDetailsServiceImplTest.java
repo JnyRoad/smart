@@ -2,6 +2,8 @@ package com.tce.smart.admin.service.impl;
 
 import com.tce.smart.admin.api.entity.SysOauthClientDetails;
 import com.tce.smart.admin.api.feign.RemoteTokenService;
+import com.tce.smart.admin.entity.OauthClientTokenRevocationTask;
+import com.tce.smart.admin.mapper.OauthClientTokenRevocationTaskMapper;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.exception.TCEException;
 import com.tce.smart.common.core.model.Result;
@@ -10,12 +12,26 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -41,6 +57,10 @@ public class SysOauthClientDetailsServiceImplTest {
 	private RemoteTokenService remoteTokenService;
 	private CacheManager cacheManager;
 	private Cache cache;
+	private OauthClientTokenRevocationTaskMapper tokenRevocationTaskMapper;
+	private Map<String, OauthClientTokenRevocationTask> pendingRevocations;
+	private PlatformTransactionManager transactionManager;
+	private Map<String, OauthClientTokenRevocationTask> transactionSnapshot;
 	private SysOauthClientDetailsServiceImpl service;
 
 	@Before
@@ -49,9 +69,61 @@ public class SysOauthClientDetailsServiceImplTest {
 		cacheManager = mock(CacheManager.class);
 		cache = mock(Cache.class);
 		when(cacheManager.getCache(SecurityConstants.CLIENT_DETAILS_KEY)).thenReturn(cache);
+		tokenRevocationTaskMapper = mock(OauthClientTokenRevocationTaskMapper.class);
+		pendingRevocations = new LinkedHashMap<>();
+		transactionManager = mock(PlatformTransactionManager.class);
+		when(transactionManager.getTransaction(any(TransactionDefinition.class))).thenAnswer(invocation -> {
+			transactionSnapshot = new LinkedHashMap<>(pendingRevocations);
+			return new SimpleTransactionStatus();
+		});
+		doAnswer(invocation -> {
+			pendingRevocations.clear();
+			pendingRevocations.putAll(transactionSnapshot);
+			return null;
+		}).when(transactionManager).rollback(any(TransactionStatus.class));
+		doAnswer(invocation -> {
+			OauthClientTokenRevocationTask task = invocation.getArgument(0);
+			pendingRevocations.put(task.getTaskId(), task);
+			return 1;
+		}).when(tokenRevocationTaskMapper).insert(any(OauthClientTokenRevocationTask.class));
+		when(tokenRevocationTaskMapper.selectOldestByClientId(anyString())).thenAnswer(invocation -> {
+			String clientId = invocation.getArgument(0);
+			return pendingRevocations.values().stream()
+					.filter(task -> clientId.equals(task.getClientId()))
+					.sorted(Comparator.comparing(OauthClientTokenRevocationTask::getCreateTime)
+							.thenComparing(OauthClientTokenRevocationTask::getTaskId))
+					.findFirst().orElse(null);
+		});
+		when(tokenRevocationTaskMapper.selectPendingBatch(any(LocalDateTime.class), any(Integer.class)))
+				.thenAnswer(invocation -> {
+			LocalDateTime now = invocation.getArgument(0);
+			int limit = invocation.getArgument(1);
+			return pendingRevocations.values().stream()
+					.filter(task -> !task.getNextRetryAt().isAfter(now))
+					.sorted(Comparator.comparing(OauthClientTokenRevocationTask::getNextRetryAt)
+							.thenComparing(OauthClientTokenRevocationTask::getCreateTime)
+							.thenComparing(OauthClientTokenRevocationTask::getTaskId))
+					.limit(limit).collect(Collectors.toList());
+		});
+		when(tokenRevocationTaskMapper.postponeFailure(anyString(), any(LocalDateTime.class)))
+				.thenAnswer(invocation -> {
+			String taskId = invocation.getArgument(0);
+			LocalDateTime nextRetryAt = invocation.getArgument(1);
+			OauthClientTokenRevocationTask task = pendingRevocations.get(taskId);
+			if (task == null || !task.getNextRetryAt().isBefore(nextRetryAt)) {
+				return 0;
+			}
+			task.setNextRetryAt(nextRetryAt);
+			return 1;
+		});
+		when(tokenRevocationTaskMapper.deleteById(anyString())).thenAnswer(invocation -> {
+			String taskId = invocation.getArgument(0);
+			return pendingRevocations.remove(taskId) == null ? 0 : 1;
+		});
 
 		// 用 spy 隔离 MyBatis-Plus ServiceImpl 对真实数据库的依赖（getById/updateById/removeById 由父类 IService 提供）。
-		service = spy(new SysOauthClientDetailsServiceImpl(remoteTokenService, cacheManager));
+		service = spy(new SysOauthClientDetailsServiceImpl(remoteTokenService, cacheManager,
+				tokenRevocationTaskMapper, transactionManager));
 	}
 
 	/**
@@ -161,6 +233,8 @@ public class SysOauthClientDetailsServiceImplTest {
 		Boolean result = service.removeClientDetailsById(clientId);
 
 		assertThat(result).isFalse();
+		assertThat(pendingRevocations).isEmpty();
+		verify(transactionManager).rollback(any(TransactionStatus.class));
 		verify(remoteTokenService, never()).removeTokensByClientId(anyString(), anyString());
 	}
 
@@ -404,6 +478,8 @@ public class SysOauthClientDetailsServiceImplTest {
 		existing.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
 		doReturn(existing).when(service).getById(clientId);
 		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenReturn(new Result<>(0));
 		SysOauthClientDetails update = new SysOauthClientDetails();
 		update.setClientId(clientId);
 		update.setScope(" server , internal:energy:projection:run ");
@@ -444,5 +520,374 @@ public class SysOauthClientDetailsServiceImplTest {
 		} catch (TCEException expected) {
 			assertThat(expected.getMessage()).contains("历史");
 		}
+	}
+
+	/** scope 更新后的吊销异常不能阻止清缓存，且再次提交相同 scope 必须恢复上次待办。 */
+	@Test
+	public void updateClientDetailsById_evictsCacheAndRetriesPendingRevocation_whenSameScopeIsResubmitted() {
+		String clientId = "retry-scope-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenThrow(new RuntimeException("auth unavailable"))
+				.thenReturn(new Result<>(0));
+		SysOauthClientDetails firstUpdate = new SysOauthClientDetails();
+		firstUpdate.setClientId(clientId);
+		firstUpdate.setScope("server");
+
+		try {
+			service.updateClientDetailsById(firstUpdate);
+			org.junit.Assert.fail("首次吊销异常必须向调用方暴露");
+		} catch (RuntimeException expected) {
+			assertThat(expected.getMessage()).contains("auth unavailable");
+		}
+
+		assertThat(hasPendingForClient(clientId)).isTrue();
+		verify(cache).evict(clientId);
+
+		existing.setScope("server");
+		SysOauthClientDetails retry = new SysOauthClientDetails();
+		retry.setClientId(clientId);
+		retry.setScope("server");
+		assertThat(service.updateClientDetailsById(retry)).isTrue();
+
+		verify(remoteTokenService, times(2)).removeTokensByClientId(clientId, SecurityConstants.FROM_IN);
+		verify(cache, times(2)).evict(clientId);
+		assertThat(hasPendingForClient(clientId)).isFalse();
+	}
+
+	/** auth 返回失败 Result 时不能伪装成撤销成功，待办必须保留以便恢复。 */
+	@Test
+	public void updateClientDetailsById_rejectsRemoteBusinessFailure_andKeepsPending() {
+		String clientId = "business-failure-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenReturn(Result.fail("auth refused"));
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope("server");
+
+		try {
+			service.updateClientDetailsById(update);
+			org.junit.Assert.fail("远程业务失败不能视为已撤销");
+		} catch (TCEException expected) {
+			assertThat(expected.getMessage()).contains("吊销");
+		}
+
+		assertThat(hasPendingForClient(clientId)).isTrue();
+	}
+
+	/** 相同 scope 的历史待办查询异常不能阻止已成功授权写入后的缓存失效。 */
+	@Test
+	public void updateClientDetailsById_evictsCache_beforePendingLookupFailure() {
+		String clientId = "pending-read-failure-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope("server");
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		doThrow(new RuntimeException("outbox read unavailable"))
+				.when(tokenRevocationTaskMapper).selectOldestByClientId(clientId);
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope("server");
+
+		try {
+			service.updateClientDetailsById(update);
+			org.junit.Assert.fail("待办读取异常必须向调用方暴露");
+		} catch (RuntimeException expected) {
+			assertThat(expected.getMessage()).contains("outbox read unavailable");
+		}
+
+		verify(cache).evict(clientId);
+		verify(remoteTokenService, never()).removeTokensByClientId(anyString(), anyString());
+	}
+
+	/** 数据库 outbox 待办无法写入时必须在授权变更前失败关闭。 */
+	@Test
+	public void updateClientDetailsById_doesNotPersistAuthorization_whenPendingRecordCannotBeStored() {
+		String clientId = "outbox-failure-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		doThrow(new RuntimeException("outbox unavailable"))
+				.when(tokenRevocationTaskMapper).insert(any(OauthClientTokenRevocationTask.class));
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope("server");
+
+		try {
+			service.updateClientDetailsById(update);
+			org.junit.Assert.fail("待办写入失败时不能继续修改授权");
+		} catch (TCEException expected) {
+			assertThat(expected.getMessage()).contains("待办");
+		}
+
+		verify(service, never()).updateById(any(SysOauthClientDetails.class));
+		verify(remoteTokenService, never()).removeTokensByClientId(anyString(), anyString());
+	}
+
+	/** 写退避时间也失败时不能用存储异常替换原始 auth 失败。 */
+	@Test
+	public void updateClientDetailsById_preservesOriginalFailure_whenPostponeAlsoFails() {
+		String clientId = "postpone-failure-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(true).when(service).updateById(any(SysOauthClientDetails.class));
+		RuntimeException authFailure = new RuntimeException("original auth failure");
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenThrow(authFailure);
+		doThrow(new RuntimeException("postpone unavailable")).when(tokenRevocationTaskMapper)
+				.postponeFailure(anyString(), any(LocalDateTime.class));
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope("server");
+
+		try {
+			service.updateClientDetailsById(update);
+			org.junit.Assert.fail("原始 auth 异常必须继续向调用方暴露");
+		} catch (RuntimeException actual) {
+			assertThat(actual).isSameAs(authFailure);
+			assertThat(actual.getSuppressed()).hasSize(1);
+			assertThat(actual.getSuppressed()[0].getMessage()).contains("postpone unavailable");
+		}
+
+		assertThat(hasPendingForClient(clientId)).isTrue();
+	}
+
+	/** 删除成功后的吊销异常也必须先清缓存并保留不含凭据的恢复待办。 */
+	@Test
+	public void removeClientDetailsById_evictsCacheAndKeepsPending_whenRevocationFails() {
+		String clientId = "deleted-app";
+		doReturn(true).when(service).removeById(clientId);
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenThrow(new RuntimeException("auth unavailable"));
+
+		try {
+			service.removeClientDetailsById(clientId);
+			org.junit.Assert.fail("删除后的吊销异常必须向调用方暴露");
+		} catch (RuntimeException expected) {
+			assertThat(expected.getMessage()).contains("auth unavailable");
+		}
+
+		verify(cache).evict(clientId);
+		assertThat(pendingRevocations).hasSize(1);
+		OauthClientTokenRevocationTask task = pendingRevocations.values().iterator().next();
+		assertThat(task.getClientId()).isEqualTo(clientId);
+		assertThat(task.toString()).doesNotContain("secret", "accessToken", "refreshToken");
+	}
+
+	/** 模拟进程在事务提交后、同步恢复前退出：后台必须恢复并清除已提交待办。 */
+	@Test
+	public void recoverPendingTokenRevocations_clearsPendingAfterSuccess() {
+		String clientId = "recover-app";
+		addPending(clientId, "version-1");
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenReturn(new Result<>(0));
+
+		service.recoverPendingTokenRevocations();
+
+		verify(cache).evict(clientId);
+		verify(remoteTokenService).removeTokensByClientId(clientId, SecurityConstants.FROM_IN);
+		assertThat(hasPendingForClient(clientId)).isFalse();
+	}
+
+	/** 后台补偿遇到远程业务失败时必须保留待办，供后续周期继续重试。 */
+	@Test
+	public void recoverPendingTokenRevocations_keepsPendingAfterRemoteBusinessFailure() {
+		String clientId = "recover-failure-app";
+		addPending(clientId, "version-1");
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenReturn(Result.fail("auth refused"));
+
+		service.recoverPendingTokenRevocations();
+
+		assertThat(pendingRevocations).containsKey("version-1");
+	}
+
+	/** 缓存清理异常发生在待办提交之后，必须保留待办且不能提前调用 auth。 */
+	@Test
+	public void recoverPendingTokenRevocations_keepsPending_whenCacheEvictionFails() {
+		String clientId = "cache-failure-app";
+		addPending(clientId, "version-cache");
+		doThrow(new RuntimeException("cache unavailable")).when(cache).evict(clientId);
+
+		service.recoverPendingTokenRevocations();
+
+		assertThat(pendingRevocations).containsKey("version-cache");
+		verify(remoteTokenService, never()).removeTokensByClientId(clientId, SecurityConstants.FROM_IN);
+	}
+
+	/** 单个客户端恢复失败不能阻断同一批次中后续客户端。 */
+	@Test
+	public void recoverPendingTokenRevocations_continuesAfterOneClientFails() {
+		addPending("first-failure-app", "version-first");
+		addPending("later-success-app", "version-later");
+		when(remoteTokenService.removeTokensByClientId("first-failure-app", SecurityConstants.FROM_IN))
+				.thenReturn(Result.fail("auth refused"));
+		when(remoteTokenService.removeTokensByClientId("later-success-app", SecurityConstants.FROM_IN))
+				.thenReturn(new Result<>(0));
+
+		service.recoverPendingTokenRevocations();
+
+		assertThat(pendingRevocations).containsOnlyKeys("version-first");
+		verify(remoteTokenService).removeTokensByClientId("later-success-app", SecurityConstants.FROM_IN);
+	}
+
+	/** 旧补偿执行期间出现新待办时，旧版本的成功结果不能删除新版本。 */
+	@Test
+	public void recoverPendingTokenRevocations_doesNotClearNewerPendingVersion() {
+		String clientId = "concurrent-app";
+		addPending(clientId, "version-1");
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenAnswer(invocation -> {
+					addPending(clientId, "version-2");
+					return new Result<>(0);
+				});
+
+		service.recoverPendingTokenRevocations();
+
+		assertThat(pendingRevocations).containsOnlyKeys("version-2");
+	}
+
+	/** 授权与 outbox 提交完成前不得清缓存或调用 auth，避免外部副作用早于数据库事实。 */
+	@Test
+	public void updateClientDetailsById_commitsAuthorizationAndOutbox_beforeCacheEvictionAndRevocation() {
+		String clientId = "commit-order-app";
+		List<String> events = new ArrayList<>();
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
+		doReturn(existing).when(service).getById(clientId);
+		doAnswer(invocation -> {
+			events.add("update");
+			return true;
+		}).when(service).updateById(any(SysOauthClientDetails.class));
+		doAnswer(invocation -> {
+			events.add("outbox");
+			OauthClientTokenRevocationTask task = invocation.getArgument(0);
+			pendingRevocations.put(task.getTaskId(), task);
+			return 1;
+		}).when(tokenRevocationTaskMapper).insert(any(OauthClientTokenRevocationTask.class));
+		doAnswer(invocation -> {
+			events.add("commit");
+			return null;
+		}).when(transactionManager).commit(any(TransactionStatus.class));
+		doAnswer(invocation -> {
+			events.add("cache");
+			return null;
+		}).when(cache).evict(clientId);
+		when(remoteTokenService.removeTokensByClientId(clientId, SecurityConstants.FROM_IN))
+				.thenAnswer(invocation -> {
+					events.add("revoke");
+					return new Result<>(0);
+				});
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope("server");
+
+		assertThat(service.updateClientDetailsById(update)).isTrue();
+
+		assertThat(events).containsExactly("outbox", "update", "commit", "cache", "revoke");
+		org.mockito.ArgumentCaptor<TransactionDefinition> definitionCaptor =
+				org.mockito.ArgumentCaptor.forClass(TransactionDefinition.class);
+		verify(transactionManager).getTransaction(definitionCaptor.capture());
+		assertThat(definitionCaptor.getValue().getPropagationBehavior())
+				.isEqualTo(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+		org.mockito.ArgumentCaptor<OauthClientTokenRevocationTask> taskCaptor =
+				org.mockito.ArgumentCaptor.forClass(OauthClientTokenRevocationTask.class);
+		verify(tokenRevocationTaskMapper).insert(taskCaptor.capture());
+		assertThat(taskCaptor.getValue().getNextRetryAt()).isEqualTo(taskCaptor.getValue().getCreateTime());
+	}
+
+	/** 数据库未更新时 outbox 必须回滚，且不能清缓存或吊销仍有效客户端。 */
+	@Test
+	public void updateClientDetailsById_rollsBackOutbox_whenDatabaseUpdateReturnsFalse() {
+		String clientId = "rollback-app";
+		SysOauthClientDetails existing = new SysOauthClientDetails();
+		existing.setClientId(clientId);
+		existing.setScope(OpenApiScopeCatalog.ENERGY_PROJECTION_RUN);
+		doReturn(existing).when(service).getById(clientId);
+		doReturn(false).when(service).updateById(any(SysOauthClientDetails.class));
+		SysOauthClientDetails update = new SysOauthClientDetails();
+		update.setClientId(clientId);
+		update.setScope("server");
+
+		assertThat(service.updateClientDetailsById(update)).isFalse();
+
+		verify(transactionManager).rollback(any(TransactionStatus.class));
+		assertThat(pendingRevocations).isEmpty();
+		verify(cache, never()).evict(clientId);
+		verify(remoteTokenService, never()).removeTokensByClientId(anyString(), anyString());
+	}
+
+	/** 单次后台恢复必须受批大小限制，避免积压任务长期占用调度线程。 */
+	@Test
+	public void recoverPendingTokenRevocations_limitsEachScheduledBatch() throws Exception {
+		java.lang.reflect.Field batchSize = service.getClass().getSuperclass()
+				.getDeclaredField("recoveryBatchSize");
+		batchSize.setAccessible(true);
+		batchSize.set(service, 2);
+		addPending("batch-app-1", "version-1");
+		addPending("batch-app-2", "version-2");
+		addPending("batch-app-3", "version-3");
+		when(remoteTokenService.removeTokensByClientId(anyString(), eq(SecurityConstants.FROM_IN)))
+				.thenReturn(new Result<>(0));
+
+		service.recoverPendingTokenRevocations();
+
+		verify(remoteTokenService, times(2)).removeTokensByClientId(anyString(), eq(SecurityConstants.FROM_IN));
+		assertThat(pendingRevocations).hasSize(1);
+	}
+
+	/** 首批任务持续失败时，退避后的下一周期必须让后续可成功客户端获得处理机会。 */
+	@Test
+	public void recoverPendingTokenRevocations_advancesPastFailedFirstBatchOnNextCycle() throws Exception {
+		java.lang.reflect.Field batchSize = service.getClass().getSuperclass()
+				.getDeclaredField("recoveryBatchSize");
+		batchSize.setAccessible(true);
+		batchSize.set(service, 2);
+		addPending("failed-batch-app-1", "version-failed-1");
+		addPending("failed-batch-app-2", "version-failed-2");
+		addPending("later-success-app", "version-success");
+		when(remoteTokenService.removeTokensByClientId("failed-batch-app-1", SecurityConstants.FROM_IN))
+				.thenReturn(Result.fail("auth refused"));
+		when(remoteTokenService.removeTokensByClientId("failed-batch-app-2", SecurityConstants.FROM_IN))
+				.thenReturn(Result.fail("auth refused"));
+		when(remoteTokenService.removeTokensByClientId("later-success-app", SecurityConstants.FROM_IN))
+				.thenReturn(new Result<>(0));
+
+		service.recoverPendingTokenRevocations();
+		service.recoverPendingTokenRevocations();
+
+		verify(remoteTokenService).removeTokensByClientId("later-success-app", SecurityConstants.FROM_IN);
+		assertThat(pendingRevocations).doesNotContainKey("version-success");
+	}
+
+	/** 向内存 outbox 写入一个已提交待办，用于模拟调度恢复。 */
+	private OauthClientTokenRevocationTask addPending(String clientId, String taskId) {
+		OauthClientTokenRevocationTask task = new OauthClientTokenRevocationTask();
+		task.setTaskId(taskId);
+		task.setClientId(clientId);
+		task.setCreateTime(LocalDateTime.of(2026, 9, 4, 0, 0).plusSeconds(pendingRevocations.size()));
+		task.setNextRetryAt(task.getCreateTime());
+		pendingRevocations.put(taskId, task);
+		return task;
+	}
+
+	/** 判断内存 outbox 中是否仍存在指定客户端的待办。 */
+	private boolean hasPendingForClient(String clientId) {
+		return pendingRevocations.values().stream().anyMatch(task -> clientId.equals(task.getClientId()));
 	}
 }

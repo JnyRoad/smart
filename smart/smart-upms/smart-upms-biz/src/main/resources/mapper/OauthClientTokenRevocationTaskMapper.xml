@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.admin.mapper.OauthClientTokenRevocationTaskMapper">
+
+	<resultMap id="tokenRevocationTaskMap" type="com.tce.smart.admin.entity.OauthClientTokenRevocationTask">
+		<id property="taskId" column="TASK_ID"/>
+		<result property="clientId" column="CLIENT_ID"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="nextRetryAt" column="NEXT_RETRY_AT"/>
+	</resultMap>
+
+	<!-- Oracle 先筛到期任务并按退避时间稳定排序，再由外层 ROWNUM 限制单批读取量。 -->
+	<select id="selectPendingBatch" resultMap="tokenRevocationTaskMap">
+		SELECT TASK_ID, CLIENT_ID, CREATE_TIME, NEXT_RETRY_AT
+		FROM (
+			SELECT TASK_ID, CLIENT_ID, CREATE_TIME, NEXT_RETRY_AT
+			FROM SYS_OAUTH_CLIENT_REVOKE_TASK
+			WHERE NEXT_RETRY_AT <![CDATA[<=]]> #{now}
+			ORDER BY NEXT_RETRY_AT, CREATE_TIME, TASK_ID
+		)
+		WHERE ROWNUM <![CDATA[<=]]> #{limit}
+	</select>
+
+	<!-- 旧并发尝试只能延后、不能提前已有退避；任务已成功删除时更新自然为 0。 -->
+	<update id="postponeFailure">
+		UPDATE SYS_OAUTH_CLIENT_REVOKE_TASK
+		SET NEXT_RETRY_AT = #{nextRetryAt}
+		WHERE TASK_ID = #{taskId}
+		AND NEXT_RETRY_AT <![CDATA[<]]> #{nextRetryAt}
+	</update>
+
+	<!-- Oracle 必须在排序后的外层应用 ROWNUM，才能取到该客户端真正最早的待办。 -->
+	<select id="selectOldestByClientId" resultMap="tokenRevocationTaskMap">
+		SELECT TASK_ID, CLIENT_ID, CREATE_TIME, NEXT_RETRY_AT
+		FROM (
+			SELECT TASK_ID, CLIENT_ID, CREATE_TIME, NEXT_RETRY_AT
+			FROM SYS_OAUTH_CLIENT_REVOKE_TASK
+			WHERE CLIENT_ID = #{clientId}
+			ORDER BY CREATE_TIME, TASK_ID
+		)
+		WHERE ROWNUM = 1
+	</select>
+
+</mapper>

@@ -49,7 +49,7 @@ public class EnergyProjectionController {
 		return Result.success(Boolean.TRUE);
 	}
 
-	/** 回算指定业务日，供持有 server 授权的内部服务调用。 */
+	/** 将指定业务日回算持久入队；成功表示已接受，计算完成情况由队列状态确认。 */
 	@Inner
 	@OpenApi(value = OpenApiScopeCatalog.SERVER,
 			compatibilityScopes = {OpenApiScopeCatalog.ENERGY_PROJECTION_RUN})
@@ -59,7 +59,7 @@ public class EnergyProjectionController {
 		return Result.success(Boolean.TRUE);
 	}
 
-	/** 受上限保护的当月回填入口，不接受调用方指定日期。 */
+	/** 推进一个受扫描预算保护的持久补齐短批，不接受调用方指定日期。 */
 	@Inner
 	@OpenApi(value = OpenApiScopeCatalog.SERVER,
 			compatibilityScopes = {OpenApiScopeCatalog.ENERGY_PROJECTION_RUN})
