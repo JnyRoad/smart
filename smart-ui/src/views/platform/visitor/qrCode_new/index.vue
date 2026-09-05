@@ -82,6 +82,7 @@
 import { getInfoApi, getInfoApiNew, getInfoApiCard, delSmsCode, getImage, getAreaType} from '@/api/platform/visitor/qrCode'
 import * as bpac from '@/util/bpac'
 import calculation from './keys'
+import { dispatchVisitorPrint } from '@/api/platform/print/cutover'
 
 const constImg = './img/print_peaple.png'
 export default {
@@ -91,6 +92,7 @@ export default {
   data() {
     return {
       loading: false,
+      printDispatching: false,
       loadingText: '加载中…',
       codeVisible: false,
       codeForm: {},
@@ -262,6 +264,7 @@ export default {
       this.errMsg = msg
     },
     getInfo() {
+      if (this.loading || this.printDispatching) return
       this.loading = true
       this.loadingText = '获取访客信息中…'
       if (this.checkTypeDesc == 0) {
@@ -359,6 +362,19 @@ export default {
       const res = await delSmsCode(this.visitorData.id)
     },
     async doPrint(strExport) {
+      if (this.printDispatching) return
+      this.printDispatching = true
+      try {
+        await dispatchVisitorPrint(this.visitorData, 'ADMITTANCE',
+          () => this.doLegacyPrint(strExport), target => this.$router.push(target))
+      } catch (error) {
+        this.$message.error(error.message || '打印入口不可用，请联系操作员')
+      } finally {
+        this.printDispatching = false
+        this.loading = false
+      }
+    },
+    async doLegacyPrint(strExport) {
       // this.visitorData
       //授权区域
       const areaType = this.visitorData.areaType

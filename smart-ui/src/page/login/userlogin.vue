@@ -26,6 +26,7 @@
 </template>
 
 <script>
+import { printLoginDestination } from '@/api/platform/print/handoff'
 import { randomLenNum } from "@/util/util";
 import { mapGetters } from "vuex";
 
@@ -148,7 +149,7 @@ export default {
             if (_this.isPad) {
               _this.$router.push({ path: '/platform/dormitory/pad' });
             } else {
-              _this.$router.push({ path: _this.tagWel.value });
+              _this.$router.push(printLoginDestination(_this.$route.query) || { path: _this.tagWel.value });
             }
           }).catch((err) => {
             _this.refreshCode()

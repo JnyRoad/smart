@@ -16,6 +16,8 @@ smart/
 ├── smart/                    # 基础平台后端：网关、认证、UPMS、公共组件
 ├── smart-module/             # 业务微服务后端：App、平台、桥接、数据、调度等
 ├── smart-ui/                 # 管理后台前端：Vue 2 + Element UI + Avue
+├── smart-print-renderer/     # pdfme 单面模板、双面组合及私有 PDF 渲染服务
+├── smart-print-client/       # Windows 打印工作站、持久命令日志和设备适配
 ├── smart-h5/                 # 当前维护的微信 H5：Next.js + React + antd-mobile
 ├── smart-h5-vue2/            # 历史 Vue2 微信 H5，仅作功能参考
 └── smart-app-uniapp/         # 「裕慧家园」移动 App：uni-app + Vue 2，HBuilderX 打包
@@ -28,6 +30,8 @@ smart/
 | `smart/` | 基础平台后端，提供 API 网关、OAuth2 认证、UPMS 权限和 `smart-common-*` 公共组件。 | Java 8、Spring Boot 2.1、Spring Cloud Greenwich、Maven |
 | `smart-module/` | 园区业务微服务聚合工程，覆盖 App、管理平台、数据同步、设备桥接、ISC、算法、推送、调度和发布 Jar 清单中的可部署服务。 | Java 8、Spring Boot、Spring Cloud、MyBatis/MyBatis-Plus、Maven |
 | `smart-ui/` | 管理端中后台 SPA，对接 `smart-gateway` 后的认证、UPMS 和园区业务 API。 | Vue 2.7、Element UI、Avue、Vue CLI、pnpm |
+| [smart-print-renderer/](smart-print-renderer/README.md) | 厂牌双面、访客单面的受控 PDF 渲染与私有 HTTP 服务；不读取人员库或调用打印机。 | Node.js 24、pdfme 6.1.12 |
+| [smart-print-client/](smart-print-client/README.md) | 独立设备身份领取任务、命令去重与 Windows 打印适配；实机能力需按设备档案验收。 | .NET 10、Windows 驱动、Brother b-PAC |
 | `smart-h5/` | 当前维护的微信内嵌移动 H5，覆盖登录、首页、访客、宿舍、放行、待办等移动端流程；后续 H5 功能更新统一在这里开发。 | Next.js 16、React 19、TypeScript、antd-mobile、Tailwind CSS |
 | `smart-h5-vue2/` | 历史 Vue2 微信公众号版 H5，仅用于查阅旧页面、旧交互和接口调用方式；不再维护、不再用于新功能开发或发布。 | Vue 2、Vue CLI、Vue Router、Vuex、cube-ui |
 | `smart-app-uniapp/` | 「裕慧家园」移动 App 客户端（Android / iOS），与 `smart-h5` 并行使用：App 场景用它、公众号场景用 H5；对接网关后的认证和 `smart-module/smart-app` 业务 API。 | uni-app（HBuilderX 工程）、Vue 2、Vuex、UniPush |

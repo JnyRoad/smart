@@ -3,6 +3,7 @@
  *
  */
 import router from './router/router'
+import { printLoginTarget } from '@/api/platform/print/handoff'
 import store from '@/store'
 import {getStore} from '@/util/store'
 import {validatenull} from '@/util/validate'
@@ -75,7 +76,7 @@ router.beforeEach((to, from, next) => {
     if (meta.isAuth === false) {
       next()
     } else {
-      next('/login')
+      next(printLoginTarget(to) || '/login')
     }
   }
 })

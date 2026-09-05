@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.PrintTemplateMapper">
+  <resultMap id="PrintTemplate" type="com.tce.smart.platform.core.entity.print.PrintTemplate">
+    <id property="templateId" column="TEMPLATE_ID"/>
+    <result property="parkId" column="PARK_ID"/>
+    <result property="templateKey" column="TEMPLATE_KEY"/>
+    <result property="name" column="NAME"/>
+    <result property="printItemType" column="PRINT_ITEM_TYPE"/>
+    <result property="personType" column="PERSON_TYPE"/>
+    <result property="classificationCode" column="CLASSIFICATION_CODE"/>
+    <result property="faceRole" column="FACE_ROLE"/>
+    <result property="lifecycleStatus" column="LIFECYCLE_STATUS"/>
+    <result property="currentDraftVersionId" column="CURRENT_DRAFT_VERSION_ID"/>
+    <result property="currentPublishedVersionId" column="CURRENT_PUBLISHED_VERSION_ID"/>
+    <result property="draftRevision" column="DRAFT_REVISION"/>
+    <result property="createdBy" column="CREATED_BY"/>
+    <result property="createdAt" column="CREATED_AT"/>
+    <result property="updatedBy" column="UPDATED_BY"/>
+    <result property="updatedAt" column="UPDATED_AT"/>
+    <result property="archivedAt" column="ARCHIVED_AT"/>
+  </resultMap>
+  <insert id="insertTemplate">INSERT INTO SMT_PRINT_TEMPLATE (TEMPLATE_ID, PARK_ID, TEMPLATE_KEY, NAME, PRINT_ITEM_TYPE, PERSON_TYPE, CLASSIFICATION_CODE, FACE_ROLE, LIFECYCLE_STATUS, CURRENT_DRAFT_VERSION_ID, CURRENT_PUBLISHED_VERSION_ID, DRAFT_REVISION, CREATED_BY, CREATED_AT, UPDATED_BY, UPDATED_AT, ARCHIVED_AT) VALUES (#{templateId,jdbcType=VARCHAR}, #{parkId,jdbcType=VARCHAR}, #{templateKey,jdbcType=VARCHAR}, #{name,jdbcType=VARCHAR}, #{printItemType,jdbcType=VARCHAR}, #{personType,jdbcType=VARCHAR}, #{classificationCode,jdbcType=VARCHAR}, #{faceRole,jdbcType=VARCHAR}, #{lifecycleStatus,jdbcType=VARCHAR}, #{currentDraftVersionId,jdbcType=VARCHAR}, #{currentPublishedVersionId,jdbcType=VARCHAR}, #{draftRevision,jdbcType=NUMERIC}, #{createdBy,jdbcType=VARCHAR}, #{createdAt,jdbcType=TIMESTAMP}, #{updatedBy,jdbcType=VARCHAR}, #{updatedAt,jdbcType=TIMESTAMP}, #{archivedAt,jdbcType=TIMESTAMP})</insert>
+  <select id="findTemplate" resultMap="PrintTemplate">SELECT * FROM SMT_PRINT_TEMPLATE WHERE TEMPLATE_ID = #{id}</select>
+  <select id="lockTemplate" resultMap="PrintTemplate">SELECT * FROM SMT_PRINT_TEMPLATE WHERE TEMPLATE_ID = #{id} FOR UPDATE</select>
+  <update id="updateTemplate">UPDATE SMT_PRINT_TEMPLATE SET PARK_ID = #{parkId,jdbcType=VARCHAR}, TEMPLATE_KEY = #{templateKey,jdbcType=VARCHAR}, NAME = #{name,jdbcType=VARCHAR}, PRINT_ITEM_TYPE = #{printItemType,jdbcType=VARCHAR}, PERSON_TYPE = #{personType,jdbcType=VARCHAR}, CLASSIFICATION_CODE = #{classificationCode,jdbcType=VARCHAR}, FACE_ROLE = #{faceRole,jdbcType=VARCHAR}, LIFECYCLE_STATUS = #{lifecycleStatus,jdbcType=VARCHAR}, CURRENT_DRAFT_VERSION_ID = #{currentDraftVersionId,jdbcType=VARCHAR}, CURRENT_PUBLISHED_VERSION_ID = #{currentPublishedVersionId,jdbcType=VARCHAR}, DRAFT_REVISION = #{draftRevision,jdbcType=NUMERIC}, UPDATED_BY = #{updatedBy,jdbcType=VARCHAR}, UPDATED_AT = #{updatedAt,jdbcType=TIMESTAMP}, ARCHIVED_AT = #{archivedAt,jdbcType=TIMESTAMP} WHERE TEMPLATE_ID = #{templateId,jdbcType=VARCHAR}</update>
+  <resultMap id="PrintTemplateVersion" type="com.tce.smart.platform.core.entity.print.PrintTemplateVersion">
+    <id property="templateVersionId" column="TEMPLATE_VERSION_ID"/>
+    <result property="templateId" column="TEMPLATE_ID"/>
+    <result property="parkId" column="PARK_ID"/>
+    <result property="versionNo" column="VERSION_NO"/>
+    <result property="versionStatus" column="VERSION_STATUS"/>
+    <result property="faceRole" column="FACE_ROLE"/>
+    <result property="sideCount" column="SIDE_COUNT"/>
+    <result property="layoutJson" column="LAYOUT_JSON" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+    <result property="fieldSchemaJson" column="FIELD_SCHEMA_JSON" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+    <result property="resourceManifestJson" column="RESOURCE_MANIFEST_JSON" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+    <result property="pageSpecJson" column="PAGE_SPEC_JSON" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+    <result property="validationReportJson" column="VALIDATION_REPORT_JSON" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+    <result property="contentHash" column="CONTENT_HASH"/>
+    <result property="draftRevision" column="DRAFT_REVISION"/>
+    <result property="publishedAt" column="PUBLISHED_AT"/>
+    <result property="publishedBy" column="PUBLISHED_BY"/>
+    <result property="createdAt" column="CREATED_AT"/>
+    <result property="createdBy" column="CREATED_BY"/>
+  </resultMap>
+  <insert id="insertTemplateVersion">INSERT INTO SMT_PRINT_TEMPLATE_VER (TEMPLATE_VERSION_ID, TEMPLATE_ID, PARK_ID, VERSION_NO, VERSION_STATUS, FACE_ROLE, SIDE_COUNT, LAYOUT_JSON, FIELD_SCHEMA_JSON, RESOURCE_MANIFEST_JSON, PAGE_SPEC_JSON, VALIDATION_REPORT_JSON, CONTENT_HASH, DRAFT_REVISION, PUBLISHED_AT, PUBLISHED_BY, CREATED_AT, CREATED_BY) VALUES (#{templateVersionId,jdbcType=VARCHAR}, #{templateId,jdbcType=VARCHAR}, #{parkId,jdbcType=VARCHAR}, #{versionNo,jdbcType=NUMERIC}, #{versionStatus,jdbcType=VARCHAR}, #{faceRole,jdbcType=VARCHAR}, #{sideCount,jdbcType=NUMERIC}, #{layoutJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, #{fieldSchemaJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, #{resourceManifestJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, #{pageSpecJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, #{validationReportJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, #{contentHash,jdbcType=VARCHAR}, #{draftRevision,jdbcType=NUMERIC}, #{publishedAt,jdbcType=TIMESTAMP}, #{publishedBy,jdbcType=VARCHAR}, #{createdAt,jdbcType=TIMESTAMP}, #{createdBy,jdbcType=VARCHAR})</insert>
+  <select id="findTemplateVersion" resultMap="PrintTemplateVersion">SELECT * FROM SMT_PRINT_TEMPLATE_VER WHERE TEMPLATE_VERSION_ID = #{id}</select>
+  <update id="updateTemplateVersion">UPDATE SMT_PRINT_TEMPLATE_VER SET LAYOUT_JSON = #{layoutJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, FIELD_SCHEMA_JSON = #{fieldSchemaJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, RESOURCE_MANIFEST_JSON = #{resourceManifestJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, PAGE_SPEC_JSON = #{pageSpecJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, VALIDATION_REPORT_JSON = #{validationReportJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, CONTENT_HASH = #{contentHash,jdbcType=VARCHAR}, DRAFT_REVISION = #{draftRevision,jdbcType=NUMERIC} WHERE TEMPLATE_VERSION_ID = #{templateVersionId,jdbcType=VARCHAR} AND VERSION_STATUS = 'DRAFT'</update>
+  <resultMap id="PrintTemplatePair" type="com.tce.smart.platform.core.entity.print.PrintTemplatePair">
+    <id property="pairId" column="PAIR_ID"/>
+    <result property="parkId" column="PARK_ID"/>
+    <result property="name" column="NAME"/>
+    <result property="printItemType" column="PRINT_ITEM_TYPE"/>
+    <result property="personType" column="PERSON_TYPE"/>
+    <result property="classificationCode" column="CLASSIFICATION_CODE"/>
+    <result property="frontTemplateVersionId" column="FRONT_TEMPLATE_VERSION_ID"/>
+    <result property="backTemplateVersionId" column="BACK_TEMPLATE_VERSION_ID"/>
+    <result property="revision" column="REVISION"/>
+    <result property="status" column="STATUS"/>
+    <result property="createdBy" column="CREATED_BY"/>
+    <result property="createdAt" column="CREATED_AT"/>
+    <result property="updatedBy" column="UPDATED_BY"/>
+    <result property="updatedAt" column="UPDATED_AT"/>
+    <result property="archivedAt" column="ARCHIVED_AT"/>
+  </resultMap>
+  <insert id="insertTemplatePair">INSERT INTO SMT_PRINT_TEMPLATE_PAIR (PAIR_ID, PARK_ID, NAME, PRINT_ITEM_TYPE, PERSON_TYPE, CLASSIFICATION_CODE, FRONT_TEMPLATE_VERSION_ID, BACK_TEMPLATE_VERSION_ID, REVISION, STATUS, CREATED_BY, CREATED_AT, UPDATED_BY, UPDATED_AT, ARCHIVED_AT) VALUES (#{pairId,jdbcType=VARCHAR}, #{parkId,jdbcType=VARCHAR}, #{name,jdbcType=VARCHAR}, #{printItemType,jdbcType=VARCHAR}, #{personType,jdbcType=VARCHAR}, #{classificationCode,jdbcType=VARCHAR}, #{frontTemplateVersionId,jdbcType=VARCHAR}, #{backTemplateVersionId,jdbcType=VARCHAR}, #{revision,jdbcType=NUMERIC}, #{status,jdbcType=VARCHAR}, #{createdBy,jdbcType=VARCHAR}, #{createdAt,jdbcType=TIMESTAMP}, #{updatedBy,jdbcType=VARCHAR}, #{updatedAt,jdbcType=TIMESTAMP}, #{archivedAt,jdbcType=TIMESTAMP})</insert>
+  <select id="findTemplatePair" resultMap="PrintTemplatePair">SELECT * FROM SMT_PRINT_TEMPLATE_PAIR WHERE PAIR_ID = #{id}</select>
+  <select id="lockTemplatePair" resultMap="PrintTemplatePair">SELECT * FROM SMT_PRINT_TEMPLATE_PAIR WHERE PAIR_ID = #{id} FOR UPDATE</select>
+  <update id="updateTemplatePair">UPDATE SMT_PRINT_TEMPLATE_PAIR SET PARK_ID = #{parkId,jdbcType=VARCHAR}, NAME = #{name,jdbcType=VARCHAR}, PRINT_ITEM_TYPE = #{printItemType,jdbcType=VARCHAR}, PERSON_TYPE = #{personType,jdbcType=VARCHAR}, CLASSIFICATION_CODE = #{classificationCode,jdbcType=VARCHAR}, FRONT_TEMPLATE_VERSION_ID = #{frontTemplateVersionId,jdbcType=VARCHAR}, BACK_TEMPLATE_VERSION_ID = #{backTemplateVersionId,jdbcType=VARCHAR}, REVISION = #{revision,jdbcType=NUMERIC}, STATUS = #{status,jdbcType=VARCHAR}, UPDATED_BY = #{updatedBy,jdbcType=VARCHAR}, UPDATED_AT = #{updatedAt,jdbcType=TIMESTAMP}, ARCHIVED_AT = #{archivedAt,jdbcType=TIMESTAMP} WHERE PAIR_ID = #{pairId,jdbcType=VARCHAR}</update>
+  <resultMap id="PrintOperation" type="com.tce.smart.platform.core.entity.print.PrintOperation">
+    <id property="operationId" column="OPERATION_ID"/>
+    <result property="principalId" column="PRINCIPAL_ID"/>
+    <result property="idempotencyKey" column="IDEMPOTENCY_KEY"/>
+    <result property="bodyHash" column="BODY_HASH"/>
+    <result property="responseJson" column="RESPONSE_JSON" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+    <result property="createdAt" column="CREATED_AT"/>
+  </resultMap>
+  <insert id="insertOperation">INSERT INTO SMT_PRINT_OPERATION (OPERATION_ID, PRINCIPAL_ID, IDEMPOTENCY_KEY, BODY_HASH, RESPONSE_JSON, CREATED_AT) VALUES (#{operationId,jdbcType=VARCHAR}, #{principalId,jdbcType=VARCHAR}, #{idempotencyKey,jdbcType=VARCHAR}, #{bodyHash,jdbcType=VARCHAR}, #{responseJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, #{createdAt,jdbcType=TIMESTAMP})</insert>
+  <resultMap id="PrintAudit" type="com.tce.smart.platform.core.entity.print.PrintAudit">
+    <id property="auditId" column="AUDIT_ID"/>
+    <result property="parkId" column="PARK_ID"/>
+    <result property="actorId" column="ACTOR_ID"/>
+    <result property="action" column="ACTION"/>
+    <result property="objectId" column="OBJECT_ID"/>
+    <result property="detailsJson" column="DETAILS_JSON" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+    <result property="createdAt" column="CREATED_AT"/>
+  </resultMap>
+  <insert id="insertAudit">INSERT INTO SMT_PRINT_AUDIT (AUDIT_ID, PARK_ID, ACTOR_ID, ACTION, OBJECT_ID, DETAILS_JSON, CREATED_AT) VALUES (#{auditId,jdbcType=VARCHAR}, #{parkId,jdbcType=VARCHAR}, #{actorId,jdbcType=VARCHAR}, #{action,jdbcType=VARCHAR}, #{objectId,jdbcType=VARCHAR}, #{detailsJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler}, #{createdAt,jdbcType=TIMESTAMP})</insert>
+  <select id="findVersions" resultMap="PrintTemplateVersion">SELECT * FROM SMT_PRINT_TEMPLATE_VER WHERE TEMPLATE_ID = #{templateId} ORDER BY VERSION_NO DESC</select>
+  <select id="nextVersionNo" resultType="long">SELECT COALESCE(MAX(VERSION_NO),0)+1 FROM SMT_PRINT_TEMPLATE_VER WHERE TEMPLATE_ID = #{templateId}</select>
+  <select id="findOperation" resultMap="PrintOperation">SELECT * FROM SMT_PRINT_OPERATION WHERE PRINCIPAL_ID = #{principalId} AND IDEMPOTENCY_KEY = #{key}</select>
+  <update id="completeOperation">UPDATE SMT_PRINT_OPERATION SET RESPONSE_JSON = #{responseJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler} WHERE OPERATION_ID = #{operationId}</update>
+  <sql id="templateFilter">PARK_ID = #{parkId}<if test="printItemType != null"> AND PRINT_ITEM_TYPE = #{printItemType}</if><if test="personType != null"> AND PERSON_TYPE = #{personType}</if><if test="classificationCode != null"> AND CLASSIFICATION_CODE = #{classificationCode}</if><if test="faceRole != null"> AND FACE_ROLE = #{faceRole}</if><if test="status != null"> AND LIFECYCLE_STATUS = #{status}</if></sql>
+  <select id="listTemplates" resultMap="PrintTemplate">SELECT * FROM SMT_PRINT_TEMPLATE WHERE <include refid="templateFilter"/> ORDER BY CREATED_AT DESC, TEMPLATE_ID</select>
+  <select id="countTemplates" resultType="long">SELECT COUNT(*) FROM SMT_PRINT_TEMPLATE WHERE <include refid="templateFilter"/></select>
+  <sql id="pairFilter">PARK_ID = #{parkId}<if test="printItemType != null"> AND PRINT_ITEM_TYPE = #{printItemType}</if><if test="personType != null"> AND PERSON_TYPE = #{personType}</if><if test="classificationCode != null"> AND CLASSIFICATION_CODE = #{classificationCode}</if><if test="status != null"> AND STATUS = #{status}</if></sql>
+  <select id="listPairs" resultMap="PrintTemplatePair">SELECT * FROM SMT_PRINT_TEMPLATE_PAIR WHERE <include refid="pairFilter"/> ORDER BY CREATED_AT DESC, PAIR_ID</select>
+  <select id="countPairs" resultType="long">SELECT COUNT(*) FROM SMT_PRINT_TEMPLATE_PAIR WHERE <include refid="pairFilter"/></select>
+</mapper>

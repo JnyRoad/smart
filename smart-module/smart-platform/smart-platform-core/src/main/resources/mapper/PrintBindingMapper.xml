@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.PrintBindingMapper">
+<resultMap id="rule" type="com.tce.smart.platform.core.entity.print.PrintBindingRule">
+<result property="bindingRuleId" column="BINDING_RULE_ID"/>
+<result property="parkId" column="PARK_ID"/>
+<result property="printItemType" column="PRINT_ITEM_TYPE"/>
+<result property="personType" column="PERSON_TYPE"/>
+<result property="classificationCode" column="CLASSIFICATION_CODE"/>
+<result property="scopeType" column="SCOPE_TYPE"/>
+<result property="scopeId" column="SCOPE_ID"/>
+<result property="templateId" column="TEMPLATE_ID"/>
+<result property="pairId" column="PAIR_ID"/>
+<result property="employeeGradeCodesClob" column="EMPLOYEE_GRADE_CODES_CLOB" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+<result property="priority" column="PRIORITY"/>
+<result property="validFrom" column="VALID_FROM"/>
+<result property="validTo" column="VALID_TO"/>
+<result property="status" column="STATUS"/>
+<result property="revision" column="REVISION"/>
+<result property="createdBy" column="CREATED_BY"/>
+<result property="createdAt" column="CREATED_AT"/>
+<result property="updatedBy" column="UPDATED_BY"/>
+<result property="updatedAt" column="UPDATED_AT"/>
+</resultMap>
+<select id="lockPark" resultType="string">SELECT ID FROM SMT_PARK WHERE ID=#{parkId} FOR UPDATE</select>
+<select id="find" resultMap="rule">SELECT * FROM SMT_PRINT_BIND_RULE WHERE BINDING_RULE_ID=#{id}</select>
+<sql id="filters">WHERE PARK_ID=#{parkId}
+<if test="printItemType != null">AND PRINT_ITEM_TYPE=#{printItemType}</if>
+<if test="personType != null">AND PERSON_TYPE=#{personType}</if>
+<if test="classificationCode != null">AND CLASSIFICATION_CODE=#{classificationCode}</if>
+<if test="scopeType != null">AND SCOPE_TYPE=#{scopeType}</if>
+<if test="scopeId != null">AND SCOPE_ID=#{scopeId}</if>
+<if test="status != null">AND STATUS=#{status}</if>
+</sql>
+<select id="list" resultMap="rule">SELECT * FROM SMT_PRINT_BIND_RULE <include refid="filters"/> ORDER BY CREATED_AT DESC,BINDING_RULE_ID</select>
+<select id="count" resultType="long">SELECT COUNT(*) FROM SMT_PRINT_BIND_RULE <include refid="filters"/></select>
+<select id="candidates" resultMap="rule">SELECT * FROM SMT_PRINT_BIND_RULE WHERE PARK_ID=#{parkId} AND PRINT_ITEM_TYPE=#{printItemType} AND PERSON_TYPE=#{personType} AND CLASSIFICATION_CODE=#{classificationCode} AND STATUS='ACTIVE'</select>
+<insert id="insert">INSERT INTO SMT_PRINT_BIND_RULE (BINDING_RULE_ID,PARK_ID,PRINT_ITEM_TYPE,PERSON_TYPE,CLASSIFICATION_CODE,SCOPE_TYPE,SCOPE_ID,TEMPLATE_ID,PAIR_ID,EMPLOYEE_GRADE_CODES_CLOB,PRIORITY,VALID_FROM,VALID_TO,STATUS,REVISION,CREATED_BY,CREATED_AT,UPDATED_BY,UPDATED_AT) VALUES (#{bindingRuleId,jdbcType=VARCHAR},#{parkId,jdbcType=VARCHAR},#{printItemType,jdbcType=VARCHAR},#{personType,jdbcType=VARCHAR},#{classificationCode,jdbcType=VARCHAR},#{scopeType,jdbcType=VARCHAR},#{scopeId,jdbcType=VARCHAR},#{templateId,jdbcType=VARCHAR},#{pairId,jdbcType=VARCHAR},#{employeeGradeCodesClob,jdbcType=CLOB},#{priority,jdbcType=NUMERIC},#{validFrom,jdbcType=TIMESTAMP},#{validTo,jdbcType=TIMESTAMP},#{status,jdbcType=VARCHAR},#{revision,jdbcType=NUMERIC},#{createdBy,jdbcType=VARCHAR},#{createdAt,jdbcType=TIMESTAMP},#{updatedBy,jdbcType=VARCHAR},#{updatedAt,jdbcType=TIMESTAMP})</insert>
+<update id="update">UPDATE SMT_PRINT_BIND_RULE SET PARK_ID=#{parkId,jdbcType=VARCHAR},PRINT_ITEM_TYPE=#{printItemType,jdbcType=VARCHAR},PERSON_TYPE=#{personType,jdbcType=VARCHAR},CLASSIFICATION_CODE=#{classificationCode,jdbcType=VARCHAR},SCOPE_TYPE=#{scopeType,jdbcType=VARCHAR},SCOPE_ID=#{scopeId,jdbcType=VARCHAR},TEMPLATE_ID=#{templateId,jdbcType=VARCHAR},PAIR_ID=#{pairId,jdbcType=VARCHAR},EMPLOYEE_GRADE_CODES_CLOB=#{employeeGradeCodesClob,jdbcType=CLOB},PRIORITY=#{priority,jdbcType=NUMERIC},VALID_FROM=#{validFrom,jdbcType=TIMESTAMP},VALID_TO=#{validTo,jdbcType=TIMESTAMP},STATUS=#{status,jdbcType=VARCHAR},REVISION=#{revision,jdbcType=NUMERIC},UPDATED_BY=#{updatedBy,jdbcType=VARCHAR},UPDATED_AT=#{updatedAt,jdbcType=TIMESTAMP} WHERE BINDING_RULE_ID=#{bindingRuleId} AND REVISION=#{revision}-1</update>
+<!-- 人员类型决定公司ID的命名空间，不按两个业务表的同名ID互相兜底。 -->
+<select id="companyParks" resultType="string">
+ <choose>
+  <when test="personType == 'EMPLOYEE'">SELECT TO_CHAR(PARK_ID) FROM SMT_PARK_BU WHERE COMP_ID=#{scopeId}</when>
+  <otherwise>SELECT TO_CHAR(PARK_ID) FROM SMT_ORGANIZE_RELATION WHERE TO_CHAR(ID)=#{scopeId} AND COMP_TYPE=<choose><when test="personType == 'OUTSOURCED'">1</when><otherwise>2</otherwise></choose></otherwise>
+ </choose>
+</select>
+<select id="supplierParks" resultType="string">SELECT TO_CHAR(PARK_ID) FROM SMT_SECURITYAREA_SUPPLIER WHERE TO_CHAR(ID)=#{scopeId} AND DEL_FLAG=0</select>
+</mapper>

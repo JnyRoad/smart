@@ -1,0 +1,37 @@
+# 仅供授权运维按目标环境配置；不会自动导入。默认关闭设计和执行，不包含真实密钥、园区或职级代码。
+smart:
+  print:
+    enabled: false
+    renderer-url: ${SMART_PRINT_RENDERER_URL:}
+    renderer-token: ${SMART_PRINT_RENDERER_TOKEN:}
+    renderer-connect-timeout-ms: 3000
+    renderer-read-timeout-ms: 30000
+    allowed-fonts: [NotoSansSC]
+    # 权限值必须与 UPMS 菜单/按钮实际授权逐项一致，缺项拒绝；以下为空待配置。
+    permissions: {}
+    # 键为“打印物:人员类型”，值为该环境批准的分类列表；不要复制测试字典。
+    classification-codes: {}
+    execution:
+      enabled: false
+      render-worker-enabled: false
+    cutover:
+      # 只有联合验收后才能填写；关闭执行时保留园区以阻止旧入口自动降级。
+      template-park-ids: []
+    resolution:
+      # 每园区配置 confirmed: true 与 codes: {真实DHR代码: 业务确认的等级名称}。
+      # 尚未确认等级字段、代码或首用园区时保持空，正式员工打印受控拒绝。
+      employee-grades: {}
+    subject:
+      # 按园区明确旧访客 NORMAL/SECURITY、新申请 AUTHORITY_MAPPING；空配置拒绝猜测。
+      legacy-classification: {}
+      admittance-classification: {}
+      early-print-seconds: {}
+      # 按主体类型配置 storage-domain（NULL/0/PARK/数字）和 allowed-types（真实库枚举）。
+      # 不把来源域“未配置”当作 NULL，不跨域或按图片ID回退。
+      photos: {}
+      max-photo-bytes: 5242880
+      max-photo-pixels: 16000000
+    client:
+      # 每项只登记 device-identity、token-sha256、park-ids、printer-profile-ids。
+      # 原始令牌只由运行环境注入 Windows 客户端；不得写入仓库或命令行。
+      credentials: []

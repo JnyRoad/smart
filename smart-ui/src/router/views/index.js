@@ -1,6 +1,8 @@
+import PrintRoutes from './print'
 import Layout from '@/page/index/'
 import Layout2 from '@/views/platform/panel/index/'
 export default [
+  ...PrintRoutes,
   {
     path: '/home',
     component: Layout,

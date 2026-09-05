@@ -32,6 +32,8 @@
 | `smart/` | 基础平台后端：网关、认证、UPMS、公共组件 |
 | `smart-module/` | 业务微服务后端：App、平台、设备桥接、数据、调度等 |
 | `smart-ui/` | Vue 2 管理后台 |
+| [smart-print-renderer/](smart-print-renderer/README.md) | pdfme 单面模板、双面组合及私有 PDF 渲染；业务授权由平台服务负责，文件适配/实机通道待验收 |
+| [smart-print-client/](smart-print-client/README.md) | Windows 打印工作站、持久命令去重与设备适配；不得自动重放提交结果不明的命令 |
 | [smart-h5/](smart-h5/README.md) | 当前维护的 Next.js 微信 H5 |
 | `smart-h5-vue2/` | 历史 Vue2 H5，只读参考，不再维护或发布 |
 | [smart-app-uniapp/](smart-app-uniapp/README.md) | 「裕慧家园」App 客户端，与 H5 并行，对接 `smart-module/smart-app` 后端 |

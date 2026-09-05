@@ -79,6 +79,8 @@ pnpm-debug.log*
 out/
 dist/
 dist-*/
+# pdfme 的同源预构建运行时、字体副本及生成的许可清单
+/smart-ui/public/print-designer/
 build/
 !**/src/frontend/build/
 !**/src/frontend/build/**
