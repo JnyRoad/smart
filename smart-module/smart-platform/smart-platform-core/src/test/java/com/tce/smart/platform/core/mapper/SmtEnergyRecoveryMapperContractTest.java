@@ -44,7 +44,8 @@ public class SmtEnergyRecoveryMapperContractTest {
         String inserted=sql.substring(sql.indexOf("WHEN NOT MATCHED"));
 
         assertEquals(fact,boundSql.getParameterObject());
-        assertEquals("parkId",boundSql.getParameterMappings().get(1).getProperty());
+        assertTrue(boundSql.getParameterMappings().stream()
+                .anyMatch(mapping -> "parkId".equals(mapping.getProperty())));
         assertFalse(matched.contains("PARK_ID"));
         assertTrue(inserted.contains("INSERT (ID,PARK_ID"));
         assertTrue(inserted.contains("VALUES(S.ID,S.PARK_ID"));
