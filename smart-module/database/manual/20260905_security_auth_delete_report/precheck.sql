@@ -1,0 +1,19 @@
+-- 保密区权限自动删除报表迁移前只读检查。
+-- 用法：@precheck.sql EXPECTED_SCHEMA
+-- 本脚本不创建、修改或删除任何表、列、约束、数据或配置。
+SET SERVEROUTPUT ON SIZE UNLIMITED
+SET SQLBLANKLINES ON
+SET VERIFY OFF
+SET FEEDBACK ON
+SET DEFINE ON
+WHENEVER OSERROR EXIT FAILURE ROLLBACK
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
+
+DEFINE EXPECTED_SCHEMA = &1
+DEFINE VALIDATION_MODE = REPORT_EXISTING
+
+@@validation.sql
+
+PROMPT
+PROMPT 前置检查完成：缺失的新表、DRY_RUN 列或本版本约束将在 upgrade.sql 中以增量方式补齐；已有类型/约束漂移已终止检查。
+PROMPT 请确认以上输出后，再以同一目标 schema 执行 @upgrade.sql EXPECTED_SCHEMA。

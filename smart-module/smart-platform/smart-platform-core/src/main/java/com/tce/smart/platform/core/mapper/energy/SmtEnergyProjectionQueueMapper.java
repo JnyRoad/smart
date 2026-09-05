@@ -15,6 +15,13 @@ public interface SmtEnergyProjectionQueueMapper extends BaseMapper<SmtEnergyProj
 	int insertIfAbsent(@Param("id") Long id, @Param("meterSource") String meterSource,
 				 @Param("meterId") Long meterId, @Param("statDate") LocalDate statDate, @Param("requestedAt") LocalDateTime requestedAt);
 	int requeueExisting(@Param("meterSource") String meterSource, @Param("meterId") Long meterId, @Param("statDate") LocalDate statDate, @Param("requestedAt") LocalDateTime requestedAt);
+	/** 补齐只重启终态请求，不能清除活跃请求的租约、重试计数或延迟。 */
+	int requeueIdle(@Param("meterSource") String meterSource, @Param("meterId") Long meterId, @Param("statDate") LocalDate statDate, @Param("requestedAt") LocalDateTime requestedAt);
+	/** 检查活跃请求，以便跳过无需重复读取源数据的补齐项。 */
+	int countActiveRequest(@Param("meterSource") String meterSource, @Param("meterId") Long meterId, @Param("statDate") LocalDate statDate);
+	/** 按业务日期区间取有界候选，空边界表示不限制该方向。 */
+	List<SmtEnergyProjectionQueue> selectCandidatesByDate(@Param("limit") int limit, @Param("now") LocalDateTime now,
+			@Param("fromDate") LocalDate fromDate, @Param("beforeDate") LocalDate beforeDate);
 	List<SmtEnergyProjectionQueue> selectCandidates(@Param("limit") int limit, @Param("now") LocalDateTime now);
 	int claim(@Param("id") Long id, @Param("expectedRequestCount") Integer expectedRequestCount,
 			  @Param("claimedAt") LocalDateTime claimedAt, @Param("leaseExpiresAt") LocalDateTime leaseExpiresAt, @Param("leaseToken") String leaseToken);

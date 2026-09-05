@@ -2443,7 +2443,14 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
 <section class="item" id="item-5-6">
  <div class="ih"><span class="ino">5.6</span><h3>自动删除记录报表</h3><span class="ibatch">批次 5</span></div>
  <dl>
-  <dt>现状与问题</dt>
+  <dt>本次实现状态（已实现，<a href="https://github.com/JnyRoad/smart/pull/189" target="_blank" rel="noopener noreferrer">PR #189</a>，未合并、未部署）</dt>
+  <dd>
+   已实现独立“权限自动删除记录”页面、分页/组合筛选、CSV 导出和任务明细；审计保存执行时间、人员、部门、权限组及判定依据快照，覆盖白名单、未到期、无设备、人员缺失、演练、正式任务与异常。配置增加 <code>dryRun</code>，演练只记录、不删除权限或创建设备任务。<br>
+   实际采用 <code>SMT_SECURITY_AUTH_DELETE_LOG</code> 与 <code>SMT_SECURITY_AUTH_DELETE_TASK</code> 两表，关联一条判定产生的全部任务；通过 <code>TASK_SOURCE + TASK_ID</code> 区分普通/ISC 任务。查询实时汇总执行中、任务执行成功、失败、未知；成功只表示任务表状态成功，不代表已完成 5.8 的设备确认闭环。单条权限变更、任务创建和审计使用独立事务，失败回滚后另存失败记录。<br>
+   查询、导出、详情均按登录令牌园区范围校验，导出上限 10000 条。旧设备任务无法可靠判断自动删权来源，历史记录从本功能启用后积累。Oracle 新结构、菜单角色配置、部署、真实设备联调及首页 3 秒目标仍待目标环境验收。<br>
+   规格与方案见 <a href="../../specs/010-security-auth-delete-report/spec.md">010 功能规格</a>、<a href="../../specs/010-security-auth-delete-report/plan.md">实现方案</a>；验证结果见 <a href="../../specs/010-security-auth-delete-report/quickstart.md">验证记录</a>；已提供 <a href="../../smart-module/database/manual/20260905_security_auth_delete_report/README.md">可执行迁移与检查脚本</a>，数据库、后端、前端、菜单及回滚顺序见 <a href="../../smart-module/docs/releases/security-auth-delete-report.md">升级说明</a>。以下保留原蓝图设计记录，其中单任务字段和“设备确认”设想以本段实现边界为准。
+  </dd>
+  <dt>设计基线（实现前）</dt>
   <dd>
    缺失，需新建独立报表页。现状删除动作只在 <code>smt_device_task</code>（<code>SmtDeviceTask.java:21</code> <code>@TableName("smt_device_task")</code>）留下一行任务记录，字段含 <code>remark</code>/<code>serviceType</code>/<code>action</code>/<code>status</code>/<code>code</code>，但<strong>没有「自动删除」来源标记、没有删除原因（触发原因）、没有「演练命中/已跳过白名单」这类中间结果</strong>——任务表只记录「最终发起了一次删除任务」，记录不了 5.4 判定过程中的跳过/演练命中等非落库动作。<br>
    <code>SmtSecurityAuthDeleteServiceImpl.deleteStaffAuthWithTransaction()</code>（:210-211）已有一段结构化日志可直接对齐字段口径：<br>
@@ -2454,11 +2461,11 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
   <dd>
    新建「权限自动删除记录」报表页，覆盖 5.4 任务每次判定的完整轨迹（含跳过与演练命中，不只是最终删除成功的记录），支持按执行日期/姓名工号/部门/权限组/结果多维度筛选，菜单挂在保密区功能组下，页面加载 3 秒内返回首页数据（按园区数据范围过滤）。
   </dd>
-  <dt>实现方式</dt>
+  <dt>原始方案（历史设计）</dt>
   <dd>
    新建独立记录表 <code>smt_security_auth_delete_log</code>（不复用 <code>smt_device_task</code>，因为该表语义是「设备任务」，演练命中/跳过白名单等场景根本不产生设备任务，必须有独立的判定过程记录），在 <code>deleteStaffAuthWithTransaction()</code> 每个分支出口处（跳过白名单 :156-161、超限判定不通过 :194-197、演练命中、正式删除成功 :199-211、异常 :213-217）各写一行记录，取代目前分散的 <code>log.debug/warn/info</code> 调用，同一批字段既进日志也进表（双写，保留日志便于线上排障）。报表页新建 <code>smart-ui/src/views/platform/business/security_area/auth_delete_log/</code>，后端加 <code>SmtSecurityAuthDeleteLogController</code>（分页查询 + 导出）。
   </dd>
-  <dt>处理流程</dt>
+  <dt>原始处理流程</dt>
   <dd>
    <ol>
     <li>5.4 任务逐条权限判定过程中，每个分支出口构造一条记录（执行时间/员工/部门/权限组/最后进出时间/触发原因/结果）</li>
@@ -2467,7 +2474,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
     <li>管理员在报表页按条件筛选、导出</li>
    </ol>
   </dd>
-  <dt>改动清单</dt>
+  <dt>原始改动设想</dt>
   <dd>
    <table>
     <tr><th>层</th><th>文件或类</th><th>改动内容</th></tr>
@@ -2478,11 +2485,11 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
     <tr><td>配置</td><td>菜单表</td><td>「权限自动删除记录」菜单挂在保密区功能组下</td></tr>
    </table>
   </dd>
-  <dt>测试与验证</dt>
+  <dt>原始验收设想</dt>
   <dd>
    单测：日志表写入覆盖跳过白名单/超限判定不通过/演练命中/正式删除/异常五类分支各至少一条记录。集成：跑一轮 5.4 演练模式任务，报表页应能筛出全部「演练命中」记录且字段完整；关闭演练模式后跑一轮，应能筛出「已删除设备确认」记录并可下钻到设备任务。权限测试：跨园区管理员看不到其他园区记录。
   </dd>
-  <dt>依赖与风险</dt>
+  <dt>原设计依赖与风险</dt>
   <dd>
    依赖 5.4 先完成演练模式改造（本项是 5.4 灰度验证的直接支撑，两项建议同批次一起交付、报表先行或同步）。风险：双写日志表与原有 <code>log.xxx</code> 调用需要保持字段口径一致，避免报表数据与线上日志对不上；若未来接入 5.8，删除结果的「终态」会有异步收敛过程（先「删除中」后「已删除/删除失败」），报表需支持结果状态更新而非一次性落库不可变。
   </dd>

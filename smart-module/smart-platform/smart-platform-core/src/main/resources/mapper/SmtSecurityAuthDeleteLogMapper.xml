@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtSecurityAuthDeleteLogMapper">
+
+	<!-- 展示与结果筛选复用同一口径，避免状态聚合规则变更后出现筛选和显示不一致。 -->
+	<sql id="displayResult">
+		CASE
+			WHEN L.RESULT <![CDATA[<>]]> 'PROCESSING' THEN L.RESULT
+			WHEN NVL(S.FAIL_COUNT, 0) <![CDATA[>]]> 0 THEN 'FAILED'
+			WHEN NVL(S.TASK_COUNT, 0) = 0 OR NVL(S.UNKNOWN_COUNT, 0) <![CDATA[>]]> 0 THEN 'UNKNOWN'
+			WHEN NVL(S.PENDING_COUNT, 0) <![CDATA[>]]> 0 THEN 'PROCESSING'
+			WHEN NVL(S.TASK_COUNT, 0) <![CDATA[>]]> 0
+				AND NVL(S.SUCCESS_COUNT, 0) = S.TASK_COUNT THEN 'SUCCESS'
+			ELSE 'UNKNOWN'
+		END
+	</sql>
+
+	<!--
+		任务状态在查询时从标准任务表和 ISC 任务表实时读取。
+		TASK_SOURCE 控制关联来源，任务被清理后 LEFT JOIN 保留未知状态。
+	-->
+	<select id="selectPageWithTaskSummary"
+			resultType="com.tce.smart.platform.core.dto.securityzone.SecurityAuthDeleteLogPageDTO">
+		SELECT
+			L.ID,
+			L.PARK_ID,
+			L.EXEC_TIME,
+			L.STAFF_ID,
+			L.STAFF_BADGE,
+			L.STAFF_NAME,
+			L.DEPARTMENT,
+			L.AUTH_ID,
+			L.AUTH_NAME,
+			L.LAST_SNAP_TIME,
+			L.TRIGGER_REASON,
+			<include refid="displayResult"/> AS RESULT,
+			L.REMARK,
+			NVL(S.TASK_COUNT, 0) AS TASK_COUNT,
+			NVL(S.SUCCESS_COUNT, 0) AS SUCCESS_COUNT,
+			NVL(S.FAIL_COUNT, 0) AS FAIL_COUNT,
+			NVL(S.PENDING_COUNT, 0) AS PENDING_COUNT,
+			NVL(S.UNKNOWN_COUNT, 0) AS UNKNOWN_COUNT
+		FROM SMT_SECURITY_AUTH_DELETE_LOG L
+		LEFT JOIN (
+			SELECT
+				T.LOG_ID,
+				COUNT(T.TASK_ID) AS TASK_COUNT,
+				SUM(CASE WHEN (CASE WHEN T.TASK_SOURCE = 'NORMAL' THEN N.STATUS
+					WHEN T.TASK_SOURCE = 'ISC' THEN I.STATUS ELSE NULL END) = 1 THEN 1 ELSE 0 END) AS SUCCESS_COUNT,
+				SUM(CASE WHEN (CASE WHEN T.TASK_SOURCE = 'NORMAL' THEN N.STATUS
+					WHEN T.TASK_SOURCE = 'ISC' THEN I.STATUS ELSE NULL END) IN (2, 4, 5) THEN 1 ELSE 0 END) AS FAIL_COUNT,
+				SUM(CASE WHEN (CASE WHEN T.TASK_SOURCE = 'NORMAL' THEN N.STATUS
+					WHEN T.TASK_SOURCE = 'ISC' THEN I.STATUS ELSE NULL END) IN (0, 3, 6) THEN 1 ELSE 0 END) AS PENDING_COUNT,
+				SUM(CASE WHEN (CASE WHEN T.TASK_SOURCE = 'NORMAL' THEN N.STATUS
+					WHEN T.TASK_SOURCE = 'ISC' THEN I.STATUS ELSE NULL END) IS NULL
+					OR (CASE WHEN T.TASK_SOURCE = 'NORMAL' THEN N.STATUS
+					WHEN T.TASK_SOURCE = 'ISC' THEN I.STATUS ELSE NULL END) NOT IN (0, 1, 2, 3, 4, 5, 6)
+					THEN 1 ELSE 0 END) AS UNKNOWN_COUNT
+			FROM SMT_SECURITY_AUTH_DELETE_TASK T
+			LEFT JOIN SMT_DEVICE_TASK N
+				ON T.TASK_SOURCE = 'NORMAL'
+				AND N.ID = T.TASK_ID
+			LEFT JOIN SMT_ISC_DEVICE_TASK I
+				ON T.TASK_SOURCE = 'ISC'
+				AND I.ID = T.TASK_ID
+			GROUP BY T.LOG_ID
+		) S ON S.LOG_ID = L.ID
+		<where>
+			<choose>
+				<when test="parkIds != null and parkIds.size() > 0">
+					AND L.PARK_ID IN
+					<foreach collection="parkIds" item="parkId" open="(" separator="," close=")">
+						#{parkId}
+					</foreach>
+				</when>
+				<otherwise>AND 1 = 0</otherwise>
+			</choose>
+			<if test="query != null and query.parkId != null">
+				AND L.PARK_ID = #{query.parkId}
+			</if>
+			<if test="query != null and query.startTime != null">
+				AND L.EXEC_TIME <![CDATA[>=]]> #{query.startTime}
+			</if>
+			<if test="query != null and query.endTime != null">
+				AND L.EXEC_TIME <![CDATA[<]]> #{query.endTime}
+			</if>
+			<if test="query != null and query.staffBadge != null and query.staffBadge != ''">
+				AND L.STAFF_BADGE LIKE CONCAT(CONCAT('%', #{query.staffBadge}), '%')
+			</if>
+			<if test="query != null and query.staffName != null and query.staffName != ''">
+				AND L.STAFF_NAME LIKE CONCAT(CONCAT('%', #{query.staffName}), '%')
+			</if>
+			<if test="query != null and query.department != null and query.department != ''">
+				AND L.DEPARTMENT LIKE CONCAT(CONCAT('%', #{query.department}), '%')
+			</if>
+			<if test="query != null and query.authName != null and query.authName != ''">
+				AND L.AUTH_NAME LIKE CONCAT(CONCAT('%', #{query.authName}), '%')
+			</if>
+			<if test="query != null and query.result != null and query.result != ''">
+				AND (<include refid="displayResult"/>) = #{query.result}
+			</if>
+		</where>
+		ORDER BY L.EXEC_TIME DESC, L.ID DESC
+	</select>
+
+	<!-- 详情先由服务校验主记录园区范围，再读取这条记录的关联任务。 -->
+	<select id="selectTasks" resultType="com.tce.smart.platform.core.dto.securityzone.SecurityAuthDeleteLogTaskDTO">
+		SELECT
+			T.TASK_SOURCE,
+			T.TASK_ID,
+			T.DEVICE_CODE,
+			T.ACTION,
+			CASE
+				WHEN T.TASK_SOURCE = 'NORMAL' THEN N.STATUS
+				WHEN T.TASK_SOURCE = 'ISC' THEN I.STATUS
+				ELSE NULL
+			END AS STATUS,
+			CASE
+				WHEN T.TASK_SOURCE = 'NORMAL' THEN N.CODE
+				WHEN T.TASK_SOURCE = 'ISC' THEN I.CODE
+				ELSE NULL
+			END AS CODE,
+			CASE
+				WHEN T.TASK_SOURCE = 'NORMAL' THEN N.REMARK
+				WHEN T.TASK_SOURCE = 'ISC' THEN I.REMARK
+				ELSE NULL
+			END AS REMARK,
+			CASE
+				WHEN T.TASK_SOURCE = 'NORMAL' THEN N.CREATE_TIME
+				WHEN T.TASK_SOURCE = 'ISC' THEN I.CREATE_TIME
+				ELSE NULL
+			END AS CREATE_TIME,
+			CASE
+				WHEN T.TASK_SOURCE = 'NORMAL' THEN N.UPDATE_TIME
+				WHEN T.TASK_SOURCE = 'ISC' THEN I.UPDATE_TIME
+				ELSE NULL
+			END AS UPDATE_TIME
+		FROM SMT_SECURITY_AUTH_DELETE_TASK T
+		INNER JOIN SMT_SECURITY_AUTH_DELETE_LOG L ON L.ID = T.LOG_ID
+		LEFT JOIN SMT_DEVICE_TASK N
+			ON T.TASK_SOURCE = 'NORMAL'
+			AND N.ID = T.TASK_ID
+		LEFT JOIN SMT_ISC_DEVICE_TASK I
+			ON T.TASK_SOURCE = 'ISC'
+			AND I.ID = T.TASK_ID
+		WHERE T.LOG_ID = #{logId}
+			<choose>
+				<when test="parkIds != null and parkIds.size() > 0">
+					AND L.PARK_ID IN
+					<foreach collection="parkIds" item="parkId" open="(" separator="," close=")">
+						#{parkId}
+					</foreach>
+				</when>
+				<otherwise>AND 1 = 0</otherwise>
+			</choose>
+		ORDER BY T.ID ASC
+	</select>
+
+	<select id="selectAuthorizedLog"
+			resultType="com.tce.smart.platform.core.entity.securityzone.SmtSecurityAuthDeleteLog">
+		SELECT L.*
+		FROM SMT_SECURITY_AUTH_DELETE_LOG L
+		WHERE L.ID = #{logId}
+			<choose>
+				<when test="parkIds != null and parkIds.size() > 0">
+					AND L.PARK_ID IN
+					<foreach collection="parkIds" item="parkId" open="(" separator="," close=")">
+						#{parkId}
+					</foreach>
+				</when>
+				<otherwise>AND 1 = 0</otherwise>
+			</choose>
+	</select>
+</mapper>
