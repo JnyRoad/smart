@@ -8,7 +8,7 @@ bash .specify/scripts/bash/check-prerequisites.test.sh
 bash .specify/workflows/speckit/workflow.test.sh
 bash .specify/integrations/generic.test.sh
 node --test smart-h5/docs/superpowers/doorlock/reference/mockups/lock/index.test.mjs
-git diff --check
+git diff HEAD --check
 ```
 
 通过 Git 索引/提交核对两组门锁资料的 21 个原文件均存在。首次导入提交
@@ -37,4 +37,5 @@ git diff --check
 - common、prerequisite、workflow、generic integration 四组 Bash 检查通过；22 项清单摘要仍匹配。首次导入提交的 21 份原始资料摘要再次核对一致，当前仍保留全部原文件。
 - 检查 24 个持久资料路径可入库、9 个本机状态路径仍被忽略（包括 `.codebase-memory/graph.db.zst`）；本轮修改和导航文档的本地链接可解析。审查记录仅增加已有本地文件链接与远端评论链接。
 - 新增及本轮修改差异检查通过；治理文档与门锁修复均经过独立复核，最后的入口断言、遮罩恢复和客户端身份说明也已定点复核。
+- 后续审查确认 `git diff --check` 只检查工作区相对暂存区的差异，无法覆盖已暂存内容；验证指南已改用 `git diff HEAD --check`，同时检查暂存与未暂存改动，首次导入资料的 EOF 空行例外仍按上方记录处理。
 - 未运行全业务构建、pnpm/Vitest/Playwright 或整条交互式 Spec Kit 生成流程；本轮不修改业务源码，原型验证只使用 Node 内置模块，未安装前端依赖。真实浏览器、微信、接口、服务端鉴权及设备验收未验证。
