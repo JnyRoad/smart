@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "repository": {
+    "url": "https://github.com/JnyRoad/smart-lock.git",
+    "commit": "e236793bbbd894b43fc06958595c2e9577d8da4a",
+    "hash_algorithm": "git-blob-sha1"
+  },
+  "counts": {
+    "entities": 22,
+    "mapper_xml": 17,
+    "total": 39
+  },
+  "queries": {
+    "entities": "git grep -n -E '@TableName\\(\"lk_[^\\\"]+\"\\)' \"$COMMIT\" -- \\\n  'smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/*.java' | LC_ALL=C sort",
+    "mapper_xml": "git ls-tree -r --name-only \"$COMMIT\" -- \\\n  smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper | LC_ALL=C sort",
+    "record_projection": "relativepath<TAB>table_or_namespace<TAB>declaration_line<TAB>blob_oid; entities first, then mapper_xml"
+  },
+  "checksums": {
+    "entities_query_sha256": "a05e1bbe682dca5684bb8c8fa756c8ab7de8d68c6aff916e6209b8738f4f9c97",
+    "mapper_xml_query_sha256": "54c2ec281a2d45701d5897f4fee3e6f2b84534185c31c6686a3507333293f240",
+    "record_projection_sha256": "f88bfaedb53772634d5b500246dd4ea1d04d0eb52027e94253ff74012fbd2ca3"
+  },
+  "entities": [
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDevice.java","table":"lk_device","declaration_line":12,"declaration":"@TableName(\"lk_device\")","blob_oid":"43e9061c58843f7c83d27af60b85fee43d6901da"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDeviceLog.java","table":"lk_device_log","declaration_line":11,"declaration":"@TableName(\"lk_device_log\")","blob_oid":"a8f17d1a0115418b1c725d02b5f133f92551b9c3"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDeviceModel.java","table":"lk_device_model","declaration_line":12,"declaration":"@TableName(\"lk_device_model\")","blob_oid":"42bdf3835d74287e7f2bfe35661d5d910c4d5ae1"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDevicePermissions.java","table":"lk_device_permissions","declaration_line":17,"declaration":"@TableName(\"lk_device_permissions\")","blob_oid":"9cc3850dbe9a181321ca9e3031c46c76052a280f"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkDeviceTask.java","table":"lk_device_task","declaration_line":14,"declaration":"@TableName(\"lk_device_task\")","blob_oid":"0ffc3446427d38fb0a3d7469fca01518a7c78904"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkEventRecord.java","table":"lk_event_record","declaration_line":16,"declaration":"@TableName(\"lk_event_record\")","blob_oid":"d335c0fa64a4f94b1492645e1c0f0181f4fe5c6f"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkGateway.java","table":"lk_gateway","declaration_line":11,"declaration":"@TableName(\"lk_gateway\")","blob_oid":"2de76ba760a6862d7037f3fb66f209aedf634661"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkKey.java","table":"lk_key","declaration_line":14,"declaration":"@TableName(\"lk_key\")","blob_oid":"a488e59b382736e488f69c6cb7016988ab44fac6"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkMessageConfig.java","table":"lk_message_config","declaration_line":11,"declaration":"@TableName(\"lk_message_config\")","blob_oid":"b72125da68eac9d05ff6d21b56d66fadc79b32d0"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkMessageRecord.java","table":"lk_message_record","declaration_line":11,"declaration":"@TableName(\"lk_message_record\")","blob_oid":"986d170d1c8aa0df71a751187153b1258c18d55f"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkModifyPwdLog.java","table":"lk_modify_pwd_log","declaration_line":13,"declaration":"@TableName(\"lk_modify_pwd_log\")","blob_oid":"97895df757e86dc8f8a5d993a63d3af0cf568864"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkOpenRecord.java","table":"lk_open_record","declaration_line":14,"declaration":"@TableName(\"lk_open_record\")","blob_oid":"67e44fae3dd18a05ac1d95618d63903b29b410ca"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkPark.java","table":"lk_park","declaration_line":16,"declaration":"@TableName(\"lk_park\")","blob_oid":"fb0df06afe9ffd1ea02ffc1b04e522dad7313b7a"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkPerson.java","table":"lk_person","declaration_line":17,"declaration":"@TableName(\"lk_person\")","blob_oid":"66b5c0bf68da4dc01bf60e0167130dccd9c87734"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemConfig.java","table":"lk_system_config","declaration_line":17,"declaration":"@TableName(\"lk_system_config\")","blob_oid":"ed2425f07adb5dd2544f329156ee708c8b108d4f"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemMenu.java","table":"lk_system_menu","declaration_line":16,"declaration":"@TableName(\"lk_system_menu\")","blob_oid":"f3736a2d40757c5698275d51f9269c994f8e3bb6"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemRole.java","table":"lk_system_role","declaration_line":16,"declaration":"@TableName(\"lk_system_role\")","blob_oid":"72bbb58bc65071942256c69a44ad3ae21acdfa8b"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemRoleMenu.java","table":"lk_system_role_menu","declaration_line":7,"declaration":"@TableName(\"lk_system_role_menu\")","blob_oid":"e498cf6a2ff5012112561f08cfaaee8e3e1a56c1"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemUser.java","table":"lk_system_user","declaration_line":16,"declaration":"@TableName(\"lk_system_user\")","blob_oid":"fa334757b0130c08f7ac9f52fbfdc4f499df12f1"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemUserPark.java","table":"lk_system_user_park","declaration_line":7,"declaration":"@TableName(\"lk_system_user_park\")","blob_oid":"6f374ce0ba3de4ea0f817181db5bf8b5acd27e4f"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkSystemUserRole.java","table":"lk_system_user_role","declaration_line":7,"declaration":"@TableName(\"lk_system_user_role\")","blob_oid":"18345683020289d8c9435885947626bb421bb3af"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/java/com/tce/smart/lock/biz/entity/LkWarnConfig.java","table":"lk_warn_config","declaration_line":11,"declaration":"@TableName(\"lk_warn_config\")","blob_oid":"79e9e41608fcf2aab36f3efb31fbaab03df76375"}
+  ],
+  "mapper_xml": [
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkDeviceLogMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkDeviceLogMapper","declaration_line":3,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkDeviceLogMapper\">","blob_oid":"413bdafd67e390f655a13110bfc23f80c366783e"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkDeviceMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkDeviceMapper","declaration_line":3,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkDeviceMapper\">","blob_oid":"1fae67cd4d58ddda726e48a93b6335d769079b23"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkDevicePermissionsMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkDevicePermissionsMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkDevicePermissionsMapper\">","blob_oid":"b7ba7c31d294b7a15169cf3372482ed969b0609b"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkDeviceTaskMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkDeviceTaskMapper","declaration_line":3,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkDeviceTaskMapper\">","blob_oid":"74c53f8a65ae205700b860d012c075550d343d83"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkEventRecordMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkEventRecordMapper","declaration_line":3,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkEventRecordMapper\">","blob_oid":"73a82b2e886b0906177c252cb4358306bfe3e4fa"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkGatewayMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkGatewayMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkGatewayMapper\">","blob_oid":"1797a2337b31c5acb7406a4d4808129816acdd35"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkKeyMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkKeyMapper","declaration_line":3,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkKeyMapper\">","blob_oid":"5d85948158dbea1f393aec49707691120befccfc"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkOpenRecordMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkOpenRecordMapper","declaration_line":3,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkOpenRecordMapper\">","blob_oid":"c934b3ef46dfeb7fa592123c9ea756b7ac09ef9e"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkParkMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkParkMapper","declaration_line":3,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkParkMapper\">","blob_oid":"d5b416fe3fdc56d08f4b27748b81007ba16cf0cd"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkPersonMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkPersonMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkPersonMapper\">","blob_oid":"a8cb27740ef518e352b011dd3060bccc14051f07"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkSystemConfigMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkSystemConfigMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkSystemConfigMapper\">","blob_oid":"6d6d44d9432257d0b453a8f2af69ac78e4b21c7f"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkSystemMenuMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkSystemMenuMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkSystemMenuMapper\">","blob_oid":"99d4e8026cbe2028b16cd32aa0ca4da4332f0489"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkSystemRoleMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkSystemRoleMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkSystemRoleMapper\">","blob_oid":"a5ee6707416437b7382a8002c65d371b9bfbf258"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkSystemRoleMenuMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkSystemRoleMenuMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkSystemRoleMenuMapper\">","blob_oid":"f40955c1b03348c354843a5cdbd0e372918659e1"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkSystemUserMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkSystemUserMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkSystemUserMapper\">","blob_oid":"69a2423de21813fa434b581d1612aea9a8dd7fda"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkSystemUserRoleMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkSystemUserRoleMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkSystemUserRoleMapper\">","blob_oid":"605d530c312aab55a49b499dae0c558220bb7e82"},
+    {"relativepath":"smart-module/smart-lock/smart-lock-biz/src/main/resources/mapper/LkWarnConfigMapper.xml","namespace":"com.tce.smart.lock.biz.mapper.LkWarnConfigMapper","declaration_line":5,"declaration":"<mapper namespace=\"com.tce.smart.lock.biz.mapper.LkWarnConfigMapper\">","blob_oid":"c6dd0c087b611f5e31a35d0244c7d391730ec343"}
+  ]
+}
