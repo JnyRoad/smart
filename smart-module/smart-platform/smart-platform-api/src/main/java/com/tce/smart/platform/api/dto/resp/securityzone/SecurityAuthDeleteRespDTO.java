@@ -46,6 +46,9 @@ private static final long serialVersionUID = 1L;
 	@ApiModelProperty("是否启用白名单")
     private Integer isWhiteList;
 
+	@ApiModelProperty("是否演练模式：0-正式删除，1-只记录判定")
+	private Integer dryRun;
+
 	@ApiModelProperty("白名单列表")
 	private List<SecurityWhiteRespDTO> whiteList;
 }

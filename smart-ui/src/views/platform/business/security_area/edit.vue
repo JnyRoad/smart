@@ -139,6 +139,18 @@
                 </div>
               </div>
             </el-form-item>
+            <el-form-item label="">
+              <div class="row dry-run-setting">
+                <el-switch
+                  active-color="#10CC8F"
+                  inactive-color="#909399"
+                  :active-value="1"
+                  :inactive-value="0"
+                  v-model="whiteListForm.dryRun"
+                ></el-switch>
+                <span style="padding-left: 15px;">演练模式：只记录命中结果，不删除权限、不生成设备任务</span>
+              </div>
+            </el-form-item>
             <el-form-item label>
               <el-button type="primary" @click="saveInfo()">保存</el-button>
             </el-form-item>
@@ -193,6 +205,7 @@ export default {
         isHoliday: '',
         isLeave: '',
         isWhiteList: 0,
+        dryRun: 0,
         whiteList: []
       },
       whiteListRule: {
@@ -230,6 +243,9 @@ export default {
           await this.validateForm('whiteListForm')
         }
       }
+
+      // 演练字段存量可能为空，保存前统一为后端接受的 0/1。
+      this.whiteListForm.dryRun = this.normalizeDryRun(this.whiteListForm.dryRun)
 
       //保密区权限参数
       let areaArr = []
@@ -323,11 +339,30 @@ export default {
         { parkId: this.areaForm.parkId }
       )
       if( res.data.code===0&& res.data.data){
-        this.whiteListForm = res.data.data
-        if(!this.whiteListForm.whiteList){
-          this.whiteListForm.whiteList = []
-        }
+        // 先补齐响应式字段，再整体替换表单对象，避免 Vue2 对后加属性不建立 getter/setter。
+        const normalizedConfig = Object.assign({
+          parkId: '',
+          isBusiness: '',
+          isCompensatory: '',
+          isHoliday: '',
+          isLeave: '',
+          isWhiteList: 0,
+          dryRun: 0,
+          whiteList: []
+        }, res.data.data)
+        normalizedConfig.dryRun = this.normalizeDryRun(normalizedConfig.dryRun)
+        normalizedConfig.whiteList = Array.isArray(normalizedConfig.whiteList) ? normalizedConfig.whiteList : []
+        this.whiteListForm = normalizedConfig
       }
+    },
+
+    /**
+     * 将演练配置兼容为后端约定的 0/1，历史空值表示关闭演练。
+     * @param {number|string|null} value 配置接口返回或表单中的演练值。
+     * @returns {number} 只返回 0 或 1，避免向后端透传非法状态。
+     */
+    normalizeDryRun(value) {
+      return value === 1 || value === '1' ? 1 : 0
     },
     /**
      * 获取员工详情

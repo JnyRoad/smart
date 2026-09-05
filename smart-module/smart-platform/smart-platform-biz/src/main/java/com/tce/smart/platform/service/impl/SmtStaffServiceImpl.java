@@ -63,6 +63,7 @@ import com.tce.smart.platform.api.dto.resp.DormitoryRoomDetailRespDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
 import com.tce.smart.platform.core.ao.SmtAppStaffAuthSaveAO;
 import com.tce.smart.platform.core.dto.*;
+import com.tce.smart.platform.core.dto.securityzone.SecurityAuthDeleteTaskRef;
 import com.tce.smart.platform.core.entity.*;
 import com.tce.smart.platform.core.entity.ext.SecurityPersonRelationExt;
 import com.tce.smart.platform.core.enums.DeviceSyncEnum;
@@ -1520,15 +1521,37 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 	 */
 	@Override
 	public void savePersonCardTask(Integer actionType, long startTime, long endTime, SmtStaff smtStaff, List<SmtDeviceAuthorityRelation> deviceAuthList) {
+		// 旧入口保留原有忽略任务返回值的兼容语义，避免扩大既有调用方的失败范围。
+		savePersonCardTasks(actionType, startTime, endTime, smtStaff, deviceAuthList, false);
+	}
+
+	/**
+	 * 自动删权专用的严格任务入口，返回每个实际落库任务的来源和主键。
+	 *
+	 * <p>标准设备和 ISC 设备由设备的 isSync 字段决定来源；保存任务返回错误文本或空值时立即抛出异常，
+	 * 确保调用方能够回滚同一条自动删权事务。</p>
+	 */
+	@Override
+	public List<SecurityAuthDeleteTaskRef> savePersonCardTasksWithResult(Integer actionType, long startTime, long endTime,
+			SmtStaff smtStaff, List<SmtDeviceAuthorityRelation> deviceAuthList) {
+		return savePersonCardTasks(actionType, startTime, endTime, smtStaff, deviceAuthList, true);
+	}
+
+	/**
+	 * 构造员工设备任务；strict=true 时同步收集并校验实际生成的任务引用。
+	 */
+	private List<SecurityAuthDeleteTaskRef> savePersonCardTasks(Integer actionType, long startTime, long endTime,
+			SmtStaff smtStaff, List<SmtDeviceAuthorityRelation> deviceAuthList, boolean strict) {
 		DeviceTaskVO deviceTaskVO;
 		if (CollectionUtil.isEmpty(deviceAuthList)) {
-			return;
+			return Collections.emptyList();
 		}
 		boolean isDeleteAction = DeviceTaskActionEnum.DEL.getCode().equals(actionType)
 				|| DeviceTaskActionEnum.DELAY_DEL.getCode().equals(actionType);
 		if (!isDeleteAction && StringUtils.isEmpty(smtStaff.getFacePicId())) {
-			return;
+			return Collections.emptyList();
 		}
+		List<SecurityAuthDeleteTaskRef> taskRefs = strict ? new ArrayList<>(deviceAuthList.size()) : Collections.emptyList();
 		for (int i = 0; i < deviceAuthList.size(); i++) {
 			String deviceCode = deviceAuthList.get(i).getDeviceId();
 			SmtDevice device = smtDeviceService.getById(deviceCode);
@@ -1552,8 +1575,17 @@ public class SmtStaffServiceImpl extends ServiceImpl<SmtStaffMapper, SmtStaff> i
 			}
 
 			//添加下发设备任务
-			smtDeviceTaskService.saveTask(deviceTaskVO);
+			String taskId = smtDeviceTaskService.saveTask(deviceTaskVO);
+			if (strict) {
+				// 自动删权必须关联真实任务主键，不能把设备服务的错误说明当成任务ID保存。
+				if (taskId == null || !taskId.matches("\\d+")) {
+					throw new SmartException("设备任务创建失败");
+				}
+				String taskSource = isIscDevice(device) ? "ISC" : "NORMAL";
+				taskRefs.add(new SecurityAuthDeleteTaskRef(taskSource, taskId, deviceCode, deviceActionType));
+			}
 		}
+		return taskRefs;
 	}
 
 	private Integer personCardServiceType(Integer actionType, SmtDevice device) {
