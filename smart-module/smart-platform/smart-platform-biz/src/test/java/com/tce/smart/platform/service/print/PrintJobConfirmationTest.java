@@ -41,4 +41,3 @@ public class PrintJobConfirmationTest {
  @Test public void recoverySummaryFallsBackWithoutInventingCalibration(){((ObjectNode)facts.get("fields")).remove("staffName");String id=(String)fixture.jobs.create(confirmed("a"),"fallback-summary").getData().get("jobId");JsonNode view=PrintJson.tree(fixture.jobs.detail(id));assertEquals("a",view.at("/subjectSummary/displayName").asText());assertEquals(0,view.at("/printerSummary/calibration").size());assertTrue(view.at("/subjectSummary/staffNo").isMissingNode());}
 
 }
-

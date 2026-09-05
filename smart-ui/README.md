@@ -236,12 +236,13 @@ pnpm build
 ### Docker 镜像
 
 ```bash
-docker build -t smart-ui:latest .
+# 从仓库根目录运行，包含固定中文字体
+docker build -f smart-ui/Dockerfile -t smart-ui:latest .
 docker run -d -p 80:80 --name smart-ui smart-ui:latest
 ```
 
 `Dockerfile` 行为：
-1. 在 Node 22 构建阶段执行 `pnpm install --frozen-lockfile` 和 `pnpm build`
+1. 在 Node 24 构建阶段执行 `pnpm install --frozen-lockfile` 和 `pnpm build`
 2. 在 nginx 运行阶段把构建出的 `dist/` 拷贝到 `/data`
 3. 用项目内 `nginx.conf` 覆盖默认配置
 

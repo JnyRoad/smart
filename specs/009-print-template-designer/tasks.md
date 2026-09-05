@@ -2,7 +2,7 @@
 
 **Input**: [spec.md](spec.md)、[plan.md](plan.md)、[data-model.md](data-model.md)、[契约](contracts/print-api.md)、[research.md](research.md)、[quickstart.md](quickstart.md)
 
-**Status**: 批次1设计器与批次2绑定、真实人员预览、冻结任务、Windows 客户端、人工恢复及切换代码已实现，正在最终复审与整体验证。自动化与模拟驱动结果不等于真实环境验收。T005/T006/T012/T051/T025/T031/T036/T043/T045 保留目标 Oracle、登录读回、DHR 映射或实机验收缺口；功能默认关闭，供应商实体卡来源未确认时拒绝创建。实际证据见 [quickstart.md](quickstart.md)。
+**Status**: 批次1设计器与批次2绑定、真实人员预览、冻结任务、Windows 客户端、人工恢复及切换代码已实现，正在最终复审与整体验证。自动化与模拟驱动结果不等于真实环境验收。T005/T006/T012/T037/T039/T051/T025/T031/T036/T043/T045 保留目标 Oracle、登录读回、全入口权限联调、DHR 映射或实机验收缺口；功能默认关闭，供应商实体卡来源未确认时拒绝创建。实际证据见 [quickstart.md](quickstart.md)。
 
 **测试先行**：每组行为实现必须先运行对应测试并观察预期失败，完成最小实现后再转绿。`[P]` 仅表示同阶段、依赖满足且文件不重叠时可并行。已勾选任务对应源码已创建，其余源码路径为规划路径；新增模块首次创建时同步根 README/AGENTS。
 
@@ -72,12 +72,12 @@ T001—T003 是前次兼容验证历史；本次改变模板语义，不把原�
 
 - [x] T017 [P] [US3] 编写不调用卡号登记/写卡/编码/权限变更接口、已登记卡号缺失/关系越权拒绝、打印机档案手动配置、两份模板版本及组合修订号、手选无绑定可建任务/缺确认拒绝/确认后组合修订变化拒绝、实际选择及确认人审计且不自动改绑定、正式员工职级和匹配依据冻结、晋升后仅新任务重新解析、翻面等待禁改背面、快照冻结、请求幂等、模式冻结、设备独占、前后面转移、结果不明及人工核对续打证据/旧命令迟到事件测试：`smart-module/smart-platform/smart-platform-biz/src/test/java/com/tce/smart/platform/service/print/PrintJobServiceTest.java`。（FR-006/FR-007/FR-008/FR-010/FR-011/FR-015/FR-019）
 - [x] T018 [P] [US3] 编写客户端命令意图落盘、重启去重、提交结果不明不重放、制品hash/设备身份校验测试：`smart-print-client/tests/PrintCommandRecoveryTests.cs`。（FR-010/FR-011/FR-014/FR-019/FR-020）
-- [ ] T019 [P] [US3] 编写打印页自动匹配/手动选择、未关联模板候选可见、无匹配或有推荐时均可手选、改选需重新核对预览、批量逐人展示职级和差异、当前人员与双面预览、出卡确认/翻面按钮、防双击、刷新恢复、预览后数据/模板/设备变更拒绝提交并重看预览、逐人批量测试：`smart-ui/src/views/platform/print/jobs/Workbench.test.js`。（FR-008/FR-009/FR-011）
+- [x] T019 [P] [US3] 编写打印页自动匹配/手动选择、未关联模板候选可见、无匹配或有推荐时均可手选、改选需重新核对预览、批量逐人展示职级和差异、当前人员与双面预览、出卡确认/翻面按钮、防双击、刷新恢复、预览后数据/模板/设备变更拒绝提交并重看预览、逐人批量测试：`smart-ui/src/views/platform/print/jobs/Workbench.test.js`。（FR-008/FR-009/FR-011）
 - [x] T020 [US3] 实现 T017 的任务、面进度、attempt/event、设备占用、状态机、领取/回执和人工恢复API：`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/print/PrintJobService.java`、`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/controller/print/PrintJobController.java`、`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/controller/print/PrintClientController.java`、`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/controller/print/PrintPrinterController.java`（先交付手动所需档案API）。（FR-006/FR-007/FR-008/FR-010/FR-011/FR-015/FR-019）
 - [x] T021 [US3] 在 `specs/009-print-template-designer/research.md` 核实并锁定 .NET/Windows、PDF页面渲染器及再分发许可，确认本地日志目录ACL和设备身份配置；未知许可组件不引入。（FR-017，SC-008）
 - [x] T022 [US3] 实现 T018 的 Windows 主程序、受控领取、持久去重日志及页面渲染接口：`smart-print-client/src/Program.cs`、`smart-print-client/src/PrintCommandJournal.cs`、`smart-print-client/src/TaskPoller.cs`；新增 `smart-print-client/README.md` 并同步根 `README.md`、`AGENTS.md`。（FR-010/FR-011/FR-014/FR-019/FR-020）
 - [x] T023 [US3] 编写并运行手动模式每次只提交一面、无写卡/编码调用、驱动页选择、打印机身份/介质校验失败测试：`smart-print-client/tests/PrintAdapterTests.cs`。（FR-006/FR-008/FR-009）
-- [ ] T024 [US3] 实现 T023 的 HiTi 官方驱动单面适配和校准档案：`smart-print-client/src/Adapters/HiTiPrintAdapter.cs`；实现 T019 的模板自动/手选入口和手动翻面工作台 `smart-ui/src/views/platform/print/jobs/manual.vue` 和任务API封装 `smart-ui/src/api/platform/print/jobs.js`。（FR-008/FR-009/FR-011）
+- [x] T024 [US3] 实现 T023 的 HiTi 官方驱动单面适配和校准档案：`smart-print-client/src/Adapters/HiTiPrintAdapter.cs`；实现 T019 的模板自动/手选入口和手动翻面工作台 `smart-ui/src/views/platform/print/jobs/manual.vue` 和任务API封装 `smart-ui/src/api/platform/print/jobs.js`。（FR-008/FR-009/FR-011）
 - [ ] T025 [US3] 完成模拟异常矩阵及获准的手动实机验收，记录型号/Windows/驱动/介质/放卡方向和10位样本：`specs/009-print-template-designer/quickstart.md`。（SC-003/SC-005）
 
 ## Phase 6: US5 访客单面（批次2）
@@ -90,7 +90,7 @@ T001—T003 是前次兼容验证历史；本次改变模板语义，不把原�
 - [x] T027 [P] [US5] 编写 Brother 只打印一面、58mm区域/介质/黑红能力校验、回执丢失和缺纸测试：`smart-print-client/tests/BrotherPrintAdapterTests.cs`；编写自动匹配/未关联单面模板手选/预览确认及入口不出现翻面流程测试 `smart-ui/src/views/platform/print/jobs/Workbench.test.js`。（FR-004/FR-006/FR-011/FR-013）
 - [x] T028 [US5] 实现 T026 的访客/随行人员解析与快照：`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/print/SqlPrintSubjectSource.java`。（FR-005/FR-010/FR-013）
 - [x] T029 [US5] 实现 T027 的受控PDF页面图像→固定介质LBX→b-PAC通道：`smart-print-client/src/Adapters/BrotherPrintAdapter.cs`、`smart-print-client/resources/brother/visitor-image.lbx`；客户端组件安装遵循官方许可。（FR-004/FR-006/FR-011/FR-013/FR-017）
-- [ ] T030 [US5] 实现支持自动匹配/手动选择未关联模板及预览确认的单面访客工作台与现有入口的新链路调用接口，暂由关闭的切换开关隔离：`smart-ui/src/views/platform/print/jobs/visitor.vue`、`smart-ui/src/views/platform/visitor/qrCode_new/index.vue`。（FR-013/FR-016）
+- [x] T030 [US5] 实现支持自动匹配/手动选择未关联模板及预览确认的单面访客工作台与现有入口的新链路调用接口，暂由关闭的切换开关隔离：`smart-ui/src/views/platform/print/jobs/visitor.vue`、`smart-ui/src/views/platform/visitor/qrCode_new/index.vue`。（FR-013/FR-016）
 - [ ] T031 [US5] 获准后完成QL-800真实样本、裁切/黑红/照片/扫码及缺纸恢复，记录到 `specs/009-print-template-designer/quickstart.md`。（SC-004/SC-005）
 
 ## Phase 7: US4 自动双面（批次2）
@@ -100,9 +100,9 @@ T001—T003 是前次兼容验证历史；本次改变模板语义，不把原�
 **Independent Test**: 带模块实机10人双面，缺模块反例在提交前拒绝。
 
 - [x] T032 [P] [US4] 编写模式能力校验、活动任务配置及正式员工职级/匹配依据冻结、自动双面可用未预关联的手选两份版本、两页同任务及未知结果测试：`smart-module/smart-platform/smart-platform-biz/src/test/java/com/tce/smart/platform/service/print/PrintJobServiceTest.java`、`smart-print-client/tests/PrintAdapterTests.cs`。（FR-006/FR-007/FR-010/FR-012）
-- [ ] T033 [P] [US4] 编写打印机配置/手动自动模式选择、不可用提示及任务中禁改模式测试：`smart-ui/src/views/platform/print/printers/index.test.js`。（FR-006/FR-007） 同时验证自动翻面页面可自动匹配或手选未关联的两份已发布模板，改选后重新核对预览。（FR-024）
+- [x] T033 [P] [US4] 编写打印机配置/手动自动模式选择、不可用提示及任务中禁改模式测试：`smart-ui/src/views/platform/print/printers/index.test.js`。（FR-006/FR-007） 同时验证自动翻面页面可自动匹配或手选未关联的两份已发布模板，改选后重新核对预览。（FR-024）
 - [x] T034 [US4] 实现 T032 的驱动自动双面/页序/方向与完成证据处理：`smart-print-client/src/Adapters/HiTiPrintAdapter.cs`、`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/print/PrintJobService.java`；明确未知结果不能当两面完成。（FR-007/FR-012）
-- [ ] T035 [US4] 实现 T033 的打印机档案API与配置页：`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/controller/print/PrintPrinterController.java`、`smart-ui/src/views/platform/print/printers/index.vue`、`smart-ui/src/api/platform/print/printers.js`。（FR-006/FR-007）
+- [x] T035 [US4] 实现 T033 的打印机档案API与配置页：`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/controller/print/PrintPrinterController.java`、`smart-ui/src/views/platform/print/printers/index.vue`、`smart-ui/src/api/platform/print/printers.js`。（FR-006/FR-007）
 - [ ] T036 [US4] 获准后完成带翻面模块实卡验收，证明两页实际落在同一卡上，记录10位样本和方向/页序：`specs/009-print-template-designer/quickstart.md`。（SC-003/SC-005）
 
 ## Phase 8: US6 权限、审计、联合切换和回退（批次2）
@@ -112,16 +112,16 @@ T001—T003 是前次兼容验证历史；本次改变模板语义，不把原�
 **Independent Test**: 越权反例、活动任务回退和新旧入口演练。
 
 - [ ] T037 [P] [US6] 补齐模板/绑定/预览/制品/设备/任务/恢复的端到端ACL、伪造设备、篡改制品及脱敏审计测试：`smart-module/smart-platform/smart-platform-biz/src/test/java/com/tce/smart/platform/service/print/PrintAccessPolicyTest.java`、`smart-print-client/tests/RuntimeOptionsTests.cs`。（FR-014/FR-015/FR-020，SC-006）
-- [ ] T038 [P] [US6] 编写切换默认关闭、旧访客路径、回退停止创建、在途任务不重放、新厂牌无旧通道停用的测试：`smart-ui/src/api/platform/print/cutover.test.js`、`smart-module/smart-platform/smart-platform-biz/src/test/java/com/tce/smart/platform/service/print/PrintCutoverServiceTest.java`。（FR-016，SC-007）
+- [x] T038 [P] [US6] 编写切换默认关闭、旧访客路径、回退停止创建、在途任务不重放、新厂牌无旧通道停用的测试：`smart-ui/src/api/platform/print/cutover.test.js`、`smart-module/smart-platform/smart-platform-biz/src/test/java/com/tce/smart/platform/service/print/PrintCutoverServiceTest.java`。（FR-016，SC-007）
 - [ ] T039 [US6] 完成 T037 覆盖的全入口权限、设备绑定、审计脱敏与安全错误语义：`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/print/PrintAccessPolicy.java`、`smart-print-client/src/TaskPoller.cs`。（FR-014/FR-015/FR-020）
-- [ ] T040 [US6] 实现 T038 的运行时切换状态和任务创建门禁、新旧入口分流：`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/print/PrintCutoverService.java`、`smart-ui/src/api/platform/print/cutover.js`、`smart-ui/src/views/platform/visitor/qrCode_new/index.vue`。（FR-016）
-- [ ] T041 [US6] 编写逐卡工作台审计/恢复/取消结果展示行为测试并先失败：`smart-ui/src/views/platform/print/jobs/JobHistory.test.js`。（FR-011/FR-015）
-- [ ] T042 [US6] 实现 T041 的任务历史与人工恢复界面：`smart-ui/src/views/platform/print/jobs/JobHistory.vue`，遵循契约可执行动作和实卡确认，不自动重打。（FR-011/FR-015）
+- [x] T040 [US6] 实现 T038 的运行时切换状态和任务创建门禁、新旧入口分流：`smart-module/smart-platform/smart-platform-biz/src/main/java/com/tce/smart/platform/service/print/PrintCutoverService.java`、`smart-ui/src/api/platform/print/cutover.js`、`smart-ui/src/views/platform/visitor/qrCode_new/index.vue`。（FR-016）
+- [x] T041 [US6] 编写逐卡工作台审计/恢复/取消结果展示行为测试并先失败：`smart-ui/src/views/platform/print/jobs/JobHistory.test.js`。（FR-011/FR-015）
+- [x] T042 [US6] 实现 T041 的任务历史与人工恢复界面：`smart-ui/src/views/platform/print/jobs/JobHistory.vue`，遵循契约可执行动作和实卡确认，不自动重打。（FR-011/FR-015）
 - [ ] T043 [US6] 在授权测试环境演练统一切换/回退，核对蓝图 6.1 等独立规格的外部验收证据和每种打印类型覆盖，记录到 `specs/009-print-template-designer/quickstart.md`；独立规格未交付、缺任一实机模式或关联验收不得标通过。（FR-016，SC-006/SC-007）
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T044 整理组件/字体/SDK与客户端安装分发清单、设备校准步骤和运维文档：`smart-print-client/README.md`、`smart-print-renderer/README.md`、`specs/009-print-template-designer/research.md`；核实所有商用及再分发条款。（FR-017，SC-008）
+- [x] T044 整理组件/字体/SDK与客户端安装分发清单、设备校准步骤和运维文档：`smart-print-client/README.md`、`smart-print-renderer/README.md`、`specs/009-print-template-designer/research.md`；核实所有商用及再分发条款。（FR-017，SC-008）
 - [ ] T045 运行影响范围内的前后端/渲染器/Windows测试与构建，核对所有SC、FR及真实Oracle/实机证据，回写 `specs/009-print-template-designer/quickstart.md` 和本任务清单；未验证项保持未完成。（SC-001/SC-002/SC-003/SC-004/SC-005/SC-006/SC-007/SC-008）
 - [ ] T046 根据真实交付状态更新 `docs/yuhui-prototype/yuhui-blueprint.html`，审查新模块入口和迁移/回退资料；提交、PR、生产切换仅按当时已有授权执行，不因任务完成自动部署。（FR-016/FR-018）
 

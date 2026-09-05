@@ -2,7 +2,7 @@
 
 ## 批次2当前软件与启用边界（2026-09-05）
 
-已实现单面模板/版本、系统正反面组合、DHR显式等级绑定、自动匹配与手选、人员照片冻结、真实人员单面/双面预览、逐人任务、持久化尝试/回执、人工翻面与结果核对、设备档案，以及 Windows HiTi/Brother 适配软件。仍在最终复审与提交收口；以下环境门槛没有通过，不能据此开启生产打印。
+已实现单面模板/版本、系统正反面组合、DHR显式等级绑定、自动匹配与手选、人员照片冻结、真实人员单面/双面预览、逐人任务、持久化尝试/回执、人工翻面与结果核对、设备档案，以及 Windows HiTi/Brother 适配软件。全部软件组复审已通过，正在最终整分支评审与PR收口；以下环境门槛没有通过，不能据此开启生产打印。
 
 - 员工、外包、派遣通过真实业务表关系及已登记实体IC卡只读适配；不调用写卡或门禁变更。正式员工必须先按园区确认 DHR 的代码/名称映射，不能把员工级等名称猜成字典代码。EHR不参与。
 - 供应商人员可查询，但现有档案没有经确认的实体IC卡关联；`SUPPLIER_CARD_SOURCE_NOT_CONFIGURED` 会拒绝创建。没有借用同ID员工卡，用户对后续登记范围尚未答复。
@@ -10,6 +10,14 @@
 - 当前人员照片只能通过必填 `personPhoto` image 绑定；模板不保存真人照。真实 Java→Node PDF 合成红蓝像素已验证旧快照不随来源变更，实际环境照片存储域及访问权限尚未验收。
 - 新路由：`/platform/print/jobs/manual`、`/platform/print/jobs/visitor`、`/platform/print/printers`、`/platform/print/bindings`。打印操作员只需 execute 读取有限设备候选，设备维护仍要求 device 权限；预览及制品各自要求 preview/resource，现场核对要求 recover。
 - 前端本地合成验收使用真实 Workbench/Printer 组件，验证搜索/手选未关联版本、双面模式与单面访客、防止未预览提交；该页面没有真实数据库或设备，PDF生成由独立真实渲染测试验证。
+
+配置示例见 [print-configuration.example.yaml](../../smart-module/smart-platform/docs/print-configuration.example.yaml)，仅为待配置参考，不自动导入；八项权限键和真实分类字典须与目标 UPMS 一致。数据库由 [显式版本发布 CLI](../../smart-module/smart-platform/docs/print-schema-release.md) 创建，应用启动不自动 DDL。
+
+任务提交必须携带刚核对的实际人员 `previewId`，批量每人独立确认；后端重新冻结后比较人员资料、照片、实际版本/关联及设备配置。旧预览无证明或内容变化拒绝创建。任务恢复展示冻结姓名、两面 PDF 和设备取放说明；未配置现场方向则明确提示，不编造放卡边。
+
+### 本轮最终软件验证
+
+Java Print*Test 151/151（live启用、0跳过），管理端105文件/542项，Node渲染46项及.NET客户端30项通过。Windows x64发布及管理端正式构建成功。打印范围lint 0错误/12警告；全部软件组完成独立复审，最终整分支评审及交付记录见 [delivery.md](delivery.md)。这些结果来自隔离H2、真实PDF及合成数据/模拟驱动，不替代下列现场验收。
 
 ### 统一切换与回退（未执行）
 

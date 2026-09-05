@@ -6,7 +6,7 @@ import * as api from '@/api/platform/print/pairs'
 import * as templates from '@/api/platform/print/templates'
 vi.mock('@/router/axios', () => ({ default: vi.fn() }))
 vi.mock('@/api/platform/print/pairs', () => ({ listPairs: vi.fn(), savePair: vi.fn(), getPair: vi.fn(), archivePair: vi.fn() }))
-vi.mock('@/api/platform/print/templates', () => ({ listTemplates: vi.fn(), getTemplate: vi.fn() }))
+vi.mock('@/api/platform/print/templates', () => ({ listTemplates: vi.fn(), getTemplate: vi.fn(), getPreview: vi.fn(), downloadPreviewArtifact: vi.fn() }))
 let wrapper
 const rows = ['FRONT', 'BACK'].map((faceRole, index) => ({ templateId: faceRole, name: faceRole === 'FRONT' ? '员工级正面' : '通用背面', faceRole, printItemType: 'STAFF_CARD', personType: 'EMPLOYEE', classificationCode: 'STAFF_DEFAULT', lifecycleStatus: 'ACTIVE', versions: [{ templateVersionId: `version-${index}`, versionStatus: 'PUBLISHED', versionNo: index + 1, pageSpecJson: { widthMm: 85.6, heightMm: 53.98, orientation: 'LANDSCAPE' } }] }))
 async function settle() { await new Promise(resolve => setTimeout(resolve, 0)) }

@@ -5,7 +5,7 @@ import { webcrypto, createHash } from 'node:crypto'
 import { Blob as NodeBlob } from 'node:buffer'
 import Page from './index.vue'
 import * as api from '@/api/platform/print/templates'
-vi.mock('@/api/platform/print/templates', () => ({ listTemplates: vi.fn(), getTemplate: vi.fn(), createTemplate: vi.fn(), saveDraft: vi.fn(), publishTemplate: vi.fn(), rollbackTemplate: vi.fn(), previewTemplate: vi.fn(), getPreview: vi.fn(), uploadTemplateResource: vi.fn(), downloadTemplateResource: vi.fn() }))
+vi.mock('@/api/platform/print/templates', () => ({ listTemplates: vi.fn(), getTemplate: vi.fn(), createTemplate: vi.fn(), saveDraft: vi.fn(), publishTemplate: vi.fn(), rollbackTemplate: vi.fn(), previewTemplate: vi.fn(), getPreview: vi.fn(), downloadPreviewArtifact: vi.fn(), uploadTemplateResource: vi.fn(), downloadTemplateResource: vi.fn() }))
 vi.mock('@/router/axios', () => ({ default: vi.fn() }))
 let wrapper
 const version = { templateVersionId: 'draft-a', layoutJson: { schemaVersion: 1, schemas: [[]], basePdfRef: null }, pageSpecJson: { widthMm: 85.6, heightMm: 53.98 }, fieldSchemaJson: { fields: [] }, resourceManifest: [] }
