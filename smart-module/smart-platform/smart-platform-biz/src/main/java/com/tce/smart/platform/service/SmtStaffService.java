@@ -10,6 +10,7 @@ import com.tce.smart.platform.api.dto.req.EmpHrReqDTO;
 import com.tce.smart.platform.api.dto.req.TempStaffEditReqDTO;
 import com.tce.smart.platform.api.dto.resp.StaffPartInfo;
 import com.tce.smart.platform.core.dto.*;
+import com.tce.smart.platform.core.dto.securityzone.SecurityAuthDeleteTaskRef;
 import com.tce.smart.platform.core.entity.*;
 import com.tce.smart.platform.core.entity.ext.SecurityPersonRelationExt;
 import com.tce.smart.platform.core.vo.*;
@@ -246,6 +247,22 @@ public interface SmtStaffService extends IService<SmtStaff> {
 							String taskNum, String applyBadge);
 
 	void savePersonCardTask(Integer actionType, long startTime, long endTime, SmtStaff smtStaff, List<SmtDeviceAuthorityRelation> deviceAuthList);
+
+	/**
+	 * 保存员工人脸设备任务并返回实际生成的全部任务引用。
+	 *
+	 * <p>该入口专供自动删权审计使用，任务主键必须是数字文本；任务创建返回错误文本或空值时直接抛出异常，
+	 * 由调用方事务回滚权限变更，避免保存无法追踪的审计关联。</p>
+	 *
+	 * @param actionType 操作类型
+	 * @param startTime 生效时间（秒）
+	 * @param endTime 失效时间（秒）
+	 * @param smtStaff 员工信息
+	 * @param deviceAuthList 设备权限列表
+	 * @return 实际生成的全部设备任务引用
+	 */
+	List<SecurityAuthDeleteTaskRef> savePersonCardTasksWithResult(Integer actionType, long startTime, long endTime,
+			SmtStaff smtStaff, List<SmtDeviceAuthorityRelation> deviceAuthList);
 
 	IPage<SecurityAllStaffListDTO> getStaffPage(Page page, SecurityPersonRelationExt reqDTO);
 

@@ -118,11 +118,12 @@ public class SmartMeterTimerTask {
 	}
 
 	/**
-	 * 处理能耗投影待处理队列。
+	 * 每五分钟消费有界队列并推进一个补齐短批；先消费为实时请求保留处理机会。
 	 */
 	@Scheduled(cron = "${task.energy.projection.pending-cron:0 0/5 * * * ?}", zone = "${smart.energy.zone-id:Asia/Shanghai}")
 	public void energyProjectionProcessPendingTask() {
-		if (!Boolean.TRUE.equals(taskJob.getEnergyProjectionProcessPending())) {
+		if (!Boolean.TRUE.equals(taskJob.getEnergyProjectionProcessPending())
+				&& !Boolean.TRUE.equals(taskJob.getEnergyProjectionBackfill())) {
 			return;
 		}
 		try {
@@ -136,9 +137,19 @@ public class SmartMeterTimerTask {
 		}
 		executeEnergyProjectionTask(TimerTaskEnum.ENERGY_PROJECTION_PROCESS_PENDING,
 				ENERGY_PROJECTION_PROCESS_PENDING_LOCK_MINUTES, false, false, "能耗投影待处理队列",
-				heartbeat -> executeRemoteEnergyProjection("能耗投影待处理队列", heartbeat,
-						() -> remoteEnergyProjectionService.processPending(SecurityConstants.FROM_IN,
-								energyProjectionServerTokenProvider.energyProjectionAuthorizationHeader())));
+				heartbeat -> {
+					// 两次远调分别确认锁所有权，单次消费失败不阻止扫描其余表计。
+					if (Boolean.TRUE.equals(taskJob.getEnergyProjectionProcessPending())) {
+						executeRemoteEnergyProjection("能耗投影待处理队列", heartbeat,
+								() -> remoteEnergyProjectionService.processPending(SecurityConstants.FROM_IN,
+										energyProjectionServerTokenProvider.energyProjectionAuthorizationHeader()));
+					}
+					if (Boolean.TRUE.equals(taskJob.getEnergyProjectionBackfill())) {
+						executeRemoteEnergyProjection("能耗投影补齐续跑", heartbeat,
+								() -> remoteEnergyProjectionService.backfillMonthToDate(SecurityConstants.FROM_IN,
+										energyProjectionServerTokenProvider.energyProjectionAuthorizationHeader()));
+					}
+				});
 	}
 
 	/**

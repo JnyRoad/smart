@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.tce.smart.platform.core.mapper.energy.SmtEnergyParkDayItemMapper">
+	<select id="selectMeterDayItem" resultType="com.tce.smart.platform.core.entity.energy.SmtEnergyParkDayItem">SELECT * FROM SMT_ENERGY_PARK_DAY_ITEM WHERE PARK_ID=#{parkId} AND METER_SOURCE=#{meterSource} AND METER_ID=#{meterId} AND STAT_DATE=#{statDate} AND RESOURCE_TYPE=CASE WHEN #{meterSource}='ELE' THEN 'ELECTRICITY' ELSE 'WATER' END AND UNIT=CASE WHEN #{meterSource}='ELE' THEN 'kWh' ELSE 'm3' END</select>
 	<insert id="mergeItem" parameterType="com.tce.smart.platform.core.entity.energy.SmtEnergyParkDayItem">
 		MERGE INTO SMT_ENERGY_PARK_DAY_ITEM t USING (SELECT #{id} id,#{parkId} park_id,#{statDate} stat_date,#{resourceType} resource_type,#{unit} unit,#{meterSource} meter_source,#{meterId} meter_id,#{meterDayFactId} meter_day_fact_id,#{usageValue} usage_value,#{ruleId} rule_id,#{ruleVersion} rule_version,#{ruleDecision} rule_decision,#{ruleReason} rule_reason,#{calculatedAt} calculated_at FROM dual) s ON(t.PARK_ID=s.park_id AND t.STAT_DATE=s.stat_date AND t.RESOURCE_TYPE=s.resource_type AND t.UNIT=s.unit AND t.METER_SOURCE=s.meter_source AND t.METER_ID=s.meter_id)
 		WHEN MATCHED THEN UPDATE SET METER_DAY_FACT_ID=s.meter_day_fact_id,USAGE_VALUE=s.usage_value,RULE_ID=s.rule_id,RULE_VERSION=s.rule_version,RULE_DECISION=s.rule_decision,RULE_REASON=s.rule_reason,CALCULATED_AT=s.calculated_at

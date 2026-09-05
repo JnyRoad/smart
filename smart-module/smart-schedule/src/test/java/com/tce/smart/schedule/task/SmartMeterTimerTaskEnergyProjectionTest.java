@@ -24,6 +24,22 @@ import java.util.concurrent.TimeUnit;
 public class SmartMeterTimerTaskEnergyProjectionTest {
 	private static final String SCHEDULE_AUTHORIZATION = "Bearer schedule-token";
 
+	/** 每五分钟的消费完成后推进补齐，首次初始化不能只依赖每日一次任务。 */
+	@Test
+	public void pendingContinuesBackfillWhenEnabled() throws Exception {
+		TaskJob taskJob = enabledTaskJob();
+		taskJob.setEnergyProjectionBackfill(true);
+		ISwitchService switchService = Mockito.mock(ISwitchService.class);
+		RemoteEnergyProjectionService remoteService = Mockito.mock(RemoteEnergyProjectionService.class);
+		SmartMeterTimerTask task = createTask(taskJob, switchService, remoteService);
+		Mockito.when(switchService.acquire(TimerTaskEnum.ENERGY_PROJECTION_PROCESS_PENDING, 30L, TimeUnit.MINUTES)).thenReturn("pending-token");
+		Mockito.when(switchService.acquire(TimerTaskEnum.ENERGY_PROJECTION_EXECUTION, 90L, TimeUnit.MINUTES)).thenReturn("execution-token");
+		Mockito.when(remoteService.processPending(SecurityConstants.FROM_IN, SCHEDULE_AUTHORIZATION)).thenReturn(Result.success(Boolean.TRUE));
+		Mockito.when(remoteService.backfillMonthToDate(SecurityConstants.FROM_IN, SCHEDULE_AUTHORIZATION)).thenReturn(Result.success(Boolean.TRUE));
+		task.energyProjectionProcessPendingTask();
+		Mockito.verify(remoteService).backfillMonthToDate(SecurityConstants.FROM_IN, SCHEDULE_AUTHORIZATION);
+	}
+
 	@Test
 	public void pendingDoesNothingWhenDisabled() throws Exception {
 		TaskJob taskJob = new TaskJob();
@@ -73,6 +89,7 @@ public class SmartMeterTimerTaskEnergyProjectionTest {
 	@Test
 	public void pendingTaskCallsRemoteWithDedicatedEnergyProjectionToken() throws Exception {
 		TaskJob taskJob = enabledTaskJob();
+		taskJob.setEnergyProjectionBackfill(false);
 		ISwitchService switchService = Mockito.mock(ISwitchService.class);
 		RemoteEnergyProjectionService remoteService = Mockito.mock(RemoteEnergyProjectionService.class);
 		SmartMeterTimerTask task = createTask(taskJob, switchService, remoteService);

@@ -2,6 +2,8 @@
 
 `database/` 保存 `smart-module` 相关数据库资料。
 
+本次自动删权报表的完整升级入口为 [20260905_security_auth_delete_report](manual/20260905_security_auth_delete_report/README.md)，应用与菜单发布步骤见 [升级说明](../docs/releases/security-auth-delete-report.md)。不要通过重跑其他日期的历史 SQL 代替本版本迁移。
+
 当前平台没有自动迁移框架；需要人工执行的正向/回滚 SQL 放在 `manual/`。根目录下的 `*.db` 是本地 SQLite/临时数据库文件，应由 `.gitignore` 忽略，不作为迁移脚本提交。
 
 ## 目录结构
