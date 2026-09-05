@@ -1,10 +1,10 @@
 <!--
-Sync Impact Report
-- Version change: template → 1.0.0
-- Added principles: frontend/backend boundary, Oracle query evidence, data-change safety,
-  Chinese documentation, focused validation
-- Removed sections: none
-- Follow-up TODOs: none
+同步影响说明
+- 版本：1.0.0 → 1.1.0
+- 新增原则：任务工作区隔离与项目资料持久化，避免新工作区丢失开发上下文
+- 调整原则：业务行为测试先行；纯文档及低风险配置采用适当验证
+- 既有规格：保留内容，后续续作按新隔离与复用规则执行，无需重新生成
+- 同步范围：根规则、详细规则、工作流、命令及任务模板；无待补事项
 -->
 # Smart Constitution
 
@@ -35,9 +35,18 @@ Sync Impact Report
 
 ### V. 面向行为的分层验证
 
-改动必须先有能够失败的测试，再写最小实现。前端验证展示和请求契约，后端验证查询
-语义与结果去重；无法在本地获得真实 Oracle 计划时，必须如实记录限制并提供现场
-复核步骤。
+涉及业务行为的改动必须先有能够失败的业务行为测试，再写最小实现。纯文档或低风险配置
+使用链接、结构、解析、差异等适当检查，不虚构业务测试。前端验证展示和请求契约，后端
+验证查询语义与结果去重；无法在本地获得真实 Oracle 计划时，必须如实记录限制并提供
+现场复核步骤。
+
+### VI. 独立工作区与持久化资料
+
+新增或修改规格、计划、任务和代码前必须位于当前任务的 linked worktree 与非 `main` 分支；
+`main` 或共享主目录禁止写入。已有本任务 worktree、分支和规格优先复用；缺少本机
+`.specify/feature.json` 时显式绑定 `SPECIFY_FEATURE_DIRECTORY`，不得重新生成已有规格。
+持久规格、设计、验收资料、项目规则及 Spec Kit 工作流资产必须纳入版本管理；本机功能指针
+和缓存继续忽略。
 
 ## 技术与数据约束
 
@@ -47,12 +56,12 @@ Sync Impact Report
 
 ## 交付约束
 
-功能在独立分支完成并经 PR 合并。每次交付至少报告改动文件、已运行验证、未验证边界和
-数据库操作状态；测试、构建产物、环境文件、日志、证书和数据库快照不得进入版本控制。
+功能在独立 worktree 的非 `main` 分支完成并经 PR 合并。每次交付至少报告改动文件、已运行验证、未验证边界和
+数据库操作状态；测试报告、构建产物、环境文件、日志、证书和数据库快照不得进入版本控制。
 
 ## Governance
 
 本宪法约束 Smart 的 Spec Kit 规格、计划、任务和实现。修订必须说明变更原因、版本号和
 对现有规格的影响；新增或重定义强制性原则按语义版本提升，所有 PR 评审必须检查其符合性。
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-02 | **Last Amended**: 2026-09-02
+**Version**: 1.1.0 | **Ratified**: 2026-09-02 | **Last Amended**: 2026-09-04

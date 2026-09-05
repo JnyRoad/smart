@@ -18,6 +18,26 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## 工作区与既有规格门禁
+
+在首次创建或修改任何文件前，必须读取根 `AGENTS.md` 和
+`docs/agent-rules/git-worktree.md`，完成 linked worktree、分支和任务归属判定。当前 checkout
+在 `main` 或共享主目录时禁止写入 spec；已有本任务 worktree、分支和规格直接复用。若只是
+缺少本机 `.specify/feature.json`，必须显式设置 `SPECIFY_FEATURE_DIRECTORY=specs/<已有目录>`，
+不得重新初始化 Spec Kit 或再次运行本命令来恢复指针。
+
+### 已有规格的处理分支
+
+在执行任何扩展 hook 或生成步骤之前，先核对已定位的 `SPECIFY_FEATURE_DIRECTORY/spec.md`：
+
+- 文件已存在且本轮没有要求修订：只读报告已有规格路径及后续续作入口，立即结束本命令；
+  跳过所有 hooks、目录或指针写入，以及下文第 6–8 步，不重建规格或检查清单。
+- 文件已存在且本轮明确要求修订：以现有内容为底稿，仅修改授权范围，保留其他需求、
+  澄清结论和验收条件。下文第 6–8 步只适用于此次修订涉及的部分，禁止全文重新生成。
+  已有 `checklists/requirements.md` 只重评受影响的条目，保留其他审查状态；其他评审者拥有的
+  自定义清单保持不变。只有确实缺少内建质量清单时才创建它。
+- 文件不存在且确认是新功能：才执行完整的新规格生成流程。
+
 ## Pre-Execution Checks
 
 **Check for extension hooks (before specification)**:
@@ -73,7 +93,7 @@ Given that feature description, do this:
 
 2. **Branch creation** (optional, via hook):
 
-   If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
+   A `before_specify` hook may report a branch, but it does not replace the mandatory workspace gate above. Note these values for reference, but the branch name does **not** dictate the spec directory name.
 
    If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
 
@@ -92,9 +112,10 @@ Given that feature description, do this:
       - If `branch_numbering` was used (and `feature_numbering` was absent), emit a one-line warning: "⚠️ `branch_numbering` in init-options.json is deprecated. Rename to `feature_numbering`."
 
    **Create the directory and spec file**:
+   - If `SPECIFY_FEATURE_DIRECTORY/spec.md` already exists, preserve it and do not copy a template over it. Read and update it only when the user explicitly asks to revise that existing specification.
    - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
    - Resolve the active `spec-template` through the Spec Kit preset/template resolution stack (equivalent to `specify preset resolve spec-template`)
-   - Copy the resolved `spec-template` file to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point
+   - Only when `SPECIFY_FEATURE_DIRECTORY/spec.md` does not exist, copy the resolved `spec-template` file there as the starting point
    - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
    - Persist the resolved path to `.specify/feature.json`:
      ```json
@@ -107,14 +128,15 @@ Given that feature description, do this:
 
    **IMPORTANT**:
    - You must only create one feature per `/speckit.specify` invocation
+   - An existing feature directory must be resumed explicitly; do not create a new sequential directory merely because the local feature pointer is missing
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
-   - The spec directory and file are always created by this command, never by the hook
+   - New spec directories and files are created by this command, never by the hook; existing artifacts are preserved
 
 4. Load the resolved active `spec-template` file to understand required sections.
 
 5. **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints.
 
-6. Follow this execution flow:
+6. For a new feature, follow this generation flow. For an explicitly authorized revision, apply it only to the affected sections of the existing specification:
     1. Parse user description from arguments
        If empty: ERROR "No feature description provided"
     2. Extract key concepts from description
@@ -139,11 +161,11 @@ Given that feature description, do this:
     7. Identify Key Entities (if data involved)
     8. Return: SUCCESS (spec ready for planning)
 
-7. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+7. For a new feature, write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings. For an existing feature, apply only the authorized edits to its current content; never replace the complete document with newly generated template content.
 
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
+   a. **Reuse or Create Spec Quality Checklist**: If `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` exists, preserve it and reassess only items affected by the authorized revision. Otherwise, generate that file using the checklist template structure with these validation items:
 
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]

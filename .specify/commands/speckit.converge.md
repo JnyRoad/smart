@@ -57,9 +57,10 @@ codebase currently implements. Read `spec.md`, `plan.md`, and `tasks.md` as the 
 source of intent** (with the constitution as governing constraints), assess the current
 state of the code, determine which requirements, acceptance criteria, plan decisions, and
 existing tasks are unmet, incomplete, or only partially satisfied, and **append each piece
-of remaining work as a new, traceable task** at the bottom of `tasks.md` so that
-`/speckit.implement` can complete it. This command MUST run only after
-`/speckit.implement` has run on the current `tasks.md`, and after `/speckit.tasks` has produced a complete `tasks.md`.
+of remaining work as a new, traceable task** at the bottom of `tasks.md` so that the
+superpowers implementation phase can complete it. This command MUST run only after the
+superpowers implementation phase has run on the current `tasks.md`, and after `/speckit.tasks`
+has produced a complete `tasks.md`.
 
 This is **not** a diff tool and does **not** track changes. It assesses the present state
 of the code relative to the feature's artifacts — no git, no branch comparison, no history.
@@ -73,7 +74,7 @@ of the code relative to the feature's artifacts — no git, no branch comparison
 - rewrite, renumber, reorder, or delete any existing task (including tasks from a prior
   Convergence phase);
 - modify, create, or delete any application code — completing the appended tasks is the
-  job of `/speckit.implement`.
+  job of the superpowers implementation phase.
 
 When the codebase already satisfies everything, the command MUST leave `tasks.md`
 **byte-for-byte unchanged** (no empty Convergence header) and report a clean result.
@@ -224,7 +225,7 @@ Append to the **end** of `tasks.md`, per the append contract:
 ### 8. Provide Next Actions (Handoff)
 
 - On `tasks_appended`: state how many tasks were appended under which phase, and recommend
-  running `/speckit.implement` to complete them; note that a follow-up converge
+  running the superpowers implementation phase to complete them; note that a follow-up converge
   run will find fewer or no remaining items.
 - On `converged`: recommend proceeding to review / opening a PR. No further implement pass
   is needed for this feature's specified scope.
