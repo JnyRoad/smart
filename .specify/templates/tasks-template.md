@@ -33,7 +33,7 @@ required by the story.
 ### Validation
 
 [Meaningful behavior regression tasks when behavior changes, following
-development.md#验证. Use link, structure, parse, or diff checks for pure documentation and low-risk
+docs/agent-rules/development.md#验证. Use link, structure, parse, or diff checks for pure documentation and low-risk
 configuration.]
 
 ### Implementation

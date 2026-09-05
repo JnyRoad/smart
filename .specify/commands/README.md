@@ -21,11 +21,14 @@ JSON 输出，不猜测分支名。只读路径解析使用 --no-persist。
 ## 扩展 hooks
 
 各命令只读取 `.specify/extensions.yml` 中的 `hooks.before_<command>` /
-`hooks.after_<command>`。文件不存在、无对应条目或 YAML 无效时跳过；
-`enabled: false` 跳过，缺少 `enabled` 视为启用。
+`hooks.after_<command>`。文件不存在或无对应条目时跳过。YAML 无效时报告配置诊断，
+跳过扩展检查并继续命令本身；这不代表任何 hook 已执行或通过。此处保留原生命令的
+扩展兼容策略。`enabled: false` 跳过，缺少 `enabled` 视为启用。
 
-对非空 `condition` 不解释、不求值、不自行决定是否执行，交给调用运行时；空或缺失的
-`condition` 才视为可执行。可执行 hook 保留 `extension`、`command`、`description` 和
+本命令跳过非空 `condition` 的 hook，报告交由外部 HookExecutor 处理，不求值、不发出
+该 hook 的 `EXECUTE_COMMAND`，也不等待条件回调；外部运行时负责条件求值及调度。
+仅空、null 或缺失的 `condition` 在本命令中视为可执行。
+可执行 hook 保留 `extension`、`command`、`description` 和
 `prompt`。`optional: true` 只报告给用户；`optional: false` 输出
 `EXECUTE_COMMAND: {command}`，随后用当前会话支持的调用方式实际执行并等待完成，才进入
 后续步骤。输出标记不代替调用，也不能作为已完成的证据。hook 受本命令的只读、产物及
