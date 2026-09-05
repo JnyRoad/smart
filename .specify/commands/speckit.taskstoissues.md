@@ -29,8 +29,9 @@ not grant that permission. It never deletes issues.
    github/.../list_issues tool without a state filter, paginate with its cursor and perPage 100,
    and match whole IDs in issue titles. Stop once all task IDs are accounted for or no page remains.
 4. For each unmatched task, strip its checkbox and labels and create one issue with the declared
-   github/.../issue_write tool. Use exactly one ID in the canonical title T001: <description>. Skip
-   IDs already found and report them. Do not create issues in another repository.
+   github/.../issue_write tool. Use exactly one matched task ID in the canonical title
+   `<task-id>: <description>`, preserving the full ID (for example, `T1234`). Skip IDs already found
+   and report them. Do not create issues in another repository.
 5. Report the remote repository, created issue IDs, skipped task IDs, and failures.
 
 Apply the shared hook protocol to before_taskstoissues and after_taskstoissues; do not interpret

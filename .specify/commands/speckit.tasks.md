@@ -32,8 +32,10 @@ $ARGUMENTS
 4. Use TASKS_TEMPLATE_CONTENT (or TASKS_TEMPLATE for older setup output). If FEATURE_DIR/tasks.md
    already exists, preserve it and apply only an explicitly requested revision or an append-only
    convergence update.
-5. Keep every task in the format
+5. New tasks use the format
    - [ ] T001 [P] [US1] Description with an exact file path.
+   The unchecked marker applies only to new tasks. During revisions, preserve existing completion
+   markers, including [x]; do not reset completed work.
    IDs are unique and ordered; [P] and [US#] appear only when applicable. Include setup,
    foundational, user-story, and cross-cutting work only when the design requires it.
 6. Report the tasks path, count, story mapping, dependencies, validation coverage, and suggested

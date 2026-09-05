@@ -10,7 +10,7 @@
 
 - 格式：Markdown、Git ignore、YAML/JSON 工作流配置；现有 Bash/Python 标准库测试。
 - 无新增依赖、数据库或对外 API。
-- 实施目录：本任务 linked worktree，分支 `chore/project-agent-workflow`。
+- 历史实施目录：PR #179 的 linked worktree，分支 `chore/project-agent-workflow`；当前任务使用文末修订中的 `docs/simplify-ai-instructions`。
 - 规格目录：`specs/005-agent-workflow`；不要求与 Git 分支同名。
 
 ## Constitution Check

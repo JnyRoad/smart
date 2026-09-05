@@ -10,7 +10,7 @@ quickstart.md
 
 ## Task format
 
-Every task uses:
+Example of a newly generated task:
 
 - [ ] T001 [P] [US1] Description with an exact file path
 
