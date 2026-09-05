@@ -1,5 +1,6 @@
 package com.tce.smart.platform.core.mapper;
 
+import com.tce.smart.platform.core.entity.energy.SmtEnergyMeterDayFact;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.session.Configuration;
@@ -31,6 +32,22 @@ public class SmtEnergyRecoveryMapperContractTest {
         Configuration config=configuration("SmtEnergyProjectionQueueMapper");
         String sql=config.getMappedStatement("com.tce.smart.platform.core.mapper.energy.SmtEnergyProjectionQueueMapper.requeueIdle").getBoundSql(new HashMap<>()).getSql();
         assertTrue(sql.substring(sql.indexOf("WHERE")).contains("QUEUE_STATUS IN ('DONE','FAILED')"));
+    }
+
+    /** 日事实插入绑定传入园区，匹配更新不得覆盖首次保存的历史园区快照。 */
+    @Test public void mergeFactPreservesParkSnapshotOnMatchedUpdate() throws Exception {
+        Configuration config=configuration("SmtEnergyMeterDayFactMapper");
+        SmtEnergyMeterDayFact fact=SmtEnergyMeterDayFact.builder().parkId(2L).build();
+        BoundSql boundSql=config.getMappedStatement("com.tce.smart.platform.core.mapper.energy.SmtEnergyMeterDayFactMapper.mergeFact").getBoundSql(fact);
+        String sql=boundSql.getSql().replaceAll("\\s+"," ").toUpperCase(java.util.Locale.ROOT);
+        String matched=sql.substring(sql.indexOf("WHEN MATCHED"),sql.indexOf("WHEN NOT MATCHED"));
+        String inserted=sql.substring(sql.indexOf("WHEN NOT MATCHED"));
+
+        assertEquals(fact,boundSql.getParameterObject());
+        assertEquals("parkId",boundSql.getParameterMappings().get(1).getProperty());
+        assertFalse(matched.contains("PARK_ID"));
+        assertTrue(inserted.contains("INSERT (ID,PARK_ID"));
+        assertTrue(inserted.contains("VALUES(S.ID,S.PARK_ID"));
     }
 
     /** 解析真实 Mapper 文件及参数映射，XML 或属性不合法时直接让测试失败。 */

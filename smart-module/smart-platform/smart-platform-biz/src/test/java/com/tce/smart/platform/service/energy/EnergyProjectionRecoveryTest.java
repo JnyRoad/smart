@@ -119,6 +119,20 @@ public class EnergyProjectionRecoveryTest {
         verify(queueMapper,never()).insertIfAbsent(anyLong(),anyString(),anyLong(),any(),any());
     }
 
+    /** 表计当前园区变化但读数等快照不变时，历史事实仍按原园区检查规则和明细，不重复入队迁移。 */
+    @Test public void currentMeterParkChangeKeepsHistoricalFactInOriginalPark() {
+        LocalDate date=readyFixture();
+        Map<String,Object> moved=meter(1L); moved.put("PARK_ID",2L); moved.put("MULTIPLIER",new BigDecimal("1.00"));
+        when(factMapper.selectActiveMeter("ELE",1L)).thenReturn(moved);
+
+        assertEquals(0,service.backfillCurrentMonthToDate());
+        verify(ruleMapper).selectEffectiveRulesForPark(1L,"ELE",date);
+        verify(itemMapper).selectMeterDayItem(1L,"ELE",1L,date);
+        verify(ruleMapper,never()).selectEffectiveRulesForPark(2L,"ELE",date);
+        verify(itemMapper,never()).selectMeterDayItem(2L,"ELE",1L,date);
+        verify(queueMapper,never()).insertIfAbsent(anyLong(),anyString(),anyLong(),any(),any());
+    }
+
     /** 当日中午的 READY 快照在停报后不再满足完整日末边界，漏跑每日回算也必须补救。 */
     @Test public void middayReadySnapshotIsRequeuedAfterDayBecomesHistorical() {
         LocalDate date=readyFixture();

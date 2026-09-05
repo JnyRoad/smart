@@ -177,7 +177,7 @@ public class EnergyProjectionServiceImpl implements EnergyProjectionService {
 		return encoded;
 	}
 
-	/** 按当前业务边界重新检查正常事实，再比较读数、倍率和范围决策；异常事实每扫描轮最多一次。 */
+	/** 按当前业务边界重新检查正常事实；范围决策与明细沿用事实首次保存的园区快照，不随表计当前园区迁移。 */
 	private boolean needsReprojection(String source, Long meterId, LocalDate date) {
 		if (queueMapper.countActiveRequest(source, meterId, date) > 0) return false;
 		SmtEnergyMeterDayFact fact = factMapper.selectFact(source, meterId, date);
@@ -254,7 +254,7 @@ public class EnergyProjectionServiceImpl implements EnergyProjectionService {
 
 	private void lockMeterDay(String source, Long meterId, LocalDate date) { meterDayLockMapper.ensureAnchor(source, meterId, date); meterDayLockMapper.lockForUpdate(source, meterId, date); }
 
-	/** 在调用方持有表计日锁的事务内按当前日界生成事实，并刷新范围明细与园区汇总。 */
+	/** 在调用方持有表计日锁的事务内生成事实；合并后重读首次保存的园区快照，再刷新该历史园区的明细与汇总。 */
 	private void project(String source, Long meterId, LocalDate date) {
 		Map<String, Object> meter = factMapper.selectActiveMeter(source, meterId);
 		if (meter == null || meter.isEmpty()) throw new IllegalStateException("表计不存在，无法建立园区归属事实");

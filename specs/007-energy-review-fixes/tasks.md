@@ -31,3 +31,10 @@
 T001→T002→(T003→T004 | T005→T006 | T007→T008→T009 | T010→T011)→T012→T013。
 前四条实现路径文件所有权独立；platform-biz Maven 测试需协调避免同 target 并发写入。
 FR-001=T003/004；FR-002=T005/006；FR-003/004/005=T007/008/009；FR-006=T010/011；FR-007=T012/013。
+
+## Phase 8: PR #186 审查修复
+
+- [X] T014 [P] 核对园区迁移意见与现有归属契约，在 EnergyProjectionRecoveryTest.java 和 SmtEnergyRecoveryMapperContractTest.java 添加快照保留验证，补充 EnergyProjectionServiceImpl.java 的历史归属说明（FR-003/007；25 项通过，独立审查通过）。
+- [X] T015 [P] 修复 SysOauthClientDetailsServiceImplTest.java 两处字段查找对 Mockito 子类的依赖，保留既有断言并运行目标测试（FR-006/007；34 项通过）。
+- [X] T016 修正 checklists/requirements.md 的生产操作边界及 quickstart.md 的历史 scope 升级兼容说明（FR-001/007）。
+- [X] T017 复验增量修复并独立审查，记录采纳与未采纳原因及原 PR 的提交和回复依据（FR-007；154 项通过，增量无未决审查发现；实际推送及回复以 PR 记录为准）。

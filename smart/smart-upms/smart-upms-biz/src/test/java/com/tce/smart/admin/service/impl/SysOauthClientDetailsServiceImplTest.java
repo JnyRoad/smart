@@ -835,7 +835,7 @@ public class SysOauthClientDetailsServiceImplTest {
 	/** 单次后台恢复必须受批大小限制，避免积压任务长期占用调度线程。 */
 	@Test
 	public void recoverPendingTokenRevocations_limitsEachScheduledBatch() throws Exception {
-		java.lang.reflect.Field batchSize = service.getClass().getSuperclass()
+		java.lang.reflect.Field batchSize = SysOauthClientDetailsServiceImpl.class
 				.getDeclaredField("recoveryBatchSize");
 		batchSize.setAccessible(true);
 		batchSize.set(service, 2);
@@ -854,7 +854,7 @@ public class SysOauthClientDetailsServiceImplTest {
 	/** 首批任务持续失败时，退避后的下一周期必须让后续可成功客户端获得处理机会。 */
 	@Test
 	public void recoverPendingTokenRevocations_advancesPastFailedFirstBatchOnNextCycle() throws Exception {
-		java.lang.reflect.Field batchSize = service.getClass().getSuperclass()
+		java.lang.reflect.Field batchSize = SysOauthClientDetailsServiceImpl.class
 				.getDeclaredField("recoveryBatchSize");
 		batchSize.setAccessible(true);
 		batchSize.set(service, 2);
