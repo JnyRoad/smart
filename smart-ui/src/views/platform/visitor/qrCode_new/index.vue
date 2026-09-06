@@ -57,6 +57,10 @@
                   </div>
                   <div class="tip">（请确保鼠标焦点在输入框内）</div>
                   <div class="checkCode" @click="doCheckCode">凭条打印提示</div>
+                  <div v-if="memberList.length" class="record-badge-action">
+                    <el-button type="primary" plain @click="previewRecordBadges">二维码厂牌预览/打印</el-button>
+                    <div class="tip">已加载{{ memberList.length }}位访客；80×62mm，每页一人，确认预览后再打印或保存为PDF</div>
+                  </div>
                 </div>
                 <calculation ref="calculation" @doKeyPress="_confirmEvent" :checkTypeDesc="checkTypeDesc"></calculation>
                 <!-- <img id='previewArea'> -->
@@ -83,6 +87,7 @@ import { getInfoApi, getInfoApiNew, getInfoApiCard, delSmsCode, getImage, getAre
 import * as bpac from '@/util/bpac'
 import calculation from './keys'
 import { dispatchVisitorPrint } from '@/api/platform/print/cutover'
+import { buildAuthorizedAreaText, createRecordBadgePreview } from './record-badge-print.mjs'
 
 const constImg = './img/print_peaple.png'
 export default {
@@ -239,6 +244,16 @@ export default {
     doCheckCode() {
       this.codeVisible = true
     },
+    previewRecordBadges() {
+      const badgeVisitor = Object.assign({}, this.visitorData, {
+        authorizedArea: buildAuthorizedAreaText(this.visitorData, this.areaNewType, this.areaOldType)
+      })
+      try {
+        createRecordBadgePreview(window, badgeVisitor, this.memberList)
+      } catch (error) {
+        this.$message.error(error && error.message ? error.message : '二维码厂牌预览失败，请稍后重试')
+      }
+    },
     _confirmEvent(res) {
       if (this.checkTypeDesc == 0) {
         this.keyCods = res
@@ -277,7 +292,9 @@ export default {
                 return
               }
               this.visitorData = res.data.data
-              this.memberList = this.visitorData.fellowVisitorList
+              this.memberList = Array.isArray(this.visitorData.fellowVisitorList)
+                ? this.visitorData.fellowVisitorList
+                : []
               this.doPrint()
               // if (this.visitorData.delFlag === 1 || this.visitorData.delFlag === 2) {
               //   this.$message.error('该访客码已失效')
@@ -311,7 +328,9 @@ export default {
                 return
               }
               this.visitorData = res.data.data
-              this.memberList = this.visitorData.fellowVisitorList
+              this.memberList = Array.isArray(this.visitorData.fellowVisitorList)
+                ? this.visitorData.fellowVisitorList
+                : []
               // this.doPrint()
               if (this.visitorData.delFlag === 1 || this.visitorData.delFlag === 2) {
                 this.$message.error('该访客码已失效')
@@ -607,6 +626,9 @@ export default {
     text-decoration: underline;
     margin-top: 15px;
     cursor: pointer;
+  }
+  .record-badge-action {
+    margin-top: 18px;
   }
   .checkType a:first-child {
     margin-right: 12px;

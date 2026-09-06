@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: oracle.jdbc.driver.OracleDriver
+    username: "${SMART_DB_USERNAME}"
+    password: "${SMART_DB_PASSWORD}"
+    url: "${SMART_DB_URL}"
+
+smart:
+  client:
+    session:
+      enabled: true
+      client-id: smart-app-demo

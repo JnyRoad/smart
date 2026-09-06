@@ -1,0 +1,13 @@
+<template>
+  <ScreenFrame><view class="card empty"><text class="heading">岗位设置已调整</text><text class="muted mt">请在设置中选择并保存安检岗位。</text></view></ScreenFrame>
+</template>
+<script setup lang="uts">
+import { nextTick } from 'vue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import { guardExecutionPost } from '../../state/session.uts'
+/** 旧选岗地址只兼容导航，不再保留第二个岗位修改入口。 */
+onShow(() => {
+  if (!guardExecutionPost()) return
+  nextTick(() => { if (guardExecutionPost()) uni.redirectTo({ url: '/pages/settings/settings' }) })
+})
+</script>

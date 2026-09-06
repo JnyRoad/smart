@@ -1,0 +1,177 @@
+<template>
+  <ScreenFrame>
+    <view class="page-intro">
+      <text class="title">待办</text>
+      <text class="muted page-intro-note">集中处理审批与现场任务</text>
+    </view>
+
+    <view class="todo-summary card-warm">
+      <view class="grow">
+        <text class="summary-title">需要你处理的事项</text>
+        <text class="muted summary-note">审批与现场执行按权限分别显示</text>
+      </view>
+      <text class="summary-count">{{ todos().length }}</text>
+    </view>
+
+    <view class="filter-row row wrap">
+      <button class="chip" :class="filter == 'all' ? 'chip-active' : ''" @click="filter = 'all'">
+        全部 {{ todos().length }}
+      </button>
+      <button class="chip" :class="filter == 'approval' ? 'chip-active' : ''" @click="filter = 'approval'">
+        待审批
+      </button>
+      <button class="chip" :class="filter == 'execution' ? 'chip-active' : ''" @click="filter = 'execution'">
+        待执行
+      </button>
+    </view>
+
+    <view v-if="clientState.error.length > 0" class="error">
+      <text class="error-text">{{ clientState.error }}</text>
+      <button class="link retry-link" :disabled="clientState.loading" @click="loadWorkbenchApplications">重试</button>
+    </view>
+    <view v-if="clientState.loading" class="card loading-card">
+      <text class="muted">正在加载待办…</text>
+    </view>
+
+    <view v-for="item in entries" :key="item.id" class="task-card card">
+      <view class="row task-card-head">
+        <view class="icon-box" :class="item.kind == 'item-pass' ? '' : 'icon-box-blue'">
+          <AppIcon :name="item.kind == 'item-pass' ? 'item-pass' : 'supplier'" size="md" />
+        </view>
+        <view class="grow task-card-heading">
+          <view class="row between">
+            <text class="pill">{{ item.kind == 'item-pass' ? '物品放行' : '保密区通行' }}</text>
+            <StatusBadge :status="item.status" />
+          </view>
+          <text class="heading task-title">{{ item.title }}</text>
+        </view>
+      </view>
+      <text class="muted task-owner">{{ item.applicantName }}</text>
+      <button class="btn secondary task-open" @click="open(item.id)">查看并处理</button>
+    </view>
+
+    <view v-if="entries.length == 0 && !clientState.loading && clientState.error.length == 0" class="card empty">
+      <view class="icon-box icon-box-gray empty-icon"><AppIcon name="todos" size="md" /></view>
+      <text class="heading">当前没有待办</text>
+      <text class="muted empty-note">新的审批和执行任务会出现在这里。</text>
+    </view>
+  </ScreenFrame>
+</template>
+
+<script setup lang="uts">
+import { ref, computed } from 'vue'
+import AppIcon from '../../components/AppIcon.uvue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import StatusBadge from '../../components/StatusBadge.uvue'
+import { clientState, guard, loadWorkbenchApplications, todos } from '../../state/session.uts'
+
+const filter = ref('all')
+const entries = computed((): any[] =>
+  todos().filter(
+    (item: any): boolean =>
+      filter.value == 'all' ||
+      (filter.value == 'approval' ? item.status == 'pending' : item.status != 'pending'),
+  ),
+)
+
+/** 页面恢复时重新检查会话并刷新待办，避免退出后沿用旧界面状态。 */
+onShow(() => {
+  if (guard()) loadWorkbenchApplications()
+})
+
+/** 待办详情继续检查操作权限和当前单据状态。 */
+function open(id: string): void {
+  uni.navigateTo({ url: '/pages/detail/detail?id=' + encodeURIComponent(id) + '&view=' + (clientState.applications.find((entry: any): boolean => entry.id == id)?.status == 'pending' ? 'approve' : 'execute') })
+}
+</script>
+
+<style>
+@import '../../styles/theme.css';
+
+.page-intro {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.page-intro-note {
+  margin-top: 4px;
+}
+
+.todo-summary {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.summary-title {
+  color: #5a2600;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 24px;
+}
+
+.summary-note {
+  margin-top: 4px;
+  color: #7f624d;
+}
+
+.summary-count {
+  min-width: 54px;
+  margin-left: 14px;
+  color: #b55100;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 36px;
+  text-align: right;
+}
+
+.filter-row {
+  align-items: flex-start;
+}
+
+.retry-link {
+  align-self: flex-start;
+  padding-left: 0;
+}
+
+.loading-card {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.task-card {
+  padding: 16px;
+}
+
+.task-card-head {
+  align-items: flex-start;
+}
+
+.task-card-heading {
+  margin-left: 12px;
+}
+
+.task-title {
+  margin-top: 10px;
+}
+
+.task-owner {
+  margin-top: 12px;
+}
+
+.task-open {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.empty-icon {
+  margin-bottom: 12px;
+}
+
+.empty-note {
+  margin-top: 4px;
+}
+</style>

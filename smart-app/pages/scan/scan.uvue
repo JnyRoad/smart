@@ -1,0 +1,90 @@
+<template>
+  <ScreenFrame>
+    <view v-if="invalid" class="card empty"
+      ><text class="heading">无效业务入口</text
+      ><text class="muted mt">无法识别此业务，请从工作台重新打开。</text
+      ><button class="btn secondary mt" @click="backToWorkbench">返回工作台</button></view
+    >
+    <view v-else-if="ready">
+      <view class="card execution-post">
+        <text class="label">当前安检岗位</text>
+        <text class="heading mt">{{ postReady ? postName() : '请选择岗位' }}</text>
+        <text class="small mt">{{ postReady ? '请核对设备所在岗位。岗位变更请前往设置。' : '请先在设置中选择并保存岗位，再扫描定位单据。' }}</text>
+      </view>
+      <text class="title mb">扫码定位单据</text>
+      <text class="muted mb">扫描封条或单据编码，查找当前岗位可办理的单据。</text>
+      <view class="card"
+        ><ScanInput
+          :disabled="!postReady || clientState.loading || clientState.error.length > 0"
+          @complete="find"
+        /><text v-if="clientState.loading" class="muted mt">正在获取可处理单据，请稍候…</text></view
+      >
+      <view v-if="postReady && clientState.error.length > 0" class="error"
+        ><text class="error-text">{{ clientState.error }}</text
+        ><button class="btn secondary mt" @click="reload">重新加载单据</button></view
+      >
+      <view v-if="error.length > 0" class="error"
+        ><text class="error-text">{{ error }}</text
+        ><button class="btn secondary mt" @click="reload">刷新后重试</button></view
+      >
+      <text class="small">扫码仅用于定位单据，现场放行仍需审批、岗位与身份核验。</text>
+    </view>
+  </ScreenFrame>
+</template>
+<script setup lang="uts">
+/** 物品扫码页面先获取当前账号可见单据，再接受完整封条输入，绝不自动执行放行。 */
+import { ref, computed } from 'vue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import ScanInput from '../../components/ScanInput.uvue'
+import {
+  clientState,
+  guard,
+  loadExecutionApplications,
+  hasExecutionPost,
+  findScannedApplication,
+  postName,
+} from '../../state/session.uts'
+const postReady = computed((): boolean => hasExecutionPost())
+const ready = ref(false)
+const invalid = ref(false)
+const error = ref('')
+/** 仅兼容已知供应商旧扫描地址，未知业务不映射为另一个有效业务。 */
+onLoad((options) => {
+  if (options['kind'] == 'supplier') {
+    if (guard('supplier:execute')) uni.redirectTo({ url: '/pages/supplier-access/supplier-access' })
+    return
+  }
+  invalid.value = options['kind'] != null && options['kind'] != 'item-pass'
+  if (invalid.value) {
+    guard()
+    return
+  }
+  ready.value = guard('item-pass:execute')
+})
+/** 页面恢复时重新拉取单据，读取完成前禁用输入避免错误报告没有单据。 */
+onShow(() => {
+  if (ready.value) {
+    ready.value = guard('item-pass:execute')
+    if (ready.value) reload()
+  }
+})
+/** 清除上一次定位错误并刷新当前授权范围，失败由公共状态明确反馈。 */
+async function reload(): Promise<void> {
+  error.value = ''
+  if (postReady.value) await loadExecutionApplications()
+}
+/** 只定位当前已加载的单据，拒绝把任意扫码文本当作导航URL。 */
+function find(value: string): void {
+  if (!guard('item-pass:execute') || !postReady.value || clientState.loading || clientState.error.length > 0) return
+  const item = findScannedApplication(value)
+  if (item == null || item.kind != 'item-pass') {
+    error.value = '未找到可处理单据，请确认扫码内容并刷新记录'
+    return
+  }
+  uni.redirectTo({ url: '/pages/detail/detail?id=' + encodeURIComponent(item.id) + '&view=execute' })
+}
+/** 无效链接返回工作台，不赋予任何业务权限。 */
+function backToWorkbench(): void {
+  uni.switchTab({ url: '/pages/workbench/workbench' })
+}
+</script>

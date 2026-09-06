@@ -11,6 +11,7 @@ import {
   sendVisitorSms,
   verifyVisitorSms,
 } from '@/features/visitor/api'
+import { buildIdCardFellow } from '@/features/visitor/id-card'
 import { buildVisitorAreaFields } from '@/features/visitor/area-fields'
 import { loadAreaOptions, pruneSelectedAreas } from '@/features/visitor/area-options'
 import { useVisitorFlow } from '@/features/visitor/flow-store'
@@ -125,18 +126,12 @@ export default function VisitorTelPage() {
         // 串数组（旧版 validateRepeat 原样传、已通过），故只在此处转数字。
         areaType: area.areaType.map(Number),
         fellowList: [
-          {
-            isMain: 1,
-            fellowName: stripSpaces(flow.visitor.visitorName),
+          buildIdCardFellow({
+            fellowName: flow.visitor.visitorName,
             fellowPhotoId: flow.visitor.visitorPhotoId,
-            certNo: stripSpaces(flow.visitor.certNo).toUpperCase(),
-          },
-          ...flow.fellows.map((f) => ({
-            isMain: 0,
-            fellowName: stripSpaces(f.fellowName),
-            fellowPhotoId: f.fellowPhotoId,
-            certNo: stripSpaces(f.certNo).toUpperCase(),
-          })),
+            certNo: flow.visitor.certNo,
+          }, 1),
+          ...flow.fellows.map((f) => buildIdCardFellow(f, 0)),
         ],
         vehicleList: flow.cars.map((c) => ({
           plate: stripSpaces(c.plate),

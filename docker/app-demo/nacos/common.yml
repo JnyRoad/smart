@@ -1,0 +1,45 @@
+spring:
+  redis:
+    host: "${SMART_REDIS_HOST:smart-app-demo-redis}"
+    port: "${SMART_REDIS_PORT:6379}"
+    password: "${SMART_REDIS_PASSWORD:}"
+
+security:
+  oauth2:
+    resource:
+      loadBalanced: true
+      token-info-uri: "${SMART_OAUTH_TOKEN_INFO_URI:http://smart-auth:3000/oauth/check_token}"
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/*Mapper.xml
+  global-config:
+    banner: false
+    db-config:
+      id-type: 0
+      field-strategy: 1
+      table-underline: true
+  configuration:
+    map-underscore-to-camel-case: true
+
+feign:
+  hystrix:
+    enabled: false
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          strategy: SEMAPHORE
+          thread:
+            timeoutInMilliseconds: 5000
+  shareSecurityContext: true
+
+ribbon:
+  ReadTimeout: 5000
+  ConnectTimeout: 5000

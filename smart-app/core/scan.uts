@@ -1,0 +1,100 @@
+/**
+ * 规范化硬件或相机扫码文本，供页面统一处理完整结果。
+ * 只去除末尾换行，不执行 URL；异常输入通过抛错交给页面展示。
+ */
+export function normalizeScan(value: string): string {
+	if (value == null || typeof value !== 'string') {
+		throw new Error('扫码内容不能为空')
+	}
+
+	const normalized = value.replace(/[\r\n]+$/, '')
+	if (normalized.trim().length === 0) {
+		throw new Error('扫码内容不能是空白')
+	}
+	if (normalized.length > 4096) {
+		throw new Error('扫码内容不能超过4096字符')
+	}
+	if (/[\u0000-\u001F\u007F-\u009F]/.test(normalized)) {
+		throw new Error('扫码内容包含控制字符')
+	}
+	return normalized
+}
+
+export type ScanEventKind = 'input' | 'confirm' | 'camera'
+
+export interface ScanReceiver {
+	receive(value: string, source: string, event: ScanEventKind, at?: number): boolean
+}
+
+/**
+ * 判断扫码事件是否只包含结束符，供自动结束和清空回显事件区分使用。
+ * 空字符串不算结束符事件，避免吞掉用户主动确认空内容的错误。
+ */
+function isLineOnly(value: string): boolean {
+	return typeof value === 'string' && /^[\r\n]+$/.test(value)
+}
+
+/**
+ * 判断事件内容是否为空白，输入类型异常交由统一归一化函数返回明确错误。
+ * 该判断不修改原始文本，也不把普通空确认默认为尾随事件。
+ */
+function isBlankValue(value: string): boolean {
+	return typeof value === 'string' && value.trim().length === 0
+}
+
+/**
+ * 创建扫码结果接收协调器，合并结束符和确认事件并短时去重。
+ * 回调只在新结果通过归一化时触发；空值错误继续抛出给页面展示。
+ */
+export function createScanReceiver(
+	onComplete: (value: string, source: string) => void,
+	dedupeWindowMs: number = 1000,
+): ScanReceiver {
+	const windowMs = dedupeWindowMs > 0 ? dedupeWindowMs : 0
+	let lastValue = ''
+	let lastAt = 0
+	let hasLastValue = false
+	let ignoreEmptyLineUntil = 0
+	let ignoreEmptyConfirmUntil = 0
+
+	return {
+		receive(value: string, source: string, event: ScanEventKind, at: number = Date.now()): boolean {
+			const recentSuccess = hasLastValue && at >= lastAt && at - lastAt <= windowMs
+			const blankValue = isBlankValue(value)
+
+			// 自动结束符后的 CR/LF 是输入控件回显，不应再次触发空值错误。
+			if (event === 'input' && isLineOnly(value) && recentSuccess && at <= ignoreEmptyLineUntil) {
+				return false
+			}
+			// 自动完成后的紧随 confirm 只消费一次；超时或手动完成不会进入此分支。
+			if (event === 'confirm' && blankValue && recentSuccess && at <= ignoreEmptyConfirmUntil) {
+				ignoreEmptyConfirmUntil = 0
+				return false
+			}
+
+			const normalized = normalizeScan(value)
+			if (hasLastValue && normalized === lastValue && recentSuccess) {
+				// 重复的完整结束事件仍可能紧跟一个空 confirm，续接同一抑制链。
+				if (event === 'input' && /[\r\n]$/.test(value)) {
+					ignoreEmptyLineUntil = at + windowMs
+					ignoreEmptyConfirmUntil = at + windowMs
+				}
+				return false
+			}
+			// 用户开始输入新内容时，结束符链的确认抑制立即失效。
+			if (event === 'input' && !blankValue) {
+				ignoreEmptyLineUntil = 0
+				ignoreEmptyConfirmUntil = 0
+			}
+
+			lastValue = normalized
+			lastAt = at
+			hasLastValue = true
+			const autoTerminated = event === 'input' && /[\r\n]$/.test(value)
+			ignoreEmptyLineUntil = autoTerminated ? at + windowMs : 0
+			ignoreEmptyConfirmUntil = autoTerminated ? at + windowMs : 0
+			onComplete(normalized, source)
+			return true
+		},
+	}
+}

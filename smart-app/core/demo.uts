@@ -1,0 +1,132 @@
+import type { Application, Identity, Post } from './models.uts'
+
+/**
+ * 提供核心行为测试和演示页面共用的虚构岗位，所有身份均使用演示园区数据。
+ * 岗位对象只存在于进程内，不能用来替代真实服务端岗位授权。
+ */
+const EAST_GATE: Post = {
+	id: 'east-gate',
+	name: '演示园区东门',
+	parkId: 'demo-park',
+	parkName: '演示园区',
+}
+
+const WEST_GATE: Post = {
+	id: 'west-gate',
+	name: '演示园区西门',
+	parkId: 'demo-park',
+	parkName: '演示园区',
+}
+
+const DEMO_POSTS: Post[] = [EAST_GATE, WEST_GATE]
+
+/**
+ * 返回独立的演示申请起终点候选；调用方不得把它写回身份的安检岗位集合。
+ * 每次返回新对象，避免表单侧修改污染后续演示会话。
+ */
+export function createDemoApplicationPosts(): Post[] {
+	return DEMO_POSTS.map(post => ({ ...post }))
+}
+
+const APPLY_PERMISSIONS: string[] = [
+	'item-pass:apply',
+	'item-pass:read',
+]
+
+/**
+ * 固定五个虚构身份，覆盖三类申请人员、主管和安检的最小演示授权。
+ * 这些权限仅供演示和自动化测试，不代表任何真实人员、账号或生产关系。
+ */
+export const DEMO_IDENTITIES: Identity[] = [
+	{
+		subjectId: 'demo-employee-001',
+		staffNo: 'DEMO-EMP-001',
+		displayName: '演示正式员工',
+		employmentType: 'employee',
+		organization: '演示单位',
+		permissions: APPLY_PERMISSIONS.slice(),
+		posts: [],
+	},
+	{
+		subjectId: 'demo-outsourced-001',
+		staffNo: 'DEMO-OUT-001',
+		displayName: '演示外包人员',
+		employmentType: 'outsourced',
+		organization: '演示外包单位',
+		permissions: APPLY_PERMISSIONS.slice(),
+		posts: [],
+	},
+	{
+		subjectId: 'demo-dispatched-001',
+		staffNo: 'DEMO-DIS-001',
+		displayName: '演示派遣人员',
+		employmentType: 'dispatched',
+		organization: '演示派遣单位',
+		permissions: APPLY_PERMISSIONS.slice(),
+		posts: [],
+	},
+	{
+		subjectId: 'demo-supervisor-001',
+		staffNo: 'DEMO-SUP-001',
+		displayName: '演示主管',
+		employmentType: 'employee',
+		organization: '演示单位',
+		permissions: ['item-pass:approve', 'item-pass:read', 'supplier:read'],
+		posts: [],
+	},
+	{
+		subjectId: 'demo-security-001',
+		staffNo: 'DEMO-SEC-001',
+		displayName: '演示安检',
+		employmentType: 'employee',
+		organization: '演示单位',
+		permissions: ['item-pass:execute', 'item-pass:read', 'supplier:execute', 'supplier:read'],
+		posts: DEMO_POSTS.slice(),
+	},
+]
+
+const DEMO_EMPLOYEE = DEMO_IDENTITIES[0]
+
+const DEMO_APPLICATIONS: Application[] = [
+	{
+		id: 'demo-release-pending',
+		kind: 'item-pass',
+		title: '演示物品放行申请',
+		reason: '演示资料送达',
+		fromPostId: EAST_GATE.id,
+		toPostId: WEST_GATE.id,
+		fromPostName: EAST_GATE.name,
+		toPostName: WEST_GATE.name,
+		supplierName: '',
+		visitorName: '',
+		materials: '演示资料一箱',
+		seals: ['DEMO-SEAL-001'],
+		applicantId: DEMO_EMPLOYEE.subjectId,
+		applicantName: DEMO_EMPLOYEE.displayName,
+		status: 'pending',
+		transport: null,
+		timeline: [
+			{
+				id: 'demo-release-created',
+				title: '已提交',
+				actor: DEMO_EMPLOYEE.displayName,
+				at: '2026-09-05T00:00:00.000Z',
+			},
+		],
+	},
+]
+
+/**
+ * 返回可重复使用的演示申请副本，避免页面操作污染下一次演示会话。
+ * 数据固定为物品放行虚构记录，不会发送请求或写入持久化存储。
+ */
+export function createDemoApplications(): Application[] {
+	return DEMO_APPLICATIONS.map(application => ({
+		...application,
+		seals: application.seals.slice(),
+		transport: application.transport == null
+			? null
+			: { mode: application.transport.mode, lockNo: application.transport.lockNo },
+		timeline: application.timeline.map(entry => ({ ...entry })),
+	}))
+}

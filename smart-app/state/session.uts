@@ -1,0 +1,1172 @@
+/** 界面会话与业务协调层：页面经此读取授权上下文，演示与真实传输严格分开。 */
+import { reactive, nextTick } from 'vue'
+import type { ActionKind, ApplicationExecution } from '../core/models.uts'
+import { createClientApi } from '../services/client-api.uts'
+import { uniTransport } from '../services/uni-transport.uts'
+import { createSessionController } from './session-controller.uts'
+import { runtimeConfig } from '../config/runtime.uts'
+import { hasPermission, resolveModule, visibleModules, favoriteModules, MODULES } from '../core/catalog.uts'
+import {
+  DEMO_IDENTITIES,
+  createDemoApplications,
+  createDemoApplicationPosts,
+} from '../core/demo.uts'
+import { validateDraft, transitionApplication, canAct, validateExecution } from '../core/workflow.uts'
+import { normalizeScan } from '../core/scan.uts'
+import {
+  verifyDemoSupplierBadge,
+  cloneSupplierVerification,
+  validateSupplierVerification,
+  createSupplierPassage,
+  supplierTimeValue,
+} from '../core/supplier-access.uts'
+
+export const clientState = reactive({
+  identity: null as any,
+  serverAppIds: [] as string[],
+  mode: '',
+  postId: '',
+  favorites: [] as string[],
+  applications: [] as any[],
+  loading: false,
+  error: '',
+  scanMode: 'camera',
+  unread: true,
+})
+/** 申请起终点候选独立于身份的安检岗位授权，失败时不得沿用旧集合。 */
+export const applicationOptionsState = reactive({
+  posts: [] as any[],
+  loading: false,
+  error: '',
+})
+/** 供应商通行状态与物品申请状态分离，核验不会隐式生成进出事件。 */
+export const supplierState = reactive({
+  verification: null as any,
+  events: [] as any[],
+  loading: false,
+  verifying: false,
+  writing: false,
+  error: '',
+})
+const api = createClientApi(runtimeConfig.apiBaseUrl, uniTransport, runtimeConfig.allowLoopbackHttp)
+let demoApplications: any[] = []
+let demoSupplierEvents: any[] = []
+let operationSequence = 0
+let writeBusy = false
+let listSequence = 0
+let pendingSubmission: any = null
+let pendingAction: any = null
+let supplierRequestSequence = 0
+let supplierListSequence = 0
+let supplierOperationSequence = 0
+let supplierWriteBusy = false
+let supplierWriteFingerprint = ''
+let supplierWritePromise: any = null
+let pendingSupplierPassage: any = null
+let supplierContext: any = null
+let executionListSequence = 0
+let workbenchListSequence = 0
+let workbenchExecutionIds: string[] = []
+let applicationOptionsSequence = 0
+let authorizedAppsSequence = 0
+let escortSequence = 0
+let escortVerification: any = null
+const controller = createSessionController(api, (session: any) => {
+  clientState.identity = session == null ? null : session.identity
+	clientState.serverAppIds = []
+  clientState.mode = session == null ? '' : session.mode
+  clientState.postId = ''
+  clientState.applications = []
+  clientState.favorites = []
+  clientState.error = ''
+  clientState.loading = false
+  clientState.unread = true
+  applicationOptionsSequence += 1
+	authorizedAppsSequence += 1
+  applicationOptionsState.posts = []
+  applicationOptionsState.loading = false
+  applicationOptionsState.error = ''
+  supplierRequestSequence += 1
+  supplierListSequence += 1
+  supplierContext = null
+  supplierState.verification = null
+  supplierState.events = []
+  supplierState.error = ''
+  supplierState.verifying = false
+  supplierState.loading = false
+  supplierState.writing = supplierWriteBusy
+  pendingSubmission = null
+  pendingAction = null
+  listSequence += 1
+  executionListSequence += 1
+  workbenchListSequence += 1
+  workbenchExecutionIds = []
+  escortVerification = null
+})
+export { DEMO_IDENTITIES }
+
+const storagePrefix = 'smart-app'
+
+/** 将异常转换为简短提示，不输出请求细节。 */
+export function errorMessage(error: any): string {
+  return error instanceof Error ? error.message : '操作未完成，请重试'
+}
+
+/** 启动时只读取设备偏好，永不从本地恢复身份、密码或权限。 */
+export function restoreDevicePreferences(): void {
+  try {
+    const mode = uni.getStorageSync(storagePrefix + '.scan-mode')
+    clientState.scanMode = mode == 'hardware' ? 'hardware' : 'camera'
+  } catch (_) {
+    clientState.scanMode = 'camera'
+  }
+}
+
+/** 使用稳定身份键读取常用入口，权限过滤在展示时再次执行。 */
+function restoreFavorites(): void {
+  if (clientState.identity == null) return
+  const suffix = '.favorites.' + clientState.mode + '.' + clientState.identity.subjectId
+  try {
+    const value = uni.getStorageSync(storagePrefix + suffix)
+    clientState.favorites = Array.isArray(value)
+      ? (value.filter((id: any): boolean => typeof id == 'string') as string[])
+      : modules()
+          .slice(0, 6)
+          .map((entry: any): string => entry.id)
+  } catch (_) {
+    clientState.favorites = modules()
+      .slice(0, 6)
+      .map((entry: any): string => entry.id)
+  }
+}
+
+/** 真实登录成功才跳转工作台；密码仅作为临时参数交给接口。 */
+export async function login(staffNo: string, password: string): Promise<void> {
+  if (staffNo.trim().length == 0 || password.length == 0) throw new Error('请填写工号和密码')
+  const session = await controller.login(staffNo.trim(), password)
+  if (session == null) return
+  restoreFavorites()
+  uni.switchTab({ url: '/pages/workbench/workbench' })
+}
+
+/** 仅由显式演示入口选择测试身份，不调用真实认证或写接口。 */
+export function enterDemo(subjectId: string): void {
+  if (!runtimeConfig.enableDemo) throw new Error('演示入口未启用')
+  const identity = DEMO_IDENTITIES.find((item: any): boolean => item.subjectId == subjectId)
+  if (identity == null) throw new Error('演示账号不存在')
+  if (demoApplications.length == 0) demoApplications = createDemoApplications()
+  controller.enterDemo(identity)
+  restoreFavorites()
+  uni.switchTab({ url: '/pages/workbench/workbench' })
+}
+
+/** 退出后清空会话和页面栈，演示记录保留以供下一演示角色承接流程。 */
+export function logout(): void {
+  controller.logout()
+  uni.reLaunch({ url: '/pages/login/login' })
+}
+
+/** 立即检查会话和权限；拒绝时待当前挂载结束再导航，避免留下失效页面缓存。 */
+export function guard(permission: string = ''): boolean {
+  const session = controller.current()
+  if (session != null && (permission.length == 0 || hasPermission(session.identity, permission)))
+    return true
+  // HBuilderX 在组件挂载中调用 onLoad，不能在其页面缓存建好前同步切换路由。
+  const version = controller.version()
+  nextTick(() => {
+    if (version != controller.version()) return
+    if (controller.current() == null) uni.reLaunch({ url: '/pages/login/login' })
+    else uni.switchTab({ url: '/pages/workbench/workbench' })
+  })
+  if (session != null) uni.showToast({ title: '当前账号暂无此功能权限', icon: 'none' })
+  return false
+}
+
+/** 返回仅来自本地注册目录并经当前权限过滤的应用入口。 */
+export function modules(query: string = '', category: string = '全部'): any[] {
+  const entries = visibleModules(clientState.identity, query, category)
+  if (clientState.mode != 'live') return entries
+  return entries.filter((entry: any): boolean => clientState.serverAppIds.includes(entry.id))
+}
+
+/**
+ * 进入工作台后读取服务器授权的模块元数据。本地目录再交叉验证模块 ID 与权限，
+ * 因此服务器既不能下发任意路由，也不能因畸形数据扩大可见范围。
+ */
+export async function loadAuthorizedApps(): Promise<void> {
+	const session = controller.current()
+	const version = controller.version()
+	const sequence = ++authorizedAppsSequence
+	if (session == null) return
+	if (session.mode == 'demo') {
+		clientState.serverAppIds = MODULES.map((entry: any): string => entry.id)
+		return
+	}
+	try {
+		const remote = await api.apps(session.token)
+		if (version != controller.version() || sequence != authorizedAppsSequence || controller.current() == null) return
+		const allowed: string[] = []
+		for (const item of remote) {
+			const local = resolveModule(item.id)
+			if (local != null && local.permission == item.permission && hasPermission(session.identity, local.permission))
+				allowed.push(local.id)
+		}
+		clientState.serverAppIds = allowed
+	} catch (error) {
+		if (version != controller.version() || sequence != authorizedAppsSequence || controller.current() == null) return
+		clientState.serverAppIds = []
+		if (errorMessage(error).includes('登录已失效')) logout()
+		else clientState.error = errorMessage(error)
+	}
+}
+
+/** 按用户收藏展示已授权入口；显式清空收藏后保持空列表。 */
+export function favorites(): any[] {
+	return favoriteModules(clientState.identity, clientState.favorites).filter(
+		(entry: any): boolean => clientState.mode != 'live' || clientState.serverAppIds.includes(entry.id)
+	)
+}
+
+/** 收藏变更绑定当前身份，未授权模块不能通过本地ID加入。 */
+export function toggleFavorite(id: string): void {
+  if (!guard()) return
+  const entry = resolveModule(id)
+	if (entry == null || !hasPermission(clientState.identity, entry.permission)) return
+	if (clientState.mode == 'live' && !clientState.serverAppIds.includes(entry.id)) return
+  const next = clientState.favorites.slice()
+  const index = next.indexOf(id)
+  if (index >= 0) next.splice(index, 1)
+  else {
+    if (next.length >= 8) throw new Error('常用应用最多添加8个')
+    next.push(id)
+  }
+  uni.setStorageSync(
+    storagePrefix + '.favorites.' + clientState.mode + '.' + clientState.identity.subjectId,
+    next
+  )
+  clientState.favorites = next
+}
+
+/** 仅导航本地已注册且当前允许的模块，服务端不能下发任意执行路由。 */
+export function openModule(id: string): void {
+  const entry = resolveModule(id)
+	if (
+		entry != null &&
+		(clientState.mode != 'live' || clientState.serverAppIds.includes(entry.id)) &&
+		guard(entry.permission)
+	) uni.navigateTo({ url: entry.route })
+}
+
+/** 保存设备级扫码模式，不代表禁用或启用操作系统的实体扫码按键。 */
+export function setScanMode(mode: string): void {
+  if (mode != 'hardware' && mode != 'camera') throw new Error('不支持此扫码方式')
+  uni.setStorageSync(storagePrefix + '.scan-mode', mode)
+  clientState.scanMode = mode
+}
+
+/** 现场岗位只由安检执行权限决定，与正式员工或外包派遣来源无关。 */
+export function canSelectExecutionPost(): boolean {
+  const session = controller.current()
+  return session != null && (
+    hasPermission(session.identity, 'item-pass:execute') ||
+    hasPermission(session.identity, 'supplier:execute')
+  )
+}
+
+/** 判断当前会话是否拥有指定执行权限且已选择服务端授权岗位。 */
+export function hasExecutionPost(permission: string = 'item-pass:execute'): boolean {
+	const session = controller.current()
+	if (
+		session == null ||
+		!hasPermission(session.identity, permission) ||
+		clientState.postId.length == 0 ||
+		!Array.isArray(session.identity.posts)
+	)
+		return false
+	return session.identity.posts.some((post: any): boolean => post != null && post.id == clientState.postId)
+}
+
+/** 独立选岗页同样检查执行权限，直接链接不能绕过业务入口。 */
+export function guardExecutionPost(): boolean {
+  if (canSelectExecutionPost()) return guard()
+  return guard('item-pass:execute')
+}
+
+/** 只提供当前安检账号可绑定的岗位，不改变申请表可填写的出发和到达字段。 */
+export function executionPosts(): any[] {
+  return canSelectExecutionPost() ? availablePosts() : []
+}
+
+/** 必须具有执行权限且岗位已授权；拒绝时抛错，不能让选岗页假装成功返回。 */
+export function selectPost(postId: string): void {
+  if (!guardExecutionPost()) throw new Error('当前账号没有安检执行权限')
+	if (!clientState.identity.posts.some((post: any): boolean => post.id == postId))
+		throw new Error('该岗位未授权')
+	if (clientState.postId != postId) {
+		listSequence += 1
+		executionListSequence += 1
+		workbenchListSequence += 1
+		workbenchExecutionIds = []
+		clearSupplierVerification()
+		clearEscortVerification()
+		clientState.applications = []
+		clientState.loading = false
+		clientState.error = ''
+	}
+	clientState.postId = postId
+}
+
+/** 返回岗位显示名称；未选择时给出清晰的执行前提示。 */
+export function postName(): string {
+  if (clientState.identity == null) return '未选择岗位'
+  const post = clientState.identity.posts.find(
+    (item: any): boolean => item.id == clientState.postId
+  )
+  return post == null ? '选择现场岗位' : post.name
+}
+
+/** 查询权限允许阅读服务端已裁定的结果；动作权限仅附带办理当前任务所需的详情。 */
+function mayViewApplication(item: any, identity: any): boolean {
+	if (item == null || item.kind != 'item-pass') return false
+	if (hasPermission(identity, item.kind + ':read')) return true
+  if (item.applicantId == identity.subjectId && hasPermission(identity, item.kind + ':apply'))
+    return true
+  if (canAct(item, identity, '', 'approve')) return true
+  return identity.posts.some((post: any): boolean =>
+		['depart', 'arrive'].some((action: string): boolean =>
+      canAct(item, identity, post.id, action as ActionKind)
+    )
+  )
+}
+
+/** 写请求失败时只注销发起请求的过期会话，迟到错误不能影响后来登录的账号。 */
+function handleWriteFailure(error: any, version: number): void {
+  if (version == controller.version() && errorMessage(error).includes('登录已失效')) logout()
+}
+
+/**
+ * 读取当前申请人的起终点候选；只有申请权限会发请求，账号变化后丢弃迟到结果。
+ * 重试开始即清除旧候选，避免加载失败后继续提交已经失效的路线。
+ */
+export async function loadApplicationOptions(): Promise<void> {
+  const session = controller.current()
+  const version = controller.version()
+  const sequence = ++applicationOptionsSequence
+  applicationOptionsState.posts = []
+  applicationOptionsState.loading = false
+  applicationOptionsState.error = ''
+  if (session == null || !hasPermission(session.identity, 'item-pass:apply')) {
+    applicationOptionsState.error = session == null ? '请先登录' : '当前账号没有物品申请权限'
+    return
+  }
+  applicationOptionsState.loading = true
+  try {
+    const result = session.mode == 'demo'
+      ? { posts: createDemoApplicationPosts() }
+      : await api.applicationOptions(session.token)
+    if (
+      version != controller.version() ||
+      sequence != applicationOptionsSequence ||
+      controller.current() == null
+    )
+      return
+    applicationOptionsState.posts = result.posts.map((post: any): any => ({ ...post }))
+  } catch (error) {
+    if (
+      version != controller.version() ||
+      sequence != applicationOptionsSequence ||
+      controller.current() == null
+    )
+      return
+    if (errorMessage(error).includes('登录已失效')) {
+      logout()
+      return
+    }
+    applicationOptionsState.posts = []
+    applicationOptionsState.error = errorMessage(error)
+  } finally {
+    if (version == controller.version() && sequence == applicationOptionsSequence)
+      applicationOptionsState.loading = false
+  }
+}
+
+/** 仅返回当前申请权限下已成功加载的路线候选，不读取或改写 Identity.posts。 */
+export function applicationPosts(): any[] {
+  const session = controller.current()
+  if (session == null || !hasPermission(session.identity, 'item-pass:apply')) return []
+  return applicationOptionsState.posts
+}
+
+/** 仅接收当前会话最后一次刷新结果；失败即清理已不可确认授权的单据。 */
+export async function loadApplications(): Promise<void> {
+  if (!guard()) return
+  const session = controller.current()
+  const version = controller.version()
+  const sequence = ++listSequence
+  executionListSequence += 1
+  workbenchListSequence += 1
+  workbenchExecutionIds = []
+  clientState.loading = true
+  clientState.error = ''
+  try {
+    const result = session.mode == 'demo' ? demoApplications.slice() : await api.list(session.token)
+    if (version != controller.version() || sequence != listSequence || controller.current() == null) return
+		clientState.applications = result
+			.filter((item: any): boolean => item != null && item.kind == 'item-pass')
+			.filter((item: any): boolean => mayViewApplication(item, session.identity))
+  } catch (error) {
+    if (version != controller.version() || sequence != listSequence || controller.current() == null) return
+    if (errorMessage(error).includes('登录已失效')) {
+      logout()
+      return
+    }
+    clientState.applications = []
+    clientState.error = errorMessage(error)
+  } finally {
+    if (version == controller.version() && sequence == listSequence) clientState.loading = false
+  }
+}
+
+/**
+ * 读取现场可办理单据；未选择授权岗位时立即清空列表且绝不发出请求。
+ * 普通申请、审批和记录继续使用 loadApplications，不受此岗位前置影响。
+ */
+export async function loadExecutionApplications(): Promise<void> {
+	const session = controller.current()
+	const version = controller.version()
+	const sequence = ++executionListSequence
+	const requestedPostId = clientState.postId
+	listSequence += 1
+	workbenchListSequence += 1
+	workbenchExecutionIds = []
+	if (!hasExecutionPost('item-pass:execute')) {
+		clientState.applications = []
+		clientState.loading = false
+		clientState.error = session == null
+			? '请先登录'
+			: clientState.postId.length == 0
+				? '请先选择现场岗位'
+				: '当前账号没有物品执行权限或岗位未授权'
+		return
+	}
+	clientState.loading = true
+	clientState.error = ''
+	try {
+		const result = session.mode == 'demo'
+			? demoApplications.slice()
+			: await api.listExecution(session.token, requestedPostId)
+		if (
+			version != controller.version() ||
+			sequence != executionListSequence ||
+			controller.current() == null
+		)
+			return
+		if (requestedPostId != clientState.postId) return
+		const applications = result.filter(
+			(item: any): boolean => canExecuteApplication(item, session.identity, requestedPostId)
+		)
+		clientState.applications = applications
+		workbenchExecutionIds = applications.map((item: any): string => item.id)
+	} catch (error) {
+		if (
+			version != controller.version() ||
+			sequence != executionListSequence ||
+			controller.current() == null
+		)
+			return
+		if (errorMessage(error).includes('登录已失效')) {
+			logout()
+			return
+		}
+		clientState.applications = []
+		clientState.error = errorMessage(error)
+	} finally {
+		if (version == controller.version() && sequence == executionListSequence)
+			clientState.loading = false
+	}
+}
+
+/** 普通工作台响应只贡献本人申请或当前可审批单据，不能携带执行任务。 */
+function mayIncludeWorkbenchOrdinary(item: any, identity: any): boolean {
+	return (
+		item != null &&
+		item.kind == 'item-pass' &&
+		(item.applicantId == identity.subjectId || canAct(item, identity, '', 'approve'))
+	)
+}
+
+/** 合并普通与岗位执行结果并按单据 ID 去重；重复时使用岗位接口的新快照。 */
+function mergeWorkbenchApplications(ordinary: any[], execution: any[]): any[] {
+	const merged: any[] = ordinary.slice()
+	for (const item of execution) {
+		const index = merged.findIndex((existing: any): boolean => existing.id == item.id)
+		if (index >= 0) merged[index] = item
+		else merged.push(item)
+	}
+	return merged
+}
+
+/** 当前工作台请求仍属于同一账号、岗位和最后一次加载时才可写入页面状态。 */
+function acceptsWorkbenchResult(version: number, sequence: number, postId: string): boolean {
+	return (
+		version == controller.version() &&
+		sequence == workbenchListSequence &&
+		controller.current() != null &&
+		clientState.postId == postId
+	)
+}
+
+/**
+ * 为工作台与待办分开读取普通数据和当前岗位执行数据，再进行最小授权聚合。
+ * 执行专用账号未选岗时不请求普通全量列表，也不会显示任何执行单据。
+ */
+export async function loadWorkbenchApplications(): Promise<void> {
+	const session = controller.current()
+	const version = controller.version()
+	const sequence = ++workbenchListSequence
+	const requestedPostId = clientState.postId
+	listSequence += 1
+	executionListSequence += 1
+	clientState.applications = []
+	workbenchExecutionIds = []
+	clientState.loading = false
+	clientState.error = ''
+	if (session == null) {
+		clientState.error = '请先登录'
+		return
+	}
+	const loadOrdinary = ['item-pass:apply', 'item-pass:approve', 'item-pass:read'].some(
+		(permission: string): boolean => hasPermission(session.identity, permission)
+	)
+	const loadExecution = hasExecutionPost('item-pass:execute')
+	if (!loadOrdinary && !loadExecution) return
+	clientState.loading = true
+	try {
+		let ordinary: any[] = []
+		let execution: any[] = []
+		if (session.mode == 'demo') {
+			const source = demoApplications.slice()
+			if (loadOrdinary) {
+				ordinary = source.filter(
+					(item: any): boolean => mayIncludeWorkbenchOrdinary(item, session.identity)
+				)
+			}
+			if (loadExecution) {
+				execution = source.filter(
+					(item: any): boolean => canExecuteApplication(item, session.identity, requestedPostId)
+				)
+			}
+		} else {
+			if (loadOrdinary) {
+				const result = await api.list(session.token)
+				if (!acceptsWorkbenchResult(version, sequence, requestedPostId)) return
+				ordinary = result.filter(
+					(item: any): boolean => mayIncludeWorkbenchOrdinary(item, session.identity)
+				)
+			}
+			if (loadExecution) {
+				const result = await api.listExecution(session.token, requestedPostId)
+				if (!acceptsWorkbenchResult(version, sequence, requestedPostId)) return
+				execution = result.filter(
+					(item: any): boolean => canExecuteApplication(item, session.identity, requestedPostId)
+				)
+			}
+		}
+		if (!acceptsWorkbenchResult(version, sequence, requestedPostId)) return
+		clientState.applications = mergeWorkbenchApplications(ordinary, execution)
+		workbenchExecutionIds = execution.map((item: any): string => item.id)
+	} catch (error) {
+		if (!acceptsWorkbenchResult(version, sequence, requestedPostId)) return
+		if (errorMessage(error).includes('登录已失效')) {
+			logout()
+			return
+		}
+		clientState.applications = []
+		clientState.error = errorMessage(error)
+	} finally {
+		if (acceptsWorkbenchResult(version, sequence, requestedPostId))
+			clientState.loading = false
+	}
+}
+
+/** 获取当前账号有权操作的待办，保持审批与现场执行权限独立。 */
+export function todos(): any[] {
+  if (clientState.identity == null) return []
+	return clientState.applications.filter((item: any): boolean => {
+		if (item == null || item.kind != 'item-pass') return false
+		const identity = clientState.identity
+		if (item.status == 'pending') return canAct(item, identity, '', 'approve')
+		if (!hasExecutionPost('item-pass:execute')) return false
+		if (!workbenchExecutionIds.includes(item.id)) return false
+		return (
+			canAct(item, identity, clientState.postId, 'depart') ||
+			canAct(item, identity, clientState.postId, 'arrive')
+		)
+  })
+}
+
+/** 为同一点击创建进程内唯一请求标识，真实后端还需实现幂等约束。 */
+function operationId(): string {
+  operationSequence += 1
+  return Date.now().toString() + '-' + operationSequence.toString()
+}
+
+/** 提交已校验申请；拒绝并发点击，同一会话最后一份未确认草稿人工重试沿用幂等键。 */
+export async function submitApplication(draft: any): Promise<string> {
+	if (draft == null || draft.kind == 'supplier')
+		throw new Error('供应商申请不在客户端办理，请使用厂牌核验')
+	if (draft.kind != 'item-pass') throw new Error('业务类型无效')
+	if (!guard(draft.kind + ':apply')) throw new Error('无申请权限')
+  const issue = validateDraft(draft)
+  if (issue != null) throw new Error(issue)
+	const requiredPosts = [draft.fromPostId, draft.toPostId]
+  const candidates = applicationPosts()
+  if (
+    applicationOptionsState.loading ||
+    applicationOptionsState.error.length > 0 ||
+    candidates.length == 0 ||
+    !requiredPosts.every((id: string): boolean =>
+      candidates.some((post: any): boolean => post.id == id)
+    )
+  )
+    throw new Error('申请岗位候选未加载或已失效，请重试加载后选择')
+  const fromPost = candidates.find((post: any): boolean => post.id == draft.fromPostId)
+  const toPost = candidates.find((post: any): boolean => post.id == draft.toPostId)
+  if (fromPost == null || toPost == null)
+    throw new Error('申请岗位候选未加载或已失效，请重试加载后选择')
+  if (writeBusy) throw new Error('正在提交，请勿重复操作')
+  const session = controller.current()
+  const version = controller.version()
+  const fingerprint = JSON.stringify([draft.kind, draft.title, draft.reason, draft.fromPostId, draft.toPostId, draft.supplierName, draft.visitorName, draft.materials, draft.seals])
+  if (pendingSubmission == null || pendingSubmission.fingerprint != fingerprint) pendingSubmission = { fingerprint, key: operationId() }
+  const key = pendingSubmission.key as string
+  writeBusy = true
+  try {
+    let created: any
+    if (session.mode == 'demo') {
+      created = {
+        ...draft,
+        fromPostName: fromPost.name,
+        toPostName: toPost.name,
+        id: 'DEMO-' + key,
+        applicantId: session.identity.subjectId,
+        applicantName: session.identity.displayName,
+        status: 'pending',
+        timeline: [
+          {
+            id: key,
+            title: '提交申请（演示）',
+            actor: session.identity.displayName,
+            at: new Date().toISOString(),
+          },
+        ],
+      }
+      demoApplications = [created, ...demoApplications]
+    } else created = await api.submit(session.token, draft, key)
+    if (version != controller.version()) throw new Error('账号已切换，请在对应账号查看提交结果')
+    pendingSubmission = null
+    await loadApplications()
+    return created.id
+  } catch (error) {
+    handleWriteFailure(error, version)
+    throw error
+  } finally {
+    writeBusy = false
+	}
+}
+
+/** 清除一次演示押运刷卡证明，岗位、账号或页面离开后均不可继续沿用。 */
+export function clearEscortVerification(): void {
+	escortVerification = null
+}
+
+/**
+ * 显式生成仅供演示的押运刷卡证明，并绑定当前会话、岗位、单据和动作。
+ * 真实模式永远不提供该入口，不能用演示证明替代真实人卡核验。
+ */
+export function recordDemoEscortSwipe(id: string, action: ActionKind): string {
+	const session = controller.current()
+	if (session == null) throw new Error('请先登录')
+	if (session.mode != 'demo') throw new Error('真实模式未接入刷卡核验，不能模拟放行')
+	if (action != 'depart' && action != 'arrive') throw new Error('刷卡证明只适用于出发或到达')
+	if (!hasExecutionPost('item-pass:execute')) throw new Error('请先选择已授权的现场岗位')
+	const item = clientState.applications.find((entry: any): boolean => entry.id == id)
+	if (item == null || !canAct(item, session.identity, clientState.postId, action))
+		throw new Error('当前岗位或单据状态不允许刷卡核验')
+	escortSequence += 1
+	const proof = [
+		'DEMO-ESCORT',
+		session.identity.subjectId,
+		clientState.postId,
+		id,
+		action,
+		Date.now().toString(),
+		escortSequence.toString(),
+	].join('-')
+	escortVerification = {
+		version: controller.version(),
+		subjectId: session.identity.subjectId,
+		postId: clientState.postId,
+		applicationId: id,
+		action,
+		proof,
+		used: false,
+	}
+	return proof
+}
+
+/** 校验演示证明是否仍绑定原会话上下文，成功动作后立即失效。 */
+function demoEscortProofIssue(
+	id: string,
+	action: ActionKind,
+	proof: string,
+	session: any,
+	version: number,
+): string | null {
+	if (
+		escortVerification == null ||
+		escortVerification.version != version ||
+		escortVerification.subjectId != session.identity.subjectId ||
+		escortVerification.postId != clientState.postId ||
+		escortVerification.applicationId != id ||
+		escortVerification.action != action ||
+		escortVerification.proof != proof
+	)
+		return '押运刷卡证明无效或已失效，请重新刷卡核验'
+	if (escortVerification.used === true) return '押运刷卡证明只能使用一次，请重新刷卡核验'
+	return null
+}
+
+/** 返回独立的单据快照，详情页展示动作结果时不能反向改写列表状态。 */
+function cloneApplicationSnapshot(value: any): any {
+	if (value == null || typeof value != 'object') return null
+	return {
+		...value,
+		seals: Array.isArray(value.seals) ? value.seals.slice() : [],
+		transport: value.transport == null
+			? null
+			: { mode: value.transport.mode, lockNo: value.transport.lockNo },
+		timeline: Array.isArray(value.timeline)
+			? value.timeline.map((entry: any): any => ({ ...entry }))
+			: [],
+	}
+}
+
+/** 详情操作统一检查权限与状态；真实模式的押运人工卡由后端按当前员工主数据核验。 */
+export async function actOnApplication(
+	id: string,
+	action: ActionKind,
+	comment: string,
+	execution: ApplicationExecution | null = null,
+): Promise<any> {
+	if (!guard()) {
+		if (controller.current() == null) throw new Error('登录已失效，请重新登录')
+		throw new Error('当前账号暂无此功能权限')
+	}
+  const item = clientState.applications.find((entry: any): boolean => entry.id == id)
+  if (item == null || !canAct(item, clientState.identity, clientState.postId, action))
+    throw new Error('当前权限、岗位或单据状态不允许此操作')
+  if (action == 'reject' && comment.trim().length == 0) throw new Error('驳回时请填写原因')
+  if (writeBusy) throw new Error('正在提交，请勿重复操作')
+  const session = controller.current()
+  const version = controller.version()
+  const isExecutionAction = item.kind == 'item-pass' && ['depart', 'arrive'].includes(action)
+  if (isExecutionAction) {
+		if (!hasExecutionPost('item-pass:execute')) throw new Error('请先选择已授权的现场岗位')
+		const executionIssue = validateExecution(execution)
+		if (executionIssue != null) throw new Error(executionIssue)
+		if (session.mode == 'demo' && execution!.mode == 'escort') {
+			const proofIssue = demoEscortProofIssue(
+				id,
+				action,
+				execution!.escortProof,
+				session,
+				version,
+			)
+			if (proofIssue != null) throw new Error(proofIssue)
+		}
+	}
+  const fingerprint = JSON.stringify([
+		id,
+		action,
+		clientState.postId,
+		comment,
+		execution == null
+			? null
+			: {
+				mode: execution.mode,
+				escortProof: execution.escortProof,
+				lockNo: execution.lockNo,
+			},
+	])
+  if (pendingAction == null || pendingAction.fingerprint != fingerprint) pendingAction = { fingerprint, key: operationId() }
+  const key = pendingAction.key as string
+  writeBusy = true
+	let actionResult: any = null
+  try {
+    if (session.mode == 'demo') {
+      const updated = transitionApplication(
+        item,
+        session.identity,
+        clientState.postId,
+        action,
+        comment,
+		execution,
+      )
+      demoApplications = demoApplications.map((entry: any): any =>
+        entry.id == id ? updated : entry
+      )
+		actionResult = updated
+	    } else actionResult = await api.act(session.token, id, action, clientState.postId, comment, key, execution)
+    if (version != controller.version()) throw new Error('账号已切换，请在对应账号查看处理结果')
+		pendingAction = null
+		if (isExecutionAction) {
+			clearEscortVerification()
+			await loadExecutionApplications()
+		} else await loadApplications()
+		if (version != controller.version() || controller.current() == null)
+			throw new Error('账号已切换，请在对应账号查看处理结果')
+		if (session.mode == 'live') {
+			const confirmed = clientState.applications.find((entry: any): boolean => entry.id == id)
+			if (confirmed != null) actionResult = confirmed
+		}
+		return cloneApplicationSnapshot(actionResult)
+  } catch (error) {
+    handleWriteFailure(error, version)
+    throw error
+  } finally {
+    writeBusy = false
+  }
+}
+
+/** 返回身份中服务端授予的安检执行岗位；申请表必须改用 applicationPosts。 */
+export function availablePosts(): any[] {
+  return clientState.identity == null ? [] : clientState.identity.posts
+}
+
+/** 通过当前可见单据内的封条或单据号定位详情，不能扫描任意URL跳转。 */
+export function findScannedApplication(value: string): any {
+	if (!hasExecutionPost('item-pass:execute')) return undefined
+	return clientState.applications.find(
+		(entry: any): boolean =>
+			canExecuteApplication(entry, clientState.identity, clientState.postId) &&
+			(entry.id == value || (Array.isArray(entry.seals) && entry.seals.includes(value)))
+	)
+}
+
+/** 现场执行列表只保留当前岗位此刻能够出发或到达的物品单据。 */
+function canExecuteApplication(item: any, identity: any, postId: string): boolean {
+	return (
+		item != null &&
+		item.kind == 'item-pass' &&
+		(canAct(item, identity, postId, 'depart') || canAct(item, identity, postId, 'arrive'))
+	)
+}
+
+/** 复制供应商事件，页面只读取快照，不能改写本地事件历史。 */
+function cloneSupplierPassage(value: any): any {
+	return {
+		id: value.id,
+		verificationId: value.verificationId,
+		badgeId: value.badgeId,
+		visitorName: value.visitorName,
+		supplierName: value.supplierName,
+		admissionId: value.admissionId,
+		postId: value.postId,
+		areaName: value.areaName,
+		direction: value.direction,
+		operatorName: value.operatorName,
+		occurredAt: value.occurredAt,
+	}
+}
+
+/** 返回某厂牌在演示事件中的最后方向，重扫后仍保持真实的在内/在外状态。 */
+function latestDemoSupplierPresence(badgeId: string, postId: string): string {
+	let latest: any = null
+	for (const event of demoSupplierEvents) {
+		if (event.badgeId == badgeId && event.postId == postId) latest = event
+	}
+	return latest == null ? '' : latest.direction == 'enter' ? 'inside' : 'outside'
+}
+
+/** 用身份、岗位、核验代次同时绑定异步结果，切换任一上下文都会丢弃迟到响应。 */
+function supplierRequestIsCurrent(version: number, sequence: number, subjectId: string, postId: string): boolean {
+	const session = controller.current()
+	return (
+		version == controller.version() &&
+		sequence == supplierRequestSequence &&
+		session != null &&
+		session.identity.subjectId == subjectId &&
+		clientState.postId == postId
+	)
+}
+
+/** 根据服务端或演示结果校验当前核验上下文，过期和岗位切换均须重新扫描。 */
+function supplierVerificationIssue(verification: any, session: any, version: number): string {
+	if (supplierContext == null || supplierContext.version != version) return '请先核验当前岗位的厂牌'
+	if (
+		supplierContext.subjectId != session.identity.subjectId ||
+		supplierContext.postId != clientState.postId ||
+		supplierContext.verificationId != verification.id ||
+		supplierContext.badgeId != verification.badgeId
+	)
+		return '身份或岗位已变化，请重新扫描厂牌'
+	if (!validateSupplierVerification(verification, session.identity, Date.now())) {
+		if (supplierTimeValue(verification.expiresAt) <= Date.now()) return '厂牌核验已过期，请重新扫描'
+		return '厂牌核验已失效，请重新扫描'
+	}
+	if (verification.postId != clientState.postId) return '当前岗位与厂牌授权区域不一致'
+	return ''
+}
+
+/** 供应商事件幂等键由身份、岗位、核验和方向共同决定，失败重试沿用原键。 */
+function supplierFingerprint(session: any, verification: any, direction: string): string {
+	return JSON.stringify([
+		session.identity.subjectId,
+		clientState.postId,
+		verification.id,
+		verification.badgeId,
+		direction,
+	])
+}
+
+/** 将事件加入独立记录集合并按事件ID去重。 */
+function appendSupplierEvent(event: any): void {
+	if (!supplierState.events.some((item: any): boolean => item.id == event.id))
+		supplierState.events = [...supplierState.events, cloneSupplierPassage(event)]
+}
+
+/** 仅在当前会话和岗位仍有效时接纳事件响应，避免晚到响应污染新身份。 */
+function supplierEventMatches(event: any, verification: any, direction: string): boolean {
+	return (
+		event != null &&
+		event.verificationId == verification.id &&
+		event.badgeId == verification.badgeId &&
+		event.postId == clientState.postId &&
+		event.direction == direction
+	)
+}
+
+/** 通过扫码核验已打印厂牌；此函数只更新核验结果，不产生进入或离开事件。 */
+export async function verifySupplierBadge(code: string): Promise<void> {
+	if (!guard('supplier:execute')) {
+		clearSupplierVerification()
+		return
+	}
+	const session = controller.current()
+	if (session == null) return
+	const postId = clientState.postId
+	if (postId.length == 0) {
+		supplierState.verification = null
+		supplierContext = null
+		supplierState.error = '请先选择现场岗位'
+		return
+	}
+
+	const version = controller.version()
+	const sequence = ++supplierRequestSequence
+	const subjectId = session.identity.subjectId
+	supplierState.verifying = true
+	supplierState.error = ''
+	supplierState.verification = null
+	supplierContext = null
+	try {
+		const normalized = normalizeScan(code)
+		let result: any
+		if (session.mode == 'demo') {
+			result = verifyDemoSupplierBadge(normalized, postId, Date.now())
+			if (result != null && result.allowed) {
+				const presence = latestDemoSupplierPresence(result.badgeId, postId)
+				if (presence.length > 0) {
+					result = cloneSupplierVerification(result)
+					result.presence = presence
+				}
+			}
+		} else result = await api.verifySupplierBadge(session.token, normalized, postId)
+
+		if (!supplierRequestIsCurrent(version, sequence, subjectId, postId)) return
+		if (result == null) throw new Error('厂牌无效，无法核验')
+		supplierState.verification = cloneSupplierVerification(result)
+		if (!result.allowed) throw new Error(result.reason || '厂牌未通过核验')
+		supplierContext = {
+			version,
+			subjectId,
+			postId,
+			verificationId: result.id,
+			badgeId: result.badgeId,
+		}
+	} catch (error) {
+		if (!supplierRequestIsCurrent(version, sequence, subjectId, postId)) return
+		if (errorMessage(error).includes('登录已失效')) {
+			logout()
+			return
+		}
+		supplierContext = null
+		supplierState.error = errorMessage(error)
+	} finally {
+		if (version == controller.version() && sequence == supplierRequestSequence)
+			supplierState.verifying = false
+	}
+}
+
+/** 查询当前身份有权查看的独立供应商进出事件，不读取或拼接旧申请单据。 */
+export async function loadSupplierPassages(): Promise<void> {
+	if (!guard('supplier:read')) {
+		supplierState.events = []
+		return
+	}
+	const session = controller.current()
+	if (session == null) return
+	const version = controller.version()
+	const sequence = ++supplierListSequence
+	supplierState.loading = true
+	supplierState.error = ''
+	try {
+		const result = session.mode == 'demo'
+			? demoSupplierEvents.map((event: any): any => cloneSupplierPassage(event))
+			: await api.listSupplierPassages(session.token)
+		if (version != controller.version() || sequence != supplierListSequence || controller.current() == null) return
+		supplierState.events = result.map((event: any): any => cloneSupplierPassage(event))
+	} catch (error) {
+		if (version != controller.version() || sequence != supplierListSequence || controller.current() == null) return
+		if (errorMessage(error).includes('登录已失效')) {
+			logout()
+			return
+		}
+		supplierState.events = []
+		supplierState.error = errorMessage(error)
+	} finally {
+		if (version == controller.version() && sequence == supplierListSequence) supplierState.loading = false
+	}
+}
+
+/** 清除厂牌核验上下文；身份、岗位、页面离开和显式重置均调用此函数。 */
+export function clearSupplierVerification(): void {
+	supplierRequestSequence += 1
+	supplierContext = null
+	supplierState.verification = null
+	supplierState.verifying = false
+	supplierState.error = ''
+}
+
+/** 写入明确选择的进入或离开事件，执行前再次校验身份、岗位、方向、有效期和幂等锁。 */
+export async function recordSupplierPassage(direction: 'enter' | 'leave'): Promise<any | null> {
+	if (!guard('supplier:execute')) {
+		clearSupplierVerification()
+		return null
+	}
+	if (direction != 'enter' && direction != 'leave') {
+		supplierState.error = '进出方向无效'
+		return null
+	}
+	const session = controller.current()
+	if (session == null) return null
+	const verification = supplierState.verification
+	const version = controller.version()
+	if (verification == null) {
+		supplierState.error = '请先核验厂牌'
+		return null
+	}
+	const issue = supplierVerificationIssue(verification, session, version)
+	if (issue.length > 0) {
+		if (issue.includes('过期') || issue.includes('身份') || issue.includes('岗位')) clearSupplierVerification()
+		supplierState.error = issue
+		return null
+	}
+	if (!verification.allowedDirections.includes(direction)) {
+		supplierState.error = '厂牌不允许该进出方向'
+		return null
+	}
+
+	const fingerprint = supplierFingerprint(session, verification, direction)
+	if (supplierWriteBusy) {
+		if (supplierWriteFingerprint == fingerprint && supplierWritePromise != null)
+			return await supplierWritePromise
+		supplierState.error = '正在登记，请勿重复操作'
+		return null
+	}
+	if (
+		pendingSupplierPassage == null ||
+		pendingSupplierPassage.fingerprint != fingerprint
+	) {
+		supplierOperationSequence += 1
+		pendingSupplierPassage = {
+			fingerprint,
+			key: 'supplier-' + Date.now().toString() + '-' + supplierOperationSequence.toString(),
+		}
+	}
+	const key = pendingSupplierPassage.key as string
+	const requestVersion = version
+	const requestSequence = supplierRequestSequence
+	const requestSubjectId = session.identity.subjectId
+	const requestPostId = clientState.postId
+	const requestVerificationId = verification.id
+	const requestBadgeId = verification.badgeId
+	supplierWriteBusy = true
+	supplierWriteFingerprint = fingerprint
+	supplierState.writing = true
+	const operation = (async (): Promise<any | null> => {
+		let event: any
+		if (session.mode == 'demo') {
+			event = createSupplierPassage(
+				verification,
+				session.identity,
+				clientState.postId,
+				direction,
+				key,
+				Date.now(),
+			)
+		} else {
+			event = await api.recordSupplierPassage(
+				session.token,
+				verification.id,
+				clientState.postId,
+				direction,
+				key,
+			)
+		}
+		if (
+			!supplierRequestIsCurrent(requestVersion, requestSequence, requestSubjectId, requestPostId) ||
+			supplierContext == null ||
+			supplierContext.version != requestVersion ||
+			supplierContext.subjectId != requestSubjectId ||
+			supplierContext.postId != requestPostId ||
+			supplierContext.verificationId != requestVerificationId ||
+			supplierContext.badgeId != requestBadgeId ||
+			supplierState.verification == null ||
+			supplierState.verification.id != requestVerificationId ||
+			supplierState.verification.badgeId != requestBadgeId
+		) return null
+		if (!supplierEventMatches(event, verification, direction))
+			throw new Error('通行事件与当前厂牌不一致，未登记')
+		if (session.mode == 'demo' && !demoSupplierEvents.some((item: any): boolean => item.id == event.id))
+			demoSupplierEvents.push(cloneSupplierPassage(event))
+		appendSupplierEvent(event)
+		pendingSupplierPassage = null
+		supplierListSequence += 1
+		clearSupplierVerification()
+		supplierState.loading = false
+		supplierState.error = ''
+		return cloneSupplierPassage(event)
+	})()
+	supplierWritePromise = operation
+	try {
+		return await operation
+	} catch (error) {
+		if (requestVersion != controller.version()) return null
+		if (errorMessage(error).includes('登录已失效')) {
+			logout()
+			return null
+		}
+		if (!supplierRequestIsCurrent(requestVersion, requestSequence, requestSubjectId, requestPostId)) return null
+		supplierState.error = errorMessage(error)
+		return null
+	} finally {
+		if (supplierWriteFingerprint == fingerprint) {
+			supplierWriteBusy = false
+			supplierWriteFingerprint = ''
+			supplierWritePromise = null
+			supplierState.writing = false
+		}
+	}
+}

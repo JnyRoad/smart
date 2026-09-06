@@ -51,11 +51,13 @@ public class SmartRequestGlobalFilter implements GlobalFilter, Ordered {
 //			log.info(upgrade);
 //			return chain.filter(exchange);
 //		}
-		// 2. 重写StripPrefix
+		// 2. 保留标准 API 路径；历史服务路径仍移除其首段服务前缀。
 		addOriginalRequestUrl(exchange, request.getURI());
 		String rawPath = request.getURI().getRawPath();
-		String newPath = "/" + Arrays.stream(StringUtils.tokenizeToStringArray(rawPath, "/"))
-			.skip(1L).collect(Collectors.joining("/"));
+		String newPath = rawPath.equals("/api") || rawPath.startsWith("/api/")
+			? rawPath
+			: "/" + Arrays.stream(StringUtils.tokenizeToStringArray(rawPath, "/"))
+				.skip(1L).collect(Collectors.joining("/"));
 		ServerHttpRequest newRequest = request.mutate()
 			.path(newPath)
 			.build();

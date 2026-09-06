@@ -1,0 +1,296 @@
+<template>
+  <scroll-view scroll-y class="screen">
+    <view class="login-page">
+      <view class="brand-board">
+        <image src="/static/generated/campus-welcome.png" mode="aspectFill" class="campus" />
+        <view class="brand-copy">
+          <image src="/static/yuto-logo.png" mode="aspectFit" class="logo" />
+          <text class="login-title">裕慧家园</text>
+          <text class="login-subtitle">园区协作工作台</text>
+          <view class="brand-rule" />
+          <text class="brand-note">保密物品放行与保密区通行，一站式处理。</text>
+        </view>
+      </view>
+
+      <view class="login-panel">
+        <view class="login-heading">
+          <text class="heading">工号登录</text>
+          <text class="muted login-intro">正式员工、外包与派遣人员使用同一入口</text>
+        </view>
+
+        <text class="label">工号</text>
+        <input class="field mb" v-model="staffNo" placeholder="请输入工号" :maxlength="64" />
+        <text class="label">密码</text>
+        <input
+          class="field mb"
+          v-model="password"
+          password
+          placeholder="请输入密码"
+          :maxlength="128"
+          confirm-type="go"
+          @confirm="submit"
+        />
+
+        <view v-if="error.length > 0" class="error">
+          <text class="error-text">{{ error }}</text>
+        </view>
+        <button class="btn primary login-button" :disabled="busy" @click="submit">
+          {{ busy ? '正在登录…' : '登录' }}
+        </button>
+        <text class="small login-help">账号由所属单位统一管理，登录问题请联系园区管理员。</text>
+
+        <view v-if="runtimeConfig.enableDemo" class="demo-area">
+          <button class="link demo-toggle" @click="showDemo = !showDemo">
+            {{ showDemo ? '收起体验演示' : '体验演示' }}
+          </button>
+          <view v-if="showDemo" class="demo-list">
+            <text class="small demo-tip">仅体验客户端流程，不连接真实业务系统</text>
+            <button
+              v-for="person in demoAccounts"
+              :key="person.subjectId"
+              class="demo-account"
+              @click="enterDemo(person.subjectId)"
+            >
+              <view class="demo-copy">
+                <text class="text">{{ demoLabel(person) }}</text>
+                <text class="small">{{ person.staffNo }}</text>
+              </view>
+              <AppIcon name="chevron-right" size="sm" />
+            </button>
+          </view>
+        </view>
+        <text class="company">许昌裕同印刷包装有限公司</text>
+      </view>
+    </view>
+  </scroll-view>
+</template>
+
+<script setup lang="uts">
+import { computed, ref } from 'vue'
+import AppIcon from '../../components/AppIcon.uvue'
+import { login, enterDemo, DEMO_IDENTITIES, errorMessage } from '../../state/session.uts'
+import { runtimeConfig } from '../../config/runtime.uts'
+
+const staffNo = ref('')
+const password = ref('')
+const busy = ref(false)
+const error = ref('')
+const showDemo = ref(false)
+const demoAccounts = computed((): any[] =>
+  DEMO_IDENTITIES.filter((person: any): boolean => person.subjectId != 'demo-dispatched-001'),
+)
+
+/** 外包与派遣使用同一界面分类，内部来源仍由身份契约保留。 */
+function demoLabel(person: any): string {
+  if (person.subjectId == 'demo-supervisor-001') return '审批主管'
+  if (person.subjectId == 'demo-security-001') return '现场安检'
+  if (person.employmentType == 'outsourced' || person.employmentType == 'dispatched') return '外包／派遣人员'
+  return '正式员工'
+}
+
+/** 防止重复登录，提交后立即清空密码输入；错误在表单内展示。 */
+async function submit(): Promise<void> {
+  if (busy.value) return
+  busy.value = true
+  error.value = ''
+  const supplied = password.value
+  password.value = ''
+  try {
+    await login(staffNo.value, supplied)
+  } catch (issue) {
+    error.value = errorMessage(issue)
+  } finally {
+    busy.value = false
+  }
+}
+</script>
+
+<style>
+@import '../../styles/theme.css';
+
+.login-page {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+}
+
+.brand-board {
+  position: relative;
+  height: 250px;
+  box-sizing: border-box;
+  overflow: hidden;
+  background-color: #f4f8fa;
+}
+
+.campus {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.66;
+}
+
+.brand-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 28px 24px;
+}
+
+.logo {
+  width: 126px;
+  height: 22px;
+}
+
+.login-title {
+  margin-top: 28px;
+  font-size: 32px;
+  font-weight: 700;
+  color: #353333;
+  line-height: 42px;
+}
+
+.login-subtitle {
+  margin-top: 4px;
+  font-size: 15px;
+  color: #595757;
+  line-height: 24px;
+}
+
+.brand-rule {
+  width: 34px;
+  height: 3px;
+  margin-top: 18px;
+  border-radius: 2px;
+  background-color: #ec6c00;
+}
+
+.brand-note {
+  max-width: 240px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #6f6c6b;
+  line-height: 22px;
+}
+
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 26px 24px 34px;
+  background-color: #ffffff;
+}
+
+.login-heading {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+}
+
+.login-intro {
+  margin-top: 4px;
+}
+
+.login-button {
+  width: 100%;
+}
+
+.login-help {
+  margin-top: 12px;
+}
+
+.demo-area {
+  margin-top: 24px;
+  border-top: 1px solid #efeeee;
+}
+
+.demo-toggle {
+  align-self: flex-start;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.demo-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.demo-tip {
+  margin-bottom: 8px;
+}
+
+.demo-account {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  margin: 0 0 8px;
+  border: 1px solid #efeeee;
+  border-radius: 10px;
+  background-color: #ffffff;
+  text-align: left;
+}
+
+.demo-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.company {
+  margin-top: 24px;
+  text-align: center;
+  color: #6f6c6b;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+/* #ifdef H5 */
+@media (min-width: 900px) {
+  .login-page {
+    flex-direction: row;
+    min-height: 100vh;
+  }
+
+  .brand-board {
+    width: 54%;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .brand-copy {
+    padding: 64px;
+  }
+
+  .login-title {
+    margin-top: 72px;
+    font-size: 48px;
+    line-height: 58px;
+  }
+
+  .login-subtitle {
+    margin-top: 8px;
+    font-size: 20px;
+    line-height: 30px;
+  }
+
+  .brand-note {
+    max-width: 320px;
+    font-size: 15px;
+  }
+
+  .login-panel {
+    width: 46%;
+    max-width: 520px;
+    padding: 100px 64px 48px;
+    margin: 0 auto;
+  }
+}
+/* #endif */
+</style>

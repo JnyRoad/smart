@@ -1,0 +1,281 @@
+<template>
+  <ScreenFrame
+    ><view v-if="ready">
+      <text class="title mb">物品放行申请</text
+      ><text class="muted mb">提交后由授权主管审批，审批通过后进入现场执行。</text>
+      <view class="card"
+        ><text class="heading mb">申请信息</text><text class="label">申请标题 *</text
+        ><input
+          class="field mb"
+          :disabled="busy"
+          v-model="draft.title"
+          placeholder="简要描述本次申请"
+          :maxlength="80"
+        /><text class="label">申请事由 *</text
+        ><textarea
+          class="textarea mb"
+          :disabled="busy"
+          v-model="draft.reason"
+          placeholder="请填写用途和办理原因"
+          :maxlength="500"
+        />
+        <view
+          ><text class="label">出发岗位 *</text
+          ><picker :range="posts" :disabled="busy || !optionsReady" range-key="name" @change="chooseFrom"
+            ><view class="field picker-value"
+              ><text class="text">{{ selectedName(draft.fromPostId) }}</text></view
+            ></picker
+          ><view class="mt"
+        /></view>
+        <text class="label">到达岗位 *</text
+        ><picker :range="posts" :disabled="busy || !optionsReady" range-key="name" @change="chooseTo"
+          ><view class="field picker-value"
+            ><text class="text">{{ selectedName(draft.toPostId) }}</text></view
+          ></picker
+        >
+        <text v-if="applicationOptionsState.loading" class="muted mt">正在加载可申请岗位…</text>
+        <view v-else-if="applicationOptionsState.error.length > 0" class="error mt"
+          ><text class="error-text">{{ applicationOptionsState.error }}</text
+          ><button class="btn secondary mt" :disabled="busy" @click="retryOptions">重试加载</button></view
+        ><text v-else-if="posts.length == 0" class="error-text mt"
+          >暂无可申请岗位，请联系管理员。</text
+        >
+      </view>
+      <view class="card"
+        ><text class="heading mb">物料与封条</text><text class="label">物料明细 *</text
+        ><textarea
+          class="textarea mb"
+          :disabled="busy"
+          v-model="draft.materials"
+          placeholder="填写物料名称、数量及单位"
+          :maxlength="1000"
+        /><text class="label">封条条码 * · 已添加 {{ draft.seals.length }} 枚</text
+        ><ScanInput :disabled="busy" :resetKey="scanResetKey" @complete="addSeal"
+          ><scroll-view
+            v-if="draft.seals.length > 0"
+            scroll-y
+            class="seal-list"
+            :scroll-into-view="sealScrollTarget"
+          >
+            <view class="seal-list-content">
+              <view v-for="(seal, index) in draft.seals" :id="'seal-chip-' + index" :key="seal" class="seal-chip">
+                <text class="text seal-value">{{ seal }}</text>
+                <button class="seal-remove" aria-label="删除封条" @click="removeSeal(seal)">
+                  <AppIcon name="close" size="sm" />
+                </button>
+              </view>
+            </view>
+          </scroll-view
+        ></ScanInput></view
+      >
+      <view v-if="error.length > 0" class="error"
+        ><text class="error-text">{{ error }}</text></view
+      ><button class="btn primary" :disabled="busy || !optionsReady" @click="submit">
+        {{ busy ? '正在提交…' : '提交申请' }}
+      </button>
+    </view>
+    <view v-else-if="unsupported" class="card empty"
+      ><text class="heading">{{ legacySupplier ? '此入口已调整' : '无效业务入口' }}</text
+      ><text class="muted mt">{{
+        legacySupplier
+          ? '供应商保密区资格在入厂申请时办理，现场请使用厂牌扫码核验。'
+          : '无法识别此业务，请从工作台重新打开。'
+      }}</text
+      ><button class="btn secondary mt" @click="backToWorkbench">返回工作台</button></view
+    ></ScreenFrame
+  >
+</template>
+<script setup lang="uts">
+import { reactive, ref, computed, nextTick } from 'vue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import ScanInput from '../../components/ScanInput.uvue'
+import AppIcon from '../../components/AppIcon.uvue'
+import { applicationOptionsState, applicationPosts, guard, loadApplicationOptions, submitApplication, errorMessage } from '../../state/session.uts'
+const ready = ref(false)
+const unsupported = ref(false)
+const legacySupplier = ref(false)
+const busy = ref(false)
+const error = ref('')
+const scanResetKey = ref(0)
+const sealScrollTarget = ref('')
+const draft = reactive({
+  kind: 'item-pass',
+  title: '',
+  reason: '',
+  fromPostId: '',
+  toPostId: '',
+  supplierName: '',
+  visitorName: '',
+  materials: '',
+  seals: [] as string[],
+})
+const posts = computed((): any[] => applicationPosts())
+const optionsReady = computed(
+  (): boolean =>
+    !applicationOptionsState.loading &&
+    applicationOptionsState.error.length == 0 &&
+    posts.value.length > 0
+)
+/** 申请页仅接受物品业务；旧供应商入口明确说明办理位置，不能默认进入另一业务。 */
+onLoad((options) => {
+  unsupported.value = options['kind'] != null && options['kind'] != 'item-pass'
+  legacySupplier.value = options['kind'] == 'supplier'
+  ready.value = !unsupported.value && guard('item-pass:apply')
+  if (unsupported.value) guard()
+})
+/** 页面恢复时重新检查会话，避免退出后沿用旧界面状态。 */
+onShow(async () => {
+  if (!ready.value) return
+  ready.value = guard('item-pass:apply')
+  if (ready.value) await retryOptions()
+})
+/** 重新读取当前账号的申请候选；失败只更新候选反馈，不改写表单草稿。 */
+async function retryOptions(): Promise<void> {
+  if (!ready.value || busy.value || applicationOptionsState.loading) return
+  await loadApplicationOptions()
+}
+/** 从已调整的历史入口返回当前授权工作台，不创建业务记录。 */
+function backToWorkbench(): void {
+  uni.switchTab({ url: '/pages/workbench/workbench' })
+}
+/** 显示授权岗位名称，未选择时提供明确占位。 */
+function selectedName(id: string): string {
+  const found = posts.value.find((p: any): boolean => p.id == id)
+  return found == null ? '请选择岗位' : found.name
+}
+/** 选择源岗位时仅使用当前目录内的索引。 */
+function chooseFrom(event: any): void {
+  const p = posts.value[Number(event.detail.value)]
+  if (p != null) draft.fromPostId = p.id
+}
+/** 选择目的岗位时仅使用当前目录内的索引。 */
+function chooseTo(event: any): void {
+  const p = posts.value[Number(event.detail.value)]
+  if (p != null) draft.toPostId = p.id
+}
+/** 同一申请内拒绝重复封条，扫码来源不影响业务规则。 */
+function addSeal(value: string): void {
+  if (busy.value) return
+  if (draft.seals.includes(value)) {
+    error.value = '这枚封条已添加'
+    return
+  }
+  draft.seals.push(value)
+  error.value = ''
+  revealLatestSeal()
+}
+
+/** 按扫描顺序追加后显示末尾封条；重置目标以支持删除后再次追加到同一位置。 */
+function revealLatestSeal(): void {
+  sealScrollTarget.value = ''
+  nextTick(() => {
+    sealScrollTarget.value = draft.seals.length > 0 ? 'seal-chip-' + (draft.seals.length - 1) : ''
+  })
+}
+
+/** 仅从尚未提交的草稿中移除选中封条。 */
+function removeSeal(value: string): void {
+  if (busy.value) return
+  draft.seals = draft.seals.filter((seal: string): boolean => seal != value)
+  error.value = ''
+  scanResetKey.value += 1
+  if (draft.seals.length > 0) revealLatestSeal()
+}
+/** 校验和提交统一交给会话服务，完成后进入服务返回的单据详情。 */
+async function submit(): Promise<void> {
+  if (busy.value) return
+  if (!optionsReady.value) {
+    error.value = applicationOptionsState.error.length > 0
+      ? applicationOptionsState.error
+      : '请先加载可申请岗位'
+    return
+  }
+  busy.value = true
+  error.value = ''
+  try {
+    const id = await submitApplication({ ...draft, seals: draft.seals.slice() })
+    uni.redirectTo({ url: '/pages/detail/detail?id=' + encodeURIComponent(id) + '&view=read' })
+  } catch (issue) {
+    error.value = errorMessage(issue)
+  } finally {
+    busy.value = false
+  }
+}
+</script>
+<style>
+@import '../../styles/theme.css';
+
+.picker-value {
+  justify-content: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.seal-list {
+  width: 100%;
+  min-height: 44px;
+  max-height: 156px;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.seal-list-content {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.seal-chip {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding-left: 12px;
+  margin: 0 8px 8px 0;
+  border: 1px solid #ffe0c2;
+  border-radius: 22px;
+  background-color: #fff7ef;
+}
+
+.seal-value {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: #5a2600;
+}
+
+/* #ifdef H5 || MP-WEIXIN || MP-ALIPAY */
+.seal-chip,
+.seal-value {
+  max-width: 100%;
+}
+/* #endif */
+
+/* #ifdef H5 */
+.seal-value {
+  word-break: break-all;
+}
+/* #endif */
+
+.seal-remove {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 8px;
+  background-color: transparent;
+}
+</style>

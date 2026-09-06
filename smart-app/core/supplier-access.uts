@@ -1,0 +1,346 @@
+/**
+ * 供应商厂牌通行领域模型。
+ *
+ * 供应商资格由入厂申请产生，客户端只接收厂牌核验结果并记录明确的进出
+ * 事件。二维码原文始终是不透明凭证，不能在客户端解码出身份或授权。
+ */
+
+export type SupplierDirection = 'enter' | 'leave'
+export type SupplierPresence = 'unknown' | 'inside' | 'outside'
+
+export interface SupplierVerification {
+	id: string
+	badgeId: string
+	visitorName: string
+	supplierName: string
+	photoUrl: string
+	visitorPhone: string
+	hostName: string
+	hostPhone: string
+	authorizedAreas: string[]
+	admissionId: string
+	postId: string
+	areaName: string
+	validFrom: string
+	validUntil: string
+	expiresAt: string
+	allowed: boolean
+	reason: string
+	presence: SupplierPresence
+	allowedDirections: SupplierDirection[]
+}
+
+export interface SupplierPassage {
+	id: string
+	verificationId: string
+	badgeId: string
+	visitorName: string
+	supplierName: string
+	admissionId: string
+	postId: string
+	areaName: string
+	direction: SupplierDirection
+	operatorName: string
+	occurredAt: string
+}
+
+/** 演示厂牌种子只保存固定测试身份和授权，时间在每次核验时重新生成。 */
+export interface SupplierBadgeSeed {
+	badgeId: string
+	visitorName: string
+	supplierName: string
+	photoUrl: string
+	visitorPhone: string
+	hostName: string
+	hostPhone: string
+	authorizedAreas: string[]
+	admissionId: string
+	postId: string
+	areaName: string
+	allowed: boolean
+	reason: string
+	presence: SupplierPresence
+	allowedDirections: SupplierDirection[]
+}
+
+/** 仅用于隔离演示和Node行为测试的三张虚构厂牌。 */
+export const DEMO_SUPPLIER_BADGES: SupplierBadgeSeed[] = [
+	{
+		badgeId: 'DEMO-BADGE-001',
+		visitorName: '演示访客',
+		supplierName: '演示供应商',
+		photoUrl: '',
+		visitorPhone: '未提供（演示）',
+		hostName: '未提供（演示）',
+		hostPhone: '未提供（演示）',
+		authorizedAreas: ['演示园区东门保密区'],
+		admissionId: 'DEMO-ADMISSION-001',
+		postId: 'east-gate',
+		areaName: '演示园区东门保密区',
+		allowed: true,
+		reason: '',
+		presence: 'outside',
+		allowedDirections: ['enter', 'leave'],
+	},
+	{
+		badgeId: 'DEMO-BADGE-EXPIRED',
+		visitorName: '过期演示访客',
+		supplierName: '过期演示供应商',
+		photoUrl: '',
+		visitorPhone: '未提供（演示）',
+		hostName: '未提供（演示）',
+		hostPhone: '未提供（演示）',
+		authorizedAreas: ['演示园区东门保密区'],
+		admissionId: 'DEMO-ADMISSION-EXPIRED',
+		postId: 'east-gate',
+		areaName: '演示园区东门保密区',
+		allowed: false,
+		reason: '厂牌入厂资格已过期',
+		presence: 'outside',
+		allowedDirections: [],
+	},
+	{
+		badgeId: 'DEMO-BADGE-DENIED',
+		visitorName: '无权限演示访客',
+		supplierName: '无权限演示供应商',
+		photoUrl: '',
+		visitorPhone: '未提供（演示）',
+		hostName: '未提供（演示）',
+		hostPhone: '未提供（演示）',
+		authorizedAreas: ['演示园区东门保密区'],
+		admissionId: 'DEMO-ADMISSION-DENIED',
+		postId: 'east-gate',
+		areaName: '演示园区东门保密区',
+		allowed: false,
+		reason: '当前厂牌没有保密区通行权限',
+		presence: 'outside',
+		allowedDirections: [],
+	},
+]
+
+/** 将接口可能返回的数字或ISO时间统一为毫秒，格式不对时返回NaN。 */
+export function supplierTimeValue(value: any): number {
+	if (typeof value == 'number') return Number.isFinite(value) ? value : NaN
+	if (typeof value == 'string' && value.length > 0) {
+		const parsed = Date.parse(value)
+		return Number.isFinite(parsed) ? parsed : NaN
+	}
+	return NaN
+}
+
+/** 仅接受服务端约定的首次未知、在内和在外三种状态。 */
+function validSupplierPresence(value: any): boolean {
+	return value == 'unknown' || value == 'inside' || value == 'outside'
+}
+
+/** 复制核验结果，避免页面修改响应对象后影响幂等和状态判断。 */
+export function cloneSupplierVerification(value: SupplierVerification): SupplierVerification {
+	if (!validSupplierPresence(value.presence)) throw new Error('供应商在场状态无效')
+	const validFrom = supplierTimeValue(value.validFrom)
+	const validUntil = supplierTimeValue(value.validUntil)
+	const expiresAt = supplierTimeValue(value.expiresAt)
+	const authorizedAreas = Array.isArray(value.authorizedAreas) &&
+		value.authorizedAreas.every((area: any): boolean => typeof area == 'string')
+		? value.authorizedAreas.slice()
+		: []
+	return {
+		id: value.id,
+		badgeId: value.badgeId,
+		visitorName: value.visitorName,
+		supplierName: value.supplierName,
+		photoUrl: typeof value.photoUrl == 'string' ? value.photoUrl : '',
+		visitorPhone: typeof value.visitorPhone == 'string' ? value.visitorPhone : '',
+		hostName: typeof value.hostName == 'string' ? value.hostName : '',
+		hostPhone: typeof value.hostPhone == 'string' ? value.hostPhone : '',
+		authorizedAreas,
+		admissionId: value.admissionId,
+		postId: value.postId,
+		areaName: value.areaName,
+		validFrom: Number.isFinite(validFrom) ? new Date(validFrom).toISOString() : '',
+		validUntil: Number.isFinite(validUntil) ? new Date(validUntil).toISOString() : '',
+		expiresAt: Number.isFinite(expiresAt) ? new Date(expiresAt).toISOString() : '',
+		allowed: value.allowed,
+		reason: value.reason,
+		presence: value.presence,
+		allowedDirections: value.allowedDirections.slice(),
+	}
+}
+
+/** 将演示种子中的完整人员字段复制到短时核验结果，绝不生成证件照。 */
+function verificationFromSeed(
+	seed: SupplierBadgeSeed,
+	postId: string,
+	now: number,
+	allowed: boolean,
+	reason: string,
+	resultPostId: string,
+	allowedDirections: SupplierDirection[],
+): SupplierVerification {
+	const validFrom = allowed ? now - 60 * 60 * 1000 : now - 2 * 60 * 60 * 1000
+	const validUntil = allowed ? now + 60 * 60 * 1000 : now - 60 * 60 * 1000
+	const expiresAt = allowed ? now + 2 * 60 * 1000 : now - 1
+	return {
+		id: 'DEMO-VERIFICATION-' + seed.badgeId + '-' + now.toString(),
+		badgeId: seed.badgeId,
+		visitorName: seed.visitorName,
+		supplierName: seed.supplierName,
+		photoUrl: seed.photoUrl,
+		visitorPhone: seed.visitorPhone,
+		hostName: seed.hostName,
+		hostPhone: seed.hostPhone,
+		authorizedAreas: seed.authorizedAreas.slice(),
+		admissionId: seed.admissionId,
+		postId: resultPostId,
+		areaName: seed.areaName,
+		validFrom: new Date(validFrom).toISOString(),
+		validUntil: new Date(validUntil).toISOString(),
+		expiresAt: new Date(expiresAt).toISOString(),
+		allowed,
+		reason,
+		presence: seed.presence,
+		allowedDirections: allowedDirections.slice(),
+	}
+}
+
+/** 从演示种子创建一次短时核验结果；未知凭证返回null，永不猜测身份。 */
+export function verifyDemoSupplierBadge(
+	credentialCode: string,
+	postId: string,
+	now: number = Date.now(),
+): SupplierVerification | null {
+	if (typeof credentialCode != 'string' || credentialCode.length == 0) return null
+	const seed = DEMO_SUPPLIER_BADGES.find((item: SupplierBadgeSeed): boolean => item.badgeId == credentialCode)
+	if (seed == null) return null
+
+	if (seed.allowed && postId != seed.postId) {
+		return verificationFromSeed(
+			seed,
+			postId,
+			now,
+			false,
+			'当前岗位不在厂牌授权区域',
+			postId,
+			[],
+		)
+	}
+
+	return verificationFromSeed(
+		seed,
+		postId,
+		now,
+		seed.allowed,
+		seed.reason,
+		seed.postId,
+		seed.allowedDirections,
+	)
+}
+
+/** 新增人员字段在兼容旧服务响应时允许省略，但一旦出现必须保持契约类型。 */
+function optionalSupplierString(value: any): boolean {
+	return typeof value == 'undefined' || typeof value == 'string'
+}
+
+/** 授权区域缺失时使用空数组；数组元素出现错误类型时拒绝整份响应。 */
+function optionalSupplierAreas(value: any): boolean {
+	return typeof value == 'undefined' || (
+		Array.isArray(value) && value.every((area: any): boolean => typeof area == 'string')
+	)
+}
+
+/** 判断当前核验是否仍绑定于同一身份、授权岗位和有效时间窗口。 */
+export function validateSupplierVerification(
+	verification: SupplierVerification | null,
+	operator: any,
+	now: number = Date.now(),
+): boolean {
+	if (verification == null || verification.allowed !== true) return false
+	if (
+		!optionalSupplierString(verification.photoUrl) ||
+		!optionalSupplierString(verification.visitorPhone) ||
+		!optionalSupplierString(verification.hostName) ||
+		!optionalSupplierString(verification.hostPhone) ||
+		!optionalSupplierAreas(verification.authorizedAreas)
+	)
+		return false
+	if (
+		typeof verification.id != 'string' ||
+		verification.id.length == 0 ||
+		typeof verification.badgeId != 'string' ||
+		verification.badgeId.length == 0 ||
+		typeof verification.postId != 'string' ||
+		verification.postId.length == 0
+	)
+		return false
+	const validFrom = supplierTimeValue(verification.validFrom)
+	const validUntil = supplierTimeValue(verification.validUntil)
+	const expiresAt = supplierTimeValue(verification.expiresAt)
+	if (!Number.isFinite(validFrom) || !Number.isFinite(validUntil) || !Number.isFinite(expiresAt)) return false
+	if (now < validFrom || now > validUntil || now >= expiresAt) return false
+	if (!Array.isArray(verification.allowedDirections) || verification.allowedDirections.length == 0) return false
+	if (!verification.allowedDirections.every((direction: any): boolean => direction == 'enter' || direction == 'leave')) return false
+	if (!validSupplierPresence(verification.presence)) return false
+	if (
+		operator == null ||
+		typeof operator.subjectId != 'string' ||
+		operator.subjectId.length == 0 ||
+		!Array.isArray(operator.posts)
+	)
+		return false
+	return operator.posts.some((post: any): boolean => post != null && post.id == verification.postId)
+}
+
+/** 首次未知状态允许明确选择任一授权方向，已有状态继续拒绝重复方向。 */
+function directionMatchesPresence(verification: SupplierVerification, direction: SupplierDirection): boolean {
+	if (verification.presence == 'unknown') return true
+	return direction == 'enter'
+		? verification.presence == 'outside'
+		: verification.presence == 'inside'
+}
+
+/** 创建不可变进出事件；事件写入锁和幂等表由state或真实服务适配层负责。 */
+export function createSupplierPassage(
+	verification: SupplierVerification,
+	operator: any,
+	postId: string,
+	direction: SupplierDirection,
+	idempotencyKey: string,
+	now: number = Date.now(),
+): SupplierPassage {
+	if (direction != 'enter' && direction != 'leave') throw new Error('进出方向无效')
+	if (typeof idempotencyKey != 'string' || idempotencyKey.length == 0) throw new Error('缺少事件幂等键')
+	if (!validateSupplierVerification(verification, operator, now))
+		throw new Error('厂牌核验已失效，请重新扫描')
+	if (verification.postId != postId) throw new Error('当前岗位与厂牌授权区域不一致')
+	if (!verification.allowedDirections.includes(direction)) throw new Error('厂牌不允许该进出方向')
+	if (!directionMatchesPresence(verification, direction))
+		throw new Error(direction == 'enter' ? '该厂牌当前已在保密区内' : '该厂牌当前不在保密区内')
+	if (operator == null || typeof operator.displayName != 'string' || operator.displayName.length == 0)
+		throw new Error('当前操作人身份无效')
+
+	return {
+		id: 'DEMO-SUPPLIER-EVENT-' + idempotencyKey,
+		verificationId: verification.id,
+		badgeId: verification.badgeId,
+		visitorName: verification.visitorName,
+		supplierName: verification.supplierName,
+		admissionId: verification.admissionId,
+		postId: verification.postId,
+		areaName: verification.areaName,
+		direction,
+		operatorName: operator.displayName,
+		occurredAt: new Date(now).toISOString(),
+	}
+}
+
+/** 应用一次已授权方向的本地状态转换，返回新核验结果而不修改输入。 */
+export function applySupplierPassage(
+	verification: SupplierVerification,
+	direction: SupplierDirection,
+): SupplierVerification {
+	if (direction != 'enter' && direction != 'leave') throw new Error('进出方向无效')
+	if (!verification.allowedDirections.includes(direction) || !directionMatchesPresence(verification, direction))
+		throw new Error('当前厂牌状态不允许该进出方向')
+	const next = cloneSupplierVerification(verification)
+	next.presence = direction == 'enter' ? 'inside' : 'outside'
+	return next
+}

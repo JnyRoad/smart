@@ -1,0 +1,5 @@
+/** 创建统一客户端Vue实例，业务状态由集中会话模块管理。 */
+import App from './App.uvue'
+import { createSSRApp } from 'vue'
+/** 为uni运行时创建应用实例，不在初始化阶段发送业务请求。 */
+export function createApp() { return { app: createSSRApp(App) } }

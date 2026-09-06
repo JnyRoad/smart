@@ -1,0 +1,11 @@
+# 本地运行、编译产物与开发者配置不入库
+node_modules/
+unpackage/
+.hbuilderx/
+platformConfig.json
+.env
+.env.*
+!.env.example
+.DS_Store
+test-results/
+config/local.uts

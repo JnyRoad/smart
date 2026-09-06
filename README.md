@@ -22,6 +22,7 @@ smart/
 ├── smart-print-client/       # Windows 工作站、持久命令日志及设备适配
 ├── smart-h5/                 # 当前维护的微信 H5：Next.js + React
 ├── smart-h5-vue2/            # 历史 Vue2 微信 H5，只读参考
+├── smart-app/                 # 新统一客户端：uni-app x + Vue 3
 └── smart-app-uniapp/         # 「裕慧家园」App：uni-app + Vue 2
 ```
 
@@ -36,6 +37,7 @@ smart/
 | [`smart-print-client/`](smart-print-client/README.md) | 独立设备身份领取任务、持久命令去重、手动/自动厂牌及单面访客适配；实机能力按档案验收。 | .NET 10、Windows 官方驱动、Brother b-PAC |
 | [`smart-h5/`](smart-h5/README.md) | 当前维护的微信公众号 / 微信内嵌移动 H5。 | Next.js `16.2.9`、React `19.2.4`、TypeScript `^5`、antd-mobile `^5.42.3`、Tailwind CSS `^4`（见 [`smart-h5/package.json`](smart-h5/package.json)） |
 | [`smart-h5-vue2/`](smart-h5-vue2/README.md) | 历史 Vue2 微信 H5，仅用于查阅旧页面和调用方式。 | Vue `2.6.11`、Vue Router `3.1.3`、Vuex `3.1.2`、cube-ui `^1.12.44`、pnpm `11.4.0`（见 [`smart-h5-vue2/package.json`](smart-h5-vue2/package.json)） |
+| [`smart-app/`](smart-app/README.md) | 新统一客户端，首期覆盖物品放行申请、审批、执行，以及供应商厂牌扫码核验和进出事件记录；复用 Web、Android、iOS 与小程序业务核心。 | uni-app x、Vue 3、UTS、Vapor（原生 App） |
 | [`smart-app-uniapp/`](smart-app-uniapp/README.md) | 「裕慧家园」Android / iOS App 客户端。 | uni-app / Vue 2 / Vuex，HBuilderX 可视化工程；无命令行构建脚本 |
 | [`docker/`](docker/README.md) | 本地 Docker Compose 的依赖服务和 Nacos 初始化配置。 | Docker Compose、Nacos、shell |
 | [`scripts/`](scripts/README.md) | 后端发布 Jar 汇总、构建和校验脚本。 | Bash、Maven、zip / sha256 |
@@ -46,6 +48,7 @@ smart/
 - `smart-ui/` 的 `src/api/` 放接口封装，`src/views/` 放业务页面，`src/router/` 放路由与 axios 配置，`src/store/` 放 Vuex，`public/` 保存原样静态资源。
 - `smart-h5/` 使用 TypeScript strict；`src/app/` 是页面壳，`src/features/` 是业务域，`src/lib/` 是共享设施，`src/components/` 是通用组件。
 - `smart-h5-vue2/` 是历史只读工程，旧页面、路由、接口和组件分别位于 `src/views-mobile/`、`src/router/`、`src/services/`、`src/components/`。
+- `smart-app/` 的 `core/` 放跨端模型、权限、扫码和状态流转，`services/` 放 uni 传输与统一 `/api/v1/*` 适配，`state/` 集中管理内存会话，`pages/` 和 `components/` 放跨端界面，`docs/` 记录集成与验证边界。
 - `smart-app-uniapp/` 的客户端目录包括 `api/`、`pages/page/`、`components/`、`config/`、`tools/` 和 `static/`；资源保留约定见 [App README](smart-app-uniapp/README.md)。
 
 ### 基础平台后端
@@ -159,6 +162,8 @@ pnpm run test
 ```
 
 App 是 HBuilderX 可视化工程，没有 CLI 构建脚本。首次安装依赖可在 [`smart-app-uniapp/`](smart-app-uniapp/) 目录执行 `npm install`，运行到真机 / 模拟器和云打包 APK / IPA 使用 HBuilderX，细节见 [App README](smart-app-uniapp/README.md)。
+
+新统一客户端：`smart-app/` 使用 uni-app x 和 Vue 3。Node 测试、Web/小程序源码编译和 Android 原生源码编译命令详见 [`smart-app/README.md`](smart-app/README.md)；真实后端、设备和发布包验收边界见 [`smart-app/docs/validation.md`](smart-app/docs/validation.md)。`smart-app-uniapp/` 继续保留，不因新客户端骨架自动迁移或删除。
 
 后端发布包：
 

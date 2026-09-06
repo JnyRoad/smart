@@ -1,0 +1,379 @@
+/** 面向统一客户端的 HTTP 契约适配；只调用新增的版本化接口，不冒充现有 OAuth 接口。 */
+import { supplierTimeValue } from '../core/supplier-access.uts'
+
+/** 校验服务端岗位目录的完整字段，候选和身份授权共用同一数据形状。 */
+function validPost(value: any): boolean {
+  return (
+    value != null &&
+    typeof value.id == 'string' &&
+    value.id.length > 0 &&
+    typeof value.name == 'string' &&
+    typeof value.parkId == 'string' &&
+    typeof value.parkName == 'string'
+  )
+}
+
+/** 校验身份响应的必需字段，格式异常时拒绝建立会话。 */
+function validIdentity(value: any): boolean {
+  if (value == null || typeof value.subjectId != 'string' || value.subjectId.length == 0)
+    return false
+  if (
+    typeof value.staffNo != 'string' ||
+    typeof value.displayName != 'string' ||
+    typeof value.organization != 'string'
+  )
+    return false
+  if (!['employee', 'outsourced', 'dispatched'].includes(value.employmentType)) return false
+  if (
+    !Array.isArray(value.permissions) ||
+    !value.permissions.every((p: any): boolean => typeof p == 'string')
+  )
+    return false
+  return Array.isArray(value.posts) && value.posts.every((p: any): boolean => validPost(p))
+}
+
+/** Smart 网关将 long 按十进制字符串传输；同时兼容未来网关保留为 JSON number 的情况。 */
+function sessionExpiryMillis(value: any): number {
+  if (typeof value == 'number' && Number.isFinite(value)) return value
+  if (typeof value != 'string' || !/^[0-9]{13}$/.test(value)) return NaN
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : NaN
+}
+
+/** 工作台只接受无路由、无脚本的服务器模块白名单；实际路由仍由本地目录解析。 */
+function validApp(value: any): boolean {
+  return (
+    value != null &&
+    ['id', 'category', 'title', 'description', 'permission'].every(
+      (field: string): boolean => typeof value[field] == 'string' && value[field].length > 0,
+    ) &&
+    Number.isInteger(value.sort) && value.sort >= 0
+  )
+}
+
+/** 在接口边界确认列表和详情所需字段，畸形成功响应不得进入页面状态。 */
+function validApplication(value: any): boolean {
+  if (value == null || value.kind != 'item-pass') return false
+  const fields = [
+    'id',
+    'title',
+    'reason',
+    'fromPostId',
+    'toPostId',
+    'supplierName',
+    'visitorName',
+    'materials',
+    'applicantId',
+    'applicantName',
+  ]
+  if (!fields.every((field: string): boolean => typeof value[field] == 'string')) return false
+  if (
+    ['fromPostName', 'toPostName'].some(
+      (field: string): boolean =>
+        typeof value[field] != 'undefined' && typeof value[field] != 'string'
+    )
+  )
+    return false
+  if (value.id.length == 0 || value.applicantId.length == 0) return false
+	const statuses = ['pending', 'approved', 'rejected', 'transporting', 'completed']
+  if (!statuses.includes(value.status)) return false
+	if (
+		!Array.isArray(value.seals) ||
+		!value.seals.every((seal: any): boolean => typeof seal == 'string')
+	)
+		return false
+	if (typeof value.transport != 'undefined' && value.transport != null) {
+		if (
+			(value.transport.mode != 'escort' && value.transport.mode != 'lock') ||
+			typeof value.transport.lockNo != 'string'
+		)
+			return false
+		if (value.transport.mode == 'escort' && value.transport.lockNo.length > 0) return false
+		if (value.transport.mode == 'lock' && value.transport.lockNo.trim().length == 0) return false
+	}
+	return (
+    Array.isArray(value.timeline) &&
+    value.timeline.every(
+      (event: any): boolean =>
+        event != null &&
+        ['id', 'title', 'actor', 'at'].every(
+          (field: string): boolean => typeof event[field] == 'string'
+        )
+    )
+  )
+}
+
+/** 将动作与服务端确认后的目标状态绑定，避免成功响应被冒充成另一张单据。 */
+function expectedApplicationStatus(action: string): string | null {
+	if (action == 'approve') return 'approved'
+	if (action == 'reject') return 'rejected'
+	if (action == 'depart') return 'transporting'
+	if (action == 'arrive') return 'completed'
+	return null
+}
+
+/** 校验供应商厂牌核验响应，避免把畸形或未授权数据放入页面状态。 */
+function validSupplierVerification(value: any): boolean {
+  if (
+    value == null ||
+    !['id', 'badgeId', 'visitorName', 'supplierName', 'admissionId', 'postId', 'areaName', 'reason'].every(
+      (field: string): boolean => typeof value[field] == 'string'
+	    ) ||
+	    typeof value.allowed != 'boolean' ||
+	    !['unknown', 'inside', 'outside'].includes(value.presence)
+	  )
+		return false
+	const optionalStrings = ['photoUrl', 'visitorPhone', 'hostName', 'hostPhone']
+	if (
+		!optionalStrings.every(
+			(field: string): boolean =>
+				typeof value[field] == 'undefined' || typeof value[field] == 'string'
+		)
+	)
+		return false
+	if (
+		typeof value.authorizedAreas != 'undefined' &&
+		(!Array.isArray(value.authorizedAreas) ||
+			!value.authorizedAreas.every((area: any): boolean => typeof area == 'string'))
+	)
+		return false
+	if (
+    value.id.length == 0 ||
+    value.badgeId.length == 0 ||
+    value.postId.length == 0 ||
+    value.areaName.length == 0
+  )
+    return false
+  if (
+    !Number.isFinite(supplierTimeValue(value.validFrom)) ||
+    !Number.isFinite(supplierTimeValue(value.validUntil)) ||
+    !Number.isFinite(supplierTimeValue(value.expiresAt))
+  )
+    return false
+  const validFrom = supplierTimeValue(value.validFrom)
+  const validUntil = supplierTimeValue(value.validUntil)
+  if (validFrom > validUntil) return false
+  if (!Array.isArray(value.allowedDirections)) return false
+  if (value.allowed === true && value.allowedDirections.length == 0) return false
+  return (
+    value.allowedDirections.every((direction: any): boolean => direction == 'enter' || direction == 'leave')
+  )
+}
+
+/** 校验不可变供应商进出事件响应，服务端字段不足时不更新本地记录。 */
+function validSupplierPassage(value: any): boolean {
+  if (
+    value == null ||
+    ![
+      'id',
+      'verificationId',
+      'badgeId',
+      'visitorName',
+      'supplierName',
+      'admissionId',
+      'postId',
+      'areaName',
+      'operatorName',
+      'occurredAt',
+    ].every((field: string): boolean => typeof value[field] == 'string')
+  )
+    return false
+  return (
+    value.id.length > 0 &&
+    value.verificationId.length > 0 &&
+    value.badgeId.length > 0 &&
+    value.postId.length > 0 &&
+    Number.isFinite(Date.parse(value.occurredAt)) &&
+    (value.direction == 'enter' || value.direction == 'leave')
+  )
+}
+
+/** 建立可注入传输的客户端；仅配置 HTTPS 或显式允许的本机回环服务时发送请求，所有写入均只发送一次。 */
+export function createClientApi(baseUrl: string, transport: any, allowLoopbackHttp: boolean = false): any {
+  const base = baseUrl.replace(/\/$/, '')
+  /** 在单次请求边界统一处理认证、业务拒绝和服务故障，不回显服务器内部错误。 */
+  async function request(
+    method: string,
+    path: string,
+    token: string,
+    body: any,
+    operationId: string = '',
+    targetBase: string = base,
+  ): Promise<any> {
+    if (targetBase.length == 0) throw new Error('服务尚未配置，请联系管理员；可先体验演示')
+    const isHttps = /^https:\/\/[^/?#@]+(?:\/[^?#]*)?$/.test(targetBase)
+    const isAllowedLoopback = allowLoopbackHttp && /^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/.test(targetBase)
+    if (!isHttps && !isAllowedLoopback)
+      throw new Error('服务地址必须使用 HTTPS；本机验收仅允许显式配置 127.0.0.1 回环地址')
+    const headers: any = { 'Content-Type': 'application/json' }
+    if (token.length > 0) headers['Authorization'] = 'Bearer ' + token
+    if (operationId.length > 0) headers['Idempotency-Key'] = operationId
+    const response = await transport({ method, url: targetBase + path, headers, body })
+    if (response.status == 401) throw new Error('登录已失效，请重新登录')
+    if (response.status == 403) throw new Error('当前账号无权执行此操作')
+    if (response.status == 409) throw new Error('单据状态已变化，请刷新后核对')
+    if (response.status < 200 || response.status >= 300)
+      throw new Error('服务暂时不可用，请稍后重试')
+    return response.body
+  }
+  return {
+    /** 先创建 App 会话，再读取员工主数据裁定的身份和岗位；两步均使用统一 API 网关。 */
+    async login(staffNo: string, password: string): Promise<any> {
+      const result = await request('POST', '/api/v1/sessions', '', { staffNo, password })
+      const expiresAt = sessionExpiryMillis(result == null ? null : result.expiresAt)
+      if (
+        result == null ||
+        typeof result.token != 'string' ||
+        result.token.length == 0 ||
+        !Number.isFinite(expiresAt)
+      ) {
+        throw new Error('登录响应不完整，请联系管理员')
+      }
+      const identity = await request('GET', '/api/v1/me', result.token, null)
+      if (!validIdentity(identity)) throw new Error('登录响应不完整，请联系管理员')
+		return { token: result.token, expiresAt, identity }
+    },
+    /** 加载服务器裁定的模块白名单；本地再用固定目录做一次路由和权限交叉校验。 */
+    async apps(token: string): Promise<any[]> {
+      const result = await request('GET', '/api/v1/me/apps', token, null)
+      if (!Array.isArray(result) || !result.every((item: any): boolean => validApp(item)))
+        throw new Error('工作台响应格式错误，请联系管理员')
+      return result
+    },
+    /** 读取当前身份授权范围内的单据，范围由服务端基于token裁定。 */
+    async list(token: string): Promise<any> {
+      const result = await request('GET', '/api/v1/item-passes', token, null)
+      if (!Array.isArray(result) || !result.every((item: any): boolean => validApplication(item)))
+        throw new Error('单据响应格式错误，请联系管理员')
+      return result
+    },
+    /** 按不透明单据标识读取详情；服务端终审可见性，客户端不拼接任何筛选字段。 */
+    async detail(token: string, id: string): Promise<any> {
+      if (typeof id != 'string' || id.trim().length == 0) throw new Error('单据标识无效')
+      const result = await request('GET', '/api/v1/item-passes/' + encodeURIComponent(id), token, null)
+      if (!validApplication(result) || result.id != id) throw new Error('单据响应格式错误，请联系管理员')
+      return result
+    },
+    /** 读取当前申请人可填写的起终点候选，不写入身份的安检岗位授权。 */
+    async applicationOptions(token: string): Promise<any> {
+      const result = await request('GET', '/api/v1/item-passes/posts', token, null)
+      if (
+        result == null ||
+        !Array.isArray(result.posts) ||
+        !result.posts.every((post: any): boolean => validPost(post))
+      )
+        throw new Error('申请岗位候选响应格式错误，请联系管理员')
+      return { posts: result.posts.slice() }
+    },
+    /** 按服务端认可的当前岗位读取可执行单据；空岗位必须在发送请求前拒绝。 */
+    async listExecution(token: string, postId: string): Promise<any> {
+      if (typeof postId != 'string' || postId.trim().length == 0)
+        throw new Error('请选择现场岗位后再加载单据')
+      const result = await request(
+        'GET',
+        '/api/v1/item-passes?scope=execute&postId=' + encodeURIComponent(postId),
+        token,
+        null,
+      )
+      if (!Array.isArray(result) || !result.every((item: any): boolean => validApplication(item)))
+        throw new Error('单据响应格式错误，请联系管理员')
+      return result
+    },
+    /** 提交申请，不携带客户端自称的申请人或权限。 */
+    async submit(token: string, draft: any, operationId: string): Promise<any> {
+      if (draft == null || draft.kind != 'item-pass')
+        throw new Error('供应商申请不在客户端办理，请使用厂牌核验')
+      const body = {
+        title: draft.title,
+        reason: draft.reason,
+        fromPostId: draft.fromPostId,
+        toPostId: draft.toPostId,
+        supplierName: draft.supplierName,
+        visitorName: draft.visitorName,
+        materials: draft.materials,
+        seals: draft.seals,
+      }
+      const result = await request('POST', '/api/v1/item-passes', token, body, operationId)
+      if (!validApplication(result)) throw new Error('单据响应格式错误；请先查询记录确认提交结果')
+      return result
+    },
+    /** 执行一次状态操作；服务端需终审权限、岗位、状态、强制核验和幂等键。 */
+    async act(
+      token: string,
+      id: string,
+      action: string,
+		postId: string,
+		comment: string,
+		operationId: string,
+		execution: any = null,
+	): Promise<any> {
+		const expectedStatus = expectedApplicationStatus(action)
+		if (expectedStatus == null) throw new Error('操作动作无效，请刷新后重试')
+		const body: any = { action, postId, comment }
+		if (execution != null) {
+			body.execution = {
+				mode: execution.mode,
+				escortProof: execution.escortProof,
+				lockNo: execution.lockNo,
+			}
+		}
+		const result = await request(
+			'POST',
+			'/api/v1/item-passes/' + encodeURIComponent(id) + '/actions',
+			token,
+			body,
+			operationId
+		)
+		if (result == null)
+			throw new Error('写入结果未知，请先查询记录确认操作结果')
+		if (!validApplication(result) || result.id != id || result.status != expectedStatus)
+			throw new Error('单据响应格式错误；请先查询记录确认操作结果')
+		return result
+	    },
+    /** 提交不透明厂牌凭证，服务端负责资格、区域、有效期和可执行方向核验。 */
+    async verifySupplierBadge(token: string, credentialCode: string, postId: string): Promise<any> {
+      const result = await request(
+        'POST',
+        '/api/v1/visitor-checks',
+        token,
+        { credentialCode, postId },
+      )
+      if (!validSupplierVerification(result) || result.postId != postId)
+        throw new Error('核验响应格式错误，请联系管理员')
+      return result
+    },
+    /** 写入一次明确的进入或离开事件，调用方必须提供幂等键。 */
+    async recordSupplierPassage(
+      token: string,
+      verificationId: string,
+      postId: string,
+      direction: string,
+      operationId: string,
+    ): Promise<any> {
+      if (typeof operationId != 'string' || operationId.length == 0) throw new Error('缺少事件幂等键')
+      if (direction != 'enter' && direction != 'leave') throw new Error('进出方向无效')
+      const result = await request(
+        'POST',
+        '/api/v1/visitor-passes',
+        token,
+        { verificationId, postId, direction },
+        operationId,
+      )
+      if (
+        !validSupplierPassage(result) ||
+        result.verificationId != verificationId ||
+        result.postId != postId ||
+        result.direction != direction
+      )
+        throw new Error('通行事件响应格式错误，请先刷新记录确认结果')
+      return result
+    },
+    /** 查询当前身份有权查看的不可变供应商进出事件。 */
+    async listSupplierPassages(token: string): Promise<any[]> {
+      const result = await request('GET', '/api/v1/visitor-passes', token, null)
+      if (!Array.isArray(result) || !result.every((item: any): boolean => validSupplierPassage(item)))
+        throw new Error('通行记录响应格式错误，请联系管理员')
+      return result
+    },
+  }
+}
