@@ -10,7 +10,7 @@
       class="error">{{ error }}</p>
     <table v-if="records.length"><thead><tr><th>打印机</th><th>工作站</th><th>允许方式</th><th>状态</th><th>操作</th></tr></thead><tbody><tr
       v-for="printer in records"
-      :key="printer.printerProfileId"><td>{{ printer.displayName }}<br>{{ printer.manufacturer }} {{ printer.model }}</td><td>{{ printer.deviceIdentity }}</td><td>{{ printer.allowedPrintModes.map(mode => modeLabels[mode]).join('、') }}</td><td>{{ statusLabels[printer.status] }}{{ printer.activeJobId ? ' · 有在途任务' : '' }}</td><td><button
+      :key="printer.printerProfileId"><td>{{ printer.displayName }}<br>{{ printer.manufacturer }} {{ printer.model }}</td><td>{{ printer.deviceIdentity }}</td><td>{{ (Array.isArray(printer.allowedPrintModes) ? printer.allowedPrintModes : []).map(mode => modeLabels[mode] || mode).join('、') }}</td><td>{{ statusLabels[printer.status] }}{{ printer.activeJobId ? ' · 有在途任务' : '' }}</td><td><button
         :disabled="busy"
         @click="begin(printer)">查看与编辑</button><button
           :disabled="busy || printer.status !== 'ENABLED'"

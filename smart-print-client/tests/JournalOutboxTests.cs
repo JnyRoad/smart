@@ -31,6 +31,14 @@ public sealed class JournalOutboxTests : IDisposable
         Assert.Equal("INTENT_RECORDED",journal.Find(command.CommandId)!.State);
     }
     [Fact]
+    public void ResultRecordedAfterRetirementKeepsRetiredState()
+    {
+        var command=PrintAdapterTests.Command(TestPdf.Create()); using var journal=new PrintCommandJournal(directory);
+        journal.RecordIntent(command);journal.MarkSubmissionStarted(command.CommandId);journal.Retire(command.CommandId,true,true);
+        var result=journal.RecordResult(command.CommandId,"OUTPUT_UNKNOWN");
+        Assert.Equal("RETIRED",journal.Find(command.CommandId)!.State);Assert.Equal(result.EventId,journal.Find(command.CommandId)!.Result!.EventId);
+    }
+    [Fact]
     public void AcknowledgedRecordsAreArchivedAndCorruptSiblingDoesNotBlockPendingEvents()
     {
         var archived=PrintAdapterTests.Command(TestPdf.Create());var pending=PrintAdapterTests.Command(TestPdf.Create());
@@ -40,6 +48,14 @@ public sealed class JournalOutboxTests : IDisposable
         journal.RecordIntent(pending);journal.MarkSubmissionStarted(pending.CommandId);var waiting=journal.RecordResult(pending.CommandId,"OUTPUT_UNKNOWN");
         File.WriteAllText(Path.Combine(directory,Guid.NewGuid()+".json"),"损坏的其他记录");
         Assert.Equal(waiting.EventId,journal.PendingEvents().Single().EventId);
+    }
+    [Fact]
+    public void StructurallyInvalidSiblingDoesNotBlockPendingEvents()
+    {
+        var command=PrintAdapterTests.Command(TestPdf.Create());using var journal=new PrintCommandJournal(directory);
+        journal.RecordIntent(command);journal.MarkSubmissionStarted(command.CommandId);var waiting=journal.RecordResult(command.CommandId,"OUTPUT_UNKNOWN");
+        var corrupt=Guid.NewGuid().ToString();File.WriteAllText(Path.Combine(directory,corrupt+".json"),"{\"command\":null}");
+        Assert.Throws<InvalidDataException>(()=>journal.Find(corrupt));Assert.Equal(waiting.EventId,journal.PendingEvents().Single().EventId);
     }
     [Fact]
     public void RestartArchivesAcknowledgedRecordLeftByInterruptedCompaction()

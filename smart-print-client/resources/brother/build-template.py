@@ -17,5 +17,6 @@ for color, name in [(False, 'visitor-image.lbx'), (True, 'visitor-image-black-re
     props = f'<?xml version="1.0" encoding="UTF-8"?><meta:properties xmlns:meta="{namespace}meta"><meta:numPages>1</meta:numPages></meta:properties>'
     with ZipFile(root / name, 'w', compression=ZIP_DEFLATED) as archive:
         for filename, data in [('label.xml', xml.encode()), ('Object0.bmp', bmp), ('prop.xml', props.encode())]:
-            info = ZipInfo(filename, (2026, 9, 5, 0, 0, 0)); info.compress_type = ZIP_DEFLATED
+            info = ZipInfo(filename, (2026, 9, 5, 0, 0, 0))
+            info.compress_type = ZIP_DEFLATED
             archive.writestr(info, data)

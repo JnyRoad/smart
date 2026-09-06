@@ -17,7 +17,7 @@
 
 ### 本轮最终软件验证
 
-Java Print*Test 151/151（live启用、0跳过），管理端105文件/542项，Node渲染46项及.NET客户端30项通过。Windows x64发布及管理端正式构建成功。打印范围lint 0错误/12警告；全部软件组完成独立复审，最终整分支复审未返回有效报告，不计通过；交付记录见 [delivery.md](delivery.md)。这些结果来自隔离H2、真实PDF及合成数据/模拟驱动，不替代下列现场验收。
+Java Print*Test 155项通过、3项按环境门禁跳过，管理端105文件/547项，Node渲染46项及 .NET 客户端36项通过。Windows x64发布及管理端正式构建成功。打印范围lint 0错误/12警告；全部软件组完成独立复审，最终整分支复审未返回有效报告，不计通过；交付记录见 [delivery.md](delivery.md)。这些结果来自隔离H2、真实PDF及合成数据/模拟驱动，不替代下列现场验收。在本机 Apple Silicon 的 Corretto 8 上运行包含 PDFBox 的 Java 测试须传入 `-Djava.awt.headless=true`；这是测试运行时参数，不改变生产配置。
 
 ### 统一切换与回退（未执行）
 
@@ -42,11 +42,11 @@ Java Print*Test 151/151（live启用、0跳过），管理端105文件/542项，
 | --- | --- |
 | [spec.md](./spec.md) | 已读取。它规定每份模板固定一面，厂牌组合输出正反两面、访客凭条输出单面、手动/自动翻面、版本冻结、权限和一次切换回退，并定义 SC-001–SC-008。 |
 | [plan.md](./plan.md) | 已形成技术方案；执行阶段以该文件和 tasks 为依据。 |
-| [yuhui-blueprint.html](../../docs/yuhui-prototype/yuhui-blueprint.html) | 已同步单面模板、系统组合及本轮批次1代码状态；按职级/公司/供应商绑定、真实打印、联合切换和回退仍待后续批次实施。 |
+| [yuhui-blueprint.html](../../docs/yuhui-prototype/yuhui-blueprint.html) | 已同步单面模板、系统组合、职级/公司/供应商绑定及软件实现状态；真实打印、联合切换和回退演练仍待环境验收。 |
 | [smart-ui/package.json](../../smart-ui/package.json) | 当前宿主为 Vue 2.7.16、Element UI；锁文件中的 Vue CLI 为 3.12.1（Webpack 4）。pdfme 6.1.12 已接入，直接 library import 的旧构建兼容问题已记录并由显式预构建路径规避。 |
-| 新源码目录 | `smart-print-renderer/` 已建立最小 Node 24 兼容运行时并有基础测试；`smart-print-client/` 尚未创建，未下载 SDK/驱动。 |
+| 新源码目录 | `smart-print-renderer/` 与 `smart-print-client/` 均已建立并通过软件组测试；未在 Windows 主机接入实际 SDK、驱动或打印机。 |
 | 依赖与许可 | `@pdfme/ui/common/schemas/generator` 6.1.12、MIT；`esbuild` 0.27.7、MIT；`clawpdf` 0.3.1、MIT，PDFium 第三方 notice 必须随包保留；Noto Sans CJK SC Sans2.004 为 OFL 1.1。 |
-| 执行状态 | `smart-ui` 回归测试、构建和局部兼容构建已执行；浏览器只用合成数据验证；未连接真实 Oracle、未完成 schema bootstrap/迁移执行器验证、未联真机、未启动 Windows 客户端。 |
+| 执行状态 | `smart-ui` 回归测试、构建和局部兼容构建已执行；浏览器只用合成数据验证；未连接真实 Oracle、未完成 schema bootstrap/迁移执行器验证、未联真机，也未在 Windows 主机运行客户端。 |
 
 ## 本轮批次1代码与环境边界
 
@@ -56,7 +56,7 @@ Java Print*Test 151/151（live启用、0跳过），管理端105文件/542项，
 - 用户确认DHR是当前唯有人事来源、EHR已停用；代码候选为正式同步后的 `jcheId/jcheName`。厂牌业务等级是否对应档案职层及首用园区尚待确认，未硬编码任何来源枚举。
 - 新接口默认关闭，现有访客打印入口没有接管或切换。18763仍是旧合成内存演示；本轮没有把它冒充正式管理页验收。
 
-### 本轮验证证据（2026-09-05）
+### 批次1历史验证证据（2026-09-05）
 
 - 管理端完整测试：94个文件、481项通过（2 workers）；新打印测试包含document快捷键、外置弹层、失效绑定清除、幂等重试、图片hash与保存还原。限定打印lint为0错误、145条警告，包含Vue属性格式及短字段名等；未关闭规则或全仓自动格式化。
 - Java打印模块：40项全部通过，无跳过，包含隔离H2文件库Mapper与事务、并发发布/回滚、重启读回、审计与HTTP requestId关联、资源HTTP授权、BLOB与预览记录同时回滚、服务异常不落失败预览，以及真实Java→Node中文PDF。H2不能证明Oracle兼容。
@@ -143,7 +143,7 @@ pnpm --dir smart-ui build
 # 渲染器（当前测试结果见上方对应批次）
 pnpm --dir smart-print-renderer test
 
-# 客户端（模块尚未创建，完成后从模块目录运行）
+# 客户端（已创建；在 Windows 工作站完成驱动安装后运行）
 (cd smart-print-client && dotnet test)
 ```
 

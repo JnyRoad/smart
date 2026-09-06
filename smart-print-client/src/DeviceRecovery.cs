@@ -13,6 +13,8 @@ public sealed class DeviceRecovery(PrintApiClient api,PrintCommandJournal journa
         requireEmptyQueue(profile);
         var operation=journal.BeginOperation(profile.PrinterProfileId,"clear",$"/api/print-client/v1/jobs/{jobId}/device-cleared",new JsonObject {
             ["deviceIdentity"]=profile.DeviceIdentity,["physicalState"]="NO_CARD_IN_DEVICE",["operatorCheckId"]=checkId,["reason"]="工作站现场确认无卡且原驱动队列为空"});
+        if(operation.Body["operatorCheckId"]?.GetValue<string>()!=checkId)
+            throw new InvalidDataException("存在同一任务的未完成清空请求，请使用原核对记录标识重试");
         var result=await api.JsonAsync(HttpMethod.Post,operation.Path,operation.Body,token,operation.Key);
         if(result?["cleared"]?.GetValue<bool>()==false) {
             // 明确拒绝释放也是已结束的请求；保留领取记录，让后续新检查使用新请求键。

@@ -122,7 +122,7 @@ export default {
       if (!front || !back) return '请选齐正面和背面模板版本'
       const frontSize = front.template.basePdf
       const backSize = back.template.basePdf
-      if (frontSize.width !== backSize.width || frontSize.height !== backSize.height) return '正反面尺寸或方向不一致'
+      if (frontSize.width !== backSize.width || frontSize.height !== backSize.height) return '正反面尺寸不一致'
       return ''
     }
   },

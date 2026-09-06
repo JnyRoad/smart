@@ -18,6 +18,10 @@ it('Brother 仅保存单面与58毫米打印宽度，不保留上次厂牌自动
   await wrapper.vm.save()
   expect(api.savePrinter).toHaveBeenCalledWith(null, expect.objectContaining({ deviceType: 'LABEL_PRINTER', allowedPrintModes: ['SINGLE'], flipCapability: 'NONE', mediaSpec: expect.objectContaining({ maxPrintableWidthMm: 58 }) }), expect.any(String))
 })
+it('旧打印机档案缺少允许方式时仍可显示列表', async () => {
+  await wrapper.setData({ records: [{ printerProfileId: 'legacy', displayName: '旧打印机', manufacturer: 'Brother', model: 'QL-800', deviceIdentity: 'legacy-pc', allowedPrintModes: null, status: 'ENABLED' }] })
+  expect(wrapper.find('table').text()).toContain('旧打印机')
+})
 it('保存冲突或连接失败不覆盖表单，重复同一请求复用幂等键', async () => {
   await wrapper.setData({ form: { ...wrapper.vm.form, displayName: '制卡台', deviceIdentity: 'pc1' } })
   api.savePrinter.mockRejectedValueOnce(new Error('档案修订冲突')).mockResolvedValueOnce({})

@@ -125,7 +125,7 @@ java -cp 'BOOT-INF/classes:BOOT-INF/lib/*' \
 本地自动化为 `PrintSchemaReleaseTest`、`PrintSchemaCliTest`、`PrintSchemaMapperTest`，从 `smart-module/` reactor 运行：
 
 ```bash
-/Users/lvtu/.local/opt/apache-maven/bin/mvn \
+mvn \
   -pl smart-platform/smart-platform-biz -am '-Dtest=PrintSchema*Test' \
   -Dsurefire.failIfNoSpecifiedTests=false -DargLine=-Djava.awt.headless=true test
 ```

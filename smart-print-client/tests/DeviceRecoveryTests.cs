@@ -21,6 +21,8 @@ public sealed class DeviceRecoveryTests : IDisposable
             Assert.Empty(queues);Assert.Empty(server.Keys);
             await Assert.ThrowsAsync<HttpRequestException>(()=>recovery.ClearAsync(a,job,check,true,CancellationToken.None));
             Assert.NotNull(journal.LoadClaim(a.PrinterProfileId));
+            await Assert.ThrowsAsync<InvalidDataException>(()=>recovery.ClearAsync(a,job,Guid.NewGuid().ToString(),true,CancellationToken.None));
+            Assert.Single(server.Keys);
         }
         using(var journal=new PrintCommandJournal(directory)) {
             await new DeviceRecovery(Api(server),journal,p=>queues.Add(p.WindowsPrinterName)).ClearAsync(a,job,check,true,CancellationToken.None);

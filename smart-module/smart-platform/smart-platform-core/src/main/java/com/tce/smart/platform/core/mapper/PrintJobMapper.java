@@ -31,6 +31,7 @@ public interface PrintJobMapper {
     List<PrintPrinter> listPrinters(@Param("park") String park, RowBounds bounds);
     List<PrintJob> listJobs(@Param("park") String park,@Param("owner") String owner,@Param("printer") String printer,@Param("status") String status, RowBounds bounds);
     List<PrintJob> queuedJobs(RowBounds bounds);
+    List<PrintJob> expiredRenderingJobs(@Param("now") java.sql.Timestamp now,@Param("legacyCutoff") java.sql.Timestamp legacyCutoff, RowBounds bounds);
     PrintJob findClaim(@Param("id") String id);
     List<PrintJobAttempt> attempts(@Param("id") String jobId);
     List<PrintJobEvent> events(@Param("id") String jobId, RowBounds bounds);

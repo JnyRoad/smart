@@ -435,8 +435,11 @@ export default {
         const objDoc = bpac.IDocument
         const ret = await objDoc.Open(strPath)
 
-        if (ret == true) {
-          objDoc
+        if (ret != true) {
+          this.loading = false
+          return
+        }
+        objDoc
             .StartPrint('', 0)
             .then((res) => {
             })
@@ -570,8 +573,7 @@ export default {
             this.loading = false
             this.loadingText = '加载中…'
             this.$refs['calculation']._clearCode()
-          }, 4000)
-        }
+        }, 4000)
       } catch (e) {
         this.loading = false
         this.$message.error('打印异常')

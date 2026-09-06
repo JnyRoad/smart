@@ -78,7 +78,7 @@ public class PrintTemplateService {
             if (report == null || !"READY".equals(report.get("status"))) throw new PrintApiException(422, "RENDER_VALIDATION_FAILED", "可信渲染校验未通过");
             PrintTemplateVersion published = new PrintTemplateVersion(); BeanUtils.copyProperties(draft, published); published.setTemplateVersionId(id()); published.setVersionNo(mapper.nextVersionNo(templateId)); published.setVersionStatus("PUBLISHED"); published.setPublishedBy(access.actor()); published.setPublishedAt(now()); published.setCreatedBy(access.actor()); published.setCreatedAt(published.getPublishedAt()); published.setValidationReportJson(PrintJson.canonical(report));
             mapper.insertTemplateVersion(published); template.setCurrentPublishedVersionId(published.getTemplateVersionId()); touch(template); mapper.updateTemplate(template);
-            audit(initial.getParkId(), "TEMPLATE_PUBLISHED", templateId, Collections.singletonMap("templateVersionId", published.getTemplateVersionId())); return versionView(published);
+            audit(template.getParkId(), "TEMPLATE_PUBLISHED", templateId, Collections.singletonMap("templateVersionId", published.getTemplateVersionId())); return versionView(published);
         });
     }
     public PrintMutationResult rollback(String templateId, PrintRollbackRequest request, String key) {

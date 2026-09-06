@@ -49,7 +49,7 @@ public sealed class PrintCommandJournal : IDisposable
                 var info = new FileInfo(path);
                 if(info.Length > 65536) throw new InvalidDataException("日志记录大小异常");
                 var entry = JsonSerializer.Deserialize<JournalEntry>(File.ReadAllBytes(path), Hashing.Json);
-                if (entry is null || entry.Command.CommandId != commandId || entry.Signature != Hashing.Signature(entry.Command)
+                if (entry is null || entry.Command is null || entry.Events is null || entry.AcknowledgedEventIds is null || entry.Events.Any(e=>e is null) || entry.Command.CommandId != commandId || entry.Signature != Hashing.Signature(entry.Command)
                     || !new[] { "INTENT_RECORDED", "SUBMISSION_STARTED", "RESULT_RECORDED", "RETIRED" }.Contains(entry.State))
                     throw new InvalidDataException("打印日志校验失败，需要人工核对");
                 if(entry.Events.Any(e=>e.CommandId!=commandId || e.JobId!=entry.Command.JobId || e.AttemptId!=entry.Command.AttemptId || e.ArtifactHash!=entry.Command.ArtifactHash || e.ClientSequence<=0 || !Guid.TryParseExact(e.EventId,"D",out _))
@@ -98,7 +98,7 @@ public sealed class PrintCommandJournal : IDisposable
             if(eventType == "DRIVER_REJECTED") payload["submissionAccepted"] = false;
             var result = new PrintClientEvent(Guid.NewGuid().ToString(), entry.Command.JobId, entry.Command.AttemptId, commandId,
                 eventType, DateTimeOffset.UtcNow, entry.Command.ArtifactHash, driverJobKey, payload, NextSequence());
-            Save(entry with { State = "RESULT_RECORDED", Result = result, Events=[..entry.Events,result] }); return result;
+            Save(entry with { State = entry.State == "RETIRED" ? "RETIRED" : "RESULT_RECORDED", Result = result, Events=[..entry.Events,result] }); return result;
         }
     }
     public IReadOnlyList<PrintClientEvent> PendingEvents()

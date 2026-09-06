@@ -70,7 +70,7 @@ smart-print-renderer/                         # 私有渲染，Node.js，不承�
 smart-print-client/                           # Windows 执行、持久日志、驱动适配
 ```
 
-后端实体使用领域子包；Mapper Java 与 XML 沿用 core 的现有目录，不放入 biz。对应测试置于同模块 test 树。`smart-print-renderer` 已登记根 README 与 AGENTS；Windows 子项目仍待后续任务创建。
+后端实体使用领域子包；Mapper Java 与 XML 沿用 core 的现有目录，不放入 biz。对应测试置于同模块 test 树。`smart-print-renderer` 与 `smart-print-client` 均已建立并完成软件组验证；Windows 驱动、介质与双面能力仍待实机验收。
 
 ## Architecture and Decisions
 
@@ -84,7 +84,7 @@ smart-print-client/                           # Windows 执行、持久日志、
 
 任务创建可使用绑定结果、选已有组合，或显式选择已发布正背面版本。服务端按同样的适用范围和权限校验，不能通过临时选择绕过保密带码等规则。手动和自动均在任务创建时冻结完整两面，翻面等待中不接受另一份背面。访客只选择一份单面模板。
 
-当前兼容修订的 Node 内存接口为 `renderSinglePageTemplate({printType, template, input, fontBytes})` 和 `renderPrintTemplates({printType, printMode, front, back, fontBytes})`；`front/back` 各含 `templateVersionId`、单页 `template` 和该面的 `input`。先独立渲染每面，再按 FRONT/BACK 顺序合并 PDF，避免两个独立模板使用同名字段时相互覆盖。单模板预览固定一页；厂牌组合的 PDF 固定两页，访客输出固定一页。持久化和 HTTP 仍在后续任务。
+Node 渲染服务已实现 `renderSinglePageTemplate({printType, template, input, fontBytes})` 和 `renderPrintTemplates({printType, printMode, front, back, fontBytes})`，并提供受控 HTTP 入口；`front/back` 各含 `templateVersionId`、单页 `template` 和该面的 `input`。先独立渲染每面，再按 FRONT/BACK 顺序合并 PDF，避免两个独立模板使用同名字段时相互覆盖。单模板预览固定一页；厂牌组合的 PDF 固定两页，访客输出固定一页。真实环境部署和联调仍待验收。
 
 兼容验证页只提供合成模板库、单页编辑、内存保存重开、正反面下拉选择及组合保存/恢复；不冒充正式模板管理或实际打印。
 

@@ -44,6 +44,42 @@ it('重建页面会重新读取系统列表，不从浏览器缓存恢复模板'
   expect(api.listTemplates).toHaveBeenCalledWith(expect.objectContaining({ parkId: 'park-a' }))
   expect(wrapper.text()).toContain('员工正面')
 })
+it('切换打印物筛选时回到第一页，避免请求已失效的页码', async () => {
+  await wrapper.setData({ page: 2, filter: 'VISITOR_SLIP' })
+  api.listTemplates.mockClear()
+  wrapper.vm.applyFilter()
+  await settle()
+  expect(api.listTemplates).toHaveBeenCalledWith(expect.objectContaining({ printItemType: 'VISITOR_SLIP', current: 1 }))
+})
+it('新建模板切换人员与打印物时归一化分类，确认创建不继承失效分类', async () => {
+  wrapper.vm.beginCreate()
+  wrapper.vm.createForm.printItemType = 'VISITOR_SLIP'
+  wrapper.vm.resetCreateType()
+  expect(wrapper.vm.createForm.classificationCode).toBe('VISITOR_NORMAL')
+  wrapper.vm.createForm.personType = 'SUPPLIER'
+  wrapper.vm.normalizeCreateClassification()
+  expect(wrapper.vm.createForm.classificationCode).toBe('SUPPLIER_DEFAULT')
+  wrapper.vm.createForm.printItemType = 'STAFF_CARD'
+  wrapper.vm.resetCreateType()
+  wrapper.vm.createForm.printItemType = 'VISITOR_SLIP'
+  wrapper.vm.resetCreateType()
+  expect(wrapper.vm.createForm.classificationCode).toBe('VISITOR_NORMAL')
+  wrapper.vm.createForm.classificationCode = 'SUPPLIER_DEFAULT'
+  wrapper.vm.confirmCreate()
+  expect(wrapper.vm.draft.classificationCode).toBe('VISITOR_NORMAL')
+  wrapper.vm.beginCreate()
+  wrapper.vm.createForm.printItemType = 'VISITOR_SLIP'
+  wrapper.vm.resetCreateType()
+  wrapper.vm.createForm.classificationCode = 'VISITOR_SECURITY'
+  wrapper.vm.confirmCreate()
+  expect(wrapper.vm.draft.classificationCode).toBe('VISITOR_SECURITY')
+})
+it('历史模板缺少页面尺寸时仍能加载编辑器', async () => {
+  api.getTemplate.mockResolvedValue({ ...detail, draft: { ...version, pageSpecJson: null } })
+  await click('编辑')
+  expect(wrapper.vm.draft.pageSpecJson).toEqual({})
+  expect(wrapper.findAll('[aria-label="单面画布"]')).toHaveLength(1)
+})
 it('发布请求响应丢失时同一修订重试复用幂等键', async () => {
   await click('编辑')
   api.publishTemplate.mockRejectedValueOnce(new Error('连接中断')).mockResolvedValueOnce({})

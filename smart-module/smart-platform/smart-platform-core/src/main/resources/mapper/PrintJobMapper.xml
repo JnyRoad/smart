@@ -28,6 +28,7 @@
 <select id="listPrinters" resultMap="PrintPrinter">SELECT * FROM SMT_PRINT_PRINTER_PROFILE WHERE PARK_ID=#{park} ORDER BY PRINTER_PROFILE_ID</select>
 <select id="listJobs" resultMap="PrintJob">SELECT * FROM SMT_PRINT_JOB WHERE PARK_ID=#{park}<if test="owner != null"> AND CREATED_BY=#{owner}</if><if test="printer != null"> AND PRINTER_PROFILE_ID=#{printer}</if><if test="status != null"> AND STATUS=#{status}</if> ORDER BY CREATED_AT,JOB_ID</select>
 <select id="queuedJobs" resultMap="PrintJob">SELECT * FROM SMT_PRINT_JOB WHERE STATUS='QUEUED' ORDER BY CREATED_AT,JOB_ID</select>
+<select id="expiredRenderingJobs" resultMap="PrintJob">SELECT * FROM SMT_PRINT_JOB WHERE STATUS='RENDERING' AND (LEASE_EXPIRES_AT &lt;= #{now,jdbcType=TIMESTAMP} OR (LEASE_EXPIRES_AT IS NULL AND UPDATED_AT &lt;= #{legacyCutoff,jdbcType=TIMESTAMP})) ORDER BY UPDATED_AT,JOB_ID</select>
 <select id="findClaim" resultMap="PrintJob">SELECT * FROM SMT_PRINT_JOB WHERE CLAIM_ID=#{id}</select>
 <select id="attempts" resultMap="PrintJobAttempt">SELECT * FROM SMT_PRINT_ATTEMPT WHERE JOB_ID=#{id} ORDER BY ATTEMPT_NO</select>
 <select id="events" resultMap="PrintJobEvent">SELECT * FROM SMT_PRINT_EVENT WHERE JOB_ID=#{id} ORDER BY CREATED_AT,EVENT_ID</select>

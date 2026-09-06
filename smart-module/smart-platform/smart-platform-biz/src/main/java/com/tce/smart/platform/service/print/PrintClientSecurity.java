@@ -26,7 +26,7 @@ public class PrintClientSecurity extends WebSecurityConfigurerAdapter {
   @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)throws ServletException,IOException{
    String requestId=UUID.randomUUID().toString();request.setAttribute("print.requestId",requestId);response.setHeader("X-Request-Id",requestId);response.setHeader("Cache-Control","no-store");SecurityContextHolder.clearContext();
    try{PrintClientIdentity identity=authenticate(properties,request.getHeader("Authorization"));SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(identity,null,Collections.emptyList()));chain.doFilter(request,response);}
-   catch(PrintApiException failure){response.setStatus(failure.getStatus());response.setContentType("application/json");response.getWriter().write(PrintJson.canonical(PrintApiAdvice.error(failure,requestId).getBody()));}
+   catch(PrintApiException failure){response.setStatus(failure.getStatus());response.setCharacterEncoding("UTF-8");response.setContentType("application/json;charset=UTF-8");response.getWriter().write(PrintJson.canonical(PrintApiAdvice.error(failure,requestId).getBody()));}
    finally{SecurityContextHolder.clearContext();}
   }
  }

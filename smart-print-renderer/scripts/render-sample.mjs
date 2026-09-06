@@ -1,9 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { renderPrintTemplates } from '../src/render.mjs';
 
-const SAMPLE_PATH = '/private/tmp/smart-print-renderer-sample.pdf';
+const SAMPLE_PATH = join(tmpdir(), 'smart-print-renderer-sample.pdf');
 const CARD_SIZE_MM = Object.freeze({ width: 85.6, height: 53.98 });
 const FONT_NAME = 'NotoSansSC';
 
