@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.PrintObjectMapper">
+  <resultMap id="objectMetadata" type="com.tce.smart.platform.core.entity.print.PrintStoredObject">
+    <id property="objectId" column="OBJECT_ID"/>
+    <result property="parkId" column="PARK_ID"/>
+    <result property="createdBy" column="CREATED_BY"/>
+    <result property="purpose" column="PURPOSE"/>
+    <result property="accessScope" column="ACCESS_SCOPE"/>
+    <result property="ownerId" column="OWNER_ID"/>
+    <result property="contentHash" column="CONTENT_HASH"/>
+    <result property="mediaType" column="MEDIA_TYPE"/>
+    <result property="sizeBytes" column="SIZE_BYTES"/>
+    <result property="createdAt" column="CREATED_AT"/>
+  </resultMap>
+  <resultMap id="content" type="com.tce.smart.platform.core.entity.print.PrintStoredObject">
+    <result property="contentBytes" column="CONTENT_BYTES" jdbcType="BLOB" typeHandler="org.apache.ibatis.type.BlobTypeHandler"/>
+  </resultMap>
+  <insert id="insertObject">
+    INSERT INTO SMT_PRINT_OBJECT (OBJECT_ID,PARK_ID,CREATED_BY,PURPOSE,ACCESS_SCOPE,OWNER_ID,CONTENT_HASH,MEDIA_TYPE,SIZE_BYTES,CREATED_AT,CONTENT_BYTES)
+    VALUES (#{objectId},#{parkId},#{createdBy},#{purpose},#{accessScope},#{ownerId},#{contentHash},#{mediaType},#{sizeBytes},#{createdAt,jdbcType=TIMESTAMP},#{contentBytes,jdbcType=BLOB,typeHandler=org.apache.ibatis.type.BlobTypeHandler})
+  </insert>
+  <select id="findMetadata" resultMap="objectMetadata">SELECT OBJECT_ID,PARK_ID,CREATED_BY,PURPOSE,ACCESS_SCOPE,OWNER_ID,CONTENT_HASH,MEDIA_TYPE,SIZE_BYTES,CREATED_AT FROM SMT_PRINT_OBJECT WHERE OBJECT_ID=#{id}</select>
+  <select id="readContent" resultMap="content">SELECT CONTENT_BYTES FROM SMT_PRINT_OBJECT WHERE OBJECT_ID=#{id}</select>
+</mapper>

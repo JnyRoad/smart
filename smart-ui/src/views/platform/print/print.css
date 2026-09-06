@@ -1,0 +1,29 @@
+/* 裕同工作区使用白色背景、品牌橙主操作和清晰边界，不影响旧业务页面。 */
+.print-page { --print-accent: #ec6c00; color: #595757; background: #fff; padding: 24px; font: 14px/1.65 "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; }
+.print-page h1 { margin: 0; font-size: 24px; font-weight: 600; }
+.print-page h2 { font-size: 18px; margin-top: 0; }
+.print-page p { color: #6f6c6b; margin: 8px 0 18px; }
+.print-heading, .print-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.print-toolbar { justify-content: flex-start; }
+.print-page button, .print-page input, .print-page select, .print-page textarea { font: inherit; color: inherit; min-height: 36px; border: 1px solid #e5e3e3; border-radius: 6px; padding: 6px 12px; background: #fff; max-width: 100%; }
+.print-page button { cursor: pointer; margin-right: 6px; }
+.print-page button:hover:not(:disabled) { border-color: var(--print-accent); color: #d95f00; }
+.print-page button.primary { background: var(--print-accent); border-color: var(--print-accent); color: #fff; }
+.print-page :disabled { opacity: .55; cursor: not-allowed; }
+.print-page :focus-visible { outline: 2px solid var(--print-accent); outline-offset: 2px; }
+.print-page table { width: 100%; border-collapse: collapse; margin: 18px 0; text-align: left; }
+.print-page th { font-weight: 500; background: #f7f7f7; }
+.print-page th, .print-page td { padding: 12px 14px; border-bottom: 1px solid #efeeee; }
+.print-page .error { color: #b32d27; background: #fff3f2; padding: 12px; border-radius: 6px; }
+.print-dialog { position: fixed; z-index: 1800; inset: 14% auto auto 50%; transform: translateX(-50%); width: min(680px, 90vw); max-height: 75vh; overflow: auto; padding: 24px; border: 1px solid #e5e3e3; border-radius: 10px; box-shadow: 0 18px 64px #0003; background: #fff; }
+.print-dialog form label { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 14px 0; }
+.print-dialog form input, .print-dialog form select { width: 70%; }
+@media(max-width:900px) { .print-page { padding: 14px; overflow-x: auto; } .print-heading { align-items: flex-start; } }
+.print-page .print-field-bindings { border: 1px solid #ddd; padding: 18px; margin-top: 18px; }
+.print-page .print-field-bindings > div { display: flex; gap: 18px; margin: 10px 0; }
+.print-page .print-preview { z-index: 2200; max-height: 90vh; overflow-y: auto; }
+.print-page .print-preview iframe { width: 100%; height: 420px; border: 1px solid #ddd; }
+.print-page .print-work-section { border: 1px solid #e5e3e3; border-radius: 10px; padding: 18px; margin: 24px 0; min-width: 0; }
+.print-page .print-work-section legend { font-size: 18px; padding: 0 10px; }
+.print-page input[type="checkbox"] { width: 18px; min-height: 18px; height: 18px; vertical-align: middle; accent-color: var(--print-accent); }
+.print-page code { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }

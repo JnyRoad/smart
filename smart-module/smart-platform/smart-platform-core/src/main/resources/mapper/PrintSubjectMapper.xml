@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.PrintSubjectMapper">
+  <sql id="staffScope">
+    (EXISTS (SELECT 1 FROM SMT_PARK_BU bu WHERE bu.COMP_ID=s.COMP_ID AND bu.PARK_ID=#{park})
+     OR EXISTS (SELECT 1 FROM SMT_ORGANIZE_RELATION org WHERE CAST(org.ID AS VARCHAR2(64))=s.COMP_ID AND org.PARK_ID=#{park}))
+  </sql>
+  <!-- 不混用新旧 ID；选定的命名空间只执行对应分支。 -->
+  <sql id="subjectRows">
+    <choose>
+      <when test="type == 'STAFF'">
+        SELECT s.ID "id",s.NAME "name",s.BADGE "staffNo",s.COMP_ID "companyId",s.COMP_NAME "companyName",
+          s.DEP_NAME "departmentName",s.JCHE_ID "gradeCode",s.JCHE_NAME "gradeName",s.FACE_PIC_ID "photoCode",s.STATUS "status"
+        FROM SMT_STAFF s WHERE <include refid="staffScope"/>
+      </when>
+      <when test="type == 'SUPPLIER_PERSON'">
+        SELECT s.ID "id",s.PERSON_NAME "name",s.SUPPLIER_ID "supplierId",p.COMPANY_NAME "companyName"
+        FROM SMT_SUPPLIER_PERSON s JOIN SMT_SECURITYAREA_SUPPLIER p ON p.ID=s.SUPPLIER_ID
+        WHERE p.PARK_ID=#{park} AND p.DEL_FLAG=0 AND s.DEL_FLAG=0
+      </when>
+      <when test="type == 'VISITOR' or type == 'VISITOR_COMPANION'">
+        SELECT
+        <choose><when test="type == 'VISITOR'">p.ID "id",p.VISITOR_NAME "name",p.VISITOR_PHOTO_ID "photoCode",</when>
+        <otherwise>f.ID "id",f.FELLOW_NAME "name",f.FELLOW_PHOTO_ID "photoCode",</otherwise></choose>
+        p.STATUS "status",p.START_TIME "startTime",p.END_TIME "endTime",p.PROMOTER_BADGE "promoterBadge",p.SMS_CODE "credential",p.COMPANY "companyName"
+        FROM SMT_VISITOR p
+        <if test="type == 'VISITOR_COMPANION'">JOIN SMT_FELLOW_VISITOR f ON f.VISITOR_ID=p.ID</if>
+        WHERE p.PARK_ID=#{park} AND p.DEL_FLAG=0
+      </when>
+      <when test="type == 'ADMITTANCE' or type == 'ADMITTANCE_COMPANION'">
+        SELECT <choose><when test="type == 'ADMITTANCE'">p.ID</when><otherwise>f.ID</otherwise></choose> "id",
+        f.FELLOW_NAME "name",f.FELLOW_PHOTO_ID "photoCode",p.VISITOR_NAME "parentName",p.VISITOR_PHOTO_ID "parentPhotoCode",
+        p.STATUS "status",p.START_TIME "startTime",p.END_TIME "endTime",p.PERSON_TYPE "visitorType",p.SMS_CODE "credential",p.COMPANY "companyName",p.AREA_TYPE "areaType"
+        FROM SMT_ADMITTANCE_APPLY p JOIN SMT_ADMITTANCE_FELLOW f ON f.VISITOR_ID=p.ID
+        WHERE p.PARK_ID=#{park} AND f.IS_MAIN=<choose><when test="type == 'ADMITTANCE'">1</when><otherwise>0</otherwise></choose>
+      </when>
+    </choose>
+  </sql>
+  <select id="subject" resultType="map">
+    SELECT q.* FROM (<include refid="subjectRows"/>) q WHERE CAST(q."id" AS VARCHAR2(64))=#{id}
+  </select>
+  <select id="staffOrganizations" resultType="map">
+    SELECT 'EMPLOYEE' "personType" FROM SMT_PARK_BU WHERE COMP_ID=#{company} AND PARK_ID=#{park}
+    UNION ALL
+    SELECT CASE COMP_TYPE WHEN 1 THEN 'OUTSOURCED' WHEN 2 THEN 'DISPATCHED' ELSE 'UNKNOWN' END "personType"
+    FROM SMT_ORGANIZE_RELATION WHERE CAST(ID AS VARCHAR2(64))=#{company} AND PARK_ID=#{park}
+  </select>
+  <select id="cards" resultType="map">
+    SELECT BADGE "badge",CARD_NO "cardNo",ACTIVE_KEY "activeKey"
+    FROM SMT_ISC_STAFF_CARD WHERE STAFF_ID=#{id} AND PARK_ID=#{park} AND DEL_FLAG=0 AND ACTIVE_KEY IS NOT NULL AND CARD_NO IS NOT NULL
+  </select>
+  <!-- LEFT JOIN 保留断裂或跨园区的映射，让业务层明确拒绝不完整的区域。 -->
+  <select id="areaAuthorities" resultType="map">
+    SELECT a.ID "mappingId",d.ID "authorityId",d.AREA_TYPE "nature"
+    FROM SMT_ADMITTANCE_AREA_TYPE_AUTH a LEFT JOIN SMT_DEVICE_AUTHORITY d ON d.ID=a.AUTH_ID AND d.PARK_ID=#{park} AND d.TYPE=1
+    WHERE a.PARK_ID=#{park} AND a.AUTH_TYPE=1 AND CAST(a.AREA_TYPE_ID AS VARCHAR2(64))=#{area}
+  </select>
+  <select id="photos" resultType="_byte[]">
+    SELECT IMAGE FROM SMT_IMAGE WHERE IMAGE_CODE=#{code}
+    <choose><when test="storagePark == null">AND PARK_ID IS NULL</when><otherwise>AND PARK_ID=#{storagePark}</otherwise></choose>
+    AND IMAGE_TYPE IN <foreach collection="types" item="imageType" open="(" close=")" separator=",">#{imageType}</foreach>
+  </select>
+  <sql id="searchRows">
+    SELECT q.* FROM (<include refid="subjectRows"/>) q
+    <if test="keyword != null and keyword != ''">
+      WHERE (q."name" LIKE #{keyword} ESCAPE '!'
+      <if test="type == 'STAFF'">OR q."staffNo" LIKE #{keyword} ESCAPE '!'</if>
+      <if test="type != 'STAFF' and type != 'SUPPLIER_PERSON'">OR q."credential" LIKE #{keyword} ESCAPE '!'</if>)
+    </if>
+  </sql>
+  <!-- 显式白名单投影，不将卡号、凭证、照片带入搜索返回；稳定排序后再截取。 -->
+  <sql id="searchProjection">
+    q."id" "id",q."name" "name"
+    <if test="type == 'STAFF'">,q."staffNo" "staffNo",q."gradeName" "gradeName"</if>
+  </sql>
+  <select id="count" resultType="long">SELECT COUNT(*) FROM (<include refid="searchRows"/>) q</select>
+  <select id="search" resultType="map">
+    SELECT page.* FROM (SELECT ordered.*,ROWNUM row_number FROM
+      (SELECT <include refid="searchProjection"/> FROM (<include refid="searchRows"/>) q ORDER BY q."id",q."name") ordered
+      WHERE ROWNUM &lt;= #{end}) page WHERE row_number &gt; #{offset}
+  </select>
+</mapper>

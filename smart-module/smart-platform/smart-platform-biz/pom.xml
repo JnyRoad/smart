@@ -16,6 +16,19 @@
 	</parent>
 
 	<dependencies>
+		<!-- 对可信渲染返回的真实 PDF 复核页数和物理尺寸。 -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>2.0.37</version>
+		</dependency>
+		<!-- 仅用于打印模板持久化与事务边界测试，不连接业务数据库。 -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<version>1.4.200</version>
+			<scope>test</scope>
+		</dependency>
 		<!--push api、vo 模块-->
 		<dependency>
 			<groupId>com.tce</groupId>

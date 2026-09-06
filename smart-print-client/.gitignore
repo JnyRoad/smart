@@ -1,0 +1,7 @@
+# 本地编译、测试和运行时命令日志不入库
+**/bin/
+**/obj/
+**/TestResults/
+.runtime/
+*.user
+appsettings.local.json

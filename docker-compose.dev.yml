@@ -486,8 +486,8 @@ services:
 
   smart-ui:
     build:
-      context: ./smart-ui
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: smart-ui/Dockerfile
       args:
         VUE_APP_PLATFORM_URL: ${VUE_APP_PLATFORM_URL:-http://smart-gateway:9990}
         VUE_APP_BASE_URL: ${VUE_APP_BASE_URL:-http://smart-gateway:9990}

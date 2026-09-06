@@ -1,0 +1,23 @@
+# 根目录构建仅发送管理端源码及固定字体，排除其他项目和本机资源。
+**
+!smart-ui
+!smart-ui/**
+!smart-print-renderer
+!smart-print-renderer/assets
+!smart-print-renderer/assets/fonts
+!smart-print-renderer/assets/fonts/NotoSansCJKsc-Regular.otf
+!smart-print-renderer/assets/fonts/LICENSE
+smart-ui/node_modules
+smart-ui/dist
+smart-ui/dist-print-compat
+smart-ui/coverage
+smart-ui/test-results
+smart-ui/playwright-report
+smart-ui/.cache
+smart-ui/.eslintcache
+smart-ui/**/.DS_Store
+smart-ui/**/*.log
+smart-ui/.env
+smart-ui/.env.*
+smart-ui/public/print-designer
+smart-ui/.git

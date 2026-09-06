@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>单面模板设计与厂牌组合</title>
+  <link rel="stylesheet" href="./SingleTemplateWorkspace.css">
+  <style>
+    body { margin: 0; padding: 24px; font: 15px system-ui, sans-serif; color: #202939; background: #f4f6f8; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    .intro { color: #536176; line-height: 1.6; }
+    [v-cloak] { display: none; }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <h1>单面模板设计与厂牌组合</h1>
+    <p class="intro">每次设计一份模板，正面与背面分别保存，再组合使用。当前为合成数据验证页，保存仅在内存中有效，刷新会重置。</p>
+    <p v-if="!font" role="status">{{ status }}</p>
+    <single-template-workspace v-if="font" :initial-templates="templates" :font="font" />
+  </div>
+  <script src="./vue.min.js"></script>
+  <script src="./SingleTemplateWorkspace.umd.js"></script>
+  <script>
+    // 此页面只提供合成模板夹具；工作台及其保存、选择行为来自真实 Vue 组件。
+    /** 每个夹具均只有一页，两个正面可选择同一背面。 */
+    function exampleTemplate(id, name, type, role, title) {
+      const fields = role === 'BACK' ? [
+        { name: 'title', type: 'text', content: '厂牌使用须知', fontName: 'NotoSansSC', fontSize: 14, position: { x: 8, y: 8 }, width: 65, height: 9 },
+        { name: 'notice', type: 'text', content: '请妥善保管，遗失请及时联系后勤。\n仅供兼容验证使用。', fontName: 'NotoSansSC', fontSize: 10, position: { x: 8, y: 23 }, width: 65, height: 18 }
+      ] : [
+        { name: 'title', type: 'text', content: title, fontName: 'NotoSansSC', fontSize: 14, position: { x: 5, y: 6 }, width: 47, height: 9 },
+        { name: 'company', type: 'text', content: '示例单位 · 裕同', fontName: 'NotoSansSC', fontSize: 10, position: { x: 5, y: 19 }, width: 47, height: 7 },
+        { name: 'code', type: 'qrcode', content: 'SYNTHETIC-001', position: { x: 5, y: 30 }, width: 17, height: 17 }
+      ]
+      return {
+        id, name, printItemType: type, faceRole: role,
+        template: { basePdf: { width: type === 'STAFF_CARD' ? 85.6 : 58, height: type === 'STAFF_CARD' ? 53.98 : 80, padding: [0, 0, 0, 0] }, schemas: [fields] }
+      }
+    }
+    new Vue({
+      el: '#app',
+      components: { SingleTemplateWorkspace: window.SingleTemplateWorkspace.default || window.SingleTemplateWorkspace },
+      data: {
+        font: null, status: '正在加载中文字体…',
+        templates: [
+          exampleTemplate('front-a', '员工正面 A', 'STAFF_CARD', 'FRONT', '测试员工 王小明'),
+          exampleTemplate('front-b', '员工正面 B', 'STAFF_CARD', 'FRONT', '员工厂牌 · 示例二'),
+          exampleTemplate('back', '通用背面', 'STAFF_CARD', 'BACK'),
+          exampleTemplate('visitor', '访客凭条', 'VISITOR_SLIP', 'FRONT', '测试访客 李明')
+        ]
+      },
+      /** 从同源静态目录加载固定字体，不依赖业务服务。 */
+      async mounted() {
+        try {
+          const response = await fetch('./print-designer/fonts/NotoSansCJKsc-Regular.otf')
+          if (!response.ok) throw new Error('中文字体加载失败')
+          this.font = { NotoSansSC: { data: new Uint8Array(await response.arrayBuffer()), fallback: true } }
+        } catch (error) { this.status = error.message }
+      }
+    })
+  </script>
+</body>
+</html>

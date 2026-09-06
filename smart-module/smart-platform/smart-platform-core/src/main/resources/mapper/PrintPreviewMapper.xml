@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.PrintPreviewMapper">
+    <resultMap id="preview" type="com.tce.smart.platform.core.entity.print.PrintPreview">
+        <id property="previewId" column="PREVIEW_ID"/>
+        <result property="parkId" column="PARK_ID"/>
+        <result property="createdBy" column="CREATED_BY"/>
+        <result property="createdAt" column="CREATED_AT"/>
+        <result property="status" column="STATUS"/>
+        <result property="detailsJson" column="DETAILS_JSON" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+    </resultMap>
+    <insert id="insertPreview">INSERT INTO SMT_PRINT_PREVIEW (PREVIEW_ID,PARK_ID,CREATED_BY,CREATED_AT,STATUS,DETAILS_JSON) VALUES (#{previewId},#{parkId},#{createdBy},#{createdAt,jdbcType=TIMESTAMP},#{status},#{detailsJson,jdbcType=CLOB,typeHandler=org.apache.ibatis.type.ClobTypeHandler})</insert>
+    <select id="findPreview" resultMap="preview">SELECT * FROM SMT_PRINT_PREVIEW WHERE PREVIEW_ID=#{id}</select>
+</mapper>

@@ -79,6 +79,34 @@ pnpm dev
 | `pnpm build` | 生产构建，输出到 `dist/` |
 | `pnpm lint` | ESLint 检查（`*.js` / `*.vue`） |
 | `pnpm pre` | 使用 pnpm 安装依赖 |
+| `pnpm build:print-runtime` | 使用 esbuild 独立预构建 pdfme ESM、Worker/WASM 与中文字体到 `public/print-designer/` |
+| `pnpm build:print-compatibility` | 通过既有 Vue CLI 构建 Vue2 宿主库，生成只含合成数据的 `dist-print-compat/` 验证页 |
+
+### 模板及组合管理
+
+已增加 `/platform/print/templates` 和 `/platform/print/pairs` 登录路由。选择获准园区后可调用平台接口维护独立单面草稿、发布/回滚指针与两份已发布版本的组合；字段绑定独立于画布样式，预览使用合成数据及授权 PDF 下载。园区范围、功能权限、版本冲突及资源合法性仍由后端校验。
+
+这两个页面需要本任务模板 schema、打印权限配置、可信渲染服务及受控文件适配器。当前尚无实际 Oracle 保存/重启验收，不能用离线测试证明持久化可用。静态图片经受控接口保存，模板图片与预览PDF共用打印私有对象表；真实Oracle建表、容量/备份及环境配置仍待验收。人员照片授权、职级适用规则及打印任务页尚未实现。旧访客打印入口保持原链路。下面的 18763 验证页仍是独立内存演示，不等同于这些正式接口。
+
+### pdfme 兼容验证
+
+当前实现是 `src/components/print/PdfmeHost.vue` 的生命周期封装及单面模板基础，`SingleTemplateWorkspace.vue` 提供合成模板的独立编辑、内存版本保存及正反面组合选择。正式模板与组合管理页面已新增，持久化和设备验收仍以[模板打印规格](../specs/009-print-template-designer/tasks.md)为准。
+
+`@pdfme/ui`、`common`、`schemas` 固定为 `6.1.12`。直接让现有 Webpack 4 解析 pdfme 会在现代语法处失败，因此只为设计器使用 esbuild `0.27.7` 预构建，同源模块按需加载。运行时使用 React，Vue2 仅管理外层 DOM 和实例生命周期。业务侧读取 `getTemplate()` 时必须处理“属性修改尚未应用”的拒绝；上游属性面板有延迟提交，不能在编辑事件后立即默认为已保存。
+
+验证页从同仓库 `smart-print-renderer/assets/fonts/` 复制固定 Noto Sans CJK SC 字体和 OFL 许可。需要完整仓库，使用 Node 24 / pnpm 11.3.0。每份模板只有一张画布；厂牌正面与背面各自保存，组合可引用不同版本号，保存新版不自动更新已关联组合。访客不显示背面或翻面选项。切换模板前读取稳定草稿，遇到待应用属性时阻止切换并提示。它只在页面内存保存模板和组合，刷新会重置，不调用后端或打印机：
+
+```bash
+pnpm install --frozen-lockfile --ignore-scripts
+VUE_APP_PLATFORM_URL=http://127.0.0.1:1 \
+VUE_APP_BASE_URL=http://127.0.0.1:1 pnpm build:print-compatibility
+# 先确认 18763 未被其他任务占用，仅暴露生成的合成验证页。
+python3 -m http.server 18763 --bind 127.0.0.1 --directory dist-print-compat
+```
+
+访问 `http://127.0.0.1:18763/` 可切换厂牌两面/访客单面、修改版式、内存保存重开和卸载重挂载。访客示例 `58 × 80 mm` 是软件夹具尺寸，实际纸张和裁切以 QL-800 介质档案及试打为准。
+
+`pnpm dev` / `pnpm build` 会先预构建设计器。Docker 从仓库根目录执行 `docker build -f smart-ui/Dockerfile .`；`Dockerfile.dockerignore` 只允许管理端源码及固定字体进入上下文，排除环境文件、依赖、其他项目和生成资源。开发 Compose 已同步此上下文。生成资源和 `dist-print-compat/` 不入库，正式分发须保留字体许可、pdfme 法律注释和 PDFium 第三方声明。当前本地浏览器与构建结果见[验收记录](../specs/009-print-template-designer/quickstart.md)。
 
 ---
 
@@ -208,12 +236,13 @@ pnpm build
 ### Docker 镜像
 
 ```bash
-docker build -t smart-ui:latest .
+# 从仓库根目录运行，包含固定中文字体
+docker build -f smart-ui/Dockerfile -t smart-ui:latest .
 docker run -d -p 80:80 --name smart-ui smart-ui:latest
 ```
 
 `Dockerfile` 行为：
-1. 在 Node 22 构建阶段执行 `pnpm install --frozen-lockfile` 和 `pnpm build`
+1. 在 Node 24 构建阶段执行 `pnpm install --frozen-lockfile` 和 `pnpm build`
 2. 在 nginx 运行阶段把构建出的 `dist/` 拷贝到 `/data`
 3. 用项目内 `nginx.conf` 覆盖默认配置
 

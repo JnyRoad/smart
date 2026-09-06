@@ -37,6 +37,7 @@
   </div>
 </template>
 <script>
+  import { printLoginDestination } from '@/api/platform/print/handoff';
   import userLogin from "./userlogin";
   import {mapGetters} from "vuex";
   import {getStore, setStore} from "@/util/store";
@@ -74,7 +75,7 @@
           this.$store.dispatch('LoginBySocial', this.socialForm).then(
             () => {
               loading.close()
-              this.$router.push({path: this.tagWel.value});
+              this.$router.push(printLoginDestination(this.$route.query) || {path: this.tagWel.value});
             }).catch(() => {
             loading.close()
           })

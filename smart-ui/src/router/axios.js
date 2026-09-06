@@ -58,6 +58,9 @@ axios.interceptors.response.use(res => {
     return Promise.reject(new Error(message))
   }
 
+  // 新打印接口按实际 2xx/4xx 语义返回，由领域客户端显示本地错误；保留上方统一登录处理。
+  if (res.config && res.config.printDomain === true) return res
+
   if (status !== 200 || res.data.code === 1) {
     Message({
       message: message,

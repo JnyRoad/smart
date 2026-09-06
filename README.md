@@ -18,6 +18,8 @@ smart/
 ├── smart/                    # 基础平台后端：网关、认证、UPMS、公共组件
 ├── smart-module/             # 业务微服务后端及 FileReceiver
 ├── smart-ui/                 # 管理端前端：Vue 2 + Element UI + Avue
+├── smart-print-renderer/     # 受控 PDF 渲染，业务授权由平台服务负责
+├── smart-print-client/       # Windows 工作站、持久命令日志及设备适配
 ├── smart-h5/                 # 当前维护的微信 H5：Next.js + React
 ├── smart-h5-vue2/            # 历史 Vue2 微信 H5，只读参考
 └── smart-app-uniapp/         # 「裕慧家园」App：uni-app + Vue 2
@@ -30,6 +32,8 @@ smart/
 | [`smart/`](smart/README.md) | 基础平台后端，提供网关、OAuth2 认证、UPMS 和公共组件。 | Java 8、Maven、Spring Boot `2.1.3.RELEASE`、Spring Cloud `Greenwich.RELEASE`（见 [`smart/pom.xml`](smart/pom.xml)） |
 | [`smart-module/`](smart-module/README.md) | 业务微服务聚合工程，包含 App、平台、数据、桥接、算法、推送、调度等模块。 | Java 8、Spring Cloud 业务服务、Maven；聚合关系见 [`smart-module/pom.xml`](smart-module/pom.xml) |
 | [`smart-ui/`](smart-ui/README.md) | 管理端中后台 SPA，对接网关、认证、UPMS 和园区业务 API。 | Vue `^2.7.16`、Element UI `^2.4.11`、Avue、Vue CLI、pnpm `11.3.0`（见 [`smart-ui/package.json`](smart-ui/package.json)） |
+| [`smart-print-renderer/`](smart-print-renderer/README.md) | 独立单面模板及双面组合的私有 PDF 渲染；不读取人员库或调用打印机。 | Node.js 24、pdfme `6.1.12` |
+| [`smart-print-client/`](smart-print-client/README.md) | 独立设备身份领取任务、持久命令去重、手动/自动厂牌及单面访客适配；实机能力按档案验收。 | .NET 10、Windows 官方驱动、Brother b-PAC |
 | [`smart-h5/`](smart-h5/README.md) | 当前维护的微信公众号 / 微信内嵌移动 H5。 | Next.js `16.2.9`、React `19.2.4`、TypeScript `^5`、antd-mobile `^5.42.3`、Tailwind CSS `^4`（见 [`smart-h5/package.json`](smart-h5/package.json)） |
 | [`smart-h5-vue2/`](smart-h5-vue2/README.md) | 历史 Vue2 微信 H5，仅用于查阅旧页面和调用方式。 | Vue `2.6.11`、Vue Router `3.1.3`、Vuex `3.1.2`、cube-ui `^1.12.44`、pnpm `11.4.0`（见 [`smart-h5-vue2/package.json`](smart-h5-vue2/package.json)） |
 | [`smart-app-uniapp/`](smart-app-uniapp/README.md) | 「裕慧家园」Android / iOS App 客户端。 | uni-app / Vue 2 / Vuex，HBuilderX 可视化工程；无命令行构建脚本 |

@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
@@ -7,10 +7,11 @@ ENV PATH=$PNPM_HOME:$PATH
 
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY smart-ui/package.json smart-ui/pnpm-lock.yaml smart-ui/pnpm-workspace.yaml smart-ui/.npmrc ./
 RUN pnpm install --frozen-lockfile
 
-COPY . .
+COPY smart-ui/ .
+COPY smart-print-renderer/assets/fonts/ /smart-print-renderer/assets/fonts/
 
 ARG VUE_APP_PLATFORM_URL=http://smart-gateway:9990
 ARG VUE_APP_BASE_URL=http://smart-gateway:9990
@@ -24,7 +25,7 @@ RUN pnpm build
 
 FROM nginx:1.27-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY smart-ui/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /data
 
 EXPOSE 80
