@@ -9,7 +9,8 @@ smart:
     allowed-fonts: [NotoSansSC]
     # 权限值必须与 UPMS 菜单/按钮实际授权逐项一致，缺项拒绝；以下为空待配置。
     permissions: {}
-    # 键为“打印物:人员类型”，值为该环境批准的分类列表；不要复制测试字典。
+    # 键为“打印物:人员类型”，值为该环境批准的分类列表；供应商单面凭条需配置
+    # VISITOR_SLIP:SUPPLIER: [SUPPLIER_DEFAULT]，并只从访客凭条工作台进入；不要复制测试字典。
     classification-codes: {}
     execution:
       enabled: false

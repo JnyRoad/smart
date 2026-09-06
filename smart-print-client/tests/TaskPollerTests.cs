@@ -67,6 +67,15 @@ public sealed class TaskPollerTests : IDisposable
         Assert.Equal(1,driver.Calls);Assert.Equal(1,server.Downloads);
     }
     [Fact]
+    public async Task CurrentClaimCannotSwitchJobOrProfileSnapshot()
+    {
+        var server=new Server();var driver=new Adapter();using var journal=new PrintCommandJournal(directory);var poller=new TaskPoller(Api(server),journal,[server.Profile],_=>driver);
+        await poller.StepAsync(CancellationToken.None);server.MismatchedCurrent=true;
+        await Assert.ThrowsAsync<InvalidDataException>(()=>poller.StepAsync(CancellationToken.None));Assert.Equal(1,driver.Calls);
+        server.MismatchedCurrent=false;server.MismatchedCurrentSnapshot=true;
+        await Assert.ThrowsAsync<InvalidDataException>(()=>poller.StepAsync(CancellationToken.None));Assert.Equal(1,driver.Calls);
+    }
+    [Fact]
     public async Task TwoJobsNeedExplicitDeviceReleaseAndRestartStartsFreshClaim()
     {
         var server=new Server();var driver=new Adapter();
@@ -103,7 +112,7 @@ public sealed class TaskPollerTests : IDisposable
     {
         public string JobId=Guid.NewGuid().ToString(),ClaimId=Guid.NewGuid().ToString(),AttemptId=Guid.NewGuid().ToString(),CommandId=Guid.NewGuid().ToString();
         public readonly LocalPrinterProfile Profile=PrintAdapterTests.Profile() with {PrinterProfileId=Guid.NewGuid().ToString()};
-        public readonly byte[] Pdf=TestPdf.Create();public bool LoseEventReply,ForeignUrl,Tamper,LoseClaimReply,AutoDuplex,Completed,LoseRenewReply;public List<string> RenewKeys=[],RenewBodies=[];public List<string> ClaimKeys=[],ClaimBodies=[];public int Renewals;public int Downloads;
+        public readonly byte[] Pdf=TestPdf.Create();public bool LoseEventReply,ForeignUrl,Tamper,LoseClaimReply,AutoDuplex,Completed,LoseRenewReply,MismatchedCurrent,MismatchedCurrentSnapshot;public List<string> RenewKeys=[],RenewBodies=[];public List<string> ClaimKeys=[],ClaimBodies=[];public int Renewals;public int Downloads;
         public string? LastResumeJobId;public List<string> EventIds=[];public List<string> AuthorizationValues=[];
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token)
         {
@@ -128,7 +137,7 @@ public sealed class TaskPollerTests : IDisposable
             }
             throw new InvalidDataException("未允许的测试请求路径");
         }
-        private HttpResponseMessage Claim()=>Json(new{claimId=ClaimId,leaseExpiresAt="2050-01-01T00:00:00Z",jobId=JobId,status=Completed?"COMPLETED":"FRONT_IN_PROGRESS",deviceIdentity=Profile.DeviceIdentity,printerProfileId=Profile.PrinterProfileId,printMode=AutoDuplex?"AUTO_DUPLEX":"MANUAL_DUPLEX",templateSnapshotHash="sha256:"+new string('a',64),printerSnapshotHash=Profile.PrinterSnapshotHash,
+        private HttpResponseMessage Claim()=>Json(new{claimId=MismatchedCurrent?Guid.NewGuid().ToString():ClaimId,leaseExpiresAt="2050-01-01T00:00:00Z",jobId=MismatchedCurrent?Guid.NewGuid().ToString():JobId,status=Completed?"COMPLETED":"FRONT_IN_PROGRESS",deviceIdentity=Profile.DeviceIdentity,printerProfileId=Profile.PrinterProfileId,printMode=AutoDuplex?"AUTO_DUPLEX":"MANUAL_DUPLEX",templateSnapshotHash="sha256:"+new string('a',64),printerSnapshotHash=MismatchedCurrentSnapshot?"sha256:"+new string('c',64):Profile.PrinterSnapshotHash,
             action=new{type=Completed?"NONE":AutoDuplex?"PRINT_BOTH":"PRINT_FRONT",face=AutoDuplex?"BOTH":"FRONT",attemptId=AttemptId,commandId=CommandId,artifact=new{downloadPath=ForeignUrl?"https://evil.example/pdf":$"/api/print-client/v1/jobs/{JobId}/artifacts/{(AutoDuplex?"combined":"FRONT")}/download",sha256=Hashing.Sha256(Pdf),pageWidthMm=85.6,pageHeightMm=53.98,pageCount=AutoDuplex?2:1}}});
         private static HttpResponseMessage Json(object data)=>new(HttpStatusCode.OK){Content=new StringContent(JsonSerializer.Serialize(new{data},Hashing.Json),Encoding.UTF8,"application/json")};
     }

@@ -141,7 +141,7 @@
 | `pair_id` | UUID，主键 | 模板对的稳定标识，对外绑定和任务选择使用该 ID。 |
 | `park_id` | 必填 | 模板对所属园区。 |
 | `name` | 必填，1-100 字符 | 管理员可见名称。 |
-| `print_item_type` | 固定 `STAFF_CARD` | 模板对只用于员工/外包/派遣/供应商等厂牌。 |
+| `print_item_type` | 固定 `STAFF_CARD` | 模板对只用于员工、外包和派遣厂牌；供应商使用单面 `VISITOR_SLIP`。 |
 | `person_type` | 必填枚举 | 适用人员类型；必须与两份模板一致。 |
 | `classification_code` | 必填，1-64 字符 | 适用分类；必须与两份模板一致。 |
 | `front_template_version_id` | 必填，已发布不可变单面版本 | 必须指向同园区、同打印物/人员类型/分类且 `face_role=FRONT`、`side_count=1` 的版本。 |

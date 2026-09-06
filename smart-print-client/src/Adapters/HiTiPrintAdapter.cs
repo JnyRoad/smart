@@ -14,6 +14,6 @@ public sealed class HiTiPrintAdapter(LocalPrinterProfile profile, PdfPageRendere
         var pages=renderer.Render(pdf,automatic?2:1,command.PageWidthMm,command.PageHeightMm,profile.Dpi);
         token.ThrowIfCancellationRequested();
         // 每个命令只有一次驱动提交；不携带卡号写入、芯片编码或权限操作。
-        return Task.FromResult(driver.Submit(profile,new PrintBatch("smart-"+command.CommandId,command.Face,automatic?profile.DuplexEdge:"SIMPLEX",pages)));
+        return Task.FromResult(NativeSubmission.Run(profile,()=>driver.Submit(profile,new PrintBatch("smart-"+command.CommandId,command.Face,automatic?profile.DuplexEdge:"SIMPLEX",pages))));
     }
 }

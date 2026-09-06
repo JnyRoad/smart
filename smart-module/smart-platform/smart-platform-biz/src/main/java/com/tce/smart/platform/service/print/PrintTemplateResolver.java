@@ -95,7 +95,7 @@ public class PrintTemplateResolver {
     }
     private String validateSubject(String requestedPark,ObjectNode subject) {
         String park=access.resolvePark(requestedPark);access.require("execute",park);if(subject==null||!park.equals(text(subject,"parkId")))throw scope();
-        String item=text(subject,"printItemType"),person=text(subject,"personType");if(!(("STAFF_CARD".equals(item)&&Arrays.asList("EMPLOYEE","OUTSOURCED","DISPATCHED","SUPPLIER").contains(person))||("VISITOR_SLIP".equals(item)&&"VISITOR".equals(person))))throw invalid();
+        String item=text(subject,"printItemType"),person=text(subject,"personType");if(!(("STAFF_CARD".equals(item)&&Arrays.asList("EMPLOYEE","OUTSOURCED","DISPATCHED").contains(person))||("VISITOR_SLIP".equals(item)&&Arrays.asList("VISITOR","SUPPLIER").contains(person))))throw invalid();
         if(text(subject,"subjectId")==null||text(subject,"classificationCode")==null||!subject.path("fields").isObject()||!subject.path("resources").isArray())throw error(422,"PRINT_SUBJECT_INVALID","人员资料不完整");
         access.validateManifest(park,subject.path("resources"));
         if(employee(item,person)){String code=text(subject,"employeeGradeCode");if(code==null)throw error(422,"EMPLOYEE_GRADE_REQUIRED","人员缺少厂牌职级");Map<String,String> known=config.confirmedGrades(park);if(!"DHR".equals(text(subject,"employeeGradeSource"))||!known.containsKey(code)||!Objects.equals(known.get(code),text(subject,"employeeGradeName")))throw error(422,"EMPLOYEE_GRADE_UNMAPPED","人员职级与已确认 DHR 字典不一致");}

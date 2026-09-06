@@ -364,14 +364,16 @@ export default {
     async doPrint(strExport) {
       if (this.printDispatching) return
       this.printDispatching = true
+      let legacyHandled = false
       try {
         await dispatchVisitorPrint(this.visitorData, 'ADMITTANCE',
-          () => this.doLegacyPrint(strExport), target => this.$router.push(target))
+          () => { legacyHandled = true; return this.doLegacyPrint(strExport) }, target => this.$router.push(target))
       } catch (error) {
         this.$message.error(error.message || '打印入口不可用，请联系操作员')
+        legacyHandled = false
       } finally {
         this.printDispatching = false
-        this.loading = false
+        if (!legacyHandled) this.loading = false
       }
     },
     async doLegacyPrint(strExport) {

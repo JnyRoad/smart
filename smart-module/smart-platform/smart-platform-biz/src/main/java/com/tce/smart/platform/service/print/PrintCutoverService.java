@@ -17,7 +17,7 @@ public class PrintCutoverService {
         Map<String,Object> result=new LinkedHashMap<>();
         result.put("visitorMode",selected?(enabled?"TEMPLATE":"PAUSED"):"LEGACY");
         result.put("legacyVisitorAllowed",!selected);
-        result.put("newJobCreationEnabled",enabled);
+        result.put("newJobCreationEnabled",selected&&enabled);
         result.put("revision",PrintJson.hash(result));
         return result;
     }

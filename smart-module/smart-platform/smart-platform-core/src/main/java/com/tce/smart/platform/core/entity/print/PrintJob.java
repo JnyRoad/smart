@@ -10,6 +10,7 @@ public class PrintJob {
     private String deviceIdentity;
     private String subjectType;
     private String subjectId;
+    private String activeSubjectKey;
     private String printItemType;
     private String printMode;
     private String status;

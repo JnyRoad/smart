@@ -35,6 +35,10 @@ public sealed class TaskPoller(PrintApiClient api,PrintCommandJournal journal,IR
                 throw new InvalidDataException("领取结果不属于已登记设备");
             var claimId=Value(remote,"claimId");var jobId=Value(remote,"jobId");
             if(!Guid.TryParseExact(claimId,"D",out _) || !Guid.TryParseExact(jobId,"D",out _))throw new InvalidDataException("领取结果标识无效");
+            // GET /current 只能返回本实例已领取的同一任务；切换任务必须先完成显式设备清空。
+            if(state!=null && claimedThisInstance.Contains(profile.PrinterProfileId) && (claimId!=state.ClaimId || jobId!=state.JobId))
+                throw new InvalidDataException("当前领取结果不属于原任务");
+            if(Value(remote,"printerSnapshotHash")!=profile.PrinterSnapshotHash)throw new InvalidDataException("领取结果与本机冻结档案不一致");
             journal.SaveClaim(new ClaimState(profile.PrinterProfileId,claimId,jobId,Value(remote,"leaseExpiresAt"),claimInstance,profile.DeviceIdentity,Value(remote,"printerSnapshotHash")));claimedThisInstance.Add(profile.PrinterProfileId);
             if(pending!=null)journal.CompleteOperation(profile.PrinterProfileId,"claim",pending.Key);
             } finally {coordination.Release();}

@@ -14,11 +14,7 @@ public sealed class BpacPrintDriver : IBpacPrintDriver
     [SupportedOSPlatform("windows")]
     private static SubmissionResult InWindowsApartment(LocalPrinterProfile profile,string jobName,byte[] template,byte[] image)
     {
-        SubmissionResult? result=null; Exception? failure=null;
-        var thread=new Thread(()=> {try {result=SubmitWindows(profile,jobName,template,image);}catch(Exception error){failure=error;}});
-        thread.SetApartmentState(ApartmentState.STA);thread.Start();thread.Join();
-        if(failure!=null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
-        return result??throw new IOException("b-PAC 未返回提交结果");
+        return NativeSubmission.Run(profile,()=>SubmitWindows(profile,jobName,template,image),ApartmentState.STA);
     }
     [SupportedOSPlatform("windows")]
     private static SubmissionResult SubmitWindows(LocalPrinterProfile profile,string jobName,byte[] template,byte[] image)

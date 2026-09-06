@@ -6,7 +6,7 @@ export const clone = value => JSON.parse(JSON.stringify(value))
 
 /** 只新建一面；介质尺寸须在发布和设备验收中再确认。 */
 export function newTemplateDraft(printItemType, personType, faceRole) {
-  if (printItemType === 'VISITOR_SLIP' && (faceRole !== 'FRONT' || personType !== 'VISITOR')) throw new Error('访客仅支持单面凭条')
+  if (printItemType === 'VISITOR_SLIP' && (faceRole !== 'FRONT' || !['VISITOR', 'SUPPLIER'].includes(personType))) throw new Error('访客与供应商仅支持单面凭条')
   const page = printItemType === 'STAFF_CARD'
     ? { widthMm: 85.6, heightMm: 53.98, orientation: 'LANDSCAPE', maxPageCount: 1 }
     : { widthMm: 58, heightMm: 76, orientation: 'PORTRAIT', maxPageCount: 1 }
@@ -20,8 +20,9 @@ export function canvasFromVersion(version) {
   const layout = version.layoutJson
   if (!layout || layout.basePdfRef) throw new Error('模板底板需要经过服务端授权加载，当前不能直接编辑')
   const page = version.pageSpecJson
-  const canvas = { basePdf: { width: page.widthMm, height: page.heightMm, padding: [0, 0, 0, 0] }, schemas: clone(layout.schemas) }
-  assertSinglePageTemplate(canvas, version.printItemType || 'STAFF_CARD')
+  const shape = { basePdf: { width: page.widthMm, height: page.heightMm, padding: [0, 0, 0, 0] }, schemas: layout.schemas }
+  assertSinglePageTemplate(shape, version.printItemType || 'STAFF_CARD')
+  const canvas = { ...shape, schemas: clone(layout.schemas) }
   applyPersonPhotoBindings(canvas, version.fieldSchemaJson || { fields: [] })
   return canvas
 }

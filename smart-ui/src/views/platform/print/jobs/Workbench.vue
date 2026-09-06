@@ -40,8 +40,8 @@ import { listTemplates, listVersions } from '@/api/platform/print/templates'
 import { recordsOf, newIdempotencyKey } from '@/api/platform/print/client'
 import PrintPreview from '@/components/print/PrintPreview.vue'
 import JobHistory from './JobHistory.vue'
-const staffSources = [{ value: 'STAFF', label: '员工、外包与派遣' }, { value: 'SUPPLIER_PERSON', label: '长期供应商人员' }]
-const visitorSources = [{ value: 'ADMITTANCE', label: '入厂申请主访客' }, { value: 'ADMITTANCE_COMPANION', label: '入厂申请随行人员' }, { value: 'VISITOR', label: '历史预约主访客' }, { value: 'VISITOR_COMPANION', label: '历史预约随行人员' }]
+const staffSources = [{ value: 'STAFF', label: '员工、外包与派遣' }]
+const visitorSources = [{ value: 'ADMITTANCE', label: '入厂申请主访客' }, { value: 'ADMITTANCE_COMPANION', label: '入厂申请随行人员' }, { value: 'VISITOR', label: '历史预约主访客' }, { value: 'VISITOR_COMPANION', label: '历史预约随行人员' }, { value: 'SUPPLIER_PERSON', label: '供应商人员（单面凭条）' }]
 /** 候选读取到完整分页；不能只展示第一页而误导为模板不存在。 */
 async function allPages(loader, params, pageKey = 'current') {
   const rows = []; let page = 1

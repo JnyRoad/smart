@@ -13,26 +13,35 @@ public sealed record PendingOperation(string Key,string Path,JsonObject Body);
 public sealed class PrintCommandJournal : IDisposable
 {
     private readonly string directory;
+    private readonly string archiveDirectory;
     private readonly FileStream processLock;
     private readonly object gate = new();
+    private long highestSequence;
     public PrintCommandJournal(string directory)
     {
         this.directory = PrivateDirectory.Ensure(directory);
         Directory.CreateDirectory(this.directory);
         if ((File.GetAttributes(this.directory) & FileAttributes.ReparsePoint) != 0) throw new IOException("打印日志目录不能是符号链接");
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(this.directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        archiveDirectory=Path.Combine(this.directory,"archive");Directory.CreateDirectory(archiveDirectory);
+        if ((File.GetAttributes(archiveDirectory) & FileAttributes.ReparsePoint) != 0) throw new IOException("打印日志归档目录不能是符号链接");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(archiveDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         processLock = new FileStream(Path.Combine(this.directory, "client.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        highestSequence=LoadHighestSequence();
+        ArchiveAcknowledged();
     }
     private string RecordPath(string commandId)
     {
         if (!Guid.TryParseExact(commandId, "D", out _)) throw new InvalidDataException("命令标识格式无效");
         return Path.Combine(directory, commandId + ".json");
     }
+    private string ArchivedRecordPath(string commandId) => Path.Combine(archiveDirectory, commandId + ".json");
+    private string SequencePath() => Path.Combine(directory,"client.sequence");
     public JournalEntry? Find(string commandId)
     {
         lock(gate)
         {
-            var path = RecordPath(commandId);
+            var path = RecordPath(commandId); if(!File.Exists(path)) path=ArchivedRecordPath(commandId);
             if (!File.Exists(path)) return null;
             if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("日志记录不能是符号链接");
             try
@@ -81,7 +90,7 @@ public sealed class PrintCommandJournal : IDisposable
         {
             var entry = Find(commandId) ?? throw new InvalidDataException("缺少提交意图");
             if(entry.Result is not null) return entry.Result;
-            if(entry.State is not ("SUBMISSION_STARTED" or "RETIRED")) throw new InvalidDataException("命令状态不允许记录回执");
+            if(entry.State is not "SUBMISSION_STARTED" and not "RETIRED") throw new InvalidDataException("命令状态不允许记录回执");
             if(!new[] { "DEVICE_ACCEPTED", "DRIVER_REJECTED", "OUTPUT_UNKNOWN", "COMMAND_RETIRED" }.Contains(eventType)) throw new InvalidDataException("无效打印事件");
             if(driverJobKey?.Length > 128) throw new InvalidDataException("驱动标识过长");
             var payload = new Dictionary<string,object>();
@@ -101,7 +110,8 @@ public sealed class PrintCommandJournal : IDisposable
         lock(gate) {
             var entry=Find(commandId)??throw new InvalidDataException("未找到回执命令");
             if(!entry.Events.Any(e=>e.EventId==eventId)) throw new InvalidDataException("回执事件不属于该命令");
-            if(!entry.AcknowledgedEventIds.Contains(eventId)) Save(entry with {AcknowledgedEventIds=[..entry.AcknowledgedEventIds,eventId]});
+            if(!entry.AcknowledgedEventIds.Contains(eventId)) {entry=entry with {AcknowledgedEventIds=[..entry.AcknowledgedEventIds,eventId]};Save(entry);}
+            if(isAcknowledged(entry)) Archive(commandId);
         }
     }
     public PrintClientEvent Retire(string commandId,bool queueCleared,bool sameCardFaceVerified)
@@ -119,9 +129,35 @@ public sealed class PrintCommandJournal : IDisposable
     private IEnumerable<JournalEntry> Entries()
     {
         foreach(var file in Directory.EnumerateFiles(directory,"*.json"))
-            if(Guid.TryParseExact(Path.GetFileNameWithoutExtension(file),"D",out _)) yield return Find(Path.GetFileNameWithoutExtension(file))!;
+            if(Guid.TryParseExact(Path.GetFileNameWithoutExtension(file),"D",out _)) {
+                JournalEntry? entry;
+                try {entry=Find(Path.GetFileNameWithoutExtension(file));}
+                catch(InvalidDataException error) {Console.Error.WriteLine("打印日志记录已隔离，等待人工核对："+error.Message);continue;}
+                if(entry!=null)yield return entry;
+            }
     }
-    private long NextSequence() => checked(Entries().SelectMany(entry=>entry.Events).Select(e=>e.ClientSequence).DefaultIfEmpty(0).Max()+1);
+    private long NextSequence(){var next=checked(highestSequence+1);SaveBytes(SequencePath(),System.Text.Encoding.UTF8.GetBytes(next.ToString(System.Globalization.CultureInfo.InvariantCulture)));highestSequence=next;return next;}
+    private long LoadHighestSequence()
+    {
+        var path=SequencePath();if(File.Exists(path)) {
+            if(new FileInfo(path).Length>32 || (File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0 || !long.TryParse(System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(path)),System.Globalization.NumberStyles.None,System.Globalization.CultureInfo.InvariantCulture,out var sequence) || sequence<0)throw new InvalidDataException("打印事件序号日志异常");
+            return sequence;
+        }
+        long highest=0;foreach(var folder in new[]{directory,archiveDirectory})foreach(var file in Directory.EnumerateFiles(folder,"*.json"))if(Guid.TryParseExact(Path.GetFileNameWithoutExtension(file),"D",out _)) {
+            try {var entry=Find(Path.GetFileNameWithoutExtension(file));if(entry!=null)highest=Math.Max(highest,entry.Events.Select(e=>e.ClientSequence).DefaultIfEmpty(0).Max());}
+            catch(InvalidDataException error) {Console.Error.WriteLine("打印日志记录已隔离，等待人工核对："+error.Message);}
+        }return highest;
+    }
+    private void Archive(string commandId)
+    {
+        var active=RecordPath(commandId);if(!File.Exists(active))return;File.Move(active,ArchivedRecordPath(commandId),true);
+    }
+    private static bool isAcknowledged(JournalEntry entry) => entry.Events.Count>0 && entry.Events.All(e=>entry.AcknowledgedEventIds.Contains(e.EventId)) && entry.State is "RESULT_RECORDED" or "RETIRED";
+    // 提交 ACK 后进程若在移动文件前退出，下一次启动补做归档；不扫描已归档记录。
+    private void ArchiveAcknowledged()
+    {
+        foreach(var entry in Entries())if(isAcknowledged(entry))Archive(entry.Command.CommandId);
+    }
     private string ClaimPath(string profileId)
     {
         if(!Guid.TryParseExact(profileId,"D",out _))throw new InvalidDataException("设备档案标识格式无效");

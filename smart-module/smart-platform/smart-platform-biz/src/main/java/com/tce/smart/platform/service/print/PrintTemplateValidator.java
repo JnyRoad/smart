@@ -20,8 +20,8 @@ public class PrintTemplateValidator {
         List<String> classifications = properties.getClassificationCodes().get(request.getPrintItemType() + ":" + request.getPersonType());
         if (classifications == null || classifications.isEmpty()) throw new PrintApiException(503, "PRINT_CLASSIFICATION_NOT_CONFIGURED", "该人员类型的受控分类尚未配置");
         if (!classifications.contains(request.getClassificationCode())) invalid(request.getFaceRole(), "classificationCode", "CLASSIFICATION_NOT_ALLOWED");
-        boolean staff = "STAFF_CARD".equals(request.getPrintItemType()) && Arrays.asList("EMPLOYEE", "OUTSOURCED", "DISPATCHED", "SUPPLIER").contains(request.getPersonType());
-        boolean visitor = "VISITOR_SLIP".equals(request.getPrintItemType()) && "VISITOR".equals(request.getPersonType());
+        boolean staff = "STAFF_CARD".equals(request.getPrintItemType()) && Arrays.asList("EMPLOYEE", "OUTSOURCED", "DISPATCHED").contains(request.getPersonType());
+        boolean visitor = "VISITOR_SLIP".equals(request.getPrintItemType()) && Arrays.asList("VISITOR", "SUPPLIER").contains(request.getPersonType());
         if ((!staff && !visitor) || !Arrays.asList("FRONT", "BACK").contains(request.getFaceRole()) || (visitor && !"FRONT".equals(request.getFaceRole())) || !Integer.valueOf(1).equals(request.getSideCount())) invalid(request.getFaceRole(), "sideCount", "SINGLE_FACE_REQUIRED");
         PrintJson.limit(request.getLayoutJson(), 2 * 1024 * 1024); PrintJson.limit(request.getFieldSchemaJson(), 256 * 1024); PrintJson.limit(request.getPageSpecJson(), 256 * 1024);
         PrintJson.limit(request.getResourceManifest(), 256 * 1024);

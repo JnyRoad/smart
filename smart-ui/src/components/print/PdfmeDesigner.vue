@@ -62,12 +62,12 @@ function loadFont() {
 export default {
   name: 'PdfmeDesigner', components: { PdfmeHost },
   props: { template: { type: Object, required: true }, printItemType: { type: String, required: true }, fieldSchema: { type: Object, default: () => ({ fields: [] }) }, disabled: { type: Boolean, default: false } },
-  data() { return { font: null, error: '', latestTemplate: this.template, hostTemplate: this.template } },
+  data() { return { font: null, error: '', latestTemplate: JSON.parse(JSON.stringify(this.template)), hostTemplate: JSON.parse(JSON.stringify(this.template)) } },
   computed: {
     bindable() { return (this.latestTemplate.schemas[0] || []).filter(item => ['text', 'qrcode', 'code128', 'image'].includes(item.type)) },
     invalidBindings() { return this.fieldSchema.fields.filter(field => !this.bindable.some(item => item.name === field.schemaName && this.allowedFields(item).some(choice => choice.key === field.key))) }
   },
-  watch: { template(value) { this.latestTemplate = value; this.hostTemplate = value } },
+  watch: { template(value) { this.latestTemplate = JSON.parse(JSON.stringify(value)); this.hostTemplate = JSON.parse(JSON.stringify(value)) } },
   /** 只加载固定资源，不读取人员资料；页面离开后不再写状态。 */
   async mounted() { try { const font = await loadFont(); if (!this._isDestroyed) this.font = font } catch (error) { if (!this._isDestroyed) this.error = error.message } },
   methods: {
@@ -94,9 +94,10 @@ export default {
       const previous = this.binding(name).key
       const fields = this.fieldSchema.fields.filter(item => item.schemaName !== name)
       if (key) fields.push({ key, schemaName: name, required: true })
-      if (component && (key === 'personPhoto' || previous === 'personPhoto')) {
+      if (component && this.$refs.host && (key === 'personPhoto' || previous === 'personPhoto')) {
         const canvas = this.$refs.host.getTemplate()
         const image = canvas.schemas[0].find(item => item.name === name)
+        if (!image) return
         delete image.resourceRef; delete image.content; image.readOnly = true
         applyPersonPhotoBindings(canvas, { fields })
         // 仅切换资源来源时重建画布；普通拖动仍保留编辑器实例和当前选区。

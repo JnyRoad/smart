@@ -39,7 +39,7 @@ public static class Program
             var poller=new TaskPoller(api,journal,options.Printers,profile=>profile.Manufacturer=="Brother"
                 ?new BrotherPrintAdapter(profile,new PdfPageRenderer(),new BpacPrintDriver()):new HiTiPrintAdapter(profile,new PdfPageRenderer(),new WindowsPrintDriver()));
             using var stop=new CancellationTokenSource();Console.CancelKeyPress+=(_,eventArgs)=>{eventArgs.Cancel=true;stop.Cancel();};
-            var heartbeat=Heartbeat(poller,stop.Token);Console.WriteLine("工作站已启动；回执或设备状态异常时保留原任务，等待平台核对。");
+            var heartbeat=Heartbeat(poller,stop);_ = heartbeat.ContinueWith(_=>stop.Cancel(),CancellationToken.None,TaskContinuationOptions.OnlyOnFaulted,TaskScheduler.Default);Console.WriteLine("工作站已启动；回执或设备状态异常时保留原任务，等待平台核对。");
             try {
                 while(!stop.IsCancellationRequested) {
                     try {await poller.StepAsync(stop.Token);}
@@ -59,8 +59,15 @@ public static class Program
     {
         var index=Array.IndexOf(args,name);if(index<0||index+1>=args.Length)throw new InvalidDataException("缺少参数 "+name);return args[index+1];
     }
-    private static async Task Heartbeat(TaskPoller poller,CancellationToken token)
+    private static async Task Heartbeat(TaskPoller poller,CancellationTokenSource stop)
     {
-        while(!token.IsCancellationRequested){await Task.Delay(TimeSpan.FromSeconds(15),token);try{await poller.RenewAsync(token);}catch(HttpRequestException){Console.Error.WriteLine("连接租约续期失败，物理任务占用保持。");}}
+        var token=stop.Token;
+        while(!token.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(15),token);
+            try {await poller.RenewAsync(token);}
+            catch(OperationCanceledException) when(token.IsCancellationRequested) {throw;}
+            catch(Exception error) when(error is HttpRequestException or OperationCanceledException) {Console.Error.WriteLine("连接租约续期失败，物理任务占用保持。");}
+        }
     }
 }

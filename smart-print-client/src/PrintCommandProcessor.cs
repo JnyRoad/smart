@@ -18,6 +18,7 @@ public sealed class PrintCommandProcessor(PrintCommandJournal journal, IPrintAda
             journal.MarkSubmissionStarted(command.CommandId);
             SubmissionResult result;
             try { result = await adapter.SubmitAsync(command, pdf, token); }
+            catch(PrintSubmissionTimeoutException) { journal.RecordResult(command.CommandId, "OUTPUT_UNKNOWN"); throw; }
             catch(PrintNotSubmittedException) { return journal.RecordResult(command.CommandId, "DRIVER_REJECTED"); }
             catch(Exception) { return journal.RecordResult(command.CommandId, "OUTPUT_UNKNOWN"); }
             return journal.RecordResult(command.CommandId, result.Accepted ? "DEVICE_ACCEPTED" : "DRIVER_REJECTED", result.DriverJobKey);

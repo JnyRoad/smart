@@ -49,6 +49,13 @@ public sealed class PrintCommandRecoveryTests : IDisposable
         Assert.Equal(1, adapter.Submissions);
     }
     [Fact]
+    public async Task NativeSubmissionTimeoutRecordsUnknownThenStopsTheCommand()
+    {
+        var command=Command();using var journal=new PrintCommandJournal(directory);
+        await Assert.ThrowsAsync<PrintSubmissionTimeoutException>(()=>new PrintCommandProcessor(journal,new TimeoutAdapter(),Binding()).ExecuteAsync(command,Pdf,CancellationToken.None));
+        Assert.Equal("OUTPUT_UNKNOWN",journal.Find(command.CommandId)!.Result!.EventType);
+    }
+    [Fact]
     public async Task ChangedCommandBodyOrArtifactCannotReuseSubmission()
     {
         var command = Command(); var adapter = new Adapter(); using var journal = new PrintCommandJournal(directory);
@@ -98,5 +105,9 @@ public sealed class PrintCommandRecoveryTests : IDisposable
             if(ThrowAfterSubmission) throw new IOException("模拟驱动回执丢失");
             return Task.FromResult(new SubmissionResult(true, "synthetic-driver-job"));
         }
+    }
+    private sealed class TimeoutAdapter : IPrintAdapter
+    {
+        public Task<SubmissionResult> SubmitAsync(PrintCommand command, byte[] pdf, CancellationToken token) => Task.FromException<SubmissionResult>(new PrintSubmissionTimeoutException("模拟原生提交超时"));
     }
 }

@@ -32,6 +32,7 @@ public sealed record LocalPrinterProfile
     public string LbxHash {get;init;}="";
     public string LbxObjectName {get;init;}="PageImage";
     public string TempDirectory {get;init;}="";
+    public int SubmissionTimeoutSeconds {get;init;}
     public void ValidateCommand(PrintCommand command)
     {
         if(command.PrinterProfileId!=PrinterProfileId || command.DeviceIdentity!=DeviceIdentity || command.PrinterSnapshotHash!=PrinterSnapshotHash

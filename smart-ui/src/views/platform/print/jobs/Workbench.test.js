@@ -54,6 +54,13 @@ it('访客强制单面，手选请求不发送背面或厂牌组合', async () =
   const request = wrapper.vm.requestFor(wrapper.vm.selected[0], true)
   expect(request.printMode).toBe('SINGLE'); expect(request.selection).not.toHaveProperty('backTemplateVersionId'); expect(request.selection).not.toHaveProperty('pairId')
 })
+it('供应商只在访客凭条工作台出现，并固定为单面任务', async () => {
+  expect(wrapper.vm.sources.map(item => item.value)).not.toContain('SUPPLIER_PERSON')
+  await wrapper.setProps({ visitor: true }); await settle()
+  expect(wrapper.vm.sources.map(item => item.value)).toContain('SUPPLIER_PERSON')
+  await wrapper.setData({ selected: [{ subjectId: 'supplier-1', subjectType: 'SUPPLIER_PERSON', displayName: '供应商人员', verified: true, confirmed: true }], selectionKind: 'EXPLICIT', frontId: 'FRONT-v1', printerId: 'p1' })
+  expect(wrapper.vm.requestFor(wrapper.vm.selected[0], true).printMode).toBe('SINGLE')
+})
 it('提交连接失败保留人员和确认，同内容重试使用同一幂等键', async () => {
   await wrapper.setData({ selected: [{ subjectId: 's1', subjectType: 'STAFF', displayName: '测试员工', verified: true, confirmed: true, previewId: 'preview1' }] })
   jobs.createJob.mockRejectedValueOnce(new Error('连接断开')).mockResolvedValueOnce({ jobId: 'j1' })

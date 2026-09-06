@@ -25,6 +25,7 @@ public class PrintAccessPolicyTest {
         p.getPermissions().put("resource", "test:print:resource");
         p.getClassificationCodes().put("STAFF_CARD:EMPLOYEE", Collections.singletonList("STAFF_DEFAULT"));
         p.getClassificationCodes().put("VISITOR_SLIP:VISITOR", Arrays.asList("VISITOR_NORMAL", "VISITOR_SECURITY"));
+        p.getClassificationCodes().put("VISITOR_SLIP:SUPPLIER", Collections.singletonList("SUPPLIER_DEFAULT"));
         return p;
     }
 

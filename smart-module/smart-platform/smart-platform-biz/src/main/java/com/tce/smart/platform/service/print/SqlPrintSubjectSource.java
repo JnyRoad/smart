@@ -38,10 +38,8 @@ public class SqlPrintSubjectSource implements PrintSubjectSource {
         ObjectNode result=PrintJson.object().put("parkId",park).put("subjectType",subjectType).put("subjectId",subjectId);
         ObjectNode fields=result.putObject("fields");result.putArray("resources");
         if("STAFF".equals(subjectType)) staff(park,subjectId,row,result,fields);
-        else if("SUPPLIER_PERSON".equals(subjectType)) {
-            // 现有供应商人员只有供应商及证件关系，没有可确认的实体卡外键；不能借同 ID 的员工卡。
-            throw error("SUPPLIER_CARD_SOURCE_NOT_CONFIGURED","长期供应商人员尚缺经确认的已登记实体卡关联适配");
-        } else visitor(park,subjectType,row,result,fields);
+        else if("SUPPLIER_PERSON".equals(subjectType)) supplier(row,result,fields);
+        else visitor(park,subjectType,row,result,fields);
         photo(park,subjectType,text(row,"photoCode"),(ArrayNode)result.path("resources"));
         return result;
     }
@@ -112,6 +110,12 @@ public class SqlPrintSubjectSource implements PrintSubjectSource {
         String credential=text(row,"credential");
         if(security&&credential==null)throw error("VISITOR_CREDENTIAL_REQUIRED","保密访客缺少可信预约凭证");
         if(credential!=null)fields.put("visitorCredentialPayload",credential);
+    }
+    /** 供应商人员只打印访客式单面凭条，不复用员工实体卡或 HiTi 厂牌资料。 */
+    private void supplier(Map<String,Object> row,ObjectNode result,ObjectNode fields) {
+        result.put("printItemType","VISITOR_SLIP").put("personType","SUPPLIER")
+                .put("classificationCode","SUPPLIER_DEFAULT").put("supplierId",required(row,"supplierId"));
+        fields.put("visitorName",required(row,"name")).put("companyName",required(row,"companyName"));
     }
     private boolean classification(String park,boolean modern,Map<String,Object> row) {
         if(!modern) {

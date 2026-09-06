@@ -31,6 +31,28 @@ public sealed class JournalOutboxTests : IDisposable
         Assert.Equal("INTENT_RECORDED",journal.Find(command.CommandId)!.State);
     }
     [Fact]
+    public void AcknowledgedRecordsAreArchivedAndCorruptSiblingDoesNotBlockPendingEvents()
+    {
+        var archived=PrintAdapterTests.Command(TestPdf.Create());var pending=PrintAdapterTests.Command(TestPdf.Create());
+        using var journal=new PrintCommandJournal(directory);
+        journal.RecordIntent(archived);journal.MarkSubmissionStarted(archived.CommandId);var result=journal.RecordResult(archived.CommandId,"DEVICE_ACCEPTED");journal.Acknowledge(archived.CommandId,result.EventId);
+        Assert.True(File.Exists(Path.Combine(directory,"archive",archived.CommandId+".json")));Assert.NotNull(journal.Find(archived.CommandId));
+        journal.RecordIntent(pending);journal.MarkSubmissionStarted(pending.CommandId);var waiting=journal.RecordResult(pending.CommandId,"OUTPUT_UNKNOWN");
+        File.WriteAllText(Path.Combine(directory,Guid.NewGuid()+".json"),"损坏的其他记录");
+        Assert.Equal(waiting.EventId,journal.PendingEvents().Single().EventId);
+    }
+    [Fact]
+    public void RestartArchivesAcknowledgedRecordLeftByInterruptedCompaction()
+    {
+        var command=PrintAdapterTests.Command(TestPdf.Create());var active=Path.Combine(directory,command.CommandId+".json");var archived=Path.Combine(directory,"archive",command.CommandId+".json");
+        using(var journal=new PrintCommandJournal(directory)) {
+            journal.RecordIntent(command);journal.MarkSubmissionStarted(command.CommandId);var result=journal.RecordResult(command.CommandId,"DEVICE_ACCEPTED");journal.Acknowledge(command.CommandId,result.EventId);
+            File.Move(archived,active); // 模拟 ACK 已落盘、归档移动前工作站异常退出。
+        }
+        using var reopened=new PrintCommandJournal(directory);
+        Assert.False(File.Exists(active));Assert.True(File.Exists(archived));Assert.NotNull(reopened.Find(command.CommandId));
+    }
+    [Fact]
     public void PrivateDirectoryRejectsSymlinkAndProtectsLogsOnUnix()
     {
         if(OperatingSystem.IsWindows()) return;
