@@ -18,7 +18,7 @@ import com.tce.smart.platform.core.vo.TaskDownRecordVO;
 import com.tce.smart.platform.core.service.SmtTaskDownRecordService;
 import com.tce.smart.tool.enums.DeviceTaskActionEnum;
 import com.tce.smart.tool.enums.DeviceTaskStatusEnum;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,12 +34,16 @@ import java.util.List;
  */
 @Service
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class SmtTaskDownRecordServiceImpl extends ServiceImpl<SmtTaskDownRecordMapper, SmtTaskDownRecord> implements SmtTaskDownRecordService {
 
 	private final SmtDeviceMapper smtDeviceMapper;
 
 	private final StaffDeviceAuthSyncService staffDeviceAuthSyncService;
+ private AuthOperationTransportGuard transportGuard;
+ @org.springframework.beans.factory.annotation.Autowired
+ public void setTransportGuard(AuthOperationTransportGuard guard){this.transportGuard=guard;}
+
 
 	@Override
 	public IPage<TaskDownRecordVO> getVehicle(Page page, TaskDownRecordDTO taskDownRecordDTO) {
@@ -60,9 +64,13 @@ public class SmtTaskDownRecordServiceImpl extends ServiceImpl<SmtTaskDownRecordM
 		return list;
 	}
 
-	@Transactional
+	@Transactional(rollbackFor = Exception.class)
 	@Override
 	public void handleTaskDownRecord(SmtDeviceTask smtDeviceTask) {
+  com.tce.smart.platform.core.entity.SmtAuthTransportPhase current=AuthOperationTransportRecordContext.current("DIRECT",String.valueOf(smtDeviceTask.getId()));
+  if(current!=null){handleVersionRecord(smtDeviceTask,current);return;}
+  if(transportGuard!=null&&transportGuard.bound("DIRECT",String.valueOf(smtDeviceTask.getId())))throw new IllegalStateException("绑定任务必须经可信版本门禁维护记录");
+
 
 		SmtTaskDownRecord taskDownRecord = this.getOne(new LambdaQueryWrapper<SmtTaskDownRecord>()
 				.eq(SmtTaskDownRecord::getDeviceCode, smtDeviceTask.getDeviceCode())
@@ -82,7 +90,7 @@ public class SmtTaskDownRecordServiceImpl extends ServiceImpl<SmtTaskDownRecordM
 					|| smtDeviceTask.getAction().equals(DeviceTaskActionEnum.DELAY_DEL.getCode())
 			)){
 			//删除
-			this.removeById(taskDownRecord.getId());
+			removeRecordOrThrow(taskDownRecord);
 			staffDeviceAuthSyncService.syncAfterDelete(taskDownRecord);
 		} else if(null == taskDownRecord
 				&&
@@ -97,14 +105,24 @@ public class SmtTaskDownRecordServiceImpl extends ServiceImpl<SmtTaskDownRecordM
 						|| smtDeviceTask.getAction().equals(DeviceTaskActionEnum.DELAY_UPDATE.getCode())
 				)){
 			//修改 先删除原来的记录 再添加新记录
-			this.removeById(taskDownRecord.getId());
+			removeRecordOrThrow(taskDownRecord);
 			addDownRecord(smtDeviceTask);
+		}
+	}
+
+	/**
+	 * 删除未成功时中断本地收敛，防止继续移除来源或写入替代记录。
+	 */
+	private void removeRecordOrThrow(SmtTaskDownRecord record) {
+		if (!this.removeById(record.getId())) {
+			throw new IllegalStateException("直连下发记录删除失败，recordId=" + record.getId());
 		}
 	}
 
 	private void addDownRecord(SmtDeviceTask smtDeviceTask){
 		SmtTaskDownRecord taskDownRecord = new SmtTaskDownRecord();
 		BeanUtil.copyProperties(smtDeviceTask,taskDownRecord);
+		taskDownRecord.setId(null);
 		taskDownRecord.setImageId(smtDeviceTask.getImageId());
 		taskDownRecord.setTaskId(smtDeviceTask.getId());
 		taskDownRecord.setCreateTime(LocalDateTime.now());
@@ -117,6 +135,25 @@ public class SmtTaskDownRecordServiceImpl extends ServiceImpl<SmtTaskDownRecordM
 		taskDownRecord.setServiceType(smtDeviceTask.getServiceType());
 		taskDownRecord.setTaskType(DeviceTaskStatusEnum.SUCCESS.getCode());
 		taskDownRecord.setRemark("");
-		this.save(taskDownRecord);
+		if (!this.save(taskDownRecord)) {
+			throw new IllegalStateException("直连下发记录保存失败，taskId=" + smtDeviceTask.getId());
+		}
 	}
+
+ /** 已通过目标版本门禁，只维护精确物理记录，业务来源由工作流最终收敛。 */
+ private void handleVersionRecord(SmtDeviceTask task,com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+  LambdaQueryWrapper<SmtTaskDownRecord> query=new LambdaQueryWrapper<SmtTaskDownRecord>()
+   .eq(SmtTaskDownRecord::getParkId,phase.getParkId()).eq(SmtTaskDownRecord::getDeviceCode,phase.getDeviceId())
+   .eq(SmtTaskDownRecord::getCardNo,phase.getCardNo()).eq(SmtTaskDownRecord::getDeviceType,1)
+   .eq(SmtTaskDownRecord::getServiceType,Integer.valueOf(phase.getServiceType()));
+  SmtTaskDownRecord old=this.getOne(query);if(old!=null)removeRecordOrThrow(old);
+  if("DELETE".equals(phase.getAction()))return;
+  SmtTaskDownRecord record=new SmtTaskDownRecord();record.setParkId(phase.getParkId());record.setDeviceCode(phase.getDeviceId());
+  record.setCardNo(phase.getCardNo());record.setDeviceType(1);record.setServiceType(Integer.valueOf(phase.getServiceType()));
+  record.setTaskId(Integer.valueOf(phase.getTaskId()));record.setImageId(phase.getImageId());
+  record.setStartTime(DateUtil.date(phase.getStartTime()*1000));record.setOverTime(DateUtil.date(phase.getOverTime()*1000));
+  record.setAction(DeviceTaskActionEnum.DOWN.getCode());record.setTaskType(DeviceTaskStatusEnum.SUCCESS.getCode());
+  record.setCreateTime(LocalDateTime.now());record.setRemark("");
+  if(!this.save(record))throw new IllegalStateException("冻结下发记录保存失败");
+ }
 }

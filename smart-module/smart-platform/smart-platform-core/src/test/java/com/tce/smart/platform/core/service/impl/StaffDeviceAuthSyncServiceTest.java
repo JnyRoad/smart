@@ -113,6 +113,12 @@ public class StaffDeviceAuthSyncServiceTest {
 		Mockito.verify(staffAuthMapper).deleteById(10);
 	}
 
+ @Test public void pendingWorkflowProtectionStopsLegacySourceDiscovery() {
+  SmtStaffDeviceAuthMapper staff=Mockito.mock(SmtStaffDeviceAuthMapper.class);SmtDeviceAuthorityRelationMapper relations=Mockito.mock(SmtDeviceAuthorityRelationMapper.class);
+  StaffDeviceAuthSyncService service=newService(staff,relations,Mockito.mock(SmtTaskDownRecordMapper.class),Mockito.mock(SmtIscDownRecordMapper.class),Mockito.mock(SmtStaffMapper.class));
+  AuthOperationTransportGuard guard=Mockito.mock(AuthOperationTransportGuard.class);service.setTransportGuard(guard);Mockito.when(guard.protectSource("d","1001",null)).thenReturn(true);
+  service.syncAfterDelete("d","1001",null,DeviceTaskConstants.CARD,DeviceTaskConstants.CARD_STAFF_IMPORT);Mockito.verifyZeroInteractions(staff,relations);
+ }
 	private StaffDeviceAuthSyncService newService(SmtStaffDeviceAuthMapper staffAuthMapper,
 												  SmtDeviceAuthorityRelationMapper relationMapper,
 												  SmtTaskDownRecordMapper downRecordMapper,

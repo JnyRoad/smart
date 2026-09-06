@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthOperationTargetMapper">
+
+	<resultMap id="AuthOperationTargetMap" type="com.tce.smart.platform.core.entity.SmtAuthOperationTarget">
+		<id property="id" column="ID"/>
+		<result property="batchId" column="BATCH_ID"/>
+		<result property="requestId" column="REQUEST_ID"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="targetKey" column="TARGET_KEY"/>
+		<result property="subjectType" column="SUBJECT_TYPE"/>
+		<result property="subjectId" column="SUBJECT_ID"/>
+		<result property="subjectSnapshot" column="SUBJECT_SNAPSHOT" jdbcType="CLOB"/>
+		<result property="resourceType" column="RESOURCE_TYPE"/>
+		<result property="deviceId" column="DEVICE_ID"/>
+		<result property="resourceId" column="RESOURCE_ID"/>
+		<result property="accessType" column="ACCESS_TYPE"/>
+		<result property="operationQueue" column="OPERATION_QUEUE"/>
+		<result property="action" column="ACTION"/>
+		<result property="validFrom" column="VALID_FROM"/>
+		<result property="validTo" column="VALID_TO"/>
+		<result property="operationVersion" column="OPERATION_VERSION"/>
+		<result property="legacyTaskId" column="LEGACY_TASK_ID"/>
+		<result property="state" column="STATE"/>
+		<result property="resultSummary" column="RESULT_SUMMARY"/>
+		<result property="failureReason" column="FAILURE_REASON"/>
+		<result property="acceptedAt" column="ACCEPTED_AT"/>
+		<result property="dispatchedAt" column="DISPATCHED_AT"/>
+		<result property="confirmedAt" column="CONFIRMED_AT"/>
+		<result property="convergedAt" column="CONVERGED_AT"/>
+		<result property="leaseToken" column="LEASE_TOKEN"/>
+		<result property="leaseUntil" column="LEASE_UNTIL"/>
+		<result property="nextAttemptAt" column="NEXT_ATTEMPT_AT"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="updateTime" column="UPDATE_TIME"/>
+	</resultMap>
+
+	<select id="selectByBatchIdAndTargetKeys" resultMap="AuthOperationTargetMap">
+		SELECT ID, BATCH_ID, REQUEST_ID, PARK_ID, TARGET_KEY, SUBJECT_TYPE, SUBJECT_ID,
+			SUBJECT_SNAPSHOT, RESOURCE_TYPE, DEVICE_ID, RESOURCE_ID, ACCESS_TYPE,
+			OPERATION_QUEUE, ACTION, VALID_FROM, VALID_TO, OPERATION_VERSION,
+			LEGACY_TASK_ID, STATE, RESULT_SUMMARY, FAILURE_REASON, ACCEPTED_AT,
+			DISPATCHED_AT, CONFIRMED_AT, CONVERGED_AT, LEASE_TOKEN, LEASE_UNTIL,
+			NEXT_ATTEMPT_AT, CREATE_TIME, UPDATE_TIME
+		FROM SMT_AUTH_OPERATION_TARGET
+		WHERE BATCH_ID = #{batchId}
+			AND TARGET_KEY IN
+			<foreach collection="targetKeys" item="targetKey" open="(" separator="," close=")">
+				#{targetKey}
+			</foreach>
+	</select>
+
+	<select id="countByBatchId" resultType="int">
+		SELECT COUNT(1) FROM SMT_AUTH_OPERATION_TARGET WHERE BATCH_ID = #{batchId}
+	</select>
+
+	<select id="countByBatchIdAndState" resultType="int">
+		SELECT COUNT(1) FROM SMT_AUTH_OPERATION_TARGET
+		WHERE BATCH_ID = #{batchId} AND STATE = #{state}
+	</select>
+
+	<resultMap id="AuthOperationStateCountMap" type="com.tce.smart.platform.core.dto.authoperation.AuthOperationStateCount">
+		<result property="state" column="STATE"/>
+		<result property="targetCount" column="TARGET_COUNT"/>
+	</resultMap>
+
+	<select id="countByBatchIdGroupByState" resultMap="AuthOperationStateCountMap">
+		SELECT STATE, COUNT(1) AS TARGET_COUNT
+		FROM SMT_AUTH_OPERATION_TARGET
+		WHERE BATCH_ID = #{batchId}
+		GROUP BY STATE
+	</select>
+
+	<update id="queueByBatchId">
+		UPDATE SMT_AUTH_OPERATION_TARGET
+		SET STATE = 'QUEUED', UPDATE_TIME = #{updatedAt}
+		WHERE BATCH_ID = #{batchId} AND STATE = 'PREPARING'
+	</update>
+
+	<!-- 候选只读，真正领取由后面的条件更新决定，避免两个连接都得到归属。 -->
+	<select id="selectClaimCandidates" resultMap="AuthOperationTargetMap">
+		SELECT * FROM (
+			SELECT ID, BATCH_ID, REQUEST_ID, PARK_ID, TARGET_KEY, SUBJECT_TYPE, SUBJECT_ID,
+				SUBJECT_SNAPSHOT, RESOURCE_TYPE, DEVICE_ID, RESOURCE_ID, ACCESS_TYPE,
+				OPERATION_QUEUE, ACTION, VALID_FROM, VALID_TO, OPERATION_VERSION,
+				LEGACY_TASK_ID, STATE, RESULT_SUMMARY, FAILURE_REASON, ACCEPTED_AT,
+				DISPATCHED_AT, CONFIRMED_AT, CONVERGED_AT, LEASE_TOKEN, LEASE_UNTIL,
+				NEXT_ATTEMPT_AT, CREATE_TIME, UPDATE_TIME
+			FROM SMT_AUTH_OPERATION_TARGET
+			WHERE PARK_ID = #{parkId}
+				AND OPERATION_QUEUE = #{operationQueue}
+				AND STATE = 'QUEUED'
+				AND (NEXT_ATTEMPT_AT IS NULL OR NEXT_ATTEMPT_AT &lt;= #{now})
+				AND (LEASE_UNTIL IS NULL OR LEASE_UNTIL &lt; #{now})
+			ORDER BY NEXT_ATTEMPT_AT NULLS FIRST, ID
+		) WHERE ROWNUM &lt;= #{maxCount}
+	</select>
+
+	<update id="claimByLease">
+		UPDATE SMT_AUTH_OPERATION_TARGET
+		SET STATE = 'EXECUTING', LEASE_TOKEN = #{leaseToken},
+			LEASE_UNTIL = #{leaseUntil}, UPDATE_TIME = #{now}
+		WHERE ID = #{targetId}
+			AND STATE = #{expectedState}
+			AND (LEASE_UNTIL IS NULL OR LEASE_UNTIL &lt; #{now})
+	</update>
+
+	<select id="selectExactClaimCandidates" resultMap="AuthOperationTargetMap">
+		SELECT * FROM (
+			SELECT t.* FROM SMT_AUTH_OPERATION_TARGET t
+			WHERE PARK_ID = #{parkId} AND OPERATION_QUEUE = #{operationQueue}
+				AND ACCESS_TYPE = #{accessType} AND STATE = 'QUEUED'
+				AND (NEXT_ATTEMPT_AT IS NULL OR NEXT_ATTEMPT_AT &lt;= #{now})
+				AND (LEASE_UNTIL IS NULL OR LEASE_UNTIL &lt; #{now})
+				<choose>
+					<when test="targetIds != null and targetIds.size() > 0">
+						AND ID IN <foreach collection="targetIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+					</when>
+					<otherwise>AND 1 = 0</otherwise>
+				</choose>
+			ORDER BY ID
+		) WHERE ROWNUM &lt;= #{maxCount}
+	</select>
+
+	<update id="markWaitingConfirmByLease">
+		UPDATE SMT_AUTH_OPERATION_TARGET
+		SET STATE = 'WAITING_CONFIRM', DISPATCHED_AT = NVL(DISPATCHED_AT, #{updatedAt}),
+			UPDATE_TIME = #{updatedAt}
+		WHERE ID = #{targetId} AND LEASE_TOKEN = #{leaseToken}
+			AND STATE IN ('EXECUTING', 'WAITING_CONFIRM')
+			AND (LEASE_UNTIL IS NULL OR LEASE_UNTIL &gt; #{updatedAt})
+	</update>
+
+	<update id="updateStateByLease">
+		UPDATE SMT_AUTH_OPERATION_TARGET
+		SET STATE = #{targetState},
+			FAILURE_REASON = #{failureReason,jdbcType=VARCHAR},
+			CONFIRMED_AT = CASE WHEN #{targetState} IN ('CONFIRMED', 'CONVERGED')
+				THEN #{updatedAt} ELSE CONFIRMED_AT END,
+			CONVERGED_AT = CASE WHEN #{targetState} = 'CONVERGED'
+				THEN #{updatedAt} ELSE CONVERGED_AT END,
+			LEASE_TOKEN = CASE WHEN #{targetState} IN ('CONFIRMED', 'CONVERGED', 'FAILED')
+				THEN NULL ELSE LEASE_TOKEN END,
+			LEASE_UNTIL = CASE WHEN #{targetState} IN ('CONFIRMED', 'CONVERGED', 'FAILED')
+				THEN NULL ELSE LEASE_UNTIL END,
+			UPDATE_TIME = #{updatedAt}
+		WHERE ID = #{targetId}
+			AND LEASE_TOKEN = #{leaseToken}
+			AND STATE IN ('EXECUTING', 'WAITING_CONFIRM', 'VERIFYING')
+	</update>
+
+	<select id="selectExpiredUnfinished" resultMap="AuthOperationTargetMap">
+		SELECT * FROM (
+			SELECT ID, BATCH_ID, REQUEST_ID, PARK_ID, TARGET_KEY, SUBJECT_TYPE, SUBJECT_ID,
+				SUBJECT_SNAPSHOT, RESOURCE_TYPE, DEVICE_ID, RESOURCE_ID, ACCESS_TYPE,
+				OPERATION_QUEUE, ACTION, VALID_FROM, VALID_TO, OPERATION_VERSION,
+				LEGACY_TASK_ID, STATE, RESULT_SUMMARY, FAILURE_REASON, ACCEPTED_AT,
+				DISPATCHED_AT, CONFIRMED_AT, CONVERGED_AT, LEASE_TOKEN, LEASE_UNTIL,
+				NEXT_ATTEMPT_AT, CREATE_TIME, UPDATE_TIME
+			FROM SMT_AUTH_OPERATION_TARGET
+			WHERE PARK_ID = #{parkId}
+				AND STATE IN ('EXECUTING', 'WAITING_CONFIRM', 'VERIFYING')
+				AND LEASE_UNTIL IS NOT NULL AND LEASE_UNTIL &lt;= #{now}
+			ORDER BY LEASE_UNTIL, ID
+		) WHERE ROWNUM &lt;= #{maxCount}
+	</select>
+</mapper>

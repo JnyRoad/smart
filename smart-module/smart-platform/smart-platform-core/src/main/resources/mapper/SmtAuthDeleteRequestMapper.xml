@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthDeleteRequestMapper">
+
+	<resultMap id="AuthDeleteRequestMap" type="com.tce.smart.platform.core.entity.SmtAuthDeleteRequest">
+		<id property="id" column="ID"/>
+		<result property="batchId" column="BATCH_ID"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="subjectType" column="SUBJECT_TYPE"/>
+		<result property="sourceType" column="SOURCE_TYPE"/>
+		<result property="sourceRowId" column="SOURCE_ROW_ID"/>
+		<result property="sourceIdentityKey" column="SOURCE_IDENTITY_KEY"/>
+		<result property="identitySnapshot" column="IDENTITY_SNAPSHOT" jdbcType="CLOB"/>
+		<result property="generation" column="GENERATION"/>
+		<result property="deadlineAt" column="DEADLINE_AT"/>
+		<result property="status" column="STATUS"/>
+		<result property="failureReason" column="FAILURE_REASON"/>
+		<result property="finishedAt" column="FINISHED_AT"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="updateTime" column="UPDATE_TIME"/>
+	</resultMap>
+
+	<select id="selectByBatchIdAndIds" resultMap="AuthDeleteRequestMap">
+		SELECT ID, BATCH_ID, PARK_ID, SUBJECT_TYPE, SOURCE_TYPE, SOURCE_ROW_ID,
+			SOURCE_IDENTITY_KEY, IDENTITY_SNAPSHOT, GENERATION, DEADLINE_AT,
+			STATUS, FAILURE_REASON, FINISHED_AT, CREATE_TIME, UPDATE_TIME
+		FROM SMT_AUTH_DELETE_REQUEST
+		WHERE BATCH_ID = #{batchId} AND PARK_ID = #{parkId}
+			AND ID IN
+			<foreach collection="requestIds" item="requestId" open="(" separator="," close=")">
+				#{requestId}
+			</foreach>
+	</select>
+</mapper>

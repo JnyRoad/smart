@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthResourceCoordMapper">
+  <resultMap id="row" type="com.tce.smart.platform.core.entity.SmtAuthResourceCoord">
+    <result column="ID" property="id"/>
+    <result column="PARK_ID" property="parkId"/>
+    <result column="SUBJECT_TYPE" property="subjectType"/>
+    <result column="SUBJECT_ID" property="subjectId"/>
+    <result column="ACCESS_TYPE" property="accessType"/>
+    <result column="DEVICE_ID" property="deviceId"/>
+    <result column="RESOURCE_TYPE" property="resourceType"/>
+    <result column="RESOURCE_ID" property="resourceId"/>
+    <result column="SERVICE_TYPE" property="serviceType"/>
+    <result column="CREDENTIAL_CHANNEL" property="credentialChannel"/>
+    <result column="RESOURCE_KEY" property="resourceKey"/>
+    <result column="GENERATION" property="generation"/>
+    <result column="APPLIED_GENERATION" property="appliedGeneration"/>
+    <result column="ACTION" property="action"/>
+    <result column="WINDOWS" property="windows" jdbcType="CLOB" javaType="java.lang.String"/>
+    <result column="DESIRED_FINGERPRINT" property="desiredFingerprint"/>
+    <result column="BASIS_FINGERPRINT" property="basisFingerprint"/>
+    <result column="BLOCKING_TARGET_ID" property="blockingTargetId"/>
+    <result column="BLOCKING_ATTEMPT_ID" property="blockingAttemptId"/>
+    <result column="BLOCK_REASON" property="blockReason"/>
+    <result column="CREATE_TIME" property="createTime"/>
+    <result column="UPDATE_TIME" property="updateTime"/>
+  </resultMap>
+  <insert id="insert">INSERT INTO SMT_AUTH_RESOURCE_COORD (ID, PARK_ID, SUBJECT_TYPE, SUBJECT_ID, ACCESS_TYPE, DEVICE_ID, RESOURCE_TYPE, RESOURCE_ID, SERVICE_TYPE, CREDENTIAL_CHANNEL, RESOURCE_KEY, GENERATION, APPLIED_GENERATION, ACTION, WINDOWS, DESIRED_FINGERPRINT, BASIS_FINGERPRINT, BLOCKING_TARGET_ID, BLOCKING_ATTEMPT_ID, BLOCK_REASON, CREATE_TIME, UPDATE_TIME) VALUES (#{id,jdbcType=VARCHAR}, #{parkId,jdbcType=NUMERIC}, #{subjectType,jdbcType=VARCHAR}, #{subjectId,jdbcType=VARCHAR}, #{accessType,jdbcType=VARCHAR}, #{deviceId,jdbcType=VARCHAR}, #{resourceType,jdbcType=VARCHAR}, #{resourceId,jdbcType=VARCHAR}, #{serviceType,jdbcType=VARCHAR}, #{credentialChannel,jdbcType=VARCHAR}, #{resourceKey,jdbcType=VARCHAR}, #{generation,jdbcType=NUMERIC}, #{appliedGeneration,jdbcType=NUMERIC}, #{action,jdbcType=VARCHAR}, #{windows,jdbcType=CLOB}, #{desiredFingerprint,jdbcType=VARCHAR}, #{basisFingerprint,jdbcType=VARCHAR}, #{blockingTargetId,jdbcType=NUMERIC}, #{blockingAttemptId,jdbcType=NUMERIC}, #{blockReason,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP})</insert>
+  <select id="selectById" resultMap="row">SELECT * FROM SMT_AUTH_RESOURCE_COORD WHERE ID = #{id}</select>
+  <select id="lock" resultMap="row" flushCache="true" useCache="false">SELECT * FROM SMT_AUTH_RESOURCE_COORD WHERE ID = #{id} FOR UPDATE</select>
+  <update id="update">UPDATE SMT_AUTH_RESOURCE_COORD SET PARK_ID = #{parkId,jdbcType=NUMERIC}, SUBJECT_TYPE = #{subjectType,jdbcType=VARCHAR}, SUBJECT_ID = #{subjectId,jdbcType=VARCHAR}, ACCESS_TYPE = #{accessType,jdbcType=VARCHAR}, DEVICE_ID = #{deviceId,jdbcType=VARCHAR}, RESOURCE_TYPE = #{resourceType,jdbcType=VARCHAR}, RESOURCE_ID = #{resourceId,jdbcType=VARCHAR}, SERVICE_TYPE = #{serviceType,jdbcType=VARCHAR}, CREDENTIAL_CHANNEL = #{credentialChannel,jdbcType=VARCHAR}, RESOURCE_KEY = #{resourceKey,jdbcType=VARCHAR}, GENERATION = #{generation,jdbcType=NUMERIC}, APPLIED_GENERATION = #{appliedGeneration,jdbcType=NUMERIC}, ACTION = #{action,jdbcType=VARCHAR}, WINDOWS = #{windows,jdbcType=CLOB}, DESIRED_FINGERPRINT = #{desiredFingerprint,jdbcType=VARCHAR}, BASIS_FINGERPRINT = #{basisFingerprint,jdbcType=VARCHAR}, BLOCKING_TARGET_ID = #{blockingTargetId,jdbcType=NUMERIC}, BLOCKING_ATTEMPT_ID = #{blockingAttemptId,jdbcType=NUMERIC}, BLOCK_REASON = #{blockReason,jdbcType=VARCHAR}, CREATE_TIME = #{createTime,jdbcType=TIMESTAMP}, UPDATE_TIME = #{updateTime,jdbcType=TIMESTAMP} WHERE ID = #{id}</update>
+</mapper>

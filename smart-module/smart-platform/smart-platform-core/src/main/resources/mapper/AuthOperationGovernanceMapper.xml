@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.AuthOperationGovernanceMapper">
+	<resultMap id="target" type="com.tce.smart.platform.core.dto.authgovernance.AuthOperationGovernanceData$TargetSnapshot">
+		<id column="TARGET_ID" property="targetId"/><result column="BATCH_ID" property="batchId"/>
+		<result column="PARK_ID" property="parkId"/><result column="RESOURCE_COORD_ID" property="resourceCoordId"/>
+		<result column="RESOURCE_ID" property="resourceId"/>
+		<result column="OPERATION_VERSION" property="operationVersion"/><result column="STATE" property="state"/>
+		<result column="LEASE_TOKEN" property="leaseToken"/><result column="LEASE_UNTIL" property="leaseUntil"/>
+		<result column="DISPATCHED_AT" property="dispatchedAt"/><result column="LATEST_ATTEMPT_NO" property="latestAttemptNo"/>
+	</resultMap>
+	<resultMap id="review" type="com.tce.smart.platform.core.dto.authgovernance.AuthOperationGovernanceData$ReviewRow">
+		<id column="REVIEW_ID" property="reviewId"/><result column="PARK_ID" property="parkId"/>
+		<result column="ACCESS_TYPE" property="accessType"/><result column="DEVICE_ID" property="deviceId"/>
+		<result column="TASK_KEY" property="taskKey"/><result column="REASON" property="reason"/>
+		<result column="STATE" property="state"/><result column="CREATED_AT" property="createdAt"/>
+	</resultMap>
+	<resultMap id="action" type="com.tce.smart.platform.core.dto.authgovernance.AuthOperationGovernanceData$ActionRow">
+		<id column="ACTION_ID" property="actionId"/><result column="TARGET_ID" property="targetId"/>
+		<result column="ACTION_TYPE" property="actionType"/><result column="ACTOR_USER_ID" property="actorUserId"/>
+		<result column="ACTOR_USERNAME" property="actorUsername"/><result column="REASON_TEXT" property="reasonText"/>
+		<result column="EXPECTED_OPERATION_VERSION" property="expectedOperationVersion"/>
+		<result column="EXPECTED_STATE" property="expectedState"/><result column="EXPECTED_ATTEMPT_ID" property="expectedAttemptId"/>
+		<result column="EXPECTED_ATTEMPT_NO" property="expectedAttemptNo"/>
+		<result column="OBSERVED_CONCLUSION" property="observedConclusion"/><result column="BEFORE_STATE" property="beforeState"/>
+		<result column="AFTER_STATE" property="afterState"/><result column="RESULT" property="result"/>
+		<result column="RESULT_CODE" property="resultCode"/><result column="EVIDENCE_TYPE" property="evidenceType"/>
+		<result column="EVIDENCE_REFERENCE" property="evidenceReference"/><result column="EVIDENCE_BODY" property="evidenceBody"/>
+		<result column="EVIDENCE_SHA256" property="evidenceSha256"/><result column="OBSERVED_AT" property="observedAt"/>
+		<result column="CREATED_AT" property="createdAt"/>
+	</resultMap>
+
+	<select id="now" resultType="java.time.LocalDateTime">SELECT CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS TIMESTAMP) FROM DUAL</select>
+	<sql id="targetProjection">T.ID TARGET_ID,T.BATCH_ID,T.PARK_ID,
+		(SELECT MIN(C.RESOURCE_COORD_ID) FROM SMT_AUTH_SOURCE_RESOURCE C WHERE C.TARGET_ID=T.ID
+			AND C.RESOURCE_GENERATION=T.OPERATION_VERSION AND C.BINDING_REVISION=0) RESOURCE_COORD_ID,
+		T.RESOURCE_ID,T.OPERATION_VERSION,T.STATE,T.LEASE_TOKEN,T.LEASE_UNTIL,T.DISPATCHED_AT,
+		(SELECT MAX(A.ATTEMPT_NO) FROM SMT_AUTH_OPERATION_ATTEMPT A WHERE A.TARGET_ID=T.ID) LATEST_ATTEMPT_NO</sql>
+	<select id="selectTargetScope" resultMap="target">SELECT <include refid="targetProjection"/> FROM SMT_AUTH_OPERATION_TARGET T WHERE T.ID=#{targetId}</select>
+	<select id="lockTarget" resultMap="target">SELECT T.ID TARGET_ID,T.BATCH_ID,T.PARK_ID,T.RESOURCE_ID,T.OPERATION_VERSION,T.STATE,
+		T.LEASE_TOKEN,T.LEASE_UNTIL,T.DISPATCHED_AT FROM SMT_AUTH_OPERATION_TARGET T WHERE T.ID=#{targetId} FOR UPDATE</select>
+	<select id="lockCurrentAttempt" resultType="com.tce.smart.platform.core.entity.SmtAuthOperationAttempt">
+		SELECT A.* FROM SMT_AUTH_OPERATION_ATTEMPT A WHERE A.ID=#{attemptId} AND A.TARGET_ID=#{targetId}
+		AND A.ATTEMPT_NO=(SELECT MAX(M.ATTEMPT_NO) FROM SMT_AUTH_OPERATION_ATTEMPT M WHERE M.TARGET_ID=#{targetId}) FOR UPDATE
+	</select>
+	<select id="hasCurrentSourceBinding" resultType="int">SELECT COUNT(*) FROM SMT_AUTH_SOURCE_RESOURCE
+		WHERE TARGET_ID=#{targetId} AND RESOURCE_COORD_ID=#{resourceId} AND RESOURCE_GENERATION=#{operationVersion} AND BINDING_REVISION=0</select>
+	<select id="countAttemptTrace" resultType="int">SELECT
+		(SELECT COUNT(*) FROM SMT_AUTH_TRANSPORT_PHASE P WHERE P.ATTEMPT_ID=#{attemptId})+
+		(SELECT COUNT(*) FROM SMT_AUTH_RESULT_EVENT E WHERE E.ATTEMPT_ID=#{attemptId}) FROM DUAL</select>
+	<update id="expireKnownUnsentAttempt">UPDATE SMT_AUTH_OPERATION_ATTEMPT A SET STATUS='EXPIRED',ERROR_CODE='MANAGEMENT_KNOWN_UNSENT_RETRY',
+		NEXT_ATTEMPT_AT=#{now},UPDATE_TIME=#{now} WHERE A.ID=#{attemptId} AND A.TARGET_ID=#{targetId} AND A.STATUS='CLAIMED'
+		AND A.LEASE_TOKEN=#{leaseToken} AND A.LEASE_UNTIL&lt;=#{now} AND A.TASK_ID IS NULL AND A.EXTERNAL_BATCH_ID IS NULL
+		AND A.EXTERNAL_COMMAND_ID IS NULL AND A.DISPATCHED_AT IS NULL AND A.RESULT_EVENT_ID IS NULL
+		AND NOT EXISTS(SELECT 1 FROM SMT_AUTH_TRANSPORT_PHASE P WHERE P.ATTEMPT_ID=A.ID)
+		AND NOT EXISTS(SELECT 1 FROM SMT_AUTH_RESULT_EVENT E WHERE E.ATTEMPT_ID=A.ID)</update>
+	<update id="releaseKnownUnsentResourceAttempt">UPDATE SMT_AUTH_RESOURCE_COORD R
+		SET R.BLOCKING_TARGET_ID=NULL,R.BLOCKING_ATTEMPT_ID=NULL,R.BLOCK_REASON=NULL,R.UPDATE_TIME=#{now}
+		WHERE R.ID=#{resourceId} AND R.GENERATION=#{operationVersion}
+		AND R.BLOCKING_TARGET_ID=#{targetId} AND R.BLOCKING_ATTEMPT_ID=#{attemptId}
+		AND R.APPLIED_GENERATION&lt;R.GENERATION</update>
+	<update id="requeueKnownUnsentTarget">UPDATE SMT_AUTH_OPERATION_TARGET T SET STATE='QUEUED',LEASE_TOKEN=NULL,LEASE_UNTIL=NULL,
+		NEXT_ATTEMPT_AT=#{now},FAILURE_REASON=NULL,UPDATE_TIME=#{now} WHERE T.ID=#{targetId} AND T.STATE='EXECUTING'
+		AND T.OPERATION_VERSION=#{operationVersion} AND T.LEASE_TOKEN=#{leaseToken} AND T.LEASE_UNTIL&lt;=#{now} AND T.DISPATCHED_AT IS NULL
+		AND EXISTS(SELECT 1 FROM SMT_AUTH_OPERATION_ATTEMPT A WHERE A.TARGET_ID=T.ID AND A.STATUS='EXPIRED'
+			AND A.LEASE_TOKEN=#{leaseToken} AND A.ATTEMPT_NO=(SELECT MAX(M.ATTEMPT_NO) FROM SMT_AUTH_OPERATION_ATTEMPT M WHERE M.TARGET_ID=T.ID))</update>
+	<insert id="insertAction">INSERT INTO SMT_AUTH_GOVERNANCE_ACTION
+		(ID,IDEMPOTENCY_KEY,SUBJECT_KEY,TARGET_ID,ACTION_TYPE,ACTOR_USER_ID,ACTOR_USERNAME,REASON_TEXT,
+		EXPECTED_OPERATION_VERSION,EXPECTED_STATE,EXPECTED_ATTEMPT_ID,EXPECTED_ATTEMPT_NO,OBSERVED_CONCLUSION,BEFORE_STATE,AFTER_STATE,
+		REQUEST_FINGERPRINT,RESULT,RESULT_CODE,EVIDENCE_TYPE,EVIDENCE_REFERENCE,EVIDENCE_BODY,EVIDENCE_SHA256,OBSERVED_AT,CREATE_TIME)
+		VALUES(#{id},#{idempotencyKey},#{subjectKey},#{targetId},#{actionType},#{actorUserId},#{actorUsername},#{reasonText},
+		#{expectedOperationVersion},#{expectedState},#{expectedAttemptId},#{expectedAttemptNo,jdbcType=NUMERIC},#{observedConclusion,jdbcType=VARCHAR},#{beforeState},#{afterState},
+		#{requestFingerprint},#{result},#{resultCode},#{evidenceType,jdbcType=VARCHAR},#{evidenceReference,jdbcType=VARCHAR},
+		#{evidenceBody,jdbcType=CLOB},#{evidenceSha256,jdbcType=VARCHAR},#{observedAt,jdbcType=TIMESTAMP},#{createTime})</insert>
+	<select id="selectActionByKey" resultType="com.tce.smart.platform.core.entity.SmtAuthGovernanceAction">SELECT * FROM SMT_AUTH_GOVERNANCE_ACTION
+		WHERE ACTOR_USER_ID=#{actorUserId} AND IDEMPOTENCY_KEY=#{idempotencyKey} AND SUBJECT_KEY=#{subjectKey}</select>
+	<select id="selectParkReviews" resultMap="review">SELECT ID REVIEW_ID,PARK_ID,ACCESS_TYPE,DEVICE_ID,TASK_KEY,REASON,STATE,CREATE_TIME CREATED_AT
+		FROM SMT_AUTH_TRANSPORT_REVIEW WHERE PARK_ID=#{parkId} ORDER BY ID</select>
+	<select id="selectGlobalReviews" resultMap="review">SELECT ID REVIEW_ID,PARK_ID,ACCESS_TYPE,DEVICE_ID,TASK_KEY,REASON,STATE,CREATE_TIME CREATED_AT
+		FROM SMT_AUTH_TRANSPORT_REVIEW WHERE PARK_ID IS NULL ORDER BY ID</select>
+	<sql id="actionList">A.ID ACTION_ID,A.TARGET_ID,A.ACTION_TYPE,A.ACTOR_USER_ID,A.ACTOR_USERNAME,A.REASON_TEXT,
+		A.EXPECTED_OPERATION_VERSION,A.EXPECTED_STATE,A.EXPECTED_ATTEMPT_ID,A.EXPECTED_ATTEMPT_NO,A.OBSERVED_CONCLUSION,A.BEFORE_STATE,A.AFTER_STATE,
+		A.RESULT,A.RESULT_CODE,A.EVIDENCE_TYPE,A.EVIDENCE_REFERENCE,A.EVIDENCE_SHA256,A.OBSERVED_AT,A.CREATE_TIME CREATED_AT</sql>
+	<select id="selectTargetActions" resultMap="action">SELECT <include refid="actionList"/> FROM SMT_AUTH_GOVERNANCE_ACTION A
+		JOIN SMT_AUTH_OPERATION_TARGET T ON T.ID=A.TARGET_ID WHERE A.TARGET_ID=#{targetId} AND T.PARK_ID=#{parkId} ORDER BY A.ID DESC</select>
+	<select id="selectTargetAction" resultMap="action">SELECT <include refid="actionList"/>,A.EVIDENCE_BODY FROM SMT_AUTH_GOVERNANCE_ACTION A
+		JOIN SMT_AUTH_OPERATION_TARGET T ON T.ID=A.TARGET_ID WHERE A.ID=#{actionId} AND A.TARGET_ID=#{targetId} AND T.PARK_ID=#{parkId}</select>
+</mapper>

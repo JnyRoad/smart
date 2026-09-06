@@ -15,6 +15,10 @@ import com.tce.smart.common.core.constant.enums.SmtVisitorEnum;
 import com.tce.smart.common.core.exception.SmartException;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.security.util.SecurityUtils;
+import com.tce.smart.platform.dto.authoperation.AuthOperationReceipt;
+import com.tce.smart.platform.dto.authoperation.AuthOperationIntakeCommand;
+import com.tce.smart.platform.dto.authoperation.AuthOperationIntakeReceipt;
+import com.tce.smart.platform.dto.authoperation.AuthOperationIntakeCapability;
 import com.tce.smart.platform.api.dto.req.AreaTypeSwitchReqDTO;
 import com.tce.smart.platform.api.dto.req.AuthDetailQueryDTO;
 import com.tce.smart.platform.api.dto.req.DeviceAuthRelationAddReqDTO;
@@ -62,8 +66,12 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@AllArgsConstructor
+@lombok.RequiredArgsConstructor
 public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorityMapper, SmtDeviceAuthority> implements SmtDeviceAuthorityService {
+	@org.springframework.beans.factory.annotation.Autowired
+	private EmployeeAuthOperationAdapter employeeAuthOperationAdapter;
+    @org.springframework.beans.factory.annotation.Autowired
+    private EmployeeAuthIntakeService employeeAuthIntakeService;
 	private final SmtDeviceService smtDeviceService;
 	private final SmtDeviceAuthorityMapper smtDeviceAuthorityMapper;
 	private final SmtDeviceAuthorityRelationService smtDeviceAuthorityRelationService;
@@ -111,6 +119,7 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 	 */
 	@Override
 	public boolean saveDeviceAuthority(SmtDeviceAuthorityDTO entity) {
+        if(employeeAuthOperationAdapter!=null)employeeAuthOperationAdapter.checkNewAuthority(entity.getParkId(),entity.getCheckedlimits()==null?Collections.emptyList():Arrays.asList(entity.getCheckedlimits()));
 		entity.setCreateTime(LocalDateTime.now());
 		boolean result = this.save(entity);
 		if (result) {
@@ -148,6 +157,11 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 	@Transactional
 	@Override
 	public boolean updateDeviceAuthority(SmtDeviceAuthorityDTO entity, List<Integer> parkIds) {
+		if(employeeAuthOperationAdapter!=null){
+            Integer verifiedPark=employeeAuthOperationAdapter.guardedAuthorityPark(entity.getId(),entity.getParkId(),parkIds);
+            Boolean accepted=employeeAuthOperationAdapter.authorityDevices(entity.getId(),entity.getCheckedlimits()==null?Collections.emptyList():Arrays.asList(entity.getCheckedlimits()));
+            if(accepted!=null){entity.setParkId(verifiedPark);this.updateById(entity);updateDeviceRelationsBatch(entity.getId(),Collections.singletonList(verifiedPark),entity.getCheckedlimits()==null?Collections.emptyList():Arrays.asList(entity.getCheckedlimits()));return accepted;}
+        }
 		long startTime = System.currentTimeMillis();
 		log.info("开始更新设备权限: 权限ID={}, 新设备数量={}", entity.getId(),
 				entity.getCheckedlimits() != null ? entity.getCheckedlimits().length : 0);
@@ -442,6 +456,7 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public Result deleteDeviceAuthority(Integer id, List<Integer> parkIds) {
+		if(employeeAuthOperationAdapter!=null)employeeAuthOperationAdapter.guardAuthorityDeletion(id);
 		if (DeviceAuthorityEnum.existAuthority(id)) {
 			return new Result<>(false, "该权限策略为系统默认权限不可删除");
 		}
@@ -471,6 +486,7 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 	 */
 	@Override
 	public SmtDeviceAuthorityDTO getDeviceAuthorityById(Integer id, List<Integer> parkIds) {
+		if(employeeAuthOperationAdapter!=null)employeeAuthOperationAdapter.checkAuthority(id);
 		SmtDeviceAuthority smtDeviceAuthority = this.getById(id);
 		SmtDeviceAuthorityDTO smtDeviceAuthorityDTO = new SmtDeviceAuthorityDTO();
 		BeanUtils.copyProperties(smtDeviceAuthority, smtDeviceAuthorityDTO);
@@ -564,6 +580,7 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 
 	@Override
 	public IPage<AuthDetailRespDTO> getAuthDetailPage(Page page, AuthDetailQueryDTO queryDTO) {
+        if(employeeAuthOperationAdapter!=null)employeeAuthOperationAdapter.checkAuthority(queryDTO.getAuthId());
 		List<String> badgeList = new ArrayList<>();
 		if(StringUtils.isNotEmpty(queryDTO.getBadges())){
 			badgeList.addAll(ToolUtils.splitBlankString(queryDTO.getBadges()));
@@ -579,8 +596,86 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 		return new Page<>();
 	}
 
+    @Override
+    public AuthOperationIntakeReceipt personRelationDeleteIntake(DeviceAuthRelationDelReqDTO request, String requestKey, Integer actorId, List<Integer> allowedParks) {
+        if(request==null)throw new IllegalArgumentException("请求不能为空");
+        AuthOperationIntakeCommand command=AuthOperationIntakeCommand.builder().requestKey(requestKey).requestKind("REMOVE_ROWS")
+          .authId(request.getAuthId()).authorityType(request.getType()).rowIds(request.getDelIds()==null?Collections.emptyList():request.getDelIds()).build();
+        return employeeAuthIntakeService.submit(command,actorId,allowedParks==null?null:new HashSet<>(allowedParks),key->{
+            requireReceiptAuthority(request.getAuthId(),allowedParks);
+            if(employeeAuthOperationAdapter==null)throw new EmployeeAuthIntakeService.IntakeException("KEYED_UNSUPPORTED");
+            return employeeAuthOperationAdapter.removeRowsOperation(command.getRowIds(),command.getAuthId(),key);
+        });
+    }
+    @Override
+    public AuthOperationIntakeReceipt personRelationClearIntake(Integer id, String requestKey, Integer actorId, List<Integer> allowedParks) {
+        AuthOperationIntakeCommand command=AuthOperationIntakeCommand.builder().requestKey(requestKey).requestKind("CLEAR_AUTHORITY")
+          .authId(id).authorityType(DeviceAuthTypeEnum.PERSON.getCode()).build();
+        return employeeAuthIntakeService.submit(command,actorId,allowedParks==null?null:new HashSet<>(allowedParks),key->{
+            requireReceiptAuthority(id,allowedParks);
+            if(employeeAuthOperationAdapter==null)throw new EmployeeAuthIntakeService.IntakeException("KEYED_UNSUPPORTED");
+            return employeeAuthOperationAdapter.removeAuthorityOperation(id,key);
+        });
+    }
+    @Override
+    public AuthOperationIntakeCapability personIntakeCapability(Integer id, List<Integer> allowedParks) {
+        requireReceiptAuthority(id,allowedParks);
+        return new AuthOperationIntakeCapability(1,employeeAuthOperationAdapter!=null && employeeAuthOperationAdapter.enabledAuthority(id));
+    }
+
+    @Override
+    public AuthOperationReceipt personRelationDeleteReceipt(DeviceAuthRelationDelReqDTO request, List<Integer> allowedParks) {
+        if (request == null || !DeviceAuthTypeEnum.PERSON.getCode().equals(request.getType()))
+            throw new IllegalArgumentException("此入口仅支持人员权限");
+        requireReceiptAuthority(request.getAuthId(), allowedParks);
+        if (request.getDelIds() == null || request.getDelIds().isEmpty()
+                || request.getDelIds().stream().anyMatch(id -> id == null || id <= 0))
+            throw new IllegalArgumentException("删除列表不能为空或包含无效ID");
+        List<Integer> ids = new ArrayList<>(new LinkedHashSet<>(request.getDelIds()));
+        // 即使灰度关闭也必须校验所有行归属，不能让旧路径删除别的权限组。
+        for (int start = 0; start < ids.size(); start += 200) {
+            List<Integer> part = ids.subList(start, Math.min(start + 200, ids.size()));
+            Collection<SmtStaffDeviceAuth> selected = smtStaffDeviceAuthService.listByIds(part);
+            Set<Integer> found = selected.stream().map(SmtStaffDeviceAuth::getId).collect(Collectors.toSet());
+            if (!found.equals(new HashSet<>(part))) throw new IllegalArgumentException("所选来源不存在，请刷新后核验");
+            if (selected.stream().anyMatch(row -> !request.getAuthId().equals(row.getAuthId())))
+                throw new SecurityException("来源不属于指定权限组");
+        }
+        String key = employeeAuthOperationAdapter == null ? null : employeeAuthOperationAdapter.removeRowsOperation(ids, request.getAuthId());
+        if (key != null) return AuthOperationReceipt.reliable(key);
+        DeviceAuthRelationDelReqDTO legacy = new DeviceAuthRelationDelReqDTO();
+        legacy.setAuthId(request.getAuthId()); legacy.setType(DeviceAuthTypeEnum.PERSON.getCode()); legacy.setDelIds(ids);
+        return AuthOperationReceipt.legacy(legacyDeviceAuthRelationDel(legacy));
+    }
+
+    @Override
+    public AuthOperationReceipt personRelationClearReceipt(Integer id, List<Integer> allowedParks) {
+        requireReceiptAuthority(id, allowedParks);
+        String key = employeeAuthOperationAdapter == null ? null : employeeAuthOperationAdapter.removeAuthorityOperation(id);
+        if (key != null) return AuthOperationReceipt.reliable(key);
+        return AuthOperationReceipt.legacy(legacyDeviceAuthRelationClear(id));
+    }
+
+    /** 真实组类型和园区不能由请求参数替换，也不依赖灰度开关。 */
+    private void requireReceiptAuthority(Integer id, List<Integer> allowedParks) {
+        if (id == null || id <= 0) throw new IllegalArgumentException("权限组ID无效");
+        if (allowedParks == null || allowedParks.isEmpty()) throw new SecurityException("缺少明确的允许园区范围");
+        SmtDeviceAuthority authority = getById(id);
+        if (authority == null) throw new IllegalArgumentException("权限组不存在");
+        if (authority.getParkId() == null || !allowedParks.contains(authority.getParkId())) throw new SecurityException("无权限组所属园区权限");
+        if (!DeviceAuthTypeEnum.PERSON.getCode().equals(authority.getType())) throw new IllegalArgumentException("此入口仅支持人员权限组");
+    }
+
 	@Override
 	public Boolean deviceAuthRelationDel(DeviceAuthRelationDelReqDTO reqDTO) {
+		if(employeeAuthOperationAdapter!=null && DeviceAuthTypeEnum.PERSON.getCode().equals(reqDTO.getType())){
+            Boolean accepted=employeeAuthOperationAdapter.removeRows(reqDTO.getDelIds(),reqDTO.getAuthId());if(accepted!=null)return accepted;
+        }
+        return legacyDeviceAuthRelationDel(reqDTO);
+    }
+
+    /** 已确定走旧流程后不再重新选择灰度入口。 */
+    private Boolean legacyDeviceAuthRelationDel(DeviceAuthRelationDelReqDTO reqDTO) {
 		List<Integer> authIds = new ArrayList<>(1);
 		authIds.add(reqDTO.getAuthId());
 		// 查询该授权关联的设备信息
@@ -643,6 +738,12 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 
 	@Override
 	public Boolean deviceAuthRelationClear(Integer id) {
+		if(employeeAuthOperationAdapter!=null){Boolean accepted=employeeAuthOperationAdapter.removeAuthority(id);if(accepted!=null)return accepted;}
+        return legacyDeviceAuthRelationClear(id);
+    }
+
+    /** 保留旧 Boolean 流程，仅由已确定模式的调用者进入。 */
+    private Boolean legacyDeviceAuthRelationClear(Integer id) {
 		SmtDeviceAuthority deviceAuthority = getById(id);
 		List<Integer> authRelIds = new ArrayList<>(1);
 		authRelIds.add(id);
@@ -812,6 +913,7 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public List<String> deviceAuthRelationAdd(DeviceAuthRelationAddReqDTO reqDTO) {
+		if(employeeAuthOperationAdapter!=null){List<String> accepted=employeeAuthOperationAdapter.addBadges(reqDTO.getAuthId(),reqDTO.getBadges(),reqDTO.getStartTime(),reqDTO.getEndTime());if(accepted!=null)return accepted;}
 		// 在查询或写入前统一校验有效期，批量入口与员工入口保持相同语义。
 		PermissionValidityWindow validityWindow = PermissionValidityWindow.resolve(reqDTO.getStartTime(), reqDTO.getEndTime());
 		List<SmtStaffDeviceAuth> existAuthList = smtStaffDeviceAuthService.list(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getAuthId, reqDTO.getAuthId()));
@@ -959,6 +1061,7 @@ public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorit
 
 	@Override
 	public void revokeDeviceAccess(Integer authorityId, String deviceId) {
+        if(employeeAuthOperationAdapter!=null && employeeAuthOperationAdapter.revokeDevice(authorityId,deviceId)!=null)return;
 		SmtDeviceAuthority authority = this.getById(authorityId);
 		if (authority == null) {
 			return;

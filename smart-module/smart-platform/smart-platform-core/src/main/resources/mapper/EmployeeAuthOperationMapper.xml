@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper">
+<resultMap id="source" type="com.tce.smart.platform.core.entity.SmtAuthSelectionSource">
+<result column="SOURCE_KIND" property="sourceKind"/>
+<result column="SUBJECT_TYPE" property="subjectType"/>
+<result column="SNAPSHOT_VERSION" property="snapshotVersion"/>
+<result column="BUSINESS_SNAPSHOT" property="businessSnapshot" jdbcType="CLOB"/>
+<result column="PARENT_KIND" property="parentKind"/>
+<result column="PARENT_ROW_ID" property="parentRowId"/>
+
+<result column="BATCH_ID" property="batchId"/>
+<result column="ORDINAL" property="ordinal"/>
+<result column="OPERATION_KEY" property="operationKey"/>
+<result column="PARK_ID" property="parkId"/>
+<result column="SUBJECT_ID" property="subjectId"/>
+<result column="AUTH_ID" property="authId"/>
+<result column="STABLE_KEY" property="stableKey"/>
+<result column="SOURCE_ROW_ID" property="sourceRowId"/>
+<result column="FINGERPRINT" property="fingerprint"/>
+<result column="DESIRED_ACTION" property="desiredAction"/>
+<result column="IMAGE_ID" property="imageId"/>
+<result column="PERSON_SNAPSHOT" property="personSnapshot"/>
+<result column="BADGE" property="badge"/>
+<result column="STATE" property="state"/>
+<result column="VERIFICATION_REASON" property="verificationReason"/>
+<result column="OLD_ID" property="oldId"/>
+<result column="OLD_CREATE_TIME" property="oldCreateTime"/>
+<result column="OLD_START_TIME" property="oldStartTime"/>
+<result column="OLD_END_TIME" property="oldEndTime"/>
+<result column="OLD_AUTH_TYPE" property="oldAuthType"/>
+<result column="NEW_CREATE_TIME" property="newCreateTime"/>
+<result column="NEW_START_TIME" property="newStartTime"/>
+<result column="NEW_END_TIME" property="newEndTime"/>
+<result column="NEW_AUTH_TYPE" property="newAuthType"/>
+<result column="SOURCE_COORD_ID" property="sourceCoordId"/>
+<result column="SOURCE_GENERATION" property="sourceGeneration"/>
+</resultMap>
+<resultMap id="resource" type="com.tce.smart.platform.core.entity.SmtAuthSelectionResource">
+<result column="SUBJECT_TYPE" property="subjectType"/>
+<result column="CREDENTIAL_VERSION" property="credentialVersion"/>
+<result column="CREDENTIAL_SNAPSHOT" property="credentialSnapshot" jdbcType="CLOB"/>
+
+<result column="BATCH_ID" property="batchId"/>
+<result column="ORDINAL" property="ordinal"/>
+<result column="SOURCE_ORDINAL" property="sourceOrdinal"/>
+<result column="PARK_ID" property="parkId"/>
+<result column="SUBJECT_ID" property="subjectId"/>
+<result column="DEVICE_ID" property="deviceId"/>
+<result column="ACCESS_TYPE" property="accessType"/>
+<result column="RESOURCE_TYPE" property="resourceType"/>
+<result column="RESOURCE_ID" property="resourceId"/>
+<result column="SERVICE_TYPE" property="serviceType"/>
+<result column="CREDENTIAL_CHANNEL" property="credentialChannel"/>
+<result column="PARTICIPATION" property="participation"/>
+<result column="VALID_FROM" property="validFrom"/>
+<result column="VALID_TO" property="validTo"/>
+<result column="RESOURCE_COORD_ID" property="resourceCoordId"/>
+</resultMap>
+<sql id="selection_insertSources">INSERT ALL
+<foreach collection="rows" item="r">
+ INTO SMT_AUTH_SELECTION_SOURCE (BATCH_ID,ORDINAL,OPERATION_KEY,PARK_ID,SUBJECT_ID,AUTH_ID,STABLE_KEY,SOURCE_ROW_ID,FINGERPRINT,DESIRED_ACTION,IMAGE_ID,PERSON_SNAPSHOT,BADGE,STATE,VERIFICATION_REASON,OLD_ID,OLD_CREATE_TIME,OLD_START_TIME,OLD_END_TIME,OLD_AUTH_TYPE,NEW_CREATE_TIME,NEW_START_TIME,NEW_END_TIME,NEW_AUTH_TYPE,SOURCE_COORD_ID,SOURCE_GENERATION,SOURCE_KIND,SUBJECT_TYPE,SNAPSHOT_VERSION,BUSINESS_SNAPSHOT,PARENT_KIND,PARENT_ROW_ID) VALUES (#{r.batchId,jdbcType=NUMERIC},#{r.ordinal,jdbcType=NUMERIC},#{r.operationKey,jdbcType=VARCHAR},#{r.parkId,jdbcType=NUMERIC},#{r.subjectId,jdbcType=VARCHAR},#{r.authId,jdbcType=VARCHAR},#{r.stableKey,jdbcType=VARCHAR},#{r.sourceRowId,jdbcType=VARCHAR},#{r.fingerprint,jdbcType=VARCHAR},#{r.desiredAction,jdbcType=VARCHAR},#{r.imageId,jdbcType=VARCHAR},#{r.personSnapshot,jdbcType=VARCHAR},#{r.badge,jdbcType=VARCHAR},#{r.state,jdbcType=VARCHAR},#{r.verificationReason,jdbcType=VARCHAR},#{r.oldId,jdbcType=NUMERIC},#{r.oldCreateTime,jdbcType=TIMESTAMP},#{r.oldStartTime,jdbcType=TIMESTAMP},#{r.oldEndTime,jdbcType=TIMESTAMP},#{r.oldAuthType,jdbcType=NUMERIC},#{r.newCreateTime,jdbcType=TIMESTAMP},#{r.newStartTime,jdbcType=TIMESTAMP},#{r.newEndTime,jdbcType=TIMESTAMP},#{r.newAuthType,jdbcType=NUMERIC},#{r.sourceCoordId,jdbcType=VARCHAR},#{r.sourceGeneration,jdbcType=NUMERIC},#{r.sourceKind,jdbcType=VARCHAR},#{r.subjectType,jdbcType=VARCHAR},#{r.snapshotVersion,jdbcType=NUMERIC},#{r.businessSnapshot,jdbcType=CLOB},#{r.parentKind,jdbcType=VARCHAR},#{r.parentRowId,jdbcType=VARCHAR})
+</foreach>SELECT 1 FROM DUAL</sql>
+<insert id="insertSources"><include refid="selection_insertSources"/></insert>
+<sql id="selection_insertResources">INSERT ALL
+<foreach collection="rows" item="r">
+ INTO SMT_AUTH_SELECTION_RESOURCE (BATCH_ID,ORDINAL,SOURCE_ORDINAL,PARK_ID,SUBJECT_ID,DEVICE_ID,ACCESS_TYPE,RESOURCE_TYPE,RESOURCE_ID,SERVICE_TYPE,CREDENTIAL_CHANNEL,PARTICIPATION,VALID_FROM,VALID_TO,RESOURCE_COORD_ID,SUBJECT_TYPE,CREDENTIAL_VERSION,CREDENTIAL_SNAPSHOT) VALUES (#{r.batchId,jdbcType=NUMERIC},#{r.ordinal,jdbcType=NUMERIC},#{r.sourceOrdinal,jdbcType=NUMERIC},#{r.parkId,jdbcType=NUMERIC},#{r.subjectId,jdbcType=VARCHAR},#{r.deviceId,jdbcType=VARCHAR},#{r.accessType,jdbcType=VARCHAR},#{r.resourceType,jdbcType=VARCHAR},#{r.resourceId,jdbcType=VARCHAR},#{r.serviceType,jdbcType=VARCHAR},#{r.credentialChannel,jdbcType=VARCHAR},#{r.participation,jdbcType=VARCHAR},#{r.validFrom,jdbcType=TIMESTAMP},#{r.validTo,jdbcType=TIMESTAMP},#{r.resourceCoordId,jdbcType=VARCHAR},#{r.subjectType,jdbcType=VARCHAR},#{r.credentialVersion,jdbcType=NUMERIC},#{r.credentialSnapshot,jdbcType=CLOB})
+</foreach>SELECT 1 FROM DUAL</sql>
+<insert id="insertResources"><include refid="selection_insertResources"/></insert>
+<select id="lockSubjects" resultType="long">SELECT ID FROM SMT_STAFF WHERE ID IN <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach> ORDER BY ID FOR UPDATE</select>
+<select id="lockAuthorities" resultType="int">SELECT ID FROM SMT_DEVICE_AUTHORITY WHERE ID IN <include refid="ids"/> ORDER BY ID FOR UPDATE</select>
+<select id="pendingAnySubjects" resultType="int">SELECT SUM(N) FROM (
+ SELECT COUNT(*) N FROM SMT_AUTH_SELECTION_SOURCE WHERE SOURCE_KIND='STAFF_AUTH' AND SUBJECT_TYPE='STAFF' AND STATE!='CONVERGED' AND SUBJECT_ID IN <include refid="staffIdsAsText"/>
+ UNION ALL SELECT COUNT(*) N FROM SMT_AUTH_SOURCE_COORD WHERE SUBJECT_TYPE='STAFF' AND STATE NOT IN ('ACTIVE','TOMBSTONE') AND SUBJECT_ID IN <include refid="staffIdsAsText"/>
+)</select>
+<!-- 只识别员工卡的员工服务；无可信设备园区时保存接入、原任务 ID 和数量，不捏造资源坐标。 -->
+<sql id="employeeHistoryTypes">
+ <bind name="cardDeviceType" value="@com.tce.smart.tool.constant.DeviceTaskConstants@CARD"/>
+ <bind name="employeeService" value="@com.tce.smart.tool.constant.DeviceTaskConstants@CARD_STAFF_IMPORT"/>
+ <bind name="faceUpdateService" value="@com.tce.smart.tool.constant.DeviceTaskConstants@UPDATE_FACE"/>
+ <bind name="appPerfectService" value="@com.tce.smart.tool.constant.DeviceTaskConstants@CARD_APP_PERFECT"/>
+</sql>
+<select id="unmappedTaskSubjects" resultMap="source">
+ <include refid="employeeHistoryTypes"/>
+ SELECT CARD_NO SUBJECT_ID,'MISSING_DEVICE_HISTORY:'||ACCESS_TYPE||':TASK='||TO_CHAR(MIN(ID))||':COUNT='||TO_CHAR(COUNT(*)) VERIFICATION_REASON FROM (
+  SELECT T.ID,T.CARD_NO,'DIRECT' ACCESS_TYPE FROM SMT_DEVICE_TASK T LEFT JOIN SMT_DEVICE D ON D.ID=T.DEVICE_CODE
+  WHERE T.DEVICE_TYPE=#{cardDeviceType} AND T.SERVICE_TYPE IN (#{employeeService},#{faceUpdateService}) AND T.CARD_NO IN <include refid="staffIdsAsText"/> AND (D.ID IS NULL OR D.PARK_ID IS NULL)
+  UNION ALL
+  SELECT T.ID,T.CARD_NO,'ISC' ACCESS_TYPE FROM SMT_ISC_DEVICE_TASK T LEFT JOIN SMT_DEVICE D ON D.ID=T.DEVICE_CODE
+  WHERE T.DEVICE_TYPE=#{cardDeviceType} AND T.SERVICE_TYPE IN (#{employeeService},#{faceUpdateService}) AND T.CARD_NO IN <include refid="staffIdsAsText"/> AND (D.ID IS NULL OR D.PARK_ID IS NULL)
+ ) GROUP BY CARD_NO,ACCESS_TYPE
+</select>
+<select id="pendingSubject" resultType="int">SELECT COUNT(*) FROM SMT_AUTH_SELECTION_SOURCE WHERE SOURCE_KIND='STAFF_AUTH' AND SUBJECT_TYPE='STAFF' AND PARK_ID=#{park} AND SUBJECT_ID=#{subject} AND STATE!='CONVERGED'</select>
+<select id="pendingSource" resultType="int">SELECT COUNT(*) FROM SMT_AUTH_SELECTION_SOURCE WHERE SOURCE_KIND='STAFF_AUTH' AND SUBJECT_TYPE='STAFF' AND PARK_ID=#{park} AND SUBJECT_ID=#{subject} AND AUTH_ID=#{authId} AND STATE!='CONVERGED'</select>
+<sql id="selection_operation">SELECT * FROM SMT_AUTH_SELECTION_SOURCE WHERE OPERATION_KEY=#{key} ORDER BY PARK_ID,ORDINAL</sql>
+<select id="operation" resultMap="source"><include refid="selection_operation"/></select>
+<sql id="selection_source">SELECT * FROM SMT_AUTH_SELECTION_SOURCE WHERE BATCH_ID=#{batch} AND ORDINAL=#{ordinal}</sql>
+<select id="source" resultMap="source"><include refid="selection_source"/></select>
+<sql id="selection_resources">SELECT * FROM (SELECT * FROM SMT_AUTH_SELECTION_RESOURCE WHERE BATCH_ID=#{batch} AND ORDINAL&gt;#{after} ORDER BY ORDINAL) WHERE ROWNUM&lt;=#{limit}</sql>
+<select id="resources" resultMap="resource"><include refid="selection_resources"/></select>
+<sql id="selection_bindSource">UPDATE SMT_AUTH_SELECTION_SOURCE SET SOURCE_COORD_ID=#{source}, SOURCE_GENERATION=#{generation} WHERE BATCH_ID=#{batch} AND ORDINAL=#{ordinal} AND (SOURCE_COORD_ID IS NULL OR (SOURCE_COORD_ID=#{source} AND SOURCE_GENERATION=#{generation}))</sql>
+<update id="bindSource"><include refid="selection_bindSource"/></update>
+<sql id="selection_bindResource">UPDATE SMT_AUTH_SELECTION_RESOURCE SET RESOURCE_COORD_ID=#{resource} WHERE BATCH_ID=#{batch} AND ORDINAL=#{ordinal} AND (RESOURCE_COORD_ID IS NULL OR RESOURCE_COORD_ID=#{resource})</sql>
+<update id="bindResource"><include refid="selection_bindResource"/></update>
+<!-- 按集合排除本批已有目标的资源，所有历史绑定修订均沿用原排除语义。 -->
+<sql id="selection_lanes">
+ SELECT RESOURCE_COORD_ID FROM (
+  SELECT RESOURCE_COORD_ID FROM (
+   SELECT R.RESOURCE_COORD_ID FROM SMT_AUTH_SELECTION_RESOURCE R
+   WHERE R.BATCH_ID=#{batch} AND R.RESOURCE_COORD_ID IS NOT NULL
+   MINUS
+   SELECT C.RESOURCE_COORD_ID FROM SMT_AUTH_SOURCE_RESOURCE C
+   JOIN SMT_AUTH_OPERATION_TARGET T ON T.ID=C.TARGET_ID
+   WHERE T.BATCH_ID=#{batch}
+  ) L
+  <if test="after!=null">WHERE RESOURCE_COORD_ID&gt;#{after}</if>
+  ORDER BY RESOURCE_COORD_ID
+ ) WHERE ROWNUM&lt;=#{limit}
+</sql>
+<select id="lanes" resultType="string"><include refid="selection_lanes"/></select>
+<sql id="selection_resourceCount">SELECT COUNT(*) FROM SMT_AUTH_SELECTION_RESOURCE WHERE BATCH_ID=#{batch}</sql>
+<select id="resourceCount" resultType="long"><include refid="selection_resourceCount"/></select>
+<sql id="selection_cursor">SELECT EXPANSION_CURSOR FROM SMT_AUTH_OPERATION_BATCH WHERE ID=#{batch}</sql>
+<select id="cursor" resultType="long"><include refid="selection_cursor"/></select>
+<sql id="selection_selectionCursor">SELECT COALESCE(MIN(CASE WHEN RESOURCE_COORD_ID IS NULL THEN ORDINAL END)-1,MAX(ORDINAL),0) FROM SMT_AUTH_SELECTION_RESOURCE WHERE BATCH_ID=#{batch}</sql>
+<select id="selectionCursor" resultType="long"><include refid="selection_selectionCursor"/></select>
+<sql id="selection_exactSource">SELECT * FROM SMT_AUTH_SELECTION_SOURCE WHERE SOURCE_COORD_ID=#{source} AND SOURCE_GENERATION=#{generation}</sql>
+<select id="exactSource" resultMap="source"><include refid="selection_exactSource"/></select>
+<sql id="exactBusinessRow">NVL(#{s.sourceKind,jdbcType=VARCHAR},'STAFF_AUTH')='STAFF_AUTH' AND NVL(#{s.subjectType,jdbcType=VARCHAR},'STAFF')='STAFF' AND NVL(#{s.snapshotVersion,jdbcType=NUMERIC},0)=0 AND ID=#{s.oldId} AND STAFF_ID=#{s.subjectId} AND AUTH_ID=#{s.authId}
+ AND ((CREATE_TIME=#{s.oldCreateTime,jdbcType=TIMESTAMP}) OR (CREATE_TIME IS NULL AND #{s.oldCreateTime,jdbcType=TIMESTAMP} IS NULL))
+ AND ((START_TIME=#{s.oldStartTime,jdbcType=TIMESTAMP}) OR (START_TIME IS NULL AND #{s.oldStartTime,jdbcType=TIMESTAMP} IS NULL))
+ AND ((END_TIME=#{s.oldEndTime,jdbcType=TIMESTAMP}) OR (END_TIME IS NULL AND #{s.oldEndTime,jdbcType=TIMESTAMP} IS NULL))
+ AND ((AUTH_TYPE=#{s.oldAuthType,jdbcType=NUMERIC}) OR (AUTH_TYPE IS NULL AND #{s.oldAuthType,jdbcType=NUMERIC} IS NULL))</sql>
+<delete id="deleteExact">DELETE FROM SMT_STAFF_DEVICE_AUTH WHERE <include refid="exactBusinessRow"/></delete>
+<update id="updateExact">UPDATE SMT_STAFF_DEVICE_AUTH SET CREATE_TIME=#{s.newCreateTime,jdbcType=TIMESTAMP},START_TIME=#{s.newStartTime,jdbcType=TIMESTAMP},END_TIME=#{s.newEndTime,jdbcType=TIMESTAMP},AUTH_TYPE=#{s.newAuthType,jdbcType=NUMERIC} WHERE <include refid="exactBusinessRow"/></update>
+<insert id="insertNew">INSERT INTO SMT_STAFF_DEVICE_AUTH(STAFF_ID,AUTH_ID,CREATE_TIME,START_TIME,END_TIME,AUTH_TYPE) SELECT #{s.subjectId},#{s.authId},#{s.newCreateTime,jdbcType=TIMESTAMP},#{s.newStartTime,jdbcType=TIMESTAMP},#{s.newEndTime,jdbcType=TIMESTAMP},#{s.newAuthType,jdbcType=NUMERIC} FROM DUAL WHERE NVL(#{s.sourceKind,jdbcType=VARCHAR},'STAFF_AUTH')='STAFF_AUTH' AND NVL(#{s.subjectType,jdbcType=VARCHAR},'STAFF')='STAFF' AND NVL(#{s.snapshotVersion,jdbcType=NUMERIC},0)=0 AND EXISTS(SELECT 1 FROM SMT_DEVICE_AUTHORITY A WHERE A.ID=#{s.authId} AND A.PARK_ID=#{s.parkId}) AND NOT EXISTS(SELECT 1 FROM SMT_STAFF_DEVICE_AUTH WHERE STAFF_ID=#{s.subjectId} AND AUTH_ID=#{s.authId})</insert>
+<sql id="selection_complete">UPDATE SMT_AUTH_SELECTION_SOURCE SET STATE='CONVERGED' WHERE BATCH_ID=#{batch} AND ORDINAL=#{ordinal} AND STATE='PENDING'</sql>
+<update id="complete"><include refid="selection_complete"/></update>
+<sql id="staffIdsAsText"><foreach collection="ids" item="id" open="(" close=")" separator=",">TO_CHAR(#{id})</foreach></sql>
+<sql id="ids"><foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach></sql>
+<select id="staffSources" resultType="com.tce.smart.platform.core.entity.SmtStaffDeviceAuth">SELECT * FROM SMT_STAFF_DEVICE_AUTH WHERE STAFF_ID IN <include refid="ids"/> ORDER BY STAFF_ID,AUTH_ID,ID</select>
+<select id="authorities" resultType="com.tce.smart.platform.core.entity.SmtDeviceAuthority">SELECT * FROM SMT_DEVICE_AUTHORITY WHERE ID IN <include refid="ids"/></select>
+<select id="authorityDevices" resultType="com.tce.smart.platform.core.entity.SmtDeviceAuthorityRelation">SELECT * FROM SMT_DEVICE_AUTHORITY_RELATION WHERE AUTHORITY_ID IN <include refid="ids"/></select>
+<select id="staff" resultType="com.tce.smart.platform.core.entity.SmtStaff">SELECT ID,COMP_ID,STATUS,FACE_PIC_ID,BADGE,NAME,SEX FROM SMT_STAFF WHERE ID IN <include refid="ids"/></select>
+<select id="staffParks" resultType="int">SELECT DISTINCT B.PARK_ID FROM SMT_STAFF S JOIN SMT_PARK_BU B ON B.COMP_ID=S.COMP_ID WHERE S.ID=#{subject}</select>
+<select id="devices" resultType="com.tce.smart.platform.core.entity.SmtDevice">SELECT ID,PARK_ID,IS_SYNC,CHANNEL_NO,DEVICE_CAPABILITY FROM SMT_DEVICE WHERE ID IN <include refid="ids"/></select>
+<select id="historicalResources" resultMap="resource">
+ <include refid="employeeHistoryTypes"/>
+ SELECT DISTINCT PARK_ID,SUBJECT_ID,DEVICE_ID,ACCESS_TYPE,RESOURCE_TYPE,RESOURCE_ID,SERVICE_TYPE,CREDENTIAL_CHANNEL FROM (
+ SELECT D.PARK_ID,T.CARD_NO SUBJECT_ID,T.DEVICE_CODE DEVICE_ID,'DIRECT' ACCESS_TYPE,'PERSON' RESOURCE_TYPE,T.CARD_NO RESOURCE_ID,TO_CHAR(T.SERVICE_TYPE) SERVICE_TYPE,'FACE' CREDENTIAL_CHANNEL FROM SMT_DEVICE_TASK T JOIN SMT_DEVICE D ON D.ID=T.DEVICE_CODE WHERE T.DEVICE_TYPE=#{cardDeviceType} AND T.SERVICE_TYPE IN (#{employeeService},#{faceUpdateService}) AND T.CARD_NO IN <include refid="staffIdsAsText"/> AND D.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>
+ UNION ALL
+ SELECT PARK_ID,CARD_NO SUBJECT_ID,DEVICE_CODE DEVICE_ID,'DIRECT' ACCESS_TYPE,'PERSON' RESOURCE_TYPE,CARD_NO RESOURCE_ID,TO_CHAR(SERVICE_TYPE) SERVICE_TYPE,'FACE' CREDENTIAL_CHANNEL FROM SMT_TASK_DOWN_RECORD WHERE DEVICE_TYPE=#{cardDeviceType} AND SERVICE_TYPE IN (#{employeeService},#{faceUpdateService}) AND CARD_NO IN <include refid="staffIdsAsText"/> AND PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>
+ UNION ALL
+ SELECT D.PARK_ID,T.CARD_NO SUBJECT_ID,T.DEVICE_CODE DEVICE_ID,'ISC' ACCESS_TYPE,'PERSON' RESOURCE_TYPE,T.CARD_NO RESOURCE_ID,TO_CHAR(T.SERVICE_TYPE) SERVICE_TYPE,'FACE' CREDENTIAL_CHANNEL FROM SMT_ISC_DEVICE_TASK T JOIN SMT_DEVICE D ON D.ID=T.DEVICE_CODE WHERE T.DEVICE_TYPE=#{cardDeviceType} AND T.SERVICE_TYPE IN (#{employeeService},#{faceUpdateService}) AND T.CARD_NO IN <include refid="staffIdsAsText"/> AND D.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>
+ UNION ALL
+ SELECT PARK_ID,CARD_NO SUBJECT_ID,DEVICE_CODE DEVICE_ID,'ISC' ACCESS_TYPE,'PERSON' RESOURCE_TYPE,CARD_NO RESOURCE_ID,TO_CHAR(SERVICE_TYPE) SERVICE_TYPE,'FACE' CREDENTIAL_CHANNEL FROM SMT_ISC_DOWN_RECORD WHERE DEVICE_TYPE=#{cardDeviceType} AND SERVICE_TYPE IN (#{employeeService},#{faceUpdateService}) AND CARD_NO IN <include refid="staffIdsAsText"/> AND PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>
+ UNION ALL SELECT R.PARK_ID,R.SUBJECT_ID,R.DEVICE_ID,R.ACCESS_TYPE,R.RESOURCE_TYPE,R.RESOURCE_ID,R.SERVICE_TYPE,R.CREDENTIAL_CHANNEL FROM SMT_AUTH_RESOURCE_COORD R WHERE R.SUBJECT_TYPE='STAFF' AND R.SERVICE_TYPE != TO_CHAR(#{appPerfectService}) AND R.SUBJECT_ID IN <include refid="staffIdsAsText"/> AND R.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>
+ ) WHERE DEVICE_ID IS NOT NULL
+</select>
+<select id="rowsByIds" resultType="com.tce.smart.platform.core.entity.SmtStaffDeviceAuth">SELECT * FROM SMT_STAFF_DEVICE_AUTH WHERE ID IN <include refid="ids"/></select>
+<select id="sourcesByAuthority" resultType="com.tce.smart.platform.core.entity.SmtStaffDeviceAuth">SELECT * FROM SMT_STAFF_DEVICE_AUTH WHERE AUTH_ID=#{id} ORDER BY STAFF_ID,ID</select>
+<select id="staffMemberships" resultMap="source">SELECT DISTINCT TO_CHAR(S.ID) SUBJECT_ID,B.PARK_ID FROM SMT_STAFF S JOIN SMT_PARK_BU B ON S.COMP_ID=B.COMP_ID WHERE S.ID IN <include refid="ids"/></select>
+<select id="staffByBadges" resultType="com.tce.smart.platform.core.entity.SmtStaff">SELECT ID,BADGE FROM SMT_STAFF WHERE BADGE IN <include refid="ids"/></select>
+<select id="pendingSubjects" resultType="int">SELECT SUM(N) FROM (
+ SELECT COUNT(*) N FROM SMT_AUTH_SELECTION_SOURCE WHERE SOURCE_KIND='STAFF_AUTH' AND SUBJECT_TYPE='STAFF' AND PARK_ID=#{park} AND STATE!='CONVERGED' AND SUBJECT_ID IN <include refid="staffIdsAsText"/>
+ UNION ALL SELECT COUNT(*) N FROM SMT_AUTH_SOURCE_COORD WHERE PARK_ID=#{park} AND SUBJECT_TYPE='STAFF' AND STATE NOT IN ('ACTIVE','TOMBSTONE') AND SUBJECT_ID IN <include refid="staffIdsAsText"/>
+)</select>
+<sql id="selection_markVerification">UPDATE SMT_AUTH_OPERATION_BATCH SET STATUS='VERIFYING',FAILURE_REASON=#{reason} WHERE ID=#{batch} AND STATUS='PREPARING'</sql>
+<update id="markVerification"><include refid="selection_markVerification"/></update>
+<sql id="selection_verificationReason">SELECT FAILURE_REASON FROM SMT_AUTH_OPERATION_BATCH WHERE ID=#{batch} AND STATUS='VERIFYING'</sql>
+<select id="verificationReason" resultType="string"><include refid="selection_verificationReason"/></select>
+<sql id="selection_sourcesForTarget">SELECT S.* FROM SMT_AUTH_SELECTION_SOURCE S WHERE EXISTS (SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE C WHERE C.TARGET_ID=#{targetId} AND C.SOURCE_COORD_ID=S.SOURCE_COORD_ID AND C.SOURCE_GENERATION=S.SOURCE_GENERATION) ORDER BY S.BATCH_ID,S.ORDINAL</sql>
+<select id="sourcesForTarget" resultMap="source"><include refid="selection_sourcesForTarget"/></select>
+<sql id="selection_resourcesForTarget">SELECT R.* FROM SMT_AUTH_SELECTION_RESOURCE R WHERE EXISTS (SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE C JOIN SMT_AUTH_SELECTION_SOURCE S ON S.SOURCE_COORD_ID=C.SOURCE_COORD_ID AND S.SOURCE_GENERATION=C.SOURCE_GENERATION WHERE C.TARGET_ID=#{targetId} AND R.RESOURCE_COORD_ID=C.RESOURCE_COORD_ID AND R.BATCH_ID=S.BATCH_ID AND R.SOURCE_ORDINAL=S.ORDINAL) ORDER BY R.BATCH_ID,R.ORDINAL</sql>
+<select id="resourcesForTarget" resultMap="resource"><include refid="selection_resourcesForTarget"/></select>
+<sql id="selection_sourceVerificationCount">SELECT COUNT(*) FROM SMT_AUTH_SELECTION_SOURCE WHERE BATCH_ID=#{batch} AND VERIFICATION_REASON IS NOT NULL AND STATE!='CONVERGED'</sql>
+<select id="sourceVerificationCount" resultType="int"><include refid="selection_sourceVerificationCount"/></select>
+<sql id="selection_verificationSources">SELECT * FROM (SELECT * FROM SMT_AUTH_SELECTION_SOURCE WHERE BATCH_ID=#{batch} AND VERIFICATION_REASON IS NOT NULL AND STATE!='CONVERGED' AND ORDINAL&gt;#{after} ORDER BY ORDINAL) WHERE ROWNUM&lt;=#{limit}</sql>
+<select id="verificationSources" resultMap="source"><include refid="selection_verificationSources"/></select>
+<sql id="selection_pendingExpansionBatches">SELECT ID FROM (SELECT B.ID FROM SMT_AUTH_OPERATION_BATCH B WHERE B.STATUS='PREPARING' AND B.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach> <if test="after!=null">AND B.ID&gt;#{after}</if> AND EXISTS(SELECT 1 FROM SMT_AUTH_SELECTION_SOURCE S WHERE S.BATCH_ID=B.ID) ORDER BY B.ID) WHERE ROWNUM&lt;=#{limit}</sql>
+<select id="pendingExpansionBatches" resultType="long"><include refid="selection_pendingExpansionBatches"/></select>
+<select id="pendingAuthority" resultType="int">SELECT COUNT(*) FROM SMT_AUTH_SELECTION_SOURCE WHERE SOURCE_KIND='STAFF_AUTH' AND SUBJECT_TYPE='STAFF' AND PARK_ID=#{park} AND AUTH_ID=#{authId} AND STATE!='CONVERGED'</select>
+<sql id="selection_unboundSelectionCount">SELECT SUM(N) FROM (
+ SELECT COUNT(*) N FROM SMT_AUTH_SELECTION_SOURCE WHERE BATCH_ID=#{batch} AND (SOURCE_COORD_ID IS NULL OR SOURCE_GENERATION IS NULL)
+ UNION ALL SELECT COUNT(*) N FROM SMT_AUTH_SELECTION_RESOURCE WHERE BATCH_ID=#{batch} AND RESOURCE_COORD_ID IS NULL
+)</sql>
+<select id="unboundSelectionCount" resultType="int"><include refid="selection_unboundSelectionCount"/></select>
+<sql id="selection_pendingTypedSubject">SELECT SUM(N) FROM (
+ SELECT COUNT(*) N FROM SMT_AUTH_SELECTION_SOURCE WHERE PARK_ID=#{park} AND SUBJECT_TYPE=#{subjectType} AND SUBJECT_ID=#{subject} AND STATE!='CONVERGED'
+ UNION ALL SELECT COUNT(*) N FROM SMT_AUTH_SOURCE_COORD WHERE PARK_ID=#{park} AND SUBJECT_TYPE=#{subjectType} AND SUBJECT_ID=#{subject} AND STATE NOT IN ('ACTIVE','TOMBSTONE')
+)</sql>
+<select id="pendingTypedSubject" resultType="int"><include refid="selection_pendingTypedSubject"/></select>
+<resultMap id="historyEvidence" type="com.tce.smart.platform.core.dto.employeeauth.EmployeeAuthOperation$HistoryEvidence">
+ <result column="ORIGIN" property="origin"/>
+ <result column="ROW_ID" property="rowId"/>
+ <result column="SUBJECT_ID" property="subjectId"/>
+ <result column="PARK_ID" property="parkId"/>
+ <result column="DEVICE_ID" property="deviceId"/>
+ <result column="ACCESS_TYPE" property="accessType"/>
+ <result column="DEVICE_TYPE" property="deviceType"/>
+ <result column="SERVICE_TYPE" property="serviceType"/>
+ <result column="TASK_ID" property="taskId"/>
+ <result column="EXTERNAL_TASK_ID" property="externalTaskId"/>
+ <result column="PERSON_ID" property="personId"/>
+ <result column="ACTION" property="action"/>
+ <result column="STATUS" property="status"/>
+ <result column="CREATED_AT" property="createdAt"/>
+ <result column="UPDATED_AT" property="updatedAt"/>
+ <result column="EVIDENCE_VERSION" property="evidenceVersion"/>
+ <result column="PARK_ORIGIN" property="parkOrigin"/>
+ <result column="RESOURCE_TYPE" property="resourceType"/>
+ <result column="RESOURCE_ID" property="resourceId"/>
+ <result column="CREDENTIAL_CHANNEL" property="credentialChannel"/>
+ <result column="IMAGE_ID" property="imageId"/>
+ <result column="START_TIME" property="startTime"/>
+ <result column="OVER_TIME" property="overTime"/>
+ <result column="WINDOW_ENCODING" property="windowEncoding"/>
+ <result column="SERIAL_NO" property="serialNo"/>
+ <result column="CODE" property="code"/>
+ <result column="TIMES" property="times"/>
+ <result column="CONSUME" property="consume"/>
+ <result column="GENERAL" property="general"/>
+ <result column="REMARK" property="remark"/>
+ <result column="CARD_TYPE" property="cardType"/>
+ <result column="BADGE" property="badge"/>
+ <result column="OPT_USER" property="optUser"/>
+ <result column="APPLY_ID" property="applyId"/>
+ <result column="BATCH_ID" property="batchId"/>
+</resultMap>
+<!-- 每个原始行独立保留；未知园区只作为证据，不生成园区或设备命令。 -->
+<select id="historicalReviewEvidence" resultMap="historyEvidence">
+ <include refid="employeeHistoryTypes"/>
+ SELECT 'DIRECT_TASK' ORIGIN,TO_CHAR(T.ID) ROW_ID,T.CARD_NO SUBJECT_ID,D.PARK_ID PARK_ID,T.DEVICE_CODE DEVICE_ID,'DIRECT' ACCESS_TYPE,TO_CHAR(T.DEVICE_TYPE) DEVICE_TYPE,TO_CHAR(T.SERVICE_TYPE) SERVICE_TYPE,TO_CHAR(T.ID) TASK_ID,CAST(NULL AS VARCHAR2(100)) EXTERNAL_TASK_ID,CAST(NULL AS VARCHAR2(100)) PERSON_ID,TO_CHAR(T.ACTION) ACTION,TO_CHAR(T.STATUS) STATUS,TO_CHAR(CAST(T.CREATE_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') CREATED_AT,TO_CHAR(CAST(T.UPDATE_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') UPDATED_AT, 2 EVIDENCE_VERSION, 'DEVICE_CURRENT' PARK_ORIGIN, 'PERSON' RESOURCE_TYPE, T.CARD_NO RESOURCE_ID, 'FACE' CREDENTIAL_CHANNEL, T.IMAGE_ID IMAGE_ID, TO_CHAR(T.START_TIME) START_TIME, TO_CHAR(T.OVER_TIME) OVER_TIME, 'EPOCH_SECONDS' WINDOW_ENCODING, T.SERIAL_NO SERIAL_NO, TO_CHAR(T.CODE) CODE, TO_CHAR(T.TIMES) TIMES, TO_CHAR(T.CONSUME) CONSUME, T.GENERAL GENERAL, T.REMARK REMARK, TO_CHAR(T.CARD_TYPE) CARD_TYPE, CAST(NULL AS VARCHAR2(2000 CHAR)) BADGE, CAST(NULL AS VARCHAR2(2000 CHAR)) OPT_USER, CAST(NULL AS VARCHAR2(2000 CHAR)) APPLY_ID, CAST(NULL AS VARCHAR2(2000 CHAR)) BATCH_ID
+ FROM SMT_DEVICE_TASK T LEFT JOIN SMT_DEVICE D ON D.ID=T.DEVICE_CODE
+ WHERE T.DEVICE_TYPE=#{cardDeviceType} AND T.SERVICE_TYPE IN (#{employeeService},#{faceUpdateService},#{appPerfectService}) AND T.CARD_NO IN <include refid="staffIdsAsText"/> AND (D.PARK_ID IS NULL OR D.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>)
+ UNION ALL
+ SELECT 'DIRECT_DOWN_RECORD' ORIGIN,TO_CHAR(T.ID) ROW_ID,T.CARD_NO SUBJECT_ID,T.PARK_ID PARK_ID,T.DEVICE_CODE DEVICE_ID,'DIRECT' ACCESS_TYPE,TO_CHAR(T.DEVICE_TYPE) DEVICE_TYPE,TO_CHAR(T.SERVICE_TYPE) SERVICE_TYPE,TO_CHAR(T.TASK_ID) TASK_ID,CAST(NULL AS VARCHAR2(100)) EXTERNAL_TASK_ID,CAST(NULL AS VARCHAR2(100)) PERSON_ID,TO_CHAR(T.ACTION) ACTION,TO_CHAR(T.TASK_TYPE) STATUS,TO_CHAR(CAST(T.CREATE_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') CREATED_AT,CAST(NULL AS VARCHAR2(100)) UPDATED_AT, 2 EVIDENCE_VERSION, 'RAW_RECORD' PARK_ORIGIN, 'PERSON' RESOURCE_TYPE, T.CARD_NO RESOURCE_ID, 'FACE' CREDENTIAL_CHANNEL, T.IMAGE_ID IMAGE_ID, TO_CHAR(CAST(T.START_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') START_TIME, TO_CHAR(CAST(T.OVER_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') OVER_TIME, 'LOCAL_TIMESTAMP_FF9' WINDOW_ENCODING, CAST(NULL AS VARCHAR2(2000 CHAR)) SERIAL_NO, CAST(NULL AS VARCHAR2(2000 CHAR)) CODE, CAST(NULL AS VARCHAR2(2000 CHAR)) TIMES, CAST(NULL AS VARCHAR2(2000 CHAR)) CONSUME, T.GENERAL GENERAL, T.REMARK REMARK, CAST(NULL AS VARCHAR2(2000 CHAR)) CARD_TYPE, CAST(NULL AS VARCHAR2(2000 CHAR)) BADGE, CAST(NULL AS VARCHAR2(2000 CHAR)) OPT_USER, CAST(NULL AS VARCHAR2(2000 CHAR)) APPLY_ID, CAST(NULL AS VARCHAR2(2000 CHAR)) BATCH_ID
+ FROM SMT_TASK_DOWN_RECORD T
+ WHERE T.DEVICE_TYPE=#{cardDeviceType} AND T.SERVICE_TYPE IN (#{employeeService},#{faceUpdateService},#{appPerfectService}) AND T.CARD_NO IN <include refid="staffIdsAsText"/> AND (T.PARK_ID IS NULL OR T.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>)
+ UNION ALL
+ SELECT 'ISC_TASK' ORIGIN,TO_CHAR(T.ID) ROW_ID,T.CARD_NO SUBJECT_ID,D.PARK_ID PARK_ID,T.DEVICE_CODE DEVICE_ID,'ISC' ACCESS_TYPE,TO_CHAR(T.DEVICE_TYPE) DEVICE_TYPE,TO_CHAR(T.SERVICE_TYPE) SERVICE_TYPE,TO_CHAR(T.ID) TASK_ID,CAST(T.ISC_TASK_ID AS VARCHAR2(512 CHAR)) EXTERNAL_TASK_ID,CAST(T.PERSON_ID AS VARCHAR2(512 CHAR)) PERSON_ID,TO_CHAR(T.ACTION) ACTION,TO_CHAR(T.STATUS) STATUS,TO_CHAR(CAST(T.CREATE_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') CREATED_AT,TO_CHAR(CAST(T.UPDATE_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') UPDATED_AT, 2 EVIDENCE_VERSION, 'DEVICE_CURRENT' PARK_ORIGIN, 'PERSON' RESOURCE_TYPE, T.CARD_NO RESOURCE_ID, 'FACE' CREDENTIAL_CHANNEL, T.IMAGE_ID IMAGE_ID, TO_CHAR(T.START_TIME) START_TIME, TO_CHAR(T.OVER_TIME) OVER_TIME, 'EPOCH_SECONDS' WINDOW_ENCODING, CAST(NULL AS VARCHAR2(2000 CHAR)) SERIAL_NO, TO_CHAR(T.CODE) CODE, TO_CHAR(T.TIMES) TIMES, TO_CHAR(T.CONSUME) CONSUME, T.GENERAL GENERAL, T.REMARK REMARK, CAST(NULL AS VARCHAR2(2000 CHAR)) CARD_TYPE, T.BADGE BADGE, T.OPT_USER OPT_USER, TO_CHAR(T.APPLY_ID) APPLY_ID, TO_CHAR(T.BATCH_ID) BATCH_ID
+ FROM SMT_ISC_DEVICE_TASK T LEFT JOIN SMT_DEVICE D ON D.ID=T.DEVICE_CODE
+ WHERE T.DEVICE_TYPE=#{cardDeviceType} AND T.SERVICE_TYPE IN (#{employeeService},#{faceUpdateService},#{appPerfectService}) AND T.CARD_NO IN <include refid="staffIdsAsText"/> AND (D.PARK_ID IS NULL OR D.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>)
+ UNION ALL
+ SELECT 'ISC_DOWN_RECORD' ORIGIN,TO_CHAR(T.ID) ROW_ID,T.CARD_NO SUBJECT_ID,T.PARK_ID PARK_ID,T.DEVICE_CODE DEVICE_ID,'ISC' ACCESS_TYPE,TO_CHAR(T.DEVICE_TYPE) DEVICE_TYPE,TO_CHAR(T.SERVICE_TYPE) SERVICE_TYPE,TO_CHAR(T.TASK_ID) TASK_ID,CAST(NULL AS VARCHAR2(100)) EXTERNAL_TASK_ID,CAST(T.PERSON_ID AS VARCHAR2(512 CHAR)) PERSON_ID,TO_CHAR(T.ACTION) ACTION,TO_CHAR(T.TASK_TYPE) STATUS,TO_CHAR(CAST(T.CREATE_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') CREATED_AT,CAST(NULL AS VARCHAR2(100)) UPDATED_AT, 2 EVIDENCE_VERSION, 'RAW_RECORD' PARK_ORIGIN, 'PERSON' RESOURCE_TYPE, T.CARD_NO RESOURCE_ID, 'FACE' CREDENTIAL_CHANNEL, T.IMAGE_ID IMAGE_ID, TO_CHAR(CAST(T.START_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') START_TIME, TO_CHAR(CAST(T.OVER_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') OVER_TIME, 'LOCAL_TIMESTAMP_FF9' WINDOW_ENCODING, CAST(NULL AS VARCHAR2(2000 CHAR)) SERIAL_NO, CAST(NULL AS VARCHAR2(2000 CHAR)) CODE, CAST(NULL AS VARCHAR2(2000 CHAR)) TIMES, CAST(NULL AS VARCHAR2(2000 CHAR)) CONSUME, T.GENERAL GENERAL, T.REMARK REMARK, CAST(NULL AS VARCHAR2(2000 CHAR)) CARD_TYPE, T.BADGE BADGE, T.OPT_USER OPT_USER, CAST(NULL AS VARCHAR2(2000 CHAR)) APPLY_ID, CAST(NULL AS VARCHAR2(2000 CHAR)) BATCH_ID
+ FROM SMT_ISC_DOWN_RECORD T
+ WHERE T.DEVICE_TYPE=#{cardDeviceType} AND T.SERVICE_TYPE IN (#{employeeService},#{faceUpdateService},#{appPerfectService}) AND T.CARD_NO IN <include refid="staffIdsAsText"/> AND (T.PARK_ID IS NULL OR T.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>)
+ UNION ALL
+ SELECT 'RESOURCE_COORD' ORIGIN,CAST(R.ID AS VARCHAR2(100)) ROW_ID,R.SUBJECT_ID SUBJECT_ID,R.PARK_ID PARK_ID,R.DEVICE_ID DEVICE_ID,R.ACCESS_TYPE ACCESS_TYPE,CAST(NULL AS VARCHAR2(100)) DEVICE_TYPE,R.SERVICE_TYPE SERVICE_TYPE,CAST(NULL AS VARCHAR2(100)) TASK_ID,CAST(NULL AS VARCHAR2(100)) EXTERNAL_TASK_ID,CAST(NULL AS VARCHAR2(100)) PERSON_ID,R.ACTION ACTION,CAST(NULL AS VARCHAR2(100)) STATUS,TO_CHAR(CAST(R.CREATE_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') CREATED_AT,TO_CHAR(CAST(R.UPDATE_TIME AS TIMESTAMP(9)),'YYYY-MM-DD"T"HH24:MI:SS.FF9') UPDATED_AT, 2 EVIDENCE_VERSION, 'RESOURCE_COORD' PARK_ORIGIN, R.RESOURCE_TYPE RESOURCE_TYPE, R.RESOURCE_ID RESOURCE_ID, R.CREDENTIAL_CHANNEL CREDENTIAL_CHANNEL, CAST(NULL AS VARCHAR2(2000 CHAR)) IMAGE_ID, CAST(NULL AS VARCHAR2(2000 CHAR)) START_TIME, CAST(NULL AS VARCHAR2(2000 CHAR)) OVER_TIME, CAST(NULL AS VARCHAR2(2000 CHAR)) WINDOW_ENCODING, CAST(NULL AS VARCHAR2(2000 CHAR)) SERIAL_NO, CAST(NULL AS VARCHAR2(2000 CHAR)) CODE, CAST(NULL AS VARCHAR2(2000 CHAR)) TIMES, CAST(NULL AS VARCHAR2(2000 CHAR)) CONSUME, CAST(NULL AS VARCHAR2(2000 CHAR)) GENERAL, CAST(NULL AS VARCHAR2(2000 CHAR)) REMARK, CAST(NULL AS VARCHAR2(2000 CHAR)) CARD_TYPE, CAST(NULL AS VARCHAR2(2000 CHAR)) BADGE, CAST(NULL AS VARCHAR2(2000 CHAR)) OPT_USER, CAST(NULL AS VARCHAR2(2000 CHAR)) APPLY_ID, CAST(NULL AS VARCHAR2(2000 CHAR)) BATCH_ID
+ FROM SMT_AUTH_RESOURCE_COORD R WHERE R.SUBJECT_TYPE='STAFF' AND R.SERVICE_TYPE IN (TO_CHAR(#{employeeService}),TO_CHAR(#{faceUpdateService}),TO_CHAR(#{appPerfectService})) AND R.SUBJECT_ID IN <include refid="staffIdsAsText"/> AND (R.PARK_ID IS NULL OR R.PARK_ID IN <foreach collection="parks" item="p" open="(" close=")" separator=",">#{p}</foreach>)
+</select>
+</mapper>

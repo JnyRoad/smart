@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.AuthOperationManagementMapper">
+
+	<resultMap id="ManagementBatchMap"
+			type="com.tce.smart.platform.core.dto.authoperation.AuthOperationManagementBatchRow">
+		<id property="batchId" column="BATCH_ID"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="action" column="ACTION"/>
+		<result property="sourceType" column="SOURCE_TYPE"/>
+		<result property="sourceId" column="SOURCE_ID"/>
+		<result property="status" column="STATUS"/>
+		<result property="failureReason" column="FAILURE_REASON"/>
+		<result property="expectedCount" column="EXPECTED_COUNT"/>
+		<result property="expandedCount" column="EXPANDED_COUNT"/>
+		<result property="acceptedAt" column="ACCEPTED_AT"/>
+		<result property="expansionFinishedAt" column="EXPANSION_FINISHED_AT"/>
+		<result property="updatedAt" column="UPDATED_AT"/>
+	</resultMap>
+
+	<resultMap id="ManagementTargetMap"
+			type="com.tce.smart.platform.core.dto.authoperation.AuthOperationManagementTargetRow">
+		<id property="targetId" column="TARGET_ID"/>
+		<result property="requestId" column="REQUEST_ID"/>
+		<result property="batchId" column="BATCH_ID"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="subjectType" column="SUBJECT_TYPE"/>
+		<result property="subjectId" column="SUBJECT_ID"/>
+		<result property="deviceId" column="DEVICE_ID"/>
+		<result property="resourceType" column="RESOURCE_TYPE"/>
+		<result property="resourceId" column="RESOURCE_ID"/>
+		<result property="action" column="ACTION"/>
+		<result property="version" column="OPERATION_VERSION"/>
+		<result property="state" column="STATE"/>
+		<result property="failureReason" column="FAILURE_REASON"/>
+		<result property="acceptedAt" column="ACCEPTED_AT"/>
+		<result property="dispatchedAt" column="DISPATCHED_AT"/>
+		<result property="confirmedAt" column="CONFIRMED_AT"/>
+		<result property="convergedAt" column="CONVERGED_AT"/>
+		<result property="nextAttemptAt" column="NEXT_ATTEMPT_AT"/>
+	</resultMap>
+
+	<resultMap id="ManagementAttemptMap"
+			type="com.tce.smart.platform.core.dto.authoperation.AuthOperationManagementAttemptRow">
+		<id property="targetId" column="TARGET_ID"/>
+		<result property="attemptNo" column="ATTEMPT_NO"/>
+		<result property="status" column="STATUS"/>
+		<result property="externalBatchId" column="EXTERNAL_BATCH_ID"/>
+		<result property="externalCommandId" column="EXTERNAL_COMMAND_ID"/>
+	</resultMap>
+
+	<select id="selectBatchPage" resultMap="ManagementBatchMap">
+		SELECT B.ID AS BATCH_ID, B.PARK_ID, B.ACTION, B.SOURCE_TYPE, B.SOURCE_ID,
+			B.STATUS, B.FAILURE_REASON, B.EXPECTED_COUNT, B.EXPANDED_COUNT, B.ACCEPTED_AT,
+			B.EXPANSION_FINISHED_AT, B.UPDATE_TIME AS UPDATED_AT
+		FROM SMT_AUTH_OPERATION_BATCH B
+		WHERE B.PARK_ID IN
+		<foreach collection="filter.allowedParkIds" item="allowedParkId" open="(" separator="," close=")">
+			#{allowedParkId}
+		</foreach>
+		<if test="filter.parkId != null">
+			AND B.PARK_ID = #{filter.parkId}
+		</if>
+		<if test="filter.action != null">
+			AND B.ACTION = #{filter.action}
+		</if>
+		<if test="filter.status != null">
+			AND B.STATUS = #{filter.status}
+		</if>
+		<if test="filter.sourceType != null">
+			AND B.SOURCE_TYPE = #{filter.sourceType}
+		</if>
+		<if test="filter.sourceId != null">
+			AND B.SOURCE_ID = #{filter.sourceId}
+		</if>
+		ORDER BY B.CREATE_TIME DESC, B.ID DESC
+	</select>
+
+	<select id="selectBatch" resultMap="ManagementBatchMap">
+		SELECT B.ID AS BATCH_ID, B.PARK_ID, B.ACTION, B.SOURCE_TYPE, B.SOURCE_ID,
+			B.STATUS, B.FAILURE_REASON, B.EXPECTED_COUNT, B.EXPANDED_COUNT, B.ACCEPTED_AT,
+			B.EXPANSION_FINISHED_AT, B.UPDATE_TIME AS UPDATED_AT
+		FROM SMT_AUTH_OPERATION_BATCH B
+		WHERE B.ID = #{batchId}
+			AND B.PARK_ID IN
+			<foreach collection="allowedParkIds" item="allowedParkId" open="(" separator="," close=")">
+				#{allowedParkId}
+			</foreach>
+	</select>
+
+	<select id="selectTargetPage" resultMap="ManagementTargetMap">
+		SELECT T.ID AS TARGET_ID, T.REQUEST_ID, T.BATCH_ID, T.PARK_ID,
+			T.SUBJECT_TYPE, T.SUBJECT_ID, T.DEVICE_ID, T.RESOURCE_TYPE,
+			T.RESOURCE_ID, T.ACTION, T.OPERATION_VERSION, T.STATE, T.FAILURE_REASON,
+			T.ACCEPTED_AT, T.DISPATCHED_AT, T.CONFIRMED_AT, T.CONVERGED_AT,
+			T.NEXT_ATTEMPT_AT
+		FROM SMT_AUTH_OPERATION_TARGET T
+		WHERE T.BATCH_ID = #{filter.batchId}
+			AND T.PARK_ID = #{filter.parkId}
+		<if test="filter.states != null and filter.states.size > 0">
+			AND T.STATE IN
+			<foreach collection="filter.states" item="state" open="(" separator="," close=")">
+				#{state}
+			</foreach>
+		</if>
+		<if test="filter.deviceId != null">
+			AND T.DEVICE_ID = #{filter.deviceId}
+		</if>
+		<if test="filter.subjectType != null">
+			AND T.SUBJECT_TYPE = #{filter.subjectType}
+		</if>
+		ORDER BY T.CREATE_TIME DESC, T.ID DESC
+	</select>
+
+	<select id="selectLatestAttempts" resultMap="ManagementAttemptMap">
+		SELECT TARGET_ID, ATTEMPT_NO, STATUS, EXTERNAL_BATCH_ID, EXTERNAL_COMMAND_ID
+		FROM (
+			SELECT A.TARGET_ID, A.ATTEMPT_NO, A.STATUS, A.EXTERNAL_BATCH_ID,
+				A.EXTERNAL_COMMAND_ID,
+				ROW_NUMBER() OVER (PARTITION BY A.TARGET_ID ORDER BY A.ATTEMPT_NO DESC, A.ID DESC) AS RN
+			FROM SMT_AUTH_OPERATION_ATTEMPT A
+			WHERE A.TARGET_ID IN
+			<foreach collection="targetIds" item="targetId" open="(" separator="," close=")">
+				#{targetId}
+			</foreach>
+		)
+		WHERE RN = 1
+		ORDER BY TARGET_ID
+	</select>
+</mapper>

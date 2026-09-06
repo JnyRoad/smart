@@ -458,7 +458,7 @@ flowchart LR
     <tr><td>5.1 考试通过管理</td><td>人员名单维护+批量导入（与保密承诺书同一套用法）；不在名单内的人，保密类型权限组不允许下发、不允许申请</td><td>后台「考试通过管理」</td><td>仿承诺书三件套；在下发与申请两个入口加拦截</td><td>批次 1</td></tr>
     <tr><td>5.2 访客手动下发</td><td>入场申请记录加「通关权限」按钮，自选权限组下发（复用员工侧组件）；长期供应商也走这里</td><td>「通关权限下发」对话框</td><td>新增访客版下发接口，结束日期默认取申请单</td><td>批次 1</td></tr>
     <tr><td>5.3 下发带期限</td><td>员工通关权限、权限组批量粘贴两处都加起止日期（默认当天~2030）；到期设备端自动失效</td><td>两处下发界面</td><td>入参和表单加日期；靠海康下发窗口在设备端到期</td><td>批次 1</td></tr>
-    <tr><td>5.8 可靠删除链路</td><td>见流程三：删除中/删除失败状态可视化、失败告警可重发、每日对账兜底、上线前先清一轮存量残留</td><td>「权限组人员·删除状态」列表</td><td>删除请求实体化 + 状态机 + 对账任务（技术方案已过对抗评审）</td><td>批次 4 之首</td></tr>
+    <tr><td>5.8 可靠删除与批量调度</td><td>见流程三：删除状态可视化、失败告警可重发、对账清存量；同时覆盖高峰上万条门禁权限下发与删除</td><td>「权限组人员·删除状态」与批次进度</td><td>删除请求 + 状态机 + 万级任务分批、公平调度与容量验收；ISC 优先，设备直连同样覆盖，新增设计待实现及验证</td><td>批次 4 之首，批量能力一期必做</td></tr>
     <tr><td>5.4 自动删除</td><td>N 天未进出保密区自动删权限（扣节假日/请假/出差）。现有实现有个会误删的 BUG（天数取错字段），先修复；开启前先跑一周「只记录不删除」演练</td><td>「自动删除配置与记录」</td><td>修 BUG + 演练开关 + 依赖进出记录修复（5.7）</td><td>缺陷立即修 / 批次 5 灰度开启</td></tr>
     <tr><td>5.5/5.6 白名单与报表</td><td>白名单已有；删除记录报表新增（区分自动/手动来源）</td><td>同上</td><td>来源标记 + 报表页</td><td>批次 5</td></tr>
     <tr><td>5.7 进出记录同步修复</td><td>海康进出记录漏同步的三个口子全堵上：订阅假活自动恢复、漏推事件定时拉取补齐（海康查询接口已核实存在）、异常事件不再丢弃</td><td>无界面（底层）</td><td>订阅健康检查 + 每日对账拉取 + 异常落表重处理</td><td>批次 4</td></tr>
@@ -1738,9 +1738,14 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
 <section class="item" id="item-5-8">
  <div class="ih"><span class="ino">5.8</span><h3>权限删除链路统一改造（可靠删除：先下发 → 回执确认 → 再删 → 对账）</h3><span class="ibatch">批次 4</span></div>
  <dl>
-  <dt>现状与问题</dt>
+  <dt>范围与交付状态</dt>
   <dd>
-   <p><strong>入口层在创建删除任务的同一事务里就把本地权限记录物理删除</strong>，设备端是否真的删掉无人知晓；一旦下发失败，本地已无记录可重发、也无告警。逐处证据：</p>
+   <p><strong>正在实施，5.8 整体尚未完成。</strong>员工删除/清空已接入持久批次、版本协调、异步调度与可信回执收敛；ISC 和直连各 201 个目标的临时 Oracle 受控管道通过。请求响应丢失后的原键恢复、跨标签页互斥，以及旧设备迁园时保留历史核验依据已通过定向测试和审查。最新固定输入的 10,000 个 ISC DELETE 目标（500 人 × 20 设备）已在临时 Oracle 与受控 ISC 协议端完成：487,368ms 展开，1,231,086ms 全链路收敛，60 个配置、60 个进度、60 个下载和 60 个明细请求，10,000 个目标及来源均归零；每设备的 500 人分为 200、200、100 三个兼容包。该结果证明当前受控代码路径能以有界批量走完“下发—回执—再删”，<strong>不是生产或真实设备容量结论</strong>。受控 SC-002 补测已在 20,000 个 ISC ADD 目标积压（100 人 × 200 设备）中通过原有批量入口提交 20 人单设备撤权：20 个删除目标均在 5,581ms 发出首次 ISC 配置请求，新增仍有 19,800 个目标排队，删除未被新增挤掉。该结论只覆盖一个 20 人批量请求和受控远端；20 个独立撤权请求且每人关联 200 设备时，删除来源展开在 120 秒内没有首次外发，因此<strong>多独立请求的来源展开并发保障尚未完成</strong>。20,000 目标全链路确认、正常列表基线、混合故障、JVM 崩溃恢复、真实 ISC 与直连设备仍未验收。完整业务入口、存量盘点与容量记录见 <a href="../../specs/012-reliable-auth-batch/tasks.md">任务清单</a>。同时覆盖设备直连与 ISC 两种接入，优先完成使用量最大的 ISC；仅 ISC 完成时标记阶段完成，不能将 5.8 整体标为完成。高峰可能同时出现上万条门禁权限下发，<strong>大批量新增、更新、重新下发和删除的调度能力属于一期范围</strong>，与可靠删除共同验收，不能留作上线后的可选优化。</p>
+   <p><strong>已确认容量口径：高峰上万条指按人员与设备展开后的任务数。</strong>分别记录人员数、授权关系数和按“主体 × 设备 × 实际权限资源”去重后的逻辑目标数；逻辑目标不等同于 HTTP 请求。主验收覆盖 10,000 与 20,000 个设备目标的集中提交；10,000 人关联多设备仅作为额外放大压力场景，试点时补充实际设备分布。下述数值是设计和压测要求，不代表已达到的生产性能。</p>
+  </dd>
+  <dt>改造前基线与问题</dt>
+  <dd>
+   <p>以下为本次改造定位时的源码基线，行号用于追溯原问题；当前实现状态以上方交付记录和任务清单为准。<strong>旧入口在创建删除任务的同一事务里就把本地权限记录物理删除</strong>，设备端是否真的删掉无人知晓；一旦下发失败，本地已无记录可重发、也无告警。逐处证据：</p>
    <table>
     <thead><tr><th>入口</th><th>证据</th><th>问题</th></tr></thead>
     <tbody>
@@ -1750,23 +1755,27 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
      <tr><td>保密区到期自动删除</td><td><code>[PB]/service/securityzone/impl/SmtSecurityAuthDeleteServiceImpl.java:199-208</code>，注释原文「1. 先删除员工权限策略关联 … 2. 生成删除人员已下发设备权限的任务」</td><td>顺序反了：先删本地再建任务</td></tr>
      <tr><td>权限组未挂设备</td><td><code>[PB]/service/impl/SmtDeviceAuthorityServiceImpl.java:588-594</code>（relation 为空直接 <code>removeByIds</code>）、<code>:651-657</code>（<code>removeByAuthId</code>）</td><td>纯本地删、零下发；设备曾下发过、之后被从权限组移除的场景永久残留</td></tr>
      <tr><td>任务创建不可感知</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java:772-788</code> <code>addDeviceDelTaskImmed</code> 为 <code>void</code>，<code>:786 saveTask(deviceTaskVO)</code> 返回值丢弃；<code>saveTask :101</code> 返回 String，非 ISC 设备查不到下发记录时 <code>:173 return null</code></td><td>入口层无法知道是否真的建了任务</td></tr>
-     <tr><td>多设备删除提前返回</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java</code> <code>deleteTask</code> 已改为遍历完整个 deviceCode 列表，并以非短路 <code>&amp;= this.save(deviceTask)</code> 汇总结果</td><td>缺陷⑤已实现、待合入 main；单测覆盖后续设备仍建任务</td></tr>
+     <tr><td>多设备删除提前返回</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java</code> <code>deleteTask</code> 已改为遍历完整个 deviceCode 列表，并以非短路 <code>&amp;= this.save(deviceTask)</code> 汇总结果</td><td>当前代码已包含修复；该修复不代表完整删除链路和批量容量已验收</td></tr>
     </tbody>
    </table>
-   <p><strong>ISC 侧回执链本身是完备的</strong>（问题只在入口层）：<code>[SCH]/service/platform/impl/ISCDeviceTaskServiceImpl.java</code> 删除任务走 auth_config/delete → 进度轮询 → 下载明细，<code>:2736-2743</code> <code>if (update &amp;&amp; "0".equals(downResultCode))</code> 才调 <code>smtIscDownRecordService.handleTaskDownRecord(updateTask)</code>（注释「下载明细确认成功后，才维护本地下发记录；删除权限也在这里移除记录」）；失败走 <code>markDeleteTaskForRetry :1629-1653</code>（<code>:1634</code> 1 小时后重试，<code>DELETE_TASK_RETRY_DELAY_SECONDS = 60 * 60 :127</code>），达 <code>[TOOL]/constant/DeviceTaskConstants.java:63 AUTH_CONFIG_MAX_RETRY_TIMES = 10</code> 后 <code>markTaskRetryExceeded :1442-1461</code> 置 FAIL、remark 写「请人工介入处理」——<strong>没有任何告警、没有回写授权行</strong>。</p>
+   <p><strong>ISC 已有回执处理，但仍有收敛断点。</strong><code>[SCH]/service/platform/impl/ISCDeviceTaskServiceImpl.java:2734-2739</code> 先将任务更新为 SUCCESS，再维护下发记录；后一步异常时，<code>authConfigDownResultHandle :2428-2448</code> 下一轮只查询 DOING，不能据此保证自动恢复。删除失败现有重试间隔为 1 小时，最多 10 次；<code>markTaskRetryExceeded :1442-1460</code> 更新失败状态与备注，并只对带 applyId 的任务触发入厂聚合，未形成 5.8 的删除请求、授权行与告警闭环。两种接入的旧新增/更新回执也缺少删除代次隔离，可能在撤权后重新写入下发记录。</p>
    <p><strong>已有收敛雏形</strong>：<code>[PC]/service/impl/StaffDeviceAuthSyncService.java:66-108</code> <code>syncAfterDelete</code>——删除回执确认后，若该员工在权限组全部设备上都没有活跃下发记录（<code>:102 hasAnyActiveDownRecord</code>）才删关联行（<code>:103</code>）。它已被两个确认点调用：非 ISC <code>[PC]/service/impl/SmtTaskDownRecordServiceImpl.java:79-93</code>（DEL 分支）、ISC <code>[PC]/service/impl/SmtIscDownRecordServiceImpl.java:84,92</code>。但它只按 <code>设备+卡号+服务类型</code> 实时全量反查，<strong>没有 request/授权行关联键</strong>，且 <code>:110-112 isStaffFaceAccess</code> 只认 <code>deviceType=CARD</code> 且 <code>serviceType ∈ {CARD_STAFF_IMPORT, UPDATE_FACE}</code>（<code>:37-38</code>），车辆完全不覆盖。并发下（同一员工两个权限组同时删/新授权）会收敛错行。</p>
    <p>手动对账工具：<code>[PB]/controller/SmtIscAccessCleanupController.java:24</code> <code>/isc/access/cleanup</code>，<code>:40-41 POST /execute</code> → <code>[PB]/service/isc/impl/SmtIscAccessCleanupServiceImpl.java:99</code>，仅 ISC、人工触发，前端页 <code>[UI]/views/platform/records/isc_access_cleanup/index.vue</code>。</p>
-   <p>字段现状：<code>smt_staff_device_auth</code> 只有 <code>id/staffId/authId/createTime/authType</code>（<code>[PC]/entity/SmtStaffDeviceAuth.java:19-45</code>），无状态、无代次；车辆侧 <code>SmtVehicleApply.status</code> 已是审批状态「0-审批中 1-已审批 2-已拒绝」（<code>[PC]/entity/SmtVehicleApply.java:60-63</code>），不能复用；任务表 <code>SMT_ISC_DEVICE_TASK</code> 已有 <code>applyId:154 / batchId:159 / times:80 / personId:149</code>（<code>[PC]/entity/SmtIscDeviceTask.java</code>）但无删除请求关联列。</p>
+   <p>字段现状：<code>smt_staff_device_auth</code> 已有 <code>id/staffId/authId/createTime/startTime/endTime/authType</code>（<code>[PC]/entity/SmtStaffDeviceAuth.java:19-55</code>），无删除状态与代次；车辆侧 <code>SmtVehicleApply.status</code> 已是审批状态，不能复用；任务表已有 applyId/batchId/times/personId 等字段，但无 5.8 删除请求关联。新增与补偿下发应保留已保存的权限有效期，不能因批量合并扩大有效时间。</p>
+   <p><strong>批量处理基线（源码 157d4ca1，非生产实测）：</strong><code>[SCH]/task/ISCDeviceTimerTask.java:43-76</code> 的下发、删除与下载结果处理均使用 60 秒 fixedDelay，权限配置进度为 30 秒且还经过默认 60 秒的调度门闩；<code>ScheduleConfig.java:22-41</code> 使用公共调度线程池。<code>ISCDeviceTaskServiceImpl.delAccess :3057-3104</code> 每轮只取正常删除与延迟删除各 500 条。实际提交按园区、设备、权限时间窗分组，每批最多 1000 人（<code>:2145-2184</code>），但批次循环同步执行，删除前 <code>resolveDeletePersonIds :1873-1953</code> 还逐任务远程回查员工标识，异常复查也可能逐目标调用 ISC。扩大页大小或增加线程数，不能单独解决高峰排队与接口限流。</p>
   </dd>
   <dt>目标与验收标准</dt>
   <dd>
    <ol>
     <li>任何入口发起的权限删除，本地授权行在设备端确认删除前<strong>不消失</strong>，只进入「删除中」；设备端全部确认后才终态删除。</li>
-    <li>删除失败（重试耗尽或 48h 超时）可见：授权行置「删除失败」、管理员收到告警（微信/站内）、页面有失败清单与「重发」按钮。</li>
+    <li>删除失败（重试耗尽或 48h 超时）可见：授权行置「删除失败」、管理员收到告警（微信/站内）、页面有失败清单与「重发」按钮；48h 为最终失败兜底，不能作为允许排队时长，排队异常应提前告警。</li>
     <li>删除期间禁止对同主体 + 同权限组新增下发，由数据库约束保证（不是应用层先读后写）。</li>
     <li>迟到/串代次的回执不会误删新授权；设备端确被旧任务清掉而新授权有效时自动补偿重下发。</li>
     <li>每日对账任务自动发现「设备有下发记录但本地无有效权限来源」的残留并补删除任务；上线前先跑一轮清掉存量残留（问题 15）。</li>
     <li>灰度：先只切「权限组人员页删除/清空」入口，观察一周无异常再推广到离职、保密到期、作废、车辆入口。</li>
+    <li>高峰集中提交上万条新增/删除目标时，接口异步受理、分段生成任务；普通新增、业务撤权和回执收敛各有保留处理能力，历史清理与重试不能挤满执行资源。单台离线设备不能阻塞其他设备。</li>
+    <li>同一主体在同一设备上的冲突操作按版本协调，其他目标允许受控并行；不持有数据库锁、HTTP 请求或工作线程等待设备回执。</li>
+    <li>所有容量验收必须同时报告受理时间、任务展开时间、排队时间、外部执行确认时间与本地收敛时间；未完成展开、遗漏明细、取消或失败均不能按整批成功统计。</li>
    </ol>
   </dd>
   <dt>实现方式</dt>
@@ -1776,11 +1785,12 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
     <thead><tr><th>列</th><th>类型/约束</th><th>说明</th></tr></thead>
     <tbody>
      <tr><td><code>request_id</code></td><td>PK，雪花 ID（沿用 <code>IdWorker.getId()</code>，同 <code>submitIscPersonBatch</code> 的 batchId 做法）</td><td>请求主键</td></tr>
-     <tr><td><code>subject_type</code></td><td>1 人员 / 2 车辆</td><td>区分授权主体</td></tr>
-     <tr><td><code>auth_row_id</code></td><td>NOT NULL，索引</td><td>人员=<code>smt_staff_device_auth.id</code>；车辆=<code>smt_vehicle_apply.id</code></td></tr>
-     <tr><td><code>subject_id</code> / <code>auth_id</code></td><td>NOT NULL</td><td>staffId 或 vehicleId；权限组 id（冗余便于对账）</td></tr>
+     <tr><td><code>subject_type</code></td><td>1 员工 / 2 车辆 / 3 访客</td><td>区分授权主体；车辆另存员工/入厂来源类型，不能仅按车辆类型推断来源表</td></tr>
+     <tr><td><code>auth_row_id</code></td><td>普通撤权必填，孤儿清理可空，索引</td><td>员工=<code>smt_staff_device_auth.id</code>；员工车辆=<code>smt_vehicle_apply.id</code>；访客人员及车辆按来源类型关联申请单、随行人员/车辆行。source=7 允许原授权行已不存在，但必须保存可核验的主体、设备及权限标识</td></tr>
+     <tr><td><code>subject_id</code> / <code>auth_id</code></td><td>普通撤权必填；孤儿清理按身份快照关联</td><td>staffId 或 vehicleId；权限组 id。访客/入厂来源另保存来源单据及随行人员/车辆标识，不能伪造员工授权行</td></tr>
      <tr><td><code>generation</code></td><td>NOT NULL</td><td>发起时授权行的代次快照</td></tr>
-     <tr><td><code>device_snapshot</code></td><td>CLOB/JSON</td><td>发起时刻目标设备集（设备 id + 是否 ISC）；回执只认快照内设备</td></tr>
+     <tr><td><code>device_snapshot</code></td><td>持久目标明细及其摘要</td><td>包含当前/历史设备、接入类型、主体/卡号/personId、服务类型、设备资源/通道与版本；大批量按明细行分页保存，不能每次回执解析整批 CLOB</td></tr>
+     <tr><td><code>operation_batch_id / expand_status / expected_count / expanded_count</code></td><td>批次关联、展开状态及计数</td><td>批次可包含多主体请求；冻结选择语义后分段展开，保存游标并可续接。展开完成且数量核对通过前不能进入成功终态</td></tr>
      <tr><td><code>status</code></td><td>0 处理中 / 1 成功 / 2 失败 / 3 已关闭（被新请求替代）/ 4 人工确认清理</td><td>请求状态</td></tr>
      <tr><td><code>source</code></td><td>1 权限组删除 / 2 权限组清空 / 3 离职 / 4 保密到期 / 5 入厂作废 / 6 手动重发 / 7 对账补偿</td><td>发起来源（同时满足 5.6 报表的来源标记）</td></tr>
      <tr><td><code>park_id / opt_user / create_time / finish_time / fail_reason / deadline_time</code></td><td></td><td><code>deadline_time = create_time + 48h</code> 供超时兜底扫描</td></tr>
@@ -1792,36 +1802,59 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
    <table>
     <thead><tr><th>迁移</th><th>触发</th><th>保障</th></tr></thead>
     <tbody>
-     <tr><td>0 正常 → 1 删除中</td><td>权限组删除/清空、离职、保密到期、入厂作废发起</td><td>CAS <code>UPDATE ... SET status=1, delete_request_id=? WHERE id=? AND status=0</code>，更新 0 行即幂等返回（挡重复清空）；<strong>同一事务</strong>写 <code>smt_auth_delete_request</code>（含设备集快照）+ 创建快照内<strong>全部</strong>删除任务；任一任务创建失败（<code>saveTask</code> 返回 null/异常）整体回滚回 0，不存在部分创建中间态</td></tr>
-     <tr><td>1 删除中 → 已删除（终态，物理删行或 <code>status=9</code> 归档）</td><td>request 快照内全部设备任务终态成功</td><td>按 <code>delete_request_id</code> 收敛：每条任务成功回执 → 统计该 request 下未终态任务数为 0 → 删行、request 置 1；不再实时反查设备+卡号</td></tr>
-     <tr><td>1 删除中 → 2 删除失败</td><td>任一任务重试耗尽 FAIL（<code>markTaskRetryExceeded</code>），或每日扫描 <code>deadline_time &lt; now</code> 仍未终态</td><td>置 2 + request 置 2 + 告警；任务经 request 关联可定位到具体设备</td></tr>
-     <tr><td>2 删除失败 → 1 删除中</td><td>人工在失败清单点「重发」</td><td>CAS <code>WHERE status=2</code>；新建 request（source=6），旧 request 置 3 关闭；仅对旧 request 中失败设备重建任务</td></tr>
+     <tr><td>0 正常 → 1 删除中</td><td>权限组删除/清空、离职、保密到期、入厂作废发起</td><td>按主体短事务 CAS 状态和授权版本，同事务保存 request 与固定目标选择依据；未展开时保持「准备中」，后台按有界分片创建目标和任务。同分片目标、任务、游标一起提交，失败只回滚该分片并可续接；不能为上万条目标持有整批长事务。CAS 未命中须区分相同请求幂等与版本冲突</td></tr>
+     <tr><td>1 删除中 → 已删除（终态，物理删行或 <code>status=9</code> 归档）</td><td>目标展开完成，全部预期删除目标均已确认成功</td><td>按 request/目标/版本幂等收敛：展开数量核对一致、全部目标有可信完成证据、无未知/失败项才删行、request=1；「无未终态任务」不等于成功。因其他有效来源保留的设备须单独保存依据，不伪造删除成功</td></tr>
+     <tr><td>1 删除中 → 2 删除失败</td><td>任一任务重试耗尽，或分钟级扫描发现 deadline 已过且未完成</td><td>置 2 + request 置 2 + 告警；准备失败、排队超时、设备失败与本地收敛失败分别记录，不能都显示为设备失败</td></tr>
+     <tr><td>2 删除失败 → 1 删除中</td><td>人工在失败清单点「重发」</td><td>CAS 状态；source=6 记录重发尝试。仅补偿所有未确认成功目标，包含超时、未知和未展开分片；保留成功证据。旧尝试仍在途时先登记接管与结果映射，不能关闭旧请求后丢弃在途回执或重复发送相同目标</td></tr>
      <tr><td>2 删除失败 → 已删除</td><td>人工核实设备端确无权限后「确认清理」</td><td>request 置 4，记录操作人/时间/备注留痕</td></tr>
     </tbody>
    </table>
    <p><strong>4）并发防护</strong>：</p>
    <ul>
-    <li><code>generation</code> 代次：授权行创建即赋值（同主体 + 权限组取 <code>max(generation)+1</code>）；重新授权必须等旧行达终态后新建行。</li>
+    <li><code>generation</code> 在持久主体授权状态中原子递增，不能在物理删除后仅从现存行取 <code>max+1</code> 导致代次重用；删除期间禁止同授权来源重新下发。</li>
     <li>「删除中/删除失败期间禁止新增下发」用 DB 原子化：新建唯一索引 <code>uk_staff_auth_active(staff_id, auth_id, active_flag)</code>，其中 <code>active_flag</code> 为虚拟列/触发列（status ∈ {0,1,2} 时 = 1，终态归档时 = NULL；Oracle 用函数索引 <code>CASE WHEN status IN (0,1,2) THEN staff_id||'_'||auth_id END</code>）；插入撞唯一键即报「该员工权限正在删除中，请等待完成或先处理失败项」。备选：插入前 <code>SELECT ... FOR UPDATE</code> 锁主体行。</li>
-    <li>迟到回执按 <code>request_id + generation</code> 校验：request 已关闭（status 3/4）或授权行 generation 已变 → 不收敛只记日志；若确认设备端已被旧删除任务清掉而新代次授权有效 → 对该设备触发补偿重下发（ISC 无设备端 fencing，只能园区侧收口）。</li>
+    <li>迟到回执按 <code>request_id + generation</code> 校验：只有当前请求、当前目标代次且仍允许收敛时才更新业务状态。请求已成功、失败、关闭或人工清理（status 1/2/3/4）、目标已终态，或授权行 generation 已变时，不直接改变当前授权；仍持久保存结果证据，重复结果幂等，新增证据经接管/补偿流程处理。若确认设备端已被旧删除任务清掉而新代次授权有效，对该设备触发补偿重下发（ISC 无设备端 fencing，只能园区侧收口）。</li>
     <li>回执处理只认「当前 request 快照内的设备」，删除期间权限组设备被编辑不影响判定。</li>
-    <li>车辆侧同构：独立 <code>del_status</code> + 车辆自己的 request/快照/收敛器（现有 <code>StaffDeviceAuthSyncService</code> 只认 CARD/人脸服务类型 <code>:110-112</code>，需新增 <code>VehicleAuthDeleteSyncService</code>，服务类型 <code>CAR_STAFF</code>、设备类型 <code>CAR</code>）。</li>
+    <li>共享设备的有效来源计算按园区＋主体短事务协调，删除中/删除失败不能继续作为新增下发来源；两个权限组同时撤权不能互相保留同一设备。同主体＋设备资源的 ADD/UPDATE/DELETE 受同一版本闸门控制，旧新增回执不得恢复已撤销权限，旧删除回执不得清理新授权。</li>
+    <li>新增、覆盖、组织权限调整、重新下发与旧任务回调必须识别删除状态；灰度期间旧路径不能绕过新请求的保护。任务领取使用原子状态变更、归属令牌和到期恢复；租约过期的旧执行者不能提交新状态。只在短事务内持锁，外部已在途操作依靠结果核验和补偿收敛。</li>
+    <li>车辆侧同构：独立 <code>del_status</code> + 车辆自己的 request/快照/收敛器（现有 <code>StaffDeviceAuthSyncService</code> 只认 CARD/人脸服务类型 <code>:110-112</code>，需新增 <code>VehicleAuthDeleteSyncService</code>，服务类型 <code>CAR_STAFF</code>、设备类型 <code>CAR</code>）。统一模型不代表接入适配已支持所有车辆操作；不支持的设备/操作须明确待适配或失败，不能以取消任务算删除成功，门禁容量成绩不替代车辆联调。</li>
    </ul>
-   <p><strong>5）确认点收口</strong>：ISC 侧 <code>ISCDeviceTaskServiceImpl.java:2736-2743</code> 成功分支与 <code>:1620-1626</code>（无可用下发数据按成功处理分支）调用的 <code>SmtIscDownRecordServiceImpl.handleTaskDownRecord :67</code>；非 ISC 侧 <code>SmtTaskDownRecordServiceImpl.handleTaskDownRecord :65</code> 的 DEL 分支 <code>:79-93</code>。两处统一改为：先维护下发记录，再调新 <code>AuthDeleteRequestService.onTaskSuccess(task)</code>（按 <code>delete_request_id</code> 收敛）；<strong>任务无 <code>delete_request_id</code>（存量旧任务）时才回落到旧 <code>syncAfterDelete</code></strong>，保证兼容。</p>
-   <p><strong>6）任务创建必达</strong>：<code>addDeviceDelTaskImmed</code>（<code>SmtDeviceTaskServiceImpl.java:772</code>）改为返回 <code>List&lt;Long&gt;</code>（任务 id 列表）并在 <code>saveTask</code> 返回 null 时抛业务异常；无设备/无下发记录分支改为「查设备端确无权限（ISC 用 <code>hasIscAuthItem</code>，非 ISC 用 <code>smt_task_down_record</code>）才允许直接终态，否则照建兜底删除任务」，禁止静默跳过；<code>SmtStaffDeviceAuthServiceImpl.java:470-473</code> 无人脸员工不再 <code>continue</code>，同样建删除任务（缺陷②系统性修复）。</p>
+   <p><strong>5）确认点收口</strong>：ISC 与非 ISC 的 <code>handleTaskDownRecord</code> 统一按目标、请求与版本校验，维护下发记录并调用 <code>AuthDeleteRequestService.onTaskSuccess(task)</code>。同库状态尽量同事务提交；不能同事务完成的调用须先持久化待收敛结果，后台可重放，不能先把任务置 SUCCESS 后丢失本地处理。存量无 request 的任务仅在确认未触及新链路管理的授权时回落旧 <code>syncAfterDelete</code>。正常路径依据可信设备执行结果收敛；ISC 平台无权限项和本地无记录均不能单独替代终端确认，异常进入定向核验队列。</p>
+   <p><strong>6）任务创建必达</strong>：<code>addDeviceDelTaskImmed</code>/<code>saveTask</code> 返回包含接入类型、任务 id、目标 id 和创建/复用结果的结构，null、错误字符串、保存失败必须显式处理；复用任务需证明属于同一目标版本。无设备/无下发记录时，结合历史目标与可信核验结果决定补任务、无权限终态或待核验，禁止静默跳过；删除不能依赖当前人脸图片是否存在。ISC 已有无下发记录时的兜底建任务分支，直连需补齐相同保障。</p>
    <p><strong>7）失败可见</strong>：<code>markTaskRetryExceeded :1442-1461</code> 成功更新后追加 <code>authDeleteRequestService.onTaskFailed(task)</code>：按 request 置授权行 2、request 置 2、写告警；告警通道复用现有站内消息（<code>[PC]/service/impl/SmtMsgRecordServiceImpl.java:37</code> 体系）与微信推送（<code>[PB]/service/impl/IAppMsgPushServiceImpl.java:29,57</code> 走 <code>RemotePushService</code>），接收人取园区管理员配置。</p>
-   <p><strong>8）对账任务化</strong>：把 <code>SmtIscAccessCleanupServiceImpl.execute :99</code> 的核心抽成 <code>reconcile(parkId)</code>，新增 <code>PlatformTimerTask.authDeleteReconcile()</code> 每日 02:00（新增 <code>TimerTaskEnum.AUTH_DELETE_RECONCILE</code>，按 <code>[TOOL]/enums/TimerTaskEnum.java:49-51</code> 现有格式加开关）：①扫「有 <code>SMT_ISC_DOWN_RECORD</code>/<code>smt_task_down_record</code> 但本地无有效权限来源」的残留 → 以 source=7 建 request + 删除任务；②扫 <code>deadline_time &lt; now</code> 的 request → 置失败 + 告警；补非 ISC 版（基于 <code>smt_task_down_record</code>）。</p>
+   <p><strong>8）对账任务化</strong>：复用人工清理能力，新增每日 02:00 对账启动入口和独立分钟级超时/待收敛扫描。每日任务只分段发现并投递低优先级目标，不一口气扫库和下发全园区；按园区/设备保存游标，繁忙时减速或暂停。结合本地下发记录、历史任务及 ISC/直连设备可取得的权威证据发现残留，支持本地授权和记录均已不存在的 source=7 请求。平台查无条目与设备确认分开记录；不支持读取的设备显示无法核验。重新下发不得清掉未完成删除和对账所依赖的历史证据。</p>
+  </dd>
+  <dt id="item-5-8-batch">大批量下发与删除设计（一期必做）</dt>
+  <dd>
+   <p><strong>处理模型：</strong>异步受理批次 → 冻结目标选择与版本 → 分段展开逻辑目标 → 按接入/园区/设备批量提交 → 独立处理回执与异常核验 → 增量汇总批次。沿用现有数据库任务存储和 smart-schedule，新增持久批次头与可索引目标明细，首版不引入新的消息中间件；不能依赖进程内队列保存已受理工作。</p>
+   <p><strong>持久化边界：</strong>独立目标明细保存批次/请求/主体/设备资源/操作版本、目标状态、预期动作和证据摘要；任务尝试保存尝试次数、下次执行时间、领取归属与租约、外部批次/命令号、错误原因和回执证据关联。目标与尝试明确关联，不能用同一字段混淆设备已确认与本地已收敛；物理表名、唯一键及索引在实施规格确定，不能退回整批 CLOB 保存明细。</p>
+   <table>
+    <thead><tr><th>环节</th><th>设计要求</th><th>必须避免的瓶颈或错误</th></tr></thead>
+    <tbody>
+     <tr><td>受理与快照</td><td>批次带幂等键、操作类型、来源、园区、目标选择依据及授权版本；显式选择保存稳定 ID 集合，筛选式清空采用可复读的版本化选择集分段固化。接口返回批次号与「准备中」，后台展开中保存游标、预期数与已展开数；失败可续接</td><td>仅存查询条件后重新查可变列表；整批上万条长事务；未展开任务被误认为已完成</td></tr>
+     <tr><td>分片落库</td><td>同一分片内原子写目标、任务关联、展开游标与计数；目标唯一键包含批次/主体/设备资源/操作版本，重启重试不漏不重。跨批次重复操作还须通过主体与设备资源的当前版本、操作幂等键复用或明确冲突，不能仅靠批次内唯一键。授权版本不符记为冲突并停止该目标设备写入，不能静默操作新授权</td><td>上一分片已执行后回滚整批；每个回执全表 COUNT 或反复改写巨型 JSON；仅靠应用层先查后插防重</td></tr>
+     <tr><td>ISC 批量执行</td><td>保留按园区、设备资源、操作类型和有效期兼容分组的批量 API。每批人员数、请求字节数、每轮时间预算均可配置；现有 1000 仅为源码批次上限，实际值依据 ISC 版本与联调确认。人员标识按园区和稳定身份批量获取、批内去重缓存；缺失项进入有界核验队列</td><td>把每个目标的独立状态变成每目标一次 HTTP；同一人员因多台设备重复远程回查；无上限 parallelStream 或盲目增大批次</td></tr>
+     <tr><td>设备直连</td><td>使用同一批次、目标状态和公平调度；按厂商/型号能力选择批量命令或逐条命令，独立设置连接、请求速率及在途目标上限，保存命令序列号与目标映射</td><td>把 ISC 批次大小套到所有直连设备；慢设备堵住其他设备；无回执或无查询能力却自动认定成功</td></tr>
+     <tr><td>配额与公平性</td><td>业务撤权、正常新增/更新、结果收敛分别保留处理预算，覆盖领取、提交及外部在途容量；撤权可优先但不能使普通新增饥饿。空闲提交预算可借用，但在途借用须有上限，不能占光撤权保留槽位。按园区/设备轮转，并以等待时长提升积压任务优先级；到期撤权按业务截止时间调度。历史清理、盘点和重试使用独立且受限预算</td><td>只有不同定时器却共用无保留配额的资源；只处理最旧园区首页；大量对账或重试长期占满下发和删除位置</td></tr>
+     <tr><td>并发与背压</td><td>分别控制 HTTP 提交速率、外部在途批次数和结果查询预算，按同一 ISC 实例汇总限制，再分配园区/设备配额；收到限流或超时升高时减速。停止领取新低优先级工作，不取消已受理请求；受理前触及存储/队列上限须明确返回繁忙及幂等重试方式</td><td>仅扩线程池把压力转给 ISC、数据库或设备；已受理工作丢失；不同园区共用同一 ISC 却各自用满总上限</td></tr>
+     <tr><td>重试与离线</td><td>按错误类型配置退避、抖动和 next_attempt_at；离线或等待回执时释放线程/数据库连接。超时表示结果未知，先核验原外部批次再决定重发；仅补偿未确认成功目标。达到重试或等待上限进入失败/待人工队列并聚合告警</td><td>线程 sleep 等待一小时；每轮重发整批成功目标；同一批失败同时回流造成请求尖峰；超时即假定未执行</td></tr>
+     <tr><td>回执与汇总</td><td>持久保存外部批次号到目标/版本的映射，进度与结果处理有独立预算，拉全分页明细并逐目标核对。重复回执幂等，未知/缺失明细待核验；完成计数仅在目标首次成功迁移时增加，批次汇总分段更新并可重算纠偏</td><td>只看外部批次已结束；人员总数当作设备目标总数；回执处理被新增占满；每目标更新同一个批次热点行</td></tr>
+     <tr><td>SQL 与运行指标</td><td>以待执行状态、下次执行时间、接入/园区/设备、优先级和稳定 ID 做有界领取；按真实查询计划设计索引，使用稳定分页/游标而非不断扩大第一页。记录 accepted/expanded/dispatched/confirmed/converged 时间及各队列最老等待时间、速率、失败率、限流率</td><td>每分钟全表扫描；用已提交数冒充设备完成数；调度门闩过期导致多实例重复领取；接口日志输出整批人员数据</td></tr>
+    </tbody>
+   </table>
+   <p><strong>优先级不能越过业务顺序：</strong>同一主体＋设备资源的旧新增已在途时，撤权需要登记旧操作并核验最终结果；不能仅将 DELETE 插到队首，使旧 ADD 之后又恢复权限。不同主体可以受控并行，同设备总速率仍受硬件限制。配额、轮询频率与批次大小须通过压测选择，禁止为追求吞吐跳过回执、版本检查或有效授权保护。</p>
+   <p><strong>界面：</strong>新增/重新下发和删除共用批次进度口径，显示准备、排队、执行、等待设备确认、待核验、失败与完成；分别展示逻辑目标总数和各状态数量、失败设备、最后进展与排队告警。批次大小不影响普通列表使用，进度通过分页/增量接口获取，不反复加载全部目标。</p>
   </dd>
   <dt>处理流程</dt>
   <dd>
    <ol>
-    <li>入口（以权限组人员页删除为例）调 <code>deviceAuthRelationDel</code> → 新 <code>AuthDeleteRequestService.submit(rows, source)</code>。</li>
-    <li>事务内：对每个授权行 CAS 0→1；计算设备快照（权限组设备 − 其他权限组仍需保留的设备，沿用 <code>SmtDeviceAuthorityServiceImpl.java:607-616</code> 的 <code>buildOtherDeviceIdsByStaffId</code> 逻辑）；写 request；逐设备 <code>saveTask</code>（写 <code>delete_request_id</code>）；任一失败抛异常整体回滚。</li>
-    <li>smart-schedule 按现有节奏执行删除任务（ISC：<code>getDelayDel</code> 捞取 → auth_config/delete → 轮询；非 ISC：设备回调）。</li>
-    <li>成功回执 → <code>handleTaskDownRecord</code> 维护下发记录 → <code>onTaskSuccess</code>：request 下未终态任务数归零 → 校验 generation 未变 → 删授权行、request=1。</li>
-    <li>失败回执 → 1 小时后重试（现有）→ 10 次耗尽 → <code>onTaskFailed</code>：授权行=2、request=2、发告警。</li>
-    <li>管理员在权限组人员页看到「删除失败」标记与失败设备清单 → 点「重发」（CAS 2→1，新 request）或「确认清理」（request=4）。</li>
-    <li>每日对账任务补漏 + 超时兜底；上线前先对全园区跑一次对账清存量。</li>
+    <li>入口受理带幂等键的批次，持久保存稳定选择依据；返回批次号与「准备中」，不等待外部设备完成。</li>
+    <li>按主体短事务校验版本并 CAS 0→1、保存 request；结合历史设备与其他仍有效来源形成目标快照；后台分段展开并校验数量。新增/更新使用同一批次调度与版本保护。</li>
+    <li>按业务类型及园区/设备公平领取目标；ISC 保持批量 API，直连按设备能力执行。提交后保存外部批次映射并释放线程，结果查询独立推进。</li>
+    <li>设备成功结果 → 幂等保存目标证据并维护下发记录 → 增量收敛。仅在展开完成、全部预期删除目标确认成功且 generation 未变后删授权行、request=1；本地收敛失败可重放。</li>
+    <li>失败/离线/限流 → 按原因延期与限额重试；未知先核验，成功目标不重跑；耗尽或 deadline 超时置失败并告警。正常业务与撤权仍保有处理配额。</li>
+    <li>管理员查看批次和失败设备，重发未完成目标或提供实际核验依据后确认清理；全部操作留痕，人工确认不覆盖设备原始证据。</li>
+    <li>分钟级扫描排队异常、超时与待收敛结果；每日分段对账补漏。上线前以低优先级、按园区/设备分批治理存量，繁忙时暂停新增清理投递。</li>
    </ol>
   </dd>
   <dt>改动清单</dt>
@@ -1830,37 +1863,52 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
     <thead><tr><th>层</th><th>文件或类</th><th>改动内容</th></tr></thead>
     <tbody>
      <tr><td>DB</td><td>新表 <code>smt_auth_delete_request</code>；<code>smt_staff_device_auth</code> 加 <code>status/generation/delete_request_id</code> + 活跃唯一索引；<code>smt_vehicle_apply</code> 加 <code>del_status/generation/delete_request_id</code>；<code>SMT_ISC_DEVICE_TASK</code>、<code>smt_device_task</code> 加 <code>DELETE_REQUEST_ID</code></td><td>默认值兼容存量（status=0、generation=1）；按仓库约定不留人工脚本目录，随发布记录交付</td></tr>
-     <tr><td>platform-core 实体/Mapper</td><td>新 <code>SmtAuthDeleteRequest</code> 实体 + Mapper；<code>SmtStaffDeviceAuth</code>、<code>SmtVehicleApply</code>、<code>SmtIscDeviceTask</code>、<code>SmtDeviceTask</code> 加字段；<code>[PX]/SmtIscDeviceTaskMapper.xml</code> base_column_list 补列</td><td>批量 SQL 沿用 <code>OracleInBatchUtils</code></td></tr>
+     <tr><td>platform-core 实体/Mapper</td><td>新 <code>SmtAuthDeleteRequest</code>，持久操作批次与目标明细；授权行与两种任务表补请求/目标/版本关联、领取归属、租约、下次执行时间；相应 Mapper 补列与索引</td><td>批量 SQL 沿用 <code>OracleInBatchUtils</code>；同分片事务、稳定分页、幂等唯一键；物理表名与索引在实施规格内统一确定</td></tr>
      <tr><td>platform-core 服务</td><td>新 <code>AuthDeleteRequestService</code>（submit / onTaskSuccess / onTaskFailed / resend / confirmCleared / reconcile）；新 <code>VehicleAuthDeleteSyncService</code></td><td>核心状态机与 CAS 全部集中在此，入口层不再直接 <code>removeById</code></td></tr>
-     <tr><td>platform-core</td><td><code>[PC]/service/impl/SmtDeviceTaskServiceImpl.java:772-788</code> <code>addDeviceDelTaskImmed</code>；<code>saveTask :101-175</code></td><td>返回任务 id 列表 / 抛异常；写 <code>delete_request_id</code>；无下发记录分支改「确认无权限才直删」</td></tr>
-     <tr><td>platform-core 确认点</td><td><code>[PC]/service/impl/SmtTaskDownRecordServiceImpl.java:79-93</code>；<code>[PC]/service/impl/SmtIscDownRecordServiceImpl.java:84,92</code></td><td>有 request 关联走新收敛器，无关联回落旧 <code>syncAfterDelete</code></td></tr>
+     <tr><td>platform-core</td><td><code>SmtDeviceTaskServiceImpl.addDeviceDelTaskImmed</code> / <code>saveTask</code> 与 ISC 对应创建方法</td><td>返回结构化创建/复用结果，写请求/目标关联；无下发记录须补任务或有可信无权限证据，异常显式回滚该分片</td></tr>
+     <tr><td>platform-core 确认点</td><td><code>SmtTaskDownRecordServiceImpl</code>；<code>SmtIscDownRecordServiceImpl</code></td><td>目标和版本幂等校验、可恢复收敛；旧路径不能影响新链路管理的授权</td></tr>
      <tr><td>platform-biz 入口（灰度第一站）</td><td><code>[PB]/service/impl/SmtStaffDeviceAuthServiceImpl.java:463-495</code>；<code>[PB]/service/impl/SmtDeviceAuthorityServiceImpl.java:582-641,644-657</code></td><td>改为调 <code>AuthDeleteRequestService.submit</code>；去掉 <code>removeById/removeByIds</code>；relation 为空分支改走「确认无权限才直删」</td></tr>
      <tr><td>platform-biz 入口（推广阶段）</td><td><code>[PB]/service/impl/SmtVehicleApplyServiceImpl.java:250-278</code>；<code>[PB]/service/impl/SmtStaffServiceImpl.java:1659-1698</code>；<code>[PB]/service/securityzone/impl/SmtSecurityAuthDeleteServiceImpl.java:199-208</code></td><td>同上切换；保密到期分支顺序改为「先建 request/任务、确认后删」</td></tr>
-     <tr><td>smart-schedule</td><td><code>[SCH]/service/platform/impl/ISCDeviceTaskServiceImpl.java:1442-1461</code> <code>markTaskRetryExceeded</code>；<code>:2736-2743</code></td><td>失败终态回调 <code>onTaskFailed</code>（经 Feign 调 platform 内部端点，需加 <code>@Inner</code> 与网关白名单，参照既有 platform 内部任务端点白名单教训）</td></tr>
-     <tr><td>smart-schedule 定时</td><td><code>[SCH]/task/PlatformTimerTask.java</code>；<code>[TOOL]/enums/TimerTaskEnum.java</code></td><td>新增每日对账任务与开关</td></tr>
+     <tr><td>smart-schedule 结果出口</td><td><code>ISCDeviceTaskServiceImpl</code> 的下载明细成功、人员已不存在、无可用下发数据及 <code>markTaskRetryExceeded</code> 出口</td><td>所有出口纳入目标证据与可恢复收敛；人员/数据不存在不能跳过终端核验直接报删除成功。失败经 <code>onTaskFailed</code> 收口；跨服务调用持久待重放，内部端点遵守 <code>@Inner</code> 与网关白名单</td></tr>
+     <tr><td>smart-schedule 调度与批量执行</td><td><code>ISCDeviceTimerTask</code>、<code>ISCDeviceTaskServiceImpl</code>、直连任务执行服务、<code>ScheduleConfig</code>、<code>SwitchServiceImpl</code> 和两种任务 Mapper</td><td>有界领取/原子租约、按实例及设备限流、业务与回执保留配额、批内人员查询去重、分段提交及部分失败恢复；不能只调大 500/1000 或线程数</td></tr>
+     <tr><td>smart-schedule 定时</td><td><code>PlatformTimerTask</code>、<code>TimerTaskEnum</code>、<code>TaskJob</code> 与对应配置</td><td>新增分钟级扫描、每日分段对账及开关；参数注明代码默认值、环境配置与实测值</td></tr>
      <tr><td>platform-biz 控制器</td><td><code>[PB]/controller/SmtIscAccessCleanupController.java</code> 扩展或新建 <code>AuthDeleteRequestController</code></td><td>失败清单分页、重发、确认清理、request 详情</td></tr>
      <tr><td>告警</td><td>复用 <code>SmtMsgRecordService</code> / <code>IAppMsgPushServiceImpl</code></td><td>删除失败告警模板 + 接收人配置</td></tr>
-     <tr><td>smart-ui</td><td><code>[UI]/views/platform/area/limit/personDetail.vue</code>、<code>vechileDetail.vue</code>；<code>[UI]/views/platform/records/person_isc/index.vue</code>；<code>[UI]/api/platform/area/limit.js</code></td><td>人员/车辆页加「删除状态」列、失败筛选、重发/确认清理按钮；ISC 人脸下发记录页联动显示 request_id 与删除状态</td></tr>
+     <tr><td>smart-ui</td><td>权限组人员/车辆页、员工权限批量下发/覆盖/重发页、ISC 下发记录及清理页、对应 API</td><td>共用批次状态与分页进度；展示准备/排队/确认/核验/失败数量，提供失败筛选、重发与确认清理，避免全量刷新万条明细</td></tr>
     </tbody>
    </table>
   </dd>
   <dt>测试与验证</dt>
   <dd>
    <ul>
-    <li>单测（platform-core）：状态机每条迁移的 CAS 命中/未命中；同一事务内第 N 个设备 <code>saveTask</code> 失败整体回滚；request 快照内设备全部成功才删行；generation 不一致的迟到回执不收敛；唯一索引撞键返回业务错误。仓内已有 <code>SmtIscAccessCleanupServiceImplTest</code>、<code>SmtIscCardImportServiceImplTest</code> 的 Mock 风格可照抄。</li>
-    <li>集成（联调环境 ISC）：①正常删除：行进入 1 → ISC 下载明细 SUCCESS → 行消失；②模拟 ISC 返回失败 10 次：行变 2、告警到达、页面出现失败项；③重发后成功：行终态；④删除中对同员工同权限组重新授权：被唯一索引拒绝；⑤删除中编辑权限组设备：不影响 request 判定；⑥非 ISC 闸机路径同样验证。</li>
+    <li>单测（platform-core）：CAS 命中、重复请求与版本冲突；分片内第 N 个任务创建失败仅回滚该分片；游标与任务原子提交，崩溃续接不漏不重；展开完成且全部目标确认成功才删行，零任务、取消或缺回执不能误判成功；两种方向的迟到回执、共享设备并发与唯一键冲突。</li>
+    <li>集成（联调环境 ISC）：①正常删除：行进入 1 → 全部预期目标取得可信设备执行成功证据 → 行消失；仅平台批次完成、人员不存在或无可用数据须进入待核验，不能代替设备执行确认；②模拟重试耗尽：行变 2、告警到达、页面出现失败项；③重发后成功：行终态；④删除中对同员工同权限组重新授权：被数据库原子约束拒绝；⑤删除中编辑权限组设备：不影响 request 判定；⑥各结果出口注入本地收敛异常，重启后能恢复；⑦非 ISC 闸机路径同样验证。下载明细能否作为设备执行证据按 ISC 版本和目标字段联调确认，无可信回执或读回能力的型号明确保留待核验限制。</li>
     <li>对账：人为制造「本地无权限、设备有下发记录」→ 每日任务生成 source=7 request 并成功清理。</li>
     <li>灰度观察指标：request 成功率、平均确认时长、失败告警数；一周内无「设备残留」工单再推广。</li>
-    <li>回归：<code>StaffDeviceAuthSyncService</code> 旧路径对无 request 关联的存量任务仍工作。</li>
+    <li>回归：<code>StaffDeviceAuthSyncService</code> 旧路径只处理未触及新链路管理授权的存量任务；同时验证无 request 的旧回执不能绕过新版本保护。</li>
    </ul>
+   <p><strong>批量性能验收矩阵（一期门禁，不以 Mock 通过代替设备联调）：</strong></p>
+   <table>
+    <thead><tr><th>场景</th><th>负载与故障</th><th>验收要求</th></tr></thead>
+    <tbody>
+     <tr><td>集中下发与集中删除</td><td>10,000 / 20,000 个去重设备目标，分别单批和多请求在 60 秒内向业务入口集中注入；新增、更新/重发、删除分别执行。60 秒是压测请求注入窗口，不是外部提交或设备完成期限</td><td>已受理请求全部可恢复追踪；展开数、提交映射、回执归属与最终状态账目一致，零静默丢失、零重复生效、零假成功。受理、展开、外部提交、回执与收敛分别计时；固定记录请求数量、目标分布、硬件、批次大小、并发与限流配置</td></tr>
+     <tr><td>人数向设备数放大</td><td>10,000 人 × 多设备；至少包含 10 台设备的 100,000 目标展开压力档，另按试点真实分布复测</td><td>不采用整批长事务、不一次加载全部目标；中途重启继续展开，内存/数据库连接保持在配置上限内；此档验证展开与保护机制，不冒充终端已能在固定时间完成十万任务</td></tr>
+     <tr><td>新增高峰中撤权</td><td>20,000 新增目标排队时持续插入小批业务撤权，同时运行结果查询及低优先级存量清理</td><td>撤权持续获得配额，普通新增也持续推进，回执无积压失控；在线且无同目标冲突的小批撤权，从受理到首次提交 ISC/直连的初始设计目标为 P95 ≤ 30 秒、最大 ≤ 120 秒，超过即记录容量验收失败</td></tr>
+     <tr><td>异常与恢复</td><td>部分设备离线、限流、超时、丢/重复/乱序回执、结果分页超过 1000、服务在提交前后/回执落库时重启</td><td>异常不拖停其他园区/设备；未知结果先核验、成功目标不整批重跑；收到可信完成证据的目标能收敛，其余明确留在延期/待核验/失败状态，不要求离线设备假成功</td></tr>
+     <tr><td>直连与混合接入</td><td>ISC 与实际支持的直连型号分别跑集中负载与混合负载；分别测单设备集中和多设备分散</td><td>分别报告批次大小、连接数、设备完成速率及失败原因；不得拿 ISC 测试成绩替代直连。型号能力不足时形成容量限制与处理窗口</td></tr>
+     <tr><td>界面与持续负载</td><td>高峰提交期间正常查询列表/批次进度；高峰结束后继续观察积压消退</td><td>受理接口初始设计目标 P95 ≤ 2 秒、P99 ≤ 5 秒（包括校验和持久受理，不含后台展开/设备等待）；列表查询 P95 不超过空载基线的 2 倍。记录消退速率与最老等待时间，不能只报接口成功率</td></tr>
+    </tbody>
+   </table>
+   <p>上述时延为<strong>待压测的初始设计门槛</strong>，不是现网承诺。试点前记录 ISC 版本、设备型号/在线比例、应用与数据库资源、网络延迟、批次/并发/配额配置，以及受控模拟与真实设备测试的区别。最终设备确认耗时必须逐阶段实测，在混合负载与容量曲线中确定支持范围；持续进入速率超过实际处理能力时必须限流、提示排队并给出处置方案，不能静默调低门槛或绕过可靠性检查。</p>
   </dd>
   <dt>依赖与风险</dt>
   <dd>
    <ul>
     <li>前置：批次 0 缺陷⑤已合入 main（PR #166）；缺陷②止血仍未合并，需先完成。生产 Nacos 内部端点白名单也需同步（历史上 platform 内部任务端点曾因白名单缺失 401）。</li>
-    <li>风险：改动面大（4 个入口 + 2 个确认点 + schedule），必须按灰度顺序；旧任务无 <code>delete_request_id</code>，双轨并存期间两套收敛器都要保留。</li>
+    <li>风险：改动涉及新增/更新/重发与删除入口、两种确认点及调度；按 ISC 优先灰度，但先补齐共用状态和版本保护。旧任务无 request，双轨并存期间必须防止旧收敛器误删新授权。</li>
     <li>ISC 无设备端 fencing：迟到删除仍可能清掉新授权，只能靠补偿重下发兜底，需在验收时明确接受该窗口。</li>
     <li>Oracle 函数索引/虚拟列写法需 DBA 评审；上线前的一轮全量对账可能生成大量删除任务，需限流（按园区、按批次）。</li>
+    <li>上万条高峰是本期容量输入，不能用设备任务表“能存下”作为吞吐验收；只有在队列、数据库、ISC 和终端共同测得的容量范围内承诺时延。配额须预留撤权及回执能力，后台清存量不得与业务抢满资源。</li>
    </ul>
   </dd>
  </dl>
@@ -2110,7 +2158,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
   <dd>
    <ul>
     <li>DB：<code>SMT_SECURITYAREA_SUPPLIER</code> 加 <code>decrypt_status</code>（0 保密中 / 1 已解密）、<code>decrypt_time</code>、<code>decrypt_reason</code>（1 到期自动 / 2 人工提前）、<code>decrypt_user</code>；<code>SMT_SUPPLIER_PERSON</code> 依赖 3.3 的 <code>del_flag</code> 软删。</li>
-    <li>platform 新增 <code>SecuritySupplierDecryptService.decrypt(supplierId, reason, operator)</code>（3.2 自动与 3.4 人工共用），事务边界：供应商标记 + 人员软删 + 单据终态在一个事务；权限删除通过 5.8 <code>AuthDeleteRequestService.submit(source=4)</code>，任务创建同事务、确认异步。</li>
+    <li>platform 新增 <code>SecuritySupplierDecryptService.decrypt(supplierId, reason, operator)</code>（3.2 自动与 3.4 人工共用）：业务终态变更必须与可恢复的删除意图原子提交；权限删除通过 5.8 <code>AuthDeleteRequestService.submit(source=4)</code> 固定目标选择依据，后台分段创建设备任务并异步确认。供应商涉及大量人员/单据时也按持久批次分段推进，全部意图落库前不得将解密批次标为完成。</li>
     <li>访客权限的删除对象：按 <code>fellow.id</code> 定位已下发记录（<code>SmtDeviceTaskServiceImpl.delVisitorDeviceAuth :801</code> 的查询条件 <code>CARD_VISITOR/CARD_ADMITTANCE</code>、<code>CAR_VISITOR/CAT_ADMITTANCE</code> 可复用），但收敛与失败可见性走 5.8 的 request（访客侧「授权行」= 申请单 + fellow，request.auth_row_id 记 fellow.id、subject_type=3 访客）。</li>
     <li>schedule：<code>PlatformTimerTask</code> 新增 <code>supplierDecryptTask()</code>（cron <code>0 0 1 * * ?</code>，新 <code>TimerTaskEnum.SUPPLIER_DECRYPT</code>），Feign 调 platform 内部端点 <code>@Inner POST /securityarea/supplier/decrypt/expired</code>。</li>
     <li>解密通知：复用批次 0 修好的供应商通知通道，向供应商联系人/园区管理员发「协议到期已解密」。</li>

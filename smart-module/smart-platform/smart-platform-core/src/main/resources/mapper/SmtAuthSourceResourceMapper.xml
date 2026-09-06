@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthSourceResourceMapper">
+  <resultMap id="row" type="com.tce.smart.platform.core.entity.SmtAuthSourceResource">
+    <result column="ID" property="id"/>
+    <result column="BINDING_REVISION" property="bindingRevision"/>
+    <result column="SOURCE_ACTION" property="sourceAction"/>
+    <result column="WINDOW_COUNT" property="windowCount"/>
+    <result column="WINDOW_LENGTH" property="windowLength"/>
+    <result column="CURRENT_SOURCE_ROW_ID" property="currentSourceRowId"/>
+    <result column="CURRENT_SOURCE_FINGERPRINT" property="currentSourceFingerprint"/>
+    <result column="INTENT_KEY" property="intentKey"/>
+    <result column="INTENT_FINGERPRINT" property="intentFingerprint"/>
+    <result column="SOURCE_COORD_ID" property="sourceCoordId"/>
+    <result column="SOURCE_GENERATION" property="sourceGeneration"/>
+    <result column="RESOURCE_COORD_ID" property="resourceCoordId"/>
+    <result column="RESOURCE_GENERATION" property="resourceGeneration"/>
+    <result column="SOURCE_ROW_ID" property="sourceRowId"/>
+    <result column="SOURCE_FINGERPRINT" property="sourceFingerprint"/>
+    <result column="WINDOWS" property="windows" jdbcType="CLOB" javaType="java.lang.String"/>
+    <result column="ACTION" property="action"/>
+    <result column="STATE" property="state"/>
+    <result column="REQUEST_ID" property="requestId"/>
+    <result column="TARGET_ID" property="targetId"/>
+    <result column="ATTEMPT_ID" property="attemptId"/>
+    <result column="CREATE_TIME" property="createTime"/>
+    <result column="UPDATE_TIME" property="updateTime"/>
+  </resultMap>
+  <insert id="insert">INSERT INTO SMT_AUTH_SOURCE_RESOURCE (BINDING_REVISION, SOURCE_ACTION, INTENT_KEY, INTENT_FINGERPRINT, ID, SOURCE_COORD_ID, SOURCE_GENERATION, RESOURCE_COORD_ID, RESOURCE_GENERATION, SOURCE_ROW_ID, SOURCE_FINGERPRINT, WINDOWS, ACTION, STATE, REQUEST_ID, TARGET_ID, ATTEMPT_ID, CREATE_TIME, UPDATE_TIME) VALUES (#{bindingRevision,jdbcType=NUMERIC}, #{sourceAction,jdbcType=VARCHAR}, #{intentKey,jdbcType=VARCHAR}, #{intentFingerprint,jdbcType=VARCHAR}, #{id,jdbcType=VARCHAR}, #{sourceCoordId,jdbcType=VARCHAR}, #{sourceGeneration,jdbcType=NUMERIC}, #{resourceCoordId,jdbcType=VARCHAR}, #{resourceGeneration,jdbcType=NUMERIC}, #{sourceRowId,jdbcType=VARCHAR}, #{sourceFingerprint,jdbcType=VARCHAR}, #{windows,jdbcType=CLOB}, #{action,jdbcType=VARCHAR}, #{state,jdbcType=VARCHAR}, #{requestId,jdbcType=NUMERIC}, #{targetId,jdbcType=NUMERIC}, #{attemptId,jdbcType=NUMERIC}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP})</insert>
+  <select id="selectById" resultMap="row">SELECT * FROM SMT_AUTH_SOURCE_RESOURCE WHERE ID = #{id}</select>
+  <update id="update">UPDATE SMT_AUTH_SOURCE_RESOURCE SET RESOURCE_GENERATION=#{resourceGeneration,jdbcType=NUMERIC},
+    STATE=#{state,jdbcType=VARCHAR},TARGET_ID=#{targetId,jdbcType=NUMERIC},ATTEMPT_ID=#{attemptId,jdbcType=NUMERIC},
+    UPDATE_TIME=#{updateTime,jdbcType=TIMESTAMP} WHERE ID=#{id} AND BINDING_REVISION=0</update>
+  <sql id="metadataColumns">
+    C.ID,C.BINDING_REVISION,C.SOURCE_ACTION,C.SOURCE_COORD_ID,C.SOURCE_GENERATION,C.RESOURCE_COORD_ID,
+    C.RESOURCE_GENERATION,C.SOURCE_ROW_ID,C.SOURCE_FINGERPRINT,C.ACTION,C.STATE,C.REQUEST_ID,C.TARGET_ID,C.ATTEMPT_ID,
+    S.SOURCE_ROW_ID CURRENT_SOURCE_ROW_ID,S.SOURCE_FINGERPRINT CURRENT_SOURCE_FINGERPRINT
+  </sql>
+  <select id="currentForResource" resultMap="row">
+    SELECT * FROM (SELECT /*+ INDEX(C IX_ASR_RESOURCE) */ <include refid="metadataColumns"/>,DBMS_LOB.GETLENGTH(C.WINDOWS) WINDOW_LENGTH,
+      CASE WHEN DBMS_LOB.SUBSTR(C.WINDOWS,1,1)='#' THEN 0 ELSE REGEXP_COUNT(C.WINDOWS,';')+1 END WINDOW_COUNT
+      FROM SMT_AUTH_SOURCE_RESOURCE C JOIN SMT_AUTH_SOURCE_COORD S ON S.ID=C.SOURCE_COORD_ID AND S.GENERATION=C.SOURCE_GENERATION
+      WHERE C.RESOURCE_COORD_ID=#{resourceId} AND C.BINDING_REVISION=0 AND C.ACTION='ADD'
+        AND S.ACTION='ADD' AND S.STATE IN ('ACTIVE','EXPANDING')
+      ORDER BY C.SOURCE_COORD_ID) WHERE ROWNUM &lt;= 1001
+  </select>
+  <select id="auditForResource" resultMap="row">
+    SELECT * FROM (SELECT /*+ INDEX(C IX_ASR_RESOURCE) */ <include refid="metadataColumns"/>
+      FROM SMT_AUTH_SOURCE_RESOURCE C JOIN SMT_AUTH_SOURCE_COORD S ON S.ID=C.SOURCE_COORD_ID AND S.GENERATION=C.SOURCE_GENERATION
+      WHERE C.RESOURCE_COORD_ID=#{resourceId} AND C.BINDING_REVISION=0 AND C.STATE!='CONVERGED' AND S.STATE!='TOMBSTONE'
+        AND (C.ACTION='DELETE' OR S.ACTION='DELETE')
+        <if test="after != null">AND C.SOURCE_COORD_ID &gt; #{after}</if>
+      ORDER BY C.SOURCE_COORD_ID) WHERE ROWNUM &lt;= #{limit}
+  </select>
+  <!-- 墓碑来源也可执行旧副作用的撤销补偿；执行归属与有效授权来源集合分开。 -->
+  <select id="executionOwner" resultType="long">
+    SELECT /*+ INDEX(C IX_ASR_RESOURCE) */ MIN(C.TARGET_ID) FROM SMT_AUTH_SOURCE_RESOURCE C JOIN SMT_AUTH_SOURCE_COORD S ON S.ID=C.SOURCE_COORD_ID
+      AND S.GENERATION=C.SOURCE_GENERATION WHERE C.RESOURCE_COORD_ID=#{resourceId} AND C.RESOURCE_GENERATION=#{generation}
+      AND C.BINDING_REVISION=0
+  </select>
+  <select id="bindingSnapshot" resultMap="row">
+    SELECT * FROM SMT_AUTH_SOURCE_RESOURCE WHERE SOURCE_COORD_ID=#{binding.sourceId}
+      AND SOURCE_GENERATION=#{binding.sourceGeneration} AND RESOURCE_COORD_ID=#{binding.resourceId}
+      AND RESOURCE_GENERATION=#{binding.resourceGeneration} AND TARGET_ID=#{binding.targetId} AND BINDING_REVISION &gt;= 0
+  </select>
+  <select id="currentForSource" resultMap="row">
+    SELECT * FROM (SELECT ID,SOURCE_COORD_ID,SOURCE_GENERATION,RESOURCE_COORD_ID,RESOURCE_GENERATION,SOURCE_ROW_ID,SOURCE_FINGERPRINT,ACTION,STATE,REQUEST_ID,TARGET_ID,ATTEMPT_ID,BINDING_REVISION,SOURCE_ACTION,INTENT_KEY,INTENT_FINGERPRINT FROM SMT_AUTH_SOURCE_RESOURCE WHERE SOURCE_COORD_ID = #{sourceId}
+      AND SOURCE_GENERATION = #{generation} AND BINDING_REVISION=0 ORDER BY RESOURCE_COORD_ID) WHERE ROWNUM &lt;= 201
+  </select>
+  <select id="unstagedCount" resultType="int">
+    SELECT COUNT(DISTINCT H.RESOURCE_COORD_ID) FROM SMT_AUTH_SOURCE_RESOURCE H
+    WHERE H.SOURCE_COORD_ID = #{sourceId} AND H.BINDING_REVISION=0 AND NOT EXISTS (
+      SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE C WHERE C.SOURCE_COORD_ID = H.SOURCE_COORD_ID
+        AND C.RESOURCE_COORD_ID = H.RESOURCE_COORD_ID AND C.SOURCE_GENERATION = #{generation} AND C.BINDING_REVISION=0)
+  </select>
+  <select id="ownershipCount" resultType="int">
+    SELECT COUNT(*) FROM SMT_AUTH_DELETE_REQUEST Q JOIN SMT_AUTH_OPERATION_TARGET T ON T.BATCH_ID = Q.BATCH_ID
+    WHERE Q.ID = #{binding.requestId} AND T.ID = #{binding.targetId}
+      AND Q.PARK_ID = #{source.parkId} AND Q.SUBJECT_TYPE = #{source.subjectType}
+      AND Q.SOURCE_IDENTITY_KEY = #{source.id} AND Q.GENERATION = #{binding.sourceGeneration}
+      AND T.PARK_ID = #{resource.parkId} AND T.SUBJECT_TYPE = #{resource.subjectType}
+      AND T.SUBJECT_ID = #{resource.subjectId} AND T.DEVICE_ID = #{resource.deviceId}
+      AND T.RESOURCE_TYPE = #{resource.resourceType} AND T.RESOURCE_ID = #{targetResourceId}
+      AND T.ACCESS_TYPE = #{resource.accessType} AND T.OPERATION_VERSION = #{binding.resourceGeneration}
+      <if test="batchId != null">AND Q.BATCH_ID = #{batchId}</if>
+      <if test="action != null">AND T.ACTION = #{action}</if>
+      <if test="attempt">AND EXISTS (SELECT 1 FROM SMT_AUTH_OPERATION_ATTEMPT A
+        WHERE A.ID = #{binding.attemptId} AND A.TARGET_ID = T.ID AND A.ACCESS_TYPE = T.ACCESS_TYPE)</if>
+  </select>
+  <select id="historicalIntent" resultMap="row">
+    SELECT * FROM (SELECT ID,SOURCE_COORD_ID,SOURCE_GENERATION,RESOURCE_COORD_ID,RESOURCE_GENERATION,SOURCE_ROW_ID,SOURCE_FINGERPRINT,ACTION,STATE,REQUEST_ID,TARGET_ID,ATTEMPT_ID,BINDING_REVISION,SOURCE_ACTION,INTENT_KEY,INTENT_FINGERPRINT FROM SMT_AUTH_SOURCE_RESOURCE WHERE SOURCE_COORD_ID=#{sourceId}
+      AND INTENT_KEY=#{intentKey} AND BINDING_REVISION=0 ORDER BY SOURCE_GENERATION) WHERE ROWNUM &lt;= 1
+  </select>
+  <select id="pendingForSource" resultMap="row">
+    SELECT * FROM (SELECT ID,SOURCE_COORD_ID,SOURCE_GENERATION,RESOURCE_COORD_ID,RESOURCE_GENERATION,SOURCE_ROW_ID,SOURCE_FINGERPRINT,ACTION,STATE,REQUEST_ID,TARGET_ID,ATTEMPT_ID,BINDING_REVISION,SOURCE_ACTION,INTENT_KEY,INTENT_FINGERPRINT FROM SMT_AUTH_SOURCE_RESOURCE WHERE SOURCE_COORD_ID=#{sourceId}
+      AND SOURCE_GENERATION=#{generation} AND BINDING_REVISION=0 AND STATE != 'CONVERGED'
+      <if test="after != null">AND RESOURCE_COORD_ID &gt; #{after}</if>
+      ORDER BY RESOURCE_COORD_ID) WHERE ROWNUM &lt;= #{limit}
+  </select>
+  <select id="targetWindowCount" resultType="int">
+    SELECT COUNT(*) FROM SMT_AUTH_OPERATION_TARGET WHERE ID=#{targetId}
+      AND VALID_FROM=#{from,jdbcType=TIMESTAMP} AND VALID_TO=#{to,jdbcType=TIMESTAMP}
+  </select>
+  <select id="windowById" resultType="string">SELECT WINDOWS FROM SMT_AUTH_SOURCE_RESOURCE WHERE ID=#{id}</select>
+  <select id="staleEvidenceCount" resultType="int">
+    SELECT COUNT(*) FROM SMT_AUTH_SOURCE_RESOURCE WHERE RESOURCE_COORD_ID=#{resourceId}
+      AND ATTEMPT_ID=#{attemptId} AND BINDING_REVISION &lt; 0
+  </select>
+  <select id="targetGeneration" resultType="long">
+    SELECT OPERATION_VERSION FROM SMT_AUTH_OPERATION_TARGET WHERE ID=#{targetId}
+  </select>
+  <select id="historicalBindingCount" resultType="int">
+    SELECT COUNT(*) FROM SMT_AUTH_SOURCE_RESOURCE WHERE SOURCE_COORD_ID=#{sourceId} AND SOURCE_GENERATION=#{generation}
+      AND RESOURCE_COORD_ID=#{resourceId} AND BINDING_REVISION &gt; 0 AND TARGET_ID IS NOT NULL
+  </select>
+  <select id="historicalRequestCount" resultType="int">
+    SELECT COUNT(*) FROM SMT_AUTH_SOURCE_RESOURCE WHERE SOURCE_COORD_ID=#{sourceId} AND SOURCE_GENERATION=#{generation}
+      AND RESOURCE_COORD_ID=#{resourceId} AND BINDING_REVISION &gt; 0 AND REQUEST_ID=#{requestId}
+  </select>
+  <update id="updateRequest">UPDATE SMT_AUTH_SOURCE_RESOURCE SET REQUEST_ID=#{requestId}
+    WHERE ID=#{id} AND BINDING_REVISION=0 AND REQUEST_ID=#{expectedRequestId} AND TARGET_ID IS NULL</update>
+</mapper>

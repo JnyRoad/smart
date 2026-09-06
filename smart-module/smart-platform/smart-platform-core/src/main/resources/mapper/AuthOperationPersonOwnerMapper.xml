@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.AuthOperationPersonOwnerMapper">
+<select id="lock" resultType="com.tce.smart.platform.core.entity.SmtAuthPersonOwner" flushCache="true" useCache="false">SELECT * FROM SMT_AUTH_PERSON_OWNER WHERE ID=#{id} FOR UPDATE</select>
+<select id="lockByPhase" resultType="com.tce.smart.platform.core.entity.SmtAuthPersonOwner" flushCache="true" useCache="false">SELECT * FROM SMT_AUTH_PERSON_OWNER WHERE OWNER_PHASE_ID=#{phase} FOR UPDATE</select>
+<insert id="insert">INSERT INTO SMT_AUTH_PERSON_OWNER(ID,INSTANCE_ID,SUBJECT_TYPE,SUBJECT_ID,OPERATION_KEY,IDENTITY_HASH,IDENTITY_CANONICAL,ORIGIN_PARK,OWNER_PHASE_ID,OWNER_TOKEN,STATE,REASON,CREATE_TIME,UPDATE_TIME) VALUES(#{id},#{instanceId},#{subjectType},#{subjectId},#{operationKey},#{identityHash},#{identityCanonical},#{originPark},#{ownerPhaseId,jdbcType=NUMERIC},#{ownerToken},#{state},#{reason,jdbcType=VARCHAR},SYS_EXTRACT_UTC(SYSTIMESTAMP),SYS_EXTRACT_UTC(SYSTIMESTAMP))</insert>
+<update id="setPhase">UPDATE SMT_AUTH_PERSON_OWNER SET OWNER_PHASE_ID=#{phase},UPDATE_TIME=SYS_EXTRACT_UTC(SYSTIMESTAMP) WHERE ID=#{id} AND STATE='PREPARED' AND OWNER_PHASE_ID IS NULL</update>
+<update id="start">UPDATE SMT_AUTH_PERSON_OWNER SET STATE='INTENT',REQUEST_KEY=#{request},UPDATE_TIME=SYS_EXTRACT_UTC(SYSTIMESTAMP) WHERE ID=#{id} AND OWNER_PHASE_ID=#{phase} AND OWNER_TOKEN=#{token} AND STATE='PREPARED' AND REQUEST_KEY IS NULL</update>
+<update id="accepted">UPDATE SMT_AUTH_PERSON_OWNER SET STATE='ACCEPTED',PERSON_ID=COALESCE(PERSON_ID,#{person}),UPDATE_TIME=SYS_EXTRACT_UTC(SYSTIMESTAMP) WHERE ID=#{id} AND OWNER_PHASE_ID=#{phase} AND OWNER_TOKEN=#{token} AND REQUEST_KEY=#{request} AND STATE IN('INTENT','UNKNOWN') AND (PERSON_ID IS NULL OR PERSON_ID=#{person})</update>
+<update id="mark">UPDATE SMT_AUTH_PERSON_OWNER SET STATE=#{state},REASON=#{reason},UPDATE_TIME=SYS_EXTRACT_UTC(SYSTIMESTAMP) WHERE ID=#{id} AND STATE=#{old}</update>
+<!-- 索引前缀精确到实例/主体，最多读取两个历史候选；有任何未接管证据都不盲首建。 -->
+<select id="history" resultType="com.tce.smart.platform.core.entity.SmtAuthTransportPhase">SELECT * FROM (SELECT ID,PHASE,STATE,PERSON_ID,EXTERNAL_ID,REQUEST_KEY FROM SMT_AUTH_TRANSPORT_PHASE WHERE INSTANCE_ID=#{p.instanceId} AND SUBJECT_TYPE=#{p.subjectType} AND SUBJECT_ID=#{p.subjectId} AND ACCESS_TYPE='ISC' AND (PHASE='ISC_PERSON' OR PERSON_ID IS NOT NULL) ORDER BY ID) WHERE ROWNUM&lt;=2</select>
+<select id="reviews" resultType="com.tce.smart.platform.core.entity.SmtAuthPersonOwner">SELECT * FROM (SELECT * FROM SMT_AUTH_PERSON_OWNER WHERE INSTANCE_ID=#{instance} AND STATE IN('UNKNOWN','VERIFYING')<if test="after != null"> AND ID&gt;#{after}</if> ORDER BY ID) WHERE ROWNUM&lt;=#{limit}</select>
+</mapper>

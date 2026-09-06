@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.VisitorAuthOperationMapper">
+ <!-- 显式Timestamp处理保留微秒；业务实体仍使用历史Date声明。 -->
+ <resultMap id="parent" type="com.tce.smart.platform.core.entity.SmtVisitor" autoMapping="true">
+  <id column="ID" property="id"/>
+  <result column="CREATE_TIME" property="createTime" javaType="java.sql.Timestamp" jdbcType="TIMESTAMP"/>
+  <result column="START_TIME" property="startTime" javaType="java.sql.Timestamp" jdbcType="TIMESTAMP"/>
+  <result column="END_TIME" property="endTime" javaType="java.sql.Timestamp" jdbcType="TIMESTAMP"/>
+ </resultMap>
+ <select id="lockParent" resultMap="parent">
+  SELECT ID,PARK_ID,CREATE_TIME,START_TIME,END_TIME,CAUSE,CERT_TYPE,CERT_NO,VISITOR_NAME,VISITOR_PHOTO_ID,IS_VEHICLE,VEHICLE_PLATE,PROCESS_ID,RECEPTIONIST_BADGE,PROMOTER_BADGE,STATUS,DEL_FLAG
+  FROM SMT_VISITOR WHERE PARK_ID=#{park,jdbcType=NUMERIC} AND ID=#{id,jdbcType=NUMERIC} FOR UPDATE
+ </select>
+ <select id="lockFellow" resultType="com.tce.smart.platform.core.entity.SmtFellowVisitor">
+  SELECT ID,VISITOR_ID,CERT_TYPE,CERT_NO,FELLOW_NAME,FELLOW_PHOTO_ID FROM SMT_FELLOW_VISITOR
+  WHERE VISITOR_ID=#{parent,jdbcType=NUMERIC} AND ID=#{id,jdbcType=NUMERIC} FOR UPDATE
+ </select>
+ <select id="lockFellows" resultType="com.tce.smart.platform.core.entity.SmtFellowVisitor">
+  SELECT ID,VISITOR_ID,CERT_TYPE,CERT_NO,FELLOW_NAME,FELLOW_PHOTO_ID FROM SMT_FELLOW_VISITOR
+  WHERE VISITOR_ID=#{parent,jdbcType=NUMERIC} ORDER BY ID FOR UPDATE
+ </select>
+ <select id="frozenSource" resultType="com.tce.smart.platform.core.entity.SmtAuthSelectionSource">
+  SELECT * FROM SMT_AUTH_SELECTION_SOURCE WHERE BATCH_ID=#{batch,jdbcType=NUMERIC} AND ORDINAL=#{ordinal,jdbcType=NUMERIC}
+ </select>
+ <!-- 由后续PB权限修改入口在父锁内调用；不排除或忽略失败/核验来源。 -->
+ <select id="pendingParentCount" resultType="int">
+  SELECT SUM(N) FROM (SELECT COUNT(*) N FROM SMT_AUTH_SELECTION_SOURCE S WHERE S.PARK_ID=#{park,jdbcType=NUMERIC} AND S.STATE!='CONVERGED'
+   AND S.SOURCE_KIND IN ('VISITOR','VISITOR_FELLOW','VISITOR_VEHICLE')
+   AND ((S.PARENT_KIND='VISITOR' AND S.PARENT_ROW_ID=#{parent,jdbcType=VARCHAR})
+    OR (S.SOURCE_KIND IN ('VISITOR','VISITOR_VEHICLE') AND S.SUBJECT_ID=#{parent,jdbcType=VARCHAR})
+    OR (S.SOURCE_KIND='VISITOR_FELLOW' AND EXISTS(SELECT 1 FROM SMT_FELLOW_VISITOR F WHERE TO_CHAR(F.ID)=S.SUBJECT_ID AND TO_CHAR(F.VISITOR_ID)=#{parent,jdbcType=VARCHAR})))
+  UNION ALL SELECT COUNT(*) N FROM SMT_AUTH_SOURCE_COORD C WHERE C.PARK_ID=#{park,jdbcType=NUMERIC}
+   AND C.STATE NOT IN ('ACTIVE','TOMBSTONE') AND C.SOURCE_KIND IN ('VISITOR','VISITOR_FELLOW','VISITOR_VEHICLE')
+   AND ((C.SUBJECT_TYPE IN ('VISITOR','VISITOR_VEHICLE') AND C.SUBJECT_ID=#{parent,jdbcType=VARCHAR})
+    OR (C.SUBJECT_TYPE='VISITOR_FELLOW' AND EXISTS(SELECT 1 FROM SMT_FELLOW_VISITOR F WHERE TO_CHAR(F.ID)=C.SUBJECT_ID AND TO_CHAR(F.VISITOR_ID)=#{parent,jdbcType=VARCHAR})))
+  )
+ </select>
+ <!-- 真实抓拍与真实设备园区、父车牌、普通访客归属同时对齐，不按数字ID猜家族。 -->
+ <select id="vehicleExitEvidence" resultType="int">
+  SELECT COUNT(*) FROM SMT_SNAP_VEHICLE E JOIN SMT_DEVICE D ON D.ID=E.DEVICE_ID
+   JOIN SMT_VISITOR V ON V.ID=E.DRIVER_ID AND V.PARK_ID=E.PARK_ID
+  WHERE E.ID=#{event,jdbcType=NUMERIC} AND E.DRIVER_ID=#{parent,jdbcType=NUMERIC}
+   AND E.PARK_ID=#{park,jdbcType=NUMERIC} AND D.PARK_ID=E.PARK_ID AND E.EVENT_TYPE=2
+   AND E.VEHICLE_ASCRIPTION=2 AND E.DRIVER_TYPE=2 AND E.CARD_NO=TO_CHAR(V.ID) AND E.VEHICLE_PLATE=V.VEHICLE_PLATE
+   AND E.SNAP_TIME&gt;=#{from,jdbcType=TIMESTAMP} AND E.SNAP_TIME&lt;=#{to,jdbcType=TIMESTAMP} AND E.SNAP_TIME&lt;=SYSTIMESTAMP
+ </select>
+ <select id="fellowExitEvidence" resultType="int">
+  SELECT COUNT(*) FROM SMT_SNAP_PERSON E JOIN SMT_DEVICE D ON D.ID=E.DEVICE_ID
+   JOIN SMT_FELLOW_VISITOR F ON F.ID=E.PERSON_ID JOIN SMT_VISITOR V ON V.ID=F.VISITOR_ID
+  WHERE E.ID=#{event,jdbcType=NUMERIC} AND F.ID=#{fellow,jdbcType=NUMERIC}
+   AND E.PARK_ID=#{park,jdbcType=NUMERIC} AND V.PARK_ID=E.PARK_ID AND D.PARK_ID=E.PARK_ID
+   AND E.EVENT_TYPE=2 AND E.PERSON_TYPE=2 AND NOT EXISTS(SELECT 1 FROM SMT_VISITOR M WHERE M.ID=E.PERSON_ID)
+   AND E.SNAP_TIME&gt;=#{from,jdbcType=TIMESTAMP} AND E.SNAP_TIME&lt;=#{to,jdbcType=TIMESTAMP} AND E.SNAP_TIME&lt;=SYSTIMESTAMP
+ </select>
+</mapper>

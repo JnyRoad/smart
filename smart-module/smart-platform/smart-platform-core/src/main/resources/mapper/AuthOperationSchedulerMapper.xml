@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.AuthOperationSchedulerMapper">
+  <select id="now" resultType="java.time.LocalDateTime">SELECT CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS TIMESTAMP) FROM DUAL</select>
+  <select id="windowKey" resultType="string">SELECT TO_CHAR(SYS_EXTRACT_UTC(SYSTIMESTAMP),'YYYYMMDDHH24MISS') FROM DUAL</select>
+  <insert id="insertState">INSERT INTO SMT_AUTH_SCHEDULER_STATE(INSTANCE_ID) VALUES(#{id})</insert>
+  <select id="routes" resultType="com.tce.smart.platform.core.dto.authoperation.AuthOperationSchedulerData$Route">
+    SELECT PARK_ID,ACCESS_TYPE,INSTANCE_ID,DIRECT_TAKEOVER_VERSION FROM SMT_AUTH_SCHEDULER_ROUTE WHERE ACCESS_TYPE=#{access} AND PARK_ID IN
+    <foreach collection="parks" item="park" open="(" separator="," close=")">#{park}</foreach>
+  </select>
+  <insert id="insertRoute">INSERT INTO SMT_AUTH_SCHEDULER_ROUTE(PARK_ID,ACCESS_TYPE,INSTANCE_ID) VALUES(#{park},#{access},#{instance})</insert>
+  <select id="routeOwner" resultType="string">SELECT INSTANCE_ID FROM SMT_AUTH_SCHEDULER_ROUTE WHERE PARK_ID=#{park} AND ACCESS_TYPE=#{access}</select>
+  <select id="lockState" resultType="com.tce.smart.platform.core.dto.authoperation.AuthOperationSchedulerData$State">SELECT * FROM SMT_AUTH_SCHEDULER_STATE WHERE INSTANCE_ID=#{id} FOR UPDATE</select>
+  <update id="saveState">UPDATE SMT_AUTH_SCHEDULER_STATE SET POLICY_KEY=#{policyKey},WINDOW_KEY=#{windowKey},TOTAL_USED=#{totalUsed},DELETE_USED=#{deleteUsed},ADD_USED=#{addUsed},CONFIG_USED=#{configUsed},RECEIPT_USED=#{receiptUsed},BORROW_USED=#{borrowUsed} WHERE INSTANCE_ID=#{instanceId}</update>
+  <insert id="insertJob">INSERT INTO SMT_AUTH_SCHEDULER_JOB(INSTANCE_ID,LANE) VALUES(#{id},#{lane})</insert>
+  <select id="lockJob" resultType="com.tce.smart.platform.core.dto.authoperation.AuthOperationSchedulerData$Job">SELECT * FROM SMT_AUTH_SCHEDULER_JOB WHERE INSTANCE_ID=#{id} AND LANE=#{lane} FOR UPDATE</select>
+  <update id="saveJob">UPDATE SMT_AUTH_SCHEDULER_JOB SET LEASE_TOKEN=#{leaseToken,jdbcType=VARCHAR},LEASE_UNTIL=#{leaseUntil,jdbcType=TIMESTAMP},NEXT_ATTEMPT_AT=#{nextAttemptAt,jdbcType=TIMESTAMP},LAST_ADVANCED_AT=#{lastAdvancedAt,jdbcType=TIMESTAMP},DEVICE_CURSOR=#{deviceCursor,jdbcType=VARCHAR},NUMBER_CURSOR=#{numberCursor,jdbcType=NUMERIC},TEXT_CURSOR=#{textCursor,jdbcType=VARCHAR},PARK_INDEX=#{parkIndex},FAILURES=#{failures} WHERE INSTANCE_ID=#{instanceId} AND LANE=#{lane}</update>
+  <sql id="parks"><foreach collection="p.parks" item="park" open="(" separator="," close=")">#{park}</foreach></sql>
+  <!-- 业务撤权即使生成物理 ADD，也属于撤权保留队列。混合批次按冻结贡献意图识别。 -->
+  <sql id="priority">CASE WHEN b.ACTION='DELETE' OR EXISTS(SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE c WHERE c.TARGET_ID=t.ID AND c.SOURCE_ACTION='DELETE') THEN 'DELETE' ELSE 'ADD' END</sql>
+  <sql id="scope">t.PARK_ID IN <include refid="parks"/> AND t.ACCESS_TYPE=#{p.accessType}</sql>
+  <sql id="active">t.STATE IN ('EXECUTING','WAITING_CONFIRM','VERIFYING')</sql>
+  <!-- 每设备排序发生在最终页截断前；单设备两万条不能挤走其他设备首个目标。 -->
+  <select id="candidates" resultType="com.tce.smart.platform.core.dto.authoperation.AuthOperationSchedulerData$Candidate">
+    SELECT ID,PARK_ID,DEVICE_ID,OPERATION_QUEUE,FAIR_KEY FROM (
+      SELECT fair.* FROM (SELECT q.*,ROW_NUMBER() OVER(PARTITION BY PARK_ID ORDER BY DEVICE_RANK,
+        CASE WHEN #{after,jdbcType=VARCHAR} IS NULL OR FAIR_KEY &gt; #{after,jdbcType=VARCHAR} THEN 0 ELSE 1 END,FAIR_KEY,ID) PARK_RANK FROM (
+        SELECT t.ID,t.PARK_ID,t.DEVICE_ID,t.OPERATION_QUEUE,
+          LPAD(TO_CHAR(t.PARK_ID),10,'0')||':'||t.DEVICE_ID FAIR_KEY,
+          ROW_NUMBER() OVER(PARTITION BY t.PARK_ID,t.DEVICE_ID ORDER BY t.ID) DEVICE_RANK,
+          (SELECT COUNT(*) FROM SMT_AUTH_OPERATION_TARGET a WHERE a.PARK_ID=t.PARK_ID AND a.DEVICE_ID=t.DEVICE_ID
+            AND a.ACCESS_TYPE=t.ACCESS_TYPE AND a.STATE IN ('EXECUTING','WAITING_CONFIRM','VERIFYING')) DEVICE_ACTIVE,
+          (SELECT COUNT(*) FROM SMT_AUTH_OPERATION_TARGET a JOIN SMT_AUTH_OPERATION_BATCH ab ON ab.ID=a.BATCH_ID
+            WHERE a.PARK_ID=t.PARK_ID AND a.DEVICE_ID=t.DEVICE_ID AND a.ACCESS_TYPE=t.ACCESS_TYPE AND a.STATE IN ('EXECUTING','WAITING_CONFIRM','VERIFYING')
+            AND CASE WHEN ab.ACTION='DELETE' OR EXISTS(SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE ac WHERE ac.TARGET_ID=a.ID AND ac.SOURCE_ACTION='DELETE') THEN 'DELETE' ELSE 'ADD' END=#{priority}) DEVICE_SAME
+        FROM SMT_AUTH_OPERATION_TARGET t JOIN SMT_AUTH_OPERATION_BATCH b ON b.ID=t.BATCH_ID
+        WHERE <include refid="scope"/> <if test="p.selectedDevice != null">AND t.DEVICE_ID=#{p.selectedDevice}</if> AND t.STATE='QUEUED' AND (<include refid="priority"/>)=#{priority}
+          AND (t.NEXT_ATTEMPT_AT IS NULL OR t.NEXT_ATTEMPT_AT &lt;=#{now})
+          AND (t.LEASE_UNTIL IS NULL OR t.LEASE_UNTIL &lt;#{now})
+          AND COALESCE((SELECT USED FROM SMT_AUTH_SCHEDULER_QUOTA r WHERE r.INSTANCE_ID=#{p.instanceId} AND r.PARK_ID=t.PARK_ID AND r.DEVICE_ID=t.DEVICE_ID
+            AND r.SCOPE_TYPE='DEVICE' AND r.LANE=#{priority} AND r.WINDOW_KEY=TO_CHAR(#{now},'YYYYMMDDHH24MISS')),0)
+            +CASE WHEN t.ACCESS_TYPE='ISC' THEN 3 ELSE 1 END &lt;= FLOOR(#{p.deviceHttpPerSecond}*3/8)
+      ) q WHERE DEVICE_RANK &lt;= LEAST(#{p.perDeviceInflight}-DEVICE_ACTIVE,#{p.perDeviceInflight}-DEVICE_SAME-
+        <choose><when test="priority == 'ADD'">#{p.perDeviceDeleteInflight}</when><otherwise>#{p.perDeviceAddInflight}</otherwise></choose>)) fair
+      ORDER BY PARK_RANK,CASE WHEN #{after,jdbcType=VARCHAR} IS NULL OR FAIR_KEY &gt; #{after,jdbcType=VARCHAR} THEN 0 ELSE 1 END,FAIR_KEY,ID
+    ) WHERE ROWNUM &lt;=#{limit}
+  </select>
+  <select id="parkCounts" resultType="com.tce.smart.platform.core.dto.authoperation.AuthOperationSchedulerData$Count">
+    SELECT PARK_ID,PRIORITY,STATE,COUNT(*) TARGET_COUNT FROM (
+      SELECT t.PARK_ID,(<include refid="priority"/>) PRIORITY,t.STATE FROM SMT_AUTH_OPERATION_TARGET t
+      JOIN SMT_AUTH_OPERATION_BATCH b ON b.ID=t.BATCH_ID WHERE <include refid="scope"/> AND <include refid="active"/>
+    ) GROUP BY PARK_ID,PRIORITY,STATE
+  </select>
+  <select id="quotaUsed" resultType="int">
+    SELECT CASE WHEN WINDOW_KEY=#{window} THEN USED ELSE 0 END FROM SMT_AUTH_SCHEDULER_QUOTA
+    WHERE INSTANCE_ID=#{instance} AND PARK_ID=#{park} AND DEVICE_ID=#{device} AND SCOPE_TYPE=#{kind} AND LANE=#{lane}
+  </select>
+  <!-- 同实例行锁内登记，园区和设备预算与领取一起提交。 -->
+  <update id="saveQuota">
+    MERGE INTO SMT_AUTH_SCHEDULER_QUOTA q USING(SELECT #{instance} INSTANCE_ID,#{park} PARK_ID,#{device} DEVICE_ID,#{kind} SCOPE_TYPE,#{lane} LANE FROM DUAL) k
+    ON(q.INSTANCE_ID=k.INSTANCE_ID AND q.PARK_ID=k.PARK_ID AND q.DEVICE_ID=k.DEVICE_ID AND q.SCOPE_TYPE=k.SCOPE_TYPE AND q.LANE=k.LANE)
+    WHEN MATCHED THEN UPDATE SET WINDOW_KEY=#{window},USED=#{used}
+    WHEN NOT MATCHED THEN INSERT(INSTANCE_ID,PARK_ID,DEVICE_ID,SCOPE_TYPE,LANE,WINDOW_KEY,USED)
+      VALUES(k.INSTANCE_ID,k.PARK_ID,k.DEVICE_ID,k.SCOPE_TYPE,k.LANE,#{window},#{used})
+  </update>
+  <select id="phaseGroup" resultType="long">
+    SELECT ID FROM (SELECT ph.ID,seed.STATE SEED_STATE FROM SMT_AUTH_TRANSPORT_PHASE ph JOIN SMT_AUTH_TRANSPORT_PHASE seed ON seed.ID=#{id}
+      JOIN SMT_AUTH_OPERATION_TARGET t ON t.ID=ph.TARGET_ID JOIN SMT_AUTH_OPERATION_BATCH b ON b.ID=t.BATCH_ID
+      JOIN SMT_AUTH_OPERATION_TARGET st ON st.ID=seed.TARGET_ID JOIN SMT_AUTH_OPERATION_BATCH sb ON sb.ID=st.BATCH_ID
+      WHERE ph.INSTANCE_ID=#{p.instanceId} AND ph.PARK_ID IN <include refid="parks"/> AND ph.PARK_ID=seed.PARK_ID
+      AND ph.ACCESS_TYPE=seed.ACCESS_TYPE AND ph.DEVICE_ID=seed.DEVICE_ID AND ph.PHASE=seed.PHASE AND ph.STATE=seed.STATE
+      AND (seed.STATE='ACCEPTED' OR (<include refid="priority"/>)=CASE WHEN sb.ACTION='DELETE' OR EXISTS(SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE sc WHERE sc.TARGET_ID=st.ID AND sc.SOURCE_ACTION='DELETE') THEN 'DELETE' ELSE 'ADD' END)
+      AND ph.ACTION=seed.ACTION AND ph.RESOURCE_TYPE=seed.RESOURCE_TYPE AND ph.SERVICE_TYPE=seed.SERVICE_TYPE
+      AND DECODE(ph.CREDENTIAL_CHANNEL,seed.CREDENTIAL_CHANNEL,1,0)=1 AND DECODE(ph.CHANNEL_NO,seed.CHANNEL_NO,1,0)=1
+      AND DECODE(ph.START_TIME,seed.START_TIME,1,0)=1 AND DECODE(ph.OVER_TIME,seed.OVER_TIME,1,0)=1
+      AND (seed.STATE='PREPARED' OR ph.REQUEST_KEY=seed.REQUEST_KEY)
+      ORDER BY CASE WHEN ph.ID=seed.ID THEN 0 ELSE 1 END,ph.ID) WHERE ROWNUM&lt;=CASE WHEN SEED_STATE='ACCEPTED' THEN 200 ELSE #{limit} END
+  </select>
+  <select id="phaseWork" resultType="com.tce.smart.platform.core.dto.authoperation.AuthOperationSchedulerData$PhaseWork">
+    SELECT ID,DEVICE_ID,OPERATION,FAIR_KEY FROM (
+      SELECT q.* FROM (SELECT ph.ID,ph.DEVICE_ID,
+        CASE WHEN ph.PHASE IN ('DIRECT_SEND','ISC_CONFIG') AND ph.STATE='PREPARED' THEN 'SUBMIT'
+          WHEN ph.PHASE='ISC_CONFIG' THEN 'CONFIG_PROGRESS' WHEN ph.STATE='PREPARED' THEN 'DOWNLOAD' ELSE 'RECEIPT' END OPERATION,
+        LPAD(TO_CHAR(ph.PARK_ID),10,'0')||':'||ph.DEVICE_ID FAIR_KEY
+        FROM SMT_AUTH_TRANSPORT_PHASE ph JOIN SMT_AUTH_OPERATION_TARGET t ON t.ID=ph.TARGET_ID JOIN SMT_AUTH_OPERATION_BATCH b ON b.ID=t.BATCH_ID
+        WHERE ph.INSTANCE_ID=#{p.instanceId} AND ph.PARK_ID IN <include refid="parks"/> AND ph.ACCESS_TYPE=#{p.accessType} AND (<include refid="priority"/>)=#{priority}
+        <choose>
+          <when test="lane == 'ADD' or lane == 'DELETE'">AND ph.PHASE IN ('DIRECT_SEND','ISC_CONFIG') AND ph.STATE='PREPARED' AND (<include refid="priority"/>)=#{lane}</when>
+          <when test="lane == 'CONFIG'">AND ((ph.PHASE='ISC_CONFIG' AND ph.STATE='ACCEPTED') OR (ph.PHASE='ISC_DOWNLOAD' AND ph.STATE='PREPARED'))</when>
+          <otherwise>AND ph.PHASE='ISC_DOWNLOAD' AND ph.STATE='ACCEPTED'</otherwise>
+        </choose>
+        AND COALESCE((SELECT USED FROM SMT_AUTH_SCHEDULER_QUOTA r WHERE r.INSTANCE_ID=#{p.instanceId} AND r.PARK_ID=ph.PARK_ID AND r.DEVICE_ID=ph.DEVICE_ID
+          AND r.SCOPE_TYPE='DEVICE' AND r.LANE=#{lane} AND r.WINDOW_KEY=#{window}),0)+#{cost}
+          &lt;= FLOOR(#{p.deviceHttpPerSecond}*<choose><when test="lane == 'ADD' or lane == 'DELETE'">3</when><otherwise>1</otherwise></choose>/8)
+      ) q ORDER BY CASE WHEN #{after,jdbcType=VARCHAR} IS NULL OR FAIR_KEY &gt; #{after,jdbcType=VARCHAR} THEN 0 ELSE 1 END,FAIR_KEY,CASE WHEN #{afterId,jdbcType=NUMERIC} IS NULL OR ID &gt; #{afterId,jdbcType=NUMERIC} THEN 0 ELSE 1 END,ID
+    ) WHERE ROWNUM&lt;=1
+  </select>
+  <select id="counts" resultType="com.tce.smart.platform.core.dto.authoperation.AuthOperationSchedulerData$Count">
+    SELECT PRIORITY,STATE,COUNT(*) TARGET_COUNT,MIN(ACCEPTED_AT) OLDEST_AT FROM (
+      SELECT (<include refid="priority"/>) PRIORITY,t.STATE,t.ACCEPTED_AT FROM SMT_AUTH_OPERATION_TARGET t
+      JOIN SMT_AUTH_OPERATION_BATCH b ON b.ID=t.BATCH_ID WHERE <include refid="scope"/>
+    ) GROUP BY PRIORITY,STATE
+  </select>
+  <!-- 超额度只延期有限目标，不持有线程等待设备；未知尝试继续计入在途。 -->
+  <update id="deferSaturated">
+    UPDATE SMT_AUTH_OPERATION_TARGET SET NEXT_ATTEMPT_AT=#{retryAt},UPDATE_TIME=#{now}
+    WHERE ID IN(SELECT ID FROM(SELECT t.ID FROM SMT_AUTH_OPERATION_TARGET t JOIN SMT_AUTH_OPERATION_BATCH b ON b.ID=t.BATCH_ID
+      WHERE <include refid="scope"/> <if test="p.selectedDevice != null">AND t.DEVICE_ID=#{p.selectedDevice}</if> AND t.STATE='QUEUED' AND (<include refid="priority"/>)=#{priority}
+        AND (t.NEXT_ATTEMPT_AT IS NULL OR t.NEXT_ATTEMPT_AT&lt;=#{now})
+        <if test="!globalBlocked">AND (SELECT COUNT(*) FROM SMT_AUTH_OPERATION_TARGET a WHERE a.PARK_ID=t.PARK_ID AND a.ACCESS_TYPE=t.ACCESS_TYPE AND a.DEVICE_ID=t.DEVICE_ID AND a.STATE IN('EXECUTING','WAITING_CONFIRM','VERIFYING'))&gt;=#{p.perDeviceInflight}</if>
+      ORDER BY t.ID) WHERE ROWNUM&lt;=#{limit}) AND STATE='QUEUED'
+  </update>
+  <!-- 独立业务类游标防止大批新增挡住新撤权；读取冻结选择，不加载全部来源。 -->
+  <select id="expansionBatches" resultType="long">
+    SELECT ID FROM (SELECT b.ID FROM SMT_AUTH_OPERATION_BATCH b WHERE b.STATUS='PREPARING' AND b.PARK_ID IN <include refid="parks"/>
+      AND EXISTS(SELECT 1 FROM SMT_AUTH_SELECTION_SOURCE s WHERE s.BATCH_ID=b.ID)
+      AND CASE WHEN b.ACTION='DELETE' OR EXISTS(SELECT 1 FROM SMT_AUTH_SELECTION_SOURCE s WHERE s.BATCH_ID=b.ID AND s.DESIRED_ACTION='DELETE') THEN 'DELETE' ELSE 'ADD' END=#{priority}
+      <if test="after != null">AND b.ID&gt;#{after}</if> ORDER BY b.ID) WHERE ROWNUM&lt;=#{limit}
+  </select>
+  <select id="jobs" resultType="com.tce.smart.platform.core.dto.authoperation.AuthOperationSchedulerData$Job">
+    SELECT * FROM (SELECT * FROM SMT_AUTH_SCHEDULER_JOB WHERE INSTANCE_ID=#{id}
+      AND (LANE IN ('EXPAND','EXPIRE','RECOVER','CONVERGE','REFRESH') OR LANE LIKE 'ADD:%' OR LANE LIKE 'DELETE:%' OR LANE LIKE 'CONFIG:%' OR LANE LIKE 'RECEIPT:%')
+      ORDER BY LANE) WHERE ROWNUM&lt;=405
+  </select>
+  <select id="expiredClaims" resultType="long">
+    SELECT ID FROM (SELECT t.ID FROM SMT_AUTH_OPERATION_TARGET t WHERE <include refid="scope"/>
+      AND t.STATE='EXECUTING' AND t.LEASE_UNTIL &lt;=#{now}
+      AND EXISTS(SELECT 1 FROM SMT_AUTH_OPERATION_ATTEMPT a WHERE a.TARGET_ID=t.ID AND a.LEASE_TOKEN=t.LEASE_TOKEN AND a.STATUS='CLAIMED')
+      <if test="after!=null">AND t.ID &gt;#{after}</if> ORDER BY t.ID) WHERE ROWNUM &lt;=#{limit}
+  </select>
+  <select id="lockTarget" resultType="string">SELECT STATE FROM SMT_AUTH_OPERATION_TARGET WHERE ID=#{id} FOR UPDATE</select>
+  <!-- 先锁目标，再把尚未准备提交的当前尝试作废；已持久 INTENT/等待回执均不可重发。 -->
+  <update id="expireUnsubmittedAttempt">
+    UPDATE SMT_AUTH_OPERATION_ATTEMPT a SET STATUS='EXPIRED',UPDATE_TIME=#{now}
+    WHERE a.TARGET_ID=#{id} AND a.STATUS='CLAIMED' AND a.EXTERNAL_BATCH_ID IS NULL AND a.EXTERNAL_COMMAND_ID IS NULL
+      AND EXISTS(SELECT 1 FROM SMT_AUTH_OPERATION_TARGET t WHERE t.ID=a.TARGET_ID AND t.STATE='EXECUTING' AND t.LEASE_TOKEN=a.LEASE_TOKEN AND t.LEASE_UNTIL &lt;=#{now})
+      AND NOT EXISTS(SELECT 1 FROM SMT_AUTH_TRANSPORT_PHASE p WHERE p.ATTEMPT_ID=a.ID)
+  </update>
+  <update id="requeueExpiredTarget">UPDATE SMT_AUTH_OPERATION_TARGET t SET STATE='QUEUED',LEASE_TOKEN=NULL,LEASE_UNTIL=NULL,NEXT_ATTEMPT_AT=#{now},UPDATE_TIME=#{now}
+    WHERE t.ID=#{id} AND t.STATE='EXECUTING' AND t.LEASE_UNTIL &lt;=#{now}
+      AND EXISTS(SELECT 1 FROM SMT_AUTH_OPERATION_ATTEMPT a WHERE a.TARGET_ID=t.ID AND a.LEASE_TOKEN=t.LEASE_TOKEN AND a.STATUS='EXPIRED')
+  </update>
+  <select id="recoveries" resultType="com.tce.smart.platform.core.entity.SmtAuthSourceResource">
+    SELECT * FROM (SELECT c.* FROM SMT_AUTH_SOURCE_RESOURCE c JOIN SMT_AUTH_SOURCE_COORD s ON s.ID=c.SOURCE_COORD_ID JOIN SMT_AUTH_RESOURCE_COORD r ON r.ID=c.RESOURCE_COORD_ID
+      WHERE s.PARK_ID IN <include refid="parks"/> AND r.ACCESS_TYPE=#{p.accessType} AND c.BINDING_REVISION=0 AND c.SOURCE_GENERATION=s.GENERATION
+        AND ((c.RESOURCE_GENERATION &lt;r.GENERATION AND c.TARGET_ID IS NOT NULL) OR (c.TARGET_ID IS NULL AND EXISTS(SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE h WHERE h.SOURCE_COORD_ID=c.SOURCE_COORD_ID AND h.SOURCE_GENERATION=c.SOURCE_GENERATION AND h.RESOURCE_COORD_ID=c.RESOURCE_COORD_ID AND h.BINDING_REVISION&gt;0)))
+        <if test="after!=null">AND c.ID&gt;#{after}</if> ORDER BY c.ID) WHERE ROWNUM&lt;=#{limit}
+  </select>
+  <select id="convergences" resultType="com.tce.smart.platform.core.entity.SmtAuthSourceResource">
+    SELECT * FROM (SELECT c.* FROM SMT_AUTH_SOURCE_RESOURCE c JOIN SMT_AUTH_SOURCE_COORD s ON s.ID=c.SOURCE_COORD_ID JOIN SMT_AUTH_RESOURCE_COORD r ON r.ID=c.RESOURCE_COORD_ID
+      WHERE s.PARK_ID IN <include refid="parks"/> AND r.ACCESS_TYPE=#{p.accessType} AND s.SOURCE_KIND='STAFF_AUTH'
+        AND c.SOURCE_GENERATION=s.GENERATION AND c.BINDING_REVISION=0 AND c.STATE='CONVERGED'
+        AND NOT EXISTS(SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE pending WHERE pending.SOURCE_COORD_ID=c.SOURCE_COORD_ID AND pending.SOURCE_GENERATION=c.SOURCE_GENERATION AND pending.BINDING_REVISION=0 AND pending.STATE!='CONVERGED')
+        AND EXISTS(SELECT 1 FROM SMT_AUTH_DELETE_REQUEST d WHERE d.ID=c.REQUEST_ID AND d.STATUS!='CONVERGED')
+        <if test="after!=null">AND c.ID&gt;#{after}</if> ORDER BY c.ID) WHERE ROWNUM&lt;=#{limit}
+  </select>
+  <select id="refreshTargets" resultType="long">
+    SELECT ID FROM (SELECT t.ID FROM SMT_AUTH_OPERATION_TARGET t WHERE <include refid="scope"/>
+      AND t.STATE NOT IN ('CONVERGED','FAILED') AND NOT EXISTS(SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE c JOIN SMT_AUTH_DELETE_REQUEST d ON d.ID=c.REQUEST_ID WHERE c.TARGET_ID=t.ID AND d.STATUS!='CONVERGED')
+      AND EXISTS(SELECT 1 FROM SMT_AUTH_SOURCE_RESOURCE c WHERE c.TARGET_ID=t.ID)
+      <if test="after!=null">AND t.ID&gt;#{after}</if> ORDER BY t.ID) WHERE ROWNUM&lt;=#{limit}
+  </select>
+</mapper>

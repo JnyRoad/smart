@@ -45,14 +45,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
 
-@AllArgsConstructor
+@lombok.RequiredArgsConstructor
 @Service
 @Slf4j
 public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAuthMapper, SmtStaffDeviceAuth> implements SmtStaffDeviceAuthService {
+
+	@org.springframework.beans.factory.annotation.Autowired
+	private EmployeeAuthOperationAdapter employeeAuthOperationAdapter;
 
 	private final SmtStaffDeviceAuthMapper mapper;
 
@@ -77,18 +81,66 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 	private final RemoteDispatcherService remoteDispatcherService;
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public boolean removeByIds(Collection<? extends Serializable> ids) {
+		if (employeeAuthOperationAdapter != null && employeeAuthOperationAdapter.isEnabled()) {
+			List<Integer> rowIds = ids.stream().map(id -> Integer.valueOf(id.toString())).collect(Collectors.toList());
+			Boolean accepted = employeeAuthOperationAdapter.removeRows(rowIds, null);
+			if (accepted != null) return accepted;
+		}
+		if (employeeAuthOperationAdapter != null && !ids.isEmpty()) {
+			List<Integer> guarded = guardLegacySelection(Wrappers.<SmtStaffDeviceAuth>query().in("ID", ids));
+			return !guarded.isEmpty() && super.removeByIds(guarded);
+		}
+		return super.removeByIds(ids);
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public boolean removeById(Serializable id) {
+		return removeByIds(Collections.singletonList(id));
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public boolean remove(com.baomidou.mybatisplus.core.conditions.Wrapper<SmtStaffDeviceAuth> query) {
+		if (employeeAuthOperationAdapter != null) {
+			List<Integer> guarded = guardLegacySelection(query);
+			return !guarded.isEmpty() && super.removeByIds(guarded);
+		}
+		return super.remove(query);
+	}
+
+	private List<Integer> guardLegacySelection(com.baomidou.mybatisplus.core.conditions.Wrapper<SmtStaffDeviceAuth> query) {
+		List<SmtStaffDeviceAuth> selected = baseMapper.selectList(query);
+		employeeAuthOperationAdapter.guardLegacyDeletion(selected);
+		Set<Long> subjects = selected.stream().map(SmtStaffDeviceAuth::getStaffId).collect(Collectors.toSet());
+		for (SmtStaffDeviceAuth row : baseMapper.selectList(query)) {
+			if (!subjects.contains(row.getStaffId())) throw new IllegalStateException("旧删除范围已变化，请回滚重试");
+		}
+		// 只删除本次已受门禁保护的行，不能重新用宽泛条件吞掉并发加入的员工。
+		return selected.stream().map(SmtStaffDeviceAuth::getId).collect(Collectors.toList());
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public Integer removeAuthById(Integer id) {
+		if(employeeAuthOperationAdapter!=null){Boolean accepted=employeeAuthOperationAdapter.removeRows(Collections.singletonList(id),null);if(accepted!=null)return accepted?1:0;}
+		if(employeeAuthOperationAdapter!=null)return removeById(id)?1:0;
 		// TODO Auto-generated method stub
 		return mapper.deleteById(id);
 	}
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public Boolean removeByAuthId(Integer authId) {
+		if(employeeAuthOperationAdapter!=null){Boolean accepted=employeeAuthOperationAdapter.removeAuthority(authId);if(accepted!=null)return accepted;}
 		return remove(Wrappers.<SmtStaffDeviceAuth>lambdaQuery().eq(SmtStaffDeviceAuth::getAuthId, authId));
 	}
 
 	@Override
 	public Integer addAuth(SmtStaffDeviceAuth auth) {
+		if(employeeAuthOperationAdapter!=null){Boolean accepted=employeeAuthOperationAdapter.addSource(auth);if(accepted!=null)return accepted?1:0;}
 		// TODO Auto-generated method stub
 		return mapper.insert(auth);
 	}
@@ -97,6 +149,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 	@Transactional
 	@Override
 	public Boolean updateAuth(UpdateDeviceAuthDTO auth) {
+		if(employeeAuthOperationAdapter!=null && employeeAuthOperationAdapter.update(2,auth)!=null)return true;
 		List<String> staffIds = auth.getIds();
 		for (String staffId : staffIds) {
 			//这里以后要做多园区的话 要在SmtStaffDeviceAuth表添加园区字段 并在这里区分
@@ -193,6 +246,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 	@Transactional
 	@Override
 	public String updateAuthNew(Integer type, UpdateDeviceAuthDTO auth) {
+		if(employeeAuthOperationAdapter!=null){String accepted=employeeAuthOperationAdapter.update(type,auth);if(accepted!=null)return accepted;}
 		// 重新下发必须沿用已保存的关联有效期，不能用请求缺省日期覆盖历史自定义日期。
 		PermissionValidityWindow requestValidityWindow = Integer.valueOf(3).equals(type)
 				? null : PermissionValidityWindow.resolve(auth.getStartTime(), auth.getEndTime());
@@ -317,6 +371,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 	@Transactional
 	@Override
 	public Boolean updateAuth(List<Long> staffIds, List<Integer> deviceAuthIds) {
+		if(employeeAuthOperationAdapter!=null){UpdateDeviceAuthDTO input=new UpdateDeviceAuthDTO();input.setIds(staffIds.stream().map(String::valueOf).collect(Collectors.toList()));input.setDeviceAuthIds(deviceAuthIds);if(employeeAuthOperationAdapter.update(2,input)!=null)return true;}
 		// TODO Auto-generated method stub
 		for (Long staffId : staffIds) {
 			//这里以后要做多园区的话 要在SmtStaffDeviceAuth表添加园区字段 并在这里区分
@@ -356,6 +411,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 	@Transactional
 	@Override
 	public Boolean applyAuthDiff(List<Long> staffIds, List<Integer> addedAuthIds, List<Integer> removedAuthIds) {
+		if(employeeAuthOperationAdapter!=null){Boolean accepted=employeeAuthOperationAdapter.diff(staffIds,addedAuthIds,removedAuthIds);if(accepted!=null)return accepted;}
 		if (CollectionUtils.isEmpty(addedAuthIds) && CollectionUtils.isEmpty(removedAuthIds)) {
 			return true;
 		}
@@ -491,6 +547,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public Boolean removeAuthToDevice(List<Integer> ids, List<String> deviceIds) {
+		if(employeeAuthOperationAdapter!=null){Boolean accepted=employeeAuthOperationAdapter.removeRows(ids,null);if(accepted!=null)return accepted;}
 		if (CollectionUtil.isEmpty(deviceIds)) {
 			return this.removeByIds(ids);
 		}
@@ -512,6 +569,7 @@ public class SmtStaffDeviceAuthServiceImpl extends ServiceImpl<SmtStaffDeviceAut
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public Boolean removeAuthToDevice(SmtStaffDeviceAuth staffAuth, List<String> deviceIds) {
+		if(employeeAuthOperationAdapter!=null){Boolean accepted=employeeAuthOperationAdapter.removeRows(Collections.singletonList(staffAuth.getId()),staffAuth.getAuthId());if(accepted!=null)return accepted;}
 		SmtStaff staff = staffService.getById(staffAuth.getStaffId());
 		if (StrUtil.isBlank(staff.getFacePicId())) {
 			log.info("员工[{}]人脸图片ID为空", staff.getBadge());

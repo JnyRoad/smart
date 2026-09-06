@@ -1,6 +1,9 @@
 package com.tce.smart.platform.service;
 
 import java.util.List;
+import com.tce.smart.platform.dto.authoperation.AuthOperationReceipt;
+import com.tce.smart.platform.dto.authoperation.AuthOperationIntakeReceipt;
+import com.tce.smart.platform.dto.authoperation.AuthOperationIntakeCapability;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -84,6 +87,15 @@ public interface SmtDeviceAuthorityService extends IService<SmtDeviceAuthority> 
 	Boolean deviceAuthRelationDel(DeviceAuthRelationDelReqDTO reqDTO);
 
 	Boolean deviceAuthRelationClear(Integer id);
+
+	/** 人员回执入口，允许园区必须由登录上下文提供。 */
+	AuthOperationReceipt personRelationDeleteReceipt(DeviceAuthRelationDelReqDTO request, List<Integer> allowedParks);
+
+	/** 人员清空回执；空组不得伪造批次。 */
+	AuthOperationReceipt personRelationClearReceipt(Integer id, List<Integer> allowedParks);
+    AuthOperationIntakeReceipt personRelationDeleteIntake(DeviceAuthRelationDelReqDTO request, String requestKey, Integer actorId, List<Integer> allowedParks);
+    AuthOperationIntakeReceipt personRelationClearIntake(Integer id, String requestKey, Integer actorId, List<Integer> allowedParks);
+    AuthOperationIntakeCapability personIntakeCapability(Integer id, List<Integer> allowedParks);
 
 	Boolean checkIsUsed(Integer type, String deviceId);
 

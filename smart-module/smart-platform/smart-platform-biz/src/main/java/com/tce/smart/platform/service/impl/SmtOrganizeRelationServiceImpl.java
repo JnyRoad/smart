@@ -46,6 +46,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelationMapper, SmtOrganizeRelation> implements SmtOrganizeRelationService {
+	@org.springframework.beans.factory.annotation.Autowired
+	private EmployeeAuthOperationAdapter employeeAuthOperationAdapter;
 
 	@Autowired
 	private RemoteUserService remoteUserService;
@@ -99,21 +101,24 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 			this.saveUser(relationReqDTO);
 			Integer userId = remoteUserService.info(relationReqDTO.getUserName(), SecurityConstants.FROM_IN).getData().getSysUser().getUserId();
 			relation.setUserId(userId);
+			Boolean accepted = authAccess(relationReqDTO.getDeviceAuthId(), relation);
 			this.updateById(relation);
-			return authAccess(relationReqDTO.getDeviceAuthId(), relation);
+			return accepted;
 		}
 //		SmtParkBu bu = new SmtParkBu();
 //		bu.setCompId(Long.toString(relation.getId()));
 //		bu.setCompName(relation.getCompName());
 //		bu.setParkId(relation.getParkId());
 //		smtParkBuService.update(bu,Wrappers.<SmtParkBu>query().lambda().eq(SmtParkBu::getCompId, relation.getId()));
+		// 可靠组门禁必须先于员工 UPDATE，保持权限组到员工的统一锁顺序。
+		Boolean accepted = authAccess(relationReqDTO.getDeviceAuthId(), relation);
 		//修改smtStaff表中相应字段
 		SmtStaff smtStaff = new SmtStaff();
 		smtStaff.setCompName(relation.getCompName());
 		smtStaffMapper.update(smtStaff, Wrappers.<SmtStaff>query().lambda().eq(SmtStaff::getCompId,Long.toString(relation.getId())));
 		this.updateUser(relationReqDTO);
 		this.updateById(relation);
-		return authAccess(relationReqDTO.getDeviceAuthId(), relation);
+		return accepted;
 	}
 
 	/**
@@ -139,6 +144,13 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 			// 权限未变化，不动员工权限
 			return Boolean.TRUE;
 		}
+        Boolean reliableAccepted=null;
+        if(employeeAuthOperationAdapter!=null && employeeAuthOperationAdapter.isEnabled()){
+            SmtOrganizeRelation persisted=this.getById(relation.getId());
+            Integer trustedPark=persisted==null?relation.getParkId():persisted.getParkId();
+            List<SmtStaff> selected=staffService.list(Wrappers.<SmtStaff>lambdaQuery().eq(SmtStaff::getCompId,relation.getId()));
+            reliableAccepted=employeeAuthOperationAdapter.organizationDiff(selected.stream().map(SmtStaff::getId).collect(Collectors.toList()),addedAuthIds,removedAuthIds,trustedPark);
+        }
 		// 更新门禁权限关联 先删后插（传空列表表示清空单位全部权限）
 		List<SmtOrganizeAccess> organizeAccessList = new ArrayList<>();
 		deviceAuthIds.forEach(deviceAuthId -> organizeAccessList.add(SmtOrganizeAccess.builder()
@@ -152,7 +164,7 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
 		List<SmtStaff> staffList = staffService.list(Wrappers.<SmtStaff>lambdaQuery()
 				.eq(Objects.nonNull(relation.getId()), SmtStaff::getCompId, relation.getId())
 				.eq(Objects.nonNull(relation.getCompName()), SmtStaff::getCompName, relation.getCompName()));
-		if(CollectionUtils.isNotEmpty(staffList)) {
+		if(reliableAccepted==null && CollectionUtils.isNotEmpty(staffList)) {
 			staffDeviceAuthService.applyAuthDiff(staffList.stream().map(SmtStaff::getId).collect(Collectors.toList()),
 					addedAuthIds, removedAuthIds);
 		}

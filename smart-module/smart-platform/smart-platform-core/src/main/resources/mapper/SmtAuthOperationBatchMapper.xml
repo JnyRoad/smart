@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthOperationBatchMapper">
+
+	<resultMap id="AuthOperationBatchMap" type="com.tce.smart.platform.core.entity.SmtAuthOperationBatch">
+		<id property="id" column="ID"/>
+		<result property="parkId" column="PARK_ID"/>
+		<result property="idempotencyKey" column="IDEMPOTENCY_KEY"/>
+		<result property="action" column="ACTION"/>
+		<result property="sourceType" column="SOURCE_TYPE"/>
+		<result property="sourceId" column="SOURCE_ID"/>
+		<result property="selectionSnapshot" column="SELECTION_SNAPSHOT" jdbcType="CLOB"/>
+		<result property="payloadFingerprint" column="PAYLOAD_FINGERPRINT"/>
+		<result property="expectedCount" column="EXPECTED_COUNT"/>
+		<result property="expandedCount" column="EXPANDED_COUNT"/>
+		<result property="expansionCursor" column="EXPANSION_CURSOR"/>
+		<result property="status" column="STATUS"/>
+		<result property="failureReason" column="FAILURE_REASON"/>
+		<result property="acceptedAt" column="ACCEPTED_AT"/>
+		<result property="expansionFinishedAt" column="EXPANSION_FINISHED_AT"/>
+		<result property="dispatchedAt" column="DISPATCHED_AT"/>
+		<result property="confirmedAt" column="CONFIRMED_AT"/>
+		<result property="convergedAt" column="CONVERGED_AT"/>
+		<result property="finishedAt" column="FINISHED_AT"/>
+		<result property="deadlineAt" column="DEADLINE_AT"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="updateTime" column="UPDATE_TIME"/>
+	</resultMap>
+
+	<select id="selectByParkAndIdempotency" resultMap="AuthOperationBatchMap">
+		SELECT ID, PARK_ID, IDEMPOTENCY_KEY, ACTION, SOURCE_TYPE, SOURCE_ID,
+			SELECTION_SNAPSHOT, PAYLOAD_FINGERPRINT, EXPECTED_COUNT, EXPANDED_COUNT,
+			EXPANSION_CURSOR, STATUS, FAILURE_REASON, ACCEPTED_AT, EXPANSION_FINISHED_AT,
+			DISPATCHED_AT, CONFIRMED_AT, CONVERGED_AT, FINISHED_AT, DEADLINE_AT,
+			CREATE_TIME, UPDATE_TIME
+		FROM SMT_AUTH_OPERATION_BATCH
+		WHERE PARK_ID = #{parkId} AND IDEMPOTENCY_KEY = #{idempotencyKey}
+	</select>
+
+	<!-- 只有游标仍为 previousCursor 时才推进，重复分片不会重计。 -->
+	<update id="advanceExpansion">
+		UPDATE SMT_AUTH_OPERATION_BATCH
+		SET EXPANDED_COUNT = EXPANDED_COUNT + #{appendedCount},
+			EXPANSION_CURSOR = #{nextCursor},
+			UPDATE_TIME = #{updatedAt}
+		WHERE ID = #{batchId}
+			AND STATUS = 'PREPARING'
+			AND EXPANSION_CURSOR = #{previousCursor}
+	</update>
+
+	<update id="finishExpansion">
+		UPDATE SMT_AUTH_OPERATION_BATCH
+		SET STATUS = #{status},
+			EXPANSION_FINISHED_AT = #{finishedAt},
+			UPDATE_TIME = #{finishedAt}
+		WHERE ID = #{batchId}
+			AND STATUS = 'PREPARING'
+			AND EXPECTED_COUNT = #{expectedCount}
+			AND EXPANDED_COUNT = #{expectedCount}
+	</update>
+</mapper>

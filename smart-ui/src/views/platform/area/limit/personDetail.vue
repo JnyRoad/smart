@@ -9,9 +9,27 @@
           <div class="top-right">
             <el-button type="primary" icon="el-icon-search" @click="searchSubmit(searchForm)">搜索</el-button>
             <el-button type="primary" icon="el-icon-delete" @click="resetFrom('searchForm')" plain>重置</el-button>
-            <el-button type="primary" icon="el-icon-delete" @click="handleDelBatch()">批量删除</el-button>
-            <el-button type="primary" icon="el-icon-delete" @click="handleClear()">清空权限</el-button>
+            <el-button
+              :loading="batchDeleting"
+              :disabled="batchDeleting || clearing"
+              type="primary"
+              icon="el-icon-delete"
+              @click="handleDelBatch()"
+            >批量删除</el-button>
+            <el-button
+              :loading="clearing"
+              :disabled="batchDeleting || clearing"
+              type="primary"
+              icon="el-icon-delete"
+              @click="handleClear()"
+            >清空权限</el-button>
+            <el-button plain :disabled="batchDeleting || clearing" @click="retryPendingIntake">重试未确认提交</el-button>
             <el-button type="primary" @click="byPaste()">批量粘贴</el-button>
+            <el-button
+              plain
+              icon="el-icon-time"
+              @click="operationProgressVisible = true"
+            >权限任务</el-button>
           </div>
         </div>
         <div class="form-outer">
@@ -51,21 +69,25 @@
     </el-scrollbar>
     <DoPasteDialogs ref="DoPasteDialogs" :dataItem="badges" @refresh="badgeChange" />
     <DoPasteDialog ref="doPasteDialog" :dataItem="deleteForm" @refresh="resetFrom('searchForm')"/>
+    <AuthOperationProgress :key="routeContextVersion" v-model="operationProgressVisible" :operation-key="acceptedOperationKey" />
   </div>
 </template>
 
 <script>
-import { getDetailPage, delObj, batchDel, clearAll } from '@/api/platform/area/limit'
+import { pendingEmployeeIntake, submitEmployeeIntake } from './employee-intake-request'
+import { getDetailPage, delObj, batchDelPersonWithReceipt, clearPersonWithReceipt, personIntakeCapability } from '@/api/platform/area/limit'
 import { tableOption } from '@/const/crud/platform/area/limit_person'
 import DoPasteDialog from './doPaste'
 import DoPasteDialogs from './doPasteBadge'
+import AuthOperationProgress from './AuthOperationProgress'
 import { mapGetters } from 'vuex'
 import { staffStatusInit } from '@/filters/index'
 export default {
   name: 'limit',
   components: {
     DoPasteDialog,
-    DoPasteDialogs
+    DoPasteDialogs,
+    AuthOperationProgress
   },
   data() {
     return {
@@ -79,34 +101,66 @@ export default {
       page: {
         total: 0, // 总页数
         currentPage: 1, // 当前页数
-        pageSize: 20 // 每页显示多少条
+        pageSize: 20, // 每页显示多少条
+        authId: '',
+        type: ''
       },
       deleteForm: {
-        delIds: []
+        delIds: [],
+        authId: '',
+        type: ''
       },
       badges: '',
       badgeArry: [],
-      authorityName: null
+      authorityName: null,
+      operationProgressVisible: false,
+      acceptedOperationKey: '',
+      batchDeleting: false,
+      clearing: false,
+      routeContextVersion: 0,
+      listRequestSequence: 0
     }
   },
   created() {
-    this.page.authId = this.$route.params.id
-    this.page.type = this.$route.params.type
-    this.authorityName = this.$route.query.name
-    this.deleteForm.authId = this.$route.params.id
-    this.deleteForm.type = this.$route.params.type
-    this.getList(this.page, this.searchForm)
+    this.syncRouteContext(this.$route)
+    this.loadRouteList()
   },
   mounted: function () {},
   computed: {
     ...mapGetters(['permissions'])
   },
   watch: {
-    $route() {
-      this.getList()
+    $route(route) {
+      this.syncRouteContext(route)
+      this.loadRouteList()
     }
   },
   methods: {
+    syncRouteContext(route) {
+      this.operationProgressVisible = false
+      this.acceptedOperationKey = ''
+      this.routeContextVersion += 1
+      this.listRequestSequence += 1
+      this.page.authId = route.params.id
+      this.page.type = route.params.type
+      this.page.currentPage = 1
+      this.page.total = 0
+      this.deleteForm.authId = route.params.id
+      this.deleteForm.type = route.params.type
+      this.deleteForm.delIds = []
+      this.authorityName = route.query.name
+      this.tableData = []
+    },
+    loadRouteList() {
+      return this.getList().catch(error => {
+        this.$notify.error({
+          title: '列表加载失败',
+          message: this.errorMessage(error, '权限明细加载失败'),
+          type: 'error',
+          duration: 3000
+        })
+      })
+    },
     pasteBadge() {
       this.$refs.DoPasteDialogs && this.$refs.DoPasteDialogs.open()
     },
@@ -117,102 +171,248 @@ export default {
         return el != ''
       })
     },
-    getList(page, params) {
+    async getList(page = this.page, params = this.searchForm) {
+      const requestSequence = ++this.listRequestSequence
+      const routeContextVersion = this.routeContextVersion
       this.tableLoading = true
-      getDetailPage(
-        Object.assign(
-          {
-            descs: 'create_time',
-            current: page.currentPage,
-            size: page.pageSize,
-            authId: page.authId,
-            type: page.type
-          },
-          params
+      try {
+        const response = await getDetailPage(
+          Object.assign(
+            {
+              descs: 'create_time',
+              current: page.currentPage,
+              size: page.pageSize,
+              authId: page.authId,
+              type: page.type
+            },
+            params
+          )
         )
-      ).then((response) => {
+        if (requestSequence !== this.listRequestSequence || routeContextVersion !== this.routeContextVersion) return
         this.tableData = response.data.data.records
         this.page.total = response.data.data.total
-        this.tableLoading = false
-      })
-      this.tableLoading = false
+      } catch (error) {
+        if (requestSequence !== this.listRequestSequence || routeContextVersion !== this.routeContextVersion) return
+        throw error
+      } finally {
+        if (requestSequence === this.listRequestSequence) this.tableLoading = false
+      }
     },
-    handleDelBatch() {
-      var _this = this
+    operationContext() {
+      return {
+        version: this.routeContextVersion,
+        actorId: this.$store.getters.userInfo && this.$store.getters.userInfo.id,
+        authId: this.deleteForm.authId,
+        type: this.deleteForm.type,
+        name: this.authorityName || (this.$route.query && this.$route.query.name) || ''
+      }
+    },
+    isOperationContextCurrent(context) {
+      return context.actorId === (this.$store.getters.userInfo && this.$store.getters.userInfo.id) &&
+        context.version === this.routeContextVersion &&
+        context.authId === this.deleteForm.authId &&
+        context.type === this.deleteForm.type
+    },
+    async refreshAfterAccepted(context, receipt) {
+      if (!this.isOperationContextCurrent(context)) return
+      try {
+        await this.getList()
+      } catch (error) {
+        if (!this.isOperationContextCurrent(context)) return
+        if (receipt && receipt.mode === 'NO_CHANGE') {
+          this.$notify({ title: '列表刷新失败', message: `权限组${this.operationLabel(context)}本次没有产生新批次，请手动刷新列表。`, type: 'warning' })
+        } else this.notifyAcceptedRefreshFailed(error, context)
+      }
+    },
+    operationLabel(context) {
+      const name = context.name ? `“${context.name}”` : '未命名权限组'
+      return `${name}（ID：${context.authId}）`
+    },
+    notifyAcceptedRefreshFailed(error, context) {
+      this.$notify({
+        title: '请求已受理，列表刷新失败',
+        message: `权限组${this.operationLabel(context)}的设备结果仍待确认，请手动刷新列表后再操作。${this.errorMessage(error, '')}`,
+        type: 'warning',
+        duration: 5000
+      })
+    },
+    notifyRouteChanged(context) {
+      this.$notify({
+        title: '权限组已切换',
+        message: `权限组${this.operationLabel(context)}的本次操作已取消，请在当前权限组重新选择后提交。`,
+        type: 'warning',
+        duration: 3000
+      })
+    },
+    async handleDelBatch() {
       const elm = this.$createElement
+      if (this.batchDeleting || this.clearing) return
       if (this.deleteForm.delIds.length == 0) {
-        _this.$notify.error({
+        this.$notify.error({
           title: '提示信息',
           message: '请选择要删除的人员',
-          type: 'success',
+          type: 'error',
           duration: 2000
         })
         return
       }
-      this.$msgbox({
-        message: elm('p', { attrs: { class: 'smallp' } }, [elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''), elm('span', null, '确认删除所选人员信息？ ')]),
-        showCancelButton: true,
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        customClass: 'small_dialog',
-        center: true
-      })
-        .then(() => {
-          return batchDel(this.deleteForm)
+      const context = this.operationContext()
+      const request = {
+        authId: context.authId,
+        type: context.type,
+        delIds: [...this.deleteForm.delIds]
+      }
+      this.batchDeleting = true
+      try {
+        await this.$msgbox({
+          message: elm('p', { attrs: { class: 'smallp' } }, [elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''), elm('span', null, '确认删除所选人员信息？ ')]),
+          showCancelButton: true,
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          customClass: 'small_dialog',
+          center: true
         })
-        .then((dataResponse) => {
-          if (dataResponse.data.data) {
-            _this.getList(this.page)
-            _this.$notify({
-              title: '删除成功',
-              message: '删除成功',
-              type: 'success',
-              duration: 2000
-            })
-          } else {
-            _this.$notify.error({
-              title: '删除失败',
-              message: '删除失败',
-              type: 'error',
-              duration: 2000
-            })
+        if (!this.isOperationContextCurrent(context)) {
+          this.notifyRouteChanged(context)
+          return
+        }
+        const dataResponse = await this.submitPersonIntake(context, { kind: 'REMOVE_ROWS', authId: request.authId, rowIds: request.delIds })
+        if (this.applyOperationReceipt(dataResponse.data.data, context)) {
+          if (this.isOperationContextCurrent(context)) {
+            this.deleteForm.delIds = []
+            await this.refreshAfterAccepted(context, dataResponse.data.data)
           }
-        })
-        .catch(err => { console.error(err) })
+        } else {
+          this.notifyDeleteFailed('删除请求提交失败', context)
+        }
+      } catch (error) {
+        if (!this.isConfirmCanceled(error)) {
+          this.notifyDeleteFailed(this.submissionError(error), context)
+        }
+      } finally {
+        this.batchDeleting = false
+      }
     },
-    handleClear() {
-      const _this = this
+    async handleClear() {
+      if (this.batchDeleting || this.clearing) return
       const elm = this.$createElement
-      this.$msgbox({
-        message: elm('p', { attrs: { class: 'smallp' } }, [elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''), elm('span', null, '确认清空所有人员权限信息？ ')]),
-        showCancelButton: true,
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        customClass: 'small_dialog',
-        center: true
+      const context = this.operationContext()
+      this.clearing = true
+      try {
+        await this.$msgbox({
+          message: elm('p', { attrs: { class: 'smallp' } }, [elm('i', { attrs: { class: 'smallInfo delInfo' } }, ''), elm('span', null, '确认清空所有人员权限信息？ ')]),
+          showCancelButton: true,
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          customClass: 'small_dialog',
+          center: true
+        })
+        if (!this.isOperationContextCurrent(context)) {
+          this.notifyRouteChanged(context)
+          return
+        }
+        const dataResponse = await this.submitPersonIntake(context, { kind: 'CLEAR_AUTHORITY', authId: context.authId, rowIds: [] })
+        if (this.applyOperationReceipt(dataResponse.data.data, context)) {
+          if (this.isOperationContextCurrent(context)) await this.refreshAfterAccepted(context, dataResponse.data.data)
+        } else {
+          this.notifyDeleteFailed('删除请求提交失败', context)
+        }
+      } catch (error) {
+        if (!this.isConfirmCanceled(error)) {
+          this.notifyDeleteFailed(this.submissionError(error), context)
+        }
+      } finally {
+        this.clearing = false
+      }
+    },
+    submitPersonIntake(context, intent) {
+      return submitEmployeeIntake({
+        actorId: context.actorId, intent, capability: personIntakeCapability,
+        isCurrent: () => this.isOperationContextCurrent(context),
+        send: (saved, key) => saved.kind === 'CLEAR_AUTHORITY'
+          ? (key === undefined ? clearPersonWithReceipt(saved.authId) : clearPersonWithReceipt(saved.authId, key))
+          : (key === undefined ? batchDelPersonWithReceipt({ authId: saved.authId, type: context.type, delIds: saved.rowIds })
+            : batchDelPersonWithReceipt({ authId: saved.authId, type: 1, delIds: saved.rowIds }, key))
       })
-        .then(() => {
-          return clearAll(this.deleteForm.authId)
-        })
-        .then((dataResponse) => {
-          if (dataResponse.data.data) {
-            _this.getList(this.page)
-            _this.$notify({
-              title: '删除成功',
-              message: '删除成功',
-              type: 'success',
-              duration: 2000
-            })
-          } else {
-            _this.$notify.error({
-              title: '删除失败',
-              message: '删除失败',
-              type: 'error',
-              duration: 2000
-            })
-          }
-        })
-        .catch(err => { console.error(err) })
+    },
+    async retryPendingIntake() {
+      if (this.batchDeleting || this.clearing) return
+      const context = this.operationContext()
+      this.batchDeleting = true
+      try {
+        const saved = await pendingEmployeeIntake(context.actorId)
+        if (!saved) { this.$notify({ title: '没有待重试请求', message: '当前登录用户没有保存的未确认提交。', type: 'info' }); return }
+        if (String(saved.intent.authId) !== String(context.authId)) throw new Error(`请返回权限组 ${saved.intent.authId} 重试上次未确认提交`)
+        const response = await this.submitPersonIntake(context, saved.intent)
+        if (this.applyOperationReceipt(response.data.data, context) && this.isOperationContextCurrent(context)) {
+          this.deleteForm.delIds = []
+          await this.refreshAfterAccepted(context, response.data.data)
+        }
+      } catch (error) { this.notifyDeleteFailed(this.submissionError(error), context) }
+      finally { this.batchDeleting = false }
+    },
+    applyOperationReceipt(receipt, context) {
+      // 兼容旧 Boolean 响应，但绝不把 truthy 对象或 NO_CHANGE 当成批次。
+      if (receipt === true) {
+        this.clearReceiptFocus(context)
+        this.notifyDeleteAccepted(context)
+        return true
+      }
+      if (!receipt || typeof receipt !== 'object') return false
+      if (receipt.mode === 'LEGACY' && receipt.submitted === true && receipt.operationKey == null) {
+        this.clearReceiptFocus(context)
+        this.notifyDeleteAccepted(context)
+        return true
+      }
+      if (receipt.mode === 'NO_CHANGE' && receipt.submitted === false && receipt.operationKey == null) {
+        this.clearReceiptFocus(context)
+        this.$notify({ title: '本次没有变化', message: `权限组${this.operationLabel(context)}没有产生新批次。`, type: 'info' })
+        return true
+      }
+      if (receipt.mode !== 'RELIABLE' || receipt.submitted !== true || typeof receipt.operationKey !== 'string' ||
+          !receipt.operationKey.trim() || receipt.operationKey === 'NO_CHANGE') return false
+      if (this.isOperationContextCurrent(context)) {
+        this.acceptedOperationKey = receipt.operationKey
+        this.operationProgressVisible = true
+      }
+      this.$notify({
+        title: '删除请求已提交',
+        message: `权限组${this.operationLabel(context)}的请求已受理，设备结果仍待确认。操作键：${receipt.operationKey}`,
+        type: 'info', duration: 5000
+      })
+      return true
+    },
+    clearReceiptFocus(context) {
+      if (!this.isOperationContextCurrent(context)) return
+      this.operationProgressVisible = false
+      this.acceptedOperationKey = ''
+    },
+    submissionError(error) {
+      const status = error && error.response && error.response.status
+      if (status >= 400 && status < 500) return this.errorMessage(error, '删除请求未受理')
+      return `提交结果未确认，请先核对权限任务再操作。${this.errorMessage(error, '')}`
+    },
+    notifyDeleteAccepted(context) {
+      this.$notify({
+        title: '删除请求已提交',
+        message: `权限组${this.operationLabel(context)}的请求已受理，设备结果仍待确认。旧链路暂不能自动定位批次，请手动查看可访问园区的权限任务。`,
+        type: 'info',
+        duration: 5000
+      })
+    },
+    notifyDeleteFailed(message, context) {
+      this.$notify.error({
+        title: '删除失败',
+        message: `权限组${this.operationLabel(context)}：${message}`,
+        type: 'error',
+        duration: 3000
+      })
+    },
+    isConfirmCanceled(error) {
+      return error === 'cancel' || error === 'close'
+    },
+    errorMessage(error, fallback) {
+      return (error && error.response && error.response.data && error.response.data.msg) || (error && error.message) || fallback
     },
     selectChange(val) {
       //序号那边选择事件
