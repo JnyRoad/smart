@@ -51,7 +51,8 @@ public class PrintObjectStoreTest {
         assertEquals(0,fixture.jdbc.queryForObject("SELECT COUNT(*) FROM SMT_PRINT_OBJECT",Integer.class).intValue());
     }
     @Test public void previewObjectCannotBeReadViaTemplateResourceEndpoint() {
-        String id=store.write(UUID.randomUUID().toString(),"1","7",UUID.randomUUID().toString(),"%PDF-test".getBytes(),PrintJson.hashBytes("%PDF-test".getBytes()));
+        PrintPreviewArtifactStore.Batch batch=store.stage(UUID.randomUUID().toString(),"1","7");
+        String id=store.write(batch,UUID.randomUUID().toString(),"%PDF-test".getBytes(),PrintJson.hashBytes("%PDF-test".getBytes())); store.commit(batch);
         expectCode("PRINT_SCOPE_DENIED",()->service.download(id,"1"));
     }
     @Test public void resourceHttpContractPreservesBinaryHeadersAndDeniesOtherPark() throws Exception {

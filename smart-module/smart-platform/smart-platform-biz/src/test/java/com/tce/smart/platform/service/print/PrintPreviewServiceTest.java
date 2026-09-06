@@ -82,6 +82,13 @@ public class PrintPreviewServiceTest {
         assertEquals(0,fixture.jdbc.queryForObject("SELECT COUNT(*) FROM SMT_PRINT_OBJECT",Integer.class).intValue());
         assertEquals(0,fixture.jdbc.queryForObject("SELECT COUNT(*) FROM SMT_PRINT_PREVIEW",Integer.class).intValue());
     }
+    @Test public void stagedExternalArtifactsAbortWhenPreviewMetadataCannotBeSaved() throws Exception {
+        String id=fixture.create("FRONT");
+        fixture.jdbc.execute("ALTER TABLE SMT_PRINT_PREVIEW ADD CONSTRAINT REJECT_READY CHECK (STATUS <> 'READY')");
+        try { service(artifacts).templatePreview(id,request(id)); fail("应由数据库约束拒绝元数据保存"); }
+        catch(org.springframework.dao.DataAccessException expected) { }
+        assertTrue(artifacts.objects.isEmpty()); assertEquals(1,artifacts.aborts);
+    }
     @Test public void pairPreviewFreezesBothPublishedVersionsAndRejectsStaleRevision() throws Exception {
         String front=publish(fixture.create("FRONT")),back=publish(fixture.create("BACK"));
         PrintPairRequest pair=new PrintPairRequest(); pair.setName("两面预览"); pair.setPrintItemType("STAFF_CARD"); pair.setPersonType("EMPLOYEE"); pair.setClassificationCode("STAFF_DEFAULT"); pair.setFrontTemplateVersionId(front); pair.setBackTemplateVersionId(back);
@@ -148,7 +155,12 @@ public class PrintPreviewServiceTest {
     }
     private static class MemoryArtifacts implements PrintPreviewArtifactStore {
         private final Map<String,byte[]> objects=new HashMap<>();
-        public String write(String previewId,String parkId,String actorId,String artifactId,byte[] bytes,String hash) { objects.put(artifactId,bytes.clone()); return artifactId; }
+        private int aborts;
+        private static class MemoryBatch implements Batch { private final Map<String,byte[]> staged=new HashMap<>(); }
+        public Batch stage(String previewId,String parkId,String actorId) { return new MemoryBatch(); }
+        public String write(Batch raw,String artifactId,byte[] bytes,String hash) { ((MemoryBatch)raw).staged.put(artifactId,bytes.clone()); return artifactId; }
+        public void commit(Batch raw) { objects.putAll(((MemoryBatch)raw).staged); }
+        public void abort(Batch raw) { aborts++; for(String id:((MemoryBatch)raw).staged.keySet()) objects.remove(id); }
         public byte[] read(String objectId) { return objects.get(objectId); }
     }
 }

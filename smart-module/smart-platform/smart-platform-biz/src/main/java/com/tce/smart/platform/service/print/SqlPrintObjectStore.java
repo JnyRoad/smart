@@ -15,6 +15,12 @@ import java.util.*;
 @Service
 public class SqlPrintObjectStore implements PrintResourceStore, PrintPreviewArtifactStore {
     private final PrintObjectMapper mapper;
+    private static final class SqlPreviewBatch implements PrintPreviewArtifactStore.Batch {
+        private final String previewId;
+        private final String parkId;
+        private final String actorId;
+        private SqlPreviewBatch(String previewId,String parkId,String actorId) { this.previewId=previewId; this.parkId=parkId; this.actorId=actorId; }
+    }
     public SqlPrintObjectStore(PrintObjectMapper mapper) { this.mapper=mapper; }
     @Override public RegisteredResource describe(String id) {
         PrintStoredObject object=mapper.findMetadata(id); if(object==null) return null;
@@ -32,11 +38,19 @@ public class SqlPrintObjectStore implements PrintResourceStore, PrintPreviewArti
         String id=insert(park,actor,purpose,"TEMPLATE",null,mediaType,bytes,PrintJson.hashBytes(bytes)); return describe(id);
     }
     /** 预览服务授权后调用，参与其元数据事务，失败时对象字节一并回滚。 */
-    @Override @Transactional public String write(String previewId,String parkId,String actorId,String artifactId,byte[] bytes,String hash) {
-        PrintAccessPolicy.uuid(previewId); PrintAccessPolicy.uuid(artifactId);
-        if(bytes==null || bytes.length>32*1024*1024 || !PrintJson.hashBytes(bytes).equals(hash)) throw new PrintApiException(422,"PRINT_RESOURCE_HASH_MISMATCH","预览制品校验失败");
-        return insert(parkId,actorId,"PREVIEW","PRINT_PREVIEW",previewId,"application/pdf",bytes,hash);
+    @Override public PrintPreviewArtifactStore.Batch stage(String previewId,String parkId,String actorId) {
+        PrintAccessPolicy.uuid(previewId); return new SqlPreviewBatch(previewId,parkId,actorId);
     }
+    @Override @Transactional public String write(PrintPreviewArtifactStore.Batch raw,String artifactId,byte[] bytes,String hash) {
+        if(!(raw instanceof SqlPreviewBatch)) throw new PrintApiException(503,"PRINT_ARTIFACT_STORE_UNAVAILABLE","预览制品暂存批次无效");
+        SqlPreviewBatch batch=(SqlPreviewBatch)raw; PrintAccessPolicy.uuid(artifactId);
+        if(bytes==null || bytes.length>32*1024*1024 || !PrintJson.hashBytes(bytes).equals(hash)) throw new PrintApiException(422,"PRINT_RESOURCE_HASH_MISMATCH","预览制品校验失败");
+        return insert(batch.parkId,batch.actorId,"PREVIEW","PRINT_PREVIEW",batch.previewId,"application/pdf",bytes,hash);
+    }
+    /** 数据库事务统一提交或回滚内容；这里不额外执行外部副作用。 */
+    @Override public void commit(PrintPreviewArtifactStore.Batch raw) { requirePreviewBatch(raw); }
+    @Override public void abort(PrintPreviewArtifactStore.Batch raw) { requirePreviewBatch(raw); }
+    private static void requirePreviewBatch(PrintPreviewArtifactStore.Batch raw) { if(!(raw instanceof SqlPreviewBatch)) throw new PrintApiException(503,"PRINT_ARTIFACT_STORE_UNAVAILABLE","预览制品暂存批次无效"); }
     private String insert(String park,String actor,String purpose,String scope,String owner,String mediaType,byte[] bytes,String hash) {
         PrintStoredObject object=new PrintStoredObject(); object.setObjectId(UUID.randomUUID().toString()); object.setParkId(park); object.setCreatedBy(actor); object.setPurpose(purpose); object.setAccessScope(scope); object.setOwnerId(owner); object.setMediaType(mediaType); object.setContentHash(hash); object.setSizeBytes((long)bytes.length); object.setCreatedAt(Timestamp.from(Instant.now())); object.setContentBytes(bytes); mapper.insertObject(object); return object.getObjectId();
     }

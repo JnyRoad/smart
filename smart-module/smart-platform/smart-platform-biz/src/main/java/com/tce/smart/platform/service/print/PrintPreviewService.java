@@ -76,24 +76,30 @@ public class PrintPreviewService {
             if(failure.getStatus()!=422) throw failure;
             details.put("status","RENDER_FAILED"); details.put("errorCode",failure.getCode()); details.put("violations",failure.getDetails().getOrDefault("violations",Collections.emptyList())); details.put("artifacts",Collections.emptyList());
         }
-        // 渲染在事务外完成；全部制品与预览记录必须共同提交，任一步保存失败都回滚。
+        // 渲染在事务外完成；全部制品与预览记录必须共同提交，任一步保存失败都终止暂存批次。
         final JsonNode output=rendered;
-        return transactions.execute(status->{
+        if(output==null) return transactions.execute(status->{
+            PrintPreview preview=new PrintPreview(); preview.setPreviewId(previewId); preview.setParkId(snapshot.park); preview.setCreatedBy(access.actor()); preview.setCreatedAt(Timestamp.from(Instant.now())); preview.setStatus((String)details.get("status")); preview.setDetailsJson(PrintJson.canonical(details));
+            previews.insertPreview(preview); return publicDetails(preview);
+        });
+        PrintPreviewArtifactStore.Batch batch=files.stage(previewId,snapshot.park,access.actor());
+        try { return transactions.execute(status->{
             if(output!=null) {
                 List<Map<String,Object>> artifacts=new ArrayList<>();
-                for(JsonNode artifact:output.path("artifacts")) artifacts.add(store(previewId,snapshot.park,artifact));
+                for(JsonNode artifact:output.path("artifacts")) artifacts.add(store(batch,artifact));
                 details.put("artifacts",artifacts);
-                if(output.hasNonNull("combinedArtifact")) details.put("combinedArtifact",store(previewId,snapshot.park,output.get("combinedArtifact")));
+                if(output.hasNonNull("combinedArtifact")) details.put("combinedArtifact",store(batch,output.get("combinedArtifact")));
+                files.commit(batch);
                 details.put("status","READY");
             }
             PrintPreview preview=new PrintPreview(); preview.setPreviewId(previewId); preview.setParkId(snapshot.park); preview.setCreatedBy(access.actor()); preview.setCreatedAt(Timestamp.from(Instant.now())); preview.setStatus((String)details.get("status")); preview.setDetailsJson(PrintJson.canonical(details));
             previews.insertPreview(preview); return publicDetails(preview);
-        });
+        }); } catch(RuntimeException failure) { try { files.abort(batch); } catch(RuntimeException abortFailure) { failure.addSuppressed(abortFailure); } throw failure; }
     }
 
-    private Map<String,Object> store(String previewId,String park,JsonNode artifact) {
+    private Map<String,Object> store(PrintPreviewArtifactStore.Batch batch,JsonNode artifact) {
         Map<String,Object> result=PrintJson.map(artifact); byte[] bytes=Base64.getDecoder().decode(artifact.path("contentBase64").asText()); String id=artifact.path("artifactId").asText(); PrintAccessPolicy.uuid(id);
-        String objectId=files.write(previewId,park,access.actor(),id,bytes,artifact.path("sha256").asText());
+        String objectId=files.write(batch,id,bytes,artifact.path("sha256").asText());
         if(objectId==null || !objectId.matches("[A-Za-z0-9_.:-]{1,128}")) throw new PrintApiException(503,"PRINT_ARTIFACT_STORE_UNAVAILABLE","制品存储未返回受控对象标识");
         result.remove("contentBase64"); result.put("objectId",objectId); return result;
     }
