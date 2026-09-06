@@ -3,6 +3,7 @@ package com.tce.smart.platform.client.supplier;
 import com.tce.smart.platform.client.identity.ClientApiException;
 import com.tce.smart.platform.core.client.supplier.SupplierPersistenceException;
 import com.tce.smart.platform.core.client.supplier.SupplierRuleViolation;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
@@ -13,12 +14,14 @@ import java.util.Collections;
 import java.util.Map;
 
 /** 抢先于既有全局处理器，固定错误响应不回显异常、SQL、扫码或人员资料。 */
+@Slf4j
 @RestControllerAdvice(assignableTypes = SupplierAccessController.class)
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class SupplierAccessExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handle(Exception failure) {
         int status = statusOf(failure);
+        if (status >= 500) log.error("供应商通行发生未映射服务异常，类型={}", failure.getClass().getName());
         return ResponseEntity.status(status).body(Collections.singletonMap("message", message(status)));
     }
     static int statusOf(Exception failure) {

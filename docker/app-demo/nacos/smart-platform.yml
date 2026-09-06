@@ -46,7 +46,7 @@ spring:
       update-token: disabled
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
-    driver-class-name: oracle.jdbc.driver.OracleDriver
+    driver-class-name: oracle.jdbc.OracleDriver
     username: "${SMART_DB_USERNAME}"
     password: "${SMART_DB_PASSWORD}"
     # 容器网络固定指向本任务 Oracle；账号与密码仍只从忽略的本机环境文件取得。

@@ -68,7 +68,7 @@ HBuilderX 5.24 当前在 Android 输出 Vapor 原生目标，Web、微信和支�
 HBuilderX 应打开本任务工程，用户最初创建的主 checkout 工程保持不变：
 
 ```bash
-cd /Users/lvtu/source/YUTO/smart/.worktrees/uniapp-x/smart-app
+cd <worktree>/smart-app
 npm test
 npm run build:web
 npm run build:weixin

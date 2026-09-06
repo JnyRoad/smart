@@ -6,13 +6,7 @@
 
 ## 工程位置和打开方式
 
-本任务的开发工程位于：
-
-```text
-/Users/lvtu/source/YUTO/smart/.worktrees/uniapp-x/smart-app
-```
-
-现在用 HBuilderX 打开上面的 worktree 工程。不要用原始工程验证本分支代码；合并后仓库根目录的 `smart-app/` 是新客户端目录，旧的 `smart-app-uniapp/` 继续保留。
+在仓库根目录以 HBuilderX 打开 `smart-app/`。若使用 worktree，则打开该 worktree 下的同名目录。不要用其他分支验证当前分支代码；合并后仓库根目录的 `smart-app/` 是新客户端目录，旧的 `smart-app-uniapp/` 继续保留。
 
 工程使用 HBuilderX `5.24.2026081301` 创建和编译。`manifest.json` 保留以下基线：
 

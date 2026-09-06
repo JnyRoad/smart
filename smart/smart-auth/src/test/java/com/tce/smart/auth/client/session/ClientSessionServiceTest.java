@@ -6,6 +6,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -32,10 +34,21 @@ public class ClientSessionServiceTest {
 		SmartUserDetailsService users = Mockito.mock(SmartUserDetailsService.class);
 		ClientSessionTokenIssuer issuer = Mockito.mock(ClientSessionTokenIssuer.class);
 		Mockito.when(users.authenticate(Mockito.eq("E100"), Mockito.anyString()))
-				.thenThrow(new IllegalArgumentException("upstream credentials"));
+				.thenThrow(new BadCredentialsException("invalid credentials"));
 		ClientSessionService service = new ClientSessionService(users, issuer);
 		expectStatus(400, () -> service.login("\nE100", "pass-1"));
 		expectStatus(401, () -> service.login("E100", "wrong"));
+		Mockito.verifyZeroInteractions(issuer);
+	}
+
+	@Test
+	public void unavailableIdentityDependencyReturnsServiceUnavailable() {
+		SmartUserDetailsService users = Mockito.mock(SmartUserDetailsService.class);
+		ClientSessionTokenIssuer issuer = Mockito.mock(ClientSessionTokenIssuer.class);
+		Mockito.when(users.authenticate("E100", "pass-1"))
+				.thenThrow(new AuthenticationServiceException("upstream unavailable"));
+
+		expectStatus(503, () -> new ClientSessionService(users, issuer).login("E100", "pass-1"));
 		Mockito.verifyZeroInteractions(issuer);
 	}
 

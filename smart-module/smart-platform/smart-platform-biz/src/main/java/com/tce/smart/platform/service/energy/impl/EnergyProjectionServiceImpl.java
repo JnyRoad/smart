@@ -71,7 +71,7 @@ public class EnergyProjectionServiceImpl implements EnergyProjectionService {
 	public EnergyProjectionServiceImpl(SmtEnergyProjectionQueueMapper queueMapper, SmtEnergyMeterDayFactMapper factMapper,
 			SmtEnergyMeterScopeRuleMapper ruleMapper, SmtEnergyParkDayItemMapper itemMapper, SmtEnergyParkDayMapper parkDayMapper,
 			SmtEnergyParkDayLockMapper parkDayLockMapper, SmtEnergyMeterDayLockMapper meterDayLockMapper,
-			PlatformTransactionManager transactionManager) {
+			PlatformTransactionManager transactionManager, StringRedisTemplate redisTemplate) {
 		this.queueMapper = queueMapper;
 		this.factMapper = factMapper;
 		this.ruleMapper = ruleMapper;
@@ -80,6 +80,7 @@ public class EnergyProjectionServiceImpl implements EnergyProjectionService {
 		this.parkDayLockMapper = parkDayLockMapper;
 		this.meterDayLockMapper = meterDayLockMapper;
 		this.transactionManager = transactionManager;
+		this.redisTemplate = redisTemplate;
 	}
 
 	@Value("${smart.energy.zone-id:Asia/Shanghai}")

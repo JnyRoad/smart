@@ -111,7 +111,11 @@ function postLabel(postId: string, snapshotName: any = ''): string {
   return availablePosts().find((entry: any): boolean => entry.id == postId)?.name ?? postId
 }
 /** 服务端轨迹使用明确的UTC时间。 */
-function formatTime(value: string): string { return new Date(value).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' }
+function formatTime(value: string): string {
+	const parsed = new Date(value)
+	if (isNaN(parsed.getTime())) return value
+	return parsed.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
+}
 /** 人员核验凭据仅适用于本次单据动作。 */
 function resetVerification(): void { escortProof.value = ''; selectedMode.value = ''; lockNo.value = ''; clearEscortVerification() }
 /** 两种押运方式互斥；切换时清除上一种的输入与证明。 */

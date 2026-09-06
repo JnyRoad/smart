@@ -27,6 +27,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -39,6 +40,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用户详细信息
@@ -176,15 +178,22 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 
 		checkLoginLock(username);
 		Result<UserInfo> userInfo;
-		if (isSystemUser(username)) {
-			userInfo = loadUserInfo(username);
-			verifyStoredPassword(password, userInfo);
-		} else {
-			verifyAppSessionPassword(username, password);
-			userInfo = loadUserInfo(username);
+		boolean localCredential = false;
+		try {
+			if (isSystemUser(username)) {
+				userInfo = loadUserInfo(username);
+				verifyStoredPassword(password, userInfo);
+				localCredential = true;
+			} else {
+				verifyAppSessionPassword(username, password);
+				userInfo = loadUserInfo(username);
+			}
+		} catch (BadCredentialsException failure) {
+			recordFailedAppLogin(username);
+			throw failure;
 		}
 
-		if (!SecurityUtils.isStrongPwd(username, password)) {
+		if (localCredential && !SecurityUtils.isStrongPwd(username, password)) {
 			JSONObject object = new JSONObject();
 			object.put("isStrongPwd", false);
 			throw new NotStrongPasswordException(object.toString());
@@ -192,6 +201,7 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 
 		UserDetails userDetails = getUserDetails(userInfo, true);
 		ACCOUNT_STATUS_CHECKER.check(userDetails);
+		clearFailedAppLogins(username);
 		return userDetails;
 	}
 
@@ -208,11 +218,11 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 		try {
 			result = remoteDictService.findByType(SecurityConstants.SYS_DEFAULT_USER, SecurityConstants.FROM_IN);
 		} catch (Exception exception) {
-			log.warn("查询平台账号类型失败");
-			throw authenticationFailed();
+			log.warn("查询平台账号类型失败，类型={}", exception.getClass().getName());
+			throw authenticationUnavailable();
 		}
 		if (result == null || !result.isSuccess() || result.getData() == null) {
-			throw authenticationFailed();
+			throw authenticationUnavailable();
 		}
 		return result.getData().stream()
 				.anyMatch(dict -> username.equals(dict.getValue()));
@@ -238,8 +248,8 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 		try {
 			result = remoteUserService.authenticateAppSession(credential, SecurityConstants.FROM_IN);
 		} catch (Exception exception) {
-			log.warn("App 凭据认证远程调用失败");
-			throw authenticationFailed();
+			log.warn("App 凭据认证远程调用失败，类型={}", exception.getClass().getName());
+			throw authenticationUnavailable();
 		}
 		if (result == null || !result.isSuccess() || !Boolean.TRUE.equals(result.getData())) {
 			throw authenticationFailed();
@@ -252,10 +262,12 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 			result = remoteUserService.info(username, SecurityConstants.FROM_IN);
 		} catch (Exception exception) {
 			log.warn("读取认证用户信息失败");
-			throw authenticationFailed();
+			throw authenticationUnavailable();
 		}
-		if (result == null || !result.isSuccess() || result.getData() == null
-				|| result.getData().getSysUser() == null) {
+		if (result == null || !result.isSuccess()) {
+			throw authenticationUnavailable();
+		}
+		if (result.getData() == null || result.getData().getSysUser() == null) {
 			throw authenticationFailed();
 		}
 		return result;
@@ -263,6 +275,20 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 
 	private BadCredentialsException authenticationFailed() {
 		return new BadCredentialsException(AUTHENTICATION_FAILED_MESSAGE);
+	}
+
+	private AuthenticationServiceException authenticationUnavailable() {
+		return new AuthenticationServiceException("认证依赖服务暂不可用");
+	}
+
+	private void recordFailedAppLogin(String username) {
+		String redisLockKey = AuthConstants.REDIS_KEY_PREFIX + username;
+		Long count = redisTemplate.opsForValue().increment(redisLockKey);
+		if (count != null && count == 1) redisTemplate.expire(redisLockKey, AuthConstants.MAX_LOCK_TIME, TimeUnit.MINUTES);
+	}
+
+	private void clearFailedAppLogins(String username) {
+		redisTemplate.delete(AuthConstants.REDIS_KEY_PREFIX + username);
 	}
 
 	/**

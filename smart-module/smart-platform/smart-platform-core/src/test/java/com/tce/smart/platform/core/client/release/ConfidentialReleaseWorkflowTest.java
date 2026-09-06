@@ -340,11 +340,20 @@ public class ConfidentialReleaseWorkflowTest {
 						null, now, "event-depart");
 			}
 		});
-		expectViolation(ReleaseRuleViolation.Code.INVALID_CARD_EVIDENCE, new CheckedAction() {
+		expectViolation(ReleaseRuleViolation.Code.INVALID_ESCORT, new CheckedAction() {
 			@Override
 			public void run() {
 				workflow.depart(approved, operator, 2L, EscortMode.ESCORT_CARD, null, security,
 						security, now, "event-depart");
+			}
+		});
+		expectViolation(ReleaseRuleViolation.Code.INVALID_ESCORT, new CheckedAction() {
+			@Override
+			public void run() {
+				workflow.depart(approved, operator, 2L, EscortMode.ESCORT_CARD, null, security,
+						evidence(CardRole.ESCORT, "security-001", RELEASE_ID, ORIGIN_POST, ReleaseAction.DEPART,
+								"security-001", now.minusSeconds(10), now.plusSeconds(30)),
+						now, "event-depart");
 			}
 		});
 

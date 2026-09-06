@@ -21,6 +21,9 @@ public class ClientSessionControllerTest {
 		mvc.perform(post("/api/v1/sessions").contentType("application/json")
 				.content("{\"staffNo\":\"E100\",\"password\":\"pass-1\"}"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.token").value("token-1"));
+		mvc.perform(post("/api/v1/sessions").contentType("application/json")
+				.content("{\"staffNo\":\"E100\",\"staffNo\":\"E101\",\"password\":\"pass-1\"}"))
+				.andExpect(status().isBadRequest());
 		String rejected = mvc.perform(post("/api/v1/sessions").contentType("application/json")
 				.content("{\"staffNo\":\"E100\",\"password\":\"pass-1\",\"role\":\"admin\"}"))
 				.andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();

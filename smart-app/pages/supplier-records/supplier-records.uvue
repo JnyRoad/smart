@@ -121,7 +121,9 @@ function postLabel(id: string): string {
 }
 /** 标示服务端原始时间时区，保留足够精度区分连续登记。 */
 function timeLabel(value: string): string {
-  return new Date(value).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+  const parsed = new Date(value)
+  if (isNaN(parsed.getTime())) return value
+  return parsed.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
 }
 /** 一次清除两个过滤条件，恢复当前账号可见的事件集合。 */
 function resetFilters(): void {

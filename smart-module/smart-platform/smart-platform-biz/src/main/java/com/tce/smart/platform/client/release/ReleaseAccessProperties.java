@@ -56,8 +56,11 @@ public class ReleaseAccessProperties {
 			if (post == null || !identifier(post.id) || blank(post.name) || post.parkId == null || post.parkId <= 0
 					|| blank(post.parkName) || !ids.add(post.id)) invalid();
 		}
-		for (Map.Entry<String, String> entry : applicantApprovers.entrySet())
-			if (!identifier(entry.getKey()) || !identifier(entry.getValue()) || entry.getKey().equals(entry.getValue())) invalid();
+		Set<String> normalizedApplicants = new HashSet<>();
+		for (Map.Entry<String, String> entry : applicantApprovers.entrySet()) {
+			if (!identifier(entry.getKey()) || !identifier(entry.getValue()) || entry.getKey().equals(entry.getValue())
+					|| !normalizedApplicants.add(normalizedIdentifier(entry.getKey()))) invalid();
+		}
 	}
 
 	public static boolean identifier(String value) { return value != null && value.matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,95}"); }

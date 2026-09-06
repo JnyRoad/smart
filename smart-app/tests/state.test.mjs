@@ -137,6 +137,24 @@ test('供应商事件网络结果未知时同一方向重试复用幂等键', as
   } finally { uni.request = original }
 })
 
+test('同一厂牌登记并发失败时两个调用都按空结果收敛', async () => {
+  await signIn(['supplier:execute'])
+  state.selectPost('east-gate')
+  responseBody = liveVerification
+  await state.verifySupplierBadge('LIVE-BADGE-001')
+  const original = uni.request
+  let pendingWrite
+  uni.request = options => { pendingWrite = options }
+  try {
+    const first = state.recordSupplierPassage('enter')
+    const second = state.recordSupplierPassage('enter')
+    assert.ok(pendingWrite)
+    pendingWrite.fail({errMsg:'request:fail timeout'})
+    assert.deepEqual(await Promise.all([first, second]), [null, null])
+    assert.match(state.supplierState.error, /网络连接失败/)
+  } finally { uni.request = original }
+})
+
 test('供应商真实核验服务故障不自动切换演示数据', async () => {
   await signIn(['supplier:execute'])
   state.selectPost('east-gate')

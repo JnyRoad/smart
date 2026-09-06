@@ -87,7 +87,7 @@ import { getInfoApi, getInfoApiNew, getInfoApiCard, delSmsCode, getImage, getAre
 import * as bpac from '@/util/bpac'
 import calculation from './keys'
 import { dispatchVisitorPrint } from '@/api/platform/print/cutover'
-import { buildAuthorizedAreaText, createRecordBadgePreview } from './record-badge-print.mjs'
+import { buildAuthorizedAreaText, createRecordBadgePreview, normalizeFellowVisitorList } from './record-badge-print.mjs'
 
 const constImg = './img/print_peaple.png'
 export default {
@@ -292,9 +292,7 @@ export default {
                 return
               }
               this.visitorData = res.data.data
-              this.memberList = Array.isArray(this.visitorData.fellowVisitorList)
-                ? this.visitorData.fellowVisitorList
-                : []
+              this.memberList = normalizeFellowVisitorList(this.visitorData.fellowVisitorList)
               this.doPrint()
               // if (this.visitorData.delFlag === 1 || this.visitorData.delFlag === 2) {
               //   this.$message.error('该访客码已失效')
@@ -328,9 +326,7 @@ export default {
                 return
               }
               this.visitorData = res.data.data
-              this.memberList = Array.isArray(this.visitorData.fellowVisitorList)
-                ? this.visitorData.fellowVisitorList
-                : []
+              this.memberList = normalizeFellowVisitorList(this.visitorData.fellowVisitorList)
               // this.doPrint()
               if (this.visitorData.delFlag === 1 || this.visitorData.delFlag === 2) {
                 this.$message.error('该访客码已失效')

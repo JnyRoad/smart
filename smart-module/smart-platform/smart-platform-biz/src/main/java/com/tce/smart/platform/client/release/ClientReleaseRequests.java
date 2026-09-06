@@ -40,8 +40,8 @@ final class ClientReleaseRequests {
 		@Override public Application deserialize(JsonParser parser, DeserializationContext context) throws IOException {
 			JsonNode body = object(parser, 8, "title", "reason", "fromPostId", "toPostId", "supplierName", "visitorName", "materials", "seals");
 			List<String> seals = strings(body.get("seals"), 100);
-			return new Application(text(body, "title"), text(body, "reason"), text(body, "fromPostId"),
-					text(body, "toPostId"), text(body, "supplierName"), text(body, "visitorName"), text(body, "materials"), seals);
+			return new Application(text(body, "title"), text(body, "reason", 500), text(body, "fromPostId"),
+					text(body, "toPostId"), text(body, "supplierName"), text(body, "visitorName"), text(body, "materials", 1000), seals);
 		}
 	}
 	static final class ActionDeserializer extends JsonDeserializer<Action> {
@@ -70,8 +70,11 @@ final class ClientReleaseRequests {
 		catch (IOException failure) { throw new ClientApiException(400); }
 	}
 	private static String text(JsonNode body, String field) {
+		return text(body, field, 128);
+	}
+	private static String text(JsonNode body, String field, int maximumLength) {
 		JsonNode value = body.get(field);
-		if (value == null || !value.isTextual() || value.textValue().length() > 128) invalid();
+		if (value == null || !value.isTextual() || value.textValue().length() > maximumLength) invalid();
 		return value.textValue();
 	}
 	private static List<String> strings(JsonNode node, int max) {

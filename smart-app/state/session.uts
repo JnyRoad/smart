@@ -1080,8 +1080,13 @@ export async function recordSupplierPassage(direction: 'enter' | 'leave'): Promi
 
 	const fingerprint = supplierFingerprint(session, verification, direction)
 	if (supplierWriteBusy) {
-		if (supplierWriteFingerprint == fingerprint && supplierWritePromise != null)
-			return await supplierWritePromise
+		if (supplierWriteFingerprint == fingerprint && supplierWritePromise != null) {
+			try { return await supplierWritePromise }
+			catch (error) {
+				if (supplierWriteFingerprint == fingerprint) supplierState.error = errorMessage(error)
+				return null
+			}
+		}
 		supplierState.error = '正在登记，请勿重复操作'
 		return null
 	}

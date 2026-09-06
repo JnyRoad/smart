@@ -170,7 +170,7 @@ try {
     await page.keyboard.press('Enter')
     await page.getByText('00009999', { exact: true }).waitFor()
     check(await chips.count() === 7, '删除后无需手动点击即可继续添加新的封条')
-    check((await chips.last().locator('.seal-value').textContent()).trim() === '00009999', '删除再扫描的编号仍追加到最后')
+    check(((await chips.last().locator('.seal-value').textContent()) || '').trim() === '00009999', '删除再扫描的编号仍追加到最后')
   } else {
     failures.push('封条标签缺少可操作的删除按钮')
   }

@@ -5,7 +5,7 @@ import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.defaults.DefaultSqlSession;
-import org.apache.ibatis.transaction.jdbc.JdbcTransaction;
+import org.apache.ibatis.transaction.Transaction;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -41,7 +41,7 @@ public class SupplierAdmissionLock {
                 // SpringManagedTransactionFactory不支持openSession(Connection)。此处只替换本会话的
                 // JDBC事务所有者，保留生产Configuration内原Mapper、类型处理器与插件，绝不修改共享配置。
                 try (SqlSession session = new DefaultSqlSession(sessions.getConfiguration(),
-                        sessions.getConfiguration().newExecutor(new JdbcTransaction(connection), ExecutorType.SIMPLE), false)) {
+                        sessions.getConfiguration().newExecutor(new CallerManagedTransaction(connection), ExecutorType.SIMPLE), false)) {
                     SupplierQualificationSnapshot qualification = source.loadUsingSession(session, badgeId, post, clock.instant());
                     if (!Long.toString(applyId).equals(qualification.getAdmissionId())) throw new SupplierAccessHttpException(409);
                     T result = action.apply(qualification);
@@ -69,5 +69,17 @@ public class SupplierAdmissionLock {
                 return result;
             }
         }
+    }
+
+    /** MyBatis 会话只读取资格资料，锁连接的提交、回滚和关闭必须由外层统一负责。 */
+    private static final class CallerManagedTransaction implements Transaction {
+        private final Connection connection;
+
+        private CallerManagedTransaction(Connection connection) { this.connection = connection; }
+        @Override public Connection getConnection() { return connection; }
+        @Override public void commit() { }
+        @Override public void rollback() { }
+        @Override public void close() { }
+        @Override public Integer getTimeout() { return null; }
     }
 }

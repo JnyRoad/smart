@@ -31,7 +31,8 @@ public class SupplierAccessControllerTest extends SupplierAccessTestFixture {
 
     @Before public void prepareHttp() {
         repository = mock(SupplierAccessRepository.class);
-        personnel = mock(ClientPersonnelDirectory.class);
+		personnel = mock(ClientPersonnelDirectory.class);
+		when(personnel.displayNameOrStaffNo("synthetic-operator")).thenReturn("合成安检员");
         SupplierAdmissionLock admissionLock = mock(SupplierAdmissionLock.class);
         when(admissionLock.withQualification(any(), anyString(), any(), any(), any())).thenAnswer(invocation -> {
             SupplierAdmissionSource source = invocation.getArgument(0);
@@ -60,7 +61,8 @@ public class SupplierAccessControllerTest extends SupplierAccessTestFixture {
     static void authenticate(int id, boolean enabled, String... permissions) {
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
         for (String p : permissions) authorities.add(new SimpleGrantedAuthority(p));
-        SmartUser user = new SmartUser(id, 1, "synthetic-operator", Collections.singletonList(1), "unused", enabled, true, true, true, authorities);
+		String staffNo = id == 10 ? "synthetic-operator" : "synthetic-operator-" + id;
+		SmartUser user = new SmartUser(id, 1, staffNo, Collections.singletonList(1), "unused", enabled, true, true, true, authorities);
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(user, null, authorities));
     }
 
@@ -193,8 +195,8 @@ public class SupplierAccessControllerTest extends SupplierAccessTestFixture {
                         SupplierPresenceSnapshot.current(verification.getQualificationSnapshot().getPersonId(), "area", SupplierPresence.UNKNOWN, 0),
                         invocation.getArgument(6), NOW, "event-1"));
         mvc.perform(post(PATH + "/visitor-passes").header("Idempotency-Key", "event-key-1").contentType("application/json").content(eventBody()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value("event-1"))
-                .andExpect(jsonPath("$.operatorName").value("10")).andExpect(jsonPath("$.direction").value("enter"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.id").value("event-1"))
+				.andExpect(jsonPath("$.operatorName").value("合成安检员")).andExpect(jsonPath("$.direction").value("enter"))
                 .andExpect(jsonPath("$.occurredAt").value("2026-09-05T04:00:00Z"));
     }
 

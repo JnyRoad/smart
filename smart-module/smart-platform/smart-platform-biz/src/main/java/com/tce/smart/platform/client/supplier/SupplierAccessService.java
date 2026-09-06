@@ -90,7 +90,7 @@ public class SupplierAccessService {
             if (permissions.contains("supplier:post:" + post.getId()) && user.getParkIdList() != null
                     && user.getParkIdList().contains(post.getParkId())) posts.add(post.getId());
         }
-        return SupplierOperator.authenticated(user.getId().toString(), permissions, posts);
+        return SupplierOperator.authenticated(user.getUsername(), permissions, posts);
     }
 
     private SupplierAccessProperties.Post requirePost(SupplierOperator actor, String postId) {
@@ -126,9 +126,14 @@ public class SupplierAccessService {
         SupplierAccessProperties.Post post = properties.post(event.getPostId());
         result.put("areaName", post != null && event.getAreaId().equals(post.getAreaId()) ? post.getAreaName() : event.getAreaId());
         result.put("direction", event.getDirection().name().toLowerCase(Locale.ROOT));
-        // 历史事件保留可追溯主体ID；不将当前查看者的姓名冒充原操作者。
-        result.put("operatorName", event.getOperatorId()); result.put("occurredAt", event.getOccurredAt().toString());
+        result.put("operatorName", operatorDisplayName(event.getOperatorId())); result.put("occurredAt", event.getOccurredAt().toString());
         return result;
+    }
+
+    private String operatorDisplayName(String staffNo) {
+        if (personnel == null) return "安检人员";
+        String displayName = personnel.displayNameOrStaffNo(staffNo);
+        return displayName == null || displayName.trim().isEmpty() || staffNo.equals(displayName) ? "安检人员" : displayName;
     }
     /** 框架日志只显示类型说明；Jackson仍逐项序列化允许公开的字段。 */
     private static final class PublicResponse extends LinkedHashMap<String, Object> {

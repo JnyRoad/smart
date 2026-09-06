@@ -1,6 +1,10 @@
 package com.tce.smart.auth.client.session;
 
+import com.tce.smart.common.core.exception.TCEException;
+import com.tce.smart.common.security.exception.NotStrongPasswordException;
 import com.tce.smart.common.security.service.SmartUserDetailsService;
+import org.springframework.security.authentication.AccountStatusException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,8 +23,10 @@ public class ClientSessionService {
 		UserDetails subject;
 		try {
 			subject = users.authenticate(staffNo.trim(), password);
-		} catch (Exception failure) {
+		} catch (BadCredentialsException | NotStrongPasswordException | AccountStatusException | TCEException failure) {
 			throw new ClientSessionException(401);
+		} catch (Exception failure) {
+			throw new ClientSessionException(503);
 		}
 		ClientSessionToken token = issuer.issue(subject);
 		Map<String, Object> response = new LinkedHashMap<>();

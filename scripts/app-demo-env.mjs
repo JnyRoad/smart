@@ -100,7 +100,7 @@ async function main() {
   const userPassword = password()
   const userHash = await bcrypt(userPassword)
   // Compose 读取 --env-file 时会展开 $；写为 $$ 后由 Oracle 种子脚本还原为 BCrypt 所需的 $。
-  const composeEscapedUserHash = userHash.replaceAll('$', '$$')
+  const composeEscapedUserHash = userHash.split('$').join('$$')
   const content = [
     '# 仅限 smart-app-demo 本机虚构数据；不得提交或复制到其他环境。',
     `DOCKER_PLATFORM=${process.arch === 'arm64' ? 'linux/arm64' : 'linux/amd64'}`,

@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 
 import {
   buildBadgeEntries,
   buildAuthorizedAreaText,
   createRecordBadgePreview,
+  normalizeFellowVisitorList,
   validatePngBase64,
   validateRecordId
 } from './record-badge-print.mjs'
@@ -139,12 +139,11 @@ test('逐人条目使用各自member.id且不从smsCode回退', () => {
   )
 })
 
-test('详情响应为空或省略随行人员列表时统一归一化为空数组', () => {
-  const componentSource = readFileSync(new URL('./index.vue', import.meta.url), 'utf8')
-  const normalizations = componentSource.match(
-    /this\.memberList = Array\.isArray\(this\.visitorData\.fellowVisitorList\)\s*\? this\.visitorData\.fellowVisitorList\s*:\s*\[\]/g
-  ) || []
-  assert.equal(normalizations.length, 2)
+test('详情响应缺省或类型错误的随行人员列表统一归一化为空数组', () => {
+  assert.deepEqual(normalizeFellowVisitorList(undefined), [])
+  assert.deepEqual(normalizeFellowVisitorList({}), [])
+  const members = [member('1')]
+  assert.equal(normalizeFellowVisitorList(members), members)
 })
 
 test('授权区域按新旧工厂映射展示，并在无映射时保留接口展示值', () => {

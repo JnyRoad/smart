@@ -6,6 +6,8 @@
 </template>
 
 <script setup lang="uts">
+	import { ref } from 'vue'
+
 	const title = ref('Hello')
 </script>
 

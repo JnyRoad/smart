@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.admin.api.entity.SysUser;
 import com.tce.smart.admin.mapper.SysUserMapper;
 import com.tce.smart.common.core.constant.CommonConstants;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
  * 中的 BCrypt 凭据模拟 DHR 成功；任何未配置或未知模式均失败关闭，绝不假装真实对接。
  */
 @Component
+@Slf4j
 public class ConfiguredEmployeeCredentialAdapter implements ClientEmployeeCredentialAdapter {
 	private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder();
 	private final SysUserMapper users;
@@ -31,7 +33,8 @@ public class ConfiguredEmployeeCredentialAdapter implements ClientEmployeeCreden
 		try {
 			SysUser user = users.selectOne(Wrappers.<SysUser>query().lambda().eq(SysUser::getUsername, staffNo));
 			return available(user) && ENCODER.matches(password, user.getPassword());
-		} catch (Exception ignored) {
+		} catch (Exception failure) {
+			log.warn("DHR 演示凭据校验失败，类型={}", failure.getClass().getName());
 			return false;
 		}
 	}

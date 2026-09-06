@@ -8,8 +8,8 @@
 页面依赖state/session.uts集中操作，禁止页面直接调用生产HTTP写接口。
 真实登录采用核实后的现有认证入口或新统一身份适配契约；缺失集成不允许伪造已登录状态。完整现状与差距在smart-app/docs/integration.md记录。
 
-## 当前契约修订：供应商厂牌通行（待后端实现）
-供应商不再调用 applications 或申请审批 actions。新增拟议接口：
+## 当前契约：供应商厂牌通行（Phase 13 已实现）
+供应商不再调用 applications 或申请审批 actions。当前已实现接口：
 - POST /api/v1/visitor-checks：credentialCode、postId；返回短时核验结果，含人员/单位/入厂授权/区域/有效期/当前状态/允许方向。验证失败明确返回拒绝状态或业务错误，不能登记。
 - POST /api/v1/visitor-passes：verificationId、postId、direction；Idempotency-Key 必填。后端重新校验人员、岗位、当前资格及状态，原子写入一次事件。同一键重试返回同一结果。
 - GET /api/v1/visitor-passes：读取当前身份有权查看的事件，服务端负责数据范围；客户端筛选方向与人员/单位/厂牌。

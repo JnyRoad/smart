@@ -175,6 +175,9 @@ public final class ConfidentialReleaseWorkflow {
 		if (escortEvidence == null) {
 			throw violation(ReleaseRuleViolation.Code.INVALID_ESCORT, "刷卡押运必须提交押运卡证证明");
 		}
+		if (operator.getActorId().equals(escortEvidence.getHolderId())) {
+			throw violation(ReleaseRuleViolation.Code.INVALID_ESCORT, "安检操作人与押运人不得为同一人员");
+		}
 		validateCardEvidence(escortEvidence, CardRole.ESCORT, operator.getActorId(), false,
 				release, postId, action, now);
 		if (securityEvidence.getEvidenceId() != null

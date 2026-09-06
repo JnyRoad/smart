@@ -76,6 +76,11 @@ export function buildAuthorizedAreaText(visitor, newAreaTypes, oldAreaTypes) {
   return groups.length > 0 ? groups.join('；') : textOrEmpty(source.permitArea)
 }
 
+/** 接口缺省或非数组的随行人员字段一律按空列表处理，避免打印页持有不可信响应类型。 */
+export function normalizeFellowVisitorList(value) {
+  return Array.isArray(value) ? value : []
+}
+
 export function buildBadgeEntries(visitor, members, atobFn) {
   if (!Array.isArray(members) || members.length === 0) {
     throw new RecordBadgePrintError('当前没有可打印的访客人员')

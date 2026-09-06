@@ -7,6 +7,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Collections;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -44,6 +45,22 @@ public class ClientReleaseControllerTest {
 				.content("{\"title\":\"图纸\",\"reason\":\"交接\",\"fromPostId\":\"A\",\"toPostId\":\"B\",\"supplierName\":\"\",\"visitorName\":\"\",\"materials\":\"图纸\",\"seals\":[\"SEAL-SECRET\"],\"actorId\":\"forged\"}"))
 				.andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
 		Assert.assertFalse(leaked.contains("SEAL-SECRET"));
+	}
+
+	@Test
+	public void applicationAcceptsTheDocumentedReasonAndMaterialsLengths() throws Exception {
+		ClientReleaseService service = mock(ClientReleaseService.class);
+		when(service.create(any(ClientReleaseRequests.Application.class), anyString())).thenReturn(Collections.singletonMap("id", "REL-2"));
+		MockMvc mvc = MockMvcBuilders.standaloneSetup(new ClientReleaseController(service))
+				.setControllerAdvice(new ClientReleaseExceptionHandler()).build();
+		String reason = String.join("", Collections.nCopies(500, "原"));
+		String materials = String.join("", Collections.nCopies(1000, "料"));
+		String payload = "{\"title\":\"图纸\",\"reason\":\"" + reason + "\",\"fromPostId\":\"A\",\"toPostId\":\"B\",\"supplierName\":\"\",\"visitorName\":\"\",\"materials\":\"" + materials + "\",\"seals\":[]}";
+		mvc.perform(post("/api/v1/item-passes").header("Idempotency-Key", "length-accepted").contentType("application/json").content(payload))
+				.andExpect(status().isOk());
+		String tooLongReason = String.join("", Collections.nCopies(501, "原"));
+		mvc.perform(post("/api/v1/item-passes").header("Idempotency-Key", "length-rejected").contentType("application/json")
+				.content(payload.replace(reason, tooLongReason))).andExpect(status().isBadRequest());
 	}
 
 	@Test

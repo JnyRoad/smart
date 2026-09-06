@@ -27,7 +27,7 @@ function replaceExactly(content, previous, next) {
 async function enable() {
   const environment = parseEnvironment(await readFile(environmentPath, 'utf8'))
   const port = environment.SMART_APP_DEMO_GATEWAY_HOST_PORT ?? ''
-  if (!/^[1-9][0-9]{0,4}$/.test(port)) throw new Error('本机网关端口配置无效')
+  if (!/^[1-9][0-9]{0,4}$/.test(port) || Number(port) > 65535) throw new Error('本机网关端口配置无效')
   const runtime = await readFile(runtimePath, 'utf8')
   const configured = replaceExactly(
     runtime,

@@ -497,9 +497,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 	private String resolveClientCredentialSource(String username) {
 		try {
-			Result<Map<String, String>> result = remoteStaffService.getAppAuthSource(username, SecurityConstants.FROM_IN);
+			Result<PersonnelAuthSourceDTO> result = remoteStaffService.getAppAuthSource(username, SecurityConstants.FROM_IN);
 			if (result == null || !result.isSuccess() || result.getData() == null) return "";
-			String source = result.getData().get("source");
+			String source = result.getData().getSource();
 			return "system".equals(source) || "dhr".equals(source) ? source : "";
 		} catch (Exception exception) {
 			log.warn("App 登录人员来源查询失败");
@@ -650,7 +650,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	}
 
 	private void verifyInitialTempCredential(SmtStaffDTO staff, String password) {
-		String initialPassword = staff.getCertno().substring(staff.getCertno().length() - 6);
+		String certno = staff == null ? null : staff.getCertno();
+		if (StringUtils.isBlank(certno) || certno.length() < 6) {
+			throw new TCEException("账号或密码错误");
+		}
+		String initialPassword = certno.substring(certno.length() - 6);
 		if (!password.equals(initialPassword)) {
 			throw new TCEException("账号或密码错误");
 		}

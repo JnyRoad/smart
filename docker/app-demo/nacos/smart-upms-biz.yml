@@ -1,7 +1,7 @@
 spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    driver-class-name: oracle.jdbc.driver.OracleDriver
+    driver-class-name: oracle.jdbc.OracleDriver
     username: "${SMART_DB_USERNAME}"
     password: "${SMART_DB_PASSWORD}"
     url: "${SMART_DB_URL}"
@@ -21,7 +21,8 @@ security:
       scope: server
       ignore-urls:
         - /actuator/**
-        - /api/**
+        - /api/user/simple
+        - /api/user/session
         # 认证服务通过带 from 内部标记的既有字典 Feign 契约识别平台账号；仅本机演示放行该内部路径。
         - /dict/**
 

@@ -1,10 +1,12 @@
 package com.tce.smart.platform.client.supplier;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 /** 供应商通行接口继承现有认证链；不注册匿名入口、不记录请求正文。 */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1")
 @ConditionalOnProperty(prefix = "smart.client.supplier", name = "enabled", havingValue = "true")
@@ -27,6 +29,10 @@ public class SupplierAccessController {
     /** 在MVC异常日志看到异常前移除来源message/cause，状态映射仍由同一局部策略决定。 */
     private <T> T safe(java.util.function.Supplier<T> operation) {
         try { return operation.get(); }
-        catch (Exception failure) { throw new SupplierAccessHttpException(SupplierAccessExceptionHandler.statusOf(failure)); }
+        catch (Exception failure) {
+            int status = SupplierAccessExceptionHandler.statusOf(failure);
+            if (status >= 500) log.error("供应商通行操作失败，类型={}", failure.getClass().getName());
+            throw new SupplierAccessHttpException(status);
+        }
     }
 }

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
+import { spawnSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createClientApi } from '../services/client-api.uts'
 
 const here = dirname(fileURLToPath(import.meta.url))
+const scriptPath = fileURLToPath(import.meta.url)
 const environmentPath = resolve(here, '../../docker/app-demo/.env.local')
 
 function expect(condition, message) {
@@ -23,6 +24,7 @@ function parseEnvironment(content) {
 }
 
 async function main() {
+	const { createClientApi } = await import('../services/client-api.uts')
   const environment = parseEnvironment(await readFile(environmentPath, 'utf8'))
   const port = environment.SMART_APP_DEMO_GATEWAY_HOST_PORT ?? ''
   const password = environment.SMART_APP_DEMO_USER_PASSWORD ?? ''
@@ -53,4 +55,17 @@ async function main() {
   console.log('通过：uni-app x 客户端适配器已连接本机网关并验证三类人员登录与模块目录。')
 }
 
-main().catch(error => { console.error(`App 本机接口验收失败：${error.message}`); process.exitCode = 1 })
+async function run() {
+	if (process.env.SMART_APP_UTS_LOADER !== '1') {
+		const child = spawnSync(process.execPath, ['--import', resolve(here, 'uts-loader.mjs'), scriptPath], {
+			stdio: 'inherit',
+			env: { ...process.env, SMART_APP_UTS_LOADER: '1' },
+		})
+		if (child.error != null) throw child.error
+		process.exitCode = child.status == null ? 1 : child.status
+		return
+	}
+	await main()
+}
+
+run().catch(error => { console.error(`App 本机接口验收失败：${error.message}`); process.exitCode = 1 })

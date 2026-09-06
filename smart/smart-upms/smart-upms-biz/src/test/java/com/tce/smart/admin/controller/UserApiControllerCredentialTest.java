@@ -5,6 +5,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import ch.qos.logback.core.read.ListAppender;
 import com.tce.smart.admin.api.dto.SmtStaffDTO;
+import com.tce.smart.admin.api.dto.PersonnelAuthSourceDTO;
 import com.tce.smart.admin.api.dto.UserCredentialDTO;
 import com.tce.smart.admin.api.entity.SysUser;
 import com.tce.smart.admin.api.feign.RemoteStaffService;
@@ -229,7 +230,7 @@ public class UserApiControllerCredentialTest {
 	public void appSessionRoutesExternalAndDispatchedWorkersToSystemCredentialOnly() {
 		Fixture fixture = fixtureWithExistingUser(1, false, VALID_PASSWORD);
 		when(fixture.remoteStaffService.getAppAuthSource(USERNAME, SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(Collections.singletonMap("source", "system")));
+				.thenReturn(Result.success(new PersonnelAuthSourceDTO("system")));
 
 		assertTrue(fixture.userService.authenticateAppSession(USERNAME, VALID_PASSWORD));
 		assertFalse(fixture.userService.authenticateAppSession(USERNAME, INVALID_PASSWORD));
@@ -240,13 +241,13 @@ public class UserApiControllerCredentialTest {
 	public void appSessionRoutesFormalEmployeesToDhrAdapterAndFailsClosedForUnknownSource() {
 		Fixture fixture = fixtureWithExistingUser(1, false, VALID_PASSWORD);
 		when(fixture.remoteStaffService.getAppAuthSource(USERNAME, SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(Collections.singletonMap("source", "dhr")));
+				.thenReturn(Result.success(new PersonnelAuthSourceDTO("dhr")));
 		when(fixture.employeeAdapter.verify(USERNAME, VALID_PASSWORD)).thenReturn(true);
 
 		assertTrue(fixture.userService.authenticateAppSession(USERNAME, VALID_PASSWORD));
 		verify(fixture.employeeAdapter).verify(USERNAME, VALID_PASSWORD);
 		when(fixture.remoteStaffService.getAppAuthSource(USERNAME, SecurityConstants.FROM_IN))
-				.thenReturn(Result.success(Collections.singletonMap("source", "unknown")));
+				.thenReturn(Result.success(new PersonnelAuthSourceDTO("unknown")));
 		assertFalse(fixture.userService.authenticateAppSession(USERNAME, VALID_PASSWORD));
 	}
 

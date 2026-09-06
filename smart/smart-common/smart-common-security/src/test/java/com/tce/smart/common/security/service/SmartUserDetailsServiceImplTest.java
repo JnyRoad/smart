@@ -23,6 +23,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -42,6 +43,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,6 +59,7 @@ public class SmartUserDetailsServiceImplTest {
 	private RemoteDictService remoteDictService;
 	private CacheManager cacheManager;
 	private Cache cache;
+	private StringRedisTemplate redisTemplate;
 	private ValueOperations<String, String> valueOperations;
 
 	@Before
@@ -66,7 +69,7 @@ public class SmartUserDetailsServiceImplTest {
 		remoteDictService = mock(RemoteDictService.class);
 		cacheManager = mock(CacheManager.class);
 		cache = mock(Cache.class);
-		StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+		redisTemplate = mock(StringRedisTemplate.class);
 		valueOperations = mock(ValueOperations.class);
 
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -118,6 +121,7 @@ public class SmartUserDetailsServiceImplTest {
 		assertEquals(USERNAME, details.getUsername());
 		verify(remoteUserService, never()).authenticateAppSession(any(UserCredentialDTO.class), anyString());
 		verify(cacheManager, never()).getCache(anyString());
+		verify(redisTemplate).delete(AuthConstants.REDIS_KEY_PREFIX + USERNAME);
 	}
 
 	@Test
@@ -129,6 +133,8 @@ public class SmartUserDetailsServiceImplTest {
 		expectException(BadCredentialsException.class, () -> service.authenticate(USERNAME, OTHER_PASSWORD));
 
 		verify(cacheManager, never()).getCache(anyString());
+		verify(valueOperations).increment(AuthConstants.REDIS_KEY_PREFIX + USERNAME);
+		verify(redisTemplate, never()).delete(AuthConstants.REDIS_KEY_PREFIX + USERNAME);
 	}
 
 	@Test
@@ -146,6 +152,7 @@ public class SmartUserDetailsServiceImplTest {
 		assertEquals(USERNAME, details.getUsername());
 		verify(remoteUserService, never()).simpleLogin(anyString(), anyString(), anyString());
 		verify(cacheManager, never()).getCache(anyString());
+		verify(redisTemplate).delete(AuthConstants.REDIS_KEY_PREFIX + USERNAME);
 	}
 
 	@Test
@@ -167,6 +174,7 @@ public class SmartUserDetailsServiceImplTest {
 				.thenReturn(Result.success(Boolean.FALSE));
 
 		expectException(BadCredentialsException.class, () -> service.authenticate(USERNAME, PASSWORD));
+		verify(valueOperations).increment(AuthConstants.REDIS_KEY_PREFIX + USERNAME);
 	}
 
 	@Test
@@ -193,15 +201,16 @@ public class SmartUserDetailsServiceImplTest {
 	}
 
 	@Test
-	public void employeeAccountRejectsRemoteExceptionWithGenericMessage() {
+	public void employeeAccountMapsUnavailableRemoteAuthenticationToServiceFailure() {
 		when(remoteUserService.authenticateAppSession(any(UserCredentialDTO.class), eq(SecurityConstants.FROM_IN)))
 				.thenThrow(new IllegalStateException("upstream-" + PASSWORD));
 
-		BadCredentialsException failure = expectException(BadCredentialsException.class,
+		AuthenticationServiceException failure = expectException(AuthenticationServiceException.class,
 				() -> service.authenticate(USERNAME, PASSWORD));
 
 		assertFalse(failure.getMessage().contains(PASSWORD));
 		assertFalse(failure.getMessage().contains("upstream"));
+		verify(valueOperations, never()).increment(AuthConstants.REDIS_KEY_PREFIX + USERNAME);
 	}
 
 	@Test
@@ -225,13 +234,38 @@ public class SmartUserDetailsServiceImplTest {
 	}
 
 	@Test
-	public void explicitAuthenticationRejectsNonCompliantPassword() {
+	public void employeeAccountAcceptsDhrCredentialAccordingToUpstreamPolicy() {
 		mockEmployeeSuccess("short");
 		when(remoteUserService.info(USERNAME, SecurityConstants.FROM_IN))
 				.thenReturn(Result.success(userInfo(CommonConstants.STATUS_NORMAL,
 						new BCryptPasswordEncoder().encode("short"))));
 
+		UserDetails details = service.authenticate(USERNAME, "short");
+		assertEquals(USERNAME, details.getUsername());
+	}
+
+	@Test
+	public void platformAccountStillRejectsNonCompliantLocalPassword() {
+		markAsPlatformAccount();
+		when(remoteUserService.info(USERNAME, SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(userInfo(CommonConstants.STATUS_NORMAL,
+						new BCryptPasswordEncoder().encode("short"))));
+
 		expectException(NotStrongPasswordException.class, () -> service.authenticate(USERNAME, "short"));
+		verify(redisTemplate, never()).delete(AuthConstants.REDIS_KEY_PREFIX + USERNAME);
+	}
+
+	@Test
+	public void firstFailedCredentialStartsTheAppLoginLockWindow() {
+		when(valueOperations.increment(AuthConstants.REDIS_KEY_PREFIX + USERNAME)).thenReturn(1L);
+		when(remoteUserService.authenticateAppSession(any(UserCredentialDTO.class), eq(SecurityConstants.FROM_IN)))
+				.thenReturn(Result.success(Boolean.FALSE));
+
+		expectException(BadCredentialsException.class, () -> service.authenticate(USERNAME, PASSWORD));
+
+		verify(redisTemplate).expire(AuthConstants.REDIS_KEY_PREFIX + USERNAME,
+				AuthConstants.MAX_LOCK_TIME, java.util.concurrent.TimeUnit.MINUTES);
+		verify(valueOperations, times(1)).increment(AuthConstants.REDIS_KEY_PREFIX + USERNAME);
 	}
 
 	@Test

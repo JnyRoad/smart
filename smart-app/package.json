@@ -17,6 +17,6 @@
     "build:android": "node scripts/build.mjs android",
     "demo:enable": "node scripts/configure-app-demo.mjs --enable",
     "demo:disable": "node scripts/configure-app-demo.mjs --disable",
-    "test:demo-api": "node --import ./scripts/uts-loader.mjs scripts/verify-app-demo-api.mjs"
+    "test:demo-api": "node scripts/verify-app-demo-api.mjs"
   }
 }
