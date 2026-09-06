@@ -17,7 +17,7 @@
 
 ### 本轮最终软件验证
 
-Java Print*Test 155项通过、3项按环境门禁跳过，管理端105文件/547项，Node渲染46项及 .NET 客户端36项通过。Windows x64发布及管理端正式构建成功。打印范围lint 0错误/12警告；全部软件组完成独立复审，最终整分支复审未返回有效报告，不计通过；交付记录见 [delivery.md](delivery.md)。这些结果来自隔离H2、真实PDF及合成数据/模拟驱动，不替代下列现场验收。在本机 Apple Silicon 的 Corretto 8 上运行包含 PDFBox 的 Java 测试须传入 `-Djava.awt.headless=true`；这是测试运行时参数，不改变生产配置。
+Java Print*Test 155项通过、3项按环境门禁跳过，管理端105文件/547项，Node渲染46项及 .NET 客户端39项通过。Windows x64发布及管理端正式构建成功。打印范围lint 0错误/12警告；全部软件组完成独立复审，最终整分支复审未返回有效报告，不计通过；交付记录见 [delivery.md](delivery.md)。这些结果来自隔离H2、真实PDF及合成数据/模拟驱动，不替代下列现场验收。在本机 Apple Silicon 的 Corretto 8 上运行包含 PDFBox 的 Java 测试须传入 `-Djava.awt.headless=true`；这是测试运行时参数，不改变生产配置。
 
 ### 统一切换与回退（未执行）
 
@@ -144,7 +144,7 @@ pnpm --dir smart-ui build
 pnpm --dir smart-print-renderer test
 
 # 客户端（已创建；在 Windows 工作站完成驱动安装后运行）
-(cd smart-print-client && dotnet test)
+(cd smart-print-client && dotnet test tests/Smart.PrintClient.Tests.csproj)
 ```
 
 ## 执行前门禁

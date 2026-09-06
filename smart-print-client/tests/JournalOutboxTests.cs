@@ -1,4 +1,5 @@
 using Smart.Printing;
+using System.Text.Json.Nodes;
 using Xunit;
 namespace Smart.Printing.Tests;
 
@@ -37,6 +38,15 @@ public sealed class JournalOutboxTests : IDisposable
         journal.RecordIntent(command);journal.MarkSubmissionStarted(command.CommandId);journal.Retire(command.CommandId,true,true);
         var result=journal.RecordResult(command.CommandId,"OUTPUT_UNKNOWN");
         Assert.Equal("RETIRED",journal.Find(command.CommandId)!.State);Assert.Equal(result.EventId,journal.Find(command.CommandId)!.Result!.EventId);
+    }
+    [Fact]
+    public void RetiredEntryWithOrphanResultIsIsolated()
+    {
+        var valid=PrintAdapterTests.Command(TestPdf.Create());var corrupt=PrintAdapterTests.Command(TestPdf.Create());using var journal=new PrintCommandJournal(directory);
+        journal.RecordIntent(valid);journal.MarkSubmissionStarted(valid.CommandId);var waiting=journal.RecordResult(valid.CommandId,"OUTPUT_UNKNOWN");
+        journal.RecordIntent(corrupt);journal.MarkSubmissionStarted(corrupt.CommandId);journal.Retire(corrupt.CommandId,true,true);journal.RecordResult(corrupt.CommandId,"OUTPUT_UNKNOWN");
+        var path=Path.Combine(directory,corrupt.CommandId+".json");var stored=JsonNode.Parse(File.ReadAllText(path))!.AsObject();stored["result"]!["eventId"]=Guid.NewGuid().ToString();File.WriteAllText(path,stored.ToJsonString());
+        Assert.Throws<InvalidDataException>(()=>journal.Find(corrupt.CommandId));Assert.Equal(waiting.EventId,journal.PendingEvents().Single().EventId);
     }
     [Fact]
     public void AcknowledgedRecordsAreArchivedAndCorruptSiblingDoesNotBlockPendingEvents()

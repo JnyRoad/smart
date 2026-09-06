@@ -43,6 +43,21 @@ public sealed class DeviceRecoveryTests : IDisposable
         await new DeviceRecovery(Api(server),journal,_=>{}).ClearAsync(profile,job,Guid.NewGuid().ToString(),true,CancellationToken.None);
         Assert.Null(journal.LoadClaim(profile.PrinterProfileId));Assert.NotEqual(server.Keys[0],server.Keys[1]);Assert.NotEqual(server.Bodies[0],server.Bodies[1]);
     }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InvalidPersistedClearOperationIsRejected(bool nullBody)
+    {
+        var profile=PrintAdapterTests.Profile() with {PrinterProfileId=Guid.NewGuid().ToString()};var job=Guid.NewGuid().ToString();var check=Guid.NewGuid().ToString();
+        using var journal=new PrintCommandJournal(directory);
+        journal.SaveClaim(new ClaimState(profile.PrinterProfileId,Guid.NewGuid().ToString(),job,"2050-01-01T00:00:00Z",Guid.NewGuid().ToString(),profile.DeviceIdentity,profile.PrinterSnapshotHash));
+        var path=$"/api/print-client/v1/jobs/{job}/device-cleared";
+        var persisted=new System.Text.Json.Nodes.JsonObject { ["key"]=Guid.NewGuid().ToString(),["path"]=path,["body"]=nullBody?null:new System.Text.Json.Nodes.JsonObject { ["operatorCheckId"]=123 } };
+        File.WriteAllText(Path.Combine(directory,profile.PrinterProfileId+".claim.clear.operation"),persisted.ToJsonString());
+        var server=new Server();
+        await Assert.ThrowsAsync<InvalidDataException>(()=>new DeviceRecovery(Api(server),journal,_=>{}).ClearAsync(profile,job,check,true,CancellationToken.None));
+        Assert.Empty(server.Keys);
+    }
     private static PrintApiClient Api(Server server)=>new(new HttpClient(server),new Uri("https://print.example/platform/"),new string('t',40));
     private sealed class Server:HttpMessageHandler
     {

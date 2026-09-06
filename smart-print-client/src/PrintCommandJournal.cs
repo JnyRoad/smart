@@ -55,7 +55,7 @@ public sealed class PrintCommandJournal : IDisposable
                 if(entry.Events.Any(e=>e.CommandId!=commandId || e.JobId!=entry.Command.JobId || e.AttemptId!=entry.Command.AttemptId || e.ArtifactHash!=entry.Command.ArtifactHash || e.ClientSequence<=0 || !Guid.TryParseExact(e.EventId,"D",out _))
                     || entry.Events.Select(e=>e.EventId).Distinct().Count()!=entry.Events.Count || entry.AcknowledgedEventIds.Any(id=>!entry.Events.Any(e=>e.EventId==id)))
                     throw new InvalidDataException("事件日志校验失败");
-                if(entry.State == "RESULT_RECORDED" && (entry.Result is null || !entry.Events.Any(e=>e.EventId==entry.Result.EventId))) throw new InvalidDataException("打印回执缺失");
+                if((entry.State == "RESULT_RECORDED" && entry.Result is null) || (entry.Result is not null && !entry.Events.Any(e=>e.EventId==entry.Result.EventId))) throw new InvalidDataException("打印回执缺失");
                 return entry;
             }
             catch(JsonException error) { throw new InvalidDataException("打印日志损坏，需要人工核对", error); }
@@ -200,8 +200,8 @@ public sealed class PrintCommandJournal : IDisposable
             var file=OperationPath(profileId,kind);
             if(File.Exists(file)) {
                 if(new FileInfo(file).Length>65536 || (File.GetAttributes(file)&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("请求日志异常");
-                var old=JsonSerializer.Deserialize<PendingOperation>(File.ReadAllBytes(file),Hashing.Json);
-                if(old==null||!Guid.TryParseExact(old.Key,"D",out _)||old.Path!=path)throw new InvalidDataException("未完成操作与当前目标冲突");
+                var old=ReadOperation(file);
+                if(old.Path!=path)throw new InvalidDataException("未完成操作与当前目标冲突");
                 return old;
             }
             var operation=new PendingOperation(Guid.NewGuid().ToString(),path,(JsonObject)body.DeepClone());
@@ -212,9 +212,18 @@ public sealed class PrintCommandJournal : IDisposable
     {
         lock(gate) {
             var file=OperationPath(profileId,kind);if(!File.Exists(file))return;
-            var old=JsonSerializer.Deserialize<PendingOperation>(File.ReadAllBytes(file),Hashing.Json);
-            if(old?.Key!=key)throw new InvalidDataException("未完成请求标识不一致");File.Delete(file);
+            var old=ReadOperation(file);
+            if(old.Key!=key)throw new InvalidDataException("未完成请求标识不一致");File.Delete(file);
         }
+    }
+    private static PendingOperation ReadOperation(string file)
+    {
+        try {
+            var operation=JsonSerializer.Deserialize<PendingOperation>(File.ReadAllBytes(file),Hashing.Json);
+            if(operation is null||!Guid.TryParseExact(operation.Key,"D",out _)||string.IsNullOrWhiteSpace(operation.Path)||operation.Body is null)
+                throw new InvalidDataException("请求日志内容损坏");
+            return operation;
+        } catch(JsonException error) {throw new InvalidDataException("请求日志内容损坏",error);}
     }
     private string OperationPath(string profileId,string kind)
     {
