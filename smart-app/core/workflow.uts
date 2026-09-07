@@ -1,0 +1,260 @@
+import type {
+	ActionKind,
+	Application,
+	ApplicationDraft,
+	ApplicationExecution,
+	ApplicationTransport,
+	Identity,
+	TimelineEntry,
+} from './models.uts'
+import { hasPermission } from './catalog.uts'
+
+/**
+ * 判断字符串是否包含可提交的业务内容，空值和全空白值均视为未填写。
+ * 该内部校验不产生副作用，供草稿和驳回原因共用。
+ */
+function hasText(value: string): boolean {
+	return typeof value === 'string' && value.trim().length > 0
+}
+
+/**
+ * 校验一次物品现场执行参数，押运证明和定位锁严格互斥。
+ * 该校验同时供协调层和领域流转使用，避免仅依赖页面按钮状态。
+ */
+export function validateExecution(execution: ApplicationExecution | null): string | null {
+	if (execution == null || typeof execution !== 'object') {
+		return '请明确选择押运人或定位锁'
+	}
+	if (execution.mode !== 'escort' && execution.mode !== 'lock') {
+		return '押运方式无效，请选择押运人或定位锁'
+	}
+	if (typeof execution.escortProof !== 'string' || typeof execution.lockNo !== 'string') {
+		return '押运核验参数格式无效，请重新填写'
+	}
+	const escortProof = execution.escortProof.trim()
+	const lockNo = execution.lockNo.trim()
+	if (execution.mode === 'escort') {
+		if (escortProof.length === 0) return '押运人必须完成刷卡核验'
+		if (lockNo.length > 0) return '押运方式只能二选一，不能同时填写锁号'
+		return null
+	}
+	if (lockNo.length === 0) return '定位锁编号不能为空'
+	if (escortProof.length > 0) return '押运方式只能二选一，不能同时提交刷卡证明'
+	return null
+}
+
+/** 将已验证的现场参数收敛为可记录到单据的运输方式，避免保存刷卡原文。 */
+function transportFromExecution(execution: ApplicationExecution): ApplicationTransport {
+	return {
+		mode: execution.mode,
+		lockNo: execution.mode === 'lock' ? execution.lockNo.trim() : '',
+	}
+}
+
+/** 深拷贝单据上的运输方式，防止页面或下一次操作改写历史轨迹。 */
+function cloneTransport(value: any): ApplicationTransport | null {
+	if (value == null) return null
+	if (
+		(value.mode !== 'escort' && value.mode !== 'lock') ||
+		typeof value.lockNo !== 'string'
+	) {
+		return null
+	}
+	return { mode: value.mode, lockNo: value.lockNo }
+}
+
+/** 抵达时再次校验出发登记的方式，锁号比较保留所有前导零。 */
+function validateArrivalTransport(application: Application, execution: ApplicationExecution): string | null {
+	const transport = application.transport
+	if (transport == null || (transport.mode !== 'escort' && transport.mode !== 'lock')) {
+		return '单据缺少有效的出发运输方式，不能确认到达'
+	}
+	if (typeof transport.lockNo !== 'string') {
+		return '单据出发运输方式格式无效，不能确认到达'
+	}
+	if (transport.mode === 'escort' && transport.lockNo.length > 0) {
+		return '单据出发运输方式格式无效，不能确认到达'
+	}
+	if (transport.mode === 'lock' && transport.lockNo.trim().length === 0) {
+		return '单据出发运输方式缺少定位锁编号，不能确认到达'
+	}
+	if (transport.mode !== execution.mode) return '抵达方式必须沿用出发登记方式'
+	if (execution.mode === 'lock' && transport.lockNo !== execution.lockNo.trim()) {
+		return '抵达填写的定位锁编号与出发登记不一致'
+	}
+	return null
+}
+
+/**
+ * 校验物品放行申请草稿的客户端必填字段并返回可直接展示的中文错误。
+ * 供应商资格来自入厂申请，旧 supplier 草稿在客户端直接拒绝。
+ */
+export function validateDraft(draft: ApplicationDraft | null): string | null {
+	if (draft == null) {
+		return '请填写申请内容'
+	}
+	if (draft.kind === 'supplier') {
+		return '供应商申请不在客户端办理，请使用厂牌核验'
+	}
+	if (draft.kind !== 'item-pass') {
+		return '业务类型无效'
+	}
+	if (!hasText(draft.title)) {
+		return '请填写申请标题'
+	}
+	if (!hasText(draft.reason)) {
+		return '请填写申请事由'
+	}
+
+	if (draft.kind === 'item-pass') {
+		if (!hasText(draft.fromPostId) || !hasText(draft.toPostId) || draft.fromPostId === draft.toPostId) {
+			return '请选择不同的起终岗位'
+		}
+		if (!hasText(draft.materials)) {
+			return '请填写物料信息'
+		}
+		if (!Array.isArray(draft.seals) || draft.seals.length === 0) {
+			return '请至少填写一封条'
+		}
+		// 逐项校验封条并按去除首尾空白后的编号去重，防止空项掩盖无效数据。
+		const seenSeals: string[] = []
+		for (const seal of draft.seals) {
+			if (!hasText(seal)) {
+				return '封条不能为空且不能重复'
+			}
+			const normalizedSeal = seal.trim()
+			if (seenSeals.includes(normalizedSeal)) {
+				return '封条不能为空且不能重复'
+			}
+			seenSeals.push(normalizedSeal)
+		}
+		return null
+	}
+
+	return '业务类型无效'
+}
+
+/**
+ * 判断某身份能否对申请执行指定动作。
+ * 审批只检查精确审批权限和非本人，现场动作还必须匹配授权岗位与业务状态。
+ */
+export function canAct(application: Application | null, identity: Identity | null, postId: string, action: ActionKind): boolean {
+	if (application == null || identity == null) {
+		return false
+	}
+	if (application.kind !== 'item-pass') {
+		return false
+	}
+
+	if (action === 'approve' || action === 'reject') {
+		if (application.status !== 'pending' || application.applicantId === identity.subjectId) {
+			return false
+		}
+		return hasPermission(identity, `${application.kind}:approve`)
+	}
+
+	if (!hasPermission(identity, `${application.kind}:execute`) || !authorizedPost(identity, postId)) {
+		return false
+	}
+
+	if (action === 'depart') {
+		return application.status === 'approved' && application.fromPostId === postId
+	}
+	if (action === 'arrive') {
+		return application.status === 'transporting' && application.toPostId === postId
+	}
+	return false
+}
+
+/**
+ * 判断岗位是否属于当前身份授权集合。
+ * 只比较服务端授予的稳定岗位 ID，拒绝空岗位和任意伪造岗位对象。
+ */
+function authorizedPost(identity: Identity, postId: string): boolean {
+	if (!hasText(postId) || !Array.isArray(identity.posts)) {
+		return false
+	}
+	for (const post of identity.posts) {
+		if (post != null && post.id === postId) {
+			return true
+		}
+	}
+	return false
+}
+
+/**
+ * 深拷贝既有时间线条目，避免调用方修改流转结果时反向改变输入申请。
+ * 仅复制核心层的平面轨迹字段，不访问外部资源。
+ */
+function cloneTimeline(timeline: TimelineEntry[]): TimelineEntry[] {
+	if (!Array.isArray(timeline)) {
+		return []
+	}
+	return timeline.map(entry => ({
+		id: entry.id,
+		title: entry.title,
+		actor: entry.actor,
+		at: entry.at,
+	}))
+}
+
+/**
+ * 根据已授权动作创建新的申请状态和时间线条目。
+ * 输入申请保持不变；权限、状态、岗位或驳回原因不满足时抛出明确错误。
+ */
+export function transitionApplication(
+	application: Application,
+	identity: Identity,
+	postId: string,
+	action: ActionKind,
+	comment: string = '',
+	execution: ApplicationExecution | null = null,
+): Application {
+	if (!canAct(application, identity, postId, action)) {
+		throw new Error('当前身份、岗位或申请状态不允许该操作')
+	}
+	if (action === 'reject' && !hasText(comment)) {
+		throw new Error('驳回必须填写原因')
+	}
+	let nextTransport = cloneTransport(application.transport)
+	if (action === 'depart' || action === 'arrive') {
+		const executionIssue = validateExecution(execution)
+		if (executionIssue != null) throw new Error(executionIssue)
+		if (action === 'arrive') {
+			const arrivalIssue = validateArrivalTransport(application, execution as ApplicationExecution)
+			if (arrivalIssue != null) throw new Error(arrivalIssue)
+		}
+		if (action === 'depart') nextTransport = transportFromExecution(execution as ApplicationExecution)
+	}
+
+	let nextStatus = application.status
+	let timelineTitle = ''
+	if (action === 'approve') {
+		nextStatus = 'approved'
+		timelineTitle = '审批通过'
+	} else if (action === 'reject') {
+		nextStatus = 'rejected'
+		timelineTitle = `驳回：${comment.trim()}`
+	} else if (action === 'depart') {
+		nextStatus = 'transporting'
+		timelineTitle = '已出发'
+	} else if (action === 'arrive') {
+		nextStatus = 'completed'
+		timelineTitle = '已到达'
+	}
+
+	const timeline = cloneTimeline(application.timeline)
+	timeline.push({
+		id: `timeline-${application.id}-${timeline.length + 1}`,
+		title: timelineTitle,
+		actor: identity.displayName,
+		at: new Date().toISOString(),
+	})
+	return {
+		...application,
+		status: nextStatus,
+		transport: nextTransport,
+		seals: Array.isArray(application.seals) ? application.seals.slice() : [],
+		timeline,
+	}
+}

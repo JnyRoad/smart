@@ -1,0 +1,56 @@
+<template>
+  <text class="badge" :class="tone">{{ label }}</text>
+</template>
+
+<script setup lang="uts">
+import { computed } from 'vue'
+
+const props = defineProps<{ status: string }>()
+const label = computed((): string => {
+  const labels: any = {
+    pending: '待审批',
+    approved: '待执行',
+    rejected: '已驳回',
+    transporting: '运输中',
+    inside: '区域内',
+    completed: '已完成',
+  }
+  return labels[props.status] ?? '未知状态'
+})
+const tone = computed((): string =>
+  props.status == 'rejected' ? 'bad' : props.status == 'completed' ? 'done' : 'waiting',
+)
+</script>
+
+<style>
+@import '../styles/theme.css';
+
+.badge {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 24px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  border-radius: 6px;
+  color: #6f6c6b;
+  background-color: #f7f7f7;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.waiting {
+  color: #8f5910;
+  background-color: #fff5e4;
+}
+
+.done {
+  color: #12754f;
+  background-color: #eaf7f1;
+}
+
+.bad {
+  color: #b32d29;
+  background-color: #fff0ef;
+}
+</style>

@@ -12,6 +12,7 @@ import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceFellow;
 import com.tce.smart.platform.core.mapper.SmtAdmittanceFellowMapper;
 import com.tce.smart.platform.core.service.SmtImageService;
 import com.tce.smart.platform.service.ImageService;
+import com.tce.smart.platform.service.admittance.AdmittanceRecordQrCode;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceFellowService;
 import com.tce.smart.tool.enums.AdmittancePersonCertTypeEnum;
 import com.tce.smart.tool.util.ToolUtils;
@@ -69,6 +70,7 @@ public class SmtAdmittanceFellowServiceImpl extends ServiceImpl<SmtAdmittanceFel
 		List<AdmittanceFellowRespDTO> fellowRespDTOS = new ArrayList<>();
 		fellowList.forEach(fellow -> {
 			AdmittanceFellowRespDTO fellowRespDTO = BeanUtils.transform(AdmittanceFellowRespDTO.class, fellow);
+			fellowRespDTO.setRecordQrCode(AdmittanceRecordQrCode.create(fellow.getId()));
 			if(StringUtils.isNotEmpty(fellow.getCertNo())) {
 				fellowRespDTO.setGender(ToolUtils.getGenderByIdCard(fellow.getCertNo()).getDesc());
 			}

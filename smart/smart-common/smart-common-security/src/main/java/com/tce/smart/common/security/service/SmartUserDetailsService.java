@@ -7,6 +7,15 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 public interface SmartUserDetailsService extends UserDetailsService {
 
 	/**
+	 * 使用显式工号密码认证，不依赖 Servlet 请求参数。
+	 *
+	 * @param username 用户名
+	 * @param password 密码
+	 * @return UserDetails
+	 */
+	UserDetails authenticate(String username, String password);
+
+	/**
 	 * 根据社交登录code 登录
 	 *
 	 * @param code TYPE@CODE

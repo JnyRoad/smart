@@ -6,6 +6,7 @@ import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONObject;
+import com.tce.smart.admin.api.dto.UserCredentialDTO;
 import com.tce.smart.admin.api.dto.UserInfo;
 import com.tce.smart.admin.api.entity.SysDict;
 import com.tce.smart.admin.api.entity.SysUser;
@@ -25,6 +26,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -36,6 +40,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用户详细信息
@@ -45,6 +50,9 @@ import java.util.*;
 //@AllArgsConstructor
 public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
     private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder();
+    private static final AccountStatusUserDetailsChecker ACCOUNT_STATUS_CHECKER =
+            new AccountStatusUserDetailsChecker();
+    private static final String AUTHENTICATION_FAILED_MESSAGE = "账号或密码错误";
     @Resource
     private RemoteUserService remoteUserService;
     @Resource
@@ -153,6 +161,134 @@ public class SmartUserDetailsServiceImpl implements SmartUserDetailsService {
 			throw new TCEException(errorMsg);
 		}
 		return userDetails;
+	}
+
+	/**
+	 * 使用显式工号密码认证，不读取或写入旧用户详情缓存。
+	 *
+	 * @param username 用户名
+	 * @param password 密码
+	 * @return 已完成账号状态检查的用户详情
+	 */
+	@Override
+	public UserDetails authenticate(String username, String password) {
+		if (StrUtil.isBlank(username) || StrUtil.isBlank(password)) {
+			throw authenticationFailed();
+		}
+
+		checkLoginLock(username);
+		Result<UserInfo> userInfo;
+		boolean localCredential = false;
+		try {
+			if (isSystemUser(username)) {
+				userInfo = loadUserInfo(username);
+				verifyStoredPassword(password, userInfo);
+				localCredential = true;
+			} else {
+				verifyAppSessionPassword(username, password);
+				userInfo = loadUserInfo(username);
+			}
+		} catch (BadCredentialsException failure) {
+			recordFailedAppLogin(username);
+			throw failure;
+		}
+
+		if (localCredential && !SecurityUtils.isStrongPwd(username, password)) {
+			JSONObject object = new JSONObject();
+			object.put("isStrongPwd", false);
+			throw new NotStrongPasswordException(object.toString());
+		}
+
+		UserDetails userDetails = getUserDetails(userInfo, true);
+		ACCOUNT_STATUS_CHECKER.check(userDetails);
+		clearFailedAppLogins(username);
+		return userDetails;
+	}
+
+	private void checkLoginLock(String username) {
+		String redisLockKey = AuthConstants.REDIS_KEY_PREFIX + username;
+		Object attempts = redisTemplate.opsForValue().get(redisLockKey);
+		if (attempts != null && Integer.valueOf(attempts.toString()) >= AuthConstants.MAX_LOGIN_ATTEMPTS) {
+			throw new TCEException("账号连续失败5次,锁定账号10分钟");
+		}
+	}
+
+	private boolean isSystemUser(String username) {
+		Result<List<SysDict>> result;
+		try {
+			result = remoteDictService.findByType(SecurityConstants.SYS_DEFAULT_USER, SecurityConstants.FROM_IN);
+		} catch (Exception exception) {
+			log.warn("查询平台账号类型失败，类型={}", exception.getClass().getName());
+			throw authenticationUnavailable();
+		}
+		if (result == null || !result.isSuccess() || result.getData() == null) {
+			throw authenticationUnavailable();
+		}
+		return result.getData().stream()
+				.anyMatch(dict -> username.equals(dict.getValue()));
+	}
+
+	private void verifyStoredPassword(String password, Result<UserInfo> userInfo) {
+		try {
+			if (!ENCODER.matches(password, userInfo.getData().getSysUser().getPassword())) {
+				throw authenticationFailed();
+			}
+		} catch (BadCredentialsException exception) {
+			throw exception;
+		} catch (Exception exception) {
+			throw authenticationFailed();
+		}
+	}
+
+	private void verifyAppSessionPassword(String username, String password) {
+		UserCredentialDTO credential = new UserCredentialDTO();
+		credential.setUsername(username);
+		credential.setPassword(password);
+		Result<Boolean> result;
+		try {
+			result = remoteUserService.authenticateAppSession(credential, SecurityConstants.FROM_IN);
+		} catch (Exception exception) {
+			log.warn("App 凭据认证远程调用失败，类型={}", exception.getClass().getName());
+			throw authenticationUnavailable();
+		}
+		if (result == null || !result.isSuccess() || !Boolean.TRUE.equals(result.getData())) {
+			throw authenticationFailed();
+		}
+	}
+
+	private Result<UserInfo> loadUserInfo(String username) {
+		Result<UserInfo> result;
+		try {
+			result = remoteUserService.info(username, SecurityConstants.FROM_IN);
+		} catch (Exception exception) {
+			log.warn("读取认证用户信息失败");
+			throw authenticationUnavailable();
+		}
+		if (result == null || !result.isSuccess()) {
+			throw authenticationUnavailable();
+		}
+		if (result.getData() == null || result.getData().getSysUser() == null) {
+			throw authenticationFailed();
+		}
+		return result;
+	}
+
+	private BadCredentialsException authenticationFailed() {
+		return new BadCredentialsException(AUTHENTICATION_FAILED_MESSAGE);
+	}
+
+	private AuthenticationServiceException authenticationUnavailable() {
+		return new AuthenticationServiceException("认证依赖服务暂不可用");
+	}
+
+	private void recordFailedAppLogin(String username) {
+		String redisLockKey = AuthConstants.REDIS_KEY_PREFIX + username;
+		Long count = redisTemplate.opsForValue().increment(redisLockKey);
+		if (count != null && count == 1) redisTemplate.expire(redisLockKey, AuthConstants.MAX_LOCK_TIME, TimeUnit.MINUTES);
+	}
+
+	private void clearFailedAppLogins(String username) {
+		redisTemplate.delete(AuthConstants.REDIS_KEY_PREFIX + username);
 	}
 
 	/**

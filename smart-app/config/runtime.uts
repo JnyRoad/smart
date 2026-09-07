@@ -1,0 +1,15 @@
+/** 客户端集成配置；真实统一身份与业务接口需后端提供，空地址禁止发送请求。 */
+interface RuntimeConfig {
+  /** 统一 API 网关基地址，例如 https://gateway.example。 */
+  apiBaseUrl: string
+  /** 仅本机隔离验收启用；生产构建必须保持 false，且只允许 127.0.0.1 回环地址。 */
+  allowLoopbackHttp: boolean
+  requestTimeout: number
+  enableDemo: boolean
+}
+export const runtimeConfig: RuntimeConfig = {
+  apiBaseUrl: '',
+  allowLoopbackHttp: false,
+  requestTimeout: 15000,
+  enableDemo: true,
+}

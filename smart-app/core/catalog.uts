@@ -1,0 +1,148 @@
+import type { Identity, ModuleEntry } from './models.uts'
+
+/**
+ * 注册统一客户端首期业务入口，入口路由和权限码由客户端维护以拒绝任意远程路由。
+ * 该目录只描述可展示入口，不代表服务端最终授权结果。
+ */
+export const MODULES: ModuleEntry[] = [
+	{
+		id: 'item-pass-apply',
+		title: '物品放行申请',
+		description: '提交保密物品放行申请',
+		category: '物品放行',
+		permission: 'item-pass:apply',
+		route: '/pages/application/application?kind=item-pass',
+	},
+	{
+		id: 'item-pass-approve',
+		title: '物品放行审批',
+		description: '处理物品放行审批待办',
+		category: '物品放行',
+		permission: 'item-pass:approve',
+		route: '/pages/records/records?kind=item-pass&view=approve',
+	},
+	{
+		id: 'item-pass-execute',
+		title: '物品现场执行',
+		description: '执行物品放行出发与到达核验',
+		category: '物品放行',
+		permission: 'item-pass:execute',
+		route: '/pages/records/records?kind=item-pass&view=execute',
+	},
+	{
+		id: 'item-pass-records',
+		title: '物品放行记录',
+		description: '查询物品放行申请记录',
+		category: '物品放行',
+		permission: 'item-pass:read',
+		route: '/pages/records/records?kind=item-pass&view=records',
+	},
+	{
+		id: 'visitor-badge-check',
+		title: '厂牌扫码核验',
+		description: '扫描已打印厂牌并登记进入或离开保密区',
+		category: '保密区通行',
+		permission: 'supplier:execute',
+		route: '/pages/supplier-access/supplier-access',
+	},
+	{
+		id: 'visitor-passage-records',
+		title: '通行记录',
+		description: '查询供应商保密区通行记录',
+		category: '保密区通行',
+		permission: 'supplier:read',
+		route: '/pages/supplier-records/supplier-records',
+	},
+]
+
+const KNOWN_PERMISSIONS: string[] = [
+	'item-pass:apply',
+	'item-pass:approve',
+	'item-pass:execute',
+	'item-pass:read',
+	'supplier:execute',
+	'supplier:read',
+]
+
+/**
+ * 判断身份是否拥有目录认可的精确权限码。
+ * 输入为空、权限未知或使用通配符时返回 false，不修改身份对象。
+ */
+export function hasPermission(identity: Identity | null, permission: string): boolean {
+	if (identity == null || !KNOWN_PERMISSIONS.includes(permission)) {
+		return false
+	}
+	if (!Array.isArray(identity.permissions)) {
+		return false
+	}
+	for (const granted of identity.permissions) {
+		if (granted === permission) {
+			return true
+		}
+	}
+	return false
+}
+
+/**
+ * 按当前身份权限、搜索词和业务分类筛选本地入口目录。
+ * 查询只读身份和固定目录，未知身份或分类不会产生远程入口。
+ */
+export function visibleModules(identity: Identity | null, query: string = '', category: string = '全部'): ModuleEntry[] {
+	const normalizedQuery = query.trim().toLowerCase()
+	const allCategories = category === '' || category === '全部'
+	const result: ModuleEntry[] = []
+
+	for (const module of MODULES) {
+		if (!hasPermission(identity, module.permission)) {
+			continue
+		}
+		if (!allCategories && module.category !== category) {
+			continue
+		}
+		if (normalizedQuery.length > 0) {
+			const searchableText = `${module.id} ${module.title} ${module.description}`.toLowerCase()
+			if (!searchableText.includes(normalizedQuery)) {
+				continue
+			}
+		}
+		result.push(module)
+	}
+	return result
+}
+
+/**
+ * 从固定目录解析入口标识，找不到时返回 null 以保持默认拒绝。
+ * 解析过程不接受服务端传入的任意路径或模块对象。
+ */
+export function resolveModule(id: string): ModuleEntry | null {
+	for (const module of MODULES) {
+		if (module.id === id) {
+			return module
+		}
+	}
+	return null
+}
+
+/**
+ * 按传入顺序返回当前身份可见的去重收藏，最多保留八个固定入口。
+ * 未注册或无权限的入口会被跳过，身份和收藏标识都不会被修改。
+ */
+export function favoriteModules(identity: Identity | null, ids: string[]): ModuleEntry[] {
+	const result: ModuleEntry[] = []
+	const seenIds: string[] = []
+	if (!Array.isArray(ids)) {
+		return result
+	}
+
+	for (const id of ids) {
+		if (result.length >= 8 || seenIds.includes(id)) {
+			continue
+		}
+		seenIds.push(id)
+		const module = resolveModule(id)
+		if (module != null && hasPermission(identity, module.permission)) {
+			result.push(module)
+		}
+	}
+	return result
+}

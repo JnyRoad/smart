@@ -58,6 +58,7 @@ public class WebSecurityConfigurer extends WebSecurityConfigurerAdapter {
 			.authorizeRequests()
 			.antMatchers(
 				"/token/**",
+				"/api/v1/sessions",
 				"/actuator/**",
 				"/mobile/token/**",
 				"/ocr/token/face/**").permitAll()

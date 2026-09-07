@@ -1,0 +1,110 @@
+spring:
+  # 图像服务仅为历史 Bean 的启动依赖；本机验收不请求或伪造人员照片。
+  image:
+    base-url: http://smart-app-demo-platform:6030
+    down-url: http://smart-app-demo-platform:6030
+    base-park-url: http://smart-app-demo-platform:6030
+  # 以下历史服务字段仅满足容器启动；本机 API 验收不调用对应旧业务或外部端点。
+  file:
+    base-url: http://smart-app-demo-platform:6030
+  admittance:
+    pretime: 0
+    remote-url: http://smart-app-demo-platform:6030
+    remote-path: /disabled
+    save-path: /tmp/smart-app-demo
+    sms-url: http://smart-app-demo-platform:6030
+  visitor:
+    code-url: http://smart-app-demo-platform:6030
+    remote-url: http://smart-app-demo-platform:6030
+    remote-path: /disabled
+    hf-token: disabled
+    push-email: http://smart-app-demo-platform:6030
+  face:
+    compare-value: "0"
+    login-compare-value: "0"
+  msg-push:
+    quitdor: http://smart-app-demo-platform:6030
+    release: http://smart-app-demo-platform:6030
+    repairs: http://smart-app-demo-platform:6030
+  oa:
+    process:
+      request:
+        log-token: disabled
+        log-url: http://smart-app-demo-platform:6030
+  ocr:
+    username: disabled
+    url: http://smart-app-demo-platform:6030
+  park-set:
+    lg-park-id: 1
+  release:
+    sms-url: http://smart-app-demo-platform:6030
+  temp:
+    auth: disabled
+  yuto-secsytem:
+    phone:
+      update-url: http://smart-app-demo-platform:6030
+      update-token: disabled
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: oracle.jdbc.OracleDriver
+    username: "${SMART_DB_USERNAME}"
+    password: "${SMART_DB_PASSWORD}"
+    # 容器网络固定指向本任务 Oracle；账号与密码仍只从忽略的本机环境文件取得。
+    url: jdbc:oracle:thin:@//smart-app-demo-oracle:1521/FREEPDB1
+  lock:
+    base:
+      url: http://smart-app-demo-platform:6030
+
+security:
+  oauth2:
+    client:
+      client-id: smart-app-demo
+      client-secret: "${SMART_APP_DEMO_OAUTH_CLIENT_SECRET}"
+      scope: server
+      ignore-urls:
+        - /actuator/**
+        # UPMS 经容器内 Feign 读取人员认证来源；端点无主机映射，控制器仍要求 from=Y 内部标记。
+        - /internal/**
+
+smart:
+  # 历史设备服务启动必填，演示环境只使用本机虚构园区，不连接设备或外部平台。
+  xc-park-id: 1
+  hf-park-id: 1
+  meter:
+    prod: 0
+    life: 0
+  org:
+    xc-hpo-index-code: disabled
+    hf-index-code: disabled
+  client:
+    item-pass:
+      enabled: true
+      posts:
+        - id: security-east
+          name: 东门安检岗
+          park-id: 1
+          park-name: 演示园区
+        - id: security-west
+          name: 西门安检岗
+          park-id: 1
+          park-name: 演示园区
+      applicant-approvers:
+        APP_EMPLOYEE: APP_SUPERVISOR
+    supplier:
+      enabled: true
+      business-timezone: Asia/Shanghai
+      posts:
+        - id: security-east
+          name: 东门安检岗
+          park-id: 1
+          park-name: 演示园区
+          area-id: secret-zone-a
+          area-name: 演示保密区 A
+          admittance-area-type-code: "1"
+        - id: security-west
+          name: 西门安检岗
+          park-id: 1
+          park-name: 演示园区
+          area-id: secret-zone-a
+          area-name: 演示保密区 A
+          admittance-area-type-code: "1"

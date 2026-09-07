@@ -1,5 +1,6 @@
 package com.tce.smart.admin.api.feign;
 
+import com.tce.smart.admin.api.dto.UserCredentialDTO;
 import com.tce.smart.admin.api.dto.UserDTO;
 import com.tce.smart.admin.api.dto.UserInfo;
 import com.tce.smart.admin.api.entity.SysUser;
@@ -7,6 +8,7 @@ import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.constant.ServiceNameConstants;
 import com.tce.smart.common.core.model.Result;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -64,6 +66,22 @@ public interface RemoteUserService {
 
 	@GetMapping(value = {"/api/user/simple"})
 	Result<Boolean> simpleLogin(@RequestParam("username") String userName, @RequestParam("password") String password, @RequestHeader(SecurityConstants.FROM) String from);
+
+	/**
+	 * 使用 JSON 正文显式校验工号密码。
+	 *
+	 * @param credential 工号密码
+	 * @param from 内部调用标志
+	 * @return 是否通过认证
+	 */
+	@PostMapping(value = "/api/user/simple", consumes = MediaType.APPLICATION_JSON_VALUE)
+	Result<Boolean> authenticate(@RequestBody UserCredentialDTO credential,
+			@RequestHeader(SecurityConstants.FROM) String from);
+
+	/** App 会话内部认证；来源分流和 DHR 适配均在 UPMS 内部完成。 */
+	@PostMapping(value = "/api/user/session", consumes = MediaType.APPLICATION_JSON_VALUE)
+	Result<Boolean> authenticateAppSession(@RequestBody UserCredentialDTO credential,
+			@RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping(value = {"/api/user/social/simple"})
 	Result<Boolean> socialLogin(@RequestParam("username") String userName, @RequestHeader(SecurityConstants.FROM) String from);

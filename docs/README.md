@@ -14,6 +14,7 @@
 
 ## 资料导航
 
+- [新平台技术基线](architecture/new-platform-technical-baseline.md)：后续新建服务与客户端的 Rust、uni-app x、Next.js/Tauri、PostgreSQL、Kafka 与网关决策；不改变当前遗留系统。
 - [裕慧家园门锁统一接入与 Oracle 基线](../specs/011-doorlock-oracle/spec.md)：当前跨模块规格、数据映射、契约、任务和验收；不表示已经实现或上线。
 - [项目规格](../specs/)：持久规格、计划、任务清单与验收记录。
 - [Spec Kit 工作流资料](../.specify/)：命令、模板、工作流和项目宪法。

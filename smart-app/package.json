@@ -1,0 +1,22 @@
+{
+  "name": "smart-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "裕慧家园统一客户端，uni-app x 蒸汽模式工程",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "test": "node --import ./scripts/uts-loader.mjs --test tests/*.test.mjs",
+    "build:web": "node scripts/build.mjs web",
+    "build:weixin": "node scripts/build.mjs mp-weixin",
+    "preview": "node scripts/preview.mjs",
+    "test:e2e": "node tests/e2e.mjs",
+    "build:alipay": "node scripts/build.mjs mp-alipay",
+    "build:android": "node scripts/build.mjs android",
+    "demo:enable": "node scripts/configure-app-demo.mjs --enable",
+    "demo:disable": "node scripts/configure-app-demo.mjs --disable",
+    "test:demo-api": "node scripts/verify-app-demo-api.mjs"
+  }
+}

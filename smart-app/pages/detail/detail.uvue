@@ -1,0 +1,171 @@
+<template>
+  <ScreenFrame>
+    <view v-if="executionContext" class="card execution-post">
+      <text class="label">当前安检岗位</text>
+      <text class="heading mt">{{ postReady ? postName() : '请选择岗位' }}</text>
+      <text class="small mt">{{ postReady ? '办理前请核对设备所在岗位。岗位变更请前往设置。' : '请先在设置中选择并保存岗位，再查看和办理现场单据。' }}</text>
+    </view>
+    <view v-if="blocked" class="card empty"><text class="heading">请先确认安检岗位</text><text class="muted mt">确认岗位后重新打开单据，开始现场核验。</text></view>
+    <view v-else-if="item != null">
+      <view class="row between mb"><text class="pill">保密物品放行</text><StatusBadge :status="item.status" /></view>
+      <text class="title mb">{{ item.title }}</text><text class="small mb">{{ item.id }}</text>
+      <view class="card">
+        <text class="heading mb">申请详情</text><text class="label">申请人</text><text class="text mb">{{ item.applicantName }}</text>
+        <text class="label">申请事由</text><text class="text mb">{{ item.reason }}</text>
+        <text class="label">物料明细</text><text class="text mb">{{ item.materials }}</text>
+        <text class="label">封条条码</text><text v-for="seal in item.seals" :key="seal" class="text">{{ seal }}</text>
+        <view class="divider" /><text class="small">出发：{{ postLabel(item.fromPostId, item.fromPostName) }} · 到达：{{ postLabel(item.toPostId, item.toPostName) }}</text>
+        <view v-if="item.transport != null" class="mt">
+          <text class="label">出发押运方式</text><text class="text">{{ item.transport.mode == 'escort' ? '押运人' : '定位锁 · ' + item.transport.lockNo }}</text>
+        </view>
+      </view>
+      <view v-if="isExecution && actions.length > 0" class="card">
+        <text class="heading mb">现场核验</text>
+        <view v-if="item.status == 'approved'">
+          <text class="label">押运方式 * · 请选择一项</text>
+          <view class="transport-options">
+            <button v-for="option in transportOptions" :key="option.id" class="btn transport-option" :class="[mode == option.id ? 'secondary' : '', option.id == 'lock' ? 'transport-next' : '']" :disabled="busy" @click="chooseTransport(option.id)">{{ option.title }}</button>
+          </view>
+        </view>
+        <view v-else><text class="label">本单押运方式</text><text class="heading">{{ mode == 'escort' ? '押运人' : mode == 'lock' ? '定位锁' : '出发登记缺失' }}</text><text class="small mt">沿用出发登记的方式，到达时重新核验。</text></view>
+        <view v-if="mode == 'escort'" class="mt">
+          <text class="text">请押运人刷卡，核对人员身份后再确认放行。</text>
+          <button v-if="clientState.mode == 'demo'" class="btn secondary mt" :disabled="busy || escortProof.length > 0 || !postReady || executionAction.length == 0" @click="swipeEscort">模拟押运人刷卡（仅演示）</button>
+          <input v-else v-model="escortProof" class="field mt" :focus="!busy && mode == 'escort'" :disabled="busy" placeholder="请刷押运人工卡" :maxlength="128" @input="captureEscort" @blur="captureEscort" @confirm="captureEscort" />
+          <text v-if="escortProof.length > 0" class="verified-note mt">{{ clientState.mode == 'demo' ? '押运人刷卡核验完成（仅演示）' : '已读取押运人工卡，请核对人员身份后确认放行。' }}</text>
+          <text v-else class="small mt">{{ clientState.mode == 'demo' ? '等待押运人刷卡' : '扫码头模式下保持本输入框焦点；扫码完成会自动填入。' }}</text>
+        </view>
+        <view v-if="mode == 'lock'" class="mt">
+          <text class="label">定位锁编号 *</text>
+          <input v-model="lockNo" class="field" :disabled="busy" placeholder="请输入定位锁编号" :maxlength="128" @input="captureLock" @blur="captureLock" @confirm="captureLock" />
+          <text class="small mt">{{ item.status == 'transporting' ? '请核对并录入出发时登记的同一定位锁编号。' : '请核对实物锁上的编号，编号中的前导零会完整保留。' }}</text>
+        </view>
+        <text v-if="mode.length == 0" class="small mt">选择押运方式后完成对应核验，才能确认出发。</text>
+      </view>
+      <view v-if="actions.length > 0" class="card">
+        <text class="heading mb">{{ isApproval ? '审批处理' : '执行备注' }}</text>
+        <text class="label">{{ isApproval ? '处理意见' : '备注（选填）' }}</text>
+        <textarea v-model="comment" class="textarea" :disabled="busy" :placeholder="isApproval ? '驳回时请填写原因，其他操作可选填' : '填写本次现场办理的补充说明（选填）'" :maxlength="500" />
+        <text v-if="isApproval" class="small mt">驳回后申请人需调整内容再提交，请说明具体原因。</text>
+        <view v-if="error.length > 0" class="error"><text class="error-text">{{ error }}</text></view>
+        <view class="decision-actions">
+          <button v-for="(action, index) in actions" :key="action.id" class="btn decision-button" :class="[action.id == 'reject' ? 'reject-button' : 'primary', index > 0 ? 'decision-next' : '']" :disabled="busy || (isFieldAction(action.id) && !executionReady)" @click="act(action.id)">{{ busy && activeAction == action.id ? '正在处理…' : action.label }}</button>
+        </view>
+      </view>
+      <view v-if="error.length > 0 && actions.length == 0" class="error"><text class="error-text">{{ error }}</text></view>
+      <view class="card"><text class="heading mb">办理轨迹</text><view v-for="event in item.timeline" :key="event.id" class="timeline-event"><text class="text">{{ event.title }}</text><text class="small mt">{{ event.actor }} · {{ formatTime(event.at) }}</text></view></view>
+    </view>
+    <view v-else class="card empty"><text class="heading">{{ clientState.loading ? '正在加载单据…' : '单据不可查看' }}</text><text class="muted mt">{{ clientState.error.length > 0 ? clientState.error : '单据不存在，或当前账号和岗位不能办理。' }}</text></view>
+  </ScreenFrame>
+</template>
+<script setup lang="uts">
+import { ref, computed, watch } from 'vue'
+import type { ActionKind, ApplicationExecution, ExecutionMode } from '../../core/models.uts'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import StatusBadge from '../../components/StatusBadge.uvue'
+import { clientState, guard, loadApplications, loadExecutionApplications, availablePosts, hasExecutionPost, postName, actOnApplication, errorMessage, recordDemoEscortSwipe, clearEscortVerification } from '../../state/session.uts'
+import { canAct } from '../../core/workflow.uts'
+import { hasPermission } from '../../core/catalog.uts'
+const id = ref('')
+const executionRoute = ref(false)
+const routeView = ref('')
+const busy = ref(false)
+const activeAction = ref('')
+const error = ref('')
+const comment = ref('')
+const selectedMode = ref('')
+const lockNo = ref('')
+const escortProof = ref('')
+const transportOptions = [{ id: 'escort', title: '押运人' }, { id: 'lock', title: '定位锁' }]
+const actionResult = ref<any>(null)
+const candidate = computed((): any => actionResult.value ?? clientState.applications.find((entry: any): boolean => entry.id == id.value && entry.kind == 'item-pass') ?? null)
+/** 业务意图由入口和身份能力确定，审批完成不能因单据状态改变而跳入安检。 */
+const executionContext = computed((): boolean => executionRoute.value || (routeView.value != 'read' && routeView.value != 'approve' && hasPermission(clientState.identity, 'item-pass:execute') && !hasPermission(clientState.identity, 'item-pass:approve')))
+const postReady = computed((): boolean => hasExecutionPost())
+const blocked = computed((): boolean => executionContext.value && !postReady.value)
+const item = computed((): any => blocked.value ? null : candidate.value)
+const mode = computed((): string => item.value?.status == 'transporting' ? item.value?.transport?.mode ?? '' : selectedMode.value)
+const definitions = [{ id: 'reject', label: '驳回申请' }, { id: 'approve', label: '同意申请' }, { id: 'depart', label: '确认出发' }, { id: 'arrive', label: '确认到达并归档' }]
+const actions = computed((): any[] => item.value == null || clientState.identity == null || routeView.value == 'read' ? [] : definitions.filter((action: any): boolean => (isFieldAction(action.id) ? executionContext.value : !executionContext.value) && canAct(item.value, clientState.identity, clientState.postId, action.id)))
+const isApproval = computed((): boolean => actions.value.some((action: any): boolean => action.id == 'approve'))
+const isExecution = computed((): boolean => item.value != null && hasPermission(clientState.identity, 'item-pass:execute') && ['approved', 'transporting'].includes(item.value.status))
+const executionAction = computed((): string => actions.value.find((action: any): boolean => isFieldAction(action.id))?.id ?? '')
+const executionReady = computed((): boolean => postReady.value && (mode.value == 'escort' ? escortProof.value.trim().length > 0 : mode.value == 'lock' && lockNo.value.trim().length > 0))
+/** 路由只提供单据定位；现场直链同样先确认岗位。 */
+onLoad((options) => { id.value = options['id'] ?? ''; routeView.value = options['view'] ?? ''; executionRoute.value = routeView.value == 'execute' })
+/** 每次恢复页面都重新核验，不沿用离开页面前的刷卡凭据。 */
+onShow(() => {
+  actionResult.value = null
+  resetVerification()
+  error.value = ''
+  if (!guard(executionRoute.value ? 'item-pass:execute' : routeView.value == 'approve' ? 'item-pass:approve' : '')) return
+  if (executionContext.value) { if (postReady.value) loadExecutionApplications() }
+  else loadApplications()
+})
+onHide(() => { actionResult.value = null; resetVerification() })
+onUnload(() => { actionResult.value = null; resetVerification() })
+watch((): string => clientState.postId + ':' + (clientState.identity?.subjectId ?? ''), () => { actionResult.value = null; resetVerification() })
+/** 展示优先使用单据快照；目录名称仅作旧单兼容，不能参与岗位授权。 */
+function postLabel(postId: string, snapshotName: any = ''): string {
+  if (typeof snapshotName == 'string' && snapshotName.trim().length > 0) return snapshotName
+  return availablePosts().find((entry: any): boolean => entry.id == postId)?.name ?? postId
+}
+/** 服务端轨迹使用明确的UTC时间。 */
+function formatTime(value: string): string {
+	const parsed = new Date(value)
+	if (isNaN(parsed.getTime())) return value
+	return parsed.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
+}
+/** 人员核验凭据仅适用于本次单据动作。 */
+function resetVerification(): void { escortProof.value = ''; selectedMode.value = ''; lockNo.value = ''; clearEscortVerification() }
+/** 两种押运方式互斥；切换时清除上一种的输入与证明。 */
+function chooseTransport(value: string): void {
+  if (busy.value || item.value?.status != 'approved') return
+  resetVerification()
+  selectedMode.value = value
+  error.value = ''
+}
+/** 显式演示刷卡由会话协调层绑定单据、动作和岗位，不代表真实读卡。 */
+function swipeEscort(): void {
+  if (busy.value || mode.value != 'escort') return
+  try { escortProof.value = recordDemoEscortSwipe(id.value, executionAction.value as ActionKind); error.value = '' }
+  catch (issue) { error.value = errorMessage(issue) }
+}
+/** 真实刷卡由PDA键盘模式或摄像头解码填入；后端会按员工主数据再次核验。 */
+function captureEscort(event: any): void {
+  if (!busy.value && typeof event.detail.value == 'string') escortProof.value = event.detail.value
+}
+/** 锁号提交取输入事件即时值，避免Web模型节流导致刚修正的编号仍使用旧值。 */
+function captureLock(event: any): void {
+  if (!busy.value && typeof event.detail.value == 'string') lockNo.value = event.detail.value
+}
+/** 只有现场出发与到达需要押运核验。 */
+function isFieldAction(action: string): boolean { return ['depart', 'arrive'].includes(action) }
+/** 所有执行参数交给协调层二次校验，不能仅依赖界面按钮状态。 */
+async function act(action: ActionKind): Promise<void> {
+  if (busy.value || (isFieldAction(action) && !executionReady.value)) return
+  busy.value = true
+  activeAction.value = action
+  error.value = ''
+  try {
+    const execution: ApplicationExecution | null = isFieldAction(action) ? { mode: mode.value as ExecutionMode, escortProof: escortProof.value, lockNo: lockNo.value } : null
+    const result = await actOnApplication(id.value, action, comment.value, execution)
+    if (result != null) actionResult.value = result
+    comment.value = ''
+    resetVerification()
+    uni.showToast({ title: action == 'approve' ? '已同意申请' : action == 'reject' ? '已驳回申请' : '操作已完成', icon: 'none' })
+  } catch (issue) { error.value = errorMessage(issue) }
+  finally { busy.value = false }
+}
+</script>
+<style>
+.transport-options { display: flex; flex-direction: row; margin-top: 10px; }
+.transport-option { flex: 1; min-height: 48px; }
+.transport-next { margin-left: 14px; }
+.verified-note { color: #12754f; font-size: 14px; line-height: 22px; }
+.decision-actions { display: flex; flex-direction: row; margin-top: 18px; }
+.decision-button { flex: 1; min-height: 48px; padding: 0 10px; }
+.decision-next { margin-left: 14px; }
+.reject-button { background-color: #ffffff; color: #b32d29; border: 1px solid #d83b36; }
+.timeline-event { border-left: 2px solid #e5e3e3; padding: 0 0 20px 14px; display: flex; flex-direction: column; }
+</style>

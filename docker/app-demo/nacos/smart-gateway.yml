@@ -1,0 +1,16 @@
+ignore:
+  clients:
+    - smart-app-demo
+  swagger-providers: []
+
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+
+smart:
+  app-demo:
+    gateway:
+      http-client-fallback: true

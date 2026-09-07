@@ -2,6 +2,7 @@ package com.tce.smart.admin.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import com.tce.smart.admin.api.dto.UserCredentialDTO;
 import com.tce.smart.admin.api.dto.UserDTO;
 import com.tce.smart.admin.api.dto.UserInfo;
 import com.tce.smart.admin.api.entity.SysUser;
@@ -14,6 +15,9 @@ import com.tce.smart.common.security.annotation.Inner;
 import io.swagger.annotations.Api;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +31,8 @@ import java.util.Objects;
 @RequestMapping("/api/user")
 @Api(value = "user", description = "用户管理模块-内部接口")
 public class UserApiController extends BaseController {
+	private static final String MALFORMED_JSON_MESSAGE = "请求参数格式错误";
+
     private final SysUserService userService;
 
     /**
@@ -39,6 +45,31 @@ public class UserApiController extends BaseController {
     public Result<Boolean> simpleLogin(@RequestParam("username") String username, @RequestParam("password") String password) {
         return new Result<Boolean>(userService.simpleLogin(username, password));
     }
+
+	/**
+	 * 使用 JSON 正文显式校验工号密码。
+	 *
+	 * @param credential 工号密码
+	 * @return 是否通过认证
+	 */
+	@Inner
+	@PostMapping(value = "/simple", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public Result<Boolean> authenticate(@Valid @RequestBody UserCredentialDTO credential) {
+		return new Result<>(userService.authenticate(credential.getUsername(), credential.getPassword()));
+	}
+
+	/** App 会话专用内部入口；公共网关只暴露 auth 服务的 /api/v1/sessions。 */
+	@Inner
+	@PostMapping(value = "/session", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public Result<Boolean> authenticateAppSession(@Valid @RequestBody UserCredentialDTO credential) {
+		return new Result<>(userService.authenticateAppSession(credential.getUsername(), credential.getPassword()));
+	}
+
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public Result<?> handleMalformedJson() {
+		return Result.fail(MALFORMED_JSON_MESSAGE);
+	}
 
 	@Inner
 	@GetMapping(value = {"/social/simple"})

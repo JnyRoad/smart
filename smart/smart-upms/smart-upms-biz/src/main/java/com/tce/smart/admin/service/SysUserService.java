@@ -96,6 +96,21 @@ public interface SysUserService extends IService<SysUser> {
 	Boolean simpleLogin(String username, String password);
 
 	/**
+	 * 显式校验工号密码，不使用旧用户详情缓存作为认证结果。
+	 *
+	 * @param username 用户名
+	 * @param password 密码
+	 * @return 是否通过认证
+	 */
+	Boolean authenticate(String username, String password);
+
+	/**
+	 * App 统一登录使用的内部认证：来源由平台主数据决定，正式员工交给 DHR 适配器，
+	 * 外包和派遣人员只校验本系统账户。不会改变旧 /simple 和 Web 登录语义。
+	 */
+	Boolean authenticateAppSession(String username, String password);
+
+	/**
 	 * 修改用户密码
 	 *
 	 * @param username 用户名

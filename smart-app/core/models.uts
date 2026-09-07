@@ -1,0 +1,89 @@
+/**
+ * 定义统一客户端核心层使用的身份、岗位、业务入口、申请和流转轨迹模型。
+ * 这些声明只描述跨平台数据契约，不访问平台 API，也不产生持久化副作用。
+ */
+export type EmploymentType = 'employee' | 'outsourced' | 'dispatched'
+
+export type BusinessKind = 'item-pass' | 'supplier'
+
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'transporting' | 'completed'
+
+export type ActionKind = 'approve' | 'reject' | 'depart' | 'arrive'
+
+export type ExecutionMode = 'escort' | 'lock'
+
+export interface ApplicationExecution {
+	mode: ExecutionMode
+	escortProof: string
+	lockNo: string
+}
+
+export interface ApplicationTransport {
+	mode: ExecutionMode
+	lockNo: string
+}
+
+export interface Post {
+	id: string
+	name: string
+	parkId: string
+	parkName: string
+}
+
+export interface Identity {
+	subjectId: string
+	staffNo: string
+	displayName: string
+	employmentType: EmploymentType
+	organization: string
+	permissions: string[]
+	posts: Post[]
+}
+
+export interface ModuleEntry {
+	id: string
+	title: string
+	description: string
+	category: string
+	permission: string
+	route: string
+}
+
+export interface TimelineEntry {
+	id: string
+	title: string
+	actor: string
+	at: string
+}
+
+export interface ApplicationDraft {
+	kind: BusinessKind
+	title: string
+	reason: string
+	fromPostId: string
+	toPostId: string
+	supplierName: string
+	visitorName: string
+	materials: string
+	seals: string[]
+}
+
+export interface Application {
+	id: string
+	kind: BusinessKind
+	title: string
+	reason: string
+	fromPostId: string
+	toPostId: string
+	fromPostName?: string
+	toPostName?: string
+	supplierName: string
+	visitorName: string
+	materials: string
+	seals: string[]
+	applicantId: string
+	applicantName: string
+	status: ApplicationStatus
+	transport: ApplicationTransport | null
+	timeline: TimelineEntry[]
+}

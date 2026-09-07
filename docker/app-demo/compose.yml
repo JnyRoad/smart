@@ -1,0 +1,179 @@
+name: smart-app-demo
+
+x-demo-labels: &demo-labels
+  codex.task: 008-unified-client-foundation
+  com.yuto.smart.environment: app-demo-local
+
+x-java: &java
+  restart: on-failure
+  environment:
+    NACOS_URL: smart-app-demo-nacos
+    NACOS_PORT: "8848"
+    NACOS_NAMESPACE: smart-app-demo
+    NACOS_GROUP: app-demo
+    SMART_REDIS_HOST: smart-app-demo-redis
+    SMART_REDIS_PORT: "6379"
+    SMART_DB_URL: jdbc:oracle:thin:@//smart-app-demo-oracle:1521/FREEPDB1
+    SMART_DB_USERNAME: ${SMART_APP_DEMO_DB_USERNAME:?请先生成本任务本机环境文件}
+    SMART_DB_PASSWORD: ${SMART_APP_DEMO_DB_PASSWORD:?请先生成本任务本机环境文件}
+    SMART_APP_DEMO_OAUTH_CLIENT_SECRET: ${SMART_APP_DEMO_OAUTH_CLIENT_SECRET:?请先生成本任务本机环境文件}
+    # 启用 loadBalanced 时主机名是 Nacos 服务名，不能使用 Docker 容器名。
+    SMART_OAUTH_TOKEN_INFO_URI: http://smart-auth:3000/oauth/check_token
+    JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxMetaspaceSize=160m
+    TZ: Asia/Shanghai
+  depends_on:
+    oracle:
+      condition: service_healthy
+    redis:
+      condition: service_started
+    nacos-init:
+      condition: service_completed_successfully
+  networks:
+    - app-demo
+  labels: *demo-labels
+
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    platform: ${DOCKER_PLATFORM:?请先生成本任务本机环境文件}
+    container_name: smart-app-demo-oracle
+    environment:
+      ORACLE_PASSWORD: ${SMART_APP_DEMO_ORACLE_SYS_PASSWORD:?请先生成本任务本机环境文件}
+      APP_USER: ${SMART_APP_DEMO_DB_USERNAME:?请先生成本任务本机环境文件}
+      APP_USER_PASSWORD: ${SMART_APP_DEMO_DB_PASSWORD:?请先生成本任务本机环境文件}
+      SMART_APP_DEMO_OAUTH_CLIENT_SECRET: ${SMART_APP_DEMO_OAUTH_CLIENT_SECRET:?请先生成本任务本机环境文件}
+      SMART_APP_DEMO_USER_PASSWORD_BCRYPT: ${SMART_APP_DEMO_USER_PASSWORD_BCRYPT:?请先生成本任务本机环境文件}
+    volumes:
+      - app-demo-oracle-data:/opt/oracle/oradata
+      - ./oracle:/container-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+    networks:
+      - app-demo
+    labels: *demo-labels
+
+  redis:
+    image: redis:7-alpine
+    container_name: smart-app-demo-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - app-demo-redis-data:/data
+    networks:
+      - app-demo
+    labels: *demo-labels
+
+  nacos:
+    # 2.5.0 保持客户端使用的 Nacos HTTP API，且提供 linux/arm64 清单；1.4.6 没有 Apple Silicon 镜像。
+    image: nacos/nacos-server:v2.5.0
+    platform: ${DOCKER_PLATFORM:?请先生成本任务本机环境文件}
+    container_name: smart-app-demo-nacos
+    environment:
+      MODE: standalone
+      JVM_XMS: 192m
+      JVM_XMX: 256m
+      JVM_XMN: 96m
+      PREFER_HOST_MODE: hostname
+    ports:
+      - target: 8848
+        published: ${SMART_APP_DEMO_NACOS_HOST_PORT:?请先生成本任务本机环境文件}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    volumes:
+      - app-demo-nacos-data:/home/nacos/data
+      - app-demo-nacos-logs:/home/nacos/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8848/nacos/v1/console/health/readiness >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - app-demo
+    labels: *demo-labels
+
+  nacos-init:
+    image: curlimages/curl:8.10.1
+    container_name: smart-app-demo-nacos-init
+    entrypoint: ["/bin/sh", "/opt/app-demo/init-nacos.sh"]
+    environment:
+      NACOS_SERVER: http://smart-app-demo-nacos:8848
+      NACOS_NAMESPACE: smart-app-demo
+      NACOS_GROUP: app-demo
+      NACOS_CONFIG_DIR: /nacos-config
+    volumes:
+      - ./nacos:/opt/app-demo:ro
+      - ./nacos:/nacos-config:ro
+    depends_on:
+      nacos:
+        condition: service_healthy
+    networks:
+      - app-demo
+    labels: *demo-labels
+
+  auth:
+    <<: *java
+    image: smart/app-demo-auth:local
+    container_name: smart-app-demo-auth
+    build:
+      context: ../..
+      dockerfile: docker/app-demo/Dockerfile.jvm
+      args:
+        APP_JAR: smart/smart-auth/target/smart-auth.jar
+
+  upms:
+    <<: *java
+    image: smart/app-demo-upms:local
+    container_name: smart-app-demo-upms
+    build:
+      context: ../..
+      dockerfile: docker/app-demo/Dockerfile.jvm
+      args:
+        APP_JAR: smart/smart-upms/smart-upms-biz/target/smart-upms-biz.jar
+
+  platform:
+    <<: *java
+    image: smart/app-demo-platform:local
+    container_name: smart-app-demo-platform
+    build:
+      context: ../..
+      dockerfile: docker/app-demo/Dockerfile.jvm
+      args:
+        APP_JAR: smart-module/smart-platform/smart-platform-biz/target/smart-platform-biz.jar
+
+  gateway:
+    <<: *java
+    image: smart/app-demo-gateway:local
+    container_name: smart-app-demo-gateway
+    build:
+      context: ../..
+      dockerfile: docker/app-demo/Dockerfile.jvm
+      args:
+        APP_JAR: smart/smart-gateway/target/smart-gateway.jar
+    ports:
+      - target: 9990
+        published: ${SMART_APP_DEMO_GATEWAY_HOST_PORT:?请先生成本任务本机环境文件}
+        host_ip: 127.0.0.1
+        protocol: tcp
+
+volumes:
+  app-demo-oracle-data:
+    name: smart-app-demo-oracle-data
+    labels: *demo-labels
+  app-demo-redis-data:
+    name: smart-app-demo-redis-data
+    labels: *demo-labels
+  app-demo-nacos-data:
+    name: smart-app-demo-nacos-data
+    labels: *demo-labels
+  app-demo-nacos-logs:
+    name: smart-app-demo-nacos-logs
+    labels: *demo-labels
+
+networks:
+  app-demo:
+    name: smart-app-demo-network
+    labels: *demo-labels

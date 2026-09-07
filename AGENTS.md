@@ -15,4 +15,18 @@
 | 模块定位、技术栈与运行方式 | [项目 README](README.md)及对应模块 README |
 | 设计、接口和验收资料定位 | [文档目录](docs/README.md) |
 
+## 子项目入口
+
+子项目平铺为同级目录，禁止在子项目内另建 `.git`。新增子项目同步维护本清单与根 README；设计文档放对应子项目自己的 `docs/`。
+
+| 目录 | 范围 |
+| --- | --- |
+| `smart/` | 基础平台后端：网关、认证、UPMS、公共组件 |
+| `smart-module/` | 业务微服务后端：App、平台、设备桥接、数据、调度等 |
+| `smart-ui/` | Vue 2 管理后台 |
+| [smart-h5/](smart-h5/README.md) | 当前维护的 Next.js 微信 H5 |
+| `smart-h5-vue2/` | 历史 Vue2 H5，只读参考，不再维护或发布 |
+| [smart-app/](smart-app/README.md) | 新统一客户端，uni-app x + Vue 3，复用 Web、App 和小程序核心；真实后端和设备边界见其 docs |
+| [smart-app-uniapp/](smart-app-uniapp/README.md) | 现有 App，与 H5 并行；保留现有 uni-app / Vue 2 客户端和 `smart-module/smart-app` 对接 |
+
 项目政策按上述主题归属维护，具体功能的已确认目标和例外放在对应 `specs/` 中。用户当前明确的范围与授权优先；Skill 的通用流程不替代项目政策。

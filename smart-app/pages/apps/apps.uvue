@@ -1,0 +1,120 @@
+<template>
+  <ScreenFrame>
+    <view class="page-intro">
+      <text class="title">全部应用</text>
+      <text class="muted page-intro-note">按业务分类查找，把常用功能放到工作台</text>
+    </view>
+
+    <view class="search-box row">
+      <AppIcon name="search" size="sm" />
+      <input class="search-field" v-model="query" placeholder="搜索应用名称或用途" />
+    </view>
+
+    <view class="category-row row wrap">
+      <button
+        v-for="group in groups"
+        :key="group"
+        class="chip"
+        :class="category == group ? 'chip-active' : ''"
+        @click="category = group"
+      >
+        {{ group }}
+      </button>
+    </view>
+
+    <view class="section-head app-list-head">
+      <view>
+        <text class="heading">{{ category }}</text>
+        <text class="muted section-subtitle">仅显示当前账号已授权入口</text>
+      </view>
+      <text class="small">{{ entries.length }} 项应用</text>
+    </view>
+
+    <view class="module-grid row wrap">
+      <ModuleTile v-for="entry in entries" :key="entry.id" :entry="entry" :editable="true" />
+    </view>
+    <view v-if="entries.length == 0" class="card empty">
+      <view class="icon-box icon-box-gray empty-icon"><AppIcon name="settings" size="md" /></view>
+      <text class="text">没有找到可用应用</text>
+      <text class="muted empty-note">试试其他关键词，或联系管理员确认权限。</text>
+    </view>
+  </ScreenFrame>
+</template>
+
+<script setup lang="uts">
+import { computed, ref } from 'vue'
+import AppIcon from '../../components/AppIcon.uvue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import ModuleTile from '../../components/ModuleTile.uvue'
+import { guard, modules } from '../../state/session.uts'
+
+const query = ref('')
+const category = ref('全部')
+const groups = computed((): string[] => {
+  const result: string[] = ['全部']
+  const seen: string[] = ['全部']
+  modules().forEach((entry: any) => {
+    const value = entry.category
+    if (typeof value == 'string' && value.length > 0 && !seen.includes(value)) {
+      seen.push(value)
+      result.push(value)
+    }
+  })
+  return result
+})
+const entries = computed((): any[] => modules(query.value, category.value))
+
+/** 页面恢复时重新检查会话，避免退出后沿用旧界面状态。 */
+onShow(() => {
+  guard()
+})
+</script>
+
+<style>
+@import '../../styles/theme.css';
+
+.page-intro {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.page-intro-note {
+  margin-top: 4px;
+}
+
+.search-box {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid #e5e3e3;
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+
+.search-field {
+  flex: 1;
+  height: 46px;
+  box-sizing: border-box;
+  padding: 0 0 0 10px;
+  border: 0;
+  background-color: transparent;
+  color: #353333;
+  font-size: 15px;
+}
+
+.category-row {
+  margin-top: 16px;
+}
+
+.app-list-head {
+  align-items: flex-end;
+}
+
+.module-grid {
+  width: 100%;
+  align-items: stretch;
+  justify-content: space-between;
+}
+</style>

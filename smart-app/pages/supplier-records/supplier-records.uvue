@@ -1,0 +1,153 @@
+<template>
+  <ScreenFrame>
+    <view v-if="ready">
+      <view class="row between mb"
+        ><text class="title grow">供应商通行记录</text
+        ><button class="link" :disabled="supplierState.loading" @click="loadSupplierPassages">
+          {{ supplierState.loading ? '刷新中…' : '刷新' }}
+        </button></view
+      >
+      <text class="muted mb">查看每次进入、离开的人员与现场登记信息。</text>
+      <input
+        v-model="query"
+        class="field mb"
+        placeholder="搜索人员、供应商或厂牌编号"
+        :maxlength="100"
+      />
+      <view class="row wrap mb"
+        ><button
+          v-for="filter in filters"
+          :key="filter.id"
+          class="chip"
+          :class="direction == filter.id ? 'chip-active' : ''"
+          @click="direction = filter.id"
+        >
+          {{ filter.label }}
+        </button></view
+      >
+      <view v-if="supplierState.error.length > 0" class="error"
+        ><text class="error-text">{{ supplierState.error }}</text
+        ><button
+          class="btn secondary mt"
+          :disabled="supplierState.loading"
+          @click="loadSupplierPassages"
+        >
+          重新加载
+        </button></view
+      >
+      <text v-if="supplierState.loading" class="muted mb">正在加载通行记录…</text>
+      <text v-else-if="supplierState.error.length == 0 && entries.length > 0" class="small mb"
+        >{{ entries.length }} 条符合条件的记录</text
+      >
+      <view v-for="event in entries" :key="event.id" class="card passage-card">
+        <view class="row between mb"
+          ><text class="heading grow">{{ event.visitorName }}</text
+          ><text
+            class="passage-tag"
+            :class="event.direction == 'enter' ? 'entered-tag' : 'left-tag'"
+            >{{ event.direction == 'enter' ? '进入' : '离开' }}</text
+          ></view
+        >
+        <text class="text">{{ event.supplierName }}</text>
+        <text class="muted mt">{{ event.areaName }} · {{ postLabel(event.postId) }}</text>
+        <view class="divider" />
+        <text class="text">{{ timeLabel(event.occurredAt) }}</text>
+        <text class="small mt">登记人：{{ event.operatorName }}</text>
+        <text class="small">厂牌编号：{{ event.badgeId }}</text>
+        <text class="small">入厂申请：{{ event.admissionId }}</text>
+      </view>
+      <view
+        v-if="entries.length == 0 && !supplierState.loading && supplierState.error.length == 0"
+        class="card empty"
+      >
+        <text class="heading">{{
+          query.length > 0 || direction != 'all' ? '没有匹配的通行记录' : '暂无通行记录'
+        }}</text>
+        <text class="muted mt">{{
+          query.length > 0 || direction != 'all'
+            ? '调整搜索内容或通行方向后再试。'
+            : '厂牌核验后登记的进入、离开会显示在这里。'
+        }}</text>
+        <button
+          v-if="query.length > 0 || direction != 'all'"
+          class="btn secondary mt"
+          @click="resetFilters"
+        >
+          清除筛选
+        </button>
+        <button v-else-if="canExecute" class="btn secondary mt" @click="openScan">扫描厂牌</button>
+      </view>
+    </view>
+  </ScreenFrame>
+</template>
+<script setup lang="uts">
+/** 通行记录只展示供应商单次进出事件，申请审批状态不进入此页面。 */
+import { computed, ref } from 'vue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import {
+  clientState,
+  supplierState,
+  guard,
+  availablePosts,
+  loadSupplierPassages,
+} from '../../state/session.uts'
+import { hasPermission } from '../../core/catalog.uts'
+const ready = ref(false)
+const query = ref('')
+const direction = ref('all')
+const filters = [
+  { id: 'all', label: '全部' },
+  { id: 'enter', label: '进入' },
+  { id: 'leave', label: '离开' },
+]
+const canExecute = computed((): boolean => hasPermission(clientState.identity, 'supplier:execute'))
+const entries = computed((): any[] =>
+  supplierState.events.filter((event: any): boolean => {
+    if (direction.value != 'all' && event.direction != direction.value) return false
+    return (event.visitorName + ' ' + event.supplierName + ' ' + event.badgeId)
+      .toLowerCase()
+      .includes(query.value.trim().toLowerCase())
+  })
+)
+/** 恢复页面时按当前账号重新读取其有权查看的记录。 */
+onShow(() => {
+  ready.value = guard('supplier:read')
+  if (ready.value) loadSupplierPassages()
+})
+/** 授权岗位目录不足时显示原编号，避免猜测另一区域名称。 */
+function postLabel(id: string): string {
+  const found = availablePosts().find((post: any): boolean => post.id == id)
+  return found == null ? id : found.name
+}
+/** 标示服务端原始时间时区，保留足够精度区分连续登记。 */
+function timeLabel(value: string): string {
+  const parsed = new Date(value)
+  if (isNaN(parsed.getTime())) return value
+  return parsed.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+}
+/** 一次清除两个过滤条件，恢复当前账号可见的事件集合。 */
+function resetFilters(): void {
+  query.value = ''
+  direction.value = 'all'
+}
+/** 从空记录页进入厂牌核验，核验页重新检查执行权限。 */
+function openScan(): void {
+  uni.navigateTo({ url: '/pages/supplier-access/supplier-access' })
+}
+</script>
+<style>
+.passage-tag {
+  font-size: 13px;
+  line-height: 22px;
+  border-radius: 6px;
+  padding: 4px 12px;
+}
+.entered-tag {
+  background-color: #edf8f3;
+  color: #14724d;
+}
+.left-tag {
+  background-color: #eef4fd;
+  color: #225ca4;
+}
+</style>

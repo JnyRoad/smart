@@ -21,7 +21,6 @@ import com.tce.smart.platform.service.energy.EnergyProjectionService;
 import com.tce.smart.platform.service.energy.EnergyScopeDecision;
 import com.tce.smart.platform.service.energy.EnergyMonthToDateQuality;
 import com.tce.smart.platform.service.energy.EnergyParkDayQuality;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -51,7 +50,6 @@ import java.util.Objects;
 /** 以原始抄表历史为来源生成可重算的园区日投影。 */
 @Slf4j
 @Service
-@AllArgsConstructor
 public class EnergyProjectionServiceImpl implements EnergyProjectionService {
 	private static final String ELE = "ELE";
 	private static final String WATER = "WATER";
@@ -69,6 +67,21 @@ public class EnergyProjectionServiceImpl implements EnergyProjectionService {
 	private final SmtEnergyMeterDayLockMapper meterDayLockMapper;
 	private final PlatformTransactionManager transactionManager;
 	private final StringRedisTemplate redisTemplate;
+
+	public EnergyProjectionServiceImpl(SmtEnergyProjectionQueueMapper queueMapper, SmtEnergyMeterDayFactMapper factMapper,
+			SmtEnergyMeterScopeRuleMapper ruleMapper, SmtEnergyParkDayItemMapper itemMapper, SmtEnergyParkDayMapper parkDayMapper,
+			SmtEnergyParkDayLockMapper parkDayLockMapper, SmtEnergyMeterDayLockMapper meterDayLockMapper,
+			PlatformTransactionManager transactionManager, StringRedisTemplate redisTemplate) {
+		this.queueMapper = queueMapper;
+		this.factMapper = factMapper;
+		this.ruleMapper = ruleMapper;
+		this.itemMapper = itemMapper;
+		this.parkDayMapper = parkDayMapper;
+		this.parkDayLockMapper = parkDayLockMapper;
+		this.meterDayLockMapper = meterDayLockMapper;
+		this.transactionManager = transactionManager;
+		this.redisTemplate = redisTemplate;
+	}
 
 	@Value("${smart.energy.zone-id:Asia/Shanghai}")
 	private String zoneId;

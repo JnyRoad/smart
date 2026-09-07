@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: oracle.jdbc.OracleDriver
+    username: "${SMART_DB_USERNAME}"
+    password: "${SMART_DB_PASSWORD}"
+    url: "${SMART_DB_URL}"
+  yuto-secsytem:
+    login:
+      sign-on: ""
+      sign-token: ""
+    password:
+      update-url: ""
+      update-token: ""
+
+security:
+  oauth2:
+    client:
+      client-id: smart-app-demo
+      client-secret: "${SMART_APP_DEMO_OAUTH_CLIENT_SECRET}"
+      scope: server
+      ignore-urls:
+        - /actuator/**
+        - /api/user/simple
+        - /api/user/session
+        # 认证服务通过带 from 内部标记的既有字典 Feign 契约识别平台账号；仅本机演示放行该内部路径。
+        - /dict/**
+
+env:
+  test: false
+
+smart:
+  client:
+    employee-auth:
+      mode: demo

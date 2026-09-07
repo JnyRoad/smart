@@ -1,0 +1,260 @@
+<template>
+  <view class="scan-input">
+    <view class="scan-mode-row row between">
+      <view class="scan-current-mode row">
+        <view class="scan-mode-icon" :class="mode == 'hardware' ? 'scan-mode-icon-warm' : 'scan-mode-icon-blue'">
+          <AppIcon :name="mode == 'hardware' ? 'scan' : 'camera'" size="sm" />
+        </view>
+        <view class="scan-mode-copy">
+          <text class="text scan-mode-value">{{ mode == 'hardware' ? '扫码头' : '摄像头' }}</text>
+          <text class="small scan-mode-note">扫码方式在设置中统一管理</text>
+        </view>
+      </view>
+      <button class="link scan-settings-link" :disabled="locked" @click="openSettings">前往设置</button>
+    </view>
+
+    <slot />
+    <view v-if="mode == 'hardware'" class="scan-mode-panel">
+      <input
+        :key="inputCycle"
+        class="field scan-field"
+        v-model="raw"
+        :focus="focused"
+        :disabled="locked"
+        :maxlength="4097"
+        placeholder="按设备扫码键，或输入后确认"
+        confirm-type="done"
+        :confirm-hold="true"
+        @input="onInput"
+        @blur="onBlur"
+        @confirm="complete"
+      />
+      <text class="small scan-hint">按设备扫码键，扫描完成后自动添加。</text>
+    </view>
+
+    <view v-else class="scan-mode-panel scan-camera-panel">
+      <button class="btn secondary scan-camera-button" :disabled="locked" @click="camera">
+        {{ busy ? '正在识别…' : '打开摄像头扫码' }}
+      </button>
+    </view>
+
+    <view v-if="error.length > 0" class="error scan-error">
+      <text class="error-text">{{ error }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { computed, nextTick, ref, watch } from 'vue'
+import AppIcon from './AppIcon.uvue'
+import { clientState, errorMessage } from '../state/session.uts'
+import { createScanReceiver } from '../core/scan.uts'
+
+const props = defineProps<{ disabled?: boolean; resetKey?: number }>()
+const emit = defineEmits(['complete'])
+const mode = computed((): string => clientState.scanMode == 'hardware' ? 'hardware' : 'camera')
+const raw = ref('')
+const inputCycle = ref(0)
+const focused = ref(mode.value == 'hardware' && props.disabled != true)
+const busy = ref(false)
+const error = ref('')
+const locked = computed((): boolean => props.disabled == true || busy.value)
+
+/** 将已经归一化的完整结果交给所属业务页面，不直接发起核验或通行写入。 */
+function handleReceived(value: string, source: string): void {
+  emit('complete', value, source)
+}
+
+let receiver = createScanReceiver(handleReceived)
+
+/** 在下一轮渲染中重新启用焦点，确保重建后的输入控件能接收连续扫码。 */
+function focusInputOnNextTick(): void {
+  nextTick(() => {
+    focused.value = !locked.value && mode.value == 'hardware'
+  })
+}
+
+/** 设置页保存方式后清空旧输入并重建接收器，避免旧扫码状态跨方式复用。 */
+function resetScanSession(): void {
+  receiver = createScanReceiver(handleReceived)
+  raw.value = ''
+  focused.value = false
+  inputCycle.value += 1
+  error.value = ''
+  focusInputOnNextTick()
+}
+
+/** 外部业务完成一次事件后递增 resetKey，重新开启连续扫码窗口。 */
+watch(() => props.resetKey, () => resetScanSession())
+
+/** 设置页变更设备扫码方式后同步当前页面，并恢复相应输入焦点。 */
+watch(() => clientState.scanMode, () => resetScanSession())
+
+/** 供应商核验或其他业务提交时可暂时锁住输入、确认和相机。 */
+watch(
+  () => props.disabled,
+  (value: boolean | undefined) => {
+    focused.value = value != true && mode.value == 'hardware'
+  },
+)
+
+/** 交给核心协调器接收结果；重复和尾随事件会清空控件回显。 */
+function receive(value: string, source: string, event: 'input' | 'confirm' | 'camera'): void {
+  if (locked.value) return
+  try {
+    receiver.receive(value, source, event)
+    error.value = ''
+    raw.value = ''
+    focused.value = false
+    // HBuilderX Web输入同步有100ms节流；重建输入避免旧回显覆盖下一次扫码。
+    inputCycle.value += 1
+    focusInputOnNextTick()
+  } catch (issue) {
+    // 异常码不能占满输入框，下一次扫码应从空输入开始；错误提示仍保留。
+    resetScanSession()
+    error.value = errorMessage(issue)
+  }
+}
+
+/** 仅遇到完整结束符自动接收；逐字符输入不会触发业务查询。 */
+function onInput(event: any): void {
+  if (locked.value) return
+  raw.value = event.detail.value
+  if (/[\r\n]$/.test(raw.value)) receive(raw.value, 'hardware', 'input')
+}
+
+/** 回车前的失焦事件带即时值，避免依赖尚未同步的输入模型。 */
+function onBlur(event: any): void {
+  focused.value = false
+  if (!locked.value && typeof event.detail.value == 'string') raw.value = event.detail.value
+}
+
+/** 设备回车优先使用事件即时值；没有即时值时使用失焦同步的最新值。 */
+function complete(event: any): void {
+  const value = event?.detail?.value
+  receive(typeof value == 'string' ? value : raw.value, 'hardware', 'confirm')
+}
+
+/** 打开统一扫码设置页，不在业务页面修改设备扫码方式。 */
+function openSettings(): void {
+  if (locked.value) return
+  uni.navigateTo({ url: '/pages/settings/settings' })
+}
+
+/** 相机只在支持的平台调用；Web 与支付宝未适配时明确说明，取消不视为故障。 */
+function camera(): void {
+  if (locked.value) return
+  error.value = ''
+  // #ifdef H5 || MP-ALIPAY
+  error.value = '当前平台暂不支持相机扫码，请前往设置选择扫码头'
+  return
+  // #endif
+  // #ifdef APP || MP-WEIXIN
+  busy.value = true
+  uni.scanCode({
+    onlyFromCamera: true,
+    success: (result) => {
+      busy.value = false
+      receive(result.result, 'camera', 'camera')
+    },
+    fail: (issue) => {
+      if (!issue.errMsg.toLowerCase().includes('cancel'))
+        error.value = '无法完成扫码，请检查相机权限后重试'
+    },
+    complete: () => {
+      busy.value = false
+      focused.value = mode.value == 'hardware' && props.disabled != true
+    },
+  })
+  // #endif
+}
+</script>
+
+<style>
+@import '../styles/theme.css';
+
+.scan-input {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border: 1px solid #efeeee;
+  border-radius: 16px;
+  background-color: #ffffff;
+}
+
+.scan-mode-row {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.scan-current-mode {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+
+.scan-mode-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+}
+
+.scan-mode-icon-warm {
+  background-color: #fff1e3;
+}
+
+.scan-mode-icon-blue {
+  background-color: #edf4ff;
+}
+
+.scan-mode-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-left: 8px;
+}
+
+.scan-mode-value {
+  color: #353333;
+  font-weight: 600;
+}
+
+.scan-mode-note {
+  margin-top: 1px;
+}
+
+.scan-settings-link {
+  flex-shrink: 0;
+  margin-left: 10px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.scan-mode-panel {
+  margin-top: 0;
+}
+
+.scan-field {
+  margin-top: 0;
+  background-color: #ffffff;
+}
+
+.scan-hint {
+  margin-top: 4px;
+}
+
+.scan-camera-button {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 10px;
+}
+
+.scan-error {
+  margin-bottom: 0;
+}
+</style>

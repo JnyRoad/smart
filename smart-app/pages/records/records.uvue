@@ -1,0 +1,214 @@
+<template>
+  <ScreenFrame
+    ><view v-if="ready"
+      ><view v-if="view == 'execute'" class="card execution-post">
+        <text class="label">当前安检岗位</text>
+        <text class="heading mt">{{ postReady ? postName() : '请选择岗位' }}</text>
+        <text class="small mt">{{ postReady ? '办理前请核对岗位。岗位变更请前往设置。' : '请先在设置中选择并保存岗位，再搜索或扫描单据。' }}</text>
+      </view>
+      <view class="row between mb">
+        <text class="title">{{ title }}</text>
+        <button class="link" :disabled="clientState.loading || blocked" @click="reload">{{ clientState.loading ? '刷新中…' : '刷新' }}</button>
+      </view>
+      <view class="record-search mb">
+        <input :key="inputCycle" class="field search-field" :disabled="blocked || cameraBusy" :value="query" :focus="searchFocused" :selection-start="selectionStart" :selection-end="selectionEnd" :confirm-hold="true" :maxlength="4097" confirm-type="search" placeholder="搜索单据、申请人或封条" @input="onSearchInput" @confirm="confirmSearch" @blur="searchFocused = false" />
+        <button v-if="query.length > 0" class="search-clear" aria-label="清空搜索" :disabled="blocked || cameraBusy" @click="clearSearch"><AppIcon name="close" size="sm" /></button>
+        <button v-if="view == 'execute' && clientState.scanMode == 'camera'" class="search-camera" aria-label="摄像头扫码" :disabled="blocked || cameraBusy || clientState.loading || clientState.error.length > 0" @click="cameraSearch"><AppIcon name="camera" size="sm" /><text class="search-camera-label">{{ cameraBusy ? '识别中' : '扫码' }}</text></button>
+      </view>
+      <text v-if="view == 'execute' && !blocked" class="small mb">{{ clientState.scanMode == 'hardware' ? '扫码或输入即筛选，回车后可继续扫下一张单据。' : '输入即筛选，也可点击右侧扫码。' }}</text>
+      <view v-if="!blocked && searchError.length > 0" class="error"><text class="error-text">{{ searchError }}</text></view>
+      <view v-if="!blocked && clientState.error.length > 0" class="error"
+        ><text class="error-text">{{ clientState.error }}</text></view
+      ><text v-if="!blocked && clientState.loading" class="muted mb">正在加载…</text>
+      <view v-for="item in entries" :key="item.id" class="card record-card"
+        ><view class="row between mb"
+          ><text class="small grow">{{ item.id }}</text
+          ><StatusBadge :status="item.status" /></view
+        ><text class="heading">{{ item.title }}</text
+        ><text class="muted mt">{{ item.applicantName }} · {{ item.seals.length }} 枚封条</text
+        ><button class="btn mt" @click="open(item.id)">查看详情</button></view
+      >
+      <view
+        v-if="!blocked && entries.length == 0 && !clientState.loading && clientState.error.length == 0"
+        class="card empty"
+        ><text class="heading">暂无符合条件的记录</text
+        ><text class="muted mt">新的业务记录会显示在这里。</text></view
+      ></view
+    ><view v-else-if="unsupported" class="card empty"
+      ><text class="heading">{{ legacySupplier ? '此入口已调整' : '无效业务入口' }}</text
+      ><text class="muted mt">{{
+        legacySupplier
+          ? '供应商进出使用厂牌核验及独立通行记录，不在 App 内申请审批。'
+          : '无法识别此业务，请从工作台重新打开。'
+      }}</text
+      ><button class="btn secondary mt" @click="backToWorkbench">返回工作台</button></view
+    ></ScreenFrame
+  >
+</template>
+<script setup lang="uts">
+import { ref, computed, nextTick, watch } from 'vue'
+import AppIcon from '../../components/AppIcon.uvue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import StatusBadge from '../../components/StatusBadge.uvue'
+import { clientState, guard, loadApplications, loadExecutionApplications, hasExecutionPost, postName, errorMessage } from '../../state/session.uts'
+import { canAct } from '../../core/workflow.uts'
+import { normalizeScan } from '../../core/scan.uts'
+const postReady = computed((): boolean => hasExecutionPost())
+const blocked = computed((): boolean => view.value == 'execute' && !postReady.value)
+const kind = ref('item-pass')
+const unsupported = ref(false)
+const legacySupplier = ref(false)
+const view = ref('records')
+const query = ref('')
+const ready = ref(false)
+const pageActive = ref(false)
+const searchFocused = ref(false)
+const inputCycle = ref(0)
+const selectionStart = ref(-1)
+const selectionEnd = ref(-1)
+const searchError = ref('')
+const cameraBusy = ref(false)
+let cameraEpoch = 0
+const permission = computed(
+  (): string => kind.value + ':' + (view.value == 'records' ? 'read' : view.value)
+)
+const title = computed(
+  (): string =>
+    '物品放行' + (view.value == 'approve' ? '审批' : view.value == 'execute' ? '执行' : '记录')
+)
+const entries = computed((): any[] =>
+  blocked.value ? [] : clientState.applications.filter((item: any): boolean => {
+    if (item.kind != kind.value) return false
+    if (
+      view.value == 'approve' &&
+      (item.status != 'pending' || item.applicantId == clientState.identity?.subjectId)
+    )
+      return false
+    if (view.value == 'execute' && !canAct(item, clientState.identity, clientState.postId, 'depart') && !canAct(item, clientState.identity, clientState.postId, 'arrive')) return false
+    return (item.title + ' ' + item.id + ' ' + item.applicantName + ' ' + item.seals.join(' '))
+      .toLowerCase()
+      .includes(query.value.trim().toLowerCase())
+  })
+)
+/** 读取限定的页面参数，业务数据与权限另由会话层校验。 */
+onLoad((options) => {
+  unsupported.value = options['kind'] != null && options['kind'] != 'item-pass'
+  legacySupplier.value = options['kind'] == 'supplier'
+  view.value = ['approve', 'execute'].includes(options['view'] ?? '') ? options['view']! : 'records'
+  ready.value = !unsupported.value && guard(permission.value)
+  if (unsupported.value) guard()
+})
+/** 页面恢复时重新检查会话，避免退出后沿用旧界面状态。 */
+onShow(() => {
+  pageActive.value = true
+  if (ready.value && guard(permission.value)) { clearSearchState(); reload(); focusSearch() }
+})
+onReady(() => focusSearch())
+onHide(() => { pageActive.value = false; cancelCamera(); searchFocused.value = false })
+onUnload(() => { pageActive.value = false; cancelCamera(); searchFocused.value = false })
+/** 设置或会话变化后失效旧相机结果，不能把上个岗位的查询带入新上下文。 */
+watch((): string => clientState.postId + ':' + (clientState.identity?.subjectId ?? '') + ':' + clientState.scanMode, () => {
+  cancelCamera()
+  clearSearchState()
+  focusSearch()
+})
+/** 返回工作台，由本地目录呈现当前有效入口。 */
+function backToWorkbench(): void {
+  uni.switchTab({ url: '/pages/workbench/workbench' })
+}
+/** 打开已展示单据的详情，详情页重新校验会话。 */
+function open(id: string): void {
+  if (!guard(permission.value) || blocked.value) return
+  uni.navigateTo({ url: '/pages/detail/detail?id=' + encodeURIComponent(id) + ('&view=' + (view.value == 'records' ? 'read' : view.value)) })
+}
+/** 岗位是执行查询的前置条件，普通记录和审批保持自己的读取权限。 */
+async function reload(): Promise<void> {
+  if (!guard(permission.value)) return
+  if (view.value == 'execute') { if (postReady.value) await loadExecutionApplications() }
+  else await loadApplications()
+}
+/** 只在可用的硬件执行搜索框自动聚焦，审批和普通记录不抢占焦点。 */
+function focusSearch(selectAll: boolean = false): void {
+  searchFocused.value = false
+  selectionStart.value = selectAll ? 0 : -1
+  selectionEnd.value = selectAll ? query.value.length : -1
+  nextTick(() => {
+    searchFocused.value = pageActive.value && ready.value && view.value == 'execute' && !blocked.value && !cameraBusy.value && clientState.scanMode == 'hardware'
+  })
+}
+/** 查询直接响应输入事件，绕过模型节流；每个字符只筛选内存列表。 */
+function onSearchInput(event: any): void {
+  if (!ready.value || blocked.value || cameraBusy.value) return
+  const value = event.detail.value
+  if (typeof value != 'string') return
+  searchError.value = ''
+  selectionStart.value = -1
+  selectionEnd.value = -1
+  query.value = value.replace(/[\r\n]+$/, '')
+  if (/[\r\n]$/.test(value)) confirmSearch(event)
+}
+/** 回车归一化完整编号并选中，下一次扫码覆盖当前编号；不导航或执行业务。 */
+function confirmSearch(event: any): void {
+  if (!ready.value || blocked.value || cameraBusy.value) return
+  const value = typeof event?.detail?.value == 'string' ? event.detail.value : query.value
+  try {
+    query.value = value.trim().length == 0 ? '' : normalizeScan(value)
+    searchError.value = ''
+  } catch (issue) {
+    query.value = ''
+    searchError.value = errorMessage(issue)
+  }
+  inputCycle.value += 1
+  focusSearch(true)
+}
+/** 清除筛选不重新请求列表，保留当前授权岗位。 */
+function clearSearchState(): void {
+  query.value = ''
+  searchError.value = ''
+  inputCycle.value += 1
+}
+function clearSearch(): void {
+  if (!ready.value || blocked.value || cameraBusy.value) return
+  clearSearchState()
+  focusSearch()
+}
+/** 相机回调只能属于当前仍然活跃的页面上下文。 */
+function cancelCamera(): void { cameraEpoch += 1; cameraBusy.value = false }
+function cameraContext(): string { return (clientState.identity?.subjectId ?? '') + ':' + clientState.postId + ':' + clientState.scanMode }
+function acceptsCamera(epoch: number, context: string): boolean {
+  return epoch == cameraEpoch && pageActive.value && ready.value && !blocked.value && context == cameraContext() && clientState.scanMode == 'camera'
+}
+/** 相机结果进入同一实时搜索框；未适配平台明确提示，取消保留原查询。 */
+function cameraSearch(): void {
+  if (!pageActive.value || !ready.value || view.value != 'execute' || !guard('item-pass:execute') || blocked.value || clientState.scanMode != 'camera' || cameraBusy.value || clientState.loading || clientState.error.length > 0) return
+  searchError.value = ''
+  // #ifdef H5 || MP-ALIPAY
+  searchError.value = '当前平台暂不支持相机扫码，请前往设置选择扫码头'
+  return
+  // #endif
+  // #ifdef APP || MP-WEIXIN
+  const epoch = ++cameraEpoch
+  const context = cameraContext()
+  cameraBusy.value = true
+  uni.scanCode({
+    onlyFromCamera: true,
+    success: (result) => {
+      if (!acceptsCamera(epoch, context)) return
+      try { query.value = normalizeScan(result.result); inputCycle.value += 1 }
+      catch (issue) { searchError.value = errorMessage(issue) }
+    },
+    fail: (issue) => {
+      if (acceptsCamera(epoch, context) && !issue.errMsg.toLowerCase().includes('cancel')) searchError.value = '无法完成扫码，请检查相机权限后重试'
+    },
+    complete: () => { if (acceptsCamera(epoch, context)) cameraBusy.value = false },
+  })
+  // #endif
+}
+</script>
+<style>
+.record-search { display: flex; flex-direction: row; align-items: center; min-height: 50px; border: 1px solid #d8d6d6; border-radius: 10px; background-color: #ffffff; }
+.search-field { flex: 1; width: 0; min-width: 0; margin: 0; border: 0; background-color: transparent; }
+.search-clear { display: flex; align-items: center; justify-content: center; width: 44px; height: 48px; flex-shrink: 0; margin: 0; padding: 0; border: 0; background-color: transparent; }
+.search-camera { display: flex; flex-direction: row; align-items: center; justify-content: center; min-width: 76px; height: 48px; flex-shrink: 0; margin: 0; padding: 0 10px; border: 0; border-left: 1px solid #e5e3e3; border-radius: 0 8px 8px 0; background-color: #fff1e3; }
+.search-camera-label { margin-left: 6px; color: #984500; font-size: 13px; line-height: 20px; }
+</style>

@@ -79,6 +79,25 @@ public class SecurityUtils {
 
 	/**
 	 * 判断密码是否为强密码
+	 *
+	 * @param username 用户名
+	 * @param password 密码
+	 * @return 是否满足既有强密码策略
+	 */
+	public static Boolean isStrongPwd(String username, String password) {
+		boolean strongPassword = StrUtil.isNotBlank(password) && checkPassword(password);
+		if (!strongPassword) {
+			log.info("账号{}密码为非强密码", username);
+		}
+		return strongPassword;
+	}
+
+	/**
+	 * 判断密码是否为强密码
+	 *
+	 * 保留旧入口的 URI 语义：只有 OAuth 密码登录才检查查询参数，其他入口继续返回 true。
+	 *
+	 * @param username 用户名
 	 * @param request
 	 * @return
 	 */
@@ -87,10 +106,7 @@ public class SecurityUtils {
 		if (StringUtils.containsAnyIgnoreCase(uri, SecurityConstants.OAUTH_TOKEN_URL)) {
 			Map<String, String> paramMap = HttpUtil.decodeParamMap(request.getQueryString(), CharsetUtil.UTF_8);
 			String password = paramMap.get(SecurityConstants.PASSWORD);
-			if(!checkPassword(password)){
-				log.info("账号{}密码为非强密码",username);
-				return false;
-			}
+			return isStrongPwd(username, password);
 		}
 		return true;
 	}

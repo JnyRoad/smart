@@ -3,7 +3,6 @@ package com.tce.smart.platform.api.dto.resp.admittance;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.Serializable;
 
@@ -23,6 +22,12 @@ private static final long serialVersionUID = 1L;
 	@ApiModelProperty("ID")
 	@JsonFormat(shape= JsonFormat.Shape.STRING)
 	private Long id;
+
+	/**
+	 * 使用人员记录ID生成的厂牌二维码PNG Base64
+	 */
+	@ApiModelProperty("人员记录ID厂牌二维码PNG Base64")
+	private String recordQrCode;
 
 	/**
 	 * 预约ID

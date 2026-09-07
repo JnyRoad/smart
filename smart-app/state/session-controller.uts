@@ -1,0 +1,48 @@
+/** 会话控制器只维护内存状态，通过代次隔离迟到响应与账号切换。 */
+
+/** 创建会话控制器；onChange用于清理UI上下文，任何退出会使在途登录失效。 */
+export function createSessionController(api: any, onChange: any): any {
+  let generation = 0
+  let session: any = null
+  /** 清空本地认证，通知界面同步清除权限和岗位。 */
+  function logout(): void {
+    generation += 1
+    session = null
+    onChange(null)
+  }
+  /** 获取仍有效的会话；过期时清理状态，不从持久存储恢复权限。 */
+  function current(): any {
+    if (session != null && session.mode == 'live' && session.expiresAt <= Date.now()) logout()
+    return session
+  }
+  return {
+    current,
+    logout,
+    /** 登录先清除旧身份，迟到结果不能重新激活退出后的账号。 */
+    async login(staffNo: string, password: string): Promise<any> {
+      logout()
+      const started = generation
+      const result = await api.login(staffNo, password)
+      if (generation != started) return null
+      if (result.expiresAt <= Date.now()) throw new Error('登录凭据已过期，请重新登录')
+      session = {
+        mode: 'live',
+        token: result.token,
+        expiresAt: result.expiresAt,
+        identity: result.identity,
+      }
+      onChange(session)
+      return session
+    },
+    /** 显式建立无真实凭据的演示会话，只供隔离的演示适配器使用。 */
+    enterDemo(identity: any): void {
+      logout()
+      session = { mode: 'demo', token: '', expiresAt: 0, identity }
+      onChange(session)
+    },
+    /** 返回会话代次供业务请求丢弃账号切换前的迟到结果。 */
+    version(): number {
+      return generation
+    },
+  }
+}

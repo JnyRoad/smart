@@ -1,0 +1,134 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/workbench/workbench",
+      "style": {
+        "navigationBarTitleText": "工作台",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/todos/todos",
+      "style": {
+        "navigationBarTitleText": "待办",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/messages/messages",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/mine/mine",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/apps/apps",
+      "style": {
+        "navigationBarTitleText": "全部应用"
+      }
+    },
+    {
+      "path": "pages/settings/settings",
+      "style": {
+        "navigationBarTitleText": "设置"
+      }
+    },
+    {
+      "path": "pages/posts/posts",
+      "style": {
+        "navigationBarTitleText": "现场岗位"
+      }
+    },
+    {
+      "path": "pages/application/application",
+      "style": {
+        "navigationBarTitleText": "申请"
+      }
+    },
+    {
+      "path": "pages/records/records",
+      "style": {
+        "navigationBarTitleText": "业务记录"
+      }
+    },
+    {
+      "path": "pages/detail/detail",
+      "style": {
+        "navigationBarTitleText": "单据详情"
+      }
+    },
+    {
+      "path": "pages/scan/scan",
+      "style": {
+        "navigationBarTitleText": "扫码定位"
+      }
+    },
+    {
+      "path": "pages/supplier-access/supplier-access",
+      "style": {
+        "navigationBarTitleText": "供应商厂牌核验"
+      }
+    },
+    {
+      "path": "pages/supplier-records/supplier-records",
+      "style": {
+        "navigationBarTitleText": "供应商通行记录"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "裕慧家园",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F7F7F7"
+  },
+  "tabBar": {
+    "color": "#6F6C6B",
+    "selectedColor": "#D95F00",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "fontSize": "12px",
+    "height": "60px",
+    "iconWidth": "24px",
+    "list": [
+      {
+        "pagePath": "pages/workbench/workbench",
+        "text": "工作台",
+        "iconPath": "static/icons/tab-workbench.png",
+        "selectedIconPath": "static/icons/tab-workbench-active.png"
+      },
+      {
+        "pagePath": "pages/todos/todos",
+        "text": "待办",
+        "iconPath": "static/icons/tab-todos.png",
+        "selectedIconPath": "static/icons/tab-todos-active.png"
+      },
+      {
+        "pagePath": "pages/messages/messages",
+        "text": "消息",
+        "iconPath": "static/icons/tab-messages.png",
+        "selectedIconPath": "static/icons/tab-messages-active.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "static/icons/tab-mine.png",
+        "selectedIconPath": "static/icons/tab-mine-active.png"
+      }
+    ]
+  }
+}

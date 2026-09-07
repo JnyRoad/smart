@@ -1,0 +1,90 @@
+<template>
+  <ScreenFrame>
+    <view class="page-intro-row row between">
+      <view class="page-intro">
+        <text class="title">消息</text>
+        <text class="muted page-intro-note">审批和业务处理的最新提醒</text>
+      </view>
+      <button v-if="clientState.mode == 'demo' && clientState.unread" class="link" @click="clientState.unread = false">
+        标记已读
+      </button>
+    </view>
+
+    <view v-if="clientState.mode == 'demo'" class="message-card card">
+      <view class="row message-card-head">
+        <view class="icon-box icon-box-blue"><AppIcon name="messages" size="md" /></view>
+        <view class="grow message-heading">
+          <view class="row between">
+            <text class="heading">欢迎体验裕慧家园</text>
+            <text class="pill" :class="clientState.unread ? 'pill-warm' : ''">{{ clientState.unread ? '未读' : '已读' }}</text>
+          </view>
+          <text class="small message-time">演示系统消息</text>
+        </view>
+      </view>
+      <text class="text message-body">你可以切换演示账号，体验从申请、审批到现场执行的协作过程。</text>
+    </view>
+
+    <view v-else class="card empty">
+      <view class="icon-box icon-box-gray empty-icon"><AppIcon name="messages" size="md" /></view>
+      <text class="heading">消息服务待接入</text>
+      <text class="muted empty-note">开通后可在这里接收审批与业务通知。</text>
+    </view>
+  </ScreenFrame>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '../../components/AppIcon.uvue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import { clientState, guard } from '../../state/session.uts'
+
+/** 页面恢复时重新检查会话，避免退出后沿用旧界面状态。 */
+onShow(() => {
+  guard()
+})
+</script>
+
+<style>
+@import '../../styles/theme.css';
+
+.page-intro-row {
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.page-intro {
+  display: flex;
+  flex-direction: column;
+}
+
+.page-intro-note {
+  margin-top: 4px;
+}
+
+.message-card {
+  padding: 18px;
+}
+
+.message-card-head {
+  align-items: flex-start;
+}
+
+.message-heading {
+  margin-left: 12px;
+}
+
+.message-time {
+  margin-top: 6px;
+}
+
+.message-body {
+  margin-top: 18px;
+}
+
+.empty-icon {
+  margin-bottom: 12px;
+}
+
+.empty-note {
+  margin-top: 4px;
+}
+</style>

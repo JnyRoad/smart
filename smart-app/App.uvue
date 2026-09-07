@@ -1,0 +1,8 @@
+<script setup lang="uts">
+import { restoreDevicePreferences } from './state/session.uts'
+/** 启动仅恢复设备偏好；登录凭据与权限不会从磁盘恢复。 */
+onLaunch(() => { restoreDevicePreferences() })
+</script>
+<style>
+@import './styles/theme.css';
+</style>

@@ -2,6 +2,7 @@ package com.tce.smart.admin.api.feign;
 
 import com.tce.smart.admin.api.dto.SmtStaffDTO;
 import com.tce.smart.admin.api.dto.StaffPerfectReqDTO;
+import com.tce.smart.admin.api.dto.PersonnelAuthSourceDTO;
 import com.tce.smart.common.core.constant.SecurityConstants;
 import com.tce.smart.common.core.constant.ServiceNameConstants;
 import com.tce.smart.common.core.model.Result;
@@ -19,6 +20,11 @@ import java.util.List;
  **/
 @FeignClient(value = ServiceNameConstants.PLATFORM_SERVICE)
 public interface RemoteStaffService {
+
+	/** App 统一登录的人员认证来源，由平台主数据裁定，不允许调用方自行声明。 */
+	@GetMapping("/internal/v1/personnel/{staffNo}/auth-source")
+	Result<PersonnelAuthSourceDTO> getAppAuthSource(@PathVariable("staffNo") String staffNo,
+			@RequestHeader(SecurityConstants.FROM) String from);
 
 	@GetMapping("/staff/simple/get/badge")
 	Result<SmtStaffDTO> getSimpleSttaffByBadge(@RequestParam("badge") String badge);

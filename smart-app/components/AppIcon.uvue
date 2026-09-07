@@ -1,0 +1,83 @@
+<template>
+  <view v-if="name == 'close'" class="app-icon close-icon" :class="sizeClass">
+    <view class="close-stroke close-forward" /><view class="close-stroke close-backward" />
+  </view>
+  <image v-else class="app-icon" :class="sizeClass" :src="iconPath" mode="aspectFit" />
+</template>
+
+<script setup lang="uts">
+import { computed } from 'vue'
+
+/**
+ * 使用固定的本地图标目录，避免服务端返回任意路径或让页面依赖平台 emoji。
+ * selected 只用于页签类图标，业务入口保持自身的语义颜色。
+ */
+const props = defineProps<{ name: string; selected?: boolean; size?: string }>()
+
+const sizeClass = computed((): string => {
+  if (props.size == 'sm') return 'icon-sm'
+  if (props.size == 'lg') return 'icon-lg'
+  return 'icon-md'
+})
+
+const iconPath = computed((): string => {
+  const active = props.selected == true ? '-active' : ''
+  switch (props.name) {
+    case 'workbench':
+      return '/static/icons/tab-workbench' + active + '.png'
+    case 'todos':
+      return '/static/icons/tab-todos' + active + '.png'
+    case 'messages':
+      return '/static/icons/tab-messages' + active + '.png'
+    case 'mine':
+      return '/static/icons/tab-mine' + active + '.png'
+    case 'item-pass':
+      return '/static/icons/module-release.png'
+    case 'supplier':
+      return '/static/icons/module-supplier.png'
+    case 'posts':
+      return '/static/icons/module-posts.png'
+    case 'settings':
+      return '/static/icons/module-settings.png'
+    case 'scan':
+      return '/static/icons/scan.png'
+    case 'camera':
+      return '/static/icons/camera.png'
+    case 'search':
+      return '/static/icons/search.png'
+    case 'chevron-down':
+      return '/static/icons/chevron-down.png'
+    case 'chevron-right':
+      return '/static/icons/chevron-right.png'
+    default:
+      return '/static/icons/tab-workbench.png'
+  }
+})
+</script>
+
+<style>
+@import '../styles/theme.css';
+
+.close-icon { position: relative; }
+.close-stroke { position: absolute; width: 16px; height: 2px; left: 1px; top: 8px; background-color: #595757; border-radius: 1px; }
+.close-forward { transform: rotate(45deg); }
+.close-backward { transform: rotate(-45deg); }
+.app-icon {
+  flex-shrink: 0;
+}
+
+.icon-sm {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-md {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-lg {
+  width: 32px;
+  height: 32px;
+}
+</style>

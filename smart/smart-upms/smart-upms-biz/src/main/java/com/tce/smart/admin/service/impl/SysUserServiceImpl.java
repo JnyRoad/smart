@@ -20,6 +20,7 @@ import com.tce.smart.admin.api.feign.RemoteStaffService;
 import com.tce.smart.admin.api.vo.MenuVO;
 import com.tce.smart.admin.api.vo.UserVO;
 import com.tce.smart.admin.mapper.SysUserMapper;
+import com.tce.smart.admin.service.client.ClientEmployeeCredentialAdapter;
 import com.tce.smart.admin.service.*;
 import com.tce.smart.common.core.constant.AuthConstants;
 import com.tce.smart.common.core.constant.CommonConstants;
@@ -86,8 +87,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Autowired
 	private StringRedisTemplate stringRedisTemplate;
 
-    @Autowired
+	@Autowired
 	private RemoteStaffService remoteStaffService;
+	@Autowired
+	private ClientEmployeeCredentialAdapter clientEmployeeCredentialAdapter;
 
 	@Autowired
 	private RemoteParkService remoteParkService;
@@ -180,10 +183,15 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			userInfo.setPermissions(ArrayUtil.toArray(permissions, String.class));
 		}
 
-		//查询员工计薪类型
-		Result<EvwEmphrYsRespDTO> dataResult = remoteEvwEmphrYsService.info(sysUser.getUsername(), SecurityConstants.FROM_IN);
-		if(dataResult.isSuccess() && Objects.nonNull(dataResult.getData())){
-			userInfo.setSalaryTypeName(dataResult.getData().getSalarytypeName());
+		// 计薪类型是补充展示信息，不能因 smart-data 暂不可用而阻断统一登录。
+		// 正常可用时保持原有填充行为；异常只省略该可选字段。
+		try {
+			Result<EvwEmphrYsRespDTO> dataResult = remoteEvwEmphrYsService.info(sysUser.getUsername(), SecurityConstants.FROM_IN);
+			if (dataResult != null && dataResult.isSuccess() && Objects.nonNull(dataResult.getData())) {
+				userInfo.setSalaryTypeName(dataResult.getData().getSalarytypeName());
+			}
+		} catch (Exception failure) {
+			log.debug("未获取用户计薪类型，继续返回基础用户信息：{}", failure.getClass().getSimpleName());
 		}
 		return userInfo;
 	}
@@ -309,7 +317,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				}else if(data.size() == 1){
 					SysUser sysUser = new SysUser();
 					sysUser.setUsername(data.get(0).getBadge());
-					String pwd = data.get(0).getCertno().substring(data.get(0).getCertno().length() - 6);
+					String pwd = certificateSuffix(data.get(0));
 					sysUser.setPassword(ENCODER.encode(pwd));
 					sysUser.setCreateTime(LocalDateTime.now());
 					sysUser.setUpdateTime(LocalDateTime.now());
@@ -453,18 +461,84 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 	@Override
 	public Boolean simpleLogin(String username, String password) {
-		Boolean isSuccess = false;
 		if (StringUtils.isNotBlank(loginUrl)) {
 			try {
 				Cache cache = cacheManager.getCache("user_details");
 				if (cache != null && cache.get(username) != null) {
 					return Boolean.TRUE;
 				}
+			} catch (TCEException tce) {
+				throw tce;
+			} catch (Exception e) {
+				log.error("登陆服务异常",e);
+				throw new TCEException("登录服务异常");
+			}
+		}
+		return authenticateInternal(username, password, false);
+	}
+
+	@Override
+	public Boolean authenticate(String username, String password) {
+		return authenticateInternal(username, password, true);
+	}
+
+	/**
+	 * App 会话认证的来源路由。外包和派遣人员只校验本系统账号；正式员工只交给
+	 * DHR 适配器。旧 Web、OAuth、/simple 与缓存兼容路径均不调用此方法。
+	 */
+	@Override
+	public Boolean authenticateAppSession(String username, String password) {
+		if (StringUtils.isBlank(username) || StringUtils.isBlank(password)) return Boolean.FALSE;
+		String source = resolveClientCredentialSource(username.trim());
+		if ("system".equals(source)) return verifyClientSystemCredential(username.trim(), password);
+		if ("dhr".equals(source)) return clientEmployeeCredentialAdapter.verify(username.trim(), password);
+		return Boolean.FALSE;
+	}
+
+	private String resolveClientCredentialSource(String username) {
+		try {
+			Result<PersonnelAuthSourceDTO> result = remoteStaffService.getAppAuthSource(username, SecurityConstants.FROM_IN);
+			if (result == null || !result.isSuccess() || result.getData() == null) return "";
+			String source = result.getData().getSource();
+			return "system".equals(source) || "dhr".equals(source) ? source : "";
+		} catch (Exception exception) {
+			log.warn("App 登录人员来源查询失败");
+			return "";
+		}
+	}
+
+	private Boolean verifyClientSystemCredential(String username, String password) {
+		try {
+			SysUser user = baseMapper.selectOne(Wrappers.<SysUser>query().lambda().eq(SysUser::getUsername, username));
+			if (user == null || !CommonConstants.STATUS_NORMAL.equals(user.getDelFlag())
+					|| !CommonConstants.STATUS_NORMAL.equals(user.getLockFlag()) || StringUtils.isBlank(user.getPassword())) return Boolean.FALSE;
+			return ENCODER.matches(password, user.getPassword());
+		} catch (Exception ignored) {
+			return Boolean.FALSE;
+		}
+	}
+
+	private Boolean authenticateInternal(String username, String password, boolean requireExplicitCredential) {
+		Boolean isSuccess = false;
+		if (StringUtils.isNotBlank(loginUrl)) {
+			try {
 				//检测是否为临时人员，临时人员不同通过裕同接口检测
 				Boolean isTemp = false;
 				SmtStaffDTO queryStaffRs = this.checkStaff(username);
 				if(queryStaffRs.getStatus() == 4) {
 					isTemp = Boolean.TRUE;
+				}
+				SysUser credentialUser = null;
+				if (requireExplicitCredential && (isTemp || isTest)) {
+					credentialUser = this.baseMapper
+							.selectOne(Wrappers.<SysUser>query().lambda().eq(SysUser::getUsername, username));
+					if (Objects.nonNull(credentialUser)) {
+						verifyStoredCredential(credentialUser, password);
+					} else if (isTemp) {
+						verifyInitialTempCredential(queryStaffRs, password);
+					} else {
+						throw new TCEException("账号或密码错误");
+					}
 				}
 				Map<String, String> param = new HashMap<>();
 				param.put("UserName", username);
@@ -498,14 +572,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 					ResultData resultData = JSONUtil.toBean(result.getResultdata(), ResultData.class);
 					NowUser nowUser = resultData.getNowUser();
-					SysUser sysUser = this.baseMapper
-							.selectOne(Wrappers.<SysUser>query().lambda().eq(SysUser::getUsername, username));
+					SysUser sysUser = credentialUser;
+					if (Objects.isNull(sysUser)) {
+						sysUser = this.baseMapper
+								.selectOne(Wrappers.<SysUser>query().lambda().eq(SysUser::getUsername, username));
+					}
 					if (Objects.isNull(sysUser)) {
 						sysUser = new SysUser();
 						sysUser.setUsername(username);
 						sysUser.setPassword(ENCODER.encode(password));
 						if(queryStaffRs.getStatus().equals(4)) {
-							String pwd = queryStaffRs.getCertno().substring(queryStaffRs.getCertno().length() - 6);
+							String pwd = certificateSuffix(queryStaffRs);
 							if(!password.equals(pwd) ) {
 								throw new TCEException("账号或密码错误");
 							}
@@ -560,6 +637,34 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		return isSuccess;
 	}
 
+	private void verifyStoredCredential(SysUser user, String password) {
+		boolean matches = false;
+		try {
+			matches = StringUtils.isNotBlank(user.getPassword()) && ENCODER.matches(password, user.getPassword());
+		} catch (Exception ignored) {
+			// 畸形存量哈希按认证失败处理，不暴露底层信息。
+		}
+		if (!matches) {
+			throw new TCEException("账号或密码错误");
+		}
+	}
+
+	private void verifyInitialTempCredential(SmtStaffDTO staff, String password) {
+		String initialPassword = certificateSuffix(staff);
+		if (!password.equals(initialPassword)) {
+			throw new TCEException("账号或密码错误");
+		}
+	}
+
+	/** 临时人员首次凭据取证件号末六位，脏主数据必须按认证失败关闭。 */
+	private String certificateSuffix(SmtStaffDTO staff) {
+		String certno = staff == null ? null : staff.getCertno();
+		if (StringUtils.isBlank(certno) || certno.length() < 6) {
+			throw new TCEException("账号或密码错误");
+		}
+		return certno.substring(certno.length() - 6);
+	}
+
 	@Override
 	public Boolean socialLogin(String username) {
 		try {
@@ -577,7 +682,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				sysUser.setUpdateTime(LocalDateTime.now());
 				sysUser.setDelFlag(CommonConstants.STATUS_NORMAL);
 				sysUser.setLockFlag(CommonConstants.STATUS_NORMAL);
-				String pwd = queryStaffRs.getCertno().substring(queryStaffRs.getCertno().length() - 6);
+				String pwd = certificateSuffix(queryStaffRs);
 				sysUser.setPassword(ENCODER.encode(pwd));
 				sysUser.setPhone(queryStaffRs.getPhone());
 				this.baseMapper.insert(sysUser);

@@ -1,0 +1,127 @@
+<template>
+  <view class="module-tile">
+    <button class="tile-open" @click="openModule(entry.id)">
+      <view class="row between tile-header">
+        <view class="module-symbol" :class="entry.category == '物品放行' ? 'orange' : 'blue'">
+          <AppIcon :name="entry.category == '物品放行' ? 'item-pass' : 'supplier'" size="md" />
+        </view>
+        <AppIcon name="chevron-right" size="sm" />
+      </view>
+      <text class="module-title">{{ entry.title }}</text>
+      <text class="module-description">{{ entry.description }}</text>
+    </button>
+    <button v-if="editable" class="favorite-button" @click="toggle">
+      <text class="favorite-label">{{ selected ? '已加入常用' : '加入常用' }}</text>
+    </button>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { computed } from 'vue'
+import AppIcon from './AppIcon.uvue'
+import { clientState, openModule, toggleFavorite, errorMessage } from '../state/session.uts'
+
+const props = defineProps<{ entry: any; editable?: boolean }>()
+const selected = computed((): boolean => clientState.favorites.includes(props.entry.id))
+
+/** 收藏失败给出就地提示，不影响当前目录。 */
+function toggle(): void {
+  try {
+    toggleFavorite(props.entry.id)
+  } catch (error) {
+    uni.showToast({ title: errorMessage(error), icon: 'none' })
+  }
+}
+</script>
+
+<style>
+@import '../styles/theme.css';
+
+.module-tile {
+  width: 48%;
+  margin-bottom: 14px;
+  border: 1px solid #efeeee;
+  border-radius: 16px;
+  background-color: #ffffff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.tile-open {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 142px;
+  box-sizing: border-box;
+  padding: 16px 14px 14px;
+  margin: 0;
+  border-radius: 16px 16px 0 0;
+  background-color: #ffffff;
+  text-align: left;
+}
+
+.tile-header {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.module-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.orange {
+  background-color: #fff1e3;
+}
+
+.blue {
+  background-color: #edf4ff;
+}
+
+.module-title {
+  font-size: 15px;
+  font-weight: 650;
+  color: #353333;
+  line-height: 24px;
+}
+
+.module-description {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6f6c6b;
+  line-height: 20px;
+}
+
+.favorite-button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  margin: 0;
+  border-top: 1px solid #efeeee;
+  border-radius: 0 0 16px 16px;
+  background-color: #ffffff;
+}
+
+.favorite-label {
+  font-size: 12px;
+  color: #6f6c6b;
+  line-height: 20px;
+}
+
+/* #ifdef H5 */
+@media (min-width: 900px) {
+  .module-tile {
+    width: 23.5%;
+  }
+}
+/* #endif */
+</style>

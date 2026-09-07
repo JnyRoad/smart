@@ -63,7 +63,8 @@
 	</appender>
 
 	<!-- Level: FATAL 0  ERROR 3  WARN 4  INFO 6  DEBUG 7 -->
-	<root level="DEBUG">
+	<!-- 认证服务不得在容器标准输出写入令牌、认证请求或调试正文。需要诊断时使用受控日志级别与脱敏审计。 -->
+	<root level="INFO">
 		<appender-ref ref="console"/>
 		<appender-ref ref="debug"/>
 		<appender-ref ref="info"/>

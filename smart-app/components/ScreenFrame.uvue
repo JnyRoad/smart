@@ -1,0 +1,15 @@
+<template>
+  <scroll-view scroll-y class="screen">
+    <view v-if="clientState.mode == 'demo'" class="banner"
+      ><text class="banner-text">演示环境 · 所有账号与记录均为模拟，不产生真实放行</text></view
+    >
+    <view class="page"><slot /></view>
+  </scroll-view>
+</template>
+<script setup lang="uts">
+import { clientState } from '../state/session.uts'
+</script>
+
+<style>
+@import '../styles/theme.css';
+</style>

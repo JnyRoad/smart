@@ -1,0 +1,164 @@
+<template>
+  <ScreenFrame>
+    <view class="page-intro">
+      <text class="title">我的</text>
+      <text class="muted page-intro-note">账号与设备设置</text>
+    </view>
+
+    <view v-if="clientState.identity != null" class="profile-card card">
+      <view class="row profile-main">
+        <text class="avatar">{{ clientState.identity.displayName.slice(0, 1) }}</text>
+        <view class="grow profile-copy">
+          <text class="heading">{{ clientState.identity.displayName }}</text>
+          <text class="muted profile-meta">{{ clientState.identity.staffNo }} · {{ employmentName }}</text>
+        </view>
+      </view>
+      <view class="divider" />
+      <text class="text">{{ clientState.identity.organization }}</text>
+      <text class="small profile-note">{{ clientState.mode == 'demo' ? '演示身份，仅供流程体验' : '身份和权限由服务端管理' }}</text>
+    </view>
+
+    <view class="settings-card card">
+      <button class="mine-row" @click="openSettings">
+        <view class="row mine-row-copy">
+          <view class="icon-box icon-box-gray"><AppIcon name="settings" size="md" /></view>
+          <view class="mine-row-text">
+            <text class="text">设置</text>
+            <text class="small mine-row-meta">{{ clientState.scanMode == 'hardware' ? '硬件扫码头' : '摄像头' }}</text>
+          </view>
+        </view>
+        <AppIcon name="chevron-right" size="sm" />
+      </button>
+    </view>
+
+    <view class="about-card card">
+      <text class="heading">裕慧家园</text>
+      <text class="muted about-note">统一客户端 · 架构预览版 0.1.0</text>
+      <text class="small about-company">许昌裕同印刷包装有限公司</text>
+    </view>
+    <button class="btn danger logout-button" @click="logout">退出登录</button>
+  </ScreenFrame>
+</template>
+
+<script setup lang="uts">
+import { computed } from 'vue'
+import AppIcon from '../../components/AppIcon.uvue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import { clientState, guard, logout } from '../../state/session.uts'
+
+const employmentName = computed((): string => {
+  if (clientState.identity == null) return ''
+  return clientState.identity.employmentType == 'employee' ? '正式员工' : '外包／派遣人员'
+})
+
+/** 页面恢复时重新检查会话，避免退出后沿用旧界面状态。 */
+onShow(() => {
+  guard()
+})
+
+/** 打开设备扫码偏好设置，不改变账号权限。 */
+function openSettings(): void {
+  uni.navigateTo({ url: '/pages/settings/settings' })
+}
+
+</script>
+
+<style>
+@import '../../styles/theme.css';
+
+.page-intro {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.page-intro-note {
+  margin-top: 4px;
+}
+
+.profile-card {
+  padding: 18px;
+}
+
+.profile-main {
+  align-items: center;
+}
+
+.avatar {
+  width: 52px;
+  height: 52px;
+  margin-right: 14px;
+  border-radius: 16px;
+  background-color: #fff1e3;
+  color: #b55100;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 52px;
+  text-align: center;
+}
+
+.profile-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.profile-meta {
+  margin-top: 4px;
+}
+
+.profile-note {
+  margin-top: 8px;
+}
+
+.settings-card {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.mine-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 72px;
+  box-sizing: border-box;
+  padding: 10px 0;
+  margin: 0;
+  background-color: #ffffff;
+  text-align: left;
+}
+
+.mine-row-copy {
+  align-items: center;
+  min-width: 0;
+}
+
+.mine-row-text {
+  display: flex;
+  flex-direction: column;
+  margin-left: 12px;
+}
+
+.mine-row-meta {
+  margin-top: 2px;
+}
+
+.about-card {
+  padding: 18px;
+}
+
+.about-note {
+  margin-top: 4px;
+}
+
+.about-company {
+  margin-top: 16px;
+}
+
+.logout-button {
+  width: 100%;
+  margin-top: 10px;
+}
+</style>

@@ -1,0 +1,540 @@
+<template>
+  <ScreenFrame>
+    <view v-if="ready">
+      <view class="card execution-post">
+        <text class="label">当前安检岗位</text>
+        <text class="heading mt">{{ postReady ? postName() : '请选择岗位' }}</text>
+        <text class="small mt">{{
+          postReady
+            ? '办理前请核对岗位。岗位变更请前往设置。'
+            : '请在设置中选择当前安检岗位，保存后才能扫描厂牌。'
+        }}</text>
+      </view>
+      <text class="title mb">供应商厂牌核验</text>
+      <text class="muted mb">扫描已打印厂牌的二维码，核验后选择进入或离开。</text>
+      <view v-if="!postReady" class="error no-post-error">
+        <text class="error-text">未选择岗位，不能扫描或登记供应商通行。</text>
+      </view>
+      <view v-if="postReady" v-show="result == null" class="card scan-card">
+        <text class="heading mb">扫描厂牌</text>
+        <ScanInput
+          :disabled="supplierState.verifying || supplierState.writing || result != null"
+          :resetKey="scanCycle"
+          @complete="verify"
+        />
+        <text v-if="supplierState.verifying" class="muted mt">正在核验厂牌及保密区通行资格…</text>
+      </view>
+      <view v-if="success.length > 0" class="success-panel">
+        <text class="success-title">{{ success }}</text>
+        <text class="muted mt">本次通行已记录，可继续扫描下一张厂牌。</text>
+      </view>
+      <view v-if="supplierState.error.length > 0" class="error">
+        <text class="error-text">{{ supplierState.error }}</text>
+      </view>
+      <view v-if="result != null" class="card verification-card">
+        <view class="verification-header">
+          <view class="status-copy grow">
+            <text class="label">核验反馈</text>
+            <text
+              class="heading status-heading"
+              :class="result.allowed && !expired ? 'success-title' : 'error-text'"
+              >{{ expired ? '核验已过期' : result.allowed ? '核验通过' : '核验未通过' }}</text
+            >
+          </view>
+          <view class="status-tags">
+            <text v-if="clientState.mode == 'demo'" class="pill pill-warm status-pill">演示数据 · 虚构</text>
+            <text v-if="result.allowed" class="pill status-pill">{{ presenceLabel() }}</text>
+          </view>
+        </view>
+        <view class="person-hero">
+          <view class="portrait-frame">
+            <image
+              v-if="hasPhoto"
+              class="portrait-image"
+              :src="result.photoUrl"
+              mode="aspectFill"
+              @error="photoFailed"
+            />
+            <view v-else class="photo-placeholder">
+              <text class="photo-placeholder-title">暂无照片</text>
+              <text class="small photo-placeholder-note">未提供有效人员照片</text>
+            </view>
+          </view>
+          <view class="person-copy grow">
+            <text class="person-name">{{ valueLabel(result.visitorName, '未提供姓名') }}</text>
+            <text class="label company-label">公司信息</text>
+            <text class="company-name">{{ valueLabel(result.supplierName) }}</text>
+          </view>
+        </view>
+        <view class="divider" />
+        <view class="info-section">
+          <text class="info-section-title">人员信息</text>
+          <view class="info-line">
+            <text class="muted info-label">人员联系方式</text>
+            <text class="info-value">{{ valueLabel(result.visitorPhone) }}</text>
+          </view>
+          <view class="info-line">
+            <text class="muted info-label">被访人</text>
+            <text class="info-value">{{ valueLabel(result.hostName) }}</text>
+          </view>
+          <view class="info-line">
+            <text class="muted info-label">被访人联系方式</text>
+            <text class="info-value">{{ valueLabel(result.hostPhone) }}</text>
+          </view>
+        </view>
+        <view class="info-section">
+          <text class="info-section-title">授权信息</text>
+          <view class="info-line">
+            <text class="muted info-label">授权期限</text>
+            <text class="info-value">{{ timeLabel(result.validFrom) }} 至 {{ timeLabel(result.validUntil) }}</text>
+          </view>
+          <view class="info-line">
+            <text class="muted info-label">授权区域</text>
+            <view class="area-values grow">
+              <text v-for="area in authorizedAreas" :key="area" class="info-value area-value">{{ area }}</text>
+              <text v-if="authorizedAreas.length == 0" class="info-value">未提供</text>
+            </view>
+          </view>
+        </view>
+        <view class="info-section">
+          <text class="info-section-title">厂牌与现场</text>
+          <view class="info-line">
+            <text class="muted info-label">厂牌编号</text>
+            <text class="info-value">{{ valueLabel(result.badgeId) }}</text>
+          </view>
+          <view class="info-line">
+            <text class="muted info-label">入厂单号</text>
+            <text class="info-value">{{ valueLabel(result.admissionId) }}</text>
+          </view>
+          <view class="info-line">
+            <text class="muted info-label">核验位置</text>
+            <text class="info-value">{{ positionLabel() }}</text>
+          </view>
+          <view class="info-line">
+            <text class="muted info-label">当前状态</text>
+            <text class="info-value">{{ presenceLabel() }}</text>
+          </view>
+          <view class="info-line">
+            <text class="muted info-label">可登记方向</text>
+            <text class="info-value">{{ directionLabel() }}</text>
+          </view>
+        </view>
+        <view v-if="expired || !result.allowed" class="error">
+          <text class="error-text">{{
+            expired ? '请重新扫描厂牌，获取最新通行资格。' : valueLabel(result.reason, '当前厂牌未通过核验')
+          }}</text>
+        </view>
+        <view v-else class="passage-section">
+          <text class="muted mt">请选择本次通行方向。完成登记后需重新扫描才能办理下一次通行。</text>
+          <view class="passage-actions">
+            <button
+              class="btn passage-button"
+              :class="canRegister('enter') ? 'primary' : ''"
+              :disabled="!canRegister('enter')"
+              @click="register('enter')"
+            >
+              {{ supplierState.writing && activeDirection == 'enter' ? '正在登记…' : '登记进入' }}
+            </button>
+            <button
+              class="btn passage-button passage-next"
+              :class="canRegister('leave') ? 'primary' : ''"
+              :disabled="!canRegister('leave')"
+              @click="register('leave')"
+            >
+              {{ supplierState.writing && activeDirection == 'leave' ? '正在登记…' : '登记离开' }}
+            </button>
+          </view>
+          <text class="small mt">{{
+			result.presence == 'unknown'
+				? '首次登记，请核对进出方向'
+				: result.presence == 'inside'
+					? '已在区域内，本次可登记离开。'
+					: '当前在区域外，本次可登记进入。'
+          }}</text>
+        </view>
+      </view>
+      <button v-if="result != null" class="btn secondary mb" :disabled="supplierState.writing" @click="restartScan">重新扫描厂牌</button>
+      <button v-if="canRead" class="btn secondary mb" @click="openRecords">查看通行记录</button>
+      <view v-if="clientState.mode == 'demo'" class="demo-reference">
+        <text class="label">演示厂牌（虚构数据）</text>
+        <text class="small">东门有效厂牌：DEMO-BADGE-001</text>
+        <text class="small">过期厂牌：DEMO-BADGE-EXPIRED</text>
+        <text class="small">无资格厂牌：DEMO-BADGE-DENIED</text>
+        <text class="small mt">可在扫码头输入框填写演示编号。通行资格来自入厂申请，本页不发起申请。</text>
+      </view>
+    </view>
+  </ScreenFrame>
+</template>
+<script setup lang="uts">
+/** 供应商现场页面只协调扫码核验与明确进出确认，不从二维码自行授予通行资格。 */
+import { computed, ref, watch } from 'vue'
+import ScreenFrame from '../../components/ScreenFrame.uvue'
+import ScanInput from '../../components/ScanInput.uvue'
+import {
+  clientState,
+  supplierState,
+  guard,
+  availablePosts,
+  postName,
+  verifySupplierBadge,
+  recordSupplierPassage,
+  clearSupplierVerification,
+} from '../../state/session.uts'
+import { hasPermission } from '../../core/catalog.uts'
+const ready = ref(false)
+const postReady = computed((): boolean => {
+  if (!hasPermission(clientState.identity, 'supplier:execute') || clientState.postId.length == 0)
+    return false
+  return availablePosts().some((post: any): boolean => post.id == clientState.postId)
+})
+const success = ref('')
+const scanCycle = ref(0)
+const activeDirection = ref('')
+const now = ref(Date.now())
+let clockId: number = 0
+const result = computed((): any => supplierState.verification)
+const photoLoadError = ref(false)
+const hasPhoto = computed(
+  (): boolean =>
+    result.value != null &&
+    typeof result.value.photoUrl == 'string' &&
+    result.value.photoUrl.trim().length > 0 &&
+    !photoLoadError.value
+)
+const authorizedAreas = computed((): any[] => {
+  if (result.value == null) return []
+  const areas: any[] = []
+  const values = result.value.authorizedAreas
+  if (Array.isArray(values)) {
+    for (const area of values) {
+      if (typeof area == 'string' && area.trim().length > 0 && !areas.includes(area)) areas.push(area)
+    }
+  }
+  if (areas.length == 0) {
+    const fallback = valueLabel(result.value.areaName, '')
+    if (fallback.length > 0) areas.push(fallback)
+  }
+  return areas
+})
+const expired = computed(
+  (): boolean =>
+    result.value != null && result.value.allowed && Date.parse(result.value.expiresAt) <= now.value
+)
+const canRead = computed((): boolean => hasPermission(clientState.identity, 'supplier:read'))
+/** 恢复页面时重查授权，并用短周期时钟使过期提示及时更新。 */
+onShow(() => {
+  ready.value = guard('supplier:execute')
+  now.value = Date.now()
+  if (clockId != 0) clearInterval(clockId)
+  if (ready.value)
+    clockId = setInterval(() => {
+      now.value = Date.now()
+    }, 1000)
+})
+/** 页面不在前台时停止时钟，避免后台持续刷新。 */
+onHide(() => {
+  stopClock()
+})
+/** 退出页面时销毁本次核验上下文，下一次进入必须重扫。 */
+onUnload(() => {
+  stopClock()
+  clearSupplierVerification()
+})
+/** 身份或岗位切换后清除当前成功提示，核验状态由会话层同步失效。 */
+watch(
+  () => clientState.postId + ':' + (clientState.identity?.subjectId ?? ''),
+  () => {
+    success.value = ''
+    photoLoadError.value = false
+  }
+)
+/** 新核验结果重新开启照片加载状态；失败后由占位内容明确告知现场人员。 */
+watch(
+  () => result.value == null ? '' : result.value.id,
+  () => {
+    photoLoadError.value = false
+  }
+)
+/** 释放页面拥有的定时器，多次调用不产生额外副作用。 */
+function stopClock(): void {
+  if (clockId != 0) {
+    clearInterval(clockId)
+    clockId = 0
+  }
+}
+/** 展示服务端ISO时间并标出UTC，格式异常时给出明确缺失提示。 */
+function timeLabel(value: string): string {
+  const parsed = typeof value == 'string' && value.length > 0 ? Date.parse(value) : NaN
+  return Number.isFinite(parsed)
+    ? new Date(parsed).toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
+    : '未提供'
+}
+/** 将可选字段统一显示为缺失提示，避免人员信息卡出现空白行。 */
+function valueLabel(value: any, fallback: string = '未提供'): string {
+  if (typeof value != 'string') return fallback
+  const normalized = value.trim()
+  return normalized.length == 0 ? fallback : normalized
+}
+/** 照片地址为空或加载失败时只显示缺失状态，不生成或替换人员照片。 */
+function photoFailed(): void {
+  photoLoadError.value = true
+}
+/** 在授权区域缺失时保留现有 areaName 作为当前授权区域展示。 */
+function positionLabel(): string {
+  if (result.value == null) return '未提供'
+  const area = valueLabel(result.value.areaName, '')
+  return area.length > 0 ? area : postReady.value ? postName() : '未提供'
+}
+/** 展示服务端返回的首次未知、当前在内或当前在外状态。 */
+function presenceLabel(): string {
+  return result.value == null
+    ? '未提供'
+    : result.value.presence == 'inside'
+      ? '当前在区域内'
+      : result.value.presence == 'outside'
+        ? '当前在区域外'
+				: result.value.presence == 'unknown'
+					? '首次登记，请核对进出方向'
+					: '未提供'
+}
+/** 只展示服务端允许的登记方向，不由页面自行推断授权。 */
+function directionLabel(): string {
+  if (result.value == null || !Array.isArray(result.value.allowedDirections)) return '未提供'
+  const labels: string[] = []
+  if (result.value.allowedDirections.includes('enter')) labels.push('进入')
+  if (result.value.allowedDirections.includes('leave')) labels.push('离开')
+  return labels.length == 0 ? '无' : labels.join(' / ')
+}
+/** 明确重扫时清除当前核验，保留本次选择的扫码模式并重置输入接收器。 */
+function restartScan(): void {
+  if (supplierState.writing) return
+  clearSupplierVerification()
+  success.value = ''
+  photoLoadError.value = false
+  scanCycle.value += 1
+}
+/** 完整扫码只请求核验，错误由统一会话状态就近展示。 */
+async function verify(value: string): Promise<void> {
+  if (supplierState.verifying || supplierState.writing) return
+  success.value = ''
+  await verifySupplierBadge(value)
+  now.value = Date.now()
+}
+/** 根据核验返回方向与有效期控制按钮；服务层仍须独立执行最终检查。 */
+function canRegister(direction: string): boolean {
+	const matchesPresence = direction == 'enter'
+		? result.value?.presence == 'outside' || result.value?.presence == 'unknown'
+		: direction == 'leave'
+			? result.value?.presence == 'inside' || result.value?.presence == 'unknown'
+			: false
+  return (
+    result.value != null &&
+    result.value.allowed &&
+    !expired.value &&
+    !supplierState.writing &&
+    !supplierState.verifying &&
+    result.value.allowedDirections.includes(direction) &&
+		matchesPresence
+  )
+}
+/** 仅响应明确方向点击，等待登记成功后展示结果，不把核验当通行事件。 */
+async function register(direction: 'enter' | 'leave'): Promise<void> {
+  if (!canRegister(direction)) return
+  activeDirection.value = direction
+  const person = valueLabel(result.value.visitorName, '访客')
+  const event = await recordSupplierPassage(direction)
+  if (event != null) {
+    success.value = (direction == 'enter' ? '已登记进入' : '已登记离开') + ' · ' + person
+    scanCycle.value += 1
+  }
+}
+/** 打开独立事件记录页，该页重新验证查询权限。 */
+function openRecords(): void {
+  uni.navigateTo({ url: '/pages/supplier-records/supplier-records' })
+}
+</script>
+<style>
+@import '../../styles/theme.css';
+
+.scan-section {
+  margin-top: 18px;
+  border-top: 1px solid #efeeee;
+  padding-top: 18px;
+}
+.execution-post {
+  background-color: #fffaf5;
+  border-color: #ffe2c7;
+}
+.no-post-error {
+  margin-top: 0;
+}
+.scan-card {
+  padding: 16px;
+}
+.verification-card {
+  border: 1px solid #e5e3e3;
+}
+.verification-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+.status-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.status-heading {
+  margin-top: 4px;
+}
+.status-tags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+.status-pill {
+  margin-bottom: 6px;
+}
+.person-hero {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  min-width: 0;
+}
+.portrait-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 112px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background-color: #f7f7f7;
+}
+.portrait-image {
+  width: 88px;
+  height: 112px;
+}
+.photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 112px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.photo-placeholder-title {
+  color: #6f6c6b;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.photo-placeholder-note {
+  margin-top: 4px;
+  text-align: center;
+}
+.person-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-left: 14px;
+  padding-top: 2px;
+}
+.person-name {
+  font-size: 24px;
+  line-height: 34px;
+  font-weight: 700;
+  color: #353333;
+}
+.company-label {
+  margin-top: 16px;
+  margin-bottom: 2px;
+}
+.company-name {
+  color: #595757;
+  font-size: 16px;
+  line-height: 24px;
+}
+.info-section {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+.info-section-title {
+  margin-bottom: 10px;
+  color: #353333;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+}
+.info-line {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 10px;
+  align-items: flex-start;
+}
+.info-label {
+  width: 104px;
+  flex-shrink: 0;
+  margin-right: 12px;
+  padding-top: 2px;
+}
+.info-value {
+  flex: 1;
+  min-width: 0;
+  color: #595757;
+  font-size: 15px;
+  line-height: 24px;
+}
+.area-values {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.area-value {
+  margin-bottom: 6px;
+}
+.passage-section {
+  display: flex;
+  flex-direction: column;
+}
+.passage-actions {
+  display: flex;
+  flex-direction: row;
+  margin-top: 18px;
+}
+.passage-button {
+  flex: 1;
+  min-height: 48px;
+  padding: 0 10px;
+}
+.passage-next {
+  margin-left: 14px;
+}
+.success-panel {
+  background-color: #edf8f3;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.success-title {
+  color: #14724d;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 28px;
+}
+.demo-reference {
+  padding: 10px 4px;
+}
+/* #ifdef H5 */
+.person-name { word-break: break-all; }
+.company-name { word-break: break-all; }
+.info-value { word-break: break-all; }
+/* #endif */
+</style>
