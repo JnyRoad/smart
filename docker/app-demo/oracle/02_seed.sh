@@ -70,7 +70,11 @@ INSERT INTO smt_staff (id, name, badge, comp_id, comp_name, dep_name, status, em
 INSERT INTO smt_staff (id, name, badge, comp_id, comp_name, dep_name, status, emp_type, create_time) VALUES (10006, '演示押运人', 'APP_ESCORT', '1001', '演示外包单位', '安检组', 4, 10, SYSTIMESTAMP);
 
 INSERT INTO smt_admittance_apply (id, park_id, visitor_name, visitor_phone, cert_no, status, start_time, end_time, receptionist_badge, receptionist_name, receptionist_phone, create_time, sms_code, company, person_type, cause, thing, area_type, apply_type)
-VALUES (810000001, 1, '演示供应商访客', '13800000000', '11010519491231002X', 0, SYSTIMESTAMP - INTERVAL '1' DAY, SYSTIMESTAMP + INTERVAL '1' DAY, 'APP_EMPLOYEE', '演示正式员工', '13900000000', SYSTIMESTAMP, '123456', '演示供应商', 3, 1, 0, '1', 1);
+-- 业务资格按 Asia/Shanghai 解释无时区的 TIMESTAMP；显式转为上海本地时刻，避免宿主/Oracle 时区改变有效期结果。
+VALUES (810000001, 1, '演示供应商访客', '13800000000', '11010519491231002X', 0,
+        CAST(SYSTIMESTAMP AT TIME ZONE 'Asia/Shanghai' AS TIMESTAMP) - INTERVAL '1' DAY,
+        CAST(SYSTIMESTAMP AT TIME ZONE 'Asia/Shanghai' AS TIMESTAMP) + INTERVAL '1' DAY,
+        'APP_EMPLOYEE', '演示正式员工', '13900000000', SYSTIMESTAMP, '123456', '演示供应商', 3, 1, 0, '1', 1);
 INSERT INTO smt_admittance_fellow (id, visitor_id, fellow_name, cert_no, cert_type, is_main)
 VALUES (900000001, 810000001, '演示供应商访客', '11010519491231002X', 0, 1);
 COMMIT;

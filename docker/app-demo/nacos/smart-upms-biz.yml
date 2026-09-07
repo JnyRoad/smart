@@ -14,6 +14,9 @@ spring:
       update-token: ""
 
 security:
+  # 免 OAuth 的内部 Feign 路径必须在控制器层强制校验 from=Y，不能作为匿名接口使用。
+  inner:
+    mode: ENFORCE
   oauth2:
     client:
       client-id: smart-app-demo
@@ -23,6 +26,10 @@ security:
         - /actuator/**
         - /api/user/simple
         - /api/user/session
+        # 认证服务在签发 App 会话前读取用户身份与园区；资源过滤器必须先放行，
+        # 再由 @Inner + ENFORCE 校验精确的 from=Y 内部调用标识。
+        - /api/user/info/**
+        - /api/user/park/list/**
         # 认证服务通过带 from 内部标记的既有字典 Feign 契约识别平台账号；仅本机演示放行该内部路径。
         - /dict/**
 

@@ -106,7 +106,9 @@ async function verifyReleaseFlow(baseUrl, password) {
   assertion(approved?.status === 'approved', '申请未进入已审批状态')
 
   const security = await login(baseUrl, password, 'APP_SECURITY')
-  await identity(baseUrl, security, 'APP_SECURITY', 'outsourced')
+  const securityIdentity = await identity(baseUrl, security, 'APP_SECURITY', 'outsourced')
+  assertion(Array.isArray(securityIdentity.permissions) && securityIdentity.permissions.includes('supplier:execute'),
+    '安检员未取得 supplier:execute 权限')
   const originQueue = expectStatus('查询东门安检待办', await request(baseUrl, '/api/v1/item-passes?scope=execute&postId=security-east', { token: security }), 200)
   assertion(Array.isArray(originQueue) && originQueue.some(item => item?.id === releaseId), '东门安检待办未包含已审批单据')
   const departed = expectStatus('东门执行物品放行', await request(baseUrl, `/api/v1/item-passes/${encodeURIComponent(releaseId)}/actions`, {
