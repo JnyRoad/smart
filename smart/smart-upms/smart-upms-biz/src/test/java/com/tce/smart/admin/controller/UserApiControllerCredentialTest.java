@@ -251,6 +251,25 @@ public class UserApiControllerCredentialTest {
 		assertFalse(fixture.userService.authenticateAppSession(USERNAME, VALID_PASSWORD));
 	}
 
+	@Test
+	public void invalidTemporaryCertificateRejectsBeforeCreatingUserAcrossLegacyPaths() {
+		SmtStaffDTO staff = new SmtStaffDTO();
+		staff.setStatus(4);
+		staff.setPhone("00000000000");
+		Fixture fixture = fixture(null, 4, true, false);
+		when(fixture.remoteStaffService.getSimpleSttaffByBadge(USERNAME)).thenReturn(Result.success(staff));
+		when(fixture.remoteStaffService.queryMobile("13800000000", SecurityConstants.FROM_IN))
+				.thenReturn(Result.success(Collections.singletonList(staff)));
+		when(fixture.userMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+		expectTceException(() -> fixture.userService.verifyMobile("13800000000"));
+		expectTceException(() -> fixture.userService.authenticate(USERNAME, VALID_PASSWORD));
+		expectTceException(() -> fixture.userService.simpleLogin(USERNAME, VALID_PASSWORD));
+		expectTceException(() -> fixture.userService.socialLogin(USERNAME));
+
+		verify(fixture.userMapper, never()).insert(any(SysUser.class));
+	}
+
 	@SuppressWarnings("unchecked")
 	private Fixture fixtureWithLegacyCacheHit() {
 		return fixture(null, 4, true, true);

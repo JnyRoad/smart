@@ -8,8 +8,10 @@ case "${app_demo_user_hash}" in
 esac
 [ "${#app_demo_user_hash}" -eq 60 ] || { echo 'SMART_APP_DEMO_USER_PASSWORD_BCRYPT 长度无效' >&2; exit 1; }
 
-sqlplus -s "${APP_USER}/${APP_USER_PASSWORD}@//localhost:1521/FREEPDB1" <<SQL
+sqlplus -s /nolog <<SQL
+whenever oserror exit failure rollback
 whenever sqlerror exit sql.sqlcode
+CONNECT ${APP_USER}/"${APP_USER_PASSWORD}"@//localhost:1521/FREEPDB1
 INSERT INTO sys_oauth_client_details (client_id, client_secret, resource_ids, scope, authorized_grant_types, access_token_validity, refresh_token_validity, autoapprove)
 VALUES ('smart-app-demo', '{noop}${SMART_APP_DEMO_OAUTH_CLIENT_SECRET}', 'server', 'server', 'password,refresh_token', 3600, 86400, 'true');
 

@@ -5,6 +5,7 @@ import {
   buildBadgeEntries,
   buildAuthorizedAreaText,
   createRecordBadgePreview,
+  isActiveVisitorRecord,
   normalizeFellowVisitorList,
   validatePngBase64,
   validateRecordId
@@ -144,6 +145,14 @@ test('详情响应缺省或类型错误的随行人员列表统一归一化为�
   assert.deepEqual(normalizeFellowVisitorList({}), [])
   const members = [member('1')]
   assert.equal(normalizeFellowVisitorList(members), members)
+})
+
+test('二维码厂牌仅允许有效访客记录预览', () => {
+  assert.equal(isActiveVisitorRecord({ delFlag: 0 }), true)
+  assert.equal(isActiveVisitorRecord({ delFlag: 1 }), false)
+  assert.equal(isActiveVisitorRecord({ delFlag: 2 }), false)
+  assert.equal(isActiveVisitorRecord({}), false)
+  assert.equal(isActiveVisitorRecord(null), false)
 })
 
 test('授权区域按新旧工厂映射展示，并在无映射时保留接口展示值', () => {

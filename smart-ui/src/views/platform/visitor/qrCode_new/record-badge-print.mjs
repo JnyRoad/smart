@@ -81,6 +81,11 @@ export function normalizeFellowVisitorList(value) {
   return Array.isArray(value) ? value : []
 }
 
+/** 二维码厂牌只允许为有效访客记录生成，失效或缺少状态的记录必须拒绝。 */
+export function isActiveVisitorRecord(value) {
+  return value != null && value.delFlag === 0
+}
+
 export function buildBadgeEntries(visitor, members, atobFn) {
   if (!Array.isArray(members) || members.length === 0) {
     throw new RecordBadgePrintError('当前没有可打印的访客人员')

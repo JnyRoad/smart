@@ -317,7 +317,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				}else if(data.size() == 1){
 					SysUser sysUser = new SysUser();
 					sysUser.setUsername(data.get(0).getBadge());
-					String pwd = data.get(0).getCertno().substring(data.get(0).getCertno().length() - 6);
+					String pwd = certificateSuffix(data.get(0));
 					sysUser.setPassword(ENCODER.encode(pwd));
 					sysUser.setCreateTime(LocalDateTime.now());
 					sysUser.setUpdateTime(LocalDateTime.now());
@@ -582,7 +582,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 						sysUser.setUsername(username);
 						sysUser.setPassword(ENCODER.encode(password));
 						if(queryStaffRs.getStatus().equals(4)) {
-							String pwd = queryStaffRs.getCertno().substring(queryStaffRs.getCertno().length() - 6);
+							String pwd = certificateSuffix(queryStaffRs);
 							if(!password.equals(pwd) ) {
 								throw new TCEException("账号或密码错误");
 							}
@@ -650,14 +650,19 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	}
 
 	private void verifyInitialTempCredential(SmtStaffDTO staff, String password) {
+		String initialPassword = certificateSuffix(staff);
+		if (!password.equals(initialPassword)) {
+			throw new TCEException("账号或密码错误");
+		}
+	}
+
+	/** 临时人员首次凭据取证件号末六位，脏主数据必须按认证失败关闭。 */
+	private String certificateSuffix(SmtStaffDTO staff) {
 		String certno = staff == null ? null : staff.getCertno();
 		if (StringUtils.isBlank(certno) || certno.length() < 6) {
 			throw new TCEException("账号或密码错误");
 		}
-		String initialPassword = certno.substring(certno.length() - 6);
-		if (!password.equals(initialPassword)) {
-			throw new TCEException("账号或密码错误");
-		}
+		return certno.substring(certno.length() - 6);
 	}
 
 	@Override
@@ -677,7 +682,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 				sysUser.setUpdateTime(LocalDateTime.now());
 				sysUser.setDelFlag(CommonConstants.STATUS_NORMAL);
 				sysUser.setLockFlag(CommonConstants.STATUS_NORMAL);
-				String pwd = queryStaffRs.getCertno().substring(queryStaffRs.getCertno().length() - 6);
+				String pwd = certificateSuffix(queryStaffRs);
 				sysUser.setPassword(ENCODER.encode(pwd));
 				sysUser.setPhone(queryStaffRs.getPhone());
 				this.baseMapper.insert(sysUser);

@@ -87,7 +87,7 @@ import { getInfoApi, getInfoApiNew, getInfoApiCard, delSmsCode, getImage, getAre
 import * as bpac from '@/util/bpac'
 import calculation from './keys'
 import { dispatchVisitorPrint } from '@/api/platform/print/cutover'
-import { buildAuthorizedAreaText, createRecordBadgePreview, normalizeFellowVisitorList } from './record-badge-print.mjs'
+import { buildAuthorizedAreaText, createRecordBadgePreview, isActiveVisitorRecord, normalizeFellowVisitorList } from './record-badge-print.mjs'
 
 const constImg = './img/print_peaple.png'
 export default {
@@ -245,6 +245,10 @@ export default {
       this.codeVisible = true
     },
     previewRecordBadges() {
+      if (!isActiveVisitorRecord(this.visitorData) || this.memberList.length === 0) {
+        this.$message.error('当前访客记录无效，无法预览二维码厂牌')
+        return
+      }
       const badgeVisitor = Object.assign({}, this.visitorData, {
         authorizedArea: buildAuthorizedAreaText(this.visitorData, this.areaNewType, this.areaOldType)
       })
@@ -280,34 +284,27 @@ export default {
     },
     getInfo() {
       if (this.loading || this.printDispatching) return
+      this.memberList = []
       this.loading = true
       this.loadingText = '获取访客信息中…'
       if (this.checkTypeDesc == 0) {
         getInfoApiNew(this.keyCods)
           .then((res) => {
-            if (res.data.code == 0) {
-              if (res.data === null) {
-                this.$message.error(res.data.msg)
-                this.loading = false
-                return
-              }
-              this.visitorData = res.data.data
-              this.memberList = normalizeFellowVisitorList(this.visitorData.fellowVisitorList)
-              this.doPrint()
-              // if (this.visitorData.delFlag === 1 || this.visitorData.delFlag === 2) {
-              //   this.$message.error('该访客码已失效')
-              //   this.loading = false
-              // } else if (this.visitorData.delFlag === 0) {
-              //   // this.getImage(this.visitorData.id)
-              //   this.doPrint()
-              // } else {
-              //   this.$message.error('获取访客码信息异常')
-              //   this.loading = false
-              // }
-            } else {
-              this.$message.error(res.data.msg)
+            const response = res && res.data
+            const visitor = response && response.data
+            if (!response || response.code !== 0 || !visitor) {
+              this.$message.error(response && response.msg ? response.msg : '获取访客码信息异常')
               this.loading = false
+              return
             }
+            this.visitorData = visitor
+            if (!isActiveVisitorRecord(visitor)) {
+              this.$message.error(visitor.delFlag === 1 || visitor.delFlag === 2 ? '该访客码已失效' : '获取访客码信息异常')
+              this.loading = false
+              return
+            }
+            this.memberList = normalizeFellowVisitorList(visitor.fellowVisitorList)
+            this.doPrint()
           })
           .catch((err) => {
             this.$message.error(err)
@@ -318,30 +315,21 @@ export default {
         // getInfoApiCard
         getInfoApiCard(this.cardCods)
           .then((res) => {
-            // console.log(res)
-            if (res.data.code == 0) {
-              if (res.data === null) {
-                this.$message.error(res.data.msg)
-                this.loading = false
-                return
-              }
-              this.visitorData = res.data.data
-              this.memberList = normalizeFellowVisitorList(this.visitorData.fellowVisitorList)
-              // this.doPrint()
-              if (this.visitorData.delFlag === 1 || this.visitorData.delFlag === 2) {
-                this.$message.error('该访客码已失效')
-                this.loading = false
-              } else if (this.visitorData.delFlag === 0) {
-                // this.getImage(this.visitorData.id)
-                this.doPrint()
-              } else {
-                this.$message.error('获取访客码信息异常')
-                this.loading = false
-              }
-            } else {
-              this.$message.error(res.data.msg)
+            const response = res && res.data
+            const visitor = response && response.data
+            if (!response || response.code !== 0 || !visitor) {
+              this.$message.error(response && response.msg ? response.msg : '获取访客码信息异常')
               this.loading = false
+              return
             }
+            this.visitorData = visitor
+            if (!isActiveVisitorRecord(visitor)) {
+              this.$message.error(visitor.delFlag === 1 || visitor.delFlag === 2 ? '该访客码已失效' : '获取访客码信息异常')
+              this.loading = false
+              return
+            }
+            this.memberList = normalizeFellowVisitorList(visitor.fellowVisitorList)
+            this.doPrint()
           })
           .catch((err) => {
             this.$message.error(err)
