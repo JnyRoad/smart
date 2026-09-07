@@ -85,8 +85,10 @@ public class AuthOperationTransportService {
   p.setDeviceId(t.getDeviceId());p.setSubjectId(t.getSubjectId());p.setSubjectType(t.getSubjectType());p.setAction(t.getAction());p.setResourceType(t.getResourceType());
   p.setServiceType(d.getResource().getServiceType());p.setCredentialChannel(d.getResource().getCredentialChannel());p.setCardNo(t.getSubjectId());p.setBadge(source.getBadge());p.setImageId(source.getImageId());p.setPersonSnapshot(source.getPersonSnapshot());
   if("ISC".equals(p.getAccessType())){List<String> identities=phases.knownPersons(p);require(identities.size()<=1,"ISC_IDENTITY_CONFLICT");if(!identities.isEmpty())p.setPersonId(identities.get(0));}
-  require(t.getValidFrom()!=null&&t.getValidTo()!=null,"权限时间窗缺失");
-  p.setStartTime(t.getValidFrom().toEpochSecond(ZoneOffset.UTC));p.setOverTime(t.getValidTo().toEpochSecond(ZoneOffset.UTC));
+  if(!"DELETE".equals(t.getAction())){
+   require(t.getValidFrom()!=null&&t.getValidTo()!=null,"权限时间窗缺失");
+   p.setStartTime(t.getValidFrom().toEpochSecond(ZoneOffset.UTC));p.setOverTime(t.getValidTo().toEpochSecond(ZoneOffset.UTC));
+  }
   p.setChannelNo(device.getChannelNo());p.setPageNo(1);p.setCreateTime(now());p.setUpdateTime(now());
   require(p.getServiceType()!=null&&p.getServiceType().matches("[0-9]+"),"冻结业务类型缺失");
   if("ISC".equals(p.getAccessType())) {SmtIscDeviceTask task=iscTask(p);task.setId(IdWorker.getId());require(iscTasks.insert(task)==1,"ISC任务插入失败");p.setTaskId(String.valueOf(task.getId()));}

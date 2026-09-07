@@ -127,6 +127,21 @@ public class AuthOperationManagementActionTest {
 	}
 
 	@Test
+	public void invalidLaterRetryVersionIsRejectedBeforeAnyRetryIsApplied() {
+		login(77, Collections.singletonList(17), "platform_auth_operation_retry");
+		AuthOperationRetryRequest request = new AuthOperationRetryRequest();
+		request.setIdempotencyKey("invalid-later-target");
+		request.setReasonText("后续目标代次非法");
+		AuthOperationRetryItem invalid = retryItem("2");
+		invalid.setExpectedOperationVersion("not-a-number");
+		request.setTargets(Arrays.asList(retryItem("1"), invalid));
+
+		assertThatThrownBy(() -> service.retry(request)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("期望操作代次");
+		verifyZeroInteractions(governance);
+	}
+
+	@Test
 	public void duplicateKeyRaceIsReplayedThroughASecondCoreTransactionCall() {
 		login(75, Collections.singletonList(17), "platform_auth_operation_retry");
 		AuthOperationRetryRequest request = new AuthOperationRetryRequest();
