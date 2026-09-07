@@ -98,6 +98,12 @@
 			<artifactId>smart-tool</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>com.tce</groupId>
+			<artifactId>smart-platform-biz</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

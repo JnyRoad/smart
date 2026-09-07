@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthResultEventMapper">
+
+	<resultMap id="AuthResultEventMap" type="com.tce.smart.platform.core.entity.SmtAuthResultEvent">
+		<id property="id" column="ID"/>
+		<result property="targetId" column="TARGET_ID"/>
+		<result property="attemptId" column="ATTEMPT_ID"/>
+		<result property="eventKey" column="EVENT_KEY"/>
+		<result property="eventNamespace" column="EVENT_NAMESPACE"/>
+		<result property="accessType" column="ACCESS_TYPE"/>
+		<result property="externalBatchId" column="EXTERNAL_BATCH_ID"/>
+		<result property="externalCommandId" column="EXTERNAL_COMMAND_ID"/>
+		<result property="operationVersion" column="OPERATION_VERSION"/>
+		<result property="evidenceType" column="EVIDENCE_TYPE"/>
+		<result property="resultStatus" column="RESULT_STATUS"/>
+		<result property="evidenceBody" column="EVIDENCE_BODY" jdbcType="CLOB"/>
+		<result property="receivedAt" column="RECEIVED_AT"/>
+		<result property="converged" column="CONVERGED"/>
+		<result property="failureReason" column="FAILURE_REASON"/>
+		<result property="createTime" column="CREATE_TIME"/>
+	</resultMap>
+
+	<select id="selectByAttemptAndEventKey" resultMap="AuthResultEventMap">
+		SELECT ID, TARGET_ID, ATTEMPT_ID, EVENT_KEY, EVENT_NAMESPACE, ACCESS_TYPE,
+			EXTERNAL_BATCH_ID, EXTERNAL_COMMAND_ID, OPERATION_VERSION, EVIDENCE_TYPE,
+			RESULT_STATUS, EVIDENCE_BODY, RECEIVED_AT, CONVERGED, FAILURE_REASON, CREATE_TIME
+		FROM SMT_AUTH_RESULT_EVENT
+		WHERE ATTEMPT_ID = #{attemptId} AND EVENT_KEY = #{eventKey}
+	</select>
+</mapper>

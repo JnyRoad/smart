@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthIdentityAliasMapper">
+  <resultMap id="row" type="com.tce.smart.platform.core.entity.SmtAuthIdentityAlias">
+    <result column="ID" property="id"/>
+    <result column="PARK_ID" property="parkId"/>
+    <result column="ACCESS_TYPE" property="accessType"/>
+    <result column="DEVICE_ID" property="deviceId"/>
+    <result column="RESOURCE_TYPE" property="resourceType"/>
+    <result column="RESOURCE_VALUE" property="resourceValue"/>
+    <result column="SERVICE_TYPE" property="serviceType"/>
+    <result column="CREDENTIAL_CHANNEL" property="credentialChannel"/>
+    <result column="SUBJECT_TYPE" property="subjectType"/>
+    <result column="SUBJECT_ID" property="subjectId"/>
+    <result column="RESOURCE_COORD_ID" property="resourceCoordId"/>
+    <result column="RESOURCE_GENERATION" property="resourceGeneration"/>
+    <result column="ALIAS_KIND" property="aliasKind"/>
+    <result column="ALIAS_VALUE" property="aliasValue"/>
+    <result column="CREATE_TIME" property="createTime"/>
+  </resultMap>
+  <insert id="insert">INSERT INTO SMT_AUTH_IDENTITY_ALIAS (ID, PARK_ID, ACCESS_TYPE, DEVICE_ID, RESOURCE_TYPE, RESOURCE_VALUE, SERVICE_TYPE, CREDENTIAL_CHANNEL, SUBJECT_TYPE, SUBJECT_ID, RESOURCE_COORD_ID, RESOURCE_GENERATION, ALIAS_KIND, ALIAS_VALUE, CREATE_TIME) VALUES (#{id,jdbcType=VARCHAR}, #{parkId,jdbcType=NUMERIC}, #{accessType,jdbcType=VARCHAR}, #{deviceId,jdbcType=VARCHAR}, #{resourceType,jdbcType=VARCHAR}, #{resourceValue,jdbcType=VARCHAR}, #{serviceType,jdbcType=VARCHAR}, #{credentialChannel,jdbcType=VARCHAR}, #{subjectType,jdbcType=VARCHAR}, #{subjectId,jdbcType=VARCHAR}, #{resourceCoordId,jdbcType=VARCHAR}, #{resourceGeneration,jdbcType=NUMERIC}, #{aliasKind,jdbcType=VARCHAR}, #{aliasValue,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP})</insert>
+  <select id="selectById" resultMap="row">SELECT * FROM SMT_AUTH_IDENTITY_ALIAS WHERE ID = #{id}</select>
+  <select id="resolve" resultMap="row">
+    SELECT * FROM (SELECT * FROM SMT_AUTH_IDENTITY_ALIAS WHERE PARK_ID = #{scope.parkId}
+      AND ACCESS_TYPE = #{scope.accessType} AND DEVICE_ID = #{scope.deviceId}
+      AND RESOURCE_TYPE = #{scope.resourceType} AND RESOURCE_VALUE = #{scope.resourceId}
+      AND SERVICE_TYPE = #{scope.serviceType} AND CREDENTIAL_CHANNEL = #{scope.credentialChannel}
+      AND SUBJECT_TYPE = #{scope.subjectType} AND ALIAS_KIND = #{kind} AND ALIAS_VALUE = #{value}
+      ORDER BY SUBJECT_ID, RESOURCE_GENERATION DESC) WHERE ROWNUM &lt;= 201
+  </select>
+</mapper>

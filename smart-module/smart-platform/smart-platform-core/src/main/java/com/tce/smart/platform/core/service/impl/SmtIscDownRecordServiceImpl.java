@@ -19,7 +19,7 @@ import com.tce.smart.platform.core.vo.TaskDownRecordVO;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
 import com.tce.smart.tool.enums.DeviceTaskActionEnum;
 import com.tce.smart.tool.enums.DeviceTaskStatusEnum;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,12 +36,16 @@ import java.util.stream.Collectors;
  */
 @Service
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class SmtIscDownRecordServiceImpl extends ServiceImpl<SmtIscDownRecordMapper, SmtIscDownRecord> implements SmtIscDownRecordService {
 
 	private final SmtDeviceMapper smtDeviceMapper;
 
 	private final StaffDeviceAuthSyncService staffDeviceAuthSyncService;
+ private AuthOperationTransportGuard transportGuard;
+ @org.springframework.beans.factory.annotation.Autowired
+ public void setTransportGuard(AuthOperationTransportGuard guard){this.transportGuard=guard;}
+
 
 	@Override
 	public IPage<TaskDownRecordVO> getVehicle(Page page, TaskDownRecordDTO taskDownRecordDTO) {
@@ -62,9 +66,18 @@ public class SmtIscDownRecordServiceImpl extends ServiceImpl<SmtIscDownRecordMap
 		return list;
 	}
 
+	/**
+	 * 按已确认的 ISC 任务维护本地下发记录；记录写入失败必须抛出异常交由外层事务回滚。
+	 *
+	 * @param smtDeviceTask 已取得设备结果的 ISC 任务
+	 */
 	@Transactional
 	@Override
 	public void handleTaskDownRecord(SmtIscDeviceTask smtDeviceTask) {
+  com.tce.smart.platform.core.entity.SmtAuthTransportPhase current=AuthOperationTransportRecordContext.current("ISC",String.valueOf(smtDeviceTask.getId()));
+  if(current!=null){handleVersionRecord(smtDeviceTask,current);return;}
+  if(transportGuard!=null&&transportGuard.bound("ISC",String.valueOf(smtDeviceTask.getId())))throw new IllegalStateException("绑定任务必须经可信版本门禁维护记录");
+
 		if (isTemporaryAccessRecord(smtDeviceTask) && StrUtil.isBlank(smtDeviceTask.getPersonId())) {
 			log.warn("临时人员ISC下发记录缺少personId，跳过记录维护，taskId={}, deviceCode={}, cardNo={}",
 					smtDeviceTask.getId(), smtDeviceTask.getDeviceCode(), smtDeviceTask.getCardNo());
@@ -99,8 +112,16 @@ public class SmtIscDownRecordServiceImpl extends ServiceImpl<SmtIscDownRecordMap
 		}
 	}
 
+	/**
+	 * 删除旧下发记录并显式检查批量删除结果，避免静默保留过期权限记录。
+	 *
+	 * @param taskDownRecords 待删除的旧记录
+	 */
 	private void removeDownRecords(List<SmtIscDownRecord> taskDownRecords) {
-		this.removeByIds(taskDownRecords.stream().map(SmtIscDownRecord::getId).collect(Collectors.toList()));
+		boolean removed = this.removeByIds(taskDownRecords.stream().map(SmtIscDownRecord::getId).collect(Collectors.toList()));
+		if (!removed) {
+			throw new IllegalStateException("ISC下发记录删除失败，记录数量=" + taskDownRecords.size());
+		}
 	}
 
 	LambdaQueryWrapper<SmtIscDownRecord> buildDownRecordQuery(SmtIscDeviceTask smtDeviceTask) {
@@ -144,9 +165,15 @@ public class SmtIscDownRecordServiceImpl extends ServiceImpl<SmtIscDownRecordMap
 				|| DeviceTaskConstants.CARD_ADMITTANCE.equals(smtDeviceTask.getServiceType()));
 	}
 
+	/**
+	 * 新增成功下发记录并显式检查保存结果，避免任务成功但本地记录缺失。
+	 *
+	 * @param smtDeviceTask 已确认成功的 ISC 任务
+	 */
 	private void addDownRecord(SmtIscDeviceTask smtDeviceTask){
 		SmtIscDownRecord taskDownRecord = new SmtIscDownRecord();
 		BeanUtil.copyProperties(smtDeviceTask,taskDownRecord);
+		taskDownRecord.setId(null);
 		taskDownRecord.setPersonId(smtDeviceTask.getPersonId());
 		taskDownRecord.setBadge(smtDeviceTask.getBadge());
 		taskDownRecord.setImageId(smtDeviceTask.getImageId());
@@ -158,9 +185,39 @@ public class SmtIscDownRecordServiceImpl extends ServiceImpl<SmtIscDownRecordMap
 		taskDownRecord.setAction(DeviceTaskActionEnum.DOWN.getCode());
 		SmtDevice smtDevice = smtDeviceMapper.selectById(smtDeviceTask.getDeviceCode());
 		taskDownRecord.setParkId(smtDevice.getParkId());
-		taskDownRecord.setServiceType(downRecordServiceType(smtDeviceTask.getServiceType()));
+		taskDownRecord.setServiceType(AuthOperationTransportRecordContext.current("ISC",String.valueOf(smtDeviceTask.getId()))==null
+                ?downRecordServiceType(smtDeviceTask.getServiceType()):smtDeviceTask.getServiceType());
 		taskDownRecord.setTaskType(DeviceTaskStatusEnum.SUCCESS.getCode());
 		taskDownRecord.setRemark("");
-		this.save(taskDownRecord);
+		boolean saved = this.save(taskDownRecord);
+		if (!saved) {
+			throw new IllegalStateException("ISC下发记录保存失败，taskId=" + smtDeviceTask.getId());
+		}
+	}
+
+ /** 已通过目标版本门禁，只维护精确物理记录，业务来源由工作流最终收敛。 */
+ private void handleVersionRecord(SmtIscDeviceTask task,com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+	int serviceType=serviceType(phase);
+	if(!"DELETE".equals(phase.getAction()))requireWindow(phase);
+  LambdaQueryWrapper<SmtIscDownRecord> query=new LambdaQueryWrapper<SmtIscDownRecord>()
+   .eq(SmtIscDownRecord::getParkId,phase.getParkId()).eq(SmtIscDownRecord::getDeviceCode,phase.getDeviceId())
+   .eq(SmtIscDownRecord::getCardNo,phase.getCardNo()).eq(SmtIscDownRecord::getDeviceType,1)
+   .eq(SmtIscDownRecord::getServiceType,serviceType);
+  List<SmtIscDownRecord> old=this.list(query);if(!old.isEmpty())removeDownRecords(old);
+  if("DELETE".equals(phase.getAction()))return;
+  SmtIscDownRecord record=new SmtIscDownRecord();record.setParkId(phase.getParkId());record.setDeviceCode(phase.getDeviceId());
+  record.setCardNo(phase.getCardNo());record.setDeviceType(1);record.setServiceType(serviceType);
+  record.setTaskId(Long.valueOf(phase.getTaskId()));record.setImageId(phase.getImageId());
+  record.setStartTime(DateUtil.date(phase.getStartTime()*1000));record.setOverTime(DateUtil.date(phase.getOverTime()*1000));
+  record.setAction(DeviceTaskActionEnum.DOWN.getCode());record.setTaskType(DeviceTaskStatusEnum.SUCCESS.getCode());
+  record.setCreateTime(LocalDateTime.now());record.setRemark("");record.setPersonId(phase.getPersonId());record.setBadge(phase.getBadge());
+  if(!this.save(record))throw new IllegalStateException("冻结下发记录保存失败");
+ }
+	private static int serviceType(com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+		try { return Integer.parseInt(phase.getServiceType()); }
+		catch (RuntimeException invalid) { throw new IllegalArgumentException("冻结业务类型无效", invalid); }
+	}
+	private static void requireWindow(com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+		if (phase.getStartTime()==null || phase.getOverTime()==null) throw new IllegalArgumentException("冻结有效期缺失");
 	}
 }

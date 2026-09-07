@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.tce.smart.common.core.model.Result;
 import com.tce.smart.common.core.util.BeanUtils;
@@ -22,7 +23,7 @@ import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceFellow;
 import com.tce.smart.platform.core.entity.admittance.SmtAdmittanceVehicle;
 import com.tce.smart.platform.core.service.SmtDeviceTaskService;
 import com.tce.smart.platform.core.service.SmtIscDownRecordService;
-import com.tce.smart.platform.core.service.SmtTaskDownRecordService;
+import com.tce.smart.platform.core.service.impl.DirectTaskCompletionService;
 import com.tce.smart.platform.service.*;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceApplyService;
 import com.tce.smart.platform.service.admittance.SmtAdmittanceFellowService;
@@ -61,6 +62,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/inner/access")
 public class IntergrationAccessController extends BaseController {
+ private com.tce.smart.platform.core.service.impl.AuthOperationTransportGuard transportGuard;
+ private com.tce.smart.platform.core.service.impl.AuthOperationTransportService transport;
+ @org.springframework.beans.factory.annotation.Autowired public void setAuthTransport(com.tce.smart.platform.core.service.impl.AuthOperationTransportGuard guard,com.tce.smart.platform.core.service.impl.AuthOperationTransportService service){this.transportGuard=guard;this.transport=service;}
+
 
 	@Resource
 	private SmtSnapPersonService smtSnapPersonService;
@@ -72,7 +77,7 @@ public class IntergrationAccessController extends BaseController {
 	private SmtDeviceTaskService smtDeviceTaskService;
 
 	@Resource
-	private SmtTaskDownRecordService smtTaskDownRecordService;
+	private DirectTaskCompletionService directTaskCompletionService;
 
 	@Resource
 	private SmtIscDownRecordService smtIscDownRecordService;
@@ -233,61 +238,54 @@ public class IntergrationAccessController extends BaseController {
 	 * @param replyContent
 	 * @return
 	 */
-	@Transactional
-	public Result<Boolean> doReplyOfCard(String replyContent){
-
-		/**
-		 * {
-		 *     "code": 200, //结果状态码，200为成功，否则失败【必选】
-		 *     "message": "操作成功",//结果信息【必选】
-		 *     "data":{
-		 *          "serialNo":"5A8EAB9B60C24B69A5FFB0AC45872479", // 消息流水号【必选】
-		 *      }
-		 * }
-		 */
-
-		/**
-		 * {"code":402,"data":{"serialNo":"bb923e75adc94930bbb5b8e23c8645c8"},"message":"参数错误"}
-		 */
-
-		//{"code":200,"data":{"serialNo":"03005d6614f449d8a05a5a9f69b9158a"},"message":"操作成功"}
-
-		JSONObject jsonObject = JSONUtil.parseObj(replyContent);
-		if(null != jsonObject && jsonObject.containsKey("code")){
-			if(jsonObject.containsKey("data")){
-				JSONObject dataObj = jsonObject.getJSONObject("data");
-				if(dataObj.containsKey("serialNo")){
-					String serialNo = dataObj.getStr("serialNo");
-					//修改处理状态
-					SmtDeviceTask deviceTask = smtDeviceTaskService.getOne(new LambdaQueryWrapper<SmtDeviceTask>().eq(SmtDeviceTask::getSerialNo, serialNo));
-					DeviceTaskStatusEnum status = DeviceTaskStatusEnum.FAIL;
-					if(jsonObject.getInt("code").equals(DeviceTaskEnum.DEVICE_OK.getCode())){
-						status = DeviceTaskStatusEnum.SUCCESS;
-					}
-					String msg = jsonObject.containsKey("message") ? jsonObject.getStr("message") : "";
-					if(null != deviceTask){
-						if(!(jsonObject.getInt("code").equals(DeviceTaskEnum.DEVICE_OPRATION_NEED_RETRY.getCode())
-								|| jsonObject.getInt("code").equals(DeviceTaskEnum.DEVICE_DEVICE_ERROR.getCode())
-						|| jsonObject.getInt("code").equals(DeviceTaskEnum.DEVICE_DEVICE_NOT_ONLINE.getCode()))){
-							//设备错误、需要重试、设备不在线这几个状态 不修改任务状态  等待下次重试
-							deviceTask.setStatus(status.getCode());
-						}
-						deviceTask.setUpdateTime(LocalDateTime.now());
-						deviceTask.setRemark(msg);
-						smtDeviceTaskService.updateById(deviceTask);
-						if(status == DeviceTaskStatusEnum.SUCCESS){
-							//如果回调成功 处理下发记录
-							smtTaskDownRecordService.handleTaskDownRecord(deviceTask);
-							//如果是访客人脸或者访客车辆 应在收到下发成功回调后生成卡片删除任务 删除时间为预约结束时间
-							//如果访客离开时 应把删除时间修改为离开时的时间
-							handelVisitor(deviceTask);
-						}
-					}
-					return success();
-				}
-			}
+	public Result<Boolean> doReplyOfCard(String replyContent) {
+		JSONObject reply = JSONUtil.parseObj(replyContent);
+		Integer code = reply.getInt("code");
+		JSONObject data = reply.getJSONObject("data");
+		String serialNo = data == null ? null : data.getStr("serialNo");
+		if (code == null || StrUtil.isBlank(serialNo)) {
+			return fail("处理卡片回复结果失败");
 		}
-		return fail("处理卡片回复结果失败");
+		SmtDeviceTask task = smtDeviceTaskService.getOne(new LambdaQueryWrapper<SmtDeviceTask>()
+				.eq(SmtDeviceTask::getSerialNo, serialNo));
+		if (task == null) {
+			return fail("未找到回执对应的设备命令");
+		}
+		String remark = reply.getStr("message", "");
+        com.tce.smart.platform.core.dto.authtransport.AuthDirectTakeover.Decision admission;
+        try {
+            if(transportGuard==null)return fail("DIRECT 持久门禁未装配");
+            admission=transportGuard.admitLegacyReceipt(task.getId(),serialNo,code,"code="+code);
+        } catch(RuntimeException unavailable) {return fail("DIRECT_GATE_UNAVAILABLE");}
+        if(admission==null)return fail("DIRECT_GATE_UNAVAILABLE");
+        if(admission.getOutcome()==com.tce.smart.platform.core.dto.authtransport.AuthDirectTakeover.Outcome.OWNED_BY_TRANSPORT) {
+            com.tce.smart.platform.core.entity.SmtAuthTransportPhase p=admission.getPhase();
+            if(p==null || !DeviceTaskConstants.CARD.equals(task.getDeviceType()) || transport==null)return fail("回执命令关联待核验");
+            com.tce.smart.platform.core.dto.authworkflow.AuthWorkflow.Received received;
+            try {received=transport.receipt(p.getParkId(),p.getInstanceId(),p.getId(),null,p.getDeviceId(),serialNo,serialNo+":"+code,
+                DeviceTaskEnum.DEVICE_OK.getCode().equals(code),"code="+code);}
+            catch(RuntimeException rejected){return fail("DIRECT_RECEIPT_VERIFYING");}
+            if(received==null || received.getReceipt()==null || received.getEvidence()==null || received.getReceipt().getEventId()==null
+                || !java.util.Objects.equals(p.getTargetId(),received.getReceipt().getTargetId())
+                || !java.util.Objects.equals(p.getAttemptId(),received.getReceipt().getAttemptId())
+                || !java.util.Arrays.asList("CURRENT_APPLIED","STALE_COMPENSATE","STALE_REPLAY").contains(received.getEvidence().getOutcome()))
+                return fail("DIRECT_RECEIPT_VERIFYING");
+            return success();
+        }
+        if(!admission.legacyAllowed())return fail(admission.getReason());
+
+		if (DeviceTaskEnum.DEVICE_OK.getCode().equals(code)) {
+			// 三个路由均通过独立 Bean 开启事务，业务派生继续参与同一本地事务。
+			directTaskCompletionService.completeSuccess(task, code, remark, this::handelVisitor);
+		} else {
+			boolean retry = DeviceTaskEnum.DEVICE_OPRATION_NEED_RETRY.getCode().equals(code)
+					|| DeviceTaskEnum.DEVICE_DEVICE_ERROR.getCode().equals(code)
+					|| DeviceTaskEnum.DEVICE_DEVICE_NOT_ONLINE.getCode().equals(code);
+			directTaskCompletionService.recordResult(task, retry ? null : DeviceTaskStatusEnum.FAIL.getCode(),
+					code, remark, null);
+		}
+		// 已知命令的重复或迟到通知按幂等回执确认，完成器不重复修改业务状态。
+		return success();
 	}
 
 	/**
@@ -390,15 +388,31 @@ public class IntergrationAccessController extends BaseController {
 		if(!reusableDeleteTasks.isEmpty()){
 			Long deleteOverTime = resolveDeleteOverTime(deviceTask, endTime);
 			reusableDeleteTasks.forEach(task -> {
-				task.setOverTime(deleteOverTime);
-				if (!DeviceTaskStatusEnum.DOING.getCode().equals(task.getStatus())) {
-					task.setStatus(DeviceTaskStatusEnum.INIT.getCode());
-					task.setRemark(null);
-					task.setCode(null);
+				// 复用任务也必须冻结旧状态和流水号，避免恢复已被并发完成或取消的删除命令。
+				LambdaUpdateWrapper<SmtDeviceTask> update = new LambdaUpdateWrapper<SmtDeviceTask>()
+						.eq(SmtDeviceTask::getId, task.getId())
+						.eq(SmtDeviceTask::getAction, DeviceTaskActionEnum.DEL.getCode())
+						.set(SmtDeviceTask::getOverTime, deleteOverTime)
+						.set(SmtDeviceTask::getUpdateTime, LocalDateTime.now());
+				if (task.getStatus() == null) {
+					update.isNull(SmtDeviceTask::getStatus);
+				} else {
+					update.eq(SmtDeviceTask::getStatus, task.getStatus());
 				}
-				task.setUpdateTime(LocalDateTime.now());
-				smtDeviceTaskService.updateById(task);
+				if (task.getSerialNo() == null) {
+					update.isNull(SmtDeviceTask::getSerialNo);
+				} else {
+					update.eq(SmtDeviceTask::getSerialNo, task.getSerialNo());
+				}
+				if (!DeviceTaskStatusEnum.DOING.getCode().equals(task.getStatus())) {
+					update.set(SmtDeviceTask::getStatus, DeviceTaskStatusEnum.INIT.getCode())
+							.setSql("REMARK = NULL, CODE = NULL");
+				}
+				if (!smtDeviceTaskService.update(update)) {
+					throw new IllegalStateException("访客到期删除任务已变化或更新失败");
+				}
 			});
+
 			return;
 		}
 		SmtDeviceTask newDeviceTask = new SmtDeviceTask();
@@ -413,7 +427,9 @@ public class IntergrationAccessController extends BaseController {
 		newDeviceTask.setUpdateTime(null);
 		newDeviceTask.setRemark(null);
 		newDeviceTask.setCode(null);
-		smtDeviceTaskService.save(newDeviceTask);
+		if (!smtDeviceTaskService.save(newDeviceTask)) {
+			throw new IllegalStateException("访客到期删除任务保存失败");
+		}
 	}
 
 	private List<SmtDeviceTask> filterReusableDeleteTasks(List<SmtDeviceTask> deleteTasks) {

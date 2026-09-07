@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.tce.smart.platform.core.entity.SmtIscDeviceTask;
 import com.tce.smart.platform.core.entity.SmtIscDownRecord;
+import com.tce.smart.platform.core.entity.SmtDevice;
 import com.tce.smart.platform.core.mapper.SmtDeviceMapper;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
 import com.tce.smart.tool.enums.DeviceTaskActionEnum;
@@ -193,6 +194,54 @@ public class SmtIscDownRecordServiceImplTest {
 
 		Mockito.verify(syncService).syncAfterDelete("device-1", "1001", "8031249-李世勋",
 				DeviceTaskConstants.CARD, DeviceTaskConstants.CARD_STAFF_IMPORT);
+	}
+
+	/**
+	 * 验证新增下发记录返回false时直接抛出异常，保留成功任务的可恢复性。
+	 */
+	@Test(expected = IllegalStateException.class)
+	public void handleTaskDownRecordThrowsWhenSaveReturnsFalse() {
+		SmtDeviceMapper deviceMapper = Mockito.mock(SmtDeviceMapper.class);
+		SmtIscDownRecordServiceImpl service = Mockito.spy(new SmtIscDownRecordServiceImpl(
+				deviceMapper, Mockito.mock(StaffDeviceAuthSyncService.class)));
+		SmtIscDeviceTask task = new SmtIscDeviceTask();
+		task.setId(10L);
+		task.setDeviceCode("device-1");
+		task.setDeviceType(DeviceTaskConstants.CARD);
+		task.setServiceType(DeviceTaskConstants.CARD_STAFF_IMPORT);
+		task.setAction(DeviceTaskActionEnum.DOWN.getCode());
+		task.setCardNo("1001");
+		task.setPersonId("person-1");
+		task.setStartTime(1L);
+		task.setOverTime(2L);
+		SmtDevice device = new SmtDevice();
+		device.setId("device-1");
+		device.setParkId(5000021);
+		Mockito.when(deviceMapper.selectById("device-1")).thenReturn(device);
+		Mockito.doReturn(Collections.emptyList()).when(service).list(Mockito.any());
+		Mockito.doReturn(false).when(service).save(Mockito.any(SmtIscDownRecord.class));
+
+		service.handleTaskDownRecord(task);
+	}
+
+	/**
+	 * 验证删除记录返回false时直接抛出异常，阻止本地记录静默残留。
+	 */
+	@Test(expected = IllegalStateException.class)
+	public void handleTaskDownRecordThrowsWhenRemoveReturnsFalse() {
+		SmtIscDownRecordServiceImpl service = Mockito.spy(newService());
+		SmtIscDeviceTask task = new SmtIscDeviceTask();
+		task.setDeviceCode("device-1");
+		task.setCardNo("1001");
+		task.setDeviceType(DeviceTaskConstants.CARD);
+		task.setServiceType(DeviceTaskConstants.CARD_STAFF_IMPORT);
+		task.setAction(DeviceTaskActionEnum.DEL.getCode());
+		SmtIscDownRecord record = new SmtIscDownRecord();
+		record.setId(9L);
+		Mockito.doReturn(Collections.singletonList(record)).when(service).list(Mockito.any());
+		Mockito.doReturn(false).when(service).removeByIds(Mockito.anyCollection());
+
+		service.handleTaskDownRecord(task);
 	}
 
 	private boolean queryHasParam(LambdaQueryWrapper<SmtIscDownRecord> query, Object expected) {

@@ -23,9 +23,10 @@ import com.tce.smart.platform.api.dto.*;
 import com.tce.smart.platform.api.feign.RemoteStaffService;
 import com.tce.smart.platform.core.entity.SmtDevice;
 import com.tce.smart.platform.core.entity.SmtDeviceTask;
-import com.tce.smart.platform.core.entity.SmtTaskDownRecord;
 import com.tce.smart.platform.core.entity.SmtVisitor;
 import com.tce.smart.platform.core.service.*;
+import com.tce.smart.platform.core.service.impl.DirectTaskCompletionService;
+import com.tce.smart.platform.core.dto.authtransport.AuthDirectTakeover.*;
 import com.tce.smart.schedule.service.platform.IDeviceTaskService;
 import com.tce.smart.tool.constant.DeviceConstants;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
@@ -33,10 +34,9 @@ import com.tce.smart.tool.enums.DeviceTaskActionEnum;
 import com.tce.smart.tool.enums.DeviceTaskEnum;
 import com.tce.smart.tool.enums.DeviceTaskStatusEnum;
 import com.tce.smart.tool.util.ToolUtils;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -49,8 +49,45 @@ import java.util.*;
  */
 @Service
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class DeviceTaskServiceImpl implements IDeviceTaskService {
+ private com.tce.smart.platform.core.service.impl.AuthOperationTransportGuard transportGuard;
+ @org.springframework.beans.factory.annotation.Autowired public void setTransportGuard(com.tce.smart.platform.core.service.impl.AuthOperationTransportGuard guard){this.transportGuard=guard;}
+
+
+    /** 独立于普通网络失败的非成功码，批处理显式跳过且不更新短信或派生业务。 */
+    public static final int DIRECT_REVIEW_CODE=46012;
+    private static boolean guarded(Result result){return result!=null&&Integer.valueOf(DIRECT_REVIEW_CODE).equals(result.getCode());}
+    private Result admission(SmtDeviceTask task,LegacyIdentity identity) {
+        try {
+            if(transportGuard==null)throw new IllegalStateException("DIRECT 持久门禁未装配");
+            Decision d=transportGuard.admitLegacyDirect(task==null?null:task.getId(),identity);
+            if(d!=null && d.legacyAllowed())return null;
+            return Result.builder().code(DIRECT_REVIEW_CODE).msg(d==null?"DIRECT_GATE_UNAVAILABLE":d.getReason()).build();
+        } catch(RuntimeException unavailable) {log.warn("DIRECT 持久门禁校验异常，任务转人工复核 taskId={}",task==null?null:task.getId(),unavailable);return Result.builder().code(DIRECT_REVIEW_CODE).msg("DIRECT_GATE_UNAVAILABLE").build();}
+    }
+    /** 四个最终 HTTP 出口共用实际 wire 对照；准入事务已结束才允许外调。 */
+    private Result dispatchLegacyGuarded(SmtDeviceTask task,DispatcherDTO<?> request) {
+        LegacyIdentity.LegacyIdentityBuilder i=LegacyIdentity.of(task).toBuilder().wirePark(request.getParkId()).wireEnvelopeDevice(request.getDeviceId());
+        Object data=request.getData();
+        if(data instanceof CarCardDTO) {
+            CarCardDTO d=(CarCardDTO)data;i.wireOperation(EventEnum.PARKING_ENTRANCE_AUTH_ADD.getCode().equals(request.getEventType())?"CAR_ADD":"INVALID")
+                .wireDevice(d.getDeviceCode()).wireCard(d.getCardNo()).wireGeneral(d.getPlateLicence()).wireCardType(d.getCardType());
+        } else if(data instanceof CarCardDelDTO) {
+            CarCardDelDTO d=(CarCardDelDTO)data;i.wireOperation(EventEnum.PARKING_ENTRANCE_AUTH_DELETE.getCode().equals(request.getEventType())?"CAR_DELETE":"INVALID")
+                .wireDevice(d.getDeviceCode()).wireCard(d.getCardNo());
+        } else if(data instanceof CardDTO) {
+            CardDTO d=(CardDTO)data;i.wireOperation(EventEnum.DEVICE_ADD_CARD.getCode().equals(request.getEventType())?"CARD_ADD":EventEnum.DEVICE_UPDATE_CARD.getCode().equals(request.getEventType())?"CARD_UPDATE":"INVALID")
+                .wireDevice(d.getDeviceCode()).wireCard(d.getCardNo()).wireSerial(d.getSerialNo()).wireTask(d.getReqId()).wireGeneral(d.getPersonName()).wireCardType(d.getCardType());
+            if(d.getValidTime()!=null)i.wireStart(d.getValidTime().getStartTime()).wireEnd(d.getValidTime().getEndTime());
+        } else if(data instanceof CardDelDTO) {
+            CardDelDTO d=(CardDelDTO)data;i.wireOperation(EventEnum.DEVICE_DELETE_CARD.getCode().equals(request.getEventType())?"CARD_DELETE":"INVALID")
+                .wireDevice(d.getDeviceCode()).wireCard(d.getCardNo()).wireSerial(d.getSerialNo()).wireTask(d.getReqId());
+        } else i.wireOperation("INVALID");
+        LegacyIdentity identity=i.build();
+        Result rejection=admission(task,identity);if(rejection!=null)return rejection;
+        return remoteDispatcherService.dispatch(request,SecurityConstants.FROM_IN);
+    }
 
 	private final SmtDeviceTaskService smtDeviceTaskService;
 
@@ -62,7 +99,7 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 
 	private final SmtVisitorService smtVisitorService;
 
-	private final SmtTaskDownRecordService smtTaskDownRecordService;
+	private final DirectTaskCompletionService directTaskCompletionService;
 
 	private final RemoteStaffService remoteStaffService;
 
@@ -90,6 +127,7 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 			}
 			long start = System.currentTimeMillis();
 			Result result = this.down(task);
+            if(guarded(result))continue;
 			log.info("卡片下发，耗时：{}，cardNo：{}，deviceCode：{}，code：{}，message：{}", System.currentTimeMillis() - start,
 					task.getCardNo(), task.getDeviceCode(), result.getCode(), result.getMsg());
 			if (DeviceTaskEnum.BRIGE_ERROR.getCode().equals(result.getCode()) || CommonConstants.FAIL.equals(result.getCode())) {
@@ -127,6 +165,7 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 
 			long start = System.currentTimeMillis();
 			Result result = this.down(task);
+            if(guarded(result))continue;
 			log.info("车辆下发，耗时：{}，cardNo：{}，deviceCode：{}，code：{}，message：{}", System.currentTimeMillis() - start,
 					task.getCardNo(), task.getDeviceCode(), result.getCode(), result.getMsg());
 			if (DeviceTaskEnum.BRIGE_ERROR.getCode().equals(result.getCode()) || CommonConstants.FAIL.equals(result.getCode())) {
@@ -167,6 +206,7 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 
 			long start = System.currentTimeMillis();
 			Result result = this.del(task);
+            if(guarded(result))continue;
 			if (result.isSuccess()) {
 				smtVisitorService.updateSmsCode(Long.valueOf(task.getCardNo()));
 			}
@@ -211,6 +251,7 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		for (SmtDeviceTask task : taskList) {
 			long start = System.currentTimeMillis();
 			Result result = this.del(task);
+            if(guarded(result))continue;
 			log.info("车辆删除，耗时：{}，cardNo：{}，deviceCode：{}，code：{}，message：{}", System.currentTimeMillis() - start,
 					task.getCardNo(), task.getDeviceCode(), result.getCode(), result.getMsg());
 			if (DeviceTaskEnum.BRIGE_ERROR.getCode().equals(result.getCode()) || CommonConstants.FAIL.equals(result.getCode())) {
@@ -231,10 +272,13 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 	 * @param smtDeviceTask smtDeviceTask
 	 */
 	public Result down(SmtDeviceTask smtDeviceTask) {
+  Result rejection=admission(smtDeviceTask,LegacyIdentity.of(smtDeviceTask));if(rejection!=null)return rejection;
 		SmtDevice device = smtDeviceService.getOne(Wrappers.<SmtDevice>query().lambda().eq(SmtDevice::getId,
 				smtDeviceTask.getDeviceCode()));
-		smtDeviceTask.setTimes(smtDeviceTask.getTimes() + 1);
-		smtDeviceTaskService.updateById(smtDeviceTask);
+		if (!directTaskCompletionService.recordDispatchAttempt(smtDeviceTask)) {
+			return Result.builder().code(DeviceTaskEnum.REPEATED_ISSUANCE.getCode())
+					.msg(DeviceTaskEnum.REPEATED_ISSUANCE.getDesc()).build();
+		}
 		if (ObjectUtil.isNotNull(device) && device.getConnectStatus().equals(DeviceConstants.ON_LINE)) {
 			if (smtDeviceTask.getDeviceType().equals(DeviceTaskConstants.CARD)) {
 				return this.downCard(smtDeviceTask, device.getParkId());
@@ -251,10 +295,13 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 	 * @param smtDeviceTask smtDeviceTask
 	 */
 	public Result del(SmtDeviceTask smtDeviceTask) {
+  Result rejection=admission(smtDeviceTask,LegacyIdentity.of(smtDeviceTask));if(rejection!=null)return rejection;
 		SmtDevice device = smtDeviceService.getOne(Wrappers.<SmtDevice>query().lambda().eq(SmtDevice::getId,
 				smtDeviceTask.getDeviceCode()));
-		smtDeviceTask.setTimes(smtDeviceTask.getTimes() + 1);
-		smtDeviceTaskService.updateById(smtDeviceTask);
+		if (!directTaskCompletionService.recordDispatchAttempt(smtDeviceTask)) {
+			return Result.builder().code(DeviceTaskEnum.REPEATED_ISSUANCE.getCode())
+					.msg(DeviceTaskEnum.REPEATED_ISSUANCE.getDesc()).build();
+		}
 		if (ObjectUtil.isNotNull(device) && device.getConnectStatus().equals(DeviceConstants.ON_LINE)) {
 			if (smtDeviceTask.getDeviceType().equals(DeviceTaskConstants.CARD)) {
 				return this.delCard(smtDeviceTask, device.getParkId());
@@ -273,9 +320,9 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 	 * @return Result
 	 */
 	public Result downCarCard(SmtDeviceTask smtDeviceTask, Integer parkId) {
+        if(smtDeviceTask==null)return admission(null,null);
 		if (null != smtDeviceTask.getStatus() && (smtDeviceTask.getStatus().equals(DeviceTaskConstants.DOWN_SUCCESS) || smtDeviceTask.getStatus().equals(DeviceTaskConstants.DOWN_STOP))) {
-			smtDeviceTask.setTimes(smtDeviceTask.getTimes() + 1);
-			boolean flag = smtDeviceTask.updateById();
+			boolean flag = false;
 			log.info("重复数据-卡片车辆下发，时间：{}，请求参数：id：{}，times：{}，返回结果：{}", DateUtil.formatDateTime(DateUtil.date()), smtDeviceTask.getId(),
 					smtDeviceTask.getTimes(), flag);
 			return Result.builder().code(DeviceTaskEnum.REPEATED_ISSUANCE.getCode()).msg(DeviceTaskEnum.REPEATED_ISSUANCE.getDesc()).build();
@@ -298,9 +345,12 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setDeviceId(carCardDTO.getDeviceCode());
 		dispatcherDTO.setData(carCardDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = dispatchLegacyGuarded(smtDeviceTask, dispatcherDTO);
+        if(guarded(result))return result;
 		DateTime end = DateUtil.date();
-		if (null != result && null != result.getData()) {
+		smtDeviceTask.setCode(null);
+		smtDeviceTask.setRemark("未取得车辆执行结果");
+		if (result != null && result.isSuccess() && result.getData() != null) {
 			JSONObject object = JSONUtil.parseObj(result.getData());
 			smtDeviceTask.setCode(object.getInt("code"));
 			smtDeviceTask.setRemark(object.getStr("msg"));
@@ -316,64 +366,63 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 	 * 卡片下发结果处理
 	 * TODO 这里需要注意 人脸卡片的下发是走异步回调的流程 接口调用成功不表示下发成功 则状态不能修改为成功
 	 *
-	 * @param id     id
+	 * @param task   原任务快照
 	 * @param result result
 	 */
-	private boolean downCardResultHandle(Integer id, Result result, Long consume) {
-		SmtDeviceTask deviceTask = new SmtDeviceTask();
-		deviceTask.setId(id);
-		deviceTask.setConsume(consume);
-		deviceTask.setUpdateTime(LocalDateTime.now() );
-		if (result.isSuccess()) {
-			DeviceTaskEnum taskEnum = DeviceTaskEnum.DEVICE_OK;
-			deviceTask.setCode(taskEnum.getCode());
-			deviceTask.setRemark(taskEnum.getDesc());
-		} else {
-			deviceTask.setCode(result.getCode());
-			deviceTask.setRemark(result.getMessage());
+	private boolean downCardResultHandle(SmtDeviceTask task, Result result, Long consume) {
+		Integer code = result == null ? null : result.getCode();
+		String remark = result == null ? "未取得卡片受理结果" : result.getMessage();
+		if (result != null && result.isSuccess()) {
+			code = DeviceTaskEnum.DEVICE_OK.getCode();
+			remark = DeviceTaskEnum.DEVICE_OK.getDesc();
 		}
-		return smtDeviceTaskService.updateById(deviceTask);
+		// 受理返回不能回写 INIT 或 SUCCESS，异步成功回执可能已经先到达。
+		return directTaskCompletionService.recordResult(task, null, code, remark, consume);
 	}
 
 	/**
 	 * 车辆下发结果处理
 	 * TODO 这里车辆的下发任务为同步调用 如果调用返回的code不等于0时 应该不修改状态 等待下次下发
 	 * 下发失败时不修改状态 等待下次下发
-	 * @param smtDeviceTask 任务信息
+	 * @param task 任务快照
 	 */
-	@Transactional
-	public boolean downCarResultHandle(SmtDeviceTask smtDeviceTask) {
-		if (smtDeviceTask.isSuccess()) {
-			DeviceTaskEnum taskEnum = DeviceTaskEnum.DEVICE_OK;
-			//添加下发记录
-			smtTaskDownRecordService.handleTaskDownRecord(smtDeviceTask);
-			//如果是访客车辆 添加一个删除任务 时间为预约结束当天晚上23:59:59秒
-			SmtVisitor smtVisitor = smtVisitorService.getOne(Wrappers.<SmtVisitor>query().lambda().eq(SmtVisitor::getId, smtDeviceTask.getCardNo()));
-			if(null != smtVisitor){
-				SmtDeviceTask deviceTask = new SmtDeviceTask();
-				BeanUtil.copyProperties(smtDeviceTask, deviceTask);
-				String sNo = UUID.randomUUID().toString().replaceAll("-", "");
-				deviceTask.setSerialNo(sNo);
-				Date dateEndTime = ToolUtils.getDateEndTime(smtVisitor.getEndTime());
-				deviceTask.setStartTime(smtDeviceTask.getStartTime());
-				deviceTask.setOverTime(dateEndTime.getTime() / 1000);
-				deviceTask.setUpdateTime(null);
-				deviceTask.setCode(null);
-				deviceTask.setRemark("");
-				deviceTask.setCreateTime(LocalDateTime.now());
-				deviceTask.setAction(DeviceTaskActionEnum.DEL.getCode());
-				deviceTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
-				smtDeviceTaskService.save(deviceTask);
-			}
-			//修改下发任务状态为成功
-			return smtDeviceTaskService.updateStatus(smtDeviceTask.getId(), DeviceTaskStatusEnum.SUCCESS.getCode(),
-					taskEnum.getDesc(), taskEnum.getCode(), smtDeviceTask.getConsume(), DeviceTaskConstants.DOWN);
-		} else if(smtDeviceTask.getCode().equals(DeviceTaskEnum.DEVICE_VEHICLE_HAS_EXIST.getCode())){
-			//车辆信息已存在 不需要继续下发
-			return smtDeviceTaskService.updateStatus(smtDeviceTask.getId(), DeviceTaskStatusEnum.FAIL.getCode(),
-					DeviceTaskEnum.DEVICE_VEHICLE_HAS_EXIST.getDesc(), DeviceTaskEnum.DEVICE_VEHICLE_HAS_EXIST.getCode(), smtDeviceTask.getConsume(), DeviceTaskConstants.DOWN);
+	public boolean downCarResultHandle(SmtDeviceTask task) {
+		if (DeviceTaskEnum.DEVICE_OK.getCode().equals(task.getCode())) {
+			return directTaskCompletionService.completeSuccess(task, task.getCode(),
+					DeviceTaskEnum.DEVICE_OK.getDesc(), this::createVisitorCarDeleteTask);
 		}
-		return Boolean.FALSE;
+		Integer nextStatus = DeviceTaskEnum.DEVICE_VEHICLE_HAS_EXIST.getCode().equals(task.getCode())
+				? DeviceTaskStatusEnum.FAIL.getCode() : null;
+		return directTaskCompletionService.recordResult(task, nextStatus, task.getCode(), task.getRemark(), task.getConsume());
+	}
+
+	/** 仅实际新增成功后派生访客到期删除，保留现有车辆当日结束时间规则。 */
+	private void createVisitorCarDeleteTask(SmtDeviceTask task) {
+		if (!DeviceTaskActionEnum.DOWN.getCode().equals(task.getAction())
+				&& !DeviceTaskActionEnum.DELAY_DOWN.getCode().equals(task.getAction())) {
+			return;
+		}
+		SmtVisitor visitor = smtVisitorService.getOne(Wrappers.<SmtVisitor>query().lambda()
+				.eq(SmtVisitor::getId, task.getCardNo()));
+		if (visitor == null) {
+			return;
+		}
+		SmtDeviceTask deleteTask = new SmtDeviceTask();
+		BeanUtil.copyProperties(task, deleteTask);
+		deleteTask.setId(null);
+		deleteTask.setSerialNo(UUID.randomUUID().toString().replace("-", ""));
+		deleteTask.setOverTime(ToolUtils.getDateEndTime(visitor.getEndTime()).getTime() / 1000);
+		deleteTask.setUpdateTime(null);
+		deleteTask.setCode(null);
+		deleteTask.setRemark("");
+		deleteTask.setCreateTime(LocalDateTime.now());
+		deleteTask.setAction(DeviceTaskActionEnum.DEL.getCode());
+		deleteTask.setStatus(DeviceTaskStatusEnum.INIT.getCode());
+		deleteTask.setTimes(0);
+		deleteTask.setConsume(null);
+		if (!smtDeviceTaskService.save(deleteTask)) {
+			throw new IllegalStateException("访客车辆到期删除任务保存失败");
+		}
 	}
 
 
@@ -384,6 +433,7 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 	 * @return Result
 	 */
 	public Result delCarCard(SmtDeviceTask smtDeviceTask, Integer parkId) {
+        if(smtDeviceTask==null)return admission(null,null);
 		if (ObjectUtil.isNull(smtDeviceTask)) {
 			log.info("重复数据-卡片车辆删除，时间：{}，请求参数：id：{}，cardNo：{}，deviceCode：{}", DateUtil.formatDateTime(DateUtil.date()),
 					smtDeviceTask.getId(), smtDeviceTask.getCardNo(), smtDeviceTask.getDeviceCode());
@@ -401,8 +451,11 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setDeviceId(carCardDelDTO.getDeviceCode());
 		dispatcherDTO.setData(carCardDelDTO);
 		//这里需要主要 result的code=0表示成功 和 DeviceTaskEnum.DEVICE_OK 不一致
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
-		if (result.isSuccess()) {
+		Result result = dispatchLegacyGuarded(smtDeviceTask, dispatcherDTO);
+        if(guarded(result))return result;
+		smtDeviceTask.setCode(null);
+		smtDeviceTask.setRemark("未取得车辆执行结果");
+		if (result != null && result.isSuccess() && result.getData() != null) {
 			JSONObject object = JSONUtil.parseObj(result.getData());
 			smtDeviceTask.setCode(object.getInt("code"));
 			smtDeviceTask.setRemark(object.getStr("msg"));
@@ -420,37 +473,23 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 	 * 调用成功后 状态不修改  在回调成功时修改为成功
 	 * @param result result
 	 */
-	private boolean delCardResultHandle(Integer id, Result result, Long consume) {
-		if (result.isSuccess()) {
-			DeviceTaskEnum taskEnum = DeviceTaskEnum.DEVICE_OK;
-			return smtDeviceTaskService.updateStatus(id, DeviceTaskStatusEnum.INIT.getCode(),
-					taskEnum.getDesc(), taskEnum.getCode(), consume, DeviceTaskConstants.DEL);
-		}
-		return smtDeviceTaskService.updateStatus(id, DeviceTaskStatusEnum.INIT.getCode(),
-				result.getMessage(), result.getCode(), consume, DeviceTaskConstants.DEL);
+	private boolean delCardResultHandle(SmtDeviceTask task, Result result, Long consume) {
+		return downCardResultHandle(task, result, consume);
 	}
 
 
 	/**
 	 * 车辆删除结果处理
 	 *
-	 * @param smtDeviceTask smtDeviceTask
+	 * @param task 任务快照
 	 */
-	private boolean delCarResultHandle(SmtDeviceTask smtDeviceTask) {
-		if ((smtDeviceTask.getCode().equals(DeviceTaskEnum.DEVICE_VEHICLE_NOT_EXIST.getCode())) || smtDeviceTask.isSuccess()) {
-			//修改删除任务状态
-			smtDeviceTaskService.updateStatus(smtDeviceTask.getId(), DeviceTaskStatusEnum.SUCCESS.getCode(),
-					DeviceTaskEnum.desc(smtDeviceTask.getCode()), smtDeviceTask.getCode(), smtDeviceTask.getConsume(), DeviceTaskConstants.DEL);
-			//删除任务下发记录
-			SmtTaskDownRecord taskDownRecord = smtTaskDownRecordService.getOne(new LambdaQueryWrapper<SmtTaskDownRecord>()
-					.eq(SmtTaskDownRecord::getCardNo, smtDeviceTask.getCardNo())
-					.eq(SmtTaskDownRecord::getDeviceCode, smtDeviceTask.getDeviceCode())
-			);
-			if(null != taskDownRecord){
-				smtTaskDownRecordService.removeById(taskDownRecord.getId());
-			}
+	private boolean delCarResultHandle(SmtDeviceTask task) {
+		if (DeviceTaskEnum.DEVICE_VEHICLE_NOT_EXIST.getCode().equals(task.getCode())
+				|| DeviceTaskEnum.DEVICE_OK.getCode().equals(task.getCode())) {
+			return directTaskCompletionService.completeSuccess(task, task.getCode(),
+					DeviceTaskEnum.desc(task.getCode()), null);
 		}
-		return Boolean.FALSE;
+		return directTaskCompletionService.recordResult(task, null, task.getCode(), task.getRemark(), task.getConsume());
 	}
 
 	/**
@@ -460,9 +499,9 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 	 * @return Result
 	 */
 	private Result downCard(SmtDeviceTask smtDeviceTask, Integer parkId) {
+        if(smtDeviceTask==null)return admission(null,null);
 		if (null != smtDeviceTask.getStatus() && smtDeviceTask.getStatus().equals(DeviceTaskConstants.DOING)) {
-			smtDeviceTask.setTimes(smtDeviceTask.getTimes() + 1);
-			boolean flag = smtDeviceTask.updateById();
+			boolean flag = false;
 			log.info("重复数据-卡片人员下发，时间：{}，请求参数：id：{}，times：{}，返回结果：{}", DateUtil.formatDateTime(DateUtil.date()), smtDeviceTask.getId(),
 					smtDeviceTask.getTimes(), flag);
 			return Result.builder().code(DeviceTaskEnum.REPEATED_ISSUANCE.getCode()).msg(DeviceTaskEnum.REPEATED_ISSUANCE.getDesc()).build();
@@ -507,10 +546,11 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		DateTime start = DateUtil.date();
 		// 园区分发
 		dispatcherDTO.setData(cardDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = dispatchLegacyGuarded(smtDeviceTask, dispatcherDTO);
+        if(guarded(result))return result;
 		//Result(code=0, msg=success, data=true)
 		DateTime end = DateUtil.date();
-		boolean flag = this.downCardResultHandle(smtDeviceTask.getId(), result, DateUtil.betweenMs(start, end));
+		boolean flag = this.downCardResultHandle(smtDeviceTask, result, DateUtil.betweenMs(start, end));
 		log.info("状态修改-卡片人员下发，修改时间：{}，请求参数：id：{}，result.code：{}，返回结果：{}", DateUtil.formatDateTime(DateUtil.date()), smtDeviceTask.getId()
 				, result.getCode(), flag);
 		return result;
@@ -523,9 +563,9 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 	 * @return Result
 	 */
 	public Result delCard(SmtDeviceTask smtDeviceTask, Integer parkId) {
-		if (smtDeviceTask.getStatus().equals(DeviceTaskConstants.DOING)) {
-			smtDeviceTask.setTimes(smtDeviceTask.getTimes() + 1);
-			boolean flag = smtDeviceTask.updateById();
+        if(smtDeviceTask==null)return admission(null,null);
+		if (Objects.equals(smtDeviceTask.getStatus(),DeviceTaskConstants.DOING)) {
+			boolean flag = false;
 			log.info("重复数据-卡片人员删除，时间：{}，请求参数：id：{}，cardNo：{}，deviceCode：{}，返回结果：{}", DateUtil.formatDateTime(DateUtil.date()),
 					smtDeviceTask.getId(), smtDeviceTask.getCardNo(), smtDeviceTask.getDeviceCode(), flag);
 			return Result.builder().code(DeviceTaskEnum.REPEATED_ISSUANCE.getCode()).msg(DeviceTaskEnum.REPEATED_ISSUANCE.getDesc()).build();
@@ -543,9 +583,10 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
 		dispatcherDTO.setParkId(parkId);
 		dispatcherDTO.setDeviceId(cardDelDTO.getDeviceCode());
 		dispatcherDTO.setData(cardDelDTO);
-		Result result = remoteDispatcherService.dispatch(dispatcherDTO, SecurityConstants.FROM_IN);
+		Result result = dispatchLegacyGuarded(smtDeviceTask, dispatcherDTO);
+        if(guarded(result))return result;
 		DateTime end = DateUtil.date();
-		boolean flag = this.delCardResultHandle(smtDeviceTask.getId(), result, DateUtil.betweenMs(start, end));
+		boolean flag = this.delCardResultHandle(smtDeviceTask, result, DateUtil.betweenMs(start, end));
 		log.info("状态修改-卡片人员删除，修改时间：{}，请求参数：id：{}，result.code：{},返回结果：{}", DateUtil.formatDateTime(DateUtil.date()), smtDeviceTask.getId(), result.getCode(), flag);
 		return result;
 	}

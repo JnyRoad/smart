@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.LegacyEmployeeAccessInventoryMapper">
+
+    <select id="now" resultType="java.time.LocalDateTime">SELECT SYSTIMESTAMP FROM DUAL</select>
+
+    <select id="lockActiveFlows" resultType="com.tce.smart.platform.core.entity.SmtAuthLegacyScanFlow">
+        SELECT * FROM SMT_AUTH_LEGACY_SCAN_FLOW
+        WHERE FLOW_STATE IN ('READY','RUNNING','ERROR') ORDER BY FLOW_KIND FOR UPDATE
+    </select>
+
+    <select id="lockRunFlows" resultType="com.tce.smart.platform.core.entity.SmtAuthLegacyScanFlow">
+        SELECT * FROM SMT_AUTH_LEGACY_SCAN_FLOW WHERE RUN_ID=#{runId} ORDER BY FLOW_KIND FOR UPDATE
+    </select>
+
+    <select id="lockFlow" resultType="com.tce.smart.platform.core.entity.SmtAuthLegacyScanFlow">
+        SELECT * FROM SMT_AUTH_LEGACY_SCAN_FLOW WHERE RUN_ID=#{runId} AND FLOW_KIND=#{flowKind} FOR UPDATE
+    </select>
+
+    <insert id="insertFlow">
+        INSERT INTO SMT_AUTH_LEGACY_SCAN_FLOW
+        (ID,RUN_ID,FLOW_KIND,REQUESTED_BY,SCOPE_FINGERPRINT,AUDIT_TICKET,CAPTURE_CUTOFF,
+         ID_HIGH_WATER,ID_LAST_ID,UPDATE_HIGH_WATER_AT,UPDATE_LAST_AT,UPDATE_LAST_ID,
+         REVISIT_REQUIRED,REVISIT_HIGH_WATER_ID,REVISIT_LAST_ID,ACTIVE_PASS,
+         ID_PASS_DONE,UPDATE_PASS_DONE,REVISIT_PASS_DONE,PAGE_SIZE,LEASE_OWNER,LEASE_TOKEN,
+         LEASE_UNTIL,ROW_VERSION,FLOW_STATE,LAST_ERROR_CODE,LAST_ERROR_DETAIL,LAST_COMMIT_AT,
+         CREATED_AT,UPDATED_AT,COMPLETED_AT)
+        VALUES
+        (#{id},#{runId},#{flowKind},#{requestedBy},#{scopeFingerprint},#{auditTicket},#{captureCutoff},
+         #{idHighWater},#{idLastId},#{updateHighWaterAt},#{updateLastAt},#{updateLastId},
+         #{revisitRequired},#{revisitHighWaterId},#{revisitLastId},#{activePass},
+         #{idPassDone},#{updatePassDone},#{revisitPassDone},#{pageSize},#{leaseOwner},#{leaseToken},
+         #{leaseUntil},#{rowVersion},#{flowState},#{lastErrorCode},#{lastErrorDetail},#{lastCommitAt},
+         #{createdAt},#{updatedAt},#{completedAt})
+    </insert>
+
+    <select id="selectPhysicalHighWater" resultType="java.lang.Long">
+        <choose>
+            <when test="flowKind == 'CURRENT_SOURCE'">SELECT MAX(ID) FROM SMT_STAFF_DEVICE_AUTH</when>
+            <when test="flowKind == 'ISC_TASK'">SELECT MAX(ID) FROM SMT_ISC_DEVICE_TASK</when>
+            <when test="flowKind == 'ISC_DOWN'">SELECT MAX(ID) FROM SMT_ISC_DOWN_RECORD</when>
+            <when test="flowKind == 'DIRECT_TASK'">SELECT MAX(ID) FROM SMT_DEVICE_TASK</when>
+            <when test="flowKind == 'DIRECT_DOWN'">SELECT MAX(ID) FROM SMT_TASK_DOWN_RECORD</when>
+            <otherwise>SELECT CAST(NULL AS NUMBER) FROM DUAL</otherwise>
+        </choose>
+    </select>
+
+    <select id="selectUpdateHighWater" resultType="java.time.LocalDateTime">
+        <choose>
+            <when test="flowKind == 'ISC_TASK'">
+                SELECT MAX(UPDATE_TIME) FROM SMT_ISC_DEVICE_TASK WHERE UPDATE_TIME &lt;= #{captureCutoff}
+            </when>
+            <when test="flowKind == 'DIRECT_TASK'">
+                SELECT MAX(UPDATE_TIME) FROM SMT_DEVICE_TASK WHERE UPDATE_TIME &lt;= #{captureCutoff}
+            </when>
+            <otherwise>SELECT CAST(NULL AS TIMESTAMP) FROM DUAL</otherwise>
+        </choose>
+    </select>
+
+    <update id="claimFlow">
+        UPDATE SMT_AUTH_LEGACY_SCAN_FLOW
+        SET FLOW_STATE='RUNNING',LEASE_OWNER=#{leaseOwner},LEASE_TOKEN=#{leaseToken},
+            LEASE_UNTIL=#{leaseUntil},ROW_VERSION=ROW_VERSION+1,UPDATED_AT=#{now},
+            LAST_ERROR_CODE=NULL,LAST_ERROR_DETAIL=NULL
+        WHERE RUN_ID=#{runId} AND FLOW_KIND=#{flowKind} AND ROW_VERSION=#{expectedRowVersion}
+          AND (FLOW_STATE IN ('READY','ERROR')
+               OR (FLOW_STATE='RUNNING' AND (LEASE_UNTIL IS NULL OR LEASE_UNTIL &lt;= #{now})))
+    </update>
+
+    <sql id="candidateFilter">
+        <choose>
+            <when test="pass == 'ID'">AND t.ID &gt; #{idLastId} AND t.ID &lt;= #{idHighWater}</when>
+            <when test="pass == 'UPDATE'">
+                AND t.UPDATE_TIME IS NOT NULL AND t.UPDATE_TIME &lt;= #{updateHighWaterAt}
+                AND (#{updateLastAt,jdbcType=TIMESTAMP} IS NULL
+                     OR t.UPDATE_TIME &gt; #{updateLastAt}
+                     OR (t.UPDATE_TIME=#{updateLastAt} AND t.ID &gt; #{updateLastId}))
+            </when>
+            <when test="pass == 'REVISIT'">AND t.ID &gt; #{revisitLastId} AND t.ID &lt;= #{revisitHighWaterId}</when>
+            <otherwise>AND 1=0</otherwise>
+        </choose>
+    </sql>
+
+    <select id="selectRawPage" resultType="com.tce.smart.platform.core.dto.legacyinventory.LegacyInventoryData$RawCandidate">
+        SELECT * FROM (
+        <choose>
+            <when test="flowKind == 'CURRENT_SOURCE'">
+                SELECT t.ID,t.STAFF_ID,t.AUTH_ID,t.AUTH_TYPE,t.CREATE_TIME,
+                       t.START_TIME START_AT,t.END_TIME OVER_AT,a.PARK_ID EVIDENCE_PARK_ID,
+                       (SELECT MIN(COALESCE(r.PARK_ID,d.PARK_ID)) FROM SMT_DEVICE_AUTHORITY_RELATION r
+                         LEFT JOIN SMT_DEVICE d ON d.ID=r.DEVICE_ID WHERE r.AUTHORITY_ID=t.AUTH_ID) DEVICE_PARK_MIN,
+                       (SELECT COUNT(DISTINCT COALESCE(r.PARK_ID,d.PARK_ID)) FROM SMT_DEVICE_AUTHORITY_RELATION r
+                         LEFT JOIN SMT_DEVICE d ON d.ID=r.DEVICE_ID WHERE r.AUTHORITY_ID=t.AUTH_ID) DEVICE_PARK_COUNT,
+                       (SELECT MIN(s.ID) FROM SMT_STAFF s WHERE s.ID=t.STAFF_ID) STAFF_CANDIDATE_ID,
+                       (SELECT COUNT(*) FROM SMT_STAFF s WHERE s.ID=t.STAFF_ID) STAFF_CANDIDATE_COUNT,
+                       CAST(NULL AS NUMBER) RELATED_TASK_ID,0 RELATED_TASK_COUNT
+                FROM SMT_STAFF_DEVICE_AUTH t JOIN SMT_DEVICE_AUTHORITY a ON a.ID=t.AUTH_ID
+                WHERE a.TYPE=#{staffAuthorityType}
+                <choose>
+                    <when test="pass == 'ID'">AND t.ID &gt; #{idLastId} AND t.ID &lt;= #{idHighWater}</when>
+                    <when test="pass == 'REVISIT'">AND t.ID &gt; #{revisitLastId} AND t.ID &lt;= #{revisitHighWaterId}</when>
+                    <otherwise>AND 1=0</otherwise>
+                </choose>
+                ORDER BY t.ID
+            </when>
+            <when test="flowKind == 'ISC_TASK'">
+                SELECT t.ID,t.ACTION,t.STATUS,t.DEVICE_TYPE,t.START_TIME START_EPOCH,t.OVER_TIME OVER_EPOCH,
+                       t.DEVICE_CODE,t.CARD_NO,t.CODE,t.CONSUME,t.TIMES,t.GENERAL,t.IMAGE_ID,t.SERVICE_TYPE,
+                       t.REMARK,t.ISC_TASK_ID,t.CREATE_TIME,t.UPDATE_TIME,t.OPT_USER,t.BADGE,t.PERSON_ID,
+                       t.APPLY_ID,t.BATCH_ID,
+                       (SELECT MIN(d.PARK_ID) FROM SMT_DEVICE d WHERE d.ID=t.DEVICE_CODE) DEVICE_PARK_MIN,
+                       (SELECT COUNT(DISTINCT d.PARK_ID) FROM SMT_DEVICE d WHERE d.ID=t.DEVICE_CODE) DEVICE_PARK_COUNT,
+                       (SELECT MIN(s.ID) FROM SMT_STAFF s WHERE TO_CHAR(s.ID)=t.CARD_NO OR (t.BADGE IS NOT NULL AND s.BADGE=t.BADGE)) STAFF_CANDIDATE_ID,
+                       (SELECT COUNT(DISTINCT s.ID) FROM SMT_STAFF s WHERE TO_CHAR(s.ID)=t.CARD_NO OR (t.BADGE IS NOT NULL AND s.BADGE=t.BADGE)) STAFF_CANDIDATE_COUNT,
+                       (SELECT MIN(dn.ID) FROM SMT_ISC_DOWN_RECORD dn WHERE dn.TASK_ID=t.ID AND dn.DEVICE_TYPE=t.DEVICE_TYPE
+                         AND dn.SERVICE_TYPE=t.SERVICE_TYPE AND NVL(dn.CARD_NO,'#')=NVL(t.CARD_NO,'#')) RELATED_TASK_ID,
+                       (SELECT COUNT(*) FROM SMT_ISC_DOWN_RECORD dn WHERE dn.TASK_ID=t.ID AND dn.DEVICE_TYPE=t.DEVICE_TYPE
+                         AND dn.SERVICE_TYPE=t.SERVICE_TYPE AND NVL(dn.CARD_NO,'#')=NVL(t.CARD_NO,'#')) RELATED_TASK_COUNT
+                FROM SMT_ISC_DEVICE_TASK t
+                WHERE t.DEVICE_TYPE=#{cardDeviceType}
+                  AND t.SERVICE_TYPE IN (#{staffImportService},#{cardAppPerfectService},#{updateFaceService})
+                <include refid="candidateFilter"/>
+                <choose><when test="pass == 'UPDATE'">ORDER BY t.UPDATE_TIME,t.ID</when><otherwise>ORDER BY t.ID</otherwise></choose>
+            </when>
+            <when test="flowKind == 'ISC_DOWN'">
+                SELECT t.ID,t.PARK_ID,t.ACTION,t.DEVICE_TYPE,t.START_TIME START_AT,t.OVER_TIME OVER_AT,
+                       t.DEVICE_CODE,t.CARD_NO,t.GENERAL,t.IMAGE_ID,t.SERVICE_TYPE,t.REMARK,t.TASK_ID,
+                       t.TASK_TYPE,t.CREATE_TIME,t.OPT_USER,t.BADGE,t.PERSON_ID,
+                       (SELECT MIN(d.PARK_ID) FROM SMT_DEVICE d WHERE d.ID=t.DEVICE_CODE) DEVICE_PARK_MIN,
+                       (SELECT COUNT(DISTINCT d.PARK_ID) FROM SMT_DEVICE d WHERE d.ID=t.DEVICE_CODE) DEVICE_PARK_COUNT,
+                       (SELECT MIN(s.ID) FROM SMT_STAFF s WHERE TO_CHAR(s.ID)=t.CARD_NO OR (t.BADGE IS NOT NULL AND s.BADGE=t.BADGE)) STAFF_CANDIDATE_ID,
+                       (SELECT COUNT(DISTINCT s.ID) FROM SMT_STAFF s WHERE TO_CHAR(s.ID)=t.CARD_NO OR (t.BADGE IS NOT NULL AND s.BADGE=t.BADGE)) STAFF_CANDIDATE_COUNT,
+                       (SELECT MIN(ts.ID) FROM SMT_ISC_DEVICE_TASK ts WHERE ts.ID=t.TASK_ID AND ts.DEVICE_TYPE=t.DEVICE_TYPE
+                         AND ts.SERVICE_TYPE=t.SERVICE_TYPE AND NVL(ts.CARD_NO,'#')=NVL(t.CARD_NO,'#')) RELATED_TASK_ID,
+                       (SELECT COUNT(*) FROM SMT_ISC_DEVICE_TASK ts WHERE ts.ID=t.TASK_ID AND ts.DEVICE_TYPE=t.DEVICE_TYPE
+                         AND ts.SERVICE_TYPE=t.SERVICE_TYPE AND NVL(ts.CARD_NO,'#')=NVL(t.CARD_NO,'#')) RELATED_TASK_COUNT
+                FROM SMT_ISC_DOWN_RECORD t
+                WHERE t.DEVICE_TYPE=#{cardDeviceType}
+                  AND t.SERVICE_TYPE IN (#{staffImportService},#{cardAppPerfectService},#{updateFaceService})
+                <choose>
+                    <when test="pass == 'ID'">AND t.ID &gt; #{idLastId} AND t.ID &lt;= #{idHighWater}</when>
+                    <when test="pass == 'REVISIT'">AND t.ID &gt; #{revisitLastId} AND t.ID &lt;= #{revisitHighWaterId}</when>
+                    <otherwise>AND 1=0</otherwise>
+                </choose>
+                ORDER BY t.ID
+            </when>
+            <when test="flowKind == 'DIRECT_TASK'">
+                SELECT t.ID,t.IMAGE_ID,t.CARD_TYPE,t.DEVICE_CODE,t.CARD_NO,t.ACTION,t.STATUS,t.DEVICE_TYPE,
+                       t.START_TIME START_EPOCH,t.OVER_TIME OVER_EPOCH,t.CREATE_TIME,t.REMARK,t.CODE,t.CONSUME,
+                       t.TIMES,t.UPDATE_TIME,t.GENERAL,t.SERIAL_NO,t.SERVICE_TYPE,
+                       (SELECT MIN(d.PARK_ID) FROM SMT_DEVICE d WHERE d.ID=t.DEVICE_CODE) DEVICE_PARK_MIN,
+                       (SELECT COUNT(DISTINCT d.PARK_ID) FROM SMT_DEVICE d WHERE d.ID=t.DEVICE_CODE) DEVICE_PARK_COUNT,
+                       (SELECT MIN(s.ID) FROM SMT_STAFF s WHERE TO_CHAR(s.ID)=t.CARD_NO) STAFF_CANDIDATE_ID,
+                       (SELECT COUNT(*) FROM SMT_STAFF s WHERE TO_CHAR(s.ID)=t.CARD_NO) STAFF_CANDIDATE_COUNT,
+                       (SELECT MIN(dn.ID) FROM SMT_TASK_DOWN_RECORD dn WHERE dn.TASK_ID=t.ID AND dn.DEVICE_TYPE=t.DEVICE_TYPE
+                         AND dn.SERVICE_TYPE=t.SERVICE_TYPE AND NVL(dn.CARD_NO,'#')=NVL(t.CARD_NO,'#')) RELATED_TASK_ID,
+                       (SELECT COUNT(*) FROM SMT_TASK_DOWN_RECORD dn WHERE dn.TASK_ID=t.ID AND dn.DEVICE_TYPE=t.DEVICE_TYPE
+                         AND dn.SERVICE_TYPE=t.SERVICE_TYPE AND NVL(dn.CARD_NO,'#')=NVL(t.CARD_NO,'#')) RELATED_TASK_COUNT
+                FROM SMT_DEVICE_TASK t
+                WHERE t.DEVICE_TYPE=#{cardDeviceType}
+                  AND t.SERVICE_TYPE IN (#{staffImportService},#{cardAppPerfectService},#{updateFaceService})
+                <include refid="candidateFilter"/>
+                <choose><when test="pass == 'UPDATE'">ORDER BY t.UPDATE_TIME,t.ID</when><otherwise>ORDER BY t.ID</otherwise></choose>
+            </when>
+            <when test="flowKind == 'DIRECT_DOWN'">
+                SELECT t.ID,t.PARK_ID,t.DEVICE_TYPE,t.ACTION,t.GENERAL,t.DEVICE_CODE,t.CARD_NO,t.IMAGE_ID,
+                       t.START_TIME START_AT,t.OVER_TIME OVER_AT,t.CREATE_TIME,t.TASK_ID,t.SERVICE_TYPE,
+                       t.TASK_TYPE,t.REMARK,
+                       (SELECT MIN(d.PARK_ID) FROM SMT_DEVICE d WHERE d.ID=t.DEVICE_CODE) DEVICE_PARK_MIN,
+                       (SELECT COUNT(DISTINCT d.PARK_ID) FROM SMT_DEVICE d WHERE d.ID=t.DEVICE_CODE) DEVICE_PARK_COUNT,
+                       (SELECT MIN(s.ID) FROM SMT_STAFF s WHERE TO_CHAR(s.ID)=t.CARD_NO) STAFF_CANDIDATE_ID,
+                       (SELECT COUNT(*) FROM SMT_STAFF s WHERE TO_CHAR(s.ID)=t.CARD_NO) STAFF_CANDIDATE_COUNT,
+                       (SELECT MIN(ts.ID) FROM SMT_DEVICE_TASK ts WHERE ts.ID=t.TASK_ID AND ts.DEVICE_TYPE=t.DEVICE_TYPE
+                         AND ts.SERVICE_TYPE=t.SERVICE_TYPE AND NVL(ts.CARD_NO,'#')=NVL(t.CARD_NO,'#')) RELATED_TASK_ID,
+                       (SELECT COUNT(*) FROM SMT_DEVICE_TASK ts WHERE ts.ID=t.TASK_ID AND ts.DEVICE_TYPE=t.DEVICE_TYPE
+                         AND ts.SERVICE_TYPE=t.SERVICE_TYPE AND NVL(ts.CARD_NO,'#')=NVL(t.CARD_NO,'#')) RELATED_TASK_COUNT
+                FROM SMT_TASK_DOWN_RECORD t
+                WHERE t.DEVICE_TYPE=#{cardDeviceType}
+                  AND t.SERVICE_TYPE IN (#{staffImportService},#{cardAppPerfectService},#{updateFaceService})
+                <choose>
+                    <when test="pass == 'ID'">AND t.ID &gt; #{idLastId} AND t.ID &lt;= #{idHighWater}</when>
+                    <when test="pass == 'REVISIT'">AND t.ID &gt; #{revisitLastId} AND t.ID &lt;= #{revisitHighWaterId}</when>
+                    <otherwise>AND 1=0</otherwise>
+                </choose>
+                ORDER BY t.ID
+            </when>
+            <otherwise>SELECT CAST(NULL AS NUMBER) ID FROM DUAL WHERE 1=0</otherwise>
+        </choose>
+        ) WHERE ROWNUM &lt;= #{limit}
+    </select>
+
+    <select id="lockReviewRevisions" resultType="com.tce.smart.platform.core.entity.SmtAuthLegacyReview">
+        SELECT * FROM SMT_AUTH_LEGACY_REVIEW WHERE LEGACY_REF=#{legacyRef} ORDER BY REVISION_NO DESC FOR UPDATE
+    </select>
+
+    <insert id="insertReview">
+        INSERT INTO SMT_AUTH_LEGACY_REVIEW
+        (ID,RUN_FLOW_ID,FLOW_KIND,ROW_KIND,SOURCE_TABLE,SOURCE_ROW_ID,LEGACY_REF,REVISION_NO,
+         RAW_COLUMN_SET_VERSION,RAW_ROW_FORMAT,RAW_ROW_PAYLOAD,RAW_ROW_SHA256,RAW_COMPLETE,
+         RAW_COMPLETENESS_REASON,EVIDENCE_FORMAT,EVIDENCE_PAYLOAD,EVIDENCE_SHA256,REVISION_FINGERPRINT,
+         CAPTURED_AT,PARK_ID,PARK_STATE,DEVICE_CODE,DEVICE_TYPE,ACCESS_TYPE,SERVICE_TYPE,SERVICE_FAMILY,
+         CARD_NO,STAFF_ID,ISC_PERSON_ID,BADGE,IMAGE_ID,ACTION,STATUS,TASK_TYPE,CODE,RELATED_TASK_REF,
+         EXTERNAL_TASK_ID,IDENTITY_STATE,RESIDUE_KIND,REVIEW_STATE,REVIEW_REASON,PHYSICAL_STATE,
+         FIRST_SEEN_AT,LAST_SEEN_AT,ROW_VERSION,CREATED_AT,UPDATED_AT)
+        VALUES
+        (#{id},#{runFlowId},#{flowKind},#{rowKind},#{sourceTable},#{sourceRowId},#{legacyRef},#{revisionNo},
+         #{rawColumnSetVersion},#{rawRowFormat},#{rawRowPayload,jdbcType=CLOB},#{rawRowSha256},#{rawComplete},
+         #{rawCompletenessReason},#{evidenceFormat},#{evidencePayload,jdbcType=CLOB},#{evidenceSha256},#{revisionFingerprint},
+         #{capturedAt},#{parkId},#{parkState},#{deviceCode},#{deviceType},#{accessType},#{serviceType},#{serviceFamily},
+         #{cardNo},#{staffId},#{iscPersonId},#{badge},#{imageId},#{action},#{status},#{taskType},#{code},#{relatedTaskRef},
+         #{externalTaskId},#{identityState},#{residueKind},#{reviewState},#{reviewReason},#{physicalState},
+         #{firstSeenAt},#{lastSeenAt},#{rowVersion},#{createdAt},#{updatedAt})
+    </insert>
+
+    <update id="touchReview">
+        UPDATE SMT_AUTH_LEGACY_REVIEW SET LAST_SEEN_AT=#{now},UPDATED_AT=#{now},ROW_VERSION=ROW_VERSION+1
+        WHERE ID=#{id} AND ROW_VERSION=#{expectedRowVersion}
+    </update>
+
+    <sql id="leaseCursorPredicate">
+        RUN_ID=#{runId} AND FLOW_KIND=#{flowKind} AND FLOW_STATE='RUNNING'
+        AND ACTIVE_PASS=#{pass} AND LEASE_TOKEN=#{leaseToken} AND ROW_VERSION=#{expectedRowVersion}
+        AND LEASE_UNTIL &gt; SYSTIMESTAMP
+        <choose>
+            <when test="pass == 'ID'">AND ID_LAST_ID=#{expected.idLastId}</when>
+            <when test="pass == 'UPDATE'">
+                AND UPDATE_LAST_ID=#{expected.updateLastId}
+                AND (UPDATE_LAST_AT=#{expected.updateLastAt,jdbcType=TIMESTAMP}
+                     OR (UPDATE_LAST_AT IS NULL AND #{expected.updateLastAt,jdbcType=TIMESTAMP} IS NULL))
+            </when>
+            <when test="pass == 'REVISIT'">AND REVISIT_LAST_ID=#{expected.revisitLastId}</when>
+            <otherwise>AND 1=0</otherwise>
+        </choose>
+    </sql>
+
+    <update id="advanceCursor">
+        UPDATE SMT_AUTH_LEGACY_SCAN_FLOW
+        <set>
+            <choose>
+                <when test="pass == 'ID'">ID_LAST_ID=#{next.idLastId},</when>
+                <when test="pass == 'UPDATE'">UPDATE_LAST_AT=#{next.updateLastAt},UPDATE_LAST_ID=#{next.updateLastId},</when>
+                <when test="pass == 'REVISIT'">REVISIT_LAST_ID=#{next.revisitLastId},</when>
+            </choose>
+            ROW_VERSION=ROW_VERSION+1,LAST_COMMIT_AT=#{now},UPDATED_AT=#{now}
+        </set>
+        WHERE <include refid="leaseCursorPredicate"/>
+    </update>
+
+    <update id="completePass">
+        UPDATE SMT_AUTH_LEGACY_SCAN_FLOW
+        <set>
+            <choose>
+                <when test="pass == 'ID'">ID_PASS_DONE='Y',</when>
+                <when test="pass == 'UPDATE'">UPDATE_PASS_DONE='Y',</when>
+                <when test="pass == 'REVISIT'">REVISIT_PASS_DONE='Y',</when>
+            </choose>
+            ACTIVE_PASS=#{nextPass},ROW_VERSION=ROW_VERSION+1,LAST_COMMIT_AT=#{now},UPDATED_AT=#{now}
+        </set>
+        WHERE <include refid="leaseCursorPredicate"/>
+    </update>
+
+    <update id="finishFlow">
+        UPDATE SMT_AUTH_LEGACY_SCAN_FLOW
+        SET FLOW_STATE='COMPLETE',LEASE_OWNER=NULL,LEASE_TOKEN=NULL,LEASE_UNTIL=NULL,
+            ROW_VERSION=ROW_VERSION+1,COMPLETED_AT=#{now},UPDATED_AT=#{now}
+        WHERE RUN_ID=#{runId} AND FLOW_KIND=#{flowKind} AND FLOW_STATE='RUNNING'
+          AND LEASE_TOKEN=#{leaseToken} AND ROW_VERSION=#{expectedRowVersion} AND LEASE_UNTIL &gt; SYSTIMESTAMP
+          AND ID_PASS_DONE='Y' AND UPDATE_PASS_DONE='Y' AND REVISIT_PASS_DONE='Y'
+    </update>
+
+    <sql id="reviewProjection">
+        ID REVIEW_ID,LEGACY_REF,REVISION_NO,FLOW_KIND,ROW_KIND,PARK_ID,PARK_STATE,DEVICE_CODE,
+        DEVICE_TYPE,ACCESS_TYPE,SERVICE_TYPE,SERVICE_FAMILY,STAFF_ID,IDENTITY_STATE,RESIDUE_KIND,
+        REVIEW_STATE,REVIEW_REASON,PHYSICAL_STATE,FIRST_SEEN_AT,LAST_SEEN_AT
+    </sql>
+
+    <select id="selectParkReviews" resultType="com.tce.smart.platform.core.dto.legacyinventory.LegacyInventoryData$ReviewRow">
+        SELECT * FROM (SELECT <include refid="reviewProjection"/> FROM SMT_AUTH_LEGACY_REVIEW
+        WHERE PARK_STATE='KNOWN' AND ID &gt; #{afterId}
+        <choose>
+            <when test="requestedParkId != null">AND PARK_ID=#{requestedParkId}</when>
+            <otherwise>AND PARK_ID IN <foreach collection="parkIds" item="park" open="(" separator="," close=")">#{park}</foreach></otherwise>
+        </choose>
+        <if test="reviewState != null">AND REVIEW_STATE=#{reviewState}</if>
+        ORDER BY ID) WHERE ROWNUM &lt;= #{limit}
+    </select>
+
+    <select id="selectExceptionalReviews" resultType="com.tce.smart.platform.core.dto.legacyinventory.LegacyInventoryData$ReviewRow">
+        SELECT * FROM (SELECT <include refid="reviewProjection"/> FROM SMT_AUTH_LEGACY_REVIEW
+        WHERE PARK_STATE IN ('UNKNOWN','CONFLICT') AND ID &gt; #{afterId}
+        <if test="reviewState != null">AND REVIEW_STATE=#{reviewState}</if>
+        ORDER BY ID) WHERE ROWNUM &lt;= #{limit}
+    </select>
+</mapper>

@@ -12,8 +12,20 @@
               @click="resetFrom('searchForm')"
               plain
             >重置</el-button>
-            <el-button type="primary" icon="el-icon-delete" @click="handleDelBatch()">批量删除</el-button>
-            <el-button type="primary" icon="el-icon-delete" @click="handleClear()">清空权限</el-button>
+            <el-button
+              :loading="batchDeleting"
+              :disabled="batchDeleting || clearing"
+              type="primary"
+              icon="el-icon-delete"
+              @click="handleDelBatch()"
+            >批量删除</el-button>
+            <el-button
+              :loading="clearing"
+              :disabled="batchDeleting || clearing"
+              type="primary"
+              icon="el-icon-delete"
+              @click="handleClear()"
+            >清空权限</el-button>
           </div>
         </div>
         <div class="form-outer">
@@ -61,129 +73,236 @@ export default {
       page: {
         total: 0, // 总页数
         currentPage: 1, // 当前页数
-        pageSize: 20 // 每页显示多少条
+        pageSize: 20, // 每页显示多少条
+        authId: "",
+        type: ""
       },
       deleteForm: {
-        delIds: []
-      }
+        delIds: [],
+        authId: "",
+        type: ""
+      },
+      batchDeleting: false,
+      clearing: false,
+      routeContextVersion: 0,
+      listRequestSequence: 0
     };
   },
   created() {
-    this.page.authId = this.$route.params.id
-    this.page.type = this.$route.params.type
-    this.deleteForm.authId = this.$route.params.id
-    this.deleteForm.type = this.$route.params.type
-    this.getList(this.page, this.searchForm);
+    this.syncRouteContext(this.$route);
+    this.loadRouteList();
   },
   mounted: function() {},
   computed: {
     ...mapGetters(["permissions"])
   },
   watch: {
-    $route() {
-      this.getList();
+    $route(route) {
+      this.syncRouteContext(route);
+      this.loadRouteList();
     }
   },
   methods: {
-    getList(page, params) {
+    syncRouteContext(route) {
+      this.routeContextVersion += 1;
+      this.listRequestSequence += 1;
+      this.page.authId = route.params.id;
+      this.page.type = route.params.type;
+      this.page.currentPage = 1;
+      this.page.total = 0;
+      this.deleteForm.authId = route.params.id;
+      this.deleteForm.type = route.params.type;
+      this.deleteForm.delIds = [];
+      this.tableData = [];
+    },
+    loadRouteList() {
+      return this.getList().catch(error => {
+        this.$notify.error({
+          title: "列表加载失败",
+          message: this.errorMessage(error, "权限明细加载失败"),
+          type: "error",
+          duration: 3000
+        });
+      });
+    },
+    async getList(page = this.page, params = this.searchForm) {
+      const requestSequence = ++this.listRequestSequence;
+      const routeContextVersion = this.routeContextVersion;
       this.tableLoading = true;
-      getDetailPage(
-        Object.assign(
-          {
-            descs: "create_time",
-            current: page.currentPage,
-            size: page.pageSize,
-            authId: page.authId,
-            type: page.type
-          },
-          params
-        )
-      ).then(response => {
+      try {
+        const response = await getDetailPage(
+          Object.assign(
+            {
+              descs: "create_time",
+              current: page.currentPage,
+              size: page.pageSize,
+              authId: page.authId,
+              type: page.type
+            },
+            params
+          )
+        );
+        if (requestSequence !== this.listRequestSequence || routeContextVersion !== this.routeContextVersion) return;
         this.tableData = response.data.data.records;
         this.page.total = response.data.data.total;
-        this.tableLoading = false;
-      });
-      this.tableLoading = false;
+      } catch (error) {
+        if (requestSequence !== this.listRequestSequence || routeContextVersion !== this.routeContextVersion) return;
+        throw error;
+      } finally {
+        if (requestSequence === this.listRequestSequence) this.tableLoading = false;
+      }
     },
-    handleDelBatch() {
-      var _this = this;
+    operationContext() {
+      return {
+        version: this.routeContextVersion,
+        authId: this.deleteForm.authId,
+        type: this.deleteForm.type,
+        name: (this.$route.query && this.$route.query.name) || ""
+      };
+    },
+    isOperationContextCurrent(context) {
+      return context.version === this.routeContextVersion &&
+        context.authId === this.deleteForm.authId &&
+        context.type === this.deleteForm.type;
+    },
+    async refreshAfterAccepted(context) {
+      if (!this.isOperationContextCurrent(context)) return;
+      try {
+        await this.getList();
+      } catch (error) {
+        if (this.isOperationContextCurrent(context)) this.notifyAcceptedRefreshFailed(error, context);
+      }
+    },
+    operationLabel(context) {
+      const name = context.name ? `“${context.name}”` : "未命名权限组";
+      return `${name}（ID：${context.authId}）`;
+    },
+    notifyAcceptedRefreshFailed(error, context) {
+      this.$notify({
+        title: "请求已受理，列表刷新失败",
+        message: `权限组${this.operationLabel(context)}的设备结果仍待确认，请手动刷新列表后再操作。${this.errorMessage(error, "")}`,
+        type: "warning",
+        duration: 5000
+      });
+    },
+    notifyRouteChanged(context) {
+      this.$notify({
+        title: "权限组已切换",
+        message: `权限组${this.operationLabel(context)}的本次操作已取消，请在当前权限组重新选择后提交。`,
+        type: "warning",
+        duration: 3000
+      });
+    },
+    async handleDelBatch() {
       const elm = this.$createElement;
+      if (this.batchDeleting || this.clearing) return;
       if (this.deleteForm.delIds.length == 0) {
-        _this.$notify.error({
+        this.$notify.error({
           title: "提示信息",
           message: "请选择要删除的车辆",
-          type: "success",
+          type: "error",
           duration: 2000
         });
         return;
       }
-      this.$msgbox({
-        message: elm("p", { attrs: { class: "smallp" } }, [
-          elm("i", { attrs: { class: "smallInfo delInfo" } }, ""),
-          elm("span", null, "确认删除所选车辆信息？ ")
-        ]),
-        showCancelButton: true,
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        customClass: "small_dialog",
-        center: true
-      }).then(() => {
-          return batchDel(this.deleteForm);
-        })
-        .then(dataResponse => {
-          if (dataResponse.data.data) {
-            _this.getList(this.page);
-            _this.$notify({
-              title: "删除成功",
-              message: "删除成功",
-              type: "success",
-              duration: 2000
-            });
-          } else {
-            _this.$notify.error({
-              title: "删除失败",
-              message: "删除失败",
-              type: "error",
-              duration: 2000
-            });
+      const context = this.operationContext();
+      const request = {
+        authId: context.authId,
+        type: context.type,
+        delIds: [...this.deleteForm.delIds]
+      };
+      this.batchDeleting = true;
+      try {
+        await this.$msgbox({
+          message: elm("p", { attrs: { class: "smallp" } }, [
+            elm("i", { attrs: { class: "smallInfo delInfo" } }, ""),
+            elm("span", null, "确认删除所选车辆信息？ ")
+          ]),
+          showCancelButton: true,
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          customClass: "small_dialog",
+          center: true
+        });
+        if (!this.isOperationContextCurrent(context)) {
+          this.notifyRouteChanged(context);
+          return;
+        }
+        const dataResponse = await batchDel(request);
+        if (dataResponse.data.data) {
+          this.notifyDeleteAccepted(context);
+          if (this.isOperationContextCurrent(context)) {
+            this.deleteForm.delIds = [];
+            await this.refreshAfterAccepted(context);
           }
-        })
-        .catch(err => { console.error(err) });
+        } else {
+          this.notifyDeleteFailed("删除请求提交失败", context);
+        }
+      } catch (error) {
+        if (!this.isConfirmCanceled(error)) {
+          this.notifyDeleteFailed(this.errorMessage(error, "删除请求提交失败"), context);
+        }
+      } finally {
+        this.batchDeleting = false;
+      }
     },
-    handleClear() {
+    async handleClear() {
+      if (this.batchDeleting || this.clearing) return;
       const elm = this.$createElement;
-      this.$msgbox({
-        message: elm("p", { attrs: { class: "smallp" } }, [
-          elm("i", { attrs: { class: "smallInfo delInfo" } }, ""),
-          elm("span", null, "确认清空所有车辆权限信息？ ")
-        ]),
-        showCancelButton: true,
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        customClass: "small_dialog",
-        center: true
-      }).then(() => {
-          return clearAll(this.deleteForm.authId);
-        })
-        .then(dataResponse => {
-          if (dataResponse.data.data) {
-            this.getList(this.page);
-            this.$notify({
-              title: "删除成功",
-              message: "删除成功",
-              type: "success",
-              duration: 2000
-            });
-          } else {
-            this.$notify.error({
-              title: "删除失败",
-              message: "删除失败",
-              type: "error",
-              duration: 2000
-            });
-          }
-        })
-        .catch(err => { console.error(err) });
+      const context = this.operationContext();
+      this.clearing = true;
+      try {
+        await this.$msgbox({
+          message: elm("p", { attrs: { class: "smallp" } }, [
+            elm("i", { attrs: { class: "smallInfo delInfo" } }, ""),
+            elm("span", null, "确认清空所有车辆权限信息？ ")
+          ]),
+          showCancelButton: true,
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          customClass: "small_dialog",
+          center: true
+        });
+        if (!this.isOperationContextCurrent(context)) {
+          this.notifyRouteChanged(context);
+          return;
+        }
+        const dataResponse = await clearAll(context.authId);
+        if (dataResponse.data.data) {
+          this.notifyDeleteAccepted(context);
+          if (this.isOperationContextCurrent(context)) await this.refreshAfterAccepted(context);
+        } else {
+          this.notifyDeleteFailed("删除请求提交失败", context);
+        }
+      } catch (error) {
+        if (!this.isConfirmCanceled(error)) {
+          this.notifyDeleteFailed(this.errorMessage(error, "删除请求提交失败"), context);
+        }
+      } finally {
+        this.clearing = false;
+      }
+    },
+    notifyDeleteAccepted(context) {
+      this.$notify({
+        title: "删除请求已提交",
+        message: `权限组${this.operationLabel(context)}的请求已受理，设备结果仍待确认。旧链路暂不能自动定位批次，请手动查看可访问园区的权限任务。`,
+        type: "info",
+        duration: 5000
+      });
+    },
+    notifyDeleteFailed(message, context) {
+      this.$notify.error({
+        title: "删除失败",
+        message: `权限组${this.operationLabel(context)}：${message}`,
+        type: "error",
+        duration: 3000
+      });
+    },
+    isConfirmCanceled(error) {
+      return error === "cancel" || error === "close";
+    },
+    errorMessage(error, fallback) {
+      return (error && error.response && error.response.data && error.response.data.msg) || (error && error.message) || fallback;
     },
     selectChange(val) {
       //序号那边选择事件

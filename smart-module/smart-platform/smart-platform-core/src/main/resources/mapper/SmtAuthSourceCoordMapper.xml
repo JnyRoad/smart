@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthSourceCoordMapper">
+  <resultMap id="row" type="com.tce.smart.platform.core.entity.SmtAuthSourceCoord">
+    <result column="ID" property="id"/>
+    <result column="PARK_ID" property="parkId"/>
+    <result column="SOURCE_KIND" property="sourceKind"/>
+    <result column="STABLE_KEY" property="stableKey"/>
+    <result column="SUBJECT_TYPE" property="subjectType"/>
+    <result column="SUBJECT_ID" property="subjectId"/>
+    <result column="SOURCE_ROW_ID" property="sourceRowId"/>
+    <result column="SOURCE_FINGERPRINT" property="sourceFingerprint"/>
+    <result column="GENERATION" property="generation"/>
+    <result column="INTENT_KEY" property="intentKey"/>
+    <result column="INTENT_FINGERPRINT" property="intentFingerprint"/>
+    <result column="BATCH_ID" property="batchId"/>
+    <result column="ACTION" property="action"/>
+    <result column="STATE" property="state"/>
+    <result column="EXPANDED" property="expanded"/>
+    <result column="WINDOWS" property="windows" jdbcType="CLOB" javaType="java.lang.String"/>
+    <result column="CREATE_TIME" property="createTime"/>
+    <result column="UPDATE_TIME" property="updateTime"/>
+  </resultMap>
+  <insert id="insert">INSERT INTO SMT_AUTH_SOURCE_COORD (ID, PARK_ID, SOURCE_KIND, STABLE_KEY, SUBJECT_TYPE, SUBJECT_ID, SOURCE_ROW_ID, SOURCE_FINGERPRINT, GENERATION, INTENT_KEY, INTENT_FINGERPRINT, BATCH_ID, ACTION, STATE, EXPANDED, WINDOWS, CREATE_TIME, UPDATE_TIME) VALUES (#{id,jdbcType=VARCHAR}, #{parkId,jdbcType=NUMERIC}, #{sourceKind,jdbcType=VARCHAR}, #{stableKey,jdbcType=VARCHAR}, #{subjectType,jdbcType=VARCHAR}, #{subjectId,jdbcType=VARCHAR}, #{sourceRowId,jdbcType=VARCHAR}, #{sourceFingerprint,jdbcType=VARCHAR}, #{generation,jdbcType=NUMERIC}, #{intentKey,jdbcType=VARCHAR}, #{intentFingerprint,jdbcType=VARCHAR}, #{batchId,jdbcType=NUMERIC}, #{action,jdbcType=VARCHAR}, #{state,jdbcType=VARCHAR}, #{expanded,jdbcType=NUMERIC}, #{windows,jdbcType=CLOB}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP})</insert>
+  <select id="selectById" resultMap="row">SELECT * FROM SMT_AUTH_SOURCE_COORD WHERE ID = #{id}</select>
+  <select id="lock" resultMap="row" flushCache="true" useCache="false">SELECT * FROM SMT_AUTH_SOURCE_COORD WHERE ID = #{id} FOR UPDATE</select>
+  <update id="update">UPDATE SMT_AUTH_SOURCE_COORD SET PARK_ID = #{parkId,jdbcType=NUMERIC}, SOURCE_KIND = #{sourceKind,jdbcType=VARCHAR}, STABLE_KEY = #{stableKey,jdbcType=VARCHAR}, SUBJECT_TYPE = #{subjectType,jdbcType=VARCHAR}, SUBJECT_ID = #{subjectId,jdbcType=VARCHAR}, SOURCE_ROW_ID = #{sourceRowId,jdbcType=VARCHAR}, SOURCE_FINGERPRINT = #{sourceFingerprint,jdbcType=VARCHAR}, GENERATION = #{generation,jdbcType=NUMERIC}, INTENT_KEY = #{intentKey,jdbcType=VARCHAR}, INTENT_FINGERPRINT = #{intentFingerprint,jdbcType=VARCHAR}, BATCH_ID = #{batchId,jdbcType=NUMERIC}, ACTION = #{action,jdbcType=VARCHAR}, STATE = #{state,jdbcType=VARCHAR}, EXPANDED = #{expanded,jdbcType=NUMERIC}, WINDOWS = #{windows,jdbcType=CLOB}, CREATE_TIME = #{createTime,jdbcType=TIMESTAMP}, UPDATE_TIME = #{updateTime,jdbcType=TIMESTAMP} WHERE ID = #{id}</update>
+  <select id="pending" resultMap="row">
+    SELECT * FROM (SELECT ID,GENERATION,SOURCE_ROW_ID,SOURCE_FINGERPRINT,ACTION,STATE,EXPANDED FROM SMT_AUTH_SOURCE_COORD WHERE PARK_ID = #{parkId}
+      AND STATE IN ('EXPANDING','REVOKING','VERIFYING','FAILED')
+      <if test="after != null">AND ID &gt; #{after}</if> ORDER BY ID) WHERE ROWNUM &lt;= #{limit}
+  </select>
+  <select id="identity" resultMap="row">SELECT ID,PARK_ID,SUBJECT_TYPE,SUBJECT_ID FROM SMT_AUTH_SOURCE_COORD WHERE ID=#{id}</select>
+</mapper>

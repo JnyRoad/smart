@@ -298,6 +298,27 @@ public class SmtStaffDeviceAuthServiceImplTest {
 				Mockito.any(SmtStaff.class), Mockito.anyList(), Mockito.anyList(), Mockito.anyInt());
 	}
 
+ @Test
+ public void acceptedEmployeeDeleteRetainsSourceEvenWithoutDeviceList() {
+  SmtStaffDeviceAuthServiceImpl service=newSpyService(Mockito.mock(SmtDeviceTaskService.class),Mockito.mock(SmtStaffService.class));
+  EmployeeAuthOperationAdapter adapter=Mockito.mock(EmployeeAuthOperationAdapter.class);
+  org.springframework.test.util.ReflectionTestUtils.setField(service,"employeeAuthOperationAdapter",adapter);
+  Mockito.when(adapter.removeRows(Collections.singletonList(11),null)).thenReturn(true);
+  Mockito.doReturn(true).when(service).removeByIds(Mockito.anyCollection());
+  Assert.assertTrue(service.removeAuthToDevice(Collections.singletonList(11),Collections.emptyList()));
+  Mockito.verify(service,Mockito.never()).removeByIds(Mockito.anyCollection());
+ }
+ @Test
+ public void rejectedBatchLeavesOldEmployeeRelationUntouched() {
+  SmtStaffDeviceAuthServiceImpl service=newSpyService(Mockito.mock(SmtDeviceTaskService.class),Mockito.mock(SmtStaffService.class));
+  EmployeeAuthOperationAdapter adapter=Mockito.mock(EmployeeAuthOperationAdapter.class);
+  org.springframework.test.util.ReflectionTestUtils.setField(service,"employeeAuthOperationAdapter",adapter);
+  Mockito.when(adapter.removeRows(Collections.singletonList(11),null)).thenThrow(new IllegalStateException("受理失败"));
+  Mockito.doReturn(true).when(service).removeByIds(Mockito.anyCollection());
+  try {service.removeAuthToDevice(Collections.singletonList(11),Collections.emptyList());Assert.fail("失败必须传播");}
+  catch(IllegalStateException expected){Mockito.verify(service,Mockito.never()).removeByIds(Mockito.anyCollection());}
+ }
+
 	private SmtStaffDeviceAuthServiceImpl newSpyService(SmtDeviceTaskService deviceTaskService, SmtStaffService staffService) {
 		return Mockito.spy(new SmtStaffDeviceAuthServiceImpl(
 				Mockito.mock(SmtStaffDeviceAuthMapper.class),

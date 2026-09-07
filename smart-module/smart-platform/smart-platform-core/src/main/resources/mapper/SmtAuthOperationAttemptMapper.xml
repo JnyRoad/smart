@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthOperationAttemptMapper">
+
+	<resultMap id="AuthOperationAttemptMap" type="com.tce.smart.platform.core.entity.SmtAuthOperationAttempt">
+		<id property="id" column="ID"/>
+		<result property="targetId" column="TARGET_ID"/>
+		<result property="attemptNo" column="ATTEMPT_NO"/>
+		<result property="accessType" column="ACCESS_TYPE"/>
+		<result property="taskId" column="TASK_ID"/>
+		<result property="externalBatchId" column="EXTERNAL_BATCH_ID"/>
+		<result property="externalCommandId" column="EXTERNAL_COMMAND_ID"/>
+		<result property="status" column="STATUS"/>
+		<result property="leaseToken" column="LEASE_TOKEN"/>
+		<result property="leaseUntil" column="LEASE_UNTIL"/>
+		<result property="nextAttemptAt" column="NEXT_ATTEMPT_AT"/>
+		<result property="errorCode" column="ERROR_CODE"/>
+		<result property="errorMessage" column="ERROR_MESSAGE"/>
+		<result property="resultEventId" column="RESULT_EVENT_ID"/>
+		<result property="dispatchedAt" column="DISPATCHED_AT"/>
+		<result property="confirmedAt" column="CONFIRMED_AT"/>
+		<result property="convergedAt" column="CONVERGED_AT"/>
+		<result property="createTime" column="CREATE_TIME"/>
+		<result property="updateTime" column="UPDATE_TIME"/>
+	</resultMap>
+
+	<select id="selectMaxAttemptNo" resultType="int">
+		SELECT MAX(ATTEMPT_NO) FROM SMT_AUTH_OPERATION_ATTEMPT WHERE TARGET_ID = #{targetId}
+	</select>
+
+	<select id="selectByIdAndTarget" resultMap="AuthOperationAttemptMap">
+		SELECT ID, TARGET_ID, ATTEMPT_NO, ACCESS_TYPE, TASK_ID, EXTERNAL_BATCH_ID,
+			EXTERNAL_COMMAND_ID, STATUS, LEASE_TOKEN, LEASE_UNTIL, NEXT_ATTEMPT_AT,
+			ERROR_CODE, ERROR_MESSAGE, RESULT_EVENT_ID, DISPATCHED_AT, CONFIRMED_AT,
+			CONVERGED_AT, CREATE_TIME, UPDATE_TIME
+		FROM SMT_AUTH_OPERATION_ATTEMPT
+		WHERE ID = #{id} AND TARGET_ID = #{targetId}
+	</select>
+
+	<update id="bindExternal">
+		UPDATE SMT_AUTH_OPERATION_ATTEMPT
+		SET EXTERNAL_BATCH_ID = #{externalBatchId},
+			EXTERNAL_COMMAND_ID = #{externalCommandId}, UPDATE_TIME = #{updatedAt}
+		WHERE ID = #{id} AND TARGET_ID = #{targetId}
+			AND (EXTERNAL_BATCH_ID IS NULL OR EXTERNAL_BATCH_ID = #{externalBatchId})
+			AND (EXTERNAL_COMMAND_ID IS NULL OR EXTERNAL_COMMAND_ID = #{externalCommandId})
+	</update>
+
+	<!-- 当前尝试和目标的同一租约都必须有效，旧执行者不能登记新提交。 -->
+	<update id="prepareSubmission">
+		UPDATE SMT_AUTH_OPERATION_ATTEMPT
+		SET TASK_ID = #{taskId}, STATUS = 'SUBMITTING',
+			DISPATCHED_AT = NVL(DISPATCHED_AT, #{updatedAt}), UPDATE_TIME = #{updatedAt}
+		WHERE ID = #{id} AND TARGET_ID = #{targetId} AND LEASE_TOKEN = #{leaseToken}
+			AND STATUS IN ('CLAIMED', 'SUBMITTING')
+			AND (LEASE_UNTIL IS NULL OR LEASE_UNTIL &gt; #{updatedAt})
+			AND EXISTS (
+				SELECT 1 FROM SMT_AUTH_OPERATION_TARGET
+				WHERE ID = #{targetId} AND LEASE_TOKEN = #{leaseToken}
+					AND STATE = 'EXECUTING'
+			)
+	</update>
+
+	<update id="markSubmitted">
+		UPDATE SMT_AUTH_OPERATION_ATTEMPT
+		SET TASK_ID = #{taskId}, EXTERNAL_BATCH_ID = NVL(#{externalBatchId,jdbcType=VARCHAR}, EXTERNAL_BATCH_ID),
+			EXTERNAL_COMMAND_ID = NVL(#{externalCommandId,jdbcType=VARCHAR}, EXTERNAL_COMMAND_ID), STATUS = 'WAITING_CONFIRM',
+			DISPATCHED_AT = NVL(DISPATCHED_AT, #{updatedAt}), UPDATE_TIME = #{updatedAt}
+		WHERE ID = #{id} AND TARGET_ID = #{targetId} AND LEASE_TOKEN = #{leaseToken}
+			AND STATUS IN ('CLAIMED', 'SUBMITTING', 'WAITING_CONFIRM')
+			AND (LEASE_UNTIL IS NULL OR LEASE_UNTIL &gt; #{updatedAt})
+			AND (#{externalBatchId,jdbcType=VARCHAR} IS NULL OR EXTERNAL_BATCH_ID IS NULL OR EXTERNAL_BATCH_ID = #{externalBatchId,jdbcType=VARCHAR})
+			AND (#{externalCommandId,jdbcType=VARCHAR} IS NULL OR EXTERNAL_COMMAND_ID IS NULL OR EXTERNAL_COMMAND_ID = #{externalCommandId,jdbcType=VARCHAR})
+			AND EXISTS (
+				SELECT 1 FROM SMT_AUTH_OPERATION_TARGET
+				WHERE ID = #{targetId} AND LEASE_TOKEN = #{leaseToken}
+					AND STATE IN ('EXECUTING', 'WAITING_CONFIRM')
+			)
+	</update>
+
+	<update id="markReceipt">
+		UPDATE SMT_AUTH_OPERATION_ATTEMPT
+		SET STATUS = #{status}, RESULT_EVENT_ID = #{eventId}, ERROR_MESSAGE = #{errorMessage,jdbcType=VARCHAR},
+			CONFIRMED_AT = CASE WHEN #{status} IN ('CONFIRMED', 'CONVERGED')
+				THEN #{updatedAt} ELSE CONFIRMED_AT END,
+			CONVERGED_AT = CASE WHEN #{status} = 'CONVERGED'
+				THEN #{updatedAt} ELSE CONVERGED_AT END,
+			UPDATE_TIME = #{updatedAt}
+		WHERE ID = #{attemptId} AND TARGET_ID = #{targetId}
+			AND CASE STATUS
+				WHEN 'CLAIMED' THEN 1
+				WHEN 'SUBMITTING' THEN 1
+				WHEN 'WAITING_CONFIRM' THEN 1
+				WHEN 'VERIFYING' THEN 2
+				WHEN 'FAILED' THEN 3
+				WHEN 'CONFIRMED' THEN 3
+				WHEN 'CONVERGED' THEN 4
+				ELSE 0
+			END &lt; CASE #{status}
+				WHEN 'CLAIMED' THEN 1
+				WHEN 'SUBMITTING' THEN 1
+				WHEN 'WAITING_CONFIRM' THEN 1
+				WHEN 'VERIFYING' THEN 2
+				WHEN 'FAILED' THEN 3
+				WHEN 'CONFIRMED' THEN 3
+				WHEN 'CONVERGED' THEN 4
+				ELSE 0
+			END
+	</update>
+</mapper>

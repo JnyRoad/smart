@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.AuthSelectionMapper">
+<!-- 选择绑定未完整持久化时，不允许依靠部分来源创建目标或收敛。 -->
+<select id="unboundSelectionCount" resultType="int"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_unboundSelectionCount"/></select>
+<select id="pendingTypedSubject" resultType="int"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_pendingTypedSubject"/></select>
+<select id="sourcesForTarget" resultMap="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.source"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_sourcesForTarget"/></select>
+<select id="resourcesForTarget" resultMap="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.resource"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_resourcesForTarget"/></select>
+<update id="markVerification"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_markVerification"/></update>
+<select id="verificationReason" resultType="string"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_verificationReason"/></select>
+<select id="sourceVerificationCount" resultType="int"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_sourceVerificationCount"/></select>
+<select id="verificationSources" resultMap="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.source"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_verificationSources"/></select>
+<select id="pendingExpansionBatches" resultType="long"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_pendingExpansionBatches"/></select>
+<select id="operation" resultMap="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.source"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_operation"/></select>
+<insert id="insertSources"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_insertSources"/></insert>
+<insert id="insertResources"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_insertResources"/></insert>
+<select id="source" resultMap="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.source"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_source"/></select>
+<select id="resources" resultMap="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.resource"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_resources"/></select>
+<update id="bindSource"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_bindSource"/></update>
+<update id="bindResource"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_bindResource"/></update>
+<select id="lanes" resultType="string"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_lanes"/></select>
+<select id="resourceCount" resultType="long"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_resourceCount"/></select>
+<select id="selectionCursor" resultType="long"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_selectionCursor"/></select>
+<select id="cursor" resultType="long"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_cursor"/></select>
+<select id="exactSource" resultMap="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.source"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_exactSource"/></select>
+<update id="complete"><include refid="com.tce.smart.platform.core.mapper.EmployeeAuthOperationMapper.selection_complete"/></update>
+</mapper>

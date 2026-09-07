@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.AuthRequestIntakeMapper">
+ <resultMap id="header" type="com.tce.smart.platform.core.entity.SmtAuthRequestIntake">
+  <id column="OPERATION_KEY" property="operationKey"/>
+  <result column="ACTOR_ID" property="actorId"/><result column="REQUEST_KEY" property="requestKey"/>
+  <result column="REQUEST_KIND" property="requestKind"/><result column="FINGERPRINT_VERSION" property="fingerprintVersion"/>
+  <result column="REQUEST_FINGERPRINT" property="requestFingerprint"/><result column="AUTH_SCOPE" property="authScope"/>
+  <result column="OUTCOME" property="outcome"/><result column="CHILD_COUNT" property="childCount"/>
+  <result column="CHILD_MANIFEST_HASH" property="childManifestHash"/><result column="CREATE_TIME" property="createTime"/>
+  <result column="ACCEPTED_AT" property="acceptedAt"/>
+ </resultMap>
+ <resultMap id="child" type="com.tce.smart.platform.core.entity.SmtAuthOperationBatch">
+  <id column="ID" property="id"/><result column="PARK_ID" property="parkId"/>
+  <result column="SOURCE_ID" property="sourceId"/><result column="SOURCE_TYPE" property="sourceType"/>
+  <result column="ACTION" property="action"/><result column="IDEMPOTENCY_KEY" property="idempotencyKey"/>
+  <result column="PAYLOAD_FINGERPRINT" property="payloadFingerprint"/><result column="EXPECTED_COUNT" property="expectedCount"/>
+ </resultMap>
+ <select id="find" resultMap="header" flushCache="true">
+  SELECT OPERATION_KEY,ACTOR_ID,REQUEST_KEY,REQUEST_KIND,FINGERPRINT_VERSION,REQUEST_FINGERPRINT,AUTH_SCOPE,OUTCOME,CHILD_COUNT,CHILD_MANIFEST_HASH,CREATE_TIME,ACCEPTED_AT
+  FROM SMT_AUTH_REQUEST_INTAKE WHERE ACTOR_ID=#{actorId} AND REQUEST_KEY=#{requestKey}
+ </select>
+ <insert id="insert">
+  INSERT INTO SMT_AUTH_REQUEST_INTAKE (OPERATION_KEY,ACTOR_ID,REQUEST_KEY,REQUEST_KIND,FINGERPRINT_VERSION,REQUEST_FINGERPRINT,CREATE_TIME)
+  VALUES (#{operationKey},#{actorId},#{requestKey},#{requestKind},#{fingerprintVersion},#{requestFingerprint},#{createTime,jdbcType=TIMESTAMP})
+ </insert>
+ <update id="finish">
+  UPDATE SMT_AUTH_REQUEST_INTAKE SET AUTH_SCOPE=#{authScope},OUTCOME=#{outcome},CHILD_COUNT=#{childCount},CHILD_MANIFEST_HASH=#{childManifestHash},ACCEPTED_AT=#{acceptedAt,jdbcType=TIMESTAMP}
+  WHERE OPERATION_KEY=#{operationKey} AND ACTOR_ID=#{actorId} AND REQUEST_KEY=#{requestKey}
+    AND REQUEST_KIND=#{requestKind} AND FINGERPRINT_VERSION=#{fingerprintVersion} AND REQUEST_FINGERPRINT=#{requestFingerprint}
+    AND OUTCOME IS NULL AND AUTH_SCOPE IS NULL AND CHILD_COUNT IS NULL AND CHILD_MANIFEST_HASH IS NULL AND ACCEPTED_AT IS NULL
+ </update>
+ <!-- 全部child均参与完整性与授权检查，禁止在此过滤allowedPark或sourceType。 -->
+ <select id="children" resultMap="child">
+  SELECT ID,PARK_ID,SOURCE_ID,SOURCE_TYPE,ACTION,IDEMPOTENCY_KEY,PAYLOAD_FINGERPRINT,EXPECTED_COUNT
+  FROM SMT_AUTH_OPERATION_BATCH WHERE SOURCE_ID=#{operationKey} ORDER BY PARK_ID,ID
+ </select>
+ <!-- 只在首次提交前核对真实selection；重放不依赖可能被归档的业务来源或selection。 -->
+ <select id="invalidSelections" resultType="int">
+  SELECT COUNT(*) FROM (
+   SELECT B.ID FROM SMT_AUTH_OPERATION_BATCH B WHERE B.SOURCE_ID=#{operationKey} AND (
+    NOT EXISTS (SELECT 1 FROM SMT_AUTH_SELECTION_SOURCE S WHERE S.BATCH_ID=B.ID AND S.PARK_ID=B.PARK_ID AND S.OPERATION_KEY=#{operationKey})
+    OR EXISTS (SELECT 1 FROM SMT_AUTH_SELECTION_SOURCE S WHERE S.BATCH_ID=B.ID AND (S.PARK_ID!=B.PARK_ID OR S.OPERATION_KEY!=#{operationKey})))
+   UNION ALL
+   SELECT S.BATCH_ID FROM SMT_AUTH_SELECTION_SOURCE S WHERE S.OPERATION_KEY=#{operationKey}
+    AND NOT EXISTS (SELECT 1 FROM SMT_AUTH_OPERATION_BATCH B WHERE B.ID=S.BATCH_ID AND B.PARK_ID=S.PARK_ID AND B.SOURCE_ID=#{operationKey})
+  )
+ </select>
+</mapper>

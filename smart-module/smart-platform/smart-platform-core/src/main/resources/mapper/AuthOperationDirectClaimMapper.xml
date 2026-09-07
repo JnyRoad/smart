@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.AuthOperationDirectClaimMapper">
+ <resultMap id="claimRow" type="com.tce.smart.platform.core.entity.SmtAuthDirectClaim">
+  <id column="ID" property="id"/><result column="DEVICE_ID" property="deviceId"/><result column="KEY_KIND" property="keyKind"/><result column="KEY_VALUE" property="keyValue"/>
+  <result column="SUBJECT_TYPE" property="subjectType"/><result column="SUBJECT_ID" property="subjectId"/><result column="PARK_ID" property="parkId"/><result column="INSTANCE_ID" property="instanceId"/>
+  <result column="RESOURCE_ID" property="resourceId"/><result column="WIRE_HASH" property="wireHash"/><result column="FIRST_PHASE_ID" property="firstPhaseId"/><result column="PROOF_KIND" property="proofKind"/><result column="CREATE_TIME" property="createTime"/>
+ </resultMap>
+ <select id="phase" resultMap="com.tce.smart.platform.core.mapper.AuthOperationTransportMapper.phaseRow">SELECT * FROM SMT_AUTH_TRANSPORT_PHASE WHERE ID=#{id}</select>
+ <select id="lock" resultMap="claimRow">SELECT * FROM SMT_AUTH_DIRECT_CLAIM WHERE ID=#{id} FOR UPDATE</select>
+ <!-- 不提供转移、过期、释放或按当前设备更新归属的写入口。 -->
+ <insert id="insert">INSERT INTO SMT_AUTH_DIRECT_CLAIM
+  (ID,DEVICE_ID,KEY_KIND,KEY_VALUE,SUBJECT_TYPE,SUBJECT_ID,PARK_ID,INSTANCE_ID,RESOURCE_ID,WIRE_HASH,FIRST_PHASE_ID,PROOF_KIND,CREATE_TIME)
+  SELECT #{id},#{deviceId},#{keyKind},#{keyValue},#{subjectType},#{subjectId},#{parkId},#{instanceId},#{resourceId},#{wireHash},#{firstPhaseId},#{proofKind},#{createTime,jdbcType=TIMESTAMP}
+  FROM SMT_AUTH_TRANSPORT_PHASE P WHERE P.ID=#{firstPhaseId} AND P.ACCESS_TYPE='DIRECT' AND P.PHASE='DIRECT_SEND'
+   AND P.STATE IN ('PREPARED','INTENT','UNKNOWN','ACCEPTED','FINISHED') AND P.DEVICE_ID=#{deviceId}
+   AND P.SUBJECT_TYPE=#{subjectType} AND P.SUBJECT_ID=#{subjectId} AND P.PARK_ID=#{parkId}
+   AND P.INSTANCE_ID=#{instanceId} AND P.RESOURCE_ID=#{resourceId}
+ </insert>
+</mapper>

@@ -15,7 +15,7 @@ import com.tce.smart.platform.core.mapper.SmtStaffDeviceAuthMapper;
 import com.tce.smart.platform.core.mapper.SmtStaffMapper;
 import com.tce.smart.platform.core.mapper.SmtTaskDownRecordMapper;
 import com.tce.smart.tool.constant.DeviceTaskConstants;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -27,11 +27,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Keeps staff permission-group relations consistent with actual device down records.
+ * 旧任务兼容的人员权限组同步；新接管来源必须由冻结快照收敛。
  */
 @Service
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class StaffDeviceAuthSyncService {
 
 	private static final List<Integer> STAFF_FACE_SERVICE_TYPES = Arrays.asList(
@@ -46,6 +46,9 @@ public class StaffDeviceAuthSyncService {
 	private final SmtIscDownRecordMapper iscDownRecordMapper;
 
 	private final SmtStaffMapper staffMapper;
+ private AuthOperationTransportGuard transportGuard;
+ @org.springframework.beans.factory.annotation.Autowired public void setTransportGuard(AuthOperationTransportGuard guard){this.transportGuard=guard;}
+
 
 	public void syncAfterDelete(SmtTaskDownRecord record) {
 		if (record == null) {
@@ -68,6 +71,7 @@ public class StaffDeviceAuthSyncService {
 		if (!isStaffFaceAccess(deviceType, serviceType) || StrUtil.isBlank(deviceCode) || StrUtil.isBlank(cardNo)) {
 			return;
 		}
+		if(transportGuard!=null&&transportGuard.protectSource(deviceCode,cardNo,general))return;
 		StaffAuthContext context = findStaffAuthContext(cardNo, general);
 		if (context == null || CollectionUtil.isEmpty(context.staffAuths)) {
 			return;
@@ -177,7 +181,7 @@ public class StaffDeviceAuthSyncService {
 		}
 		List<SmtStaff> staffList = staffMapper.selectList(Wrappers.<SmtStaff>lambdaQuery()
 				.eq(SmtStaff::getBadge, badge));
-		if (CollectionUtil.isEmpty(staffList)) {
+		if (CollectionUtil.isEmpty(staffList) || staffList.size()!=1) {
 			return null;
 		}
 		return staffList.get(0).getId();

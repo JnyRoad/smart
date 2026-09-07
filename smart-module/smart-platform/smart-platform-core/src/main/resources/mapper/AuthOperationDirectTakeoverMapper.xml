@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tce.smart.platform.core.mapper.AuthOperationDirectTakeoverMapper">
+ <select id="task" timeout="5" useCache="false" flushCache="true" resultType="com.tce.smart.platform.core.entity.SmtDeviceTask">
+  SELECT ID,ACTION,SERIAL_NO,DEVICE_CODE,CARD_NO,DEVICE_TYPE,SERVICE_TYPE,CARD_TYPE,GENERAL,IMAGE_ID,START_TIME,OVER_TIME,STATUS
+  FROM SMT_DEVICE_TASK WHERE ID=#{id}
+ </select>
+ <select id="taskPhases" timeout="5" useCache="false" flushCache="true" resultType="com.tce.smart.platform.core.entity.SmtAuthTransportPhase">
+  SELECT ID,TARGET_ID,ATTEMPT_ID,ATTEMPT_NO,LEASE_TOKEN,PARK_ID,INSTANCE_ID,ACCESS_TYPE,PHASE,STATE,TASK_ID,
+   SERIAL_NO,REQUEST_KEY,DEVICE_ID,CARD_NO,ACTION,SERVICE_TYPE,RESOURCE_TYPE,CREDENTIAL_CHANNEL,START_TIME,OVER_TIME
+  FROM SMT_AUTH_TRANSPORT_PHASE WHERE ACCESS_TYPE='DIRECT' AND TASK_ID=#{task} AND ROWNUM&lt;=2
+ </select>
+ <select id="deviceParks" timeout="5" useCache="false" flushCache="true" resultType="java.lang.Integer">
+  SELECT PARK_ID FROM SMT_DEVICE WHERE ID=#{device} AND ROWNUM&lt;=2
+ </select>
+ <select id="deviceHistory" timeout="5" useCache="false" flushCache="true" resultType="int">
+  SELECT (SELECT COUNT(*) FROM SMT_AUTH_TRANSPORT_PHASE WHERE ACCESS_TYPE='DIRECT' AND DEVICE_ID=#{device} AND ROWNUM=1)
+   +(SELECT COUNT(*) FROM SMT_AUTH_DIRECT_CLAIM WHERE DEVICE_ID=#{device} AND ROWNUM=1) FROM DUAL
+ </select>
+ <select id="route" timeout="5" useCache="false" flushCache="true" resultType="com.tce.smart.platform.core.dto.authtransport.AuthDirectTakeover$RouteCapability">
+  SELECT PARK_ID,INSTANCE_ID,DIRECT_TAKEOVER_VERSION FROM SMT_AUTH_SCHEDULER_ROUTE WHERE PARK_ID=#{park} AND ACCESS_TYPE='DIRECT' FOR UPDATE WAIT 5
+ </select>
+ <insert id="review" timeout="5">
+  MERGE INTO SMT_AUTH_TRANSPORT_REVIEW R USING (SELECT #{id} ID FROM DUAL) S ON (R.ID=S.ID)
+  WHEN NOT MATCHED THEN INSERT (ID,PARK_ID,ACCESS_TYPE,DEVICE_ID,TASK_KEY,REASON,STATE,CREATE_TIME)
+  VALUES (S.ID,#{park,jdbcType=NUMERIC},#{access},#{device,jdbcType=VARCHAR},#{task,jdbcType=VARCHAR},#{reason},'PENDING',SYS_EXTRACT_UTC(SYSTIMESTAMP))
+ </insert>
+ <select id="reviewExists" timeout="5" useCache="false" flushCache="true" resultType="int">
+  SELECT COUNT(*) FROM SMT_AUTH_TRANSPORT_REVIEW WHERE ID=#{id}
+ </select>
+</mapper>

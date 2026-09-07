@@ -40,6 +40,7 @@ import com.tce.smart.platform.core.mapper.SmtAdmittanceFellowMapper;
 import com.tce.smart.platform.core.mapper.SmtFellowVisitorMapper;
 import com.tce.smart.platform.core.mapper.SmtStaffMapper;
 import com.tce.smart.platform.core.service.*;
+import com.tce.smart.platform.core.service.impl.IscTaskCompletionService;
 import com.tce.smart.schedule.dto.DownDetailDTO;
 import com.tce.smart.schedule.service.platform.ISCDeviceTaskService;
 import com.tce.smart.schedule.support.IscLogPayloadFormatter;
@@ -77,6 +78,9 @@ import java.util.stream.Collectors;
 @RefreshScope
 @RequiredArgsConstructor
 public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
+ private com.tce.smart.platform.core.service.impl.AuthOperationTransportGuard transportGuard;
+ @org.springframework.beans.factory.annotation.Autowired public void setTransportGuard(com.tce.smart.platform.core.service.impl.AuthOperationTransportGuard guard){this.transportGuard=guard;}
+
 
 	private final RemoteStaffService remoteStaffService;
 
@@ -93,6 +97,11 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	private final SmtDeviceService smtDeviceService;
 
 	private final SmtIscDownRecordService smtIscDownRecordService;
+
+	/**
+	 * 通过独立 Spring Bean 在当前事务中收敛 ISC 可信设备成功结果。
+	 */
+	private final IscTaskCompletionService iscTaskCompletionService;
 
 	private final RemoteParkService remoteParkService;
 
@@ -129,10 +138,6 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	private static final int AUTH_ITEM_QUERY_PAGE_NO = 1;
 
 	private static final int AUTH_ITEM_QUERY_PAGE_SIZE = 1;
-
-	private static final String DELETE_NO_AVAILABLE_DOWNLOAD_DATA_REMARK = "删除权限已无可用下发数据，已按删除成功处理";
-
-	private static final String DELETE_PERSON_GONE_REMARK = "ISC人员已删除，权限已由ISC级联清理，按删除成功处理";
 
 	private static final String AUTH_CONFIG_MAX_RETRY_REMARK = "权限下发失败已达到最大重试次数"
 			+ DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES + "次，停止自动重试，请人工介入处理";
@@ -1128,6 +1133,13 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 					&& isTemporaryAuthorizationTask(task);
 	}
 
+	/**
+	 * 批量解析员工身份并准备ISC人员映射；本地员工资料缺失时标记重试并跳过后续平台配置。
+	 *
+	 * @param tasks 待处理的人员权限任务
+	 * @param skipTaskIds 本轮不应继续调用ISC配置接口的任务ID集合
+	 * @return 已解析的任务人员映射
+	 */
 	private Map<String,String> downAccessPre(List<SmtIscDeviceTask> tasks, Set<Long> skipTaskIds) {
 		log.info("开始-ISC人员权限下发预处理任务，总数：{}", tasks.size());
 		Map<String, JSONObject> personMap = new HashMap<>();
@@ -1163,15 +1175,30 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 					.in(SmtStaff::getId, cardNoList)
 			);
 
-			log.info("zhongsj-查询到员工信息{}条,人员id-{}", smtStaffList.size(), String.join(", ", cardNoList));
+			log.info("zhongsj-查询到员工信息{}条,人员id-{}",
+					smtStaffList == null ? 0 : smtStaffList.size(), String.join(", ", cardNoList));
 			if (CollectionUtil.isEmpty(smtStaffList)) {
-				log.error("批量员工信息查询失败");
-				return null;
+				// 本地员工资料为空时无法确认平台人员身份，保留任务重试并禁止继续调用ISC配置接口。
+				log.error("批量员工信息查询为空，不能确认ISC人员身份");
+				for (SmtIscDeviceTask task : staffTasks) {
+					markPersonCreationForRetry(task, "本地员工资料不存在，无法确认ISC人员");
+					skipTaskIds.add(task.getId());
+				}
+				return Collections.emptyMap();
 			}
 
 			Map<Long, SmtStaff> staffById = smtStaffList.stream()
 					.collect(Collectors.toMap(SmtStaff::getId, staff -> staff, (first, second) -> first));
+			// 先筛出本地没有对应员工资料的任务，避免后续用任务字段拼接出未经确认的平台人员。
+			for (SmtIscDeviceTask task : staffTasks) {
+				Long staffId = parseLong(task.getCardNo());
+				if (staffId == null || !staffById.containsKey(staffId)) {
+					markPersonCreationForRetry(task, "本地员工资料不存在，无法确认ISC人员");
+					skipTaskIds.add(task.getId());
+				}
+			}
 			Map<Integer, List<SmtIscDeviceTask>> staffTasksByPark = staffTasks.stream()
+					.filter(task -> !skipTaskIds.contains(task.getId()))
 					.filter(task -> task.getParkId() != null)
 					.collect(Collectors.groupingBy(SmtIscDeviceTask::getParkId));
 			for (Map.Entry<Integer, List<SmtIscDeviceTask>> entry : staffTasksByPark.entrySet()) {
@@ -1207,6 +1234,11 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 						Comparator.nullsFirst(Comparator.naturalOrder())))
 				.collect(Collectors.toList());
 		for (SmtIscDeviceTask task : orderedTasks) {
+			// 预处理阶段已经为无法确认本地员工身份的任务记录一次重试；本轮必须在所有后续
+			// ISC人员、人脸和权限步骤前直接跳过，避免重复计数、覆盖原始原因或产生远程副作用。
+			if (skipTaskIds.contains(task.getId())) {
+				continue;
+			}
 			if (!isTemporaryAccessTask(task) && task.getParkId() != null && failedQueryParks.contains(task.getParkId())) {
 				skipTaskIds.add(task.getId());
 				continue;
@@ -1322,33 +1354,38 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		List<SmtIscDeviceTask> resolved = new ArrayList<>();
 		Map<String, Integer> parkByDevice = new HashMap<>();
 		for (SmtIscDeviceTask task : tasks) {
-			Integer taskParkId = null;
-			String deviceCode = task.getDeviceCode();
-			if (StrUtil.isNotBlank(deviceCode)) {
-				if (parkByDevice.containsKey(deviceCode)) {
-					taskParkId = parkByDevice.get(deviceCode);
-				} else {
-					SmtDevice device = smtDeviceService.getOne(Wrappers.<SmtDevice>query().lambda()
-							.eq(SmtDevice::getId, deviceCode));
-					taskParkId = device == null ? null : device.getParkId();
-					parkByDevice.put(deviceCode, taskParkId);
+			try {
+				Integer taskParkId = null;
+				String deviceCode = task.getDeviceCode();
+				if (StrUtil.isNotBlank(deviceCode)) {
+					if (parkByDevice.containsKey(deviceCode)) {
+						taskParkId = parkByDevice.get(deviceCode);
+					} else {
+						SmtDevice device = smtDeviceService.getOne(Wrappers.<SmtDevice>query().lambda()
+								.eq(SmtDevice::getId, deviceCode));
+						taskParkId = device == null ? null : device.getParkId();
+						parkByDevice.put(deviceCode, taskParkId);
+					}
 				}
-			}
-			if (taskParkId == null) {
-				if (isDeleteAction(task.getAction())) {
-					markDeleteTaskForRetry(task, ISCDeviceTaskEnum.DEVICE_DEVICE_NOT_ONLINE,
-							"删除权限暂未找到设备信息");
-				} else {
-					handleTaskResult(task, ISCDeviceTaskEnum.DEVICE_DEVICE_NOT_ONLINE, null, null);
-					task.setStatus(DeviceTaskStatusEnum.CANCEL.getCode());
-					task.setUpdateTime(LocalDateTime.now());
-					smtIscDeviceTaskService.updateById(task);
-					triggerDispatchAggregationIfApplicable(task);
+				if (taskParkId == null) {
+					if (isDeleteAction(task.getAction())) {
+						markDeleteTaskForRetry(task, ISCDeviceTaskEnum.DEVICE_DEVICE_NOT_ONLINE,
+								"删除权限暂未找到设备信息");
+					} else {
+						handleTaskResult(task, ISCDeviceTaskEnum.DEVICE_DEVICE_NOT_ONLINE, null, null);
+						task.setStatus(DeviceTaskStatusEnum.CANCEL.getCode());
+						task.setUpdateTime(LocalDateTime.now());
+						smtIscDeviceTaskService.updateById(task);
+						triggerDispatchAggregationIfApplicable(task);
+					}
+					continue;
 				}
-				continue;
+				task.setParkId(taskParkId);
+				resolved.add(task);
+			} catch (Exception e) {
+				// 单设备解析或回写失败仅跳过该任务，其余园区继续轮询；不把异常视作设备删除。
+				log.error("ISC进度任务园区解析失败，taskId={},deviceCode={}", task.getId(), task.getDeviceCode(), e);
 			}
-			task.setParkId(taskParkId);
-			resolved.add(task);
 		}
 		return resolved;
 	}
@@ -1439,17 +1476,28 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		return baseRemark + "，已达到最大重试次数" + DeviceTaskConstants.AUTH_CONFIG_MAX_RETRY_TIMES + "次，停止自动重试，请人工介入处理";
 	}
 
+	/** 失败与成功一样核对旧状态和批次，HTTP期间完成或接管的任务不能被旧失败重置。 */
+	private LambdaUpdateWrapper<SmtIscDeviceTask> taskRetryGuard(SmtIscDeviceTask task) {
+		return new LambdaUpdateWrapper<SmtIscDeviceTask>()
+				.eq(SmtIscDeviceTask::getId, task.getId())
+				.eq(task.getStatus() != null, SmtIscDeviceTask::getStatus, task.getStatus())
+				.isNull(task.getStatus() == null, SmtIscDeviceTask::getStatus)
+				.eq(task.getAction() != null, SmtIscDeviceTask::getAction, task.getAction())
+				.isNull(task.getAction() == null, SmtIscDeviceTask::getAction)
+				.eq(StrUtil.isNotBlank(task.getIscTaskId()), SmtIscDeviceTask::getIscTaskId, task.getIscTaskId())
+				.isNull(StrUtil.isBlank(task.getIscTaskId()), SmtIscDeviceTask::getIscTaskId);
+	}
+
 	private void markTaskRetryExceeded(SmtIscDeviceTask task, ISCDeviceTaskEnum taskEnum, String remark) {
 		String retryExceededRemark = appendRetryExceededRemark(remark, taskEnum);
 		LocalDateTime now = LocalDateTime.now();
-		boolean updated = smtIscDeviceTaskService.update(new LambdaUpdateWrapper<SmtIscDeviceTask>()
+		boolean updated = smtIscDeviceTaskService.update(taskRetryGuard(task)
 				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.FAIL.getCode())
 				.set(SmtIscDeviceTask::getCode, taskEnum.getCode())
 				.set(SmtIscDeviceTask::getRemark, retryExceededRemark)
 				.set(SmtIscDeviceTask::getIscTaskId, null)
 				.set(SmtIscDeviceTask::getUpdateTime, now)
-				.set(task.getTimes() != null, SmtIscDeviceTask::getTimes, task.getTimes())
-				.eq(SmtIscDeviceTask::getId, task.getId()));
+				.set(task.getTimes() != null, SmtIscDeviceTask::getTimes, task.getTimes()));
 		if (updated) {
 			task.setStatus(DeviceTaskStatusEnum.FAIL.getCode());
 			task.setCode(taskEnum.getCode());
@@ -1460,31 +1508,14 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		}
 	}
 
-	private void markDeleteTaskAsNoAvailableDownloadDataSuccess(SmtIscDeviceTask task) {
-		task.setStatus(DeviceTaskStatusEnum.SUCCESS.getCode());
-		task.setCode(ISCDeviceTaskEnum.DEVICE_OK.getCode());
-		task.setRemark(DELETE_NO_AVAILABLE_DOWNLOAD_DATA_REMARK);
-		task.setUpdateTime(LocalDateTime.now());
-		boolean updated = smtIscDeviceTaskService.updateById(task);
-		if (updated) {
-			smtIscDownRecordService.handleTaskDownRecord(task);
-			triggerDispatchAggregationIfApplicable(task);
-		}
-	}
-
 	/**
-	 * ISC 已有该权限时按幂等成功收敛，避免下载明细缺失导致重复下发。
+	 * ISC返回无可用下发数据时保留删除任务，因平台空结果不足以确认终端已删除。
+	 *
+	 * @param task 待核验的删除任务
 	 */
-	private void markDownloadTaskAsExistingAuthItemSuccess(SmtIscDeviceTask task) {
-		task.setStatus(DeviceTaskStatusEnum.SUCCESS.getCode());
-		task.setCode(ISCDeviceTaskEnum.DEVICE_OK.getCode());
-		task.setRemark(ISCDeviceTaskEnum.DEVICE_OK.getDesc());
-		task.setUpdateTime(LocalDateTime.now());
-		boolean updated = smtIscDeviceTaskService.updateById(task);
-		if (updated) {
-			smtIscDownRecordService.handleTaskDownRecord(task);
-			triggerDispatchAggregationIfApplicable(task);
-		}
+	private void markDeleteTaskForUnconfirmedNoAvailableData(SmtIscDeviceTask task) {
+		markDeleteTaskForRetry(task, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL,
+				"ISC无可用下发数据，无法确认设备删除");
 	}
 
 	private enum DeletePersonLookupStatus {
@@ -1514,50 +1545,128 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	}
 
 	/**
+	 * 删除权限单轮局部上下文，同时复用员工身份和ISC三态查询结果。
+	 * 生命周期严格限定在一次addOrDelAuthConfig调用内，失败结果不会带到下一轮调度。
+	 */
+	private static final class DeletePersonLookupContext {
+		private final Map<String, DeletePersonIdentityResult> identityResults = new HashMap<>();
+		private final Map<String, DeletePersonLookupResult> iscPersonResults = new HashMap<>();
+	}
+
+	/**
+	 * 本轮解析出的本地人员身份；查询异常必须显式保留，不能伪装成资料缺失。
+	 */
+	private static final class DeletePersonIdentityResult {
+		private final String badge;
+		private final String certNo;
+		private final boolean queryFailed;
+
+		private DeletePersonIdentityResult(String badge, String certNo, boolean queryFailed) {
+			this.badge = badge;
+			this.certNo = certNo;
+			this.queryFailed = queryFailed;
+		}
+
+		static DeletePersonIdentityResult resolved(String badge, String certNo) {
+			return new DeletePersonIdentityResult(badge, certNo, false);
+		}
+
+		static DeletePersonIdentityResult queryFailed() {
+			return new DeletePersonIdentityResult(null, null, true);
+		}
+	}
+
+	/**
 	 * 删除任务专用的三态人员查询：区分"在册(FOUND)/已删除(ABSENT)/查询失败(QUERY_FAILED)"。
-	 * 背景：DHR同步会让ISC先删人并级联清掉其全部权限，此时删除任务已"事实完成"；
-	 * 但查询失败不能冒险判成功，否则ISC故障期间会漏删真实权限。
+	 * 背景：DHR同步可能让ISC先删人并级联清掉其全部权限，但平台人员空结果仍不能替代终端删除确认；
+	 * 查询失败也不能冒险判成功，否则ISC故障期间会漏删真实权限。
 	 * 员工任务按工号+证件号双标识复查，两者都确认不在册才判ABSENT。
 	 */
-	private DeletePersonLookupResult lookupIscPersonForDelete(SmtIscDeviceTask task) {
-		String badge = null;
-		String certNo = null;
+	private DeletePersonLookupResult lookupIscPersonForDelete(SmtIscDeviceTask task,
+														 DeletePersonLookupContext context) {
+		String identityKey = deletePersonIdentityKey(task);
+		DeletePersonLookupResult cachedResult = context.iscPersonResults.get(identityKey);
+		if (cachedResult != null) {
+			return cachedResult;
+		}
+		DeletePersonIdentityResult identity = resolveDeletePersonIdentity(task, context);
+		DeletePersonLookupResult lookupResult;
+		if (identity.queryFailed) {
+			lookupResult = DeletePersonLookupResult.queryFailed();
+			context.iscPersonResults.put(identityKey, lookupResult);
+			return lookupResult;
+		}
+		String badge = identity.badge;
+		String certNo = identity.certNo;
+		if (StrUtil.isBlank(badge) && StrUtil.isBlank(certNo)) {
+			// 没有任何可用标识时无法确认人员状态，不冒险判成功
+			lookupResult = DeletePersonLookupResult.queryFailed();
+			context.iscPersonResults.put(identityKey, lookupResult);
+			return lookupResult;
+		}
+		if (StrUtil.isNotBlank(badge)) {
+			lookupResult = queryIscPersonByParam(task, "jobNo", badge);
+			if (lookupResult.status != DeletePersonLookupStatus.ABSENT) {
+				context.iscPersonResults.put(identityKey, lookupResult);
+				return lookupResult;
+			}
+		}
+		if (StrUtil.isNotBlank(certNo)) {
+			lookupResult = queryIscPersonByParam(task, "certificateNo", certNo);
+			if (lookupResult.status != DeletePersonLookupStatus.ABSENT) {
+				context.iscPersonResults.put(identityKey, lookupResult);
+				return lookupResult;
+			}
+		}
+		lookupResult = DeletePersonLookupResult.absent();
+		context.iscPersonResults.put(identityKey, lookupResult);
+		return lookupResult;
+	}
+
+	/**
+	 * 解析并缓存删除任务使用的工号、证件号；同一稳定身份在同轮只访问一次员工服务。
+	 */
+	private DeletePersonIdentityResult resolveDeletePersonIdentity(SmtIscDeviceTask task,
+															  DeletePersonLookupContext context) {
+		String identityKey = deletePersonIdentityKey(task);
+		DeletePersonIdentityResult cachedIdentity = context.identityResults.get(identityKey);
+		if (cachedIdentity != null) {
+			return cachedIdentity;
+		}
+		DeletePersonIdentityResult identity;
 		if (isTemporaryAuthorizationTask(task)) {
 			try {
-				certNo = resolveTemporaryAccessCertNo(task);
+				identity = DeletePersonIdentityResult.resolved(null, resolveTemporaryAccessCertNo(task));
 			} catch (Exception e) {
 				log.warn("删除权限任务[{}]解析临时人员证件号异常，保持重试：{}", task.getId(), e.getMessage());
-				return DeletePersonLookupResult.queryFailed();
+				identity = DeletePersonIdentityResult.queryFailed();
 			}
 		} else {
 			try {
 				Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffById(task.getCardNo(), SecurityConstants.FROM_IN);
 				if (staffInfo != null && staffInfo.isSuccess() && staffInfo.getData() != null) {
-					badge = staffInfo.getData().getBadge();
-					certNo = staffInfo.getData().getCertno();
+					identity = DeletePersonIdentityResult.resolved(staffInfo.getData().getBadge(), staffInfo.getData().getCertno());
+				} else {
+					identity = DeletePersonIdentityResult.resolved(null, null);
 				}
 			} catch (Exception e) {
 				log.warn("删除权限任务[{}]查询本地员工信息异常，保持重试：{}", task.getId(), e.getMessage());
-				return DeletePersonLookupResult.queryFailed();
+				identity = DeletePersonIdentityResult.queryFailed();
 			}
 		}
-		if (StrUtil.isBlank(badge) && StrUtil.isBlank(certNo)) {
-			// 没有任何可用标识时无法确认人员状态，不冒险判成功
-			return DeletePersonLookupResult.queryFailed();
-		}
-		if (StrUtil.isNotBlank(badge)) {
-			DeletePersonLookupResult byBadge = queryIscPersonByParam(task, "jobNo", badge);
-			if (byBadge.status != DeletePersonLookupStatus.ABSENT) {
-				return byBadge;
-			}
-		}
-		if (StrUtil.isNotBlank(certNo)) {
-			DeletePersonLookupResult byCertNo = queryIscPersonByParam(task, "certificateNo", certNo);
-			if (byCertNo.status != DeletePersonLookupStatus.ABSENT) {
-				return byCertNo;
-			}
-		}
-		return DeletePersonLookupResult.absent();
+		context.identityResults.put(identityKey, identity);
+		return identity;
+	}
+
+	/**
+	 * 以园区、人员类型和稳定本地标识隔离缓存，禁止跨园区串用ISC personId。
+	 */
+	private String deletePersonIdentityKey(SmtIscDeviceTask task) {
+		String personType = isTemporaryAuthorizationTask(task) ? "temporary" : "staff";
+		return "park:" + (task == null || task.getParkId() == null ? "" : task.getParkId())
+				+ ":type:" + personType
+				+ ":card:" + (task == null ? "" : StrUtil.nullToEmpty(task.getCardNo()))
+				+ ":badge:" + (task == null ? "" : StrUtil.nullToEmpty(task.getBadge()));
 	}
 
 	private DeletePersonLookupResult queryIscPersonByParam(SmtIscDeviceTask task, String paramName, String paramValue) {
@@ -1613,17 +1722,14 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		}
 	}
 
-	private void markDeleteTaskAsPersonGoneSuccess(SmtIscDeviceTask task) {
-		task.setStatus(DeviceTaskStatusEnum.SUCCESS.getCode());
-		task.setCode(ISCDeviceTaskEnum.DEVICE_OK.getCode());
-		task.setRemark(DELETE_PERSON_GONE_REMARK);
-		task.setUpdateTime(LocalDateTime.now());
-		boolean updated = smtIscDeviceTaskService.updateById(task);
-		if (updated) {
-			// 与既有删除成功收敛保持一致：清理本地下发记录，避免本地与ISC状态背离
-			smtIscDownRecordService.handleTaskDownRecord(task);
-			triggerDispatchAggregationIfApplicable(task);
-		}
+	/**
+	 * ISC人员不存在时保留删除任务，人员空结果不能替代终端删除确认。
+	 *
+	 * @param task 待核验的删除任务
+	 */
+	private void markDeleteTaskForUnconfirmedPerson(SmtIscDeviceTask task) {
+		markDeleteTaskForRetry(task, ISCDeviceTaskEnum.PERSON_NOT_EXIST,
+				"ISC人员不存在，无法确认设备删除");
 	}
 
 	private void markDeleteTaskForRetry(SmtIscDeviceTask task, ISCDeviceTaskEnum taskEnum, String remark) {
@@ -1633,15 +1739,14 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		}
 		long nextRetryTime = DateUtil.currentSeconds() + DELETE_TASK_RETRY_DELAY_SECONDS;
 		String retryRemark = appendDeleteRetryRemark(remark, taskEnum);
-		boolean updated = smtIscDeviceTaskService.update(new LambdaUpdateWrapper<SmtIscDeviceTask>()
+		boolean updated = smtIscDeviceTaskService.update(taskRetryGuard(task)
 				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.INIT.getCode())
 				.set(SmtIscDeviceTask::getCode, taskEnum.getCode())
 				.set(SmtIscDeviceTask::getRemark, retryRemark)
 				.set(SmtIscDeviceTask::getIscTaskId, null)
 				.set(SmtIscDeviceTask::getOverTime, nextRetryTime)
 				.set(SmtIscDeviceTask::getUpdateTime, LocalDateTime.now())
-				.set(task.getTimes() != null, SmtIscDeviceTask::getTimes, task.getTimes())
-				.eq(SmtIscDeviceTask::getId, task.getId()));
+				.set(task.getTimes() != null, SmtIscDeviceTask::getTimes, task.getTimes()));
 		if (updated) {
 			task.setStatus(DeviceTaskStatusEnum.INIT.getCode());
 			task.setCode(taskEnum.getCode());
@@ -1658,14 +1763,13 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			return;
 		}
 		String retryRemark = appendDownloadRetryRemark(remark, taskEnum);
-		boolean updated = smtIscDeviceTaskService.update(new LambdaUpdateWrapper<SmtIscDeviceTask>()
+		boolean updated = smtIscDeviceTaskService.update(taskRetryGuard(task)
 				.set(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.INIT.getCode())
 				.set(SmtIscDeviceTask::getCode, taskEnum.getCode())
 				.set(SmtIscDeviceTask::getRemark, retryRemark)
 				.set(SmtIscDeviceTask::getIscTaskId, null)
 				.set(SmtIscDeviceTask::getUpdateTime, LocalDateTime.now())
-				.set(task.getTimes() != null, SmtIscDeviceTask::getTimes, task.getTimes())
-				.eq(SmtIscDeviceTask::getId, task.getId()));
+				.set(task.getTimes() != null, SmtIscDeviceTask::getTimes, task.getTimes()));
 		if (updated) {
 			task.setStatus(DeviceTaskStatusEnum.INIT.getCode());
 			task.setCode(taskEnum.getCode());
@@ -1728,8 +1832,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				log.info("删除权限下载任务[{}]复查未确认删除完成，保留删除任务重试，taskId：{}，code：{}",
 						task.getId(), taskId, errorCode);
 			} else {
-				markDeleteTaskAsNoAvailableDownloadDataSuccess(task);
-				log.info("删除权限下载任务[{}]无可用下发数据且未查到ISC权限条目，按删除成功处理，taskId：{}，code：{}",
+				markDeleteTaskForUnconfirmedNoAvailableData(task);
+				log.info("删除权限下载任务[{}]无可用下发数据且未查到ISC权限条目，保留任务待核验并重试，taskId：{}，code：{}",
 						task.getId(), taskId, errorCode);
 			}
 		}
@@ -1737,22 +1841,17 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	}
 
 	/**
-	 * 新增权限在 ISC 返回无可用数据或漏返回人员明细时，复查权限项后再决定是否重试。
+	 * 新增权限在 ISC 返回无可用数据或漏返回人员明细时，复查权限项并保留重试。
+	 * 平台权限项只提供核验线索；只有终端下载明细明确返回成功，才允许调用统一完成器收敛成功。
 	 */
 	private void reconcileDownloadTasksWithIscAuthItems(List<SmtIscDeviceTask> taskList, String taskId, String retryRemark) {
 		if (CollUtil.isEmpty(taskList)) {
 			return;
 		}
-		Integer fallbackParkId = taskList.get(0).getParkId();
 		for (SmtIscDeviceTask task : taskList) {
-			IscAuthItemPresence presence = queryIscAuthItemPresence(task, fallbackParkId);
-			if (presence == IscAuthItemPresence.PRESENT) {
-				markDownloadTaskAsExistingAuthItemSuccess(task);
-				log.info("新增权限下载任务[{}]已在ISC存在权限项，按幂等成功处理，taskId：{}", task.getId(), taskId);
-				continue;
-			}
+			// 平台侧total/list无法证明权限已经到达目标终端，ADD和DEL均须等待可信设备结果。
 			markDownloadTaskForRetry(task, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, retryRemark);
-			log.info("新增权限下载任务[{}]复查ISC权限项结果为{}，保留重试，taskId：{}", task.getId(), presence, taskId);
+			log.info("新增权限下载任务[{}]等待设备确认并保留重试，taskId：{}", task.getId(), taskId);
 		}
 	}
 
@@ -1870,10 +1969,11 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		}
 	}
 
-	private Map<String, String> resolveDeletePersonIds(List<SmtIscDeviceTask> tasks) {
+	private Map<String, String> resolveDeletePersonIds(List<SmtIscDeviceTask> tasks,
+													 DeletePersonLookupContext context) {
 		Map<String, String> personIdMap = new HashMap<>();
 		for (SmtIscDeviceTask task : tasks) {
-			String personId = resolveDeleteTaskPersonId(task);
+			String personId = resolveDeleteTaskPersonId(task, context);
 			if (StrUtil.isNotBlank(personId)) {
 				personIdMap.put(taskPersonMapKey(task), personId);
 			}
@@ -1882,6 +1982,13 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	}
 
 	private String resolveDeleteTaskPersonId(SmtIscDeviceTask task) {
+		return resolveDeleteTaskPersonId(task, new DeletePersonLookupContext());
+	}
+
+	/**
+	 * 按任务保存身份、历史下发身份、当前ISC身份的顺序解析单个删除目标。
+	 */
+	private String resolveDeleteTaskPersonId(SmtIscDeviceTask task, DeletePersonLookupContext context) {
 		if (task == null) {
 			return null;
 		}
@@ -1889,7 +1996,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			if (StrUtil.isNotBlank(task.getPersonId())) {
 				return task.getPersonId();
 			}
-			return resolveCurrentIscPersonId(task);
+			DeletePersonLookupResult lookup = lookupIscPersonForDelete(task, context);
+			return lookup.status == DeletePersonLookupStatus.FOUND ? lookup.personId : null;
 		}
 		SmtIscDownRecord downRecord = smtIscDownRecordService.getOne(Wrappers.<SmtIscDownRecord>lambdaQuery()
 				.eq(SmtIscDownRecord::getCardNo, task.getCardNo())
@@ -1897,15 +2005,16 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				.eq(SmtIscDownRecord::getDeviceType, task.getDeviceType())
 				.eq(SmtIscDownRecord::getServiceType, task.getServiceType())
 				.last("AND ROWNUM = 1"));
-		Set<String> localPersonIdentifiers = collectLocalPersonIdentifiers(task, downRecord);
+		Set<String> localPersonIdentifiers = collectLocalPersonIdentifiers(task, downRecord, context);
 		String downRecordPersonId = downRecord == null ? null : downRecord.getPersonId();
-		if (isTrustedOriginalPersonId(localPersonIdentifiers, downRecordPersonId)) {
-			return downRecordPersonId;
-		}
 		if (isTrustedOriginalPersonId(localPersonIdentifiers, task.getPersonId())) {
 			return task.getPersonId();
 		}
-		return resolveCurrentIscPersonId(task);
+		if (isTrustedOriginalPersonId(localPersonIdentifiers, downRecordPersonId)) {
+			return downRecordPersonId;
+		}
+		DeletePersonLookupResult lookup = lookupIscPersonForDelete(task, context);
+		return lookup.status == DeletePersonLookupStatus.FOUND ? lookup.personId : null;
 	}
 
 	private boolean isTrustedOriginalPersonId(Set<String> localPersonIdentifiers, String personId) {
@@ -1915,18 +2024,22 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		return !localPersonIdentifiers.contains(StrUtil.trim(personId));
 	}
 
-	private Set<String> collectLocalPersonIdentifiers(SmtIscDeviceTask task, SmtIscDownRecord downRecord) {
+	private Set<String> collectLocalPersonIdentifiers(SmtIscDeviceTask task, SmtIscDownRecord downRecord,
+															 DeletePersonLookupContext context) {
 		Set<String> identifiers = new HashSet<>();
 		addLocalPersonIdentifier(identifiers, task.getCardNo());
 		addLocalPersonIdentifier(identifiers, task.getBadge());
 		addLocalPersonIdentifier(identifiers, extractBadgeFromGeneral(task.getGeneral()));
-		addStaffBadgeIdentifier(identifiers, task.getCardNo());
+		DeletePersonIdentityResult identity = resolveDeletePersonIdentity(task, context);
+		addLocalPersonIdentifier(identifiers, identity.badge);
 		if (downRecord != null) {
 			addLocalPersonIdentifier(identifiers, downRecord.getCardNo());
 			addLocalPersonIdentifier(identifiers, downRecord.getBadge());
 			addLocalPersonIdentifier(identifiers, extractBadgeFromGeneral(downRecord.getGeneral()));
 			if (!StrUtil.equals(task.getCardNo(), downRecord.getCardNo())) {
-				addStaffBadgeIdentifier(identifiers, downRecord.getCardNo());
+				DeletePersonIdentityResult downRecordIdentity = resolveDeleteStaffIdentity(
+						task.getParkId(), downRecord.getCardNo(), downRecord.getBadge(), context);
+				addLocalPersonIdentifier(identifiers, downRecordIdentity.badge);
 			}
 		}
 		return identifiers;
@@ -1938,18 +2051,19 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		}
 	}
 
-	private void addStaffBadgeIdentifier(Set<String> identifiers, String cardNo) {
+	/**
+	 * 历史下发记录属于另一员工时，按该记录的本地身份补充冲突保护并复用本轮查询。
+	 */
+	private DeletePersonIdentityResult resolveDeleteStaffIdentity(Integer parkId, String cardNo, String badge,
+																 DeletePersonLookupContext context) {
 		if (StrUtil.isBlank(cardNo)) {
-			return;
+			return DeletePersonIdentityResult.resolved(null, null);
 		}
-		try {
-			Result<SmtStaffDTO> staffInfo = remoteStaffService.getSimpleSttaffById(cardNo, SecurityConstants.FROM_IN);
-			if (staffInfo != null && staffInfo.isSuccess() && staffInfo.getData() != null) {
-				addLocalPersonIdentifier(identifiers, staffInfo.getData().getBadge());
-			}
-		} catch (Exception e) {
-			log.warn("删除权限任务回查员工工号失败，cardNo={}，message={}", cardNo, e.getMessage());
-		}
+		SmtIscDeviceTask identityTask = new SmtIscDeviceTask();
+		identityTask.setParkId(parkId);
+		identityTask.setCardNo(cardNo);
+		identityTask.setBadge(badge);
+		return resolveDeletePersonIdentity(identityTask, context);
 	}
 
 	private String extractBadgeFromGeneral(String general) {
@@ -1970,7 +2084,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	 * @return 返回添加或删除权限的结果
 	 */
 	private boolean addOrDelAuthConfig(List<SmtIscDeviceTask> taskList, boolean isAdd) {
-		taskList = cancelUnsupportedVehicleTasks(taskList);
+		taskList = cancelUnsupportedVehicleTasks(taskList.stream().filter(t->transportGuard==null||!transportGuard.bound("ISC",String.valueOf(t.getId()))).collect(Collectors.toList()));
 		if (CollectionUtil.isEmpty(taskList)) {
 			return true;
 		}
@@ -1980,10 +2094,11 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		Map<Integer, List<SmtIscDeviceTask>> parkTaskMap = taskList.stream()
 				.filter(task -> task.getParkId() != null)
 				.collect(Collectors.groupingBy(SmtIscDeviceTask::getParkId));
+		DeletePersonLookupContext deletePersonLookupContext = isAdd ? null : new DeletePersonLookupContext();
 
 		for(Integer parkId : parkTaskMap.keySet()){
 			try {
-				processParkAuthConfig(parkId, parkTaskMap.get(parkId), isAdd);
+				processParkAuthConfig(parkId, parkTaskMap.get(parkId), isAdd, deletePersonLookupContext);
 			} catch (Exception e) {
 				// 单园区异常只影响本园区本轮，任务保持原状态下轮重试，不中断其他园区
 				log.error("园区[{}]权限{}处理异常，本轮跳过该园区", parkId, isAdd ? "下发" : "删除", e);
@@ -1992,11 +2107,13 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		return true;
 	}
 
-	private void processParkAuthConfig(Integer parkId, List<SmtIscDeviceTask> smtIscDeviceTasks, boolean isAdd) {
+	private void processParkAuthConfig(Integer parkId, List<SmtIscDeviceTask> smtIscDeviceTasks, boolean isAdd,
+											   DeletePersonLookupContext deletePersonLookupContext) {
 		{
 			// 新增/更新权限需要保证人员和照片在ISC侧存在；删除权限只解析已存在的ISC personId，不能反向创建人员。
 			Set<Long> skipTaskIds = new HashSet<>();
-			Map<String, String> personIdMap = isAdd ? downAccessPre(smtIscDeviceTasks, skipTaskIds) : resolveDeletePersonIds(smtIscDeviceTasks);
+			Map<String, String> personIdMap = isAdd ? downAccessPre(smtIscDeviceTasks, skipTaskIds)
+					: resolveDeletePersonIds(smtIscDeviceTasks, deletePersonLookupContext);
 			if (CollUtil.isNotEmpty(skipTaskIds)) {
 				log.info("园区[{}]本轮跳过{}个任务（ISC人员批量查询失败，待下轮重试）", parkId, skipTaskIds.size());
 			}
@@ -2042,14 +2159,14 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 								item.getId(), parkId, item.getCardNo(), logTaskBadge(item), item.getDeviceCode(), item.getAction());
 
 						if (!isAdd) {
-							// 删除任务三态判定：人员在ISC已删除时权限已被级联清理，按删除成功收敛
-							DeletePersonLookupResult lookup = lookupIscPersonForDelete(item);
+							// 删除任务三态判定：人员空结果只能保留待核验，不能替代终端删除确认。
+							DeletePersonLookupResult lookup = lookupIscPersonForDelete(item, deletePersonLookupContext);
 							if (lookup.status == DeletePersonLookupStatus.FOUND) {
 								log.info("重新获取到人员信息，继续删除权限：cardNo={}, personId={}", item.getCardNo(), lookup.personId);
 								personId = lookup.personId;
 							} else if (lookup.status == DeletePersonLookupStatus.ABSENT) {
-								log.info("删除权限任务[{}]对应人员已不存在于ISC平台，按删除成功处理", item.getId());
-								markDeleteTaskAsPersonGoneSuccess(item);
+								log.info("删除权限任务[{}]对应人员已不存在于ISC平台，保留任务待核验并重试", item.getId());
+								markDeleteTaskForUnconfirmedPerson(item);
 								continue;
 							} else {
 								markDeleteTaskForRetry(item, ISCDeviceTaskEnum.PERSON_NOT_EXIST,
@@ -2323,20 +2440,32 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		if (CollUtil.isEmpty(authConfigList)) {
 			return;
 		}
-		Map<String, List<SmtIscDeviceTask>> taskIdMap = authConfigList.stream().collect(Collectors.groupingBy(SmtIscDeviceTask::getIscTaskId));
-		for (String taskId : taskIdMap.keySet()) {
+		for (List<SmtIscDeviceTask> group : groupProgressTasksByPark(authConfigList)) {
+			String taskId = group.get(0).getIscTaskId();
 			try {
-				processAuthConfigGroup(taskId, taskIdMap.get(taskId));
+				processAuthConfigGroup(taskId, group);
 			} catch (Exception e) {
-				// 单组异常不中断其他组：<6h任务下轮重试，超时由markTimedOut兜底
-				log.error("ISC权限配置进度组[{}]处理异常，本轮跳过", taskId, e);
+				// 单组异常不中断其他园区和批次，未完成任务仍保留重试依据。
+				log.error("ISC权限配置进度组[{},{}]处理异常，本轮跳过", group.get(0).getParkId(), taskId, e);
 			}
 		}
 	}
 
+	/** 先按设备核对园区，再以园区及外部任务号分组，避免不同 ISC 实例同号任务串组。 */
+	private List<List<SmtIscDeviceTask>> groupProgressTasksByPark(List<SmtIscDeviceTask> tasks) {
+		Map<Integer, Map<String, List<SmtIscDeviceTask>>> parks = resolveParkAndFilterGroup(tasks).stream().filter(t->transportGuard==null||!transportGuard.bound("ISC",String.valueOf(t.getId())))
+				.collect(Collectors.groupingBy(SmtIscDeviceTask::getParkId,
+						Collectors.groupingBy(SmtIscDeviceTask::getIscTaskId)));
+		List<List<SmtIscDeviceTask>> groups = new ArrayList<>();
+		for (Map<String, List<SmtIscDeviceTask>> park : parks.values()) {
+			groups.addAll(park.values());
+		}
+		return groups;
+	}
+
 	private void processAuthConfigGroup(String taskId, List<SmtIscDeviceTask> groupTasks) {
 		{
-			List<SmtIscDeviceTask> taskList = resolveParkAndFilterGroup(groupTasks);
+			List<SmtIscDeviceTask> taskList = groupTasks;
 			if (CollUtil.isEmpty(taskList)) {
 				return;
 			}
@@ -2436,22 +2565,20 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		if (CollUtil.isEmpty(authConfigList)) {
 			return;
 		}
-		// 将任务按照ISC任务ID分组
-		Map<String, List<SmtIscDeviceTask>> taskIdMap = authConfigList.stream().collect(Collectors.groupingBy(SmtIscDeviceTask::getIscTaskId));
-		// 遍历分组后的任务列表
-		for (String taskId : taskIdMap.keySet()) {
+		for (List<SmtIscDeviceTask> group : groupProgressTasksByPark(authConfigList)) {
+			String taskId = group.get(0).getIscTaskId();
 			try {
-				processAuthConfigDownResultGroup(taskId, taskIdMap.get(taskId));
+				processAuthConfigDownResultGroup(taskId, group);
 			} catch (Exception e) {
-				// 单组异常不中断其他组：<6h任务下轮重试，超时由markTimedOut兜底
-				log.error("ISC权限下载结果组[{}]处理异常，本轮跳过", taskId, e);
+				// 单组异常不中断其他园区和批次，未完成任务仍保留重试依据。
+				log.error("ISC权限下载结果组[{},{}]处理异常，本轮跳过", group.get(0).getParkId(), taskId, e);
 			}
 		}
 	}
 
 	private void processAuthConfigDownResultGroup(String taskId, List<SmtIscDeviceTask> groupTasks) {
 		{
-			List<SmtIscDeviceTask> taskList = resolveParkAndFilterGroup(groupTasks);
+			List<SmtIscDeviceTask> taskList = groupTasks;
 			if (CollUtil.isEmpty(taskList)) {
 				return;
 			}
@@ -2585,7 +2712,7 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 					continue;
 				}
 
-				authConfigDownResultHandleStep3(taskId, deviceCode, detailObj);
+				authConfigDownResultHandleStep3(taskId, deviceCode, detailObj, groupByDevice.get(deviceCode));
 
 				// 将未处理到的任务状态修改为失败 等待下次重试
 				List<SmtIscDeviceTask> unhandledDeviceTasks = filterTasksMissingFromDownloadDetail(groupByDevice.get(deviceCode), detailObj);
@@ -2670,8 +2797,10 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 	 * @param taskId 任务id
 	 * @param deviceCode 设备编码
 	 * @param detailObj 任务详情
+	 * @param selectedTasks 当前园区、批次及设备已选中的任务快照
 	 */
-	private void authConfigDownResultHandleStep3(String taskId, String deviceCode, JSONObject detailObj) {
+	private void authConfigDownResultHandleStep3(String taskId, String deviceCode, JSONObject detailObj,
+			List<SmtIscDeviceTask> selectedTasks) {
 		long start = System.currentTimeMillis();
 		log.info("步骤三开始");
 		JSONArray listArr = detailObj.getJSONArray("list");
@@ -2680,12 +2809,15 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			return;
 		}
 
-		List<SmtIscDeviceTask> updateTaskList = smtIscDeviceTaskService.list(Wrappers.<SmtIscDeviceTask>lambdaQuery()
-				.eq(SmtIscDeviceTask::getIscTaskId, taskId)
-				.eq(SmtIscDeviceTask::getDeviceCode, deviceCode)
-				.eq(SmtIscDeviceTask::getStatus, DeviceTaskStatusEnum.DOING.getCode())
-				.eq(SmtIscDeviceTask::getCode, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_OK.getCode())
-				.in(SmtIscDeviceTask::getPersonId, downDetailMap.keySet()));
+		// 当前批次快照已核对园区和设备，按人员匹配即可；不把外部整页人员再次拼成巨大 IN 查询。
+		// 完成器仍按旧状态与批次号执行 CAS，期间被接管的任务不会由旧快照覆盖。
+		List<SmtIscDeviceTask> updateTaskList = selectedTasks.stream()
+				.filter(task -> java.util.Objects.equals(taskId, task.getIscTaskId()))
+				.filter(task -> java.util.Objects.equals(deviceCode, task.getDeviceCode()))
+				.filter(task -> DeviceTaskStatusEnum.DOING.getCode().equals(task.getStatus()))
+				.filter(task -> ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_OK.getCode().equals(task.getCode()))
+				.filter(task -> downDetailMap.containsKey(task.getPersonId()))
+				.collect(Collectors.toList());
 
 		log.info("event=isc_auth_download_detail_update task_count={} task_ids={}", updateTaskList.size(),
 				summarizeTaskIds(updateTaskList));
@@ -2701,9 +2833,15 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 			log.info("步骤三downResultCode：{}", downResultCode);
 			log.info("步骤三getPersonId：{}", downDetailDTO.getPersonId());
 			if ("0".equals(downResultCode)) {
-				updateTask.setStatus(DeviceTaskStatusEnum.SUCCESS.getCode());
-				updateTask.setCode(ISCDeviceTaskEnum.DEVICE_OK.getCode());
-				updateTask.setRemark(ISCDeviceTaskEnum.DEVICE_OK.getDesc());
+				// 设备下载明细确认成功后，统一通过事务完成器更新任务并维护本地下发记录。
+				boolean completed = iscTaskCompletionService.completeSuccess(updateTask,
+						ISCDeviceTaskEnum.DEVICE_OK.getDesc());
+				if (completed) {
+					triggerDispatchAggregationIfApplicable(updateTask);
+					log.info("开始处理访客逻辑");
+					handelVisitor(updateTask);
+				}
+				return;
 			} else {
 				String errorDesc;
 				try {
@@ -2718,8 +2856,8 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				}
 				if (isDeleteAction(updateTask.getAction())) {
 					if (shouldVerifyMissingAuthForDelete(downResultCode) && !hasIscAuthItem(updateTask, null)) {
-						markDeleteTaskAsNoAvailableDownloadDataSuccess(updateTask);
-						log.info("删除权限任务[{}]无可用下发数据且未查到ISC权限条目，按删除成功处理", updateTask.getId());
+						markDeleteTaskForUnconfirmedNoAvailableData(updateTask);
+						log.info("删除权限任务[{}]无可用下发数据且未查到ISC权限条目，保留任务待核验", updateTask.getId());
 						return;
 					}
 					markDeleteTaskForRetry(updateTask, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, errorDesc);
@@ -2729,17 +2867,6 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 				markDownloadTaskForRetry(updateTask, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, errorDesc);
 				log.info("下载权限任务失败，已保留重试：{}", updateTask);
 				return;
-			}
-			updateTask.setUpdateTime(LocalDateTime.now());
-			boolean update = smtIscDeviceTaskService.updateById(updateTask);
-			log.info("步骤三更新完成：{}", updateTask);
-			if (update && "0".equals(downResultCode)) {
-				log.info("步骤三结束");
-				// 下载明细确认成功后，才维护本地下发记录；删除权限也在这里移除记录。
-				smtIscDownRecordService.handleTaskDownRecord(updateTask);
-				triggerDispatchAggregationIfApplicable(updateTask);
-				log.info("开始处理访客逻辑");
-				handelVisitor(updateTask);
 			}
 		});
 		log.info("步骤三结束，耗时：{}ms", System.currentTimeMillis() - start);

@@ -37,6 +37,30 @@ export function getDetailPage (query) {
     data: query
   })
 }
+
+export function fetchOperationBatchPage (params) {
+  return request({
+    url: '/platform/device/authority/operation/batch/page',
+    method: 'get',
+    params
+  })
+}
+
+export function getOperationBatchDetail (batchId) {
+  return request({
+    url: `/platform/device/authority/operation/batch/${batchId}`,
+    method: 'get'
+  })
+}
+
+export function fetchOperationTargetPage (params) {
+  return request({
+    url: '/platform/device/authority/operation/target/page',
+    method: 'get',
+    params
+  })
+}
+
 export function batchDel (obj) {
   return request({
     url: '/platform/device/authority/relation/del',
@@ -96,4 +120,16 @@ export function switchAreaType (data) {
     method: 'post',
     data: data
   })
+}
+
+// 人员回执端点独立于旧 Boolean 接口；请求不自动重试或回退写入。
+export function batchDelPersonWithReceipt (data, requestKey) {
+  return request({ url: '/platform/device/authority/relation/person/del/receipt', method: 'post', data, timeout: 60000, ...(requestKey === undefined ? {} : { headers: { 'Idempotency-Key': requestKey } }) })
+}
+export function clearPersonWithReceipt (id, requestKey) {
+  return request({ url: `/platform/device/authority/relation/person/clear/${id}/receipt`, method: 'post', timeout: 60000, ...(requestKey === undefined ? {} : { headers: { 'Idempotency-Key': requestKey } }) })
+}
+
+export function personIntakeCapability (id) {
+  return request({ url: `/platform/device/authority/relation/person/${id}/intake-capability`, method: 'get' })
 }
