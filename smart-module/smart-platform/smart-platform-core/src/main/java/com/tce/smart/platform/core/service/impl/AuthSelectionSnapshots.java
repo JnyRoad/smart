@@ -49,7 +49,7 @@ public final class AuthSelectionSnapshots {
   }catch(Exception ex){throw invalid(ex);}throw new IllegalArgumentException("未知凭据种类");
  }
  static void validateWindow(Window w) {
-  if(w==null || w.getFrom()==null || w.getTo()==null || w.getTo().isBefore(w.getFrom()) || w.getFrom().getNano()%1000!=0 || w.getTo().getNano()%1000!=0)throw new IllegalArgumentException("窗口必须有效并匹配Oracle微秒精度");
+  if(w==null || w.getFrom()==null || w.getTo()==null || !w.getTo().isAfter(w.getFrom()) || w.getFrom().getNano()%1000!=0 || w.getTo().getNano()%1000!=0)throw new IllegalArgumentException("窗口必须有效并匹配Oracle微秒精度");
  }
  private static void validateCredential(Credential credential,boolean newSnapshot) {
   if(credential instanceof PersonCredential) {

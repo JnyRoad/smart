@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.tce.smart.platform.core.mapper.SmtAuthSubjectCoordMapper">
-  <select id="lock" resultType="com.tce.smart.platform.core.entity.SmtAuthSubjectCoord">
+  <select id="lock" resultType="com.tce.smart.platform.core.entity.SmtAuthSubjectCoord" flushCache="true" useCache="false">
     SELECT ID,PARK_ID,SUBJECT_TYPE,SUBJECT_ID,CREATE_TIME FROM SMT_AUTH_SUBJECT_COORD WHERE ID=#{id} FOR UPDATE
   </select>
   <insert id="insert">INSERT INTO SMT_AUTH_SUBJECT_COORD (ID,PARK_ID,SUBJECT_TYPE,SUBJECT_ID,CREATE_TIME)

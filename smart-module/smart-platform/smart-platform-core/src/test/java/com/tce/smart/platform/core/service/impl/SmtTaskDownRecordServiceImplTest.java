@@ -89,6 +89,11 @@ public class SmtTaskDownRecordServiceImplTest {
   try(AuthOperationTransportRecordContext ignored=AuthOperationTransportRecordContext.open(p)){f.service.handleTaskDownRecord(task(DeviceTaskActionEnum.DOWN));}
   Mockito.verify(f.service).save(Mockito.argThat((SmtTaskDownRecord r)->r.getId()==null&&r.getOverTime().getTime()==2000&&r.getParkId()==9002));
  }
+	@Test public void currentVersionAddRejectsMissingFrozenWindowBeforeRecordWrite() {
+		Fixture f=new Fixture();com.tce.smart.platform.core.entity.SmtAuthTransportPhase p=new com.tce.smart.platform.core.entity.SmtAuthTransportPhase();p.setAccessType("DIRECT");p.setTaskId("123");p.setParkId(9002);p.setDeviceId("direct-test-device");p.setCardNo("1001");p.setServiceType("1");p.setAction("ADD");
+		try(AuthOperationTransportRecordContext ignored=AuthOperationTransportRecordContext.open(p)){try {f.service.handleTaskDownRecord(task(DeviceTaskActionEnum.DOWN));Assert.fail("缺失冻结有效期必须拒绝");} catch (IllegalArgumentException expected) {Assert.assertTrue(expected.getMessage().contains("有效期"));}}
+		Mockito.verify(f.service,Mockito.never()).save(Mockito.any(SmtTaskDownRecord.class));
+	}
 	private static void assertWriteFailed(Runnable operation) {
 		try {
 			operation.run();

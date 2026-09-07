@@ -151,6 +151,9 @@ public class SmtOrganizeRelationServiceImpl extends ServiceImpl<SmtOrganizeRelat
             List<SmtStaff> selected=staffService.list(Wrappers.<SmtStaff>lambdaQuery().eq(SmtStaff::getCompId,relation.getId()));
             reliableAccepted=employeeAuthOperationAdapter.organizationDiff(selected.stream().map(SmtStaff::getId).collect(Collectors.toList()),addedAuthIds,removedAuthIds,trustedPark);
         }
+		if (Boolean.FALSE.equals(reliableAccepted)) {
+			return Boolean.FALSE;
+		}
 		// 更新门禁权限关联 先删后插（传空列表表示清空单位全部权限）
 		List<SmtOrganizeAccess> organizeAccessList = new ArrayList<>();
 		deviceAuthIds.forEach(deviceAuthId -> organizeAccessList.add(SmtOrganizeAccess.builder()

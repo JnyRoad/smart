@@ -29,6 +29,11 @@ public class AuthOperationTransportFacadeTest {
   ArgumentCaptor<DispatcherDTO> calls=ArgumentCaptor.forClass(DispatcherDTO.class);verify(remote,times(1)).dispatch(calls.capture(),anyString());Assert.assertEquals(EventEnum.ISC_AUTH_CONFIG_DEL.getCode(),calls.getAllValues().get(0).getEventType());
   Map body=(Map)calls.getAllValues().get(0).getData();Map people=(Map)((List)body.get("personDatas")).get(0);Assert.assertEquals(Arrays.asList("pa","pb"),people.get("indexCodes"));verify(store).accepted(1,"shared-isc",Arrays.asList(10L,20L),"config-1");
  }
+	@Test public void iscTimestampKeepsSecondsMillisecondsAndOffset() throws Exception {
+		java.lang.reflect.Method iso=AuthOperationTransportFacade.class.getDeclaredMethod("iso",Long.class);iso.setAccessible(true);
+		Assert.assertEquals("1970-01-01T08:00:00.000+08:00",iso.invoke(null,0L));
+		try {iso.invoke(null,new Object[]{null});Assert.fail("缺失窗口不得序列化为1970时间");} catch (java.lang.reflect.InvocationTargetException expected) {Assert.assertTrue(expected.getCause() instanceof IllegalArgumentException);}
+	}
  @Test public void ambiguousLookupMustNeverCreateAnotherPerson(){SmtAuthTransportPhase a=phase(10L,"a");a.setAction("ADD");a.setImageId("image");a.setPersonSnapshot("{\"personName\":\"合成\",\"gender\":0}");
   List<AuthOperationClaimedTarget> claims=claims(a);when(images.getImageBase64ByCode("image")).thenReturn("image-base64");
   when(remote.dispatch(any(),anyString())).thenReturn(Result.success("{\"list\":[{\"jobNo\":\"a\",\"personId\":\"p1\"},{\"jobNo\":\"a\",\"personId\":\"p2\"}]}"));

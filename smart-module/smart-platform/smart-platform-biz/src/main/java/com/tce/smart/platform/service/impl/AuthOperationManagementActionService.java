@@ -52,10 +52,13 @@ public class AuthOperationManagementActionService {
 		List<AuthOperationRetryItem> ordered = new ArrayList<>(request.getTargets());
 		ordered.sort(Comparator.comparing(item -> id(item == null ? null : item.getTargetId(), "目标ID")));
 		Set<Long> unique = new HashSet<>();
-		List<AuthOperationActionResultView> results = new ArrayList<>(ordered.size());
 		for (AuthOperationRetryItem item : ordered) {
 			Long targetId = id(item == null ? null : item.getTargetId(), "目标ID");
 			if (!unique.add(targetId)) throw new IllegalArgumentException("同一请求不能包含重复目标");
+		}
+		List<AuthOperationActionResultView> results = new ArrayList<>(ordered.size());
+		for (AuthOperationRetryItem item : ordered) {
+			Long targetId = id(item == null ? null : item.getTargetId(), "目标ID");
 			RetryCommand command = RetryCommand.builder().targetId(targetId)
 					.expectedOperationVersion(id(item.getExpectedOperationVersion(), "期望操作代次"))
 					.expectedAttemptId(id(item.getExpectedAttemptId(), "期望尝试ID"))

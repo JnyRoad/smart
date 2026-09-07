@@ -197,18 +197,27 @@ public class SmtIscDownRecordServiceImpl extends ServiceImpl<SmtIscDownRecordMap
 
  /** 已通过目标版本门禁，只维护精确物理记录，业务来源由工作流最终收敛。 */
  private void handleVersionRecord(SmtIscDeviceTask task,com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+	int serviceType=serviceType(phase);
+	if(!"DELETE".equals(phase.getAction()))requireWindow(phase);
   LambdaQueryWrapper<SmtIscDownRecord> query=new LambdaQueryWrapper<SmtIscDownRecord>()
    .eq(SmtIscDownRecord::getParkId,phase.getParkId()).eq(SmtIscDownRecord::getDeviceCode,phase.getDeviceId())
    .eq(SmtIscDownRecord::getCardNo,phase.getCardNo()).eq(SmtIscDownRecord::getDeviceType,1)
-   .eq(SmtIscDownRecord::getServiceType,Integer.valueOf(phase.getServiceType()));
+   .eq(SmtIscDownRecord::getServiceType,serviceType);
   List<SmtIscDownRecord> old=this.list(query);if(!old.isEmpty())removeDownRecords(old);
   if("DELETE".equals(phase.getAction()))return;
   SmtIscDownRecord record=new SmtIscDownRecord();record.setParkId(phase.getParkId());record.setDeviceCode(phase.getDeviceId());
-  record.setCardNo(phase.getCardNo());record.setDeviceType(1);record.setServiceType(Integer.valueOf(phase.getServiceType()));
+  record.setCardNo(phase.getCardNo());record.setDeviceType(1);record.setServiceType(serviceType);
   record.setTaskId(Long.valueOf(phase.getTaskId()));record.setImageId(phase.getImageId());
   record.setStartTime(DateUtil.date(phase.getStartTime()*1000));record.setOverTime(DateUtil.date(phase.getOverTime()*1000));
   record.setAction(DeviceTaskActionEnum.DOWN.getCode());record.setTaskType(DeviceTaskStatusEnum.SUCCESS.getCode());
   record.setCreateTime(LocalDateTime.now());record.setRemark("");record.setPersonId(phase.getPersonId());record.setBadge(phase.getBadge());
   if(!this.save(record))throw new IllegalStateException("冻结下发记录保存失败");
  }
+	private static int serviceType(com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+		try { return Integer.parseInt(phase.getServiceType()); }
+		catch (RuntimeException invalid) { throw new IllegalArgumentException("冻结业务类型无效", invalid); }
+	}
+	private static void requireWindow(com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+		if (phase.getStartTime()==null || phase.getOverTime()==null) throw new IllegalArgumentException("冻结有效期缺失");
+	}
 }

@@ -31,13 +31,13 @@
 | `SMT_AUTH_GOVERNANCE_ACTION` | 24 列；动作幂等键、操作者、期望版本与尝试、状态前后值、结果和受限证据CLOB | 重试门禁、审计保留、园区授权、人工观察与可信设备结果分离 |
 | `SMT_AUTH_REQUEST_INTAKE` | 12 列；操作者与请求键唯一、规范请求指纹、最终回执、全园区子批次数及摘要 | 同事务受理、原键重放鉴权、完整子批次核验、浏览器未知请求恢复 |
 
-物理字段与约束详见 [data-model.md](data-model.md)。可复现的合成测试基线位于 `smart-platform-core/src/test/resources/auth-operation/operation-schema.sql`；既有表的合成基线是同目录 `legacy-schema.sql`。这些是测试资源，不能直接当作已审定的生产迁移，也不能用合成列宽覆盖现存业务表。
+物理字段与约束详见 [data-model.md](data-model.md)。可复现的合成测试基线位于 `smart-module/smart-platform/smart-platform-core/src/test/resources/auth-operation/operation-schema.sql`；既有表的合成基线是同目录 `legacy-schema.sql`。这些是测试资源，不能直接当作已审定的生产迁移，也不能用合成列宽覆盖现存业务表。
 
 发布变更依据目标库实际元数据和本规格生成并记录已执行版本，不新建人工脚本目录。新增对象顺序为批次、请求、目标、尝试、结果事件及相关外键/索引；后续授权版本与来源对象必须一并落实后才能开启统一业务入口。不能只发布新 Java 类而漏掉数据库结构，或只建五张表就把可靠删除标为完成。
 
 五张协调表的合成结构位于同目录 `version-schema.sql`，独立协调层及工作流限定复审已通过，实际入口和接入仍在整合审查。列数是本机测试库实际元数据，不能替代目标生产库变更核对；完整业务范围和容量尚未交付。
 
-分片日志、调度额度的合成结构分别位于同目录 `workflow-schema.sql`、`scheduler-schema.sql`；员工选择、接入阶段及治理动作位于 `src/test/resources/authoperation/selection-schema.sql`、`transport-schema.sql`、`governance-schema.sql`；请求头位于 `src/test/resources/auth-operation/intake-schema.sql`。请求头增量后的最新元数据核对共23张AUTH表，列数如上；QUOTA主键/实例外键及IDENTITY主键均为ENABLED。ACTION有5个命名且ENABLED的约束，另有系统NOT NULL约束；实际查询到2个唯一普通索引。TRANSPORT_REVIEW的PARK_ID现允许NULL，用于历史归属无法确定的持久核验；管理入口必须具备明确鉴权的无园区核验路径，不能静默丢弃这些记录。保留的园区9001合成基线仍为10,000个目标，仅作基础数据库验证。
+分片日志、调度额度的合成结构分别位于同目录 `workflow-schema.sql`、`scheduler-schema.sql`；员工选择、接入阶段及治理动作位于 `smart-module/smart-platform/smart-platform-core/src/test/resources/authoperation/selection-schema.sql`、`transport-schema.sql`、`governance-schema.sql`；请求头位于 `smart-module/smart-platform/smart-platform-core/src/test/resources/auth-operation/intake-schema.sql`。请求头增量后的最新元数据核对共24张AUTH表，列数如上；QUOTA主键/实例外键及IDENTITY主键均为ENABLED。ACTION有5个命名且ENABLED的约束，另有系统NOT NULL约束；实际查询到2个唯一普通索引。TRANSPORT_REVIEW的PARK_ID现允许NULL，用于历史归属无法确定的持久核验；管理入口必须具备明确鉴权的无园区核验路径，不能静默丢弃这些记录。保留的园区9001合成基线仍为10,000个目标，仅作基础数据库验证。
 
 通用来源增量随后在暂停其他测试worker的独占窗口迁入：SOURCE由26增至32列，RESOURCE由15增至18列；SUBJECT_ID改为256 BYTE，新增kind/type为64 BYTE。来源稳定唯一键加入SOURCE_KIND；pending索引加入SUBJECT_TYPE，auth索引加入SOURCE_KIND，另加按园区、类型、稳定键及状态定位的索引。新增身份字段使用普通STAFF/v0默认值，DEFAULT_ON_NULL=NO；旧SQL省略新列可继续写员工投影，新通用Mapper显式NULL仍拒绝。迁移前后两选择表各0行，保护基线不变；新4例与旧员工7例真实Oracle通过并清理自有数据。这只证明迁移后的旧员工SQL兼容，不允许旧无类型worker与新family混跑；须升级全部相关worker后才能启用新family。
 

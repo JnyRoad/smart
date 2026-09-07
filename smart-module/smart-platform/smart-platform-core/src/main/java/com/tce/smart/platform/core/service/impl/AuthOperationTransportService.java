@@ -85,7 +85,8 @@ public class AuthOperationTransportService {
   p.setDeviceId(t.getDeviceId());p.setSubjectId(t.getSubjectId());p.setSubjectType(t.getSubjectType());p.setAction(t.getAction());p.setResourceType(t.getResourceType());
   p.setServiceType(d.getResource().getServiceType());p.setCredentialChannel(d.getResource().getCredentialChannel());p.setCardNo(t.getSubjectId());p.setBadge(source.getBadge());p.setImageId(source.getImageId());p.setPersonSnapshot(source.getPersonSnapshot());
   if("ISC".equals(p.getAccessType())){List<String> identities=phases.knownPersons(p);require(identities.size()<=1,"ISC_IDENTITY_CONFLICT");if(!identities.isEmpty())p.setPersonId(identities.get(0));}
-  p.setStartTime(t.getValidFrom()==null?0L:t.getValidFrom().toEpochSecond(ZoneOffset.UTC));p.setOverTime(t.getValidTo()==null?0L:t.getValidTo().toEpochSecond(ZoneOffset.UTC));
+  require(t.getValidFrom()!=null&&t.getValidTo()!=null,"权限时间窗缺失");
+  p.setStartTime(t.getValidFrom().toEpochSecond(ZoneOffset.UTC));p.setOverTime(t.getValidTo().toEpochSecond(ZoneOffset.UTC));
   p.setChannelNo(device.getChannelNo());p.setPageNo(1);p.setCreateTime(now());p.setUpdateTime(now());
   require(p.getServiceType()!=null&&p.getServiceType().matches("[0-9]+"),"冻结业务类型缺失");
   if("ISC".equals(p.getAccessType())) {SmtIscDeviceTask task=iscTask(p);task.setId(IdWorker.getId());require(iscTasks.insert(task)==1,"ISC任务插入失败");p.setTaskId(String.valueOf(task.getId()));}
@@ -94,7 +95,7 @@ public class AuthOperationTransportService {
   if(!"READY".equals(prepared.getOutcome()))throw new WaitingForOwner(prepared.getOutcome());
   // 一个物理尝试覆盖全部共享来源，后续证据必须能逐来源核对同一真实attempt。
   for(SmtAuthSourceResource shared:contributions)if(!Objects.equals(shared.getSourceCoordId(),b.getSourceId())||!Objects.equals(shared.getRequestId(),b.getRequestId())) {
-   require(Objects.equals(shared.getResourceCoordId(),b.getResourceId())&&shared.getResourceGeneration()==b.getResourceGeneration(),"共享来源跨资源或代次");
+   require(Objects.equals(shared.getResourceCoordId(),b.getResourceId())&&Objects.equals(shared.getResourceGeneration(),b.getResourceGeneration()),"共享来源跨资源或代次");
    versions.bindAttempt(binding(shared,a.getId()));
   }
   require(phases.insert(p)==1,"阶段插入失败");return p;

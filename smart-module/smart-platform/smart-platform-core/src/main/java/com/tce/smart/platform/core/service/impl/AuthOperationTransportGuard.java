@@ -26,7 +26,8 @@ public class AuthOperationTransportGuard {
    parks=jdbc.queryForList("SELECT DISTINCT PARK_ID FROM (SELECT PARK_ID FROM SMT_AUTH_TRANSPORT_PHASE WHERE DEVICE_ID=? UNION SELECT PARK_ID FROM SMT_AUTH_RESOURCE_COORD WHERE DEVICE_ID=? UNION SELECT PARK_ID FROM SMT_TASK_DOWN_RECORD WHERE DEVICE_CODE=? UNION SELECT PARK_ID FROM SMT_ISC_DOWN_RECORD WHERE DEVICE_CODE=?) WHERE PARK_ID IS NOT NULL AND ROWNUM<=2",Integer.class,device,device,device,device);
    if(parks.size()!=1){review(null,"SOURCE",device,card,"LEGACY_PARK_OWNERSHIP_UNKNOWN");return true;}
   }
-  int park=parks.get(0);
+	Integer park=parks.get(0);
+	if(park==null||park<=0){review(null,"SOURCE",device,card,"LEGACY_PARK_OWNERSHIP_UNKNOWN");return true;}
   boolean protectedPark=properties.enabledForPark(park)||jdbc.queryForObject("SELECT (SELECT COUNT(*) FROM SMT_AUTH_SELECTION_SOURCE WHERE PARK_ID=?)+(SELECT COUNT(*) FROM SMT_AUTH_SOURCE_COORD WHERE PARK_ID=?)+(SELECT COUNT(*) FROM SMT_AUTH_TRANSPORT_PHASE WHERE PARK_ID=?) FROM DUAL",Integer.class,park,park,park)>0;
   if(!protectedPark)return false;
   review(park,"SOURCE",device,card,"LEGACY_SOURCE_SNAPSHOT_MISSING");return true;

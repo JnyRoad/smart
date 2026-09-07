@@ -13,6 +13,18 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.*;
 
 public class SmtOrganizeRelationServiceImplTest {
+	@Test public void reliableRejectionKeepsOrganizationAccessUnchanged() {
+		for(Class<?> type:Arrays.asList(SmtStaff.class,SmtOrganizeAccess.class,SmtOrganizeRelation.class))TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(),""),type);
+		SmtOrganizeRelationServiceImpl service=Mockito.spy(new SmtOrganizeRelationServiceImpl());
+		EmployeeAuthOperationAdapter adapter=Mockito.mock(EmployeeAuthOperationAdapter.class);Mockito.when(adapter.isEnabled()).thenReturn(true);Mockito.when(adapter.organizationDiff(Mockito.anyList(),Mockito.anyList(),Mockito.anyList(),Mockito.anyInt())).thenReturn(false);
+		SmtOrganizeAccessService accesses=Mockito.mock(SmtOrganizeAccessService.class);Mockito.when(accesses.list(Mockito.any())).thenReturn(Collections.emptyList());
+		SmtStaffService staff=Mockito.mock(SmtStaffService.class);SmtStaff person=new SmtStaff();person.setId(10L);Mockito.when(staff.list(Mockito.any())).thenReturn(Collections.singletonList(person));
+		SmtOrganizeRelation relation=new SmtOrganizeRelation();relation.setId(7L);relation.setParkId(1);Mockito.doReturn(relation).when(service).getById(7L);
+		ReflectionTestUtils.setField(service,"employeeAuthOperationAdapter",adapter);ReflectionTestUtils.setField(service,"organizeAccessService",accesses);ReflectionTestUtils.setField(service,"staffService",staff);
+		Assert.assertFalse(ReflectionTestUtils.invokeMethod(service,"authAccess",Collections.singletonList(9),relation));
+		Mockito.verify(accesses,Mockito.never()).delByOrgId(7L);Mockito.verify(accesses,Mockito.never()).saveBatch(Mockito.anyCollection());
+	}
+
  @Test public void organizationGateRunsBeforeStaffUpdateAcquiresRows() {
   for(Class<?> type:Arrays.asList(SmtStaff.class,SmtOrganizeAccess.class,SmtOrganizeRelation.class))TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(),""),type);
   SmtOrganizeRelationServiceImpl service=Mockito.spy(new SmtOrganizeRelationServiceImpl());

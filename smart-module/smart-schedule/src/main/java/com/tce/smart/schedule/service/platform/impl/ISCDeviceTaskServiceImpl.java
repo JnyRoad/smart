@@ -1848,13 +1848,10 @@ public class ISCDeviceTaskServiceImpl implements ISCDeviceTaskService {
 		if (CollUtil.isEmpty(taskList)) {
 			return;
 		}
-		Integer fallbackParkId = taskList.get(0).getParkId();
 		for (SmtIscDeviceTask task : taskList) {
-			IscAuthItemPresence presence = queryIscAuthItemPresence(task, fallbackParkId);
 			// 平台侧total/list无法证明权限已经到达目标终端，ADD和DEL均须等待可信设备结果。
 			markDownloadTaskForRetry(task, ISCDeviceTaskEnum.AUTH_CONFIG_DOWN_FAIL, retryRemark);
-			log.info("新增权限下载任务[{}]复查ISC权限项结果为{}，仅作核验线索，仍等待设备确认并保留重试，taskId：{}",
-					task.getId(), presence, taskId);
+			log.info("新增权限下载任务[{}]等待设备确认并保留重试，taskId：{}", task.getId(), taskId);
 		}
 	}
 

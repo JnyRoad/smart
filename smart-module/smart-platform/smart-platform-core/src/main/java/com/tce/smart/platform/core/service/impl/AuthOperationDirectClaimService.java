@@ -20,7 +20,7 @@ public class AuthOperationDirectClaimService {
   require(phases!=null&&!phases.isEmpty()&&phases.size()<=200,"DIRECT_CLAIM_BATCH_LIMIT");
   SortedMap<String,SmtAuthDirectClaim> all=new TreeMap<>();
   for(SmtAuthTransportPhase supplied:phases){require(supplied!=null&&supplied.getId()!=null,"DIRECT_CLAIM_PHASE_UNVERIFIED");
-   SmtAuthTransportPhase p=mapper.phase(supplied.getId());require(p!=null&&sameProjection(p,supplied),"DIRECT_CLAIM_PHASE_UNVERIFIED");require(p!=null&&p.getId()!=null&&"DIRECT".equals(p.getAccessType())&&"DIRECT_SEND".equals(p.getPhase())&&Arrays.asList("PREPARED","INTENT","UNKNOWN","ACCEPTED","FINISHED").contains(p.getState()),"DIRECT_CLAIM_PHASE_UNVERIFIED");
+   SmtAuthTransportPhase p=mapper.phase(supplied.getId());require(p!=null&&sameProjection(p,supplied),"DIRECT_CLAIM_PHASE_UNVERIFIED");require(p!=null&&p.getId()!=null&&p.getDeviceId()!=null&&"DIRECT".equals(p.getAccessType())&&"DIRECT_SEND".equals(p.getPhase())&&Arrays.asList("PREPARED","INTENT","UNKNOWN","ACCEPTED","FINISHED").contains(p.getState()),"DIRECT_CLAIM_PHASE_UNVERIFIED");
    Credential c=AuthTransportCredentials.fromPhase(p);String card=AuthTransportCredentials.card(c);require(card.matches("0|[1-9][0-9]{0,30}"),"DIRECT_CARD_FORMAT_UNVERIFIED");String plate=c instanceof VehicleCredential?((VehicleCredential)c).getPlate():null;
    if(plate!=null)require(plate.equals(plate.trim())&&!java.util.regex.Pattern.compile("[a-z\\s]").matcher(plate).find(),"DIRECT_PLATE_FORMAT_UNVERIFIED");
    String wire=hash(tuple("DIRECT_WIRE_V1",c instanceof VehicleCredential?"VEHICLE":"PERSON",card,plate==null?"":plate));

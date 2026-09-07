@@ -142,18 +142,27 @@ public class SmtTaskDownRecordServiceImpl extends ServiceImpl<SmtTaskDownRecordM
 
  /** 已通过目标版本门禁，只维护精确物理记录，业务来源由工作流最终收敛。 */
  private void handleVersionRecord(SmtDeviceTask task,com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+	int serviceType=serviceType(phase);
+	if(!"DELETE".equals(phase.getAction()))requireWindow(phase);
   LambdaQueryWrapper<SmtTaskDownRecord> query=new LambdaQueryWrapper<SmtTaskDownRecord>()
    .eq(SmtTaskDownRecord::getParkId,phase.getParkId()).eq(SmtTaskDownRecord::getDeviceCode,phase.getDeviceId())
    .eq(SmtTaskDownRecord::getCardNo,phase.getCardNo()).eq(SmtTaskDownRecord::getDeviceType,1)
-   .eq(SmtTaskDownRecord::getServiceType,Integer.valueOf(phase.getServiceType()));
+   .eq(SmtTaskDownRecord::getServiceType,serviceType);
   SmtTaskDownRecord old=this.getOne(query);if(old!=null)removeRecordOrThrow(old);
   if("DELETE".equals(phase.getAction()))return;
   SmtTaskDownRecord record=new SmtTaskDownRecord();record.setParkId(phase.getParkId());record.setDeviceCode(phase.getDeviceId());
-  record.setCardNo(phase.getCardNo());record.setDeviceType(1);record.setServiceType(Integer.valueOf(phase.getServiceType()));
+  record.setCardNo(phase.getCardNo());record.setDeviceType(1);record.setServiceType(serviceType);
   record.setTaskId(Integer.valueOf(phase.getTaskId()));record.setImageId(phase.getImageId());
   record.setStartTime(DateUtil.date(phase.getStartTime()*1000));record.setOverTime(DateUtil.date(phase.getOverTime()*1000));
   record.setAction(DeviceTaskActionEnum.DOWN.getCode());record.setTaskType(DeviceTaskStatusEnum.SUCCESS.getCode());
   record.setCreateTime(LocalDateTime.now());record.setRemark("");
   if(!this.save(record))throw new IllegalStateException("冻结下发记录保存失败");
  }
+	private static int serviceType(com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+		try { return Integer.parseInt(phase.getServiceType()); }
+		catch (RuntimeException invalid) { throw new IllegalArgumentException("冻结业务类型无效", invalid); }
+	}
+	private static void requireWindow(com.tce.smart.platform.core.entity.SmtAuthTransportPhase phase) {
+		if (phase.getStartTime()==null || phase.getOverTime()==null) throw new IllegalArgumentException("冻结有效期缺失");
+	}
 }

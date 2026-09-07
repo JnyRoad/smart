@@ -95,8 +95,8 @@ public class EmployeeAuthOperationService extends AuthSelectionService {
      SmtAuthSelectionResource rr=freeze(r,batch,sourceOrdinal,++ordinal);resources.add(rr);
     }
    }
-   for(List<SmtAuthSelectionSource> part:parts(sourceRows,200))mapper.insertSources(part);
-   for(List<SmtAuthSelectionResource> part:parts(resources,200))mapper.insertResources(part);
+   for(List<SmtAuthSelectionSource> part:parts(sourceRows,200))require(mapper.insertSources(part)==part.size(),"冻结来源写入不完整");
+   for(List<SmtAuthSelectionResource> part:parts(resources,200))require(mapper.insertResources(part)==part.size(),"冻结资源写入不完整");
    batches.computeIfAbsent(park,k->new ArrayList<>()).add(batch);
    if(selected.stream().anyMatch(EmployeeAuthOperationService::requiresReview))require(mapper.markVerification(batch,selected.stream().map(Source::getVerificationReason).filter(Objects::nonNull).flatMap(r->Arrays.stream(r.split(";"))).distinct().sorted().collect(Collectors.joining(";")))==1,"隔离核验状态未落库");
   }

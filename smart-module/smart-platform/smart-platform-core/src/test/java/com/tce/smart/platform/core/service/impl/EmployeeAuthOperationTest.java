@@ -105,6 +105,7 @@ public class EmployeeAuthOperationTest {
  @Test public void acceptanceReturnsEveryParkAndFreezesWithoutExpandingTasks() {
   Mockito.when(mapper.lockSubjects(Mockito.anyList())).thenReturn(Collections.singletonList(10L));
   Mockito.when(workflow.acceptWithinTransaction(Mockito.any())).thenAnswer(call->{Selection selected=call.getArgument(0);return AuthOperationBatchResult.builder().batchId(selected.getParkId().longValue()+100).build();});
+	 Mockito.when(mapper.insertSources(Mockito.anyList())).thenAnswer(call->((List<?>)call.getArgument(0)).size());Mockito.when(mapper.insertResources(Mockito.anyList())).thenAnswer(call->((List<?>)call.getArgument(0)).size());
   Accepted accepted=service.accept("all-parks",Arrays.asList(source(1,Collections.singletonList(resource(1))),source(2,Collections.singletonList(resource(2)))),new HashSet<>(Arrays.asList(1,2)));
   Assert.assertEquals(Collections.singletonList(101L),accepted.getBatches().get(1));Assert.assertEquals(Collections.singletonList(102L),accepted.getBatches().get(2));
   Mockito.verify(mapper,Mockito.times(2)).insertSources(Mockito.anyList());Mockito.verify(mapper,Mockito.times(2)).insertResources(Mockito.anyList());
@@ -156,6 +157,7 @@ public class EmployeeAuthOperationTest {
  }
  private void prepareReviewAcceptance() {
   Mockito.when(mapper.lockSubjects(Mockito.anyList())).thenAnswer(i->i.getArgument(0));
+	 Mockito.when(mapper.insertSources(Mockito.anyList())).thenAnswer(call->((List<?>)call.getArgument(0)).size());Mockito.when(mapper.insertResources(Mockito.anyList())).thenAnswer(call->((List<?>)call.getArgument(0)).size());
   Mockito.when(mapper.markVerification(Mockito.anyLong(),Mockito.anyString())).thenReturn(1);
   final long[] id={100};Mockito.when(workflow.acceptWithinTransaction(Mockito.any())).thenAnswer(i->AuthOperationBatchResult.builder().batchId(++id[0]).build());
  }

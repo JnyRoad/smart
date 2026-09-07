@@ -113,6 +113,20 @@ public class AuthOperationManagementActionTest {
 	}
 
 	@Test
+	public void duplicateTargetsAreRejectedBeforeAnyRetryIsApplied() {
+		login(76, Collections.singletonList(17), "platform_auth_operation_retry");
+		AuthOperationRetryRequest request = new AuthOperationRetryRequest();
+		request.setIdempotencyKey("duplicate-target");
+		request.setReasonText("同一目标不能在一次重试中重复执行");
+		AuthOperationRetryItem first = retryItem("1");
+		request.setTargets(Arrays.asList(first, retryItem("2"), retryItem("2")));
+
+		assertThatThrownBy(() -> service.retry(request)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("重复目标");
+		verifyZeroInteractions(governance);
+	}
+
+	@Test
 	public void duplicateKeyRaceIsReplayedThroughASecondCoreTransactionCall() {
 		login(75, Collections.singletonList(17), "platform_auth_operation_retry");
 		AuthOperationRetryRequest request = new AuthOperationRetryRequest();
@@ -143,5 +157,12 @@ public class AuthOperationManagementActionTest {
 		SmartUser user = new SmartUser(id, 1, "user-" + id, parks, "pwd", true, true, true, true, authorities);
 		SecurityContextHolder.getContext().setAuthentication(
 				new UsernamePasswordAuthenticationToken(user, "pwd", authorities));
+	}
+
+	private static AuthOperationRetryItem retryItem(String targetId) {
+		AuthOperationRetryItem item = new AuthOperationRetryItem();
+		item.setTargetId(targetId); item.setExpectedOperationVersion("1"); item.setExpectedAttemptId("1");
+		item.setExpectedAttemptNo(1); item.setExpectedState("EXECUTING");
+		return item;
 	}
 }

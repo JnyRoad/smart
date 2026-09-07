@@ -97,7 +97,7 @@ public class AuthOperationJvmRecoveryWorker extends AuthOperationCapacityTest {
         Map<String,Object> actual=conservation(false);Assert.assertEquals(m.get("selectionHash"),actual.get("selectionHash"));
         String evidence=value("SMART_AUTH_CRASH_PREVIOUS_HOOK","");if(!evidence.isEmpty()){
             Map<String,Object> h=JSONUtil.toBean(new String(Files.readAllBytes(Paths.get(evidence)),StandardCharsets.UTF_8),Map.class);Assert.assertEquals(nonce,h.get("nonce"));Assert.assertEquals(batch,((Number)h.get("batch")).longValue());
-            if(!"FINISH".equals(h.get("phase"))){long expected=((Number)h.get("AFTER".equals(h.get("side"))?"nextCursor":"previousCursor")).longValue();Assert.assertEquals("真实提交前回滚或提交后持久化",expected,selection.cursor(batch).longValue());}
+            if(!"FINISH".equals(h.get("phase"))){long expected=((Number)h.get("AFTER".equals(h.get("side"))?"nextCursor":"previousCursor")).longValue();Assert.assertEquals("真实提交前回滚或提交后持久化",expected,selection.cursor(batch));}
         }
         System.out.println("CRASH_RESUMED "+JSONUtil.toJsonStr(actual));
     }

@@ -236,7 +236,8 @@ public class AuthOperationTransportFacade {
  private static List<Long> ids(List<SmtAuthTransportPhase> phases){return phases.stream().map(SmtAuthTransportPhase::getId).collect(Collectors.toList());}
  private static boolean ok(Result<String> r){return r!=null&&r.isSuccess()&&present(r.getData());}
  private static String external(Result<String> r){return ok(r)?JSONUtil.parseObj(r.getData()).getStr("taskId"):null;}
- private static String iso(Long seconds){return Instant.ofEpochSecond(seconds==null?0:seconds).atOffset(ZoneOffset.ofHours(8)).toString();}
+ private static final java.time.format.DateTimeFormatter ISC_TIMESTAMP=java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+ private static String iso(Long seconds){require(seconds!=null,"权限时间窗缺失");return ISC_TIMESTAMP.format(Instant.ofEpochSecond(seconds).atOffset(ZoneOffset.ofHours(8)));}
  private static String random(){return UUID.randomUUID().toString().replace("-","");}
  private static boolean present(String s){return s!=null&&!s.trim().isEmpty();}
  private static String verificationReason(IllegalArgumentException e){String message=String.valueOf(e.getMessage());
