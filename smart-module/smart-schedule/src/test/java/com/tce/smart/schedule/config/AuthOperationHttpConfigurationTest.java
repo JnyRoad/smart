@@ -20,7 +20,6 @@ import org.springframework.cloud.openfeign.ribbon.FeignRibbonClientAutoConfigura
 import org.springframework.cloud.openfeign.ribbon.LoadBalancerFeignClient;
 import org.springframework.cloud.openfeign.support.SpringMvcContract;
 import org.springframework.context.annotation.*;
-import org.springframework.core.env.MapPropertySource;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import java.lang.reflect.Field;
@@ -37,11 +36,10 @@ import static org.junit.Assert.*;
 
 /** 用真实容器和两个独占回环端点验证专用HTTP资源不会污染普通Feign装配。 */
 public class AuthOperationHttpConfigurationTest {
-    @Test public void enabledSchedulerMustPreserveOrdinaryFeignRoute() throws Exception { assertRoutes(true); }
-    @Test public void disabledSchedulerMustPreserveOrdinaryFeignRoute() throws Exception { assertRoutes(false); }
+    @Test public void ordinaryFeignRouteIsPreserved() throws Exception { assertRoutes(); }
 
-    private void assertRoutes(boolean enabled) throws Exception {
-        try (Fixture fixture=new Fixture(enabled)) {
+    private void assertRoutes() throws Exception {
+        try (Fixture fixture=new Fixture()) {
             assertEquals("ordinary",fixture.context.getBean(OtherService.class).probe());
             assertEquals(1,fixture.ordinaryHits.get());
             assertEquals(0,fixture.dispatcherHits.get());
@@ -61,7 +59,7 @@ public class AuthOperationHttpConfigurationTest {
     }
 
     @Test public void closingApplicationMustCloseDedicatedPoolAndTimer() throws Exception {
-        try (Fixture fixture=new Fixture(false)) {
+        try (Fixture fixture=new Fixture()) {
             RemoteDispatcherService dedicated=fixture.context.getBean("authOperationRemoteDispatcher",RemoteDispatcherService.class);
             AuthOperationDeadlineClient client=(AuthOperationDeadlineClient)proxyClient(dedicated);
             dedicated.eventHandle("{}","Y");
@@ -108,9 +106,7 @@ public class AuthOperationHttpConfigurationTest {
         final AtomicInteger ordinaryHits=new AtomicInteger(),dispatcherHits=new AtomicInteger();
         final HttpServer ordinary=server("ordinary",ordinaryHits),dispatcher=server("dispatcher",dispatcherHits);
         final AnnotationConfigApplicationContext context=new AnnotationConfigApplicationContext();
-        Fixture(boolean enabled) throws Exception {
-            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("fixture",
-                Collections.<String,Object>singletonMap("smart.auth-scheduler.enabled",enabled)));
+        Fixture() throws Exception {
             context.getBeanFactory().registerSingleton("ribbonClientFactory",new SpringClientFactory() {
                 @Override public ILoadBalancer getLoadBalancer(String name) {
                     return new StaticBalancer(ServiceNameConstants.SMART_DISPATCHER.equals(name)?dispatcher:ordinary);

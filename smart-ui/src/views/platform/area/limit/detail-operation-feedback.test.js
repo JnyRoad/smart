@@ -235,7 +235,7 @@ describe.each([
     await wrapper.vm.handleDelBatch()
     expect(api.batchDel).toHaveBeenCalledWith({
       authId: 'authority-002',
-      type: '2',
+      type: pageName === '人员权限明细' ? '1' : '2',
       delIds: ['new-relation']
     })
 

@@ -117,6 +117,7 @@ public abstract class AuthTransportPhysicalSettlementFixture {
 
     @After public void cleanup() {
         if(jdbc==null)return;
+        try {
         jdbc.update("DELETE FROM SMT_AUTH_SCHEDULER_JOB WHERE INSTANCE_ID=?","capacity-"+park);
         jdbc.update("DELETE FROM SMT_AUTH_SCHEDULER_ROUTE WHERE INSTANCE_ID=?","capacity-"+park);
         jdbc.update("DELETE FROM SMT_AUTH_SCHEDULER_QUOTA WHERE INSTANCE_ID=?","capacity-"+park);
@@ -148,7 +149,7 @@ public abstract class AuthTransportPhysicalSettlementFixture {
         jdbc.update("DELETE FROM SMT_AUTH_DELETE_REQUEST WHERE PARK_ID=?",park);
         jdbc.update("DELETE FROM SMT_AUTH_WORKFLOW_SHARD WHERE BATCH_ID IN (SELECT ID FROM SMT_AUTH_OPERATION_BATCH WHERE PARK_ID=?)",park);
         jdbc.update("DELETE FROM SMT_AUTH_OPERATION_BATCH WHERE PARK_ID=?",park);
-        pool.close();
+        } finally { if(pool!=null)pool.close(); }
     }
 
     protected void ensureSelectionSchema() {

@@ -60,7 +60,7 @@ public class AuthOperationWorkflowOracleTest {
     @SuppressWarnings("unchecked") private <T> T proxy(T raw,DataSourceTransactionManager tm) {
         ProxyFactory p=new ProxyFactory(raw);p.setProxyTargetClass(true);p.addAdvice(new TransactionInterceptor(tm,new AnnotationTransactionAttributeSource()));return (T)p.getProxy();
     }
-    @AfterClass public static void close() { if(pool!=null)pool.close(); }
+    @AfterClass public static void close() { if(pool!=null){pool.close();pool=null;} }
     @After public void cleanup() {
         if(jdbc==null)return;
         jdbc.update("DELETE FROM SMT_AUTH_RESULT_EVENT WHERE TARGET_ID IN (SELECT ID FROM SMT_AUTH_OPERATION_TARGET WHERE PARK_ID=?)",park);

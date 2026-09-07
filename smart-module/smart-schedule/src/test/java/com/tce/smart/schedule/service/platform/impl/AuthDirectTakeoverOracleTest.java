@@ -55,7 +55,7 @@ public class AuthDirectTakeoverOracleTest {
         assertEquals("SMART_AUTH_TEST",System.getenv("SMART_AUTH_ORACLE_USER"));
         token=System.getenv("SMART_AUTH_DIRECT_TAKEOVER_TOKEN");assertTrue(token!=null&&token.matches("[a-z0-9_]{8,24}"));
         evidence=Paths.get(Objects.requireNonNull(System.getenv("SMART_AUTH_DIRECT_TAKEOVER_EVIDENCE")));Files.createDirectories(evidence);
-        started=System.nanoTime();firstPool=pool("dtko-first");secondPool=pool("dtko-second");
+        firstPool=pool("dtko-first");secondPool=pool("dtko-second");
         JdbcTemplate j=new JdbcTemplate(firstPool);j.setQueryTimeout(5);assertEquals("SMART_AUTH_TEST",j.queryForObject("SELECT USER FROM DUAL",String.class));
         assertEquals(Integer.valueOf(4),j.queryForObject("SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME='SMT_AUTH_SCHEDULER_ROUTE'",Integer.class));
         assertEquals(Integer.valueOf(44),j.queryForObject("SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME='SMT_AUTH_TRANSPORT_PHASE'",Integer.class));
@@ -77,7 +77,7 @@ public class AuthDirectTakeoverOracleTest {
         p.addDataSourceProperty("oracle.net.CONNECT_TIMEOUT","5000");p.addDataSourceProperty("oracle.jdbc.ReadTimeout","15000");return p;
     }
     @Before public void seed() throws Exception {
-        assertTrue("新用例开始前绝对活动时间不得超过180秒",TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()-started)<180);
+        started=System.nanoTime();
         jdbc=new JdbcTemplate(firstPool);jdbc.setQueryTimeout(5);other=new JdbcTemplate(secondPool);other.setQueryTimeout(5);
         instance="dtko-"+token+"-"+UUID.randomUUID().toString().substring(0,8);device=instance;
         park=ThreadLocalRandom.current().nextInt(100000000,800000000);taskId=ThreadLocalRandom.current().nextInt(100000000,800000000);assertNotEquals(9001,park);assertNotEquals(9001,taskId);

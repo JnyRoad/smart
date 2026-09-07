@@ -55,7 +55,7 @@ public abstract class AuthOperationSloFixture extends AuthOperationCapacityFixtu
   report.put("timerBoundary","real AuthOperationTimerTask invoked at fixed delay 1000ms; Spring annotation discovery not exercised");
   report.put("poolMaximum",4);report.put("budgets","production defaults unchanged");report.put("observations",observations);report.put("externalEvents",externalEvents);
   heapSampler=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"slo-memory-"+park));
-  heapSampler.scheduleWithFixedDelay(()->{maxHeap.accumulateAndGet(Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory(),Math::max);maxActive.accumulateAndGet(pool.getHikariPoolMXBean().getActiveConnections(),Math::max);maxPending.accumulateAndGet(pool.getHikariPoolMXBean().getThreadsAwaitingConnection(),Math::max);},0,100,TimeUnit.MILLISECONDS);
+  heapSampler.scheduleWithFixedDelay(()->{try{maxHeap.accumulateAndGet(Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory(),Math::max);if(pool!=null&&pool.getHikariPoolMXBean()!=null){maxActive.accumulateAndGet(pool.getHikariPoolMXBean().getActiveConnections(),Math::max);maxPending.accumulateAndGet(pool.getHikariPoolMXBean().getThreadsAwaitingConnection(),Math::max);}}catch(Throwable failure){asynchronousFailure.compareAndSet(null,failure);}},0,100,TimeUnit.MILLISECONDS);
  }
  private void discardBaseSeed() {
   // 固定容量基线尚无跳过 seed 的接口；仅移除该父夹具刚创建的六行业务前置，未创建任何可靠批次。

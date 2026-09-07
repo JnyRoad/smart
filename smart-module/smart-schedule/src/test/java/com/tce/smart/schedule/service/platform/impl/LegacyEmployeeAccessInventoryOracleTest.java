@@ -404,8 +404,15 @@ public class LegacyEmployeeAccessInventoryOracleTest {
 		String value = System.getenv(name);
 		Assert.assertNotNull(name + "必须由固定runner提供", value);
 		Path path = Paths.get(value);
-		Assert.assertTrue(name + "必须位于/private/tmp", path.toAbsolutePath().normalize().startsWith("/private/tmp/"));
+		Assert.assertTrue(name + "必须为绝对路径", path.isAbsolute());
+		Assert.assertTrue(name + "必须位于测试临时目录", path.toAbsolutePath().normalize().startsWith(testTempRoot()));
 		return path;
+	}
+
+	private static Path testTempRoot() {
+		String configured = System.getenv("SMART_AUTH_TEST_TMPDIR");
+		return Paths.get(configured == null || configured.trim().isEmpty() ? System.getProperty("java.io.tmpdir") : configured)
+				.toAbsolutePath().normalize();
 	}
 
 	private String awaitWaitEvidence(Path evidence, String clientIdentifier, long timeout, TimeUnit unit) throws Exception {

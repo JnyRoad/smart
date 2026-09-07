@@ -57,7 +57,7 @@ public class AuthOperationFairnessCapacityTest extends AuthOperationSloFixture {
    // 时延通过仅是局部证据，当前生产缺失的原始历史投递要求仍未验证。
    report.put("verdict","UNVERIFIED");report.put("completedEvidence","SC002 latency and maintenance contention only");
   }catch(Throwable failure){report.put("verdict","FAIL");report.put("failure",failure.getClass().getName()+": "+failure.getMessage());throw failure;}
-  finally {stopObserver();stopPipeline();if(requests!=null)Assert.assertTrue(requests.stop(35,TimeUnit.SECONDS));for(AuthOperationSloSamples.Sample sample:samples)if(sample.firstPhysical<0 || sample.returned<0)sample.timeout=true;report.put("fairnessMetric",AuthOperationSloSamples.fairness(samples,System.nanoTime()));writeReport();}
+  finally {stopObserver();stopPipeline();for(AuthOperationSloSamples.Sample sample:samples)if(sample.firstPhysical<0 || sample.returned<0)sample.timeout=true;report.put("fairnessMetric",AuthOperationSloSamples.fairness(samples,System.nanoTime()));writeReport();if(requests!=null)Assert.assertTrue(requests.stop(35,TimeUnit.SECONDS));}
  }
  private static long elapsed(long start){return TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-start);}
  private static void waitUntil(long planned) throws InterruptedException {long remaining;while((remaining=planned-System.nanoTime())>0)TimeUnit.NANOSECONDS.sleep(remaining);}

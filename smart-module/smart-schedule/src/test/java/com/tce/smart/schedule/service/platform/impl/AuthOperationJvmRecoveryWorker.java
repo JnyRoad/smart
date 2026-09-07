@@ -26,6 +26,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** SC004专用子JVM；进程终止由持有该进程句柄的父驱动执行，恢复绝不重新造数。 */
 public class AuthOperationJvmRecoveryWorker extends AuthOperationCapacityTest {
@@ -109,8 +110,8 @@ public class AuthOperationJvmRecoveryWorker extends AuthOperationCapacityTest {
             AuthOperationTransportFacade blocked=org.mockito.Mockito.mock(AuthOperationTransportFacade.class,call->{throw new AssertionError("EXPAND_ONLY驱动禁止调用发送接口");});
             java.lang.reflect.Method enqueue=AuthOperationScheduler.class.getDeclaredMethod("enqueue",AuthOperationSchedulerProperties.Instance.class,String.class,Integer.class);enqueue.setAccessible(true);
             expansionScheduler=new AuthOperationScheduler(settings,core,ledger,blocked,employee,service){@Override public void tick(){try{enqueue.invoke(this,i,"EXPAND",null);}catch(Exception e){throw new AssertionError(e);}}};expansionScheduler.start();AuthOperationTimerTask task=new AuthOperationTimerTask(expansionScheduler);
-            timer=Executors.newSingleThreadScheduledExecutor();timer.scheduleWithFixedDelay(()->{ticks.incrementAndGet();task.advance();},0,1,TimeUnit.SECONDS);
-            while("PREPARING".equals(jdbc.queryForObject("SELECT STATUS FROM SMT_AUTH_OPERATION_BATCH WHERE ID=?",String.class,batch))){budget();Thread.sleep(1000);}
+            AtomicReference<Throwable> tickFailure=new AtomicReference<>();timer=Executors.newSingleThreadScheduledExecutor();timer.scheduleWithFixedDelay(()->{ticks.incrementAndGet();try{task.advance();}catch(Throwable failure){tickFailure.compareAndSet(null,failure);throw new AssertionError(failure);}},0,1,TimeUnit.SECONDS);
+            while("PREPARING".equals(jdbc.queryForObject("SELECT STATUS FROM SMT_AUTH_OPERATION_BATCH WHERE ID=?",String.class,batch))){Throwable failure=tickFailure.get();if(failure!=null)throw new AssertionError("定时展开失败",failure);budget();Thread.sleep(1000);}
             stopExpansion();
         }
         Map<String,Object> result=conservation(true);result.putAll(base());result.put("result","EXPANSION_PROCESS_RECOVERY_COMPLETE_NOT_FULL_TIMER");result.put("resources",resourceSummary());atomic(directory.resolve("complete.json"),result);System.out.println("CRASH_COMPLETE "+JSONUtil.toJsonStr(result));

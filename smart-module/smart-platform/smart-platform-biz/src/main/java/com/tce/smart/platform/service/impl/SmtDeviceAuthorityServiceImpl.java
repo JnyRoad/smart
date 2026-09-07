@@ -68,7 +68,7 @@ import java.util.stream.Collectors;
 @Service
 @lombok.RequiredArgsConstructor
 public class SmtDeviceAuthorityServiceImpl extends ServiceImpl<SmtDeviceAuthorityMapper, SmtDeviceAuthority> implements SmtDeviceAuthorityService {
-	@org.springframework.beans.factory.annotation.Autowired
+	@org.springframework.beans.factory.annotation.Autowired(required=false)
 	private EmployeeAuthOperationAdapter employeeAuthOperationAdapter;
     @org.springframework.beans.factory.annotation.Autowired
     private EmployeeAuthIntakeService employeeAuthIntakeService;

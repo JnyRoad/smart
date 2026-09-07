@@ -64,7 +64,7 @@ public class DeviceTaskServiceImpl implements IDeviceTaskService {
             Decision d=transportGuard.admitLegacyDirect(task==null?null:task.getId(),identity);
             if(d!=null && d.legacyAllowed())return null;
             return Result.builder().code(DIRECT_REVIEW_CODE).msg(d==null?"DIRECT_GATE_UNAVAILABLE":d.getReason()).build();
-        } catch(RuntimeException unavailable) {return Result.builder().code(DIRECT_REVIEW_CODE).msg("DIRECT_GATE_UNAVAILABLE").build();}
+        } catch(RuntimeException unavailable) {log.warn("DIRECT 持久门禁校验异常，任务转人工复核 taskId={}",task==null?null:task.getId(),unavailable);return Result.builder().code(DIRECT_REVIEW_CODE).msg("DIRECT_GATE_UNAVAILABLE").build();}
     }
     /** 四个最终 HTTP 出口共用实际 wire 对照；准入事务已结束才允许外调。 */
     private Result dispatchLegacyGuarded(SmtDeviceTask task,DispatcherDTO<?> request) {

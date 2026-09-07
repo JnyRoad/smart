@@ -206,7 +206,7 @@ export default {
     },
     async handleDelBatch() {
       const elm = this.$createElement;
-      if (this.batchDeleting) return;
+      if (this.batchDeleting || this.clearing) return;
       if (this.deleteForm.delIds.length == 0) {
         this.$notify.error({
           title: "提示信息",
@@ -258,7 +258,7 @@ export default {
       }
     },
     async handleClear() {
-      if (this.clearing) return;
+      if (this.batchDeleting || this.clearing) return;
       const elm = this.$createElement;
       const context = this.operationContext();
       this.clearing = true;

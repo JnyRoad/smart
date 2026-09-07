@@ -210,7 +210,7 @@ public class LegacyEmployeeAccessInventoryServiceImpl implements LegacyEmployeeA
 		List<ReviewRow> rows;
 		if (scope.getScopeKind() == ScopeKind.PARK) {
 			if (!scope.hasPermission(PARK_REVIEW_PERMISSION)) throw new AccessDeniedException("无园区历史review权限");
-			if (scope.getAllowedParkIds().isEmpty()
+			if (scope.getAllowedParkIds() == null || scope.getAllowedParkIds().isEmpty()
 					|| scope.getAllowedParkIds().stream().anyMatch(item -> item == null || item <= 0)) {
 				throw new AccessDeniedException("缺少明确园区范围");
 			}

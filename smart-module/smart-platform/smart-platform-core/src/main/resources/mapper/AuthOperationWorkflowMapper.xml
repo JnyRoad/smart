@@ -49,7 +49,7 @@
       ORDER BY BINDING_REVISION) WHERE ROWNUM=1
   </select>
   <select id="sourceResource" resultType="string">
-    SELECT RESOURCE_COORD_ID FROM SMT_AUTH_SOURCE_RESOURCE WHERE SOURCE_COORD_ID=#{sourceId} AND SOURCE_GENERATION=#{generation} AND BINDING_REVISION=0 AND ROWNUM=1
+    SELECT RESOURCE_COORD_ID FROM (SELECT RESOURCE_COORD_ID FROM SMT_AUTH_SOURCE_RESOURCE WHERE SOURCE_COORD_ID=#{sourceId} AND SOURCE_GENERATION=#{generation} AND BINDING_REVISION=0 ORDER BY RESOURCE_COORD_ID) WHERE ROWNUM=1
   </select>
   <!-- 来源所有资源必须有当前代次的本地 record 完成证据；允许不同共享来源提供物理证据。 -->
   <select id="sourcePendingRecords" resultType="int">

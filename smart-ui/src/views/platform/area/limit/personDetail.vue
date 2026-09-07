@@ -331,8 +331,8 @@ export default {
         isCurrent: () => this.isOperationContextCurrent(context),
         send: (saved, key) => saved.kind === 'CLEAR_AUTHORITY'
           ? (key === undefined ? clearPersonWithReceipt(saved.authId) : clearPersonWithReceipt(saved.authId, key))
-          : (key === undefined ? batchDelPersonWithReceipt({ authId: saved.authId, type: context.type, delIds: saved.rowIds })
-            : batchDelPersonWithReceipt({ authId: saved.authId, type: 1, delIds: saved.rowIds }, key))
+          : (key === undefined ? batchDelPersonWithReceipt({ authId: saved.authId, type: '1', delIds: saved.rowIds })
+            : batchDelPersonWithReceipt({ authId: saved.authId, type: '1', delIds: saved.rowIds }, key))
       })
     },
     async retryPendingIntake() {

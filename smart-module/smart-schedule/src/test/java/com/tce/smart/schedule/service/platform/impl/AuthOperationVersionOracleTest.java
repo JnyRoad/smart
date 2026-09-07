@@ -85,7 +85,7 @@ public class AuthOperationVersionOracleTest {
     }
 
     @AfterClass
-    public static void closePool() { if(sharedDataSource!=null) sharedDataSource.close(); }
+    public static void closePool() { if(sharedDataSource!=null){sharedDataSource.close();sharedDataSource=null;} }
 
     @After
     public void cleanupOwnSyntheticPark() {

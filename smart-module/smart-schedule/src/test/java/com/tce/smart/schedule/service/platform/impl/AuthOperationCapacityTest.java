@@ -170,10 +170,18 @@ public class AuthOperationCapacityTest extends AuthOperationCapacityFixture {
             report.put("transportStates",jdbc.queryForList("SELECT PHASE,STATE,ERROR_CODE,COUNT(*) N FROM SMT_AUTH_TRANSPORT_PHASE WHERE PARK_ID=? GROUP BY PHASE,STATE,ERROR_CODE",park));
             report.put("measuredQueueWallMs",report.containsKey("pipelineMs")?report.get("pipelineMs"):report.get("confirmConvergeMs"));
             if("FAIL".equals(report.get("result")))report.put("failureInterpretation","DIAGNOSTIC_INCOMPLETE; compare configured rate floor and actual failed stage before attributing an implementation defect; no SLO or quota was changed");
-            Path destination=Paths.get("/private/tmp/smart-auth-012-capacity-report-"+park+".json");
-            Files.write(destination,cn.hutool.json.JSONUtil.toJsonPrettyStr(report).getBytes(StandardCharsets.UTF_8));
-            System.out.println("容量报告："+destination+" result="+report.get("result")+" stage="+report.get("stage"));
+            try {
+                Path root=reportRoot();Files.createDirectories(root);
+                Path destination=root.resolve("smart-auth-012-capacity-report-"+park+".json");
+                Files.write(destination,cn.hutool.json.JSONUtil.toJsonPrettyStr(report).getBytes(StandardCharsets.UTF_8));
+                System.out.println("容量报告："+destination+" result="+report.get("result")+" stage="+report.get("stage"));
+            } catch(Exception reportFailure) { System.err.println("容量报告写入失败："+reportFailure.getMessage()); }
         }
+    }
+
+    private static Path reportRoot() {
+        String configured=System.getenv("SMART_AUTH_TEST_TMPDIR");
+        return Paths.get(configured==null||configured.trim().isEmpty()?System.getProperty("java.io.tmpdir"):configured).toAbsolutePath().normalize();
     }
 
     /** 只核真实受理事务的冻结证据；不得展开、派发，也不得把诊断完成等同容量验收通过。 */
