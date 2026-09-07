@@ -88,6 +88,7 @@ public class AuthOperationCapacityTest extends AuthOperationCapacityFixture {
         report.put("targetCountInvariant",people*devices);
         report.put("configuredTheory",configuredTheory(targets,people,devices,action,access));
         report.put("environment","Oracle26ai23.26.3;2CPU;3GiB;pool4;controlledRemote;"+access+";noProductionDevice");
+        boolean primaryFailure=false;
         try {
             seed(people,devices,"ADD".equals(action));
             if("ISC".equals(access))seedIscHistory("ADD".equals(action));
@@ -155,7 +156,7 @@ public class AuthOperationCapacityTest extends AuthOperationCapacityFixture {
             }
             report.put("result",targets<10000?"PASS_PROBE_ONLY":"PASS_SINGLE_ACTION_"+access+"_SC003_REQUIRES_REQUEST_SAMPLES");
         } catch(Exception|AssertionError failure) {
-            report.put("failure",failure.getClass().getSimpleName()+": "+failure.getMessage());throw failure;
+            primaryFailure=true;report.put("failure",failure.getClass().getSimpleName()+": "+failure.getMessage());throw failure;
         } finally {
             sqlTiming.clearDeadline();
             stopTimerDriver();
@@ -175,7 +176,10 @@ public class AuthOperationCapacityTest extends AuthOperationCapacityFixture {
                 Path destination=root.resolve("smart-auth-012-capacity-report-"+park+".json");
                 Files.write(destination,cn.hutool.json.JSONUtil.toJsonPrettyStr(report).getBytes(StandardCharsets.UTF_8));
                 System.out.println("容量报告："+destination+" result="+report.get("result")+" stage="+report.get("stage"));
-            } catch(Exception reportFailure) { System.err.println("容量报告写入失败："+reportFailure.getMessage()); }
+            } catch(Exception reportFailure) {
+                System.err.println("容量报告写入失败："+reportFailure.getMessage());
+                if(!primaryFailure)throw new AssertionError("容量报告写入失败",reportFailure);
+            }
         }
     }
 

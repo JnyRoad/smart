@@ -26,11 +26,6 @@
               icon="el-icon-delete"
               @click="handleClear()"
             >清空权限</el-button>
-            <el-button
-              plain
-              icon="el-icon-time"
-              @click="operationProgressVisible = true"
-            >权限任务</el-button>
           </div>
         </div>
         <div class="form-outer">
@@ -56,7 +51,6 @@
         </avue-crud>
       </section>
     </el-scrollbar>
-    <AuthOperationProgress v-model="operationProgressVisible" />
   </div>
 </template>
 
@@ -64,13 +58,9 @@
 import { getDetailPage, delObj, batchDel, clearAll } from "@/api/platform/area/limit";
 import { tableOption } from "@/const/crud/platform/area/limit_vechile";
 import { mapGetters } from "vuex";
-import AuthOperationProgress from "./AuthOperationProgress";
 
 export default {
   name: "limit",
-  components: {
-    AuthOperationProgress
-  },
   data() {
     return {
       searchForm: {
@@ -92,7 +82,6 @@ export default {
         authId: "",
         type: ""
       },
-      operationProgressVisible: false,
       batchDeleting: false,
       clearing: false,
       routeContextVersion: 0,

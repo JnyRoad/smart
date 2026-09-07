@@ -152,7 +152,7 @@ describe.each([
     wrapper.destroy()
   })
 
-  it('提供“权限任务”入口并打开同一个可复用进度组件', async () => {
+  if (component === PersonDetail) it('提供“权限任务”入口并打开同一个可复用进度组件', async () => {
     const { wrapper } = mountPage(component)
     await flushPromises()
     const button = wrapper.findAll('button').wrappers.find(item => item.text() === '权限任务')
@@ -162,6 +162,16 @@ describe.each([
 
     expect(wrapper.vm.operationProgressVisible).toBe(true)
     expect(wrapper.findComponent({ name: 'AuthOperationProgress' }).props('value')).toBe(true)
+    wrapper.destroy()
+  })
+
+  if (component === VehicleDetail) it('旧车辆删除接口没有回执时不展示无法定位的权限任务面板', async () => {
+    const { wrapper } = mountPage(component)
+    await flushPromises()
+
+    expect(wrapper.findAll('button').wrappers.find(item => item.text() === '权限任务')).toBeUndefined()
+    expect(wrapper.findComponent({ name: 'AuthOperationProgress' }).exists()).toBe(false)
+    expect(wrapper.vm.operationProgressVisible).toBeUndefined()
     wrapper.destroy()
   })
 

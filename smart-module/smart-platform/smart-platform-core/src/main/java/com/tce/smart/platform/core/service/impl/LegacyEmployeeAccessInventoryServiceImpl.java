@@ -140,9 +140,13 @@ public class LegacyEmployeeAccessInventoryServiceImpl implements LegacyEmployeeA
 		if (page == null || page.getRows() == null || page.getRows().size() > MAX_PAGE_SIZE
 				|| !Objects.equals(page.getRunId(), lease.getRunId()) || page.getFlowKind() != lease.getFlowKind()
 				|| page.getPass() != lease.getActivePass() || !Objects.equals(page.getExpectedCursor(), expected)
-				|| !Objects.equals(page.getNextCursor(), next) || page.isPassExhausted() != passExhausted) {
+				|| page.isPassExhausted() != passExhausted) {
 			throw new IllegalArgumentException("提交页与领取的flow/pass/cursor不一致");
 		}
+		if (page.getRows().isEmpty() && !Objects.equals(expected, next)) {
+			throw new IllegalArgumentException("空页的next cursor必须等于expected cursor");
+		}
+		if (!Objects.equals(page.getNextCursor(), next)) throw new IllegalArgumentException("提交页与领取的flow/pass/cursor不一致");
 		String fingerprint = pageFingerprint(page.getRunId(), page.getFlowKind(), page.getPass(), expected,
 				page.getRows(), page.getSourceReadAt());
 		if (!Objects.equals(fingerprint, page.getPageFingerprint())) throw new IllegalArgumentException("提交页指纹不一致");

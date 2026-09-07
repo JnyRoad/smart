@@ -2149,7 +2149,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
   <dt>目标与验收标准</dt>
   <dd>
    <ol>
-    <li>每日 01:00 扫描 <code>endEffectTime &lt; 当天 00:00</code> 且未解密的供应商，对其名单人员：①未终态入厂申请单置终态（新增状态值「已作废-协议到期」或复用 2.6 作废态 + 原因）；②已下发权限经 5.8 请求化删除；③<strong>清理 <code>SMT_SUPPLIER_PERSON</code> 名单</strong>（软删）；④供应商标记「已解密/失效」并记录解密时间与原因。</li>
+    <li>每 30 分钟扫描 <code>endEffectTime &lt;= 当前时间</code> 且未解密的供应商，对其名单人员：①未终态入厂申请单置终态（新增状态值「已作废-协议到期」或复用 2.6 作废态 + 原因）；②已下发权限经 5.8 请求化删除；③<strong>清理 <code>SMT_SUPPLIER_PERSON</code> 名单</strong>（软删）；④供应商标记「已解密/失效」并记录解密时间与原因。</li>
     <li>任务幂等：重复执行不重复建删除请求、不重复通知。</li>
     <li>执行结果可查：每次运行写摘要（供应商数、单据数、request 数、失败数），失败进入 5.8 失败清单与告警。</li>
    </ol>
@@ -2160,14 +2160,14 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
     <li>DB：<code>SMT_SECURITYAREA_SUPPLIER</code> 加 <code>decrypt_status</code>（0 保密中 / 1 已解密）、<code>decrypt_time</code>、<code>decrypt_reason</code>（1 到期自动 / 2 人工提前）、<code>decrypt_user</code>；<code>SMT_SUPPLIER_PERSON</code> 依赖 3.3 的 <code>del_flag</code> 软删。</li>
     <li>platform 新增 <code>SecuritySupplierDecryptService.decrypt(supplierId, reason, operator)</code>（3.2 自动与 3.4 人工共用）：业务终态变更必须与可恢复的删除意图原子提交；权限删除通过 5.8 <code>AuthDeleteRequestService.submit(source=4)</code> 固定目标选择依据，后台分段创建设备任务并异步确认。供应商涉及大量人员/单据时也按持久批次分段推进，全部意图落库前不得将解密批次标为完成。</li>
     <li>访客权限的删除对象：按 <code>fellow.id</code> 定位已下发记录（<code>SmtDeviceTaskServiceImpl.delVisitorDeviceAuth :801</code> 的查询条件 <code>CARD_VISITOR/CARD_ADMITTANCE</code>、<code>CAR_VISITOR/CAT_ADMITTANCE</code> 可复用），但收敛与失败可见性走 5.8 的 request（访客侧「授权行」= 申请单 + fellow，request.auth_row_id 记 fellow.id、subject_type=3 访客）。</li>
-    <li>schedule：<code>PlatformTimerTask</code> 新增 <code>supplierDecryptTask()</code>（cron <code>0 0 1 * * ?</code>，新 <code>TimerTaskEnum.SUPPLIER_DECRYPT</code>），Feign 调 platform 内部端点 <code>@Inner POST /securityarea/supplier/decrypt/expired</code>。</li>
+    <li>schedule：<code>PlatformTimerTask</code> 新增 <code>supplierDecryptTask()</code>（cron <code>0 0/30 * * * ?</code>，新 <code>TimerTaskEnum.SUPPLIER_DECRYPT</code>），Feign 调 platform 内部端点 <code>@Inner POST /securityarea/supplier/decrypt/expired</code>。</li>
     <li>解密通知：复用批次 0 修好的供应商通知通道，向供应商联系人/园区管理员发「协议到期已解密」。</li>
    </ul>
   </dd>
   <dt>处理流程</dt>
   <dd>
    <ol>
-    <li>01:00 任务触发 → platform 查 <code>endEffectTime &lt; today AND decrypt_status = 0</code> 的供应商列表。</li>
+    <li>每 30 分钟任务触发 → platform 查 <code>endEffectTime &lt;= now AND decrypt_status = 0</code> 的供应商列表。</li>
     <li>逐供应商（独立事务，单个失败不影响其他）：查名单 idCard → 反查未终态申请单（主 + 随行）→ 单据置终态、写原因 → 对每个 fellow/车辆发起 5.8 删除 request → 名单软删 → 供应商置已解密。</li>
     <li>5.8 链路异步确认设备端删除；失败进入失败清单 + 告警。</li>
     <li>写运行摘要；发解密通知。</li>
@@ -2192,7 +2192,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
   <dt>测试与验证</dt>
   <dd>
    <ul>
-    <li>单测：到期边界（当天 00:00）；已解密不重复处理；单供应商异常不影响批次；名单软删后申请侧校验不命中。</li>
+    <li>单测：到期边界（<code>endEffectTime = now</code> 必须命中）；已解密不重复处理；单供应商异常不影响批次；名单软删后申请侧校验不命中。</li>
     <li>联调：造一个昨日到期供应商 + 2 名人员 + 1 张在途单 + 已下发权限 → 任务后：单据终态、request 生成、ISC 权限删除确认、名单不可见、供应商已解密、通知到达。</li>
     <li>回归：<code>supplierNotify</code> 通知任务不受影响；5.4 的 auth_type=2 员工权限删除与本任务互不干扰（对象不同：员工 vs 访客）。</li>
    </ul>
@@ -2201,7 +2201,7 @@ const strPath = window.location.origin + '/resource/bpacTemplates/red/' + templa
   <dd>
    <ul>
     <li>硬前置：5.8 已灰度通过并推广到「保密到期」入口；3.3 软删；缺陷③已修（通知通道可用）。</li>
-    <li>风险：到期当天仍在厂内的人员会被即时收权——需求已确认「协议到期即自动解密」，但建议任务时间选凌晨且通知提前（<code>supplierNotify</code> 的 days 配置）；历史上大量已到期供应商首次运行会集中处理，首跑前先出清单让需求方确认。</li>
+    <li>风险：到期人员会在下一次扫描（最长 30 分钟）进入收权链路——需求已确认「协议到期即自动解密」，应提前通知（<code>supplierNotify</code> 的 days 配置）；历史上大量已到期供应商首次运行会集中处理，首跑前先出清单让需求方确认。</li>
    </ul>
   </dd>
  </dl>

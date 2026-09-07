@@ -4,6 +4,12 @@ import com.tce.smart.platform.core.dto.authoperation.AuthOperationReceiptCommand
 import com.tce.smart.platform.core.entity.*;
 import org.junit.*;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
+
 /** 本条证据的可信门禁不能被目标既有 CONFIRMED 状态替代。 */
 public class AuthOperationWorkflowTest {
     private SmtAuthOperationTarget target() {
@@ -40,6 +46,16 @@ public class AuthOperationWorkflowTest {
         Assert.assertTrue(AuthOperationWorkflowService.trustedSuccess(e,t,a));
         Assert.assertFalse(AuthOperationWorkflowService.trustedSuccess(e.toBuilder().externalBatchId(null).build(),t,a));
         Assert.assertFalse(AuthOperationWorkflowService.trustedSuccess(e.toBuilder().externalBatchId("another").build(),t,a));
+    }
+
+    @Test public void liveClaimedAttemptsBlockReuseAndRetainedSettlement() throws Exception {
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream("mapper/AuthOperationWorkflowMapper.xml")) {
+            Assert.assertNotNull(input);
+            String mapperXml = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8)).lines()
+                .collect(Collectors.joining("\n"));
+            Assert.assertFalse(mapperXml.contains("A.STATUS!='CLAIMED'"));
+            Assert.assertTrue(mapperXml.contains("A.STATUS!='EXPIRED'"));
+        }
     }
 
 }

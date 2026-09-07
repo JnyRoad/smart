@@ -283,6 +283,24 @@ public class LegacyEmployeeAccessInventoryServiceTest {
 	}
 
 	@Test
+	public void emptyPageCannotAdvancePastThePersistedCursor() {
+		SmtAuthLegacyScanFlow flow = flow(FlowKind.DIRECT_DOWN, ScanPass.ID, 1L);
+		ScanLease lease = lease(flow);
+		when(mapper.lockFlow("run-1", "DIRECT_DOWN")).thenReturn(flow);
+		when(mapper.now()).thenReturn(NOW);
+		when(mapper.selectRawPage(anyString(), anyString(), anyLong(), anyLong(), nullable(LocalDateTime.class),
+				anyLong(), nullable(LocalDateTime.class), anyLong(), anyLong(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt()))
+				.thenReturn(Collections.emptyList());
+
+		RawPage page = service.readPage(lease, ScanPass.ID, lease.getCursor(), 200);
+		ScanCursor different = ScanCursor.builder().idLastId(1L).updateLastId(0L).revisitLastId(0L).build();
+
+		assertThatThrownBy(() -> service.commitPage(lease, lease.getCursor(), page, different, true))
+				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("空页的next cursor必须等于expected cursor");
+		verify(mapper, never()).completePass(anyString(), anyString(), anyString(), anyLong(), anyString(), anyString(), any(), any());
+	}
+
+	@Test
 	public void fabricatedEmptyPageCannotMarkPassDoneWhenTransactionalRecheckFindsRow() {
 		SmtAuthLegacyScanFlow flow = flow(FlowKind.DIRECT_DOWN, ScanPass.ID, 1L);
 		ScanLease lease = lease(flow);
